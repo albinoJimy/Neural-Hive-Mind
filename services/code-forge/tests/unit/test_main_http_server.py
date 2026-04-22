@@ -4,9 +4,10 @@ Testes para os endpoints HTTP principais do Code Forge.
 Cobre health, ready, metrics e outros endpoints fundamentais.
 """
 
-import pytest
-from unittest.mock import AsyncMock, MagicMock
 import os
+from unittest.mock import AsyncMock, MagicMock
+
+import pytest
 
 
 @pytest.fixture(autouse=True)
@@ -42,11 +43,11 @@ def mock_env_vars():
             os.environ[k] = v
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_health_endpoint(mock_env_vars):
     """Health check deve retornar status healthy."""
-    from src.api.http_server import create_app
     from fastapi.testclient import TestClient
+    from src.api.http_server import create_app
 
     app = create_app()
     client = TestClient(app)
@@ -59,11 +60,11 @@ async def test_health_endpoint(mock_env_vars):
     assert data["service"] == "code-forge"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_ready_endpoint_all_connected(mock_env_vars):
     """Readiness check deve retornar ready quando todas dependencias estao conectadas."""
-    from src.api.http_server import create_app
     from fastapi.testclient import TestClient
+    from src.api.http_server import create_app
 
     app = create_app()
 
@@ -89,11 +90,11 @@ async def test_ready_endpoint_all_connected(mock_env_vars):
     assert data["ready"] is True
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_ready_endpoint_missing_dependency(mock_env_vars):
     """Readiness check deve retornar not_ready quando dependencias obrigatorias faltam."""
-    from src.api.http_server import create_app
     from fastapi.testclient import TestClient
+    from src.api.http_server import create_app
 
     app = create_app()
 
@@ -116,11 +117,11 @@ async def test_ready_endpoint_missing_dependency(mock_env_vars):
     assert data["ready"] is False
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_ready_endpoint_optional_clients_disabled(mock_env_vars):
     """Readiness check deve aceitar clientes opcionais como disabled."""
-    from src.api.http_server import create_app
     from fastapi.testclient import TestClient
+    from src.api.http_server import create_app
 
     app = create_app()
 
@@ -154,11 +155,11 @@ async def test_ready_endpoint_optional_clients_disabled(mock_env_vars):
     assert data["dependencies"]["trivy"] == "disabled"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_metrics_endpoint(mock_env_vars):
     """Metrics endpoint deve retornar metricas Prometheus."""
-    from src.api.http_server import create_app
     from fastapi.testclient import TestClient
+    from src.api.http_server import create_app
 
     app = create_app()
     client = TestClient(app)
@@ -169,11 +170,11 @@ async def test_metrics_endpoint(mock_env_vars):
     assert response.headers["content-type"] == "text/plain; version=0.0.4; charset=utf-8"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_ready_endpoint_redis_health_check(mock_env_vars):
     """Readiness check deve verificar health do Redis."""
-    from src.api.http_server import create_app
     from fastapi.testclient import TestClient
+    from src.api.http_server import create_app
 
     app = create_app()
 
@@ -196,11 +197,11 @@ async def test_ready_endpoint_redis_health_check(mock_env_vars):
     assert data["dependencies"]["redis"] == "disconnected"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_ready_endpoint_s3_health_check(mock_env_vars):
     """Readiness check deve verificar health do S3 quando configurado."""
-    from src.api.http_server import create_app
     from fastapi.testclient import TestClient
+    from src.api.http_server import create_app
 
     app = create_app()
 
@@ -225,11 +226,11 @@ async def test_ready_endpoint_s3_health_check(mock_env_vars):
     assert data["dependencies"]["s3"] == "connected"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_ready_endpoint_without_s3(mock_env_vars):
     """Readiness check deve funcionar sem S3 configurado."""
-    from src.api.http_server import create_app
     from fastapi.testclient import TestClient
+    from src.api.http_server import create_app
 
     app = create_app()
 

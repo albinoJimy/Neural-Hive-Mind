@@ -1,14 +1,14 @@
 """Tests para modelos de aprovação."""
 
-import pytest
 from datetime import datetime, timedelta
+
 from src.models.approval import (
-    ApprovalStatus,
-    ApprovalType,
-    ApprovalRequest,
     ApprovalDecision,
     ApprovalMetrics,
     ApprovalPolicy,
+    ApprovalRequest,
+    ApprovalStatus,
+    ApprovalType,
 )
 
 
@@ -45,7 +45,7 @@ class TestApprovalRequest:
             type=ApprovalType.REQUIREMENT,
             title="Login Feature",
             description="Implementação de login",
-            requested_by="user@example.com"
+            requested_by="user@example.com",
         )
 
         assert request.id == "REQ-001"
@@ -57,11 +57,7 @@ class TestApprovalRequest:
     def test_create_full_request(self):
         """Cria solicitação completa."""
         expires_at = datetime.utcnow() + timedelta(hours=24)
-        context = {
-            "complexity": 3,
-            "priority": "high",
-            "is_critical": False
-        }
+        context = {"complexity": 3, "priority": "high", "is_critical": False}
 
         request = ApprovalRequest(
             id="REQ-002",
@@ -70,7 +66,7 @@ class TestApprovalRequest:
             description="Arquitetura de microsserviços",
             requested_by="architect@example.com",
             context=context,
-            expires_at=expires_at
+            expires_at=expires_at,
         )
 
         assert request.context["complexity"] == 3
@@ -89,7 +85,7 @@ class TestApprovalDecision:
             status=ApprovalStatus.APPROVED,
             confidence_score=0.9,
             reasoning="Solicitação bem estruturada",
-            approved_by="ai-gpt-4"
+            approved_by="ai-gpt-4",
         )
 
         assert decision.id == "DEC-001"
@@ -112,11 +108,7 @@ class TestApprovalMetrics:
 
     def test_calculate_approval_rate(self):
         """Calcula taxa de aprovação."""
-        metrics = ApprovalMetrics(
-            total_requests=100,
-            approved_requests=80,
-            rejected_requests=20
-        )
+        metrics = ApprovalMetrics(total_requests=100, approved_requests=80, rejected_requests=20)
 
         approval_rate = metrics.approved_requests / metrics.total_requests
         assert approval_rate == 0.8
@@ -128,9 +120,7 @@ class TestApprovalPolicy:
     def test_default_policy(self):
         """Cria política padrão."""
         policy = ApprovalPolicy(
-            id="default",
-            name="Política Padrão",
-            description="Política padrão do sistema"
+            id="default", name="Política Padrão", description="Política padrão do sistema"
         )
 
         assert policy.auto_approve_threshold == 0.8
@@ -148,7 +138,7 @@ class TestApprovalPolicy:
             auto_approve_threshold=0.95,
             auto_reject_threshold=0.1,
             require_human_for_critical=True,
-            max_auto_approve_complexity=2
+            max_auto_approve_complexity=2,
         )
 
         assert policy.auto_approve_threshold == 0.95

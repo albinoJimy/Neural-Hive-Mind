@@ -1,25 +1,23 @@
 """Unit tests para models."""
 
-import pytest
-from datetime import datetime, timezone
+from datetime import datetime
 from uuid import uuid4
 
+import pytest
 from src.models.hypothesis import (
     Hypothesis,
     HypothesisCreate,
-    HypothesisUpdate,
     HypothesisFilter,
-    HypothesisStatus,
     HypothesisPriority,
     HypothesisResults,
-    PyObjectId,
+    HypothesisStatus,
 )
 from src.models.hypothesis_version import HypothesisVersion, VersionDiff
 from src.models.workflow import (
-    HypothesisWorkflow,
-    WorkflowTransition,
-    TransitionError,
     HypothesisStatus as WorkflowStatus,
+    HypothesisWorkflow,
+    TransitionError,
+    WorkflowTransition,
 )
 
 
@@ -402,11 +400,25 @@ class TestHypothesisWorkflow:
 
     def test_get_next_suggested(self):
         """Testa sugestão de próximo estado."""
-        assert HypothesisWorkflow.get_next_suggested(WorkflowStatus.DRAFT) == WorkflowStatus.PROPOSED
-        assert HypothesisWorkflow.get_next_suggested(WorkflowStatus.PROPOSED) == WorkflowStatus.APPROVED
-        assert HypothesisWorkflow.get_next_suggested(WorkflowStatus.APPROVED) == WorkflowStatus.IN_TESTING
-        assert HypothesisWorkflow.get_next_suggested(WorkflowStatus.IN_TESTING) == WorkflowStatus.COMPLETED
-        assert HypothesisWorkflow.get_next_suggested(WorkflowStatus.COMPLETED) == WorkflowStatus.ACCEPTED
+        assert (
+            HypothesisWorkflow.get_next_suggested(WorkflowStatus.DRAFT) == WorkflowStatus.PROPOSED
+        )
+        assert (
+            HypothesisWorkflow.get_next_suggested(WorkflowStatus.PROPOSED)
+            == WorkflowStatus.APPROVED
+        )
+        assert (
+            HypothesisWorkflow.get_next_suggested(WorkflowStatus.APPROVED)
+            == WorkflowStatus.IN_TESTING
+        )
+        assert (
+            HypothesisWorkflow.get_next_suggested(WorkflowStatus.IN_TESTING)
+            == WorkflowStatus.COMPLETED
+        )
+        assert (
+            HypothesisWorkflow.get_next_suggested(WorkflowStatus.COMPLETED)
+            == WorkflowStatus.ACCEPTED
+        )
 
 
 class TestWorkflowTransition:

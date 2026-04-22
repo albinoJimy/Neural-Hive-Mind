@@ -12,7 +12,7 @@ Version: 1.0.0
 
 import collections
 import re
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Optional
 
 import structlog
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -259,7 +259,7 @@ OPINION_AVRO_SCHEMAS = {
 
 def get_opinion_json_schema(
     version: str = OPINION_SCHEMA_VERSION,
-) -> Optional[Dict[str, Any]]:
+) -> Optional[dict[str, Any]]:
     """
     Retorna o JSON Schema para uma versão específica de OpinionDocumentV2.
 
@@ -274,7 +274,7 @@ def get_opinion_json_schema(
 
 def get_opinion_avro_schema(
     version: str = OPINION_SCHEMA_VERSION,
-) -> Optional[Dict[str, Any]]:
+) -> Optional[dict[str, Any]]:
     """
     Retorna o Avro Schema para uma versão específica de OpinionDocumentV2.
 
@@ -290,19 +290,16 @@ def get_opinion_avro_schema(
 class PlanValidationError(ValueError):
     """Exceção base para erros de validação de plano cognitivo."""
 
-    pass
 
 
 class PlanVersionIncompatibleError(PlanValidationError):
     """Levantada quando a versão do plano não é suportada pelo especialista."""
 
-    pass
 
 
 class TaskDependencyError(PlanValidationError):
     """Levantada quando dependências de tarefas são inválidas (referências faltando, ciclos, etc)."""
 
-    pass
 
 
 class TaskSchema(BaseModel):
@@ -318,20 +315,20 @@ class TaskSchema(BaseModel):
     task_type: str = Field(..., description="Tipo da tarefa (ex: 'analysis', 'transformation')")
     name: Optional[str] = Field(None, description="Nome legível da tarefa")
     description: str = Field(..., description="Descrição da tarefa")
-    dependencies: List[str] = Field(
+    dependencies: list[str] = Field(
         default_factory=list,
         description="Lista de IDs de tarefas das quais esta tarefa depende",
     )
     estimated_duration_ms: Optional[int] = Field(
         None, description="Tempo estimado de execução em milissegundos"
     )
-    required_capabilities: List[str] = Field(
+    required_capabilities: list[str] = Field(
         default_factory=list, description="Capacidades de especialista requeridas"
     )
-    parameters: Dict[str, Any] = Field(
+    parameters: dict[str, Any] = Field(
         default_factory=dict, description="Parâmetros específicos da tarefa"
     )
-    metadata: Dict[str, Any] = Field(
+    metadata: dict[str, Any] = Field(
         default_factory=dict, description="Metadados adicionais da tarefa"
     )
 
@@ -353,7 +350,7 @@ class TaskSchema(BaseModel):
 
     @field_validator("dependencies")
     @classmethod
-    def validate_no_self_reference(cls, v: List[str], info) -> List[str]:
+    def validate_no_self_reference(cls, v: list[str], info) -> list[str]:
         """Garante que tarefa não dependa de si mesma."""
         # Nota: Não podemos verificar task_id aqui pois não está disponível no field validator
         # Verificação de auto-referência ocorre no validador de nível de plano
@@ -378,8 +375,8 @@ class CognitivePlanSchema(BaseModel):
     )
     trace_id: Optional[str] = Field(None, description="ID de trace OpenTelemetry")
     span_id: Optional[str] = Field(None, description="ID de span OpenTelemetry")
-    tasks: List[TaskSchema] = Field(..., description="Lista de tarefas no plano")
-    execution_order: Optional[List[str]] = Field(
+    tasks: list[TaskSchema] = Field(..., description="Lista de tarefas no plano")
+    execution_order: Optional[list[str]] = Field(
         None, description="Ordem explícita de execução das tarefas"
     )
     original_domain: str = Field(..., description="Domínio original da intenção")
@@ -396,7 +393,7 @@ class CognitivePlanSchema(BaseModel):
     complexity_score: Optional[float] = Field(
         None, description="Pontuação de avaliação de complexidade"
     )
-    metadata: Dict[str, Any] = Field(
+    metadata: dict[str, Any] = Field(
         default_factory=dict, description="Metadados adicionais do plano"
     )
 
@@ -419,7 +416,7 @@ class CognitivePlanSchema(BaseModel):
 
     @field_validator("tasks")
     @classmethod
-    def validate_has_tasks(cls, v: List[TaskSchema]) -> List[TaskSchema]:
+    def validate_has_tasks(cls, v: list[TaskSchema]) -> list[TaskSchema]:
         """Garante que o plano tem pelo menos uma tarefa."""
         if not v or len(v) == 0:
             raise ValueError("Plano deve conter pelo menos uma tarefa")
@@ -541,7 +538,7 @@ class CognitivePlanSchema(BaseModel):
             TaskDependencyError: Se um ciclo for detectado
         """
         # Constrói lista de adjacências (task_id -> lista de task_ids dependentes)
-        graph: Dict[str, List[str]] = {task.task_id: [] for task in self.tasks}
+        graph: dict[str, list[str]] = {task.task_id: [] for task in self.tasks}
         for task in self.tasks:
             for dep_id in task.dependencies:
                 # Aresta da dependência para a tarefa
@@ -551,7 +548,7 @@ class CognitivePlanSchema(BaseModel):
         WHITE, GRAY, BLACK = 0, 1, 2
         color = {task_id: WHITE for task_id in graph}
 
-        def dfs(node: str, path: List[str]) -> None:
+        def dfs(node: str, path: list[str]) -> None:
             """Visita DFS com detecção de ciclo."""
             if color[node] == GRAY:
                 # Encontrou aresta de retorno - ciclo detectado
@@ -620,7 +617,7 @@ class CognitivePlanSchema(BaseModel):
 # Funções auxiliares para validação de versão
 
 
-def parse_semver(version: str) -> Tuple[int, int, int]:
+def parse_semver(version: str) -> tuple[int, int, int]:
     """
     Analisa string de versão semver em tupla (major, minor, patch).
 
@@ -644,7 +641,7 @@ def parse_semver(version: str) -> Tuple[int, int, int]:
         raise ValueError(f"Formato semver inválido: {version}") from e
 
 
-def validate_plan_version(plan_version: str, supported_versions: List[str]) -> bool:
+def validate_plan_version(plan_version: str, supported_versions: list[str]) -> bool:
     """
     Verifica se a versão do plano está na lista de versões suportadas.
 
@@ -658,7 +655,7 @@ def validate_plan_version(plan_version: str, supported_versions: List[str]) -> b
     return plan_version in supported_versions
 
 
-def is_version_compatible(plan_version: str, supported_versions: List[str]) -> Tuple[bool, str]:
+def is_version_compatible(plan_version: str, supported_versions: list[str]) -> tuple[bool, str]:
     """
     Verifica se a versão do plano é compatível com as versões suportadas pelo especialista.
 

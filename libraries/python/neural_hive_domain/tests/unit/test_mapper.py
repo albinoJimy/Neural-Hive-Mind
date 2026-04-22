@@ -4,10 +4,10 @@ import pytest
 
 from neural_hive_domain.domain import UnifiedDomain
 from neural_hive_domain.mapper import (
-    DomainMapper,
-    VALID_SOURCES,
     VALID_LAYERS,
     VALID_PHEROMONE_TYPES,
+    VALID_SOURCES,
+    DomainMapper,
 )
 
 
@@ -17,12 +17,12 @@ class TestDomainMapperConstants:
     def test_valid_sources_defined(self):
         """VALID_SOURCES deve conter todas as fontes esperadas."""
         expected = {"intent_envelope", "scout_signal", "risk_scoring", "ontology"}
-        assert VALID_SOURCES == expected
+        assert expected == VALID_SOURCES
 
     def test_valid_layers_defined(self):
         """VALID_LAYERS deve conter todas as camadas esperadas."""
         expected = {"strategic", "exploration", "consensus", "specialist"}
-        assert VALID_LAYERS == expected
+        assert expected == VALID_LAYERS
 
     def test_valid_pheromone_types_defined(self):
         """VALID_PHEROMONE_TYPES deve conter todos os tipos esperados."""
@@ -35,7 +35,7 @@ class TestDomainMapperConstants:
             "CONFIDENCE",
             "RISK",
         }
-        assert VALID_PHEROMONE_TYPES == expected
+        assert expected == VALID_PHEROMONE_TYPES
 
 
 class TestDomainMapperNormalize:

@@ -10,18 +10,18 @@ E5: Validar restauração de SLA
 E6: Documentar lições aprendidas
 """
 
-import pytest
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock
 
-from src.services.threat_detector import ThreatDetector
+import pytest
 from src.services.incident_classifier import IncidentClassifier
+from src.services.incident_orchestrator import IncidentOrchestrator
 from src.services.policy_enforcer import PolicyEnforcer
 from src.services.remediation_coordinator import RemediationCoordinator
-from src.services.incident_orchestrator import IncidentOrchestrator
+from src.services.threat_detector import ThreatDetector
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_mongodb_client():
     """Mock MongoDB client"""
     client = MagicMock()
@@ -31,7 +31,7 @@ def mock_mongodb_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_redis_client():
     """Mock Redis client"""
     client = AsyncMock()
@@ -40,7 +40,7 @@ def mock_redis_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_k8s_client():
     """Mock Kubernetes client"""
     client = AsyncMock()
@@ -48,19 +48,19 @@ def mock_k8s_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def threat_detector(mock_redis_client):
     """Fixture do ThreatDetector"""
     return ThreatDetector(redis_client=mock_redis_client)
 
 
-@pytest.fixture
+@pytest.fixture()
 def incident_classifier(mock_mongodb_client):
     """Fixture do IncidentClassifier"""
     return IncidentClassifier(mongodb_client=mock_mongodb_client)
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_keycloak_client():
     """Mock Keycloak Admin client"""
     client = AsyncMock()
@@ -83,7 +83,7 @@ def mock_keycloak_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def policy_enforcer(mock_k8s_client, mock_redis_client, mock_keycloak_client, mock_mongodb_client):
     """Fixture do PolicyEnforcer com Keycloak Admin"""
     return PolicyEnforcer(
@@ -94,7 +94,7 @@ def policy_enforcer(mock_k8s_client, mock_redis_client, mock_keycloak_client, mo
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def remediation_coordinator(mock_k8s_client, mock_mongodb_client):
     """Fixture do RemediationCoordinator"""
     return RemediationCoordinator(
@@ -102,7 +102,7 @@ def remediation_coordinator(mock_k8s_client, mock_mongodb_client):
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def incident_orchestrator(
     threat_detector,
     incident_classifier,
@@ -121,7 +121,7 @@ def incident_orchestrator(
     )
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_e1_threat_detection_unauthorized_access(threat_detector):
     """Testa E1: Detecção de acesso não autorizado"""
     event = {
@@ -140,7 +140,7 @@ async def test_e1_threat_detection_unauthorized_access(threat_detector):
     assert anomaly["confidence"] >= 0.5
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_e1_threat_detection_dos_attack(threat_detector):
     """Testa E1: Detecção de ataque DoS"""
     event = {
@@ -157,7 +157,7 @@ async def test_e1_threat_detection_dos_attack(threat_detector):
     assert anomaly["severity"] == "critical"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_e1_threat_detection_resource_anomaly(threat_detector):
     """Testa E1: Detecção de anomalia de recursos"""
     event = {
@@ -176,14 +176,14 @@ async def test_e1_threat_detection_resource_anomaly(threat_detector):
     assert anomaly["threat_type"] == "resource_abuse"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_e2_incident_classification(incident_classifier):
     """Testa E2: Classificação de severidade e mapeamento a runbooks"""
     anomaly = {
         "threat_type": "unauthorized_access",
         "severity": "high",
         "confidence": 0.85,
-        "detected_at": datetime.now(timezone.utc).isoformat(),
+        "detected_at": datetime.now(UTC).isoformat(),
         "details": {"user_id": "user-123", "failed_attempts": 10},
         "raw_event": {},
     }
@@ -197,7 +197,7 @@ async def test_e2_incident_classification(incident_classifier):
     assert incident["runbook_id"].startswith("RB-")
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_e3_policy_enforcement(policy_enforcer):
     """Testa E3: Enforcement de políticas"""
     incident = {
@@ -214,7 +214,7 @@ async def test_e3_policy_enforcement(policy_enforcer):
     assert "actions" in enforcement_result
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_e4_remediation_coordination(remediation_coordinator):
     """Testa E4: Coordenação de remediação"""
     incident = {
@@ -235,7 +235,7 @@ async def test_e4_remediation_coordination(remediation_coordinator):
     assert "status" in remediation_result
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_full_incident_pipeline_e1_to_e6(incident_orchestrator):
     """Testa fluxo completo E1→E6 com incidente de segurança"""
     # Event de autenticação suspeita
@@ -290,7 +290,7 @@ async def test_full_incident_pipeline_e1_to_e6(incident_orchestrator):
     assert "duration_ms" in result
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_full_incident_pipeline_dos_attack(incident_orchestrator):
     """Testa fluxo completo E1→E6 com ataque DoS"""
     event = {
@@ -307,7 +307,7 @@ async def test_full_incident_pipeline_dos_attack(incident_orchestrator):
     assert result["e1_anomaly"]["severity"] == "critical"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_full_incident_pipeline_resource_abuse(incident_orchestrator):
     """Testa fluxo completo E1→E6 com abuso de recursos"""
     event = {
@@ -332,7 +332,7 @@ async def test_full_incident_pipeline_resource_abuse(incident_orchestrator):
     assert result["e1_anomaly"]["threat_type"] == "resource_abuse"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_no_incident_detected(incident_orchestrator):
     """Testa cenário onde nenhum incidente é detectado"""
     event = {
@@ -349,7 +349,7 @@ async def test_no_incident_detected(incident_orchestrator):
     assert "duration_ms" in result
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_sla_metrics_mttd_mttr(incident_orchestrator):
     """Testa métricas de SLA (MTTD e MTTR)"""
     event = {

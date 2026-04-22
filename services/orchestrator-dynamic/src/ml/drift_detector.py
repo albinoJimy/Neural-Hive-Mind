@@ -9,9 +9,9 @@ Implementa três tipos de drift:
 """
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
-UTC = timezone.utc  # type: ignore, timedelta
+UTC = UTC  # type: ignore, timedelta
 from typing import Any
 
 import numpy as np

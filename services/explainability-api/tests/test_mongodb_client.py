@@ -4,21 +4,21 @@ Testes unitários para MongoDBClient do Explainability API.
 EPIC-204-01: Modelo ML para SHAP
 """
 
-import pytest
-from unittest.mock import Mock, AsyncMock, patch
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+from unittest.mock import AsyncMock, Mock, patch
 
+import pytest
 from src.database.mongodb_client import MongoDBClient
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_motor_client():
     """Mock para AsyncIOMotorClient."""
     with patch("src.database.mongodb_client.AsyncIOMotorClient") as mock:
         yield mock
 
 
-@pytest.fixture
+@pytest.fixture()
 def mongo_client():
     """Fixture para MongoDBClient."""
     client = MongoDBClient(
@@ -27,7 +27,7 @@ def mongo_client():
     return client
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 class TestMongoDBClient:
     """Testes para MongoDBClient."""
 
@@ -61,14 +61,14 @@ class TestMongoDBClient:
                 "final_decision": "approve",
                 "aggregated_confidence": 0.8,
                 "aggregated_risk": 0.2,
-                "created_at": datetime.now(timezone.utc),
+                "created_at": datetime.now(UTC),
             },
             {
                 "decision_id": "decision_2",
                 "final_decision": "reject",
                 "aggregated_confidence": 0.3,
                 "aggregated_risk": 0.7,
-                "created_at": datetime.now(timezone.utc),
+                "created_at": datetime.now(UTC),
             },
         ]
 

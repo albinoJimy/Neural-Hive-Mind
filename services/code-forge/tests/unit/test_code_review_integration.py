@@ -8,18 +8,19 @@ Cobertura:
 - Status de review
 """
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 from src.services.code_review_integration import (
     CodeReviewClient,
     CodeReviewIntegration,
     GitProvider,
     ReviewStatus,
 )
-from src.types.artifact_types import ValidationResult, ValidationType, ValidationStatus
+from src.types.artifact_types import ValidationResult, ValidationStatus, ValidationType
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_httpx_client():
     """Fixture para cliente HTTPX mockado."""
     with patch("src.services.code_review_integration.httpx.AsyncClient") as mock:
@@ -77,7 +78,7 @@ class TestCodeReviewClientInit:
 class TestGitHubPullRequests:
     """Testes de criação de Pull Requests no GitHub."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_create_pr_basic(self, mock_httpx_client):
         """Testa criação básica de PR."""
         # Configurar mock
@@ -109,7 +110,7 @@ class TestGitHubPullRequests:
         assert result["pr_number"] == 123
         assert result["url"] == "https://github.com/owner/repo/pull/123"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_create_pr_with_labels(self, mock_httpx_client):
         """Testa criação de PR com labels."""
         mock_response = MagicMock()
@@ -139,7 +140,7 @@ class TestGitHubPullRequests:
 
         assert result["pr_number"] == 124
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_create_draft_pr(self, mock_httpx_client):
         """Testa criação de draft PR."""
         mock_response = MagicMock()
@@ -169,7 +170,7 @@ class TestGitHubPullRequests:
 
         assert result["draft"] is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_create_pr_wrong_provider(self):
         """Testa erro ao criar PR com provider errado."""
         client = CodeReviewClient(
@@ -189,7 +190,7 @@ class TestGitHubPullRequests:
 class TestGitLabMergeRequests:
     """Testes de criação de Merge Requests no GitLab."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_create_mr_basic(self, mock_httpx_client):
         """Testa criação básica de MR."""
         mock_response = MagicMock()
@@ -220,7 +221,7 @@ class TestGitLabMergeRequests:
         assert result["mr_number"] == 42
         assert result["web_url"] == "https://gitlab.com/group/project/-/merge_requests/42"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_create_mr_draft(self, mock_httpx_client):
         """Testa criação de draft MR."""
         mock_response = MagicMock()
@@ -249,7 +250,7 @@ class TestGitLabMergeRequests:
 
         assert result["draft"] is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_create_mr_wrong_provider(self):
         """Testa erro ao criar MR com provider errado."""
         client = CodeReviewClient(
@@ -369,7 +370,7 @@ class TestValidationComments:
         assert "#### SAST" in comment
         assert "#### LICENSE_CHECK" in comment
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_add_validation_comment_github(self, mock_httpx_client):
         """Testa adicionar comentário no GitHub."""
         mock_response = MagicMock()
@@ -398,7 +399,7 @@ class TestValidationComments:
 class TestReviewStatus:
     """Testes de status de review."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_approve_pull_request(self, mock_httpx_client):
         """Testa aprovação de PR."""
         mock_response = MagicMock()
@@ -426,7 +427,7 @@ class TestReviewStatus:
         assert result["state"] == "APPROVED"
         assert result["user"] == "code-forge"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_request_changes(self, mock_httpx_client):
         """Testa solicitação de mudanças."""
         mock_response = MagicMock()
@@ -457,7 +458,7 @@ class TestReviewStatus:
 class TestCodeReviewIntegration:
     """Testes de integração de Code Review."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_calculate_overall_status_all_passed(self):
         """Testa cálculo de status quando tudo passou."""
         integration = CodeReviewIntegration()
@@ -484,7 +485,7 @@ class TestCodeReviewIntegration:
 
         assert status == "approved"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_calculate_overall_status_critical_issues(self):
         """Testa cálculo de status com issues críticos."""
         integration = CodeReviewIntegration()
@@ -600,7 +601,7 @@ class TestEdgeCases:
 
         assert "No validations performed" in comment
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_close_client(self, mock_httpx_client):
         """Testa fechamento do cliente."""
         client = CodeReviewClient(

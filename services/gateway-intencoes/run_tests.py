@@ -9,9 +9,9 @@ This script provides different ways to run tests:
 - Code coverage reports
 """
 
-import sys
-import subprocess
 import argparse
+import subprocess
+import sys
 from pathlib import Path
 
 
@@ -20,7 +20,7 @@ def run_command(cmd: list, description: str) -> bool:
     print(f"\n=== {description} ===")
     print(f"Running: {' '.join(cmd)}")
 
-    result = subprocess.run(cmd, cwd=Path(__file__).parent)
+    result = subprocess.run(cmd, cwd=Path(__file__).parent, check=False)
     if result.returncode != 0:
         print(f"❌ {description} failed with exit code {result.returncode}")
         return False

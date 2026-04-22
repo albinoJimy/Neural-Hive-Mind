@@ -1,7 +1,7 @@
 """FastAPI HTTP server for health checks and API endpoints"""
 
-from datetime import datetime, timezone
-from typing import Dict, Optional
+from datetime import UTC, datetime
+from typing import Optional
 
 import structlog
 from fastapi import FastAPI, HTTPException, Query
@@ -25,7 +25,7 @@ app = FastAPI(
 )
 
 _engine: Optional[ExplorationEngine] = None
-_agent_start_time: datetime = datetime.now(timezone.utc)
+_agent_start_time: datetime = datetime.now(UTC)
 _agent_id: str = ""
 
 
@@ -42,7 +42,7 @@ async def health():
     return {
         "status": "healthy",
         "service": "scout-agents",
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
     }
 
 
@@ -61,7 +61,7 @@ async def readiness():
     return {
         "ready": True,
         "status": "ready",
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
         "agent_id": _agent_id,
     }
 
@@ -96,7 +96,7 @@ async def get_status():
         raise HTTPException(status_code=503, detail="Engine not initialized")
 
     settings = get_settings()
-    uptime = (datetime.now(timezone.utc) - _agent_start_time).total_seconds()
+    uptime = (datetime.now(UTC) - _agent_start_time).total_seconds()
     stats = _engine.get_stats()
 
     return {
@@ -110,7 +110,7 @@ async def get_status():
             "curiosity_threshold": settings.detection.curiosity_threshold,
             "confidence_threshold": settings.detection.confidence_threshold,
         },
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
     }
 
 
@@ -167,10 +167,10 @@ async def simulate_signal(
     try:
         # Create synthetic raw event
         raw_event = RawEvent(
-            event_id=f"sim_{datetime.now(timezone.utc).timestamp()}",
+            event_id=f"sim_{datetime.now(UTC).timestamp()}",
             event_type="metric",
             source="simulation",
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
             payload={"value": 42.5, "metric_name": "test_metric", "anomaly_factor": 2.5},
             metadata={"simulation": "true", "domain": domain.value},
         )
@@ -197,7 +197,7 @@ async def simulate_signal(
 
     except Exception as e:
         logger.error("signal_simulation_failed", error=str(e))
-        raise HTTPException(status_code=500, detail=f"Simulation failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Simulation failed: {e!s}")
 
 
 @app.exception_handler(Exception)
@@ -213,7 +213,7 @@ async def global_exception_handler(request, exc):
 # Exploration Endpoints
 # ========================================================================
 
-_explorations: Dict[str, Dict] = {}  # exploration_id -> exploration_data
+_explorations: dict[str, dict] = {}  # exploration_id -> exploration_data
 
 
 @app.get("/api/v1/explorations")
@@ -281,7 +281,7 @@ async def cancel_exploration(exploration_id: str):
 
     # Marcar como cancelada
     exploration["status"] = "cancelled"
-    exploration["cancelled_at"] = datetime.now(timezone.utc).isoformat()
+    exploration["cancelled_at"] = datetime.now(UTC).isoformat()
 
     logger.info("exploration_cancelled", exploration_id=exploration_id)
 
@@ -396,7 +396,7 @@ async def list_patterns(
 
     except Exception as e:
         logger.error("pattern_list_failed", error=str(e))
-        raise HTTPException(status_code=500, detail=f"Failed to list patterns: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to list patterns: {e!s}")
 
 
 # ========================================================================
@@ -431,7 +431,7 @@ async def detect_signals(
 
     except Exception as e:
         logger.error("signal_detection_failed", directory=directory, error=str(e))
-        raise HTTPException(status_code=500, detail=f"Detection failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Detection failed: {e!s}")
 
 
 # ========================================================================
@@ -461,7 +461,7 @@ async def get_curiosity_scores(directory: str, limit: int = Query(default=10, le
 
     except Exception as e:
         logger.error("curiosity_calculation_failed", directory=directory, error=str(e))
-        raise HTTPException(status_code=500, detail=f"Calculation failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Calculation failed: {e!s}")
 
 
 @app.get("/api/v1/exploration-summary/{directory:path}")
@@ -485,7 +485,7 @@ async def get_exploration_summary(directory: str):
 
     except Exception as e:
         logger.error("exploration_summary_failed", directory=directory, error=str(e))
-        raise HTTPException(status_code=500, detail=f"Summary failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Summary failed: {e!s}")
 
 
 @app.post("/api/v1/explorations")
@@ -503,13 +503,13 @@ async def create_exploration(target: str = Query(...), task_type: str = Query(de
     if not _engine:
         raise HTTPException(status_code=503, detail="Engine not initialized")
 
-    exploration_id = f"exp_{datetime.now(timezone.utc).timestamp()}"
+    exploration_id = f"exp_{datetime.now(UTC).timestamp()}"
 
     _explorations[exploration_id] = {
         "target": target,
         "task_type": task_type,
         "status": "pending",
-        "created_at": datetime.now(timezone.utc).isoformat(),
+        "created_at": datetime.now(UTC).isoformat(),
         "scouts_assigned": 0,
         "files_scanned": 0,
         "patterns_found": 0,

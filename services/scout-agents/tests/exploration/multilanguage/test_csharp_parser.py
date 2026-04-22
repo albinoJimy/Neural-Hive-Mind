@@ -4,11 +4,10 @@ Parsing de C# para análise estática.
 """
 
 import pytest
-
 from src.exploration.parsers.multilanguage.csharp_parser import CSharpParser
 
 
-@pytest.fixture
+@pytest.fixture()
 def csharp_parser():
     """Instância de CSharpParser para testes."""
     return CSharpParser()

@@ -3,7 +3,6 @@ import subprocess
 import tempfile
 
 import pytest
-
 from src.adapters.cli_adapter import CLIAdapter
 from src.models.tool_descriptor import (
     AuthenticationMethod,
@@ -13,8 +12,8 @@ from src.models.tool_descriptor import (
 )
 
 
-@pytest.mark.e2e
-@pytest.mark.asyncio
+@pytest.mark.e2e()
+@pytest.mark.asyncio()
 async def test_trivy_scan_real():
     """Test Trivy CLI adapter with real scan."""
     adapter = CLIAdapter(timeout_seconds=60)
@@ -50,8 +49,8 @@ async def test_trivy_scan_real():
     assert result.execution_time_ms > 0
 
 
-@pytest.mark.e2e
-@pytest.mark.asyncio
+@pytest.mark.e2e()
+@pytest.mark.asyncio()
 async def test_pytest_execution_real():
     """Test Pytest CLI adapter with real test execution."""
     adapter = CLIAdapter(timeout_seconds=30)
@@ -73,8 +72,8 @@ async def test_pytest_execution_real():
         assert "1 passed" in result.output
 
 
-@pytest.mark.e2e
-@pytest.mark.asyncio
+@pytest.mark.e2e()
+@pytest.mark.asyncio()
 async def test_black_formatter_real():
     """Test Black CLI adapter with real formatting."""
     adapter = CLIAdapter(timeout_seconds=10)

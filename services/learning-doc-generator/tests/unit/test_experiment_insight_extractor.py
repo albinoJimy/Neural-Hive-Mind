@@ -1,13 +1,13 @@
 """Testes unitários para ExperimentInsightExtractor"""
 
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
-
+from src.models import ExperimentRun
 from src.services.experiment_insight_extractor import ExperimentInsightExtractor
-from src.models import InsightConfidence, ExperimentRun
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_extractor_initialization():
     """Testa inicialização do extractor"""
     with patch("src.services.experiment_insight_extractor.mlflow") as mock_mlflow:
@@ -21,7 +21,7 @@ async def test_extractor_initialization():
         assert extractor._mlflow_client is not None
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_fetch_experiment_runs_by_ids(mock_experiment_runs, mock_mlflow_runs):
     """Testa busca de runs por IDs"""
     extractor = ExperimentInsightExtractor()
@@ -48,14 +48,13 @@ async def test_fetch_experiment_runs_by_ids(mock_experiment_runs, mock_mlflow_ru
     assert runs[1].run_id == "exp_002"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_fetch_experiment_runs_by_period(mock_experiment_runs):
     """Testa busca de runs por período"""
     extractor = ExperimentInsightExtractor()
     extractor._mlflow_client = MagicMock()
 
     # Mock search_runs
-    from mlflow.entities import ViewType
 
     mock_run = MagicMock()
     mock_run.to_dictionary.return_value = {
@@ -86,7 +85,7 @@ async def test_fetch_experiment_runs_by_period(mock_experiment_runs):
     assert len(runs) >= 0  # Pode variar dependendo do mock
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_extract_insights_from_runs(mock_experiment_runs):
     """Testa extração de insights de runs"""
     extractor = ExperimentInsightExtractor()
@@ -101,21 +100,19 @@ async def test_extract_insights_from_runs(mock_experiment_runs):
     assert "performance" in categories
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_extract_insights_with_baseline(mock_experiment_runs):
     """Testa extração de insights com baseline"""
     extractor = ExperimentInsightExtractor()
 
-    insights = await extractor.extract_insights(
-        mock_experiment_runs, baseline_run_id="exp_001"
-    )
+    insights = await extractor.extract_insights(mock_experiment_runs, baseline_run_id="exp_001")
 
     # Verificar que insights de comparação foram gerados
     comparison_insights = [i for i in insights if i.category in ("improvement", "regression")]
     assert len(comparison_insights) > 0
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_generate_summary(mock_experiment_runs):
     """Testa geração de resumo"""
     extractor = ExperimentInsightExtractor()
@@ -127,7 +124,7 @@ async def test_generate_summary(mock_experiment_runs):
     assert "3" in summary  # Número de experimentos
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_generate_recommendations(mock_experiment_runs, mock_insights):
     """Testa geração de recomendações"""
     extractor = ExperimentInsightExtractor()
@@ -138,7 +135,7 @@ async def test_generate_recommendations(mock_experiment_runs, mock_insights):
     assert len(recommendations) > 0
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_extract_trend_insights(mock_experiment_runs):
     """Testa extração de insights de tendência"""
     extractor = ExperimentInsightExtractor()
@@ -164,7 +161,7 @@ async def test_extract_trend_insights(mock_experiment_runs):
     assert len(trend_insights) > 0
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_extract_performance_insights(mock_experiment_runs):
     """Testa extração de insights de performance"""
     extractor = ExperimentInsightExtractor()
@@ -173,7 +170,9 @@ async def test_extract_performance_insights(mock_experiment_runs):
 
     # Verificar que insight de duração foi gerado
     assert len(insights) > 0
-    assert any("duração" in i.description.lower() or "duration" in i.description.lower() for i in insights)
+    assert any(
+        "duração" in i.description.lower() or "duration" in i.description.lower() for i in insights
+    )
 
 
 def test_parse_timestamp():

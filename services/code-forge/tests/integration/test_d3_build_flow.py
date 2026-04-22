@@ -14,16 +14,14 @@ from datetime import datetime
 from unittest.mock import AsyncMock
 
 import pytest
-
-from src.types.artifact_types import ArtifactCategory
 from src.models.artifact import (
     PipelineStatus,
     ValidationResult,
-    ValidationType,
     ValidationStatus,
+    ValidationType,
 )
 from src.models.execution_ticket import TaskType, TicketStatus
-
+from src.types.artifact_types import ArtifactCategory
 
 # Import fixtures from conftest and d3_fixtures
 pytest_plugins = ["tests.unit.conftest", "tests.fixtures.d3_fixtures"]
@@ -46,7 +44,7 @@ class TestD3BuildFlowEndToEnd:
     - Tempo execução < 30000ms
     """
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_d3_build_ticket_creation_and_processing(
         self, d3_build_ticket, mock_d3_pipeline_engine, mock_d3_kafka_producer
     ):
@@ -101,7 +99,7 @@ class TestD3BuildFlowEndToEnd:
         # Verificar Kafka publish
         assert mock_d3_kafka_producer.publish_result.called, "Resultado não publicado no Kafka"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_d3_pipeline_with_container_artifact(
         self, d3_build_ticket_with_container, mock_d3_pipeline_engine, mock_d3_kafka_producer
     ):
@@ -145,7 +143,7 @@ class TestD3BuildFlowEndToEnd:
 
         assert container.signature is not None, "signature vazio"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_d3_pipeline_with_sbom_generation(
         self, d3_build_ticket_with_sbom, mock_d3_pipeline_engine
     ):
@@ -169,7 +167,7 @@ class TestD3BuildFlowEndToEnd:
             ".spdx" in sbom_artifact.sbom_uri or "sbom" in sbom_artifact.sbom_uri.lower()
         ), f"sbom_uri não parece ser SPDX: {sbom_artifact.sbom_uri}"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_d3_pipeline_timeout_handling(self, d3_build_ticket, mock_d3_pipeline_engine):
         """
         D3: Pipeline com timeout configurado
@@ -202,7 +200,7 @@ class TestD3BuildFlowEndToEnd:
             "timeout" in err.lower() for err in stage_errors
         ), f"Erro de timeout não encontrado em: {stage_errors}"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_d3_pipeline_retry_logic(
         self, d3_build_ticket, mock_d3_pipeline_engine, mock_ticket_client
     ):
@@ -241,7 +239,7 @@ class TestD3BuildFlowEndToEnd:
 class TestD3PipelineStages:
     """Testes individuais de cada stage do pipeline D3."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_d3_template_selection_stage(
         self, d3_pipeline_context, mock_d3_template_selector
     ):
@@ -260,7 +258,7 @@ class TestD3PipelineStages:
             d3_pipeline_context.metadata.get("template_selected") is not None
         ), "Metadata não atualizada"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_d3_code_composition_stage(self, d3_pipeline_context, mock_d3_code_composer):
         """
         D3: Stage code_composition
@@ -275,7 +273,7 @@ class TestD3PipelineStages:
 
         assert d3_pipeline_context.code_workspace_path is not None, "Workspace não criado"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_d3_validation_stage(self, d3_pipeline_context, mock_d3_validator):
         """
         D3: Stage validation
@@ -293,7 +291,7 @@ class TestD3PipelineStages:
         assert validation.status == ValidationStatus.PASSED, f"Status: {validation.status}"
         assert validation.critical_issues == 0, f"Issues críticos: {validation.critical_issues}"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_d3_testing_stage(self, d3_pipeline_context, mock_d3_test_runner):
         """
         D3: Stage testing
@@ -306,7 +304,7 @@ class TestD3PipelineStages:
 
         assert d3_pipeline_context.metadata.get("tests_run") is not None, "Testes não executados"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_d3_packaging_stage(self, d3_pipeline_context, mock_d3_packager):
         """
         D3: Stage packaging
@@ -328,7 +326,7 @@ class TestD3PipelineStages:
         assert container.sbom_uri is not None, "SBOM não gerado"
         assert container.signature is not None, "Assinatura não aplicada"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_d3_approval_gate_stage(self, d3_pipeline_context, mock_d3_approval_gate):
         """
         D3: Stage approval_gate
@@ -353,7 +351,7 @@ class TestD3PipelineStages:
 class TestD3ExternalServicesIntegration:
     """Testes de integração com serviços externos."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_d3_ticket_client_status_update(
         self, d3_build_ticket, mock_d3_pipeline_engine, mock_ticket_client
     ):
@@ -374,7 +372,7 @@ class TestD3ExternalServicesIntegration:
             mock_ticket_client.update_status.call_count >= 2
         ), f"update_status chamado {mock_ticket_client.update_status.call_count} vezes"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_d3_postgres_persistence(
         self, d3_build_ticket, mock_d3_pipeline_engine, mock_postgres_client
     ):
@@ -397,7 +395,7 @@ class TestD3ExternalServicesIntegration:
         assert saved_result.pipeline_id == result.pipeline_id, "pipeline_id mismatch"
         assert saved_result.status == result.status, "status mismatch"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_d3_mongodb_artifact_storage(
         self, d3_build_ticket_with_container, mock_d3_pipeline_engine, mock_mongodb_client
     ):
@@ -423,7 +421,7 @@ class TestD3ExternalServicesIntegration:
 class TestD3FailureScenarios:
     """Testes de cenários de falha no fluxo D3."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_d3_validation_failure_blocks_build(
         self, d3_build_ticket, mock_d3_pipeline_engine, mock_d3_validator
     ):
@@ -463,7 +461,7 @@ class TestD3FailureScenarios:
         # Verificar falha
         assert result.status == PipelineStatus.FAILED, f"Status: {result.status}, esperado: FAILED"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_d3_packaging_failure_creates_compensation(
         self, d3_build_ticket, mock_d3_pipeline_engine, mock_d3_packager, mock_ticket_client
     ):
@@ -501,7 +499,7 @@ class TestD3FailureScenarios:
 class TestD3Performance:
     """Testes de performance do fluxo D3."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_d3_pipeline_duration_within_sla(self, d3_build_ticket, mock_d3_pipeline_engine):
         """
         D3: Duração do pipeline dentro do SLA
@@ -520,7 +518,7 @@ class TestD3Performance:
         assert result.total_duration_ms > 0, "Duração registrada é 0"
         assert result.total_duration_ms < 30000, f"Duração registrada: {result.total_duration_ms}ms"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_d3_concurrent_pipeline_limit(self, mock_d3_pipeline_engine):
         """
         D3: Limite de pipelines concorrentes
@@ -530,15 +528,15 @@ class TestD3Performance:
         - Pipelines adicionais aguardam
         """
         from src.models.execution_ticket import (
+            SLA,
+            Consistency,
+            DeliveryMode,
+            Durability,
             ExecutionTicket,
             Priority,
-            RiskBand,
-            SLA,
             QoS,
+            RiskBand,
             SecurityLevel,
-            DeliveryMode,
-            Consistency,
-            Durability,
         )
 
         # Criar 5 tickets

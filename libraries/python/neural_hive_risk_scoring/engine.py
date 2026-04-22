@@ -5,13 +5,15 @@ Motor de avaliação de risco multi-domínio reutilizável.
 Extraído e generalizado de services/semantic-translation-engine/src/services/risk_scorer.py.
 """
 
+from datetime import UTC, datetime
+from typing import Any
+
 import structlog
-from datetime import datetime, timezone
-from typing import Dict, Any
 from prometheus_client import Counter, Histogram
 
-from .config import RiskBand, RiskScoringConfig
 from neural_hive_domain import UnifiedDomain
+
+from .config import RiskBand, RiskScoringConfig
 from .models import RiskAssessment
 
 logger = structlog.get_logger(__name__)
@@ -62,7 +64,7 @@ class RiskScoringEngine:
         self.domain_weights = self._load_domain_weights()
         self.metrics = RiskScoringMetrics()
 
-    def _load_domain_weights(self) -> Dict[str, Dict[str, float]]:
+    def _load_domain_weights(self) -> dict[str, dict[str, float]]:
         """Carrega pesos de domínios da configuração."""
         return {
             UnifiedDomain.BUSINESS.value: self.config.business_weights,
@@ -72,7 +74,7 @@ class RiskScoringEngine:
             UnifiedDomain.COMPLIANCE.value: self.config.compliance_weights,
         }
 
-    def score(self, entity: Dict[str, Any], domain: UnifiedDomain) -> RiskAssessment:
+    def score(self, entity: dict[str, Any], domain: UnifiedDomain) -> RiskAssessment:
         """Calcula score de risco para entidade.
 
         Args:
@@ -112,10 +114,10 @@ class RiskScoringEngine:
             factors=factors,
             reasoning=reasoning,
             domain=domain,
-            assessed_at=datetime.now(timezone.utc),
+            assessed_at=datetime.now(UTC),
         )
 
-    def _calculate_factors(self, entity: Dict, domain: UnifiedDomain) -> Dict[str, float]:
+    def _calculate_factors(self, entity: dict, domain: UnifiedDomain) -> dict[str, float]:
         """Calcula fatores de risco por domínio."""
         if domain == UnifiedDomain.BUSINESS:
             return self._calculate_business_factors(entity)
@@ -130,7 +132,7 @@ class RiskScoringEngine:
         else:
             return {}
 
-    def _calculate_business_factors(self, entity: Dict) -> Dict[str, float]:
+    def _calculate_business_factors(self, entity: dict) -> dict[str, float]:
         """Fatores de risco de negócio."""
         return {
             "priority": self._map_priority_to_risk(entity.get("priority", "normal")),
@@ -139,7 +141,7 @@ class RiskScoringEngine:
             "complexity": self._calculate_complexity_risk(entity),
         }
 
-    def _calculate_technical_factors(self, entity: Dict) -> Dict[str, float]:
+    def _calculate_technical_factors(self, entity: dict) -> dict[str, float]:
         """Fatores de risco técnico."""
         return {
             "code_quality": self._calculate_code_quality_risk(entity),
@@ -148,7 +150,7 @@ class RiskScoringEngine:
             "dependencies": self._calculate_dependency_risk(entity),
         }
 
-    def _calculate_security_factors(self, entity: Dict) -> Dict[str, float]:
+    def _calculate_security_factors(self, entity: dict) -> dict[str, float]:
         """Fatores de risco de segurança."""
         return {
             "security_level": self._map_security_level_to_risk(
@@ -159,7 +161,7 @@ class RiskScoringEngine:
             "encryption": self._calculate_encryption_risk(entity),
         }
 
-    def _calculate_operational_factors(self, entity: Dict) -> Dict[str, float]:
+    def _calculate_operational_factors(self, entity: dict) -> dict[str, float]:
         """Fatores de risco operacional."""
         return {
             "availability": self._calculate_availability_risk(entity),
@@ -168,7 +170,7 @@ class RiskScoringEngine:
             "observability": self._calculate_observability_risk(entity),
         }
 
-    def _calculate_compliance_factors(self, entity: Dict) -> Dict[str, float]:
+    def _calculate_compliance_factors(self, entity: dict) -> dict[str, float]:
         """Fatores de risco de compliance."""
         return {
             "regulatory": self._calculate_regulatory_risk(entity),
@@ -177,7 +179,7 @@ class RiskScoringEngine:
             "policy_adherence": self._calculate_policy_risk(entity),
         }
 
-    def _calculate_weighted_score(self, factors: Dict[str, float], domain: UnifiedDomain) -> float:
+    def _calculate_weighted_score(self, factors: dict[str, float], domain: UnifiedDomain) -> float:
         """Calcula score ponderado."""
         weights = self.domain_weights.get(domain.value, {})
 
@@ -207,7 +209,7 @@ class RiskScoringEngine:
             return RiskBand.LOW
 
     def _generate_reasoning(
-        self, factors: Dict[str, float], risk_score: float, risk_band: RiskBand
+        self, factors: dict[str, float], risk_score: float, risk_band: RiskBand
     ) -> str:
         """Gera justificativa da avaliação."""
         top_factors = sorted(factors.items(), key=lambda x: x[1], reverse=True)[:3]
@@ -224,7 +226,7 @@ class RiskScoringEngine:
         mapping = {"public": 0.9, "internal": 0.5, "confidential": 0.3, "restricted": 0.1}
         return mapping.get(level, 0.5)
 
-    def _calculate_cost_risk(self, entity: Dict) -> float:
+    def _calculate_cost_risk(self, entity: dict) -> float:
         cost = entity.get("estimated_cost", 0)
         if cost > 100000:
             return 0.9
@@ -235,71 +237,71 @@ class RiskScoringEngine:
         else:
             return 0.2
 
-    def _calculate_kpi_risk(self, entity: Dict) -> float:
+    def _calculate_kpi_risk(self, entity: dict) -> float:
         # Placeholder: avaliar alinhamento com KPIs
         return 0.3
 
-    def _calculate_complexity_risk(self, entity: Dict) -> float:
+    def _calculate_complexity_risk(self, entity: dict) -> float:
         complexity = entity.get("complexity", "medium")
         mapping = {"low": 0.2, "medium": 0.5, "high": 0.8, "very_high": 0.95}
         return mapping.get(complexity, 0.5)
 
-    def _calculate_code_quality_risk(self, entity: Dict) -> float:
+    def _calculate_code_quality_risk(self, entity: dict) -> float:
         # Placeholder
         return 0.3
 
-    def _calculate_performance_risk(self, entity: Dict) -> float:
+    def _calculate_performance_risk(self, entity: dict) -> float:
         # Placeholder
         return 0.3
 
-    def _calculate_scalability_risk(self, entity: Dict) -> float:
+    def _calculate_scalability_risk(self, entity: dict) -> float:
         # Placeholder
         return 0.3
 
-    def _calculate_dependency_risk(self, entity: Dict) -> float:
+    def _calculate_dependency_risk(self, entity: dict) -> float:
         # Placeholder
         return 0.3
 
-    def _calculate_pii_risk(self, entity: Dict) -> float:
+    def _calculate_pii_risk(self, entity: dict) -> float:
         has_pii = entity.get("handles_pii", False)
         return 0.8 if has_pii else 0.2
 
-    def _calculate_auth_risk(self, entity: Dict) -> float:
+    def _calculate_auth_risk(self, entity: dict) -> float:
         # Placeholder
         return 0.3
 
-    def _calculate_encryption_risk(self, entity: Dict) -> float:
+    def _calculate_encryption_risk(self, entity: dict) -> float:
         # Placeholder
         return 0.3
 
-    def _calculate_availability_risk(self, entity: Dict) -> float:
+    def _calculate_availability_risk(self, entity: dict) -> float:
         # Placeholder
         return 0.3
 
-    def _calculate_reliability_risk(self, entity: Dict) -> float:
+    def _calculate_reliability_risk(self, entity: dict) -> float:
         # Placeholder
         return 0.3
 
-    def _calculate_maintainability_risk(self, entity: Dict) -> float:
+    def _calculate_maintainability_risk(self, entity: dict) -> float:
         # Placeholder
         return 0.3
 
-    def _calculate_observability_risk(self, entity: Dict) -> float:
+    def _calculate_observability_risk(self, entity: dict) -> float:
         # Placeholder
         return 0.3
 
-    def _calculate_regulatory_risk(self, entity: Dict) -> float:
+    def _calculate_regulatory_risk(self, entity: dict) -> float:
         # Placeholder
         return 0.3
 
-    def _calculate_audit_risk(self, entity: Dict) -> float:
+    def _calculate_audit_risk(self, entity: dict) -> float:
         # Placeholder
         return 0.3
 
-    def _calculate_retention_risk(self, entity: Dict) -> float:
+    def _calculate_retention_risk(self, entity: dict) -> float:
         # Placeholder
         return 0.3
 
-    def _calculate_policy_risk(self, entity: Dict) -> float:
+    def _calculate_policy_risk(self, entity: dict) -> float:
         # Placeholder
         return 0.3

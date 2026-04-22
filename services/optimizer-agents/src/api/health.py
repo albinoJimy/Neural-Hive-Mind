@@ -1,5 +1,5 @@
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import psutil
@@ -332,7 +332,7 @@ async def deep_health_check():
             "status": overall_status,
             "service": settings.service_name,
             "version": settings.service_version,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "uptime_seconds": round(time.time() - start_time, 2),
             "resources": resources.dict(),
             "dependencies": [dep.dict() for dep in dependencies],

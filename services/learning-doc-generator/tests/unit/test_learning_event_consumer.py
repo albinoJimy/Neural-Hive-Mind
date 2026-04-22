@@ -5,12 +5,10 @@ from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock, Mock
 
 import pytest
-from aiokafka import AIOKafkaConsumer
-
 from src.consumers.learning_event_consumer import LearningEventConsumer
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_repository():
     """Mock do DocumentRepository"""
     repo = AsyncMock()
@@ -18,7 +16,7 @@ def mock_repository():
     return repo
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_insight_extractor():
     """Mock do ExperimentInsightExtractor"""
     extractor = AsyncMock()
@@ -28,7 +26,7 @@ def mock_insight_extractor():
     return extractor
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_report_generator():
     """Mock do MarkdownReportGenerator"""
     generator = AsyncMock()
@@ -36,7 +34,7 @@ def mock_report_generator():
     return generator
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_kafka_producer():
     """Mock do KafkaLearningDocProducer"""
     producer = AsyncMock()
@@ -44,7 +42,7 @@ def mock_kafka_producer():
     return producer
 
 
-@pytest.fixture
+@pytest.fixture()
 def consumer(mock_repository, mock_insight_extractor, mock_report_generator, mock_kafka_producer):
     """Fixture do LearningEventConsumer"""
     return LearningEventConsumer(
@@ -55,7 +53,7 @@ def consumer(mock_repository, mock_insight_extractor, mock_report_generator, moc
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_kafka_message():
     """Cria uma mensagem Kafka mock"""
     message = Mock()
@@ -87,7 +85,7 @@ class TestLearningEventConsumer:
 
         assert result == data
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_handle_experiment_completed_no_run_id(self, consumer):
         """Testa handler de experiment.completed sem run_id"""
         event_data = {"invalid": "data"}
@@ -97,7 +95,7 @@ class TestLearningEventConsumer:
         # Não deve chamar get_run_by_id
         consumer.insight_extractor.get_run_by_id.assert_not_called()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_handle_experiment_completed_run_not_found(self, consumer):
         """Testa handler de experiment.completed com run não encontrado"""
         event_data = {"run_id": "nonexistent_run"}
@@ -109,7 +107,7 @@ class TestLearningEventConsumer:
         # Não deve salvar documento
         consumer.repository.save.assert_not_called()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_handle_experiment_completed_success(
         self, consumer, mock_insight_extractor, mock_repository
     ):
@@ -150,10 +148,9 @@ class TestLearningEventConsumer:
         # Deve publicar evento
         consumer.kafka_producer.publish_doc_generated.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_handle_model_promoted(self, consumer):
         """Testa handler de model.promoted"""
-        from src.models import Insight, InsightConfidence
 
         # Mock run promovido
         mock_mlflow_run = MagicMock()
@@ -182,10 +179,9 @@ class TestLearningEventConsumer:
         # Deve salvar documento
         consumer.repository.save.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_handle_deployment_rollback(self, consumer):
         """Testa handler de deployment.rolled_back"""
-        from src.models import Insight, InsightConfidence
 
         # Mock run problemático
         mock_mlflow_run = MagicMock()
@@ -248,7 +244,7 @@ class TestLearningEventConsumer:
 
     def test_generate_experiment_recommendations(self, consumer):
         """Testa geração de recomendações do experimento"""
-        from src.models import DocumentStatus, DocumentFormat, Insight, InsightConfidence
+        from src.models import Insight, InsightConfidence
 
         insights = [
             Insight(
@@ -274,10 +270,10 @@ class TestLearningEventConsumer:
         assert len(recommendations) > 0
         assert any("produção" in r.lower() for r in recommendations)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_publish_doc_generated_event(self, consumer):
         """Testa publicação de evento doc.generated"""
-        from src.models import LearningDocument, DocumentType, DocumentStatus, DocumentFormat
+        from src.models import DocumentFormat, DocumentStatus, DocumentType, LearningDocument
 
         document = LearningDocument(
             title="Test Document",
@@ -292,7 +288,7 @@ class TestLearningEventConsumer:
 
         consumer.kafka_producer.publish_doc_generated.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_process_message_routing(self, consumer, mock_kafka_message):
         """Testa roteamento de mensagens baseado no tópico"""
         # Teste para tópico experiment.completed
@@ -305,7 +301,7 @@ class TestLearningEventConsumer:
 
         consumer._handle_experiment_completed.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_stop_consumer(self, consumer):
         """Testa parada do consumer"""
         # Marcar como rodando

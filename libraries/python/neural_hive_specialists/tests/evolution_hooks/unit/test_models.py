@@ -5,22 +5,23 @@ Este módulo testa todos os modelos Pydantic usados pelo sistema
 Evolution Hooks.
 """
 
+from datetime import UTC, datetime
+
 import pytest
-from datetime import datetime, timezone
 from pydantic import ValidationError
 
 from neural_hive_specialists.evolution_hooks.models import (
-    Fingerprint,
-    TaskCountRange,
+    DEFAULT_WEIGHTS,
     DurationRange,
     EvolutionEvaluation,
-    PatternMetrics,
     FeedbackData,
+    FeedbackMessage,
     FeedbackOutcome,
     FeedbackSource,
-    DEFAULT_WEIGHTS,
+    Fingerprint,
+    PatternMetrics,
     PatternRecord,
-    FeedbackMessage,
+    TaskCountRange,
 )
 
 
@@ -180,7 +181,7 @@ class TestPatternMetrics:
 
     def test_create_metrics_custom(self):
         """Cria métricas com valores customizados."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         metrics = PatternMetrics(times_matched=100, success_rate=0.85, last_updated=now)
         assert metrics.times_matched == 100
         assert metrics.success_rate == 0.85

@@ -5,7 +5,7 @@ Endpoints para gerenciamento de experimentos de chaos,
 execução de cenários e validação de playbooks.
 """
 
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, Field
@@ -39,7 +39,7 @@ class ScenarioRequest(BaseModel):
     target_service: str = Field(..., description="Serviço alvo")
     target_namespace: str = Field(default="default", description="Namespace")
     playbook_to_validate: Optional[str] = Field(default=None, description="Playbook para validar")
-    custom_parameters: Dict[str, Any] = Field(
+    custom_parameters: dict[str, Any] = Field(
         default_factory=dict, description="Parâmetros customizados"
     )
     executed_by: Optional[str] = Field(default=None, description="Executor")

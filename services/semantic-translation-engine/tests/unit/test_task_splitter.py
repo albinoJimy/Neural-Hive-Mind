@@ -4,18 +4,18 @@ Testes unitarios para TaskSplitter
 Testa decomposicao de tasks complexas em subtasks atomicas.
 """
 
-import pytest
 from unittest.mock import MagicMock, patch
 
+import pytest
 from src.models.cognitive_plan import TaskNode
-from src.services.task_splitter import TaskSplitter
 from src.services.pattern_matcher import PatternMatch
+from src.services.task_splitter import TaskSplitter
 
 
 class TestTaskSplitterComplexityAnalysis:
     """Testes para analise de complexidade"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def settings(self):
         """Mock Settings object"""
         settings = MagicMock()
@@ -26,7 +26,7 @@ class TestTaskSplitterComplexityAnalysis:
         settings.task_splitting_description_length_threshold = 150
         return settings
 
-    @pytest.fixture
+    @pytest.fixture()
     def splitter(self, settings):
         """Create TaskSplitter instance"""
         return TaskSplitter(settings)
@@ -113,7 +113,7 @@ class TestTaskSplitterComplexityAnalysis:
 class TestTaskSplitterShouldSplit:
     """Testes para decisao de splitting"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def settings(self):
         """Mock Settings object"""
         settings = MagicMock()
@@ -124,7 +124,7 @@ class TestTaskSplitterShouldSplit:
         settings.task_splitting_description_length_threshold = 150
         return settings
 
-    @pytest.fixture
+    @pytest.fixture()
     def splitter(self, settings):
         """Create TaskSplitter instance"""
         return TaskSplitter(settings)
@@ -157,7 +157,7 @@ class TestTaskSplitterShouldSplit:
 class TestTaskSplitterPatternBased:
     """Testes para splitting baseado em padroes"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def settings(self):
         """Mock Settings object"""
         settings = MagicMock()
@@ -168,13 +168,13 @@ class TestTaskSplitterPatternBased:
         settings.task_splitting_description_length_threshold = 150
         return settings
 
-    @pytest.fixture
+    @pytest.fixture()
     def pattern_matcher(self):
         """Mock PatternMatcher"""
         matcher = MagicMock()
         return matcher
 
-    @pytest.fixture
+    @pytest.fixture()
     def splitter(self, settings, pattern_matcher):
         """Create TaskSplitter with PatternMatcher"""
         return TaskSplitter(settings, pattern_matcher)
@@ -273,7 +273,7 @@ class TestTaskSplitterPatternBased:
 class TestTaskSplitterHeuristicBased:
     """Testes para splitting heuristico"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def settings(self):
         """Mock Settings object"""
         settings = MagicMock()
@@ -284,7 +284,7 @@ class TestTaskSplitterHeuristicBased:
         settings.task_splitting_description_length_threshold = 150
         return settings
 
-    @pytest.fixture
+    @pytest.fixture()
     def splitter(self, settings):
         """Create TaskSplitter without PatternMatcher"""
         return TaskSplitter(settings)
@@ -344,7 +344,7 @@ class TestTaskSplitterHeuristicBased:
 class TestTaskSplitterRecursion:
     """Testes para splitting recursivo"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def settings(self):
         """Mock Settings object"""
         settings = MagicMock()
@@ -355,7 +355,7 @@ class TestTaskSplitterRecursion:
         settings.task_splitting_description_length_threshold = 150
         return settings
 
-    @pytest.fixture
+    @pytest.fixture()
     def splitter(self, settings):
         """Create TaskSplitter instance"""
         return TaskSplitter(settings)
@@ -503,14 +503,14 @@ class TestTaskSplitterRecursion:
 class TestTaskSplitterDisabled:
     """Testes para comportamento com splitting desabilitado"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def settings_disabled(self):
         """Mock Settings com splitting desabilitado"""
         settings = MagicMock()
         settings.task_splitting_enabled = False
         return settings
 
-    @pytest.fixture
+    @pytest.fixture()
     def splitter_disabled(self, settings_disabled):
         """Create TaskSplitter com splitting desabilitado"""
         return TaskSplitter(settings_disabled)
@@ -534,7 +534,7 @@ class TestTaskSplitterDisabled:
 class TestTaskSplitterMetrics:
     """Testes para metricas Prometheus"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def settings(self):
         """Mock Settings object"""
         settings = MagicMock()
@@ -545,7 +545,7 @@ class TestTaskSplitterMetrics:
         settings.task_splitting_description_length_threshold = 150
         return settings
 
-    @pytest.fixture
+    @pytest.fixture()
     def splitter(self, settings):
         """Create TaskSplitter instance"""
         return TaskSplitter(settings)

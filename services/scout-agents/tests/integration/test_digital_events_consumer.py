@@ -5,13 +5,13 @@ TDD: Testes escritos antes da implementação.
 Epic: CR-02 Implementar Scout Consumer Completo
 """
 
-import pytest
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, Mock, patch
 
-from src.models.digital_event import DigitalEvent, DigitalEventType, DigitalChannel
+import pytest
 from src.consumers.digital_events_consumer import DigitalEventsConsumer
+from src.models.digital_event import DigitalChannel, DigitalEvent, DigitalEventType
 
 
 class TestDigitalEventModel:
@@ -25,7 +25,7 @@ class TestDigitalEventModel:
             channel=DigitalChannel.WEB,
             user_id="user-123",
             session_id="session-456",
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
             payload={"url": "/home", "referrer": "google"},
             metadata={"ip": "192.168.1.1"},
         )
@@ -111,7 +111,7 @@ class TestDigitalEventModel:
 class TestDigitalEventsConsumerInitialization:
     """Testes de inicialização do DigitalEventsConsumer."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_settings(self):
         """Mock settings para testes."""
         settings = Mock()
@@ -121,14 +121,14 @@ class TestDigitalEventsConsumerInitialization:
         settings.kafka.enable_auto_commit = False
         return settings
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_exploration_engine(self):
         """Mock exploration engine."""
         engine = AsyncMock()
         engine.process_digital_event = AsyncMock(return_value=None)
         return engine
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_metrics(self):
         """Mock metrics."""
         metrics = Mock()
@@ -162,7 +162,7 @@ class TestDigitalEventsConsumerInitialization:
 class TestDigitalEventsConsumerStartStop:
     """Testes de start e stop do consumer."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_settings(self):
         """Mock settings para testes."""
         settings = Mock()
@@ -171,14 +171,14 @@ class TestDigitalEventsConsumerStartStop:
         settings.kafka.topics_digital_events = "digital.events"
         return settings
 
-    @pytest.fixture
+    @pytest.fixture()
     def consumer(self, mock_settings):
         """Consumer instance para testes."""
         from src.consumers.digital_events_consumer import DigitalEventsConsumer
 
         return DigitalEventsConsumer(settings=mock_settings)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_initialize_creates_kafka_consumer(self, consumer, mock_settings):
         """Testa que initialize cria o consumer Kafka corretamente."""
         with patch("src.consumers.digital_events_consumer.AIOKafkaConsumer") as mock_kafka_class:
@@ -194,7 +194,7 @@ class TestDigitalEventsConsumerStartStop:
             assert call_args[1]["bootstrap_servers"] == mock_settings.kafka.bootstrap_servers
             assert call_args[1]["group_id"] == mock_settings.kafka.consumer_group_id + "-digital"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_initialize_starts_consumer(self, consumer):
         """Testa que initialize inicia o consumer Kafka."""
         with patch("src.consumers.digital_events_consumer.AIOKafkaConsumer") as mock_kafka_class:
@@ -205,7 +205,7 @@ class TestDigitalEventsConsumerStartStop:
 
             mock_consumer.start.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_stop_sets_running_flag(self, consumer):
         """Testa que stop define running como False."""
         consumer.running = True
@@ -215,7 +215,7 @@ class TestDigitalEventsConsumerStartStop:
 
         assert consumer.running is False
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_stop_stops_kafka_consumer(self, consumer):
         """Testa que stop para o consumer Kafka."""
         consumer.consumer = AsyncMock()
@@ -228,7 +228,7 @@ class TestDigitalEventsConsumerStartStop:
 class TestDigitalEventsConsumerProcessing:
     """Testes de processamento de eventos digitais."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_settings(self):
         """Mock settings para testes."""
         settings = Mock()
@@ -237,14 +237,14 @@ class TestDigitalEventsConsumerProcessing:
         settings.kafka.topics_digital_events = "digital.events"
         return settings
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_exploration_engine(self):
         """Mock exploration engine."""
         engine = AsyncMock()
         engine.process_digital_event = AsyncMock(return_value=None)
         return engine
 
-    @pytest.fixture
+    @pytest.fixture()
     def consumer(self, mock_settings, mock_exploration_engine):
         """Consumer instance para testes."""
         return DigitalEventsConsumer(
@@ -283,7 +283,7 @@ class TestDigitalEventsConsumerProcessing:
 
         assert result is None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_process_message_calls_engine_callback(self, consumer, mock_exploration_engine):
         """Testa que process_message chama o callback da engine."""
         event_data = {
@@ -304,7 +304,7 @@ class TestDigitalEventsConsumerProcessing:
 
         mock_exploration_engine.process_digital_event.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_process_message_records_metrics(self, consumer, mock_exploration_engine):
         """Testa que process_message registra métricas."""
 
@@ -341,7 +341,7 @@ class TestDigitalEventsConsumerProcessing:
 class TestDigitalEventsConsumerEndToEnd:
     """Testes de integração end-to-end."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_settings(self):
         """Mock settings para testes."""
         settings = Mock()
@@ -350,7 +350,7 @@ class TestDigitalEventsConsumerEndToEnd:
         settings.kafka.topics_digital_events = "digital.events"
         return settings
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_consumer_full_lifecycle(self, mock_settings):
         """Testa ciclo de vida completo do consumer."""
         engine = AsyncMock()
@@ -369,7 +369,7 @@ class TestDigitalEventsConsumerEndToEnd:
         await consumer.stop()
         assert consumer.running is False
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_consumer_with_kafka_testcontainers(self, mock_settings):
         """Teste de integração com Kafka (requer testcontainers)."""
         pytest.skip("Requer Kafka running - executar em ambiente de teste com Docker")

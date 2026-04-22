@@ -11,15 +11,14 @@ from unittest.mock import AsyncMock
 import pytest
 
 # Importar fixtures do conftest.py principal
-from tests.conftest import *  # noqa: F401, F403
-
+from tests.conftest import *  # noqa: F403
 
 # ============================================================================
 # Fixtures Adicionais para Testes Unitarios
 # ============================================================================
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_tool_selection_request():
     """Requisicao de selecao de ferramentas sample."""
     from src.models.tool_selection import ToolSelectionRequest
@@ -41,7 +40,7 @@ def sample_tool_selection_request():
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_tool_selection_request_simple():
     """Requisicao de selecao simples."""
     from src.models.tool_selection import ToolSelectionRequest
@@ -59,7 +58,7 @@ def sample_tool_selection_request_simple():
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_redis_client():
     """Mock para Redis client."""
     client = AsyncMock()
@@ -71,7 +70,7 @@ def mock_redis_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_mongodb_client_with_tools(cli_tool, rest_tool, container_tool):
     """Mock MongoDB client com ferramentas pre-carregadas."""
     client = AsyncMock()
@@ -86,10 +85,10 @@ def mock_mongodb_client_with_tools(cli_tool, rest_tool, container_tool):
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_tool_registry_with_multiple_tools():
     """Mock ToolRegistry com multiplas ferramentas por categoria."""
-    from src.models.tool_descriptor import ToolDescriptor, ToolCategory, IntegrationType
+    from src.models.tool_descriptor import IntegrationType, ToolCategory, ToolDescriptor
 
     # Criar ferramentas de VALIDATION
     validation_tools = [
@@ -143,11 +142,11 @@ def mock_tool_registry_with_multiple_tools():
     return registry
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_tool_combination():
     """ToolCombination sample."""
     from src.models.tool_combination import ToolCombination
-    from src.models.tool_descriptor import ToolDescriptor, ToolCategory, IntegrationType
+    from src.models.tool_descriptor import IntegrationType, ToolCategory, ToolDescriptor
 
     tools = [
         ToolDescriptor(

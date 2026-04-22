@@ -10,11 +10,12 @@ Uso:
 Este script é executado pelo CronJob Kubernetes diariamente.
 """
 
-import sys
 import argparse
 import logging
-import structlog
+import sys
 from typing import Optional
+
+import structlog
 
 # Configurar logging
 structlog.configure(
@@ -48,9 +49,9 @@ def create_storage_client(config):
         StorageClient (S3/GCS/Local)
     """
     from neural_hive_specialists.disaster_recovery import (
-        S3StorageClient,
         GCSStorageClient,
         LocalStorageClient,
+        S3StorageClient,
     )
 
     provider = config.backup_storage_provider

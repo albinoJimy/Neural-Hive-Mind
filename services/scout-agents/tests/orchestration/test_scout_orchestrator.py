@@ -6,9 +6,10 @@ Espec: @.agent-os/specs/2026-03-17-gaps-05-scout-agents/
 """
 
 import asyncio
-import pytest
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock
-from datetime import datetime, timezone
+
+import pytest
 
 # Import com skip automático se módulo não disponível
 ScoutOrchestrator = pytest.importorskip("src.orchestration.scout_orchestrator").ScoutOrchestrator
@@ -63,7 +64,7 @@ class TestScoutOrchestratorInitialization:
 class TestCoordinateExploration:
     """Testes do método coordinate_exploration."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_scouts(self):
         """Mock de scouts disponíveis."""
         return {
@@ -72,7 +73,7 @@ class TestCoordinateExploration:
             "dependency_analyzer": AsyncMock(),
         }
 
-    @pytest.fixture
+    @pytest.fixture()
     def orchestrator(self, mock_scouts):
         """Orchestrator configurado com scouts mockados."""
         mock_kafka_producer = AsyncMock()
@@ -86,7 +87,7 @@ class TestCoordinateExploration:
         orchestrator.available_scouts = mock_scouts
         return orchestrator
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_coordinate_exploration_deploys_all_scouts(self, orchestrator, mock_scouts):
         """Testa que todos os scouts são deployados por padrão."""
         mock_scouts["pattern_matcher"].explore = AsyncMock(return_value={"patterns": []})
@@ -104,7 +105,7 @@ class TestCoordinateExploration:
         assert mock_scouts["code_searcher"].explore.called
         assert mock_scouts["dependency_analyzer"].explore.called
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_coordinate_exploration_deploys_specific_scouts(self, orchestrator, mock_scouts):
         """Testa que scouts específicos são deployados quando solicitado."""
         mock_scouts["pattern_matcher"].explore = AsyncMock(return_value={"patterns": []})
@@ -123,7 +124,7 @@ class TestCoordinateExploration:
         assert mock_scouts["code_searcher"].explore.called
         assert not mock_scouts["dependency_analyzer"].explore.called
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_coordinate_exploration_returns_exploration_id(self, orchestrator, mock_scouts):
         """Testa que retorna exploration_id único."""
         mock_scouts["pattern_matcher"].explore.return_value = {"patterns": []}
@@ -135,7 +136,7 @@ class TestCoordinateExploration:
         assert "exploration_id" in result
         assert result["exploration_id"].startswith("scout-exp-")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_coordinate_exploration_with_timeout(self, orchestrator, mock_scouts):
         """Testa que explorações com scouts que falham são marcadas corretamente."""
 
@@ -164,7 +165,7 @@ class TestCoordinateExploration:
 class TestAggregateResults:
     """Testes do método aggregate_results."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def orchestrator(self):
         """Orchestrator configurado."""
         mock_kafka_producer = AsyncMock()
@@ -223,7 +224,7 @@ class TestAggregateResults:
 class TestPublishKafkaEvents:
     """Testes do método publish_kafka_events."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def orchestrator(self):
         """Orchestrator configurado."""
         mock_kafka_producer = AsyncMock()
@@ -236,7 +237,7 @@ class TestPublishKafkaEvents:
         )
         return orchestrator
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_publish_started_event(self, orchestrator):
         """Testa publicação de evento started."""
         await orchestrator.publish_kafka_events(
@@ -247,7 +248,7 @@ class TestPublishKafkaEvents:
         call_args = orchestrator.kafka_producer.publish.call_args
         assert "started" in str(call_args)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_publish_completed_event(self, orchestrator):
         """Testa publicação de evento completed."""
         await orchestrator.publish_kafka_events(
@@ -259,7 +260,7 @@ class TestPublishKafkaEvents:
 
         orchestrator.kafka_producer.publish.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_publish_failed_event_on_error(self, orchestrator):
         """Testa publicação de evento failed em caso de erro."""
         await orchestrator.publish_kafka_events(
@@ -275,7 +276,7 @@ class TestPublishKafkaEvents:
 class TestGetExplorationStatus:
     """Testes do método get_exploration_status."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def orchestrator(self):
         """Orchestrator configurado."""
         mock_kafka_producer = AsyncMock()
@@ -290,18 +291,18 @@ class TestGetExplorationStatus:
         )
         return orchestrator
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_status_returns_running_exploration(self, orchestrator):
         """Testa consulta de exploração em andamento."""
         orchestrator.active_explorations = {
-            "scout-exp-1": {"status": "running", "started_at": datetime.now(timezone.utc)}
+            "scout-exp-1": {"status": "running", "started_at": datetime.now(UTC)}
         }
 
         status = await orchestrator.get_exploration_status("scout-exp-1")
 
         assert status["status"] == "running"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_status_returns_completed_exploration(self, orchestrator):
         """Testa consulta de exploração completada."""
         orchestrator.completed_explorations = {
@@ -312,7 +313,7 @@ class TestGetExplorationStatus:
 
         assert status["status"] == "completed"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_status_returns_none_for_unknown(self, orchestrator):
         """Testa consulta de exploração inexistente."""
         status = await orchestrator.get_exploration_status("unknown-id-xyz")

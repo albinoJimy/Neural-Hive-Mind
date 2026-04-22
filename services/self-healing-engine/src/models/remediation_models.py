@@ -1,6 +1,6 @@
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -59,12 +59,10 @@ class PlaybookAction(BaseModel):
     """Modelo Pydantic para uma ação de playbook."""
 
     type: ActionType = Field(..., description="Tipo da ação a executar")
-    parameters: Dict[str, Any] = Field(
+    parameters: dict[str, Any] = Field(
         default_factory=dict, description="Parâmetros específicos da ação"
     )
-    description: Optional[str] = Field(
-        default=None, description="Descrição opcional da ação"
-    )
+    description: Optional[str] = Field(default=None, description="Descrição opcional da ação")
     continue_on_failure: bool = Field(
         default=False, description="Continuar execução mesmo se esta ação falhar"
     )
@@ -96,19 +94,15 @@ class Playbook(BaseModel):
     timeout_seconds: int = Field(
         default=300, ge=1, le=3600, description="Timeout total do playbook (segundos)"
     )
-    actions: List[PlaybookAction] = Field(
+    actions: list[PlaybookAction] = Field(
         ..., min_length=1, description="Lista de ações a executar"
     )
     enabled: bool = Field(default=True, description="Se o playbook está habilitado")
     execution_mode: ExecutionMode = Field(
         default=ExecutionMode.AUTOMATIC, description="Modo de execução padrão"
     )
-    tags: List[str] = Field(
-        default_factory=list, description="Tags para categorização"
-    )
-    metadata: Dict[str, Any] = Field(
-        default_factory=dict, description="Metadados adicionais"
-    )
+    tags: list[str] = Field(default_factory=list, description="Tags para categorização")
+    metadata: dict[str, Any] = Field(default_factory=dict, description="Metadados adicionais")
     version: str = Field(default="1.0.0", description="Versão do playbook")
     created_at: Optional[datetime] = Field(
         default=None, description="Data de criação (automático se não fornecido)"
@@ -119,7 +113,7 @@ class Playbook(BaseModel):
 
     @field_validator("actions")
     @classmethod
-    def validate_actions_not_empty(cls, v: List[PlaybookAction]) -> List[PlaybookAction]:
+    def validate_actions_not_empty(cls, v: list[PlaybookAction]) -> list[PlaybookAction]:
         """Valida que há pelo menos uma ação."""
         if not v:
             raise ValueError("Playbook deve conter pelo menos uma ação")
@@ -127,7 +121,7 @@ class Playbook(BaseModel):
 
     @field_validator("tags")
     @classmethod
-    def validate_tags(cls, v: List[str]) -> List[str]:
+    def validate_tags(cls, v: list[str]) -> list[str]:
         """Valida formato das tags."""
         for tag in v:
             if not isinstance(tag, str) or len(tag) > 50:
@@ -140,16 +134,12 @@ class PlaybookValidationResult(BaseModel):
 
     valid: bool = Field(..., description="Se o playbook é válido")
     playbook_name: str = Field(..., description="Nome do playbook validado")
-    errors: List[str] = Field(
-        default_factory=list, description="Lista de erros de validação"
-    )
-    warnings: List[str] = Field(
+    errors: list[str] = Field(default_factory=list, description="Lista de erros de validação")
+    warnings: list[str] = Field(
         default_factory=list, description="Lista de avisos (não bloqueia execução)"
     )
     action_count: int = Field(..., description="Número de ações no playbook")
-    parsed_actions: List[str] = Field(
-        default_factory=list, description="Tipos de ações parseadas"
-    )
+    parsed_actions: list[str] = Field(default_factory=list, description="Tipos de ações parseadas")
     estimated_duration_seconds: Optional[int] = Field(
         default=None, description="Duração estimada baseada em timeouts"
     )
@@ -162,7 +152,7 @@ class RemediationRequest(BaseModel):
     )
     incident_id: str = Field(..., description="ID do incidente que originou a remediação")
     playbook_name: str = Field(..., description="Nome do playbook a executar")
-    parameters: Dict[str, Any] = Field(
+    parameters: dict[str, Any] = Field(
         default_factory=dict, description="Parâmetros dinâmicos para execução"
     )
     execution_mode: ExecutionMode = Field(
@@ -184,5 +174,5 @@ class RemediationStatusResponse(BaseModel):
     progress: float = 0.0
     actions_completed: int = 0
     total_actions: int = 0
-    result: Optional[Dict[str, Any]] = None
+    result: Optional[dict[str, Any]] = None
     error: Optional[str] = None

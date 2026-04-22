@@ -17,26 +17,26 @@ Components:
 __version__ = "1.0.0"
 
 # Models serão importados aqui após implementação
+from .feedback_consumer import EvolutionFeedbackConsumer, create_feedback_consumer
+
+# Core components
+from .fingerprint_extractor import FingerprintExtractor
 from .models import (
-    Fingerprint,
-    PatternRecord,
+    DEFAULT_WEIGHTS,
+    DurationRange,
     EvolutionEvaluation,
     FeedbackData,
     FeedbackMessage,
     FeedbackOutcome,
     FeedbackSource,
+    Fingerprint,
     PatternMetrics,
+    PatternRecord,
     TaskCountRange,
-    DurationRange,
-    DEFAULT_WEIGHTS,
 )
-
-# Core components
-from .fingerprint_extractor import FingerprintExtractor
 from .pattern_matcher import PatternMatcher
-from .weight_adapter import WeightAdapter
 from .pattern_registry import PatternRegistry, SyncPatternRegistry
-from .feedback_consumer import EvolutionFeedbackConsumer, create_feedback_consumer
+from .weight_adapter import WeightAdapter
 
 __all__ = [
     # Models

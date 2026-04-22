@@ -1,9 +1,9 @@
 """Optimizations API endpoints."""
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
-UTC = timezone.utc  # type: ignore
+UTC = UTC  # type: ignore
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field

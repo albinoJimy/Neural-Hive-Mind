@@ -2,17 +2,18 @@
 Testes de integração para validação OPA no orchestrator-dynamic.
 """
 
-import pytest
-import pytest_asyncio
 import asyncio
 from datetime import datetime, timedelta
-from unittest.mock import Mock, AsyncMock, patch
+from unittest.mock import AsyncMock, Mock, patch
+
+import pytest
+import pytest_asyncio
+from src.config.settings import OrchestratorSettings
 from src.policies import OPAClient, PolicyValidator
 from src.policies.opa_client import OPAConnectionError, OPAPolicyNotFoundError
-from src.config.settings import OrchestratorSettings
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_config():
     """Fixture com configurações mock."""
     config = Mock(spec=OrchestratorSettings)
@@ -66,7 +67,7 @@ async def opa_client(mock_config):
 class TestOPAClient:
     """Testes do OPAClient."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_evaluate_policy_success(self, opa_client):
         """Testa avaliação de política com sucesso."""
         with patch.object(opa_client.session, "post") as mock_post:
@@ -86,7 +87,7 @@ class TestOPAClient:
             assert len(result["result"]["violations"]) == 0
             assert result["policy_path"] == "neuralhive/orchestrator/resource_limits"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_evaluate_policy_violation(self, opa_client):
         """Testa avaliação com violação de política."""
         with patch.object(opa_client.session, "post") as mock_post:
@@ -119,7 +120,7 @@ class TestOPAClient:
             assert result["result"]["violations"][0]["rule"] == "timeout_exceeds_maximum"
             assert result["policy_path"] == "neuralhive/orchestrator/resource_limits"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_evaluate_policy_timeout(self, opa_client, mock_config):
         """Testa timeout na avaliação."""
 
@@ -134,7 +135,7 @@ class TestOPAClient:
 
             assert "Timeout" in str(exc_info.value) or "timeout" in str(exc_info.value).lower()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_health_check_success(self, opa_client):
         """Testa health check com sucesso."""
         with patch.object(opa_client.session, "get") as mock_get:
@@ -146,7 +147,7 @@ class TestOPAClient:
 
             assert is_healthy is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_health_check_failure(self, opa_client):
         """Testa health check com falha."""
         with patch.object(opa_client.session, "get") as mock_get:
@@ -162,7 +163,7 @@ class TestOPAClient:
 class TestPolicyValidator:
     """Testes do PolicyValidator."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_validate_cognitive_plan_success(self, mock_config):
         """Testa validação de plano cognitivo com sucesso."""
         mock_opa_client = AsyncMock()
@@ -194,7 +195,7 @@ class TestPolicyValidator:
         assert len(result.violations) == 0
         mock_opa_client.batch_evaluate.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_validate_execution_ticket_violation(self, mock_config):
         """Testa validação de ticket com violação."""
         mock_opa_client = AsyncMock()
@@ -243,7 +244,7 @@ class TestPolicyValidator:
         assert result.violations[0].policy_name == "resource_limits"
         assert result.violations[0].severity == "high"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_feature_flags_extraction(self, mock_config):
         """Testa extração de feature flags."""
         mock_opa_client = AsyncMock()
@@ -283,7 +284,7 @@ class TestPolicyValidator:
 class TestPolicyIntegration:
     """Testes de integração end-to-end."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_c1_validation_with_opa(self, mock_config):
         """Testa integração OPA em C1 (validação de plano)."""
         # Setup
@@ -325,7 +326,7 @@ class TestPolicyIntegration:
         assert "neuralhive/orchestrator/resource_limits" in result.policy_decisions
         mock_opa_client.batch_evaluate.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_c1_validation_with_opa_violation(self, mock_config):
         """Testa integração OPA em C1 com violação."""
         # Setup
@@ -371,7 +372,7 @@ class TestPolicyIntegration:
         assert len(result.violations) == 1
         assert "resource_limits" in result.violations[0].policy_name
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_c3_allocation_with_opa(self, mock_config):
         """Testa integração OPA em C3 (alocação de recursos)."""
         # Setup
@@ -419,7 +420,7 @@ class TestPolicyIntegration:
         assert "feature_flags" in result.policy_decisions
         assert result.policy_decisions["feature_flags"]["enable_intelligent_scheduler"] is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_c3_allocation_with_opa_rejection(self, mock_config):
         """Testa integração OPA em C3 com rejeição."""
         # Setup
@@ -477,7 +478,7 @@ class TestPolicyIntegration:
 class TestCircuitBreaker:
     """Testes do circuit breaker."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_circuit_breaker_opens_after_failures(self, mock_config):
         """Testa abertura do circuit breaker após falhas consecutivas."""
 
@@ -511,7 +512,7 @@ class TestCircuitBreaker:
 
         await client.close()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_circuit_breaker_excludes_404(self, mock_config):
         """Testa que 404s não abrem o circuit breaker."""
         client = OPAClient(mock_config)
@@ -545,7 +546,7 @@ class TestCircuitBreaker:
 
         await client.close()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_circuit_breaker_disabled(self, mock_config):
         """Testa comportamento com circuit breaker desabilitado."""
 
@@ -568,7 +569,7 @@ class TestCircuitBreaker:
         assert state["enabled"] is False
         await client.close()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_circuit_breaker_metrics_recorded(self, mock_config):
         """Testa que métricas do circuit breaker são registradas."""
         client = OPAClient(mock_config)
@@ -583,7 +584,7 @@ class TestCircuitBreaker:
 
         await client.close()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_circuit_breaker_state(self, mock_config):
         """Testa obtenção do estado do circuit breaker."""
         client = OPAClient(mock_config)
@@ -603,7 +604,7 @@ class TestCircuitBreaker:
 class TestBatchValidation:
     """Testes de validação em batch."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_batch_validate_multiple_tickets(self, mock_config):
         """Testa validação em batch de múltiplos tickets."""
         mock_opa_client = AsyncMock()
@@ -624,7 +625,7 @@ class TestBatchValidation:
         assert len(results) == 10
         assert all(r["result"]["allow"] is True for r in results)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_batch_validate_preserves_order(self, opa_client):
         """Testa que batch validation preserva ordem."""
         tickets = [{"ticket_id": "t1"}, {"ticket_id": "t2"}, {"ticket_id": "t3"}]
@@ -646,7 +647,7 @@ class TestBatchValidation:
 class TestFailOpenFailClosed:
     """Testes de fail-open vs fail-closed."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_fail_closed_rejects_on_opa_error(self, mock_config):
         """Testa fail-closed rejeita tickets em erro OPA."""
 
@@ -666,7 +667,7 @@ class TestFailOpenFailClosed:
         assert result.valid is False
         assert len(result.violations) > 0
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_fail_open_allows_on_opa_error(self, mock_config):
         """Testa fail-open permite tickets em erro OPA."""
         mock_config.opa_fail_open = True

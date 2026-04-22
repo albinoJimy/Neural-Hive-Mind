@@ -1,9 +1,9 @@
 """Testes unitários para BusinessSpecialist - Métodos de Análise."""
 
-import sys
 import os
+import sys
+
 import pytest
-from typing import Dict, List
 
 # Configurar paths
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
@@ -13,7 +13,7 @@ class BusinessAnalysisTestHelper:
     """Helper class para testar métodos de análise sem inicialização completa."""
 
     @staticmethod
-    def analyze_workflow(tasks: List[Dict]) -> float:
+    def analyze_workflow(tasks: list[dict]) -> float:
         """Implementação do método de análise de workflow."""
         num_tasks = len(tasks)
 
@@ -56,7 +56,7 @@ class BusinessAnalysisTestHelper:
         return max(0.0, min(1.0, workflow_score))
 
     @staticmethod
-    def analyze_kpis(cognitive_plan: Dict, context: Dict) -> float:
+    def analyze_kpis(cognitive_plan: dict, context: dict) -> float:
         """Implementação do método de análise de KPIs."""
         # Verificar menções de KPIs e métricas
         plan_desc = cognitive_plan.get("description", "").lower()
@@ -94,7 +94,7 @@ class BusinessAnalysisTestHelper:
         return min(1.0, base_score + goal_bonus)
 
     @staticmethod
-    def analyze_costs(tasks: List[Dict]) -> float:
+    def analyze_costs(tasks: list[dict]) -> float:
         """Implementação do método de análise de custos."""
         if not tasks:
             return 0.5
@@ -127,7 +127,7 @@ class BusinessAnalysisTestHelper:
 
     @staticmethod
     def calculate_business_risk(
-        cognitive_plan: Dict, workflow_score: float, kpi_score: float, cost_score: float
+        cognitive_plan: dict, workflow_score: float, kpi_score: float, cost_score: float
     ) -> float:
         """Implementação do cálculo de risco de negócio."""
         # Média ponderada inversa
@@ -169,7 +169,7 @@ class BusinessAnalysisTestHelper:
     @staticmethod
     def generate_mitigations(
         workflow_score: float, kpi_score: float, cost_score: float
-    ) -> List[Dict]:
+    ) -> list[dict]:
         """Gera sugestões de mitigação de riscos de negócio."""
         mitigations = []
 
@@ -206,7 +206,7 @@ class BusinessAnalysisTestHelper:
         return mitigations
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_cognitive_plan():
     """Plano cognitivo de exemplo."""
     return {
@@ -601,8 +601,8 @@ class TestMLModelIntegration:
 
     def test_ml_model_prediction(self):
         """Testa predição do modelo ML."""
-        from sklearn.ensemble import GradientBoostingClassifier
         import numpy as np
+        from sklearn.ensemble import GradientBoostingClassifier
 
         # Criar um modelo simples para teste
         model = GradientBoostingClassifier(n_estimators=10, max_depth=3, random_state=42)
@@ -675,8 +675,8 @@ class TestMLModelIntegration:
 
     def test_ml_feature_importance_order(self):
         """Testa ordenação de importância de features."""
-        from sklearn.ensemble import GradientBoostingClassifier
         import numpy as np
+        from sklearn.ensemble import GradientBoostingClassifier
 
         # Criar e treinar modelo
         model = GradientBoostingClassifier(n_estimators=10, random_state=42)

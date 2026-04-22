@@ -9,14 +9,15 @@ Responsável por:
 - Persistir e carregar modelos treinados
 """
 
-from typing import Dict, List, Any, Optional
+import os
+from datetime import datetime
+from typing import Any, Optional
+
+import joblib
 import numpy as np
+import structlog
 from sklearn.ensemble import IsolationForest
 from sklearn.preprocessing import StandardScaler
-import joblib
-import os
-import structlog
-from datetime import datetime
 
 logger = structlog.get_logger(__name__)
 
@@ -24,7 +25,7 @@ logger = structlog.get_logger(__name__)
 class AnomalyDetector:
     """Detecta anomalias em métricas de especialistas usando Isolation Forest."""
 
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, config: dict[str, Any]):
         """
         Inicializa detector de anomalias.
 
@@ -69,7 +70,7 @@ class AnomalyDetector:
 
     def train_on_historical_data(
         self,
-        metrics_history: List[Dict[str, float]],
+        metrics_history: list[dict[str, float]],
         specialist_type: Optional[str] = None,
     ) -> bool:
         """
@@ -149,7 +150,7 @@ class AnomalyDetector:
             logger.error("Error training anomaly detector", error=str(e), exc_info=True)
             return False
 
-    def detect_anomalies(self, current_metrics: Dict[str, float]) -> Dict[str, Any]:
+    def detect_anomalies(self, current_metrics: dict[str, float]) -> dict[str, Any]:
         """
         Detecta anomalias em métricas atuais.
 
@@ -246,7 +247,7 @@ class AnomalyDetector:
                 "error": str(e),
             }
 
-    def _prepare_features(self, metrics: Dict[str, float]) -> Optional[np.ndarray]:
+    def _prepare_features(self, metrics: dict[str, float]) -> Optional[np.ndarray]:
         """
         Prepara features de um dict de métricas.
 
@@ -274,7 +275,7 @@ class AnomalyDetector:
             logger.error("Error preparing features", error=str(e), metrics=metrics)
             return None
 
-    def _prepare_features_batch(self, metrics_list: List[Dict[str, float]]) -> np.ndarray:
+    def _prepare_features_batch(self, metrics_list: list[dict[str, float]]) -> np.ndarray:
         """
         Prepara features de lista de métricas.
 
@@ -311,8 +312,8 @@ class AnomalyDetector:
             return "info"
 
     def _identify_anomalous_features(
-        self, metrics: Dict[str, float], features: np.ndarray
-    ) -> List[str]:
+        self, metrics: dict[str, float], features: np.ndarray
+    ) -> list[str]:
         """
         Identifica quais features são mais anômalas.
 
@@ -447,7 +448,7 @@ class AnomalyDetector:
         model_path = self.model_path.format(specialist_type=specialist_type)
         return self._load_model(model_path)
 
-    def get_feature_importance(self) -> Dict[str, float]:
+    def get_feature_importance(self) -> dict[str, float]:
         """
         Retorna importância de features (aproximada).
 

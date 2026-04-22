@@ -1,9 +1,10 @@
 """Testes da API de otimizações."""
 
+from datetime import UTC, datetime
+from unittest.mock import AsyncMock, MagicMock
+
 import pytest
 from fastapi.testclient import TestClient
-from unittest.mock import AsyncMock, MagicMock
-from datetime import datetime, timezone
 
 from src.main import app
 
@@ -19,8 +20,8 @@ def mock_repository():
         "ticket_id": "TICKET-001",
         "workflow_id": "workflow-001",
         "status": "approved",
-        "created_at": datetime.now(timezone.utc).isoformat(),
-        "updated_at": datetime.now(timezone.utc).isoformat(),
+        "created_at": datetime.now(UTC).isoformat(),
+        "updated_at": datetime.now(UTC).isoformat(),
         "performance_analysis": {"total_duration_ms": 5000, "peak_memory_mb": 128},
         "recommendations": [
             {
@@ -131,8 +132,8 @@ class TestOptimizationsAPI:
                     "ticket_id": "TICKET-001",
                     "workflow_id": "workflow-001",
                     "status": "approved",  # Precisa estar approved para apply
-                    "created_at": datetime.now(timezone.utc).isoformat(),
-                    "updated_at": datetime.now(timezone.utc).isoformat(),
+                    "created_at": datetime.now(UTC).isoformat(),
+                    "updated_at": datetime.now(UTC).isoformat(),
                     "performance_analysis": {"total_duration_ms": 5000, "peak_memory_mb": 128},
                     "recommendations": [{"id": "rec-001"}],
                 }
@@ -210,8 +211,9 @@ class TestHealthAPI:
     @pytest.mark.asyncio
     async def test_startup_check_with_main(self):
         """Testa startup probe com app state configurado."""
-        from src import main as app_main
         from fastapi.testclient import TestClient
+
+        from src import main as app_main
 
         # Configurar startup completo
         app_main._startup_complete = True
@@ -226,9 +228,11 @@ class TestHealthAPI:
     @pytest.mark.asyncio
     async def test_deep_health_check(self):
         """Testa deep health diagnostics."""
-        from src import main as app_main
         from unittest.mock import AsyncMock
+
         from fastapi.testclient import TestClient
+
+        from src import main as app_main
 
         # Mock dependencies
         app_main.mongodb_client = MagicMock()

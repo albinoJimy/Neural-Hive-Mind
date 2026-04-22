@@ -4,21 +4,16 @@ Armazena artefatos aprovados (documentos, código, etc.)
 com metadados e versionamento.
 """
 
-import asyncio
 import hashlib
-import json
 import uuid
 from datetime import datetime, timedelta
-from pathlib import Path
-from typing import Any, Dict, List, Optional, BinaryIO
+from typing import Any, Optional
 
 import structlog
 from bson import Binary
-from pymongo import MongoClient
 from gridfs import GridFS
-
+from pymongo import MongoClient
 from src.config.settings import get_settings
-from src.models.approval import ApprovalDecision
 
 logger = structlog.get_logger(__name__)
 
@@ -26,11 +21,7 @@ logger = structlog.get_logger(__name__)
 class ArtifactStore:
     """Armazenamento de artefatos aprovados."""
 
-    def __init__(
-        self,
-        mongo_client: Optional[MongoClient] = None,
-        db_name: str = "neural_hive"
-    ):
+    def __init__(self, mongo_client: Optional[MongoClient] = None, db_name: str = "neural_hive"):
         """Inicializa o artifact store."""
         settings = get_settings()
         self._mongo_client = mongo_client or MongoClient(settings.mongodb_url)
@@ -56,9 +47,9 @@ class ArtifactStore:
         artifact_type: str,
         content: str | bytes,
         filename: Optional[str] = None,
-        metadata: Optional[Dict[str, Any]] = None,
+        metadata: Optional[dict[str, Any]] = None,
         content_type: str = "text/plain",
-        version: str = "1.0.0"
+        version: str = "1.0.0",
     ) -> str:
         """
         Armazena um artefato aprovado.
@@ -103,9 +94,7 @@ class ArtifactStore:
         # Armazenar no GridFS para arquivos grandes
         try:
             gridfs_file = self._gridfs.put(
-                content_bytes,
-                filename=artifact_metadata["filename"],
-                metadata=artifact_metadata
+                content_bytes, filename=artifact_metadata["filename"], metadata=artifact_metadata
             )
 
             # Atualizar metadados com GridFS ID
@@ -116,7 +105,7 @@ class ArtifactStore:
                 "artifact_stored_gridfs",
                 artifact_id=artifact_id,
                 filename=artifact_metadata["filename"],
-                size_bytes=artifact_metadata["size_bytes"]
+                size_bytes=artifact_metadata["size_bytes"],
             )
 
         except Exception as e:
@@ -135,12 +124,12 @@ class ArtifactStore:
             "artifact_created",
             artifact_id=artifact_id,
             artifact_type=artifact_type,
-            approval_id=approval_id
+            approval_id=approval_id,
         )
 
         return artifact_id
 
-    async def get_artifact(self, artifact_id: str) -> Optional[Dict[str, Any]]:
+    async def get_artifact(self, artifact_id: str) -> Optional[dict[str, Any]]:
         """
         Recupera um artefato pelo ID.
 
@@ -173,10 +162,8 @@ class ArtifactStore:
         return metadata
 
     async def get_artifacts_by_approval(
-        self,
-        approval_id: str,
-        artifact_type: Optional[str] = None
-    ) -> List[Dict[str, Any]]:
+        self, approval_id: str, artifact_type: Optional[str] = None
+    ) -> list[dict[str, Any]]:
         """
         Lista artefatos por aprovação.
 
@@ -196,23 +183,22 @@ class ArtifactStore:
         artifacts = []
         async for artifact in cursor:
             # Incluir apenas metadados (não conteúdo)
-            artifacts.append({
-                "artifact_id": artifact["artifact_id"],
-                "artifact_type": artifact["artifact_type"],
-                "filename": artifact.get("filename"),
-                "content_type": artifact.get("content_type"),
-                "size_bytes": artifact["size_bytes"],
-                "version": artifact["version"],
-                "created_at": artifact["created_at"],
-                "metadata": artifact.get("metadata", {})
-            })
+            artifacts.append(
+                {
+                    "artifact_id": artifact["artifact_id"],
+                    "artifact_type": artifact["artifact_type"],
+                    "filename": artifact.get("filename"),
+                    "content_type": artifact.get("content_type"),
+                    "size_bytes": artifact["size_bytes"],
+                    "version": artifact["version"],
+                    "created_at": artifact["created_at"],
+                    "metadata": artifact.get("metadata", {}),
+                }
+            )
 
         return artifacts
 
-    async def get_artifact_content(
-        self,
-        artifact_id: str
-    ) -> Optional[str | bytes]:
+    async def get_artifact_content(self, artifact_id: str) -> Optional[str | bytes]:
         """
         Recupera o conteúdo de um artefato.
 
@@ -247,11 +233,7 @@ class ArtifactStore:
 
         return None
 
-    async def update_artifact_metadata(
-        self,
-        artifact_id: str,
-        metadata: Dict[str, Any]
-    ) -> bool:
+    async def update_artifact_metadata(self, artifact_id: str, metadata: dict[str, Any]) -> bool:
         """
         Atualiza metadados de um artefato.
 
@@ -264,12 +246,7 @@ class ArtifactStore:
         """
         result = self._collection.update_one(
             {"artifact_id": artifact_id},
-            {
-                "$set": {
-                    "metadata": metadata,
-                    "updated_at": datetime.utcnow()
-                }
-            }
+            {"$set": {"metadata": metadata, "updated_at": datetime.utcnow()}},
         )
 
         if result.modified_count > 0:
@@ -310,11 +287,8 @@ class ArtifactStore:
         return False
 
     async def list_artifacts(
-        self,
-        artifact_type: Optional[str] = None,
-        limit: int = 100,
-        offset: int = 0
-    ) -> List[Dict[str, Any]]:
+        self, artifact_type: Optional[str] = None, limit: int = 100, offset: int = 0
+    ) -> list[dict[str, Any]]:
         """
         Lista artefatos com paginação.
 
@@ -334,28 +308,30 @@ class ArtifactStore:
 
         artifacts = []
         for artifact in await cursor.to_list(length=limit):
-            artifacts.append({
-                "artifact_id": artifact["artifact_id"],
-                "artifact_type": artifact["artifact_type"],
-                "filename": artifact.get("filename"),
-                "size_bytes": artifact["size_bytes"],
-                "version": artifact["version"],
-                "created_at": artifact["created_at"],
-            })
+            artifacts.append(
+                {
+                    "artifact_id": artifact["artifact_id"],
+                    "artifact_type": artifact["artifact_type"],
+                    "filename": artifact.get("filename"),
+                    "size_bytes": artifact["size_bytes"],
+                    "version": artifact["version"],
+                    "created_at": artifact["created_at"],
+                }
+            )
 
         return artifacts
 
-    async def get_storage_stats(self) -> Dict[str, Any]:
+    async def get_storage_stats(self) -> dict[str, Any]:
         """Retorna estatísticas de armazenamento."""
         total_count = await self._collection.count_documents({})
-        total_size = await self._collection.aggregate([
-            {"$group": None, "$sum": {"size_bytes": 1}}
-        ]).to_list(None)
+        total_size = await self._collection.aggregate(
+            [{"$group": None, "$sum": {"size_bytes": 1}}]
+        ).to_list(None)
 
         # Count por tipo
-        type_counts = await self._collection.aggregate([
-            {"$group": {"_id": "$artifact_type"}, "count": {"count": 1}}
-        ]).to_list(None)
+        type_counts = await self._collection.aggregate(
+            [{"$group": {"_id": "$artifact_type"}, "count": {"count": 1}}]
+        ).to_list(None)
 
         # GridFS stats
         gridfs_count = self._gridfs.list(limit=1)["length"]
@@ -363,17 +339,12 @@ class ArtifactStore:
         return {
             "total_artifacts": total_count,
             "total_size_bytes": total_size[0].get("size_bytes", 0) if total_size else 0,
-            "artifacts_by_type": {
-                item["_id"]: item["count"]
-                for item in type_counts
-            },
-            "gridfs_files": gridfs_count
+            "artifacts_by_type": {item["_id"]: item["count"] for item in type_counts},
+            "gridfs_files": gridfs_count,
         }
 
     async def cleanup_old_artifacts(
-        self,
-        days_to_keep: int = 90,
-        artifact_type: Optional[str] = None
+        self, days_to_keep: int = 90, artifact_type: Optional[str] = None
     ) -> int:
         """
         Remove artefatos antigos.
@@ -398,7 +369,7 @@ class ArtifactStore:
                 "old_artifacts_cleaned",
                 count=result.deleted_count,
                 days_old=days_to_keep,
-                artifact_type=artifact_type
+                artifact_type=artifact_type,
             )
 
         # Limpar arquivos órfãos no GridFS

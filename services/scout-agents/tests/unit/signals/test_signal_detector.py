@@ -4,10 +4,10 @@ Unit tests for SignalDetector service (scout-agents).
 Tests signal detection, classification, and scoring.
 """
 
-import pytest
+from datetime import UTC, datetime
 from unittest.mock import patch
-from datetime import datetime, timezone
 
+import pytest
 from src.detection.signal_detector import SignalDetector
 from src.models.scout_signal import SignalType
 
@@ -28,7 +28,7 @@ class TestSignalDetectorInitialization:
 class TestSignalTypeDetection:
     """Test signal type detection logic."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_detect_positive_anomaly_business_domain(
         self, sample_anomalous_raw_event, business_domain
     ):
@@ -46,7 +46,7 @@ class TestSignalTypeDetection:
         assert signal_type is not None
         assert confidence > 0
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_detect_threat_security_domain(self, sample_anomalous_raw_event, security_domain):
         """Test threat detection in security domain."""
         detector = SignalDetector("test-scout")
@@ -59,7 +59,7 @@ class TestSignalTypeDetection:
         if signal_type:
             assert confidence > 0
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_detect_opportunity(self, sample_raw_event, business_domain):
         """Test opportunity detection in business domain."""
         detector = SignalDetector("test-scout")
@@ -72,7 +72,7 @@ class TestSignalTypeDetection:
             if signal_type:
                 assert isinstance(signal_type, SignalType)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_no_signal_normal_event(self, sample_raw_event, business_domain):
         """Test normal event returns no signal."""
         detector = SignalDetector("test-scout")
@@ -88,7 +88,7 @@ class TestSignalTypeDetection:
 class TestEmergingPatternDetection:
     """Test emerging pattern detection."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_detect_emerging_pattern_high_variance(self):
         """Test pattern detection with high variance features."""
         detector = SignalDetector("test-scout")
@@ -100,7 +100,7 @@ class TestEmergingPatternDetection:
 
         assert result is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_no_pattern_low_variance(self):
         """Test no pattern detection with low variance features."""
         detector = SignalDetector("test-scout")
@@ -112,7 +112,7 @@ class TestEmergingPatternDetection:
 
         assert result is False
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_empty_features_no_pattern(self):
         """Test empty features return no pattern."""
         detector = SignalDetector("test-scout")
@@ -125,7 +125,7 @@ class TestEmergingPatternDetection:
 class TestTrendDetection:
     """Test trend detection logic."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_detect_upward_trend(self):
         """Test upward trend detection."""
         detector = SignalDetector("test-scout")
@@ -137,7 +137,7 @@ class TestTrendDetection:
 
         assert result is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_detect_downward_trend(self):
         """Test downward trend detection."""
         detector = SignalDetector("test-scout")
@@ -149,7 +149,7 @@ class TestTrendDetection:
 
         assert result is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_no_trend_flat_data(self):
         """Test flat data returns no trend."""
         detector = SignalDetector("test-scout")
@@ -161,7 +161,7 @@ class TestTrendDetection:
 
         assert result is False
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_insufficient_data_no_trend(self):
         """Test insufficient data returns no trend."""
         detector = SignalDetector("test-scout")
@@ -513,7 +513,7 @@ class TestPositiveAnomalyDetection:
             event_id="test-001",
             source="test",
             event_type="user_action",
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
             payload={"action": "click"},
             metadata={},
         )
@@ -560,7 +560,7 @@ class TestPositiveAnomalyDetection:
 class TestMainDetectionPipeline:
     """Test main detection pipeline."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_detect_returns_signal(self, sample_raw_event, business_domain):
         """Test detect returns ScoutSignal when thresholds met."""
         from src.models.raw_event import RawEvent
@@ -572,7 +572,7 @@ class TestMainDetectionPipeline:
             event_id="test-001",
             source="test",
             event_type="user_action",
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
             payload={"action": "click"},
             metadata={},
         )
@@ -586,7 +586,7 @@ class TestMainDetectionPipeline:
                 assert hasattr(signal, "signal_id")
                 assert hasattr(signal, "signal_type")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_detect_returns_none_filtered(self, sample_raw_event, business_domain):
         """Test detect returns None when Bayesian filter rejects."""
         detector = SignalDetector("test-scout")
@@ -596,7 +596,7 @@ class TestMainDetectionPipeline:
         # Signal may be None if filtered out
         assert signal is None or hasattr(signal, "signal_id")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_detect_signal_attributes(self, sample_raw_event, business_domain):
         """Test detected signal has required attributes."""
         from src.models.raw_event import RawEvent
@@ -607,7 +607,7 @@ class TestMainDetectionPipeline:
             event_id="test-001",
             source="test",
             event_type="user_action",
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
             payload={"action": "click"},
             metadata={},
         )

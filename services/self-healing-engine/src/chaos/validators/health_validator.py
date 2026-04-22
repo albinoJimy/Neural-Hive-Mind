@@ -6,8 +6,8 @@ durante e após experimentos de chaos.
 """
 
 import asyncio
-from datetime import datetime, timezone
-from typing import Any, Dict, Optional
+from datetime import UTC, datetime
+from typing import Any, Optional
 
 import aiohttp
 import structlog
@@ -61,7 +61,7 @@ class HealthValidator:
         self,
         service_name: str,
         namespace: str = "default",
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Verifica saúde de um serviço via health endpoint.
 
@@ -76,7 +76,7 @@ class HealthValidator:
             "service_name": service_name,
             "namespace": namespace,
             "healthy": False,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "checks": {},
         }
 
@@ -150,7 +150,7 @@ class HealthValidator:
         self,
         service_name: str,
         slo_name: Optional[str] = None,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Verifica conformidade de SLOs via SLA Management System.
 
@@ -164,7 +164,7 @@ class HealthValidator:
         result = {
             "service_name": service_name,
             "compliant": True,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "slos": [],
         }
 
@@ -213,8 +213,8 @@ class HealthValidator:
     async def check_data_integrity(
         self,
         service_name: str,
-        context: Dict[str, Any],
-    ) -> Dict[str, Any]:
+        context: dict[str, Any],
+    ) -> dict[str, Any]:
         """
         Verifica integridade de dados após experimento de chaos.
 
@@ -228,7 +228,7 @@ class HealthValidator:
         result = {
             "service_name": service_name,
             "integrity_valid": True,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "checks": [],
         }
 
@@ -279,7 +279,7 @@ class HealthValidator:
         self,
         service_name: str,
         namespace: str = "default",
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Verifica disponibilidade de observability (traces, logs, metrics).
 
@@ -294,7 +294,7 @@ class HealthValidator:
             "service_name": service_name,
             "namespace": namespace,
             "observability_healthy": True,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "components": {},
         }
 
@@ -330,8 +330,8 @@ class HealthValidator:
         self,
         service_name: str,
         namespace: str = "default",
-        context: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, Any]:
+        context: Optional[dict[str, Any]] = None,
+    ) -> dict[str, Any]:
         """
         Executa verificação completa de saúde.
 
@@ -358,7 +358,7 @@ class HealthValidator:
             "service_name": service_name,
             "namespace": namespace,
             "overall_healthy": True,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "service_health": (
                 results[0] if not isinstance(results[0], Exception) else {"error": str(results[0])}
             ),
@@ -399,7 +399,7 @@ class HealthValidator:
         self,
         service_name: str,
         namespace: str,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Verifica se serviço está UP via Prometheus."""
         result = {"available": False, "up": False}
 
@@ -423,7 +423,7 @@ class HealthValidator:
         self,
         service_name: str,
         namespace: str,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Verifica se métricas estão sendo coletadas."""
         result = {"available": False, "metrics_found": 0}
 

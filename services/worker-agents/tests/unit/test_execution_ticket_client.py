@@ -14,10 +14,10 @@ import pytest
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "src"))
 
-from clients.execution_ticket_client import ExecutionTicketClient  # noqa: E402
+from clients.execution_ticket_client import ExecutionTicketClient
 
 
-@pytest.fixture
+@pytest.fixture()
 def config():
     """Configuração básica para testes."""
     return SimpleNamespace(
@@ -27,7 +27,7 @@ def config():
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_metrics():
     """Métricas mock para validação de chamadas."""
     metrics = MagicMock()
@@ -80,7 +80,7 @@ class TestIsTokenExpired:
 class TestGetTicketToken:
     """Testes para o método get_ticket_token."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_returns_cached_valid_token(self, config, mock_metrics):
         """Deve retornar token do cache se válido."""
         client = ExecutionTicketClient(config, metrics=mock_metrics)
@@ -94,7 +94,7 @@ class TestGetTicketToken:
         assert result == valid_token
         client.client.get.assert_not_called()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_fetches_new_token_when_cache_empty(self, config, mock_metrics):
         """Deve buscar novo token quando cache está vazio."""
         client = ExecutionTicketClient(config, metrics=mock_metrics)
@@ -114,7 +114,7 @@ class TestGetTicketToken:
         assert "ticket-456" in client._token_cache
         mock_metrics.ticket_tokens_obtained_total.inc.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_fetches_new_token_when_cached_expired(self, config, mock_metrics):
         """Deve buscar novo token quando token no cache está expirado."""
         client = ExecutionTicketClient(config, metrics=mock_metrics)
@@ -137,7 +137,7 @@ class TestGetTicketToken:
         assert result == new_token
         assert client._token_cache["ticket-789"]["access_token"] == new_token
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_fetches_new_token_when_cached_malformed(self, config, mock_metrics):
         """Deve buscar novo token quando token no cache está malformado."""
         client = ExecutionTicketClient(config, metrics=mock_metrics)

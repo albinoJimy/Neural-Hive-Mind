@@ -7,7 +7,7 @@ import pytest
 from src.coordination.scout_coordinator import ScoutCoordinator, Task
 
 
-@pytest.fixture
+@pytest.fixture()
 def coordinator():
     """Instância de ScoutCoordinator para testes."""
     return ScoutCoordinator(
@@ -18,7 +18,7 @@ def coordinator():
 class TestScoutRegistration:
     """Testes de registro de scouts."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_register_scout(self, coordinator):
         """Testa registro de scout."""
         success = await coordinator.register_scout(
@@ -29,7 +29,7 @@ class TestScoutRegistration:
         assert "scout_1" in coordinator._scouts
         assert coordinator._scouts["scout_1"]["status"] == "idle"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_unregister_scout(self, coordinator):
         """Testa remoção de scout."""
         await coordinator.register_scout("scout_1", ["scan"])
@@ -38,7 +38,7 @@ class TestScoutRegistration:
 
         assert "scout_1" not in coordinator._scouts
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_unregister_reassigns_tasks(self, coordinator):
         """Testa que remoção reatribui tarefas ativas."""
         await coordinator.register_scout("scout_1", ["scan"])
@@ -58,7 +58,7 @@ class TestScoutRegistration:
 class TestTaskManagement:
     """Testes de gerenciamento de tarefas."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_create_task(self, coordinator):
         """Testa criação de tarefa."""
         task_id = await coordinator.create_task(
@@ -73,7 +73,7 @@ class TestTaskManagement:
         assert task.metadata["size"] == 100
         assert task.status == "pending"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_high_priority_queue(self, coordinator):
         """Testa fila de alta prioridade."""
         await coordinator.register_scout("scout_1", ["scan"])
@@ -87,7 +87,7 @@ class TestTaskManagement:
         assert task is not None
         assert "high.py" in task["target"]
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_next_task(self, coordinator):
         """Testa obter próxima tarefa."""
         await coordinator.register_scout("scout_1", ["scan"])
@@ -99,7 +99,7 @@ class TestTaskManagement:
         assert task["task_id"] == task_id
         assert task["target"] == "test.py"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_task_requires_capability(self, coordinator):
         """Testa filtro por capacidade."""
         await coordinator.register_scout("scout_1", ["scan"])
@@ -119,7 +119,7 @@ class TestTaskManagement:
         assert task is not None
         assert task["task_id"] == task_id
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_complete_task(self, coordinator):
         """Testa completar tarefa."""
         await coordinator.register_scout("scout_1", ["scan"])
@@ -134,7 +134,7 @@ class TestTaskManagement:
         assert task.result == result
         assert task_id not in coordinator._active_tasks
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_complete_task_failed(self, coordinator):
         """Testa completar tarefa com falha."""
         await coordinator.register_scout("scout_1", ["scan"])
@@ -150,7 +150,7 @@ class TestTaskManagement:
 class TestTaskTimeout:
     """Testes de timeout de tarefas."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_timeout_stale_tasks(self, coordinator):
         """Testa detecção de tarefas expiradas."""
         await coordinator.register_scout("scout_1", ["scan"])
@@ -173,7 +173,7 @@ class TestTaskTimeout:
 class TestCoordinatorStatus:
     """Testes de status do coordenador."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_coordinator_status(self, coordinator):
         """Testa obter status do coordenador."""
         await coordinator.register_scout("scout_1", ["scan"])
@@ -191,7 +191,7 @@ class TestCoordinatorStatus:
 class TestBroadcast:
     """Testes de broadcast de eventos."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_broadcast_event(self, coordinator):
         """Testa broadcast de evento."""
         await coordinator.register_scout("scout_1", ["scan"])
@@ -207,7 +207,7 @@ class TestBroadcast:
 class TestConcurrentTasks:
     """Testes de tarefas concorrentes."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_max_concurrent_limit(self, coordinator):
         """Testa limite de tarefas concorrentes."""
         coordinator.max_concurrent_tasks = 2

@@ -2,10 +2,10 @@
 Testes de integracao para endpoint de republicacao
 """
 
-import pytest
-from datetime import datetime, timezone
-from unittest.mock import MagicMock, AsyncMock
+from datetime import UTC, datetime
+from unittest.mock import AsyncMock, MagicMock
 
+import pytest
 from src.models.approval import ApprovalRequest, ApprovalStatus, RiskBand
 from src.services.approval_service import ApprovalService
 
@@ -13,7 +13,7 @@ from src.services.approval_service import ApprovalService
 class TestRepublishEndpointIntegration:
     """Testes de integracao para republicacao"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def approved_plan_storage(self, sample_cognitive_plan):
         """Storage com plano ja aprovado"""
         approval = ApprovalRequest(
@@ -26,12 +26,12 @@ class TestRepublishEndpointIntegration:
             destructive_tasks=["task-2"],
             status=ApprovalStatus.APPROVED,
             approved_by="original-admin@test.com",
-            approved_at=datetime.now(timezone.utc),
+            approved_at=datetime.now(UTC),
             cognitive_plan=sample_cognitive_plan,
         )
         return {"plan-001": approval}
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_mongodb_client_with_approved(self, approved_plan_storage):
         """MongoDB client com plano aprovado"""
 
@@ -42,7 +42,7 @@ class TestRepublishEndpointIntegration:
         client.get_approval_by_plan_id = AsyncMock(side_effect=get_by_plan_id)
         return client
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_producer_with_capture(self):
         """Producer que captura mensagens republicadas"""
         messages = []
@@ -55,7 +55,7 @@ class TestRepublishEndpointIntegration:
         producer._messages = messages
         return producer
 
-    @pytest.fixture
+    @pytest.fixture()
     def approval_service(
         self,
         mock_settings,
@@ -71,7 +71,7 @@ class TestRepublishEndpointIntegration:
             metrics=mock_metrics,
         )
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_republish_approved_plan_success(
         self, approval_service, mock_producer_with_capture
     ):
@@ -96,7 +96,7 @@ class TestRepublishEndpointIntegration:
         assert kafka_msg.plan_id == "plan-001"
         assert kafka_msg.decision == "approved"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_republish_pending_plan_without_force(
         self, mock_settings, mock_producer_with_capture, mock_metrics, sample_approval_request
     ):
@@ -126,7 +126,7 @@ class TestRepublishEndpointIntegration:
         assert "nao esta aprovado" in str(exc_info.value)
         assert "Use force=true" in str(exc_info.value)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_republish_pending_plan_with_force(
         self,
         mock_settings,
@@ -164,7 +164,7 @@ class TestRepublishEndpointIntegration:
         assert response.plan_id == "plan-001"
         assert len(mock_producer_with_capture._messages) == 1
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_republish_plan_not_found(
         self, mock_settings, mock_producer_with_capture, mock_metrics
     ):
@@ -188,7 +188,7 @@ class TestRepublishEndpointIntegration:
 
         assert "nao encontrado" in str(exc_info.value)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_republish_plan_without_cognitive_plan(
         self, mock_settings, mock_producer_with_capture, mock_metrics
     ):
@@ -199,7 +199,7 @@ class TestRepublishEndpointIntegration:
         approval.status = ApprovalStatus.APPROVED
         approval.cognitive_plan = None  # Simula ausencia de cognitive_plan
         approval.approved_by = "admin@test.com"
-        approval.approved_at = datetime.now(timezone.utc)
+        approval.approved_at = datetime.now(UTC)
         approval.intent_id = "intent-001"
 
         async def get_without_plan(plan_id):
@@ -220,7 +220,7 @@ class TestRepublishEndpointIntegration:
 
         assert "nao possui cognitive_plan" in str(exc_info.value)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_republish_multiple_times(self, approval_service, mock_producer_with_capture):
         """Teste republicacao multipla do mesmo plano"""
         # Primeira republicacao

@@ -12,8 +12,8 @@ Ferramentas:
 from datetime import datetime
 from typing import Any
 
-import structlog
 import httpx
+import structlog
 
 from queen_mcp_server.config import get_settings
 

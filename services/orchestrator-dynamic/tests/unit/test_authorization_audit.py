@@ -2,14 +2,14 @@
 Testes unitarios para Authorization Audit Log.
 """
 
-import pytest
 from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
 from src.policies.opa_client import OPAClient
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_mongodb_client():
     """Mock do MongoDB client."""
     client = AsyncMock()
@@ -18,7 +18,7 @@ def mock_mongodb_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_config():
     """Mock de configuracao."""
     config = MagicMock()
@@ -36,7 +36,7 @@ def mock_config():
     return config
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_metrics():
     """Mock de metricas."""
     metrics = MagicMock()
@@ -48,7 +48,7 @@ def mock_metrics():
 class TestAuthorizationAuditLogging:
     """Testes para logging de decisoes de autorizacao."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_authorization_audit_logged_on_allow(
         self, mock_config, mock_mongodb_client, mock_metrics
     ):
@@ -92,7 +92,7 @@ class TestAuthorizationAuditLogging:
                 policy_path=policy_path, decision="allow", tenant_id="tenant-123"
             )
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_authorization_audit_logged_on_deny(
         self, mock_config, mock_mongodb_client, mock_metrics
     ):
@@ -129,7 +129,7 @@ class TestAuthorizationAuditLogging:
                 policy_path=policy_path, decision="deny", tenant_id="tenant-123"
             )
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_authorization_audit_logged_on_violations_without_allow_field(
         self, mock_config, mock_mongodb_client, mock_metrics
     ):
@@ -156,7 +156,7 @@ class TestAuthorizationAuditLogging:
             call_args = mock_mongodb_client.save_authorization_audit.call_args[0][0]
             assert call_args["decision"] == "deny"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_authorization_audit_fail_open(
         self, mock_config, mock_mongodb_client, mock_metrics
     ):
@@ -179,7 +179,7 @@ class TestAuthorizationAuditLogging:
                 assert result is not None
                 assert result["result"]["allow"] is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_authorization_audit_without_mongodb(self, mock_config, mock_metrics):
         """Testa que audit e pulado se MongoDB nao esta disponivel."""
         with patch("src.policies.opa_client.get_metrics", return_value=mock_metrics):
@@ -200,7 +200,7 @@ class TestAuthorizationAuditLogging:
             # Verificar que metrica NAO foi registrada (sem MongoDB)
             mock_metrics.record_authorization_audit_logged.assert_not_called()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_authorization_audit_extracts_tenant_from_security(
         self, mock_config, mock_mongodb_client, mock_metrics
     ):
@@ -227,7 +227,7 @@ class TestAuthorizationAuditLogging:
             call_args = mock_mongodb_client.save_authorization_audit.call_args[0][0]
             assert call_args["tenant_id"] == "tenant-from-security"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_authorization_audit_timestamp_format(
         self, mock_config, mock_mongodb_client, mock_metrics
     ):
@@ -256,7 +256,7 @@ class TestAuthorizationAuditLogging:
 class TestMongoDBAuthorizationAuditPersistence:
     """Testes para persistencia de audit no MongoDB."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_save_authorization_audit_success(self, mock_mongodb_client):
         """Testa persistencia bem-sucedida de audit entry."""
         from src.clients.mongodb_client import MongoDBClient

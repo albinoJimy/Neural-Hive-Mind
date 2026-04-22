@@ -14,7 +14,7 @@ import argparse
 import os
 import sys
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 
 def load_config():
@@ -161,7 +161,7 @@ def apply_retention_policies(config, dry_run=False, policy_name=None):
 
     # Executar políticas
     print(f"\n{'🔍 [DRY RUN]' if dry_run else '🚀'} Aplicando políticas de retenção...")
-    print(f"⏰ Timestamp: {datetime.now(timezone.utc).isoformat()}Z\n")
+    print(f"⏰ Timestamp: {datetime.now(UTC).isoformat()}Z\n")
 
     if dry_run:
         print("⚠️  Modo DRY RUN: nenhum dado será modificado\n")

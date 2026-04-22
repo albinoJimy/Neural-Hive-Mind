@@ -21,7 +21,7 @@ import pytest
 class TestLambdaRuntimeClientInitialization:
     """Testes de inicializacao."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_initialize_success(self):
         """Deve inicializar cliente com sucesso."""
         from src.clients.lambda_runtime_client import LambdaRuntimeClient
@@ -39,7 +39,7 @@ class TestLambdaRuntimeClientInitialization:
             assert client._initialized is True
             mock_boto.Session.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_initialize_aioboto3_not_installed(self):
         """Deve levantar erro quando aioboto3 nao instalado."""
         from src.clients.lambda_runtime_client import LambdaRuntimeClient
@@ -55,14 +55,14 @@ class TestLambdaRuntimeClientInitialization:
 class TestLambdaRuntimeClientInvocation:
     """Testes de invocacao."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_invoke_lambda_success(self):
         """Deve invocar Lambda com sucesso."""
         from src.clients.lambda_runtime_client import (
-            LambdaRuntimeClient,
             LambdaInvocationRequest,
-            LambdaPayload,
             LambdaInvocationType,
+            LambdaPayload,
+            LambdaRuntimeClient,
         )
 
         client = LambdaRuntimeClient(region="us-east-1", function_name="test-function")
@@ -108,13 +108,13 @@ class TestLambdaRuntimeClientInvocation:
         assert result.response.exit_code == 0
         assert result.response.stdout == "Hello World"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_invoke_lambda_with_function_error(self):
         """Deve tratar function error."""
         from src.clients.lambda_runtime_client import (
-            LambdaRuntimeClient,
             LambdaInvocationRequest,
             LambdaPayload,
+            LambdaRuntimeClient,
         )
 
         client = LambdaRuntimeClient(region="us-east-1")
@@ -154,13 +154,13 @@ class TestLambdaRuntimeClientInvocation:
         assert result.function_error == "Unhandled"
         assert result.response.exit_code != 0
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_invoke_lambda_timeout(self):
         """Deve levantar timeout."""
         from src.clients.lambda_runtime_client import (
-            LambdaRuntimeClient,
             LambdaInvocationRequest,
             LambdaPayload,
+            LambdaRuntimeClient,
             LambdaTimeoutError,
         )
 
@@ -237,8 +237,9 @@ class TestLambdaRuntimeClientParsing:
 
     def test_parse_log_result(self):
         """Deve decodificar log result base64."""
-        from src.clients.lambda_runtime_client import LambdaRuntimeClient
         import base64
+
+        from src.clients.lambda_runtime_client import LambdaRuntimeClient
 
         client = LambdaRuntimeClient(region="us-east-1")
 
@@ -273,7 +274,7 @@ class TestLambdaRuntimeClientParsing:
 class TestLambdaRuntimeClientHealthCheck:
     """Testes de health check."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_health_check_success(self):
         """Deve retornar True quando API acessivel."""
         from src.clients.lambda_runtime_client import LambdaRuntimeClient
@@ -293,7 +294,7 @@ class TestLambdaRuntimeClientHealthCheck:
 
         assert result is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_health_check_no_session(self):
         """Deve retornar False quando sem sessao."""
         from src.clients.lambda_runtime_client import LambdaRuntimeClient
@@ -309,7 +310,7 @@ class TestLambdaRuntimeClientHealthCheck:
 class TestLambdaRuntimeClientFunctionInfo:
     """Testes de obtencao de info da funcao."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_function_info_success(self):
         """Deve obter informacoes da funcao."""
         from src.clients.lambda_runtime_client import LambdaRuntimeClient
@@ -367,9 +368,9 @@ class TestLambdaRuntimeClientModels:
         """Deve validar LambdaInvocationRequest."""
         from src.clients.lambda_runtime_client import (
             LambdaInvocationRequest,
-            LambdaPayload,
             LambdaInvocationType,
             LambdaLogType,
+            LambdaPayload,
         )
 
         request = LambdaInvocationRequest(
@@ -385,7 +386,7 @@ class TestLambdaRuntimeClientModels:
 
     def test_lambda_invocation_result_model(self):
         """Deve validar LambdaInvocationResult."""
-        from src.clients.lambda_runtime_client import LambdaInvocationResult, LambdaExecutionOutput
+        from src.clients.lambda_runtime_client import LambdaExecutionOutput, LambdaInvocationResult
 
         result = LambdaInvocationResult(
             request_id="req-123",

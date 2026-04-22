@@ -4,9 +4,9 @@ Testes unitários para CounterfactualAnalyzer.
 TDD: Testes escritos antes da implementação (Explainability API v3 Task 4).
 """
 
-from typing import Dict, Any
 import sys
 from pathlib import Path
+from typing import Any
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
@@ -15,7 +15,6 @@ from services.counterfactual_analyzer import (
     CounterfactualAnalyzer,
     CounterfactualResult,
 )
-
 
 # Multiplicadores de senioridade (mesmos valores do consensus-engine)
 SENIORITY_MULTIPLIERS = {
@@ -30,7 +29,7 @@ SENIORITY_MULTIPLIERS = {
 # Helper function para criar votos de teste
 def create_vote(
     level: str, vote: str, confidence: float, specialist_id: str = "test"
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Cria um voto de especialista para testes.
 

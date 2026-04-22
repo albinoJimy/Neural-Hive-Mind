@@ -2,19 +2,19 @@
 
 import pytest
 
-from neural_hive_specialists.evolution_hooks.weight_adapter import WeightAdapter
 from neural_hive_specialists.evolution_hooks.models import (
-    Fingerprint,
+    DEFAULT_WEIGHTS,
     EvolutionEvaluation,
     FeedbackData,
     FeedbackOutcome,
     FeedbackSource,
+    Fingerprint,
     TaskCountRange,
-    DEFAULT_WEIGHTS,
 )
+from neural_hive_specialists.evolution_hooks.weight_adapter import WeightAdapter
 
 
-@pytest.fixture
+@pytest.fixture()
 async def adapter(mongo_client):
     """Adapter com database limpo."""
     # Limpar collection mock
@@ -26,7 +26,7 @@ async def adapter(mongo_client):
     return adapter
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 class TestWeightAdapter:
     """Testes para WeightAdapter."""
 

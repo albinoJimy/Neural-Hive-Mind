@@ -8,33 +8,33 @@ Este módulo testa o loop completo de feedback:
 - Commit de offsets
 """
 
-import pytest
 import asyncio
-from datetime import datetime, timezone
-from unittest.mock import Mock, AsyncMock, patch
+from datetime import UTC, datetime
+from unittest.mock import AsyncMock, Mock, patch
 
-from neural_hive_specialists.evolution_hooks.models import (
-    FeedbackOutcome,
-    FeedbackSource,
-    Fingerprint,
-    EvolutionEvaluation,
-    TaskCountRange,
-    DurationRange,
-    DEFAULT_WEIGHTS,
-)
-from neural_hive_specialists.evolution_hooks.pattern_registry import PatternRegistry
+import pytest
+
 from neural_hive_specialists.evolution_hooks.feedback_consumer import (
     EvolutionFeedbackConsumer,
     create_feedback_consumer,
 )
-
+from neural_hive_specialists.evolution_hooks.models import (
+    DEFAULT_WEIGHTS,
+    DurationRange,
+    EvolutionEvaluation,
+    FeedbackOutcome,
+    FeedbackSource,
+    Fingerprint,
+    TaskCountRange,
+)
+from neural_hive_specialists.evolution_hooks.pattern_registry import PatternRegistry
 
 # ============================================================================
 # Fixtures
 # ============================================================================
 
 
-@pytest.fixture
+@pytest.fixture()
 def feedback_message_dict():
     """Mensagem de feedback de exemplo."""
     return {
@@ -60,12 +60,12 @@ def feedback_message_dict():
             "outcome": "approve",
             "source": "human",
             "reasoning": "Approved after review",
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
         },
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_kafka_message(feedback_message_dict):
     """Mock de mensagem Kafka."""
 
@@ -79,7 +79,7 @@ def mock_kafka_message(feedback_message_dict):
     return MockConsumerRecord(feedback_message_dict)
 
 
-@pytest.fixture
+@pytest.fixture()
 async def pattern_registry_with_data(mongo_client):
     """PatternRegistry com dados iniciais."""
     registry = PatternRegistry(mongo_client, database="test_neural_hive_specialists")
@@ -119,7 +119,7 @@ async def pattern_registry_with_data(mongo_client):
 # ============================================================================
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_consumer_creation(mongo_client):
     """Testa criação do consumer."""
     registry = PatternRegistry(mongo_client, database="test_neural_hive_specialists")
@@ -140,7 +140,7 @@ async def test_consumer_creation(mongo_client):
     assert consumer.messages_failed == 0
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_consumer_factory(mongo_client):
     """Testa factory function."""
     registry = PatternRegistry(mongo_client, database="test_neural_hive_specialists")
@@ -162,7 +162,7 @@ async def test_consumer_factory(mongo_client):
 # ============================================================================
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_process_message_success(pattern_registry_with_data, feedback_message_dict):
     """Testa processamento bem-sucedido de mensagem."""
     registry, pattern_id = pattern_registry_with_data
@@ -188,7 +188,7 @@ async def test_process_message_success(pattern_registry_with_data, feedback_mess
     assert pattern.feedback.outcome == FeedbackOutcome.APPROVE
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_process_message_reject(pattern_registry_with_data):
     """Testa processamento de mensagem com reject."""
     registry, pattern_id = pattern_registry_with_data
@@ -223,7 +223,7 @@ async def test_process_message_reject(pattern_registry_with_data):
             "outcome": "reject",
             "source": "human",
             "reasoning": "Security concerns",
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
         },
     }
 
@@ -235,7 +235,7 @@ async def test_process_message_reject(pattern_registry_with_data):
     assert pattern.feedback.outcome == FeedbackOutcome.REJECT
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_process_message_invalid_schema(mongo_client, pattern_registry_with_data):
     """Testa processamento de mensagem com schema inválido."""
     registry, pattern_id = pattern_registry_with_data
@@ -256,7 +256,7 @@ async def test_process_message_invalid_schema(mongo_client, pattern_registry_wit
     assert consumer.messages_failed == 1
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_process_message_pattern_not_found(mongo_client):
     """Testa processamento quando pattern não existe."""
     registry = PatternRegistry(mongo_client, database="test_neural_hive_specialists")
@@ -291,7 +291,7 @@ async def test_process_message_pattern_not_found(mongo_client):
             "outcome": "approve",
             "source": "human",
             "reasoning": "Approved after review",
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
         },
     }
 
@@ -306,7 +306,7 @@ async def test_process_message_pattern_not_found(mongo_client):
 # ============================================================================
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_process_message_with_corrected_weights(pattern_registry_with_data):
     """Testa processamento com pesos corrigidos."""
     registry, pattern_id = pattern_registry_with_data
@@ -349,7 +349,7 @@ async def test_process_message_with_corrected_weights(pattern_registry_with_data
             "outcome": "approve",
             "source": "human",
             "reasoning": "Approved after review",
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "corrected_weights": corrected_weights,
         },
     }
@@ -367,7 +367,7 @@ async def test_process_message_with_corrected_weights(pattern_registry_with_data
 # ============================================================================
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_poll_with_timeout_no_messages(mongo_client):
     """Testa _poll_with_timeout quando não há mensagens."""
     registry = PatternRegistry(mongo_client, database="test_neural_hive_specialists")
@@ -392,7 +392,7 @@ async def test_poll_with_timeout_no_messages(mongo_client):
             assert messages == {}
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_poll_with_timeout_with_messages(mongo_client):
     """Testa _poll_with_timeout com mensagens."""
     registry = PatternRegistry(mongo_client, database="test_neural_hive_specialists")
@@ -430,7 +430,7 @@ async def test_poll_with_timeout_with_messages(mongo_client):
 # ============================================================================
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_consume_loop_processes_messages(
     pattern_registry_with_data, feedback_message_dict, mock_kafka_message
 ):
@@ -493,7 +493,7 @@ async def test_consume_loop_processes_messages(
 # ============================================================================
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_start_stop_lifecycle(mongo_client):
     """Testa ciclo de vida start/stop."""
     registry = PatternRegistry(mongo_client, database="test_neural_hive_specialists")
@@ -520,7 +520,7 @@ async def test_start_stop_lifecycle(mongo_client):
             assert not consumer.is_running
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_start_when_already_running(mongo_client):
     """Testa start quando já está rodando."""
     registry = PatternRegistry(mongo_client, database="test_neural_hive_specialists")
@@ -544,7 +544,7 @@ async def test_start_when_already_running(mongo_client):
             await consumer.stop()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_stop_when_not_running(mongo_client):
     """Testa stop quando não está rodando."""
     registry = PatternRegistry(mongo_client, database="test_neural_hive_specialists")
@@ -569,7 +569,7 @@ async def test_stop_when_not_running(mongo_client):
 # ============================================================================
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_process_multiple_messages(pattern_registry_with_data):
     """Testa processamento de múltiplas mensagens."""
     registry, pattern_id = pattern_registry_with_data
@@ -605,7 +605,7 @@ async def test_process_multiple_messages(pattern_registry_with_data):
                 "outcome": "approve",
                 "source": "human",
                 "reasoning": "Approved",
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
             },
         },
         {
@@ -631,7 +631,7 @@ async def test_process_multiple_messages(pattern_registry_with_data):
                 "outcome": "reject",
                 "source": "automated",
                 "reasoning": "Security scan failed",
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
             },
         },
     ]
@@ -650,7 +650,7 @@ async def test_process_multiple_messages(pattern_registry_with_data):
 # ============================================================================
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_feedback_source_system(pattern_registry_with_data):
     """Testa feedback com source system."""
     registry, pattern_id = pattern_registry_with_data
@@ -685,7 +685,7 @@ async def test_feedback_source_system(pattern_registry_with_data):
             "outcome": "approve",
             "source": "system",
             "reasoning": "Auto-approved by policy",
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
         },
     }
 
@@ -702,7 +702,7 @@ async def test_feedback_source_system(pattern_registry_with_data):
 # ============================================================================
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_process_message_handles_exception(mongo_client):
     """Testa que exceções são tratadas e contabilizadas."""
     registry = PatternRegistry(mongo_client, database="test_neural_hive_specialists")

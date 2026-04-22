@@ -4,15 +4,15 @@ Testes de integracao para KeycloakAdminClient
 Testa operacoes de revogacao de tokens e gerenciamento de usuarios
 """
 
-import pytest
-from unittest.mock import AsyncMock, patch, MagicMock
-from datetime import datetime, timezone
-import httpx
+from datetime import UTC, datetime
+from unittest.mock import AsyncMock, MagicMock, patch
 
+import httpx
+import pytest
 from src.clients.keycloak_admin_client import KeycloakAdminClient
 
 
-@pytest.fixture
+@pytest.fixture()
 def keycloak_settings():
     """Configuracoes de teste para Keycloak"""
     return {
@@ -25,7 +25,7 @@ def keycloak_settings():
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def keycloak_client(keycloak_settings):
     """Fixture do KeycloakAdminClient"""
     return KeycloakAdminClient(
@@ -38,7 +38,7 @@ def keycloak_client(keycloak_settings):
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_httpx_client():
     """Mock do httpx.AsyncClient"""
     return AsyncMock(spec=httpx.AsyncClient)
@@ -47,7 +47,7 @@ def mock_httpx_client():
 class TestKeycloakAdminClientConnection:
     """Testes de conexao do Keycloak Admin Client"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_connect_success(self, keycloak_client, mock_httpx_client):
         """Testa conexao bem-sucedida com Keycloak"""
         # Mock da resposta de token
@@ -64,7 +64,7 @@ class TestKeycloakAdminClientConnection:
             assert keycloak_client._http_client is not None
             assert keycloak_client._admin_token == "test-admin-token"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_is_healthy_after_connect(self, keycloak_client, mock_httpx_client):
         """Testa que cliente esta saudavel apos conexao"""
         token_response = MagicMock()
@@ -79,7 +79,7 @@ class TestKeycloakAdminClientConnection:
 
             assert keycloak_client.is_healthy() is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_close_connection(self, keycloak_client, mock_httpx_client):
         """Testa fechamento de conexao"""
         token_response = MagicMock()
@@ -101,7 +101,7 @@ class TestKeycloakAdminClientConnection:
 class TestRevokeUserSessions:
     """Testes de revogacao de sessoes de usuario"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_revoke_user_sessions_success(self, keycloak_client, mock_httpx_client):
         """Testa revogacao bem-sucedida de sessoes"""
         # Mock token
@@ -125,7 +125,7 @@ class TestRevokeUserSessions:
             assert result["action"] == "revoke_sessions"
             assert "timestamp" in result
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_revoke_user_sessions_user_not_found(self, keycloak_client, mock_httpx_client):
         """Testa revogacao quando usuario nao existe"""
         # Mock token
@@ -147,7 +147,7 @@ class TestRevokeUserSessions:
             assert result["success"] is False
             assert result["reason"] == "User not found"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_revoke_user_sessions_http_error(self, keycloak_client, mock_httpx_client):
         """Testa tratamento de erro HTTP na revogacao"""
         # Mock token
@@ -180,7 +180,7 @@ class TestRevokeUserSessions:
 class TestDisableUser:
     """Testes de desabilitacao de usuario"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_disable_user_success(self, keycloak_client, mock_httpx_client):
         """Testa desabilitacao bem-sucedida de usuario"""
         # Mock token
@@ -204,7 +204,7 @@ class TestDisableUser:
             assert result["action"] == "disable_user"
             mock_httpx_client.put.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_disable_user_not_found(self, keycloak_client, mock_httpx_client):
         """Testa desabilitacao quando usuario nao existe"""
         # Mock token
@@ -231,7 +231,7 @@ class TestDisableUser:
 class TestEnableUser:
     """Testes de reabilitacao de usuario"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_enable_user_success(self, keycloak_client, mock_httpx_client):
         """Testa reabilitacao bem-sucedida de usuario"""
         # Mock token
@@ -258,7 +258,7 @@ class TestEnableUser:
 class TestGetUserSessions:
     """Testes de listagem de sessoes de usuario"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_user_sessions_success(self, keycloak_client, mock_httpx_client):
         """Testa listagem bem-sucedida de sessoes"""
         # Mock token
@@ -290,7 +290,7 @@ class TestGetUserSessions:
 class TestTokenRefresh:
     """Testes de renovacao de token admin"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_token_auto_refresh(self, keycloak_client, mock_httpx_client):
         """Testa renovacao automatica de token expirado"""
         # Mock token expirado (expires_in = 1 segundo)
@@ -335,7 +335,7 @@ class TestTokenRefresh:
             time.sleep(0.1)
 
             # Forcar expiracao do token
-            keycloak_client._token_expires_at = datetime.now(timezone.utc)
+            keycloak_client._token_expires_at = datetime.now(UTC)
 
             # Proxima chamada deve renovar token
             result = await keycloak_client.revoke_user_sessions("user-123")

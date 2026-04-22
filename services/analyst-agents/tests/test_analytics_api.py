@@ -2,11 +2,12 @@
 Testes para Analytics API V2 endpoints.
 """
 
-import pytest
-from httpx import AsyncClient, ASGITransport
-from datetime import datetime, timezone, timedelta
-from unittest.mock import AsyncMock, MagicMock
 import sys
+from datetime import UTC, datetime, timedelta
+from unittest.mock import AsyncMock, MagicMock
+
+import pytest
+from httpx import ASGITransport, AsyncClient
 
 # Mock MongoDB antes de importar
 mock_motor = MagicMock()
@@ -16,13 +17,13 @@ sys.modules["motor.motor_asyncio"] = mock_motor
 
 from src.main import app
 from src.models.insight_extended import (
-    InsightResponse,
     AnalysisType,
+    AnomalyDetectionResponse,
+    InsightMetadata,
+    InsightResponse,
     InsightSource,
     InsightStatus,
-    InsightMetadata,
     TimeSeriesResponse,
-    AnomalyDetectionResponse,
 )
 
 
@@ -39,7 +40,7 @@ def create_mock_insight(insight_id: str, title: str = "Test Insight") -> Insight
         metadata=InsightMetadata(source=InsightSource.API),
         tags=["test"],
         status=InsightStatus.COMPLETED,
-        created_at=datetime.now(timezone.utc),
+        created_at=datetime.now(UTC),
         metrics=InsightMetrics(
             processing_time_ms=100,
             confidence_score=0.9,
@@ -48,7 +49,7 @@ def create_mock_insight(insight_id: str, title: str = "Test Insight") -> Insight
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 async def app_client():
     """Cliente HTTP para testes com mocks."""
     # Mock do InsightRepository
@@ -72,12 +73,12 @@ async def app_client():
 
     # Import TimeSeriesResponse to create proper mock
 
-    start_time = datetime.now(timezone.utc) - timedelta(hours=1)
+    start_time = datetime.now(UTC) - timedelta(hours=1)
 
     # Create proper mock response for analyze_timeseries
     mock_timeseries_response = TimeSeriesResponse(
         metric_name="cpu_usage",
-        time_range={"start": start_time, "end": datetime.now(timezone.utc)},
+        time_range={"start": start_time, "end": datetime.now(UTC)},
         resolution="5m",
         data=[{"timestamp": start_time.isoformat(), "value": 50.0}],
         statistics={"min": 10, "max": 90, "avg": 50},
@@ -122,7 +123,7 @@ async def app_client():
 # ============================================================================
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_list_insights_empty(app_client):
     """Testar listar insights quando vazio."""
     response = await app_client.get("/api/v1/analytics/insights")
@@ -133,7 +134,7 @@ async def test_list_insights_empty(app_client):
     assert data["items"] == []
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_list_insights_with_data(app_client):
     """Testar listar insights com dados."""
     # Mock com dados
@@ -148,7 +149,7 @@ async def test_list_insights_with_data(app_client):
     assert len(data["items"]) == 1
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_list_insights_by_type(app_client):
     """Testar filtrar por tipo de análise."""
     mock_insight = create_mock_insight("test-2", "TS Insight")
@@ -161,7 +162,7 @@ async def test_list_insights_by_type(app_client):
     assert len(data["items"]) == 1
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_get_insight_by_id(app_client):
     """Testar obter insight por ID."""
     mock_insight = create_mock_insight("test-3", "Get Test")
@@ -174,7 +175,7 @@ async def test_get_insight_by_id(app_client):
     assert data["insight_id"] == "test-3"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_get_insight_not_found(app_client):
     """Testar obter insight inexistente."""
     app.state.app_state.insight_repository.get_by_id = AsyncMock(return_value=None)
@@ -184,7 +185,7 @@ async def test_get_insight_not_found(app_client):
     assert response.status_code == 404
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_create_query_timeseries(app_client):
     """Testar criar query de time series."""
     mock_insight = create_mock_insight("query-1")
@@ -208,7 +209,7 @@ async def test_create_query_timeseries(app_client):
     assert "query_id" in data
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_export_insight_json(app_client):
     """Testar exportar insight em JSON."""
     mock_insight = create_mock_insight("export-1", "Export Test")
@@ -221,7 +222,7 @@ async def test_export_insight_json(app_client):
     assert data["title"] == "Export Test"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_export_insight_csv(app_client):
     """Testar exportar insight em CSV."""
     mock_insight = create_mock_insight("export-2", "CSV Test")
@@ -233,7 +234,7 @@ async def test_export_insight_csv(app_client):
     assert "text/csv" in response.headers["content-type"]
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_get_metrics(app_client):
     """Testar obter métricas Prometheus."""
     response = await app_client.get("/api/v1/analytics/metrics")
@@ -243,13 +244,13 @@ async def test_get_metrics(app_client):
     assert "analyst_insights_total" in response.text
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_get_timeseries(app_client):
     """Testar obter série temporal."""
     from urllib.parse import quote
 
-    start = quote((datetime.now(timezone.utc) - timedelta(hours=1)).isoformat())
-    end = quote(datetime.now(timezone.utc).isoformat())
+    start = quote((datetime.now(UTC) - timedelta(hours=1)).isoformat())
+    end = quote(datetime.now(UTC).isoformat())
 
     response = await app_client.get(
         f"/api/v1/analytics/timeseries/cpu_usage?start={start}&end={end}&resolution=5m"
@@ -260,13 +261,13 @@ async def test_get_timeseries(app_client):
     assert "metric_name" in data
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_detect_anomalies(app_client):
     """Testar detecção de anomalias."""
     from urllib.parse import quote
 
-    start = quote((datetime.now(timezone.utc) - timedelta(hours=1)).isoformat())
-    end = quote(datetime.now(timezone.utc).isoformat())
+    start = quote((datetime.now(UTC) - timedelta(hours=1)).isoformat())
+    end = quote(datetime.now(UTC).isoformat())
 
     response = await app_client.get(
         f"/api/v1/analytics/timeseries/cpu_usage/anomalies?start={start}&end={end}&method=zscore&threshold=2.5"
@@ -278,7 +279,7 @@ async def test_detect_anomalies(app_client):
     assert "anomalies" in data
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_get_dashboard(app_client):
     """Testar obter dados do dashboard."""
     response = await app_client.get("/api/v1/analytics/dashboard?time_range=24h")
@@ -289,7 +290,7 @@ async def test_get_dashboard(app_client):
     assert "anomalies_detected" in data
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_get_dashboard_1h(app_client):
     """Testar dashboard com range de 1h."""
     response = await app_client.get("/api/v1/analytics/dashboard?time_range=1h")
@@ -299,7 +300,7 @@ async def test_get_dashboard_1h(app_client):
     assert data["time_range"] == "1h"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_mcp_health_check(app_client):
     """Testar health check de servidores MCP."""
     response = await app_client.get("/api/v1/analytics/mcp-health")
@@ -310,7 +311,7 @@ async def test_mcp_health_check(app_client):
     assert "optimizer" in data
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_pagination(app_client):
     """Testar paginação de insights."""
     mock_insights = [create_mock_insight(f"page-{i}", f"Page Test {i}") for i in range(5)]
@@ -329,7 +330,7 @@ async def test_pagination(app_client):
     assert len(data1["items"]) == 2
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_invalid_format_export(app_client):
     """Testar export com formato inválido."""
     mock_insight = create_mock_insight("invalid-1")
@@ -341,7 +342,7 @@ async def test_invalid_format_export(app_client):
     assert response.status_code == 422
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_invalid_time_range(app_client):
     """Testar range de tempo inválido."""
     response = await app_client.get("/api/v1/analytics/dashboard?time_range=invalid")
@@ -354,7 +355,7 @@ async def test_invalid_time_range(app_client):
 # ============================================================================
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_dashboard_stream_initial_response(app_client):
     """Testar resposta inicial do stream SSE."""
     # Mock com dados
@@ -368,7 +369,7 @@ async def test_dashboard_stream_initial_response(app_client):
     assert "cache-control" in response.headers
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_dashboard_stream_sse_format(app_client):
     """Testar formato dos eventos SSE enviados."""
     mock_insight = create_mock_insight("sse-1", "SSE Test")
@@ -384,7 +385,7 @@ async def test_dashboard_stream_sse_format(app_client):
     assert b"data: " in content
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_dashboard_stream_custom_interval(app_client):
     """Testar intervalo de refresh customizado."""
     response = await app_client.get("/api/v1/analytics/dashboard/stream?refresh_interval=60")
@@ -392,7 +393,7 @@ async def test_dashboard_stream_custom_interval(app_client):
     assert response.status_code == 200
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_dashboard_stream_invalid_interval(app_client):
     """Testar intervalo de refresh inválido (fora dos limites)."""
     # Intervalo menor que o mínimo (5)
@@ -401,7 +402,7 @@ async def test_dashboard_stream_invalid_interval(app_client):
     assert response.status_code == 422  # Validation error
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_dashboard_stream_data_structure(app_client):
     """Testar estrutura dos dados enviados no stream."""
     from src.models.insight_extended import InsightMetrics
@@ -415,7 +416,7 @@ async def test_dashboard_stream_data_structure(app_client):
         metadata=InsightMetadata(source=InsightSource.MCP),
         tags=["test"],
         status=InsightStatus.COMPLETED,
-        created_at=datetime.now(timezone.utc),
+        created_at=datetime.now(UTC),
         metrics=InsightMetrics(
             processing_time_ms=150,
             confidence_score=0.85,

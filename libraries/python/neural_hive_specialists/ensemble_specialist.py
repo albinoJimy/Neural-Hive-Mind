@@ -7,7 +7,7 @@ ML usando diferentes métodos de agregação (média ponderada, votação, stack
 
 import json
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 import numpy as np
 import structlog
@@ -41,8 +41,8 @@ class EnsembleSpecialist(BaseSpecialist):
             config: Configuração do especialista com parâmetros de ensemble
         """
         super().__init__(config)
-        self.models: Dict[str, Any] = {}
-        self.ensemble_weights: Dict[str, float] = {}
+        self.models: dict[str, Any] = {}
+        self.ensemble_weights: dict[str, float] = {}
         self.meta_model: Optional[Any] = None
 
     def _load_model(self) -> Optional[Any]:
@@ -139,7 +139,7 @@ class EnsembleSpecialist(BaseSpecialist):
         # Retornar primeiro modelo para compatibilidade com BaseSpecialist
         return next(iter(self.models.values()))
 
-    def _load_ensemble_weights(self) -> Dict[str, float]:
+    def _load_ensemble_weights(self) -> dict[str, float]:
         """
         Carrega pesos de ensemble baseado em ensemble_weights_source.
 
@@ -164,7 +164,7 @@ class EnsembleSpecialist(BaseSpecialist):
                 )
                 return self._get_equal_weights()
 
-    def _load_weights_from_config(self) -> Dict[str, float]:
+    def _load_weights_from_config(self) -> dict[str, float]:
         """Carrega pesos da configuração."""
         if self.config.ensemble_weights:
             # Pesos explícitos fornecidos
@@ -188,7 +188,7 @@ class EnsembleSpecialist(BaseSpecialist):
             # Usar pesos iguais
             return self._get_equal_weights()
 
-    def _load_weights_from_mlflow_artifact(self) -> Dict[str, float]:
+    def _load_weights_from_mlflow_artifact(self) -> dict[str, float]:
         """Carrega pesos de artifact do MLflow."""
         try:
             # Usar primeiro modelo como referência para pegar artifact
@@ -215,8 +215,8 @@ class EnsembleSpecialist(BaseSpecialist):
                 return self._get_equal_weights()
 
             # Baixar artifact ensemble_weights.json
-            import tempfile
             import os
+            import tempfile
 
             with tempfile.TemporaryDirectory() as tmpdir:
                 # Baixar artifact do MLflow
@@ -233,7 +233,7 @@ class EnsembleSpecialist(BaseSpecialist):
                     )
 
                     # Ler e parsear JSON
-                    with open(weights_file, "r") as f:
+                    with open(weights_file) as f:
                         weights_data = json.load(f)
 
                     # Validar formato
@@ -290,7 +290,7 @@ class EnsembleSpecialist(BaseSpecialist):
             logger.error("Erro ao carregar pesos de MLflow artifact", error=str(e), exc_info=True)
             return self._get_equal_weights()
 
-    def _load_weights_from_meta_model(self) -> Dict[str, float]:
+    def _load_weights_from_meta_model(self) -> dict[str, float]:
         """Extrai pesos dos coeficientes do meta-modelo."""
         if not self.meta_model:
             logger.warning("Meta-modelo não carregado, usando pesos iguais")
@@ -320,7 +320,7 @@ class EnsembleSpecialist(BaseSpecialist):
             logger.error("Erro ao extrair pesos do meta-modelo", error=str(e))
             return self._get_equal_weights()
 
-    def _get_equal_weights(self) -> Dict[str, float]:
+    def _get_equal_weights(self) -> dict[str, float]:
         """Retorna pesos iguais para todos os modelos."""
         n_models = len(self.models)
         if n_models == 0:
@@ -333,8 +333,8 @@ class EnsembleSpecialist(BaseSpecialist):
         return weights
 
     def _redistribute_weights_for_missing_models(
-        self, weights: Dict[str, float]
-    ) -> Dict[str, float]:
+        self, weights: dict[str, float]
+    ) -> dict[str, float]:
         """
         Redistribui pesos quando alguns modelos falharam no carregamento.
 
@@ -474,7 +474,7 @@ class EnsembleSpecialist(BaseSpecialist):
 
             return aggregated_result
 
-    def _execute_parallel_predictions(self, cognitive_plan: dict) -> Dict[str, dict]:
+    def _execute_parallel_predictions(self, cognitive_plan: dict) -> dict[str, dict]:
         """
         Executa predições em paralelo em todos os modelos.
 
@@ -604,7 +604,7 @@ class EnsembleSpecialist(BaseSpecialist):
             return None
 
     def _add_ensemble_explainability(
-        self, aggregated_result: dict, predictions: Dict[str, dict]
+        self, aggregated_result: dict, predictions: dict[str, dict]
     ) -> None:
         """
         Adiciona explainability ensemble-aware ao resultado agregado.
@@ -711,7 +711,7 @@ class EnsembleSpecialist(BaseSpecialist):
         except Exception as e:
             logger.error("Erro ao adicionar ensemble explainability", error=str(e), exc_info=True)
 
-    def _calculate_prediction_variance(self, predictions: Dict[str, dict]) -> float:
+    def _calculate_prediction_variance(self, predictions: dict[str, dict]) -> float:
         """
         Calcula variância entre predições dos modelos.
 
@@ -731,7 +731,7 @@ class EnsembleSpecialist(BaseSpecialist):
 
         return float(np.std(confidence_scores))
 
-    def _combine_predictions(self, predictions: Dict[str, dict]) -> Optional[dict]:
+    def _combine_predictions(self, predictions: dict[str, dict]) -> Optional[dict]:
         """
         Combina predições usando método de agregação configurado.
 
@@ -795,7 +795,7 @@ class EnsembleSpecialist(BaseSpecialist):
 
             return result
 
-    def _weighted_average_aggregation(self, predictions: Dict[str, dict]) -> dict:
+    def _weighted_average_aggregation(self, predictions: dict[str, dict]) -> dict:
         """
         Agrega predições usando média ponderada.
 
@@ -879,7 +879,7 @@ class EnsembleSpecialist(BaseSpecialist):
             "mitigations": [],
         }
 
-    def _voting_aggregation(self, predictions: Dict[str, dict]) -> dict:
+    def _voting_aggregation(self, predictions: dict[str, dict]) -> dict:
         """
         Agrega predições usando votação majoritária.
 
@@ -919,7 +919,7 @@ class EnsembleSpecialist(BaseSpecialist):
 
         return result
 
-    def _stacking_aggregation(self, predictions: Dict[str, dict]) -> dict:
+    def _stacking_aggregation(self, predictions: dict[str, dict]) -> dict:
         """
         Agrega predições usando meta-modelo (stacking).
 

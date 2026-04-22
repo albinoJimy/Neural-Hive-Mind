@@ -2,7 +2,7 @@
 API REST endpoints para seleção síncrona de ferramentas.
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 import structlog
 from fastapi import APIRouter, HTTPException
@@ -35,13 +35,13 @@ class ToolSelectionAPIRequest(BaseModel):
     language: Optional[str] = Field(None, description="Linguagem do artefato")
     complexity_score: float = Field(..., ge=0.0, le=1.0, description="Score de complexidade")
 
-    required_categories: List[str] = Field(
+    required_categories: list[str] = Field(
         ..., description="Categorias obrigatórias (GENERATION, VALIDATION, etc)"
     )
 
-    constraints: Dict[str, Any] = Field(default_factory=dict, description="Constraints da seleção")
+    constraints: dict[str, Any] = Field(default_factory=dict, description="Constraints da seleção")
 
-    context: Dict[str, Any] = Field(default_factory=dict, description="Contexto adicional")
+    context: dict[str, Any] = Field(default_factory=dict, description="Contexto adicional")
 
 
 class SelectedToolInfo(BaseModel):
@@ -60,7 +60,7 @@ class ToolSelectionAPIResponse(BaseModel):
 
     request_id: str
     selection_method: str
-    selected_tools: List[SelectedToolInfo]
+    selected_tools: list[SelectedToolInfo]
     total_fitness_score: float
     convergence_time_ms: int
     cached: bool
@@ -174,7 +174,7 @@ async def select_tools(request: ToolSelectionAPIRequest):
 
     except Exception as e:
         logger.error("api_tool_selection_failed", request_id=request.request_id, error=str(e))
-        raise HTTPException(status_code=500, detail=f"Tool selection failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Tool selection failed: {e!s}")
 
 
 class SelectionStatusResponse(BaseModel):
@@ -182,7 +182,7 @@ class SelectionStatusResponse(BaseModel):
 
     request_id: str
     status: str  # "completed", "processing", "not_found"
-    selected_tools: Optional[List[Dict[str, Any]]] = None
+    selected_tools: Optional[list[dict[str, Any]]] = None
     total_fitness_score: Optional[float] = None
     selection_method: Optional[str] = None
     cached: Optional[bool] = None
@@ -236,4 +236,4 @@ async def get_selection_status(request_id: str):
 
     except Exception as e:
         logger.error("get_selection_status_failed", request_id=request_id, error=str(e))
-        raise HTTPException(status_code=500, detail=f"Failed to get selection status: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to get selection status: {e!s}")

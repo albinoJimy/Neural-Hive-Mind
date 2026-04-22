@@ -1,17 +1,18 @@
 """Testes unitários para MongoDBClient"""
 
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
-from datetime import datetime, timezone
-import sys
 import os
+import sys
+from datetime import UTC, datetime
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from src.clients.mongodb_client import MongoDBClient
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_motor_client():
     """Mock do AsyncIOMotorClient"""
     client = MagicMock()
@@ -40,7 +41,7 @@ def mock_motor_client():
     return client, db
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_start_success(mock_motor_client):
     """Testar inicialização bem-sucedida do cliente"""
     mock_client, mock_db = mock_motor_client
@@ -54,7 +55,7 @@ async def test_start_success(mock_motor_client):
         mock_client.admin.command.assert_awaited_once_with("ping")
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_start_creates_indexes(mock_motor_client):
     """Testar criação de índices na inicialização"""
     mock_client, mock_db = mock_motor_client
@@ -68,7 +69,7 @@ async def test_start_creates_indexes(mock_motor_client):
         mock_db.pipeline_logs.create_index.assert_awaited()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_stop_closes_connection(mock_motor_client):
     """Testar fechamento da conexão"""
     mock_client, mock_db = mock_motor_client
@@ -83,7 +84,7 @@ async def test_stop_closes_connection(mock_motor_client):
         assert client.db is None
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_save_artifact_content_success(mock_motor_client):
     """Testar salvamento de conteúdo de artefato"""
     mock_client, mock_db = mock_motor_client
@@ -100,14 +101,14 @@ async def test_save_artifact_content_success(mock_motor_client):
         assert call_args[0][0] == {"artifact_id": "art-1"}
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_get_artifact_content_found(mock_motor_client):
     """Testar recuperação de artefato existente"""
     mock_client, mock_db = mock_motor_client
     mock_db.artifacts.find_one.return_value = {
         "artifact_id": "art-1",
         "content": 'print("hello")',
-        "created_at": datetime.now(timezone.utc),
+        "created_at": datetime.now(UTC),
     }
 
     with patch("src.clients.mongodb_client.AsyncIOMotorClient", return_value=mock_client):
@@ -120,7 +121,7 @@ async def test_get_artifact_content_found(mock_motor_client):
         mock_db.artifacts.find_one.assert_awaited_once_with({"artifact_id": "art-1"})
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_get_artifact_content_not_found(mock_motor_client):
     """Testar recuperação de artefato não existente"""
     mock_client, mock_db = mock_motor_client
@@ -135,7 +136,7 @@ async def test_get_artifact_content_not_found(mock_motor_client):
         assert content is None
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_delete_artifact_success(mock_motor_client):
     """Testar remoção de artefato"""
     mock_client, mock_db = mock_motor_client
@@ -151,7 +152,7 @@ async def test_delete_artifact_success(mock_motor_client):
         mock_db.artifacts.delete_one.assert_awaited_once_with({"artifact_id": "art-1"})
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_save_pipeline_logs_success(mock_motor_client):
     """Testar salvamento de logs de pipeline"""
     mock_client, mock_db = mock_motor_client
@@ -170,7 +171,7 @@ async def test_save_pipeline_logs_success(mock_motor_client):
         assert call_args[0][0]["logs"] == logs
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_get_pipeline_logs_success(mock_motor_client):
     """Testar recuperação de logs de pipeline"""
     mock_client, mock_db = mock_motor_client
@@ -195,7 +196,7 @@ async def test_get_pipeline_logs_success(mock_motor_client):
         assert logs[0]["pipeline_id"] == "pipe-1"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_health_check_success(mock_motor_client):
     """Testar health check bem-sucedido"""
     mock_client, mock_db = mock_motor_client
@@ -209,7 +210,7 @@ async def test_health_check_success(mock_motor_client):
         assert healthy is True
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_health_check_failure(mock_motor_client):
     """Testar health check com falha"""
     mock_client, mock_db = mock_motor_client
@@ -224,7 +225,7 @@ async def test_health_check_failure(mock_motor_client):
         assert healthy is False
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_operations_raise_when_not_started():
     """Testar que operações falham quando cliente não iniciado"""
     client = MongoDBClient("mongodb://localhost:27017", "test_db")

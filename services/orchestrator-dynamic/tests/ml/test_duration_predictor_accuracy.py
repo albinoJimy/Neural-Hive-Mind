@@ -8,13 +8,13 @@ Valida que o modelo atende aos critérios mínimos de performance:
 - Confidence scores calibrados
 """
 
-import pytest
+from datetime import UTC, datetime, timedelta
+from unittest.mock import AsyncMock, MagicMock
+
 import numpy as np
 import pandas as pd
-from datetime import datetime, timezone, timedelta
-from unittest.mock import AsyncMock, MagicMock
+import pytest
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
-
 from src.ml.duration_predictor import DurationPredictor
 from src.ml.feature_engineering import extract_ticket_features
 
@@ -22,7 +22,7 @@ from src.ml.feature_engineering import extract_ticket_features
 class TestDurationPredictorAccuracy:
     """Testes de acurácia para DurationPredictor."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_config(self):
         """Configuração mock."""
         config = MagicMock()
@@ -35,14 +35,14 @@ class TestDurationPredictorAccuracy:
         config.ml_validation_mae_threshold = 0.15
         return config
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_mongodb(self):
         """Cliente MongoDB mock."""
         mongodb = MagicMock()
         mongodb.db = MagicMock()
         return mongodb
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_model_registry(self):
         """ModelRegistry mock."""
         registry = AsyncMock()
@@ -51,7 +51,7 @@ class TestDurationPredictorAccuracy:
         registry.promote_model = AsyncMock()
         return registry
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_metrics(self):
         """Métricas mock."""
         metrics = MagicMock()
@@ -60,7 +60,7 @@ class TestDurationPredictorAccuracy:
         metrics.record_ml_error = MagicMock()
         return metrics
 
-    @pytest.fixture
+    @pytest.fixture()
     def sample_tickets(self):
         """Gera tickets de exemplo para teste."""
         np.random.seed(42)
@@ -102,9 +102,9 @@ class TestDurationPredictorAccuracy:
                     "actual_duration_ms": actual_duration,
                     "estimated_duration_ms": estimated_duration,
                     "status": "COMPLETED",
-                    "created_at": datetime.now(timezone.utc)
+                    "created_at": datetime.now(UTC)
                     - timedelta(days=np.random.randint(1, 30)),
-                    "completed_at": datetime.now(timezone.utc),
+                    "completed_at": datetime.now(UTC),
                     "required_capabilities": ["cpu", "memory"][: np.random.randint(1, 3)],
                     "parameters": {"key": "value"},
                     "sla_timeout_ms": 300000,
@@ -116,7 +116,7 @@ class TestDurationPredictorAccuracy:
 
         return tickets
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_mae_threshold(
         self, mock_config, mock_mongodb, mock_model_registry, mock_metrics, sample_tickets
     ):
@@ -154,7 +154,7 @@ class TestDurationPredictorAccuracy:
         print("Threshold: 15%")
         print("Status: PASS ✓")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_rmse_threshold(self, sample_tickets):
         """
         Testa se RMSE está dentro de limites aceitáveis.
@@ -187,7 +187,7 @@ class TestDurationPredictorAccuracy:
         print("Threshold: < 1.5")
         print("Status: PASS ✓")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_r2_score_threshold(self, sample_tickets):
         """
         Testa se R² está acima de 0.7.
@@ -213,7 +213,7 @@ class TestDurationPredictorAccuracy:
         print("Threshold: > 0.7")
         print("Status: PASS ✓")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_confidence_calibration(self, sample_tickets):
         """
         Testa se confidence scores estão calibrados.
@@ -257,7 +257,7 @@ class TestDurationPredictorAccuracy:
             print(f"Low Confidence MAE: {low_conf_mae:.2f}ms")
             print("Status: PASS ✓ (High < Low)")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_edge_cases(self, sample_tickets):
         """
         Testa comportamento com valores extremos.
@@ -302,7 +302,7 @@ class TestDurationPredictorAccuracy:
         print("Tickets com duração muito longa: OK")
         print("Status: PASS ✓")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_prediction_bounds(self, sample_tickets):
         """
         Testa se predições estão dentro de limites razoáveis.
@@ -329,7 +329,7 @@ class TestDurationPredictorAccuracy:
         print("Bounds: [1000ms, 3600000ms]")
         print("Status: PASS ✓")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_task_type_consistency(self, sample_tickets):
         """
         Testa se modelo mantém consistência por task_type.
@@ -366,7 +366,7 @@ class TestDurationPredictorAccuracy:
 class TestDurationPredictorValidation:
     """Testes de validação para DurationPredictor."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def validation_data(self):
         """Dados para validação estatística."""
         np.random.seed(42)
@@ -435,7 +435,7 @@ class TestDurationPredictorValidation:
 class TestDurationPredictorTrainingValidation:
     """Testes de validação de treinamento para DurationPredictor."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_config(self):
         """Configuração mock."""
         config = MagicMock()
@@ -447,14 +447,14 @@ class TestDurationPredictorTrainingValidation:
         config.ml_use_clickhouse_for_features = False
         return config
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_mongodb(self):
         """Cliente MongoDB mock."""
         mongodb = MagicMock()
         mongodb.db = MagicMock()
         return mongodb
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_model_registry(self):
         """ModelRegistry mock."""
         registry = AsyncMock()
@@ -464,7 +464,7 @@ class TestDurationPredictorTrainingValidation:
         registry.get_model_metadata = AsyncMock(return_value={"version": "1"})
         return registry
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_metrics(self):
         """Métricas mock."""
         metrics = MagicMock()
@@ -475,7 +475,7 @@ class TestDurationPredictorTrainingValidation:
         metrics.record_ml_model_quality = MagicMock()
         return metrics
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_load_model_validates_estimators(
         self, mock_config, mock_mongodb, mock_model_registry, mock_metrics
     ):
@@ -505,7 +505,7 @@ class TestDurationPredictorTrainingValidation:
         print("Modelo não treinado corretamente rejeitado")
         print("Status: PASS ✓")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_load_model_accepts_trained_model(
         self, mock_config, mock_mongodb, mock_model_registry, mock_metrics
     ):
@@ -538,7 +538,7 @@ class TestDurationPredictorTrainingValidation:
         print(f"Modelo aceito com {len(result.estimators_)} estimators")
         print("Status: PASS ✓")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_create_default_model_not_trained(
         self, mock_config, mock_mongodb, mock_model_registry, mock_metrics
     ):
@@ -560,7 +560,7 @@ class TestDurationPredictorTrainingValidation:
         print("Modelo default criado corretamente (não treinado)")
         print("Status: PASS ✓")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_ensure_model_trained_with_sufficient_data(
         self, mock_config, mock_mongodb, mock_model_registry, mock_metrics
     ):
@@ -580,7 +580,7 @@ class TestDurationPredictorTrainingValidation:
                     "risk_band": "medium",
                     "actual_duration_ms": 30000 + np.random.normal(0, 5000),
                     "estimated_duration_ms": 30000,
-                    "completed_at": datetime.now(timezone.utc),
+                    "completed_at": datetime.now(UTC),
                     "required_capabilities": ["cpu"],
                     "parameters": {},
                     "sla_timeout_ms": 300000,
@@ -610,7 +610,7 @@ class TestDurationPredictorTrainingValidation:
         print(f"Resultado: {'Modelo treinado' if result else 'Treinamento não promovido'}")
         print("Status: PASS ✓")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_ensure_model_trained_insufficient_data(
         self, mock_config, mock_mongodb, mock_model_registry, mock_metrics
     ):
@@ -635,7 +635,7 @@ class TestDurationPredictorTrainingValidation:
         print("Corretamente identificou dados insuficientes")
         print("Status: PASS ✓")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_ensure_model_trained_already_trained(
         self, mock_config, mock_mongodb, mock_model_registry, mock_metrics
     ):
@@ -666,7 +666,7 @@ class TestDurationPredictorTrainingValidation:
         print("Corretamente identificou modelo existente")
         print("Status: PASS ✓")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_predict_duration_untrained_model_uses_heuristic(
         self, mock_config, mock_mongodb, mock_model_registry, mock_metrics
     ):
@@ -701,7 +701,7 @@ class TestDurationPredictorTrainingValidation:
         print(f"Confidence: {result['confidence']}")
         print("Status: PASS ✓")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_predict_duration_trained_model_uses_ml(
         self, mock_config, mock_mongodb, mock_model_registry, mock_metrics
     ):
@@ -755,7 +755,7 @@ class TestDurationPredictorTrainingValidation:
         print(f"Confidence: {result['confidence']:.2f}")
         print("Status: PASS ✓")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_training_status_metrics_recorded(
         self, mock_config, mock_mongodb, mock_model_registry, mock_metrics
     ):

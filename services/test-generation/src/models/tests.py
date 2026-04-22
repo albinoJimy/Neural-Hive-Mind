@@ -2,7 +2,7 @@
 
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from pydantic import BaseModel, Field
 
@@ -47,7 +47,7 @@ class TestCase(BaseModel):
 
     # Metadados
     language: str = Field(..., description="Linguagem do código testado")
-    tags: List[str] = Field(default_factory=list, description="Tags para organização")
+    tags: list[str] = Field(default_factory=list, description="Tags para organização")
     priority: str = Field(default="medium", description="Prioridade: low/medium/high/critical")
 
     # Status
@@ -63,24 +63,23 @@ class TestSuite(BaseModel):
     description: str = Field(..., description="Descrição da suíte")
 
     # Testes incluídos
-    test_cases: List[TestCase] = Field(default_factory=list)
+    test_cases: list[TestCase] = Field(default_factory=list)
 
     # Configuração
     framework: TestFramework = Field(..., description="Framework")
     language: str = Field(..., description="Linguagem principal")
+    plan_id: Optional[str] = Field(None, description="ID do plano relacionado")
+    tags: list[str] = Field(default_factory=list, description="Tags para organização")
     setup_code: Optional[str] = Field(None, description="Código de setup")
     teardown_code: Optional[str] = Field(None, description="Código de teardown")
 
     # Métricas
     total_tests: int = Field(default=0, description="Total de testes")
-    estimated_duration_seconds: int = Field(
-        default=60,
-        description="Duração estimada"
-    )
+    estimated_duration_seconds: int = Field(default=60, description="Duração estimada")
+    coverage: Optional[float] = Field(None, description="Cobertura de código estimada")
 
     # Rastreabilidade
-    plan_id: Optional[str] = Field(None, description="ID do plano origem")
-    requirements_ids: List[str] = Field(default_factory=list)
+    requirements_ids: list[str] = Field(default_factory=list)
 
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
@@ -89,27 +88,22 @@ class TestGenerationRequest(BaseModel):
     """Request para geração de testes."""
 
     source_type: str = Field(
-        ...,
-        description="Tipo da fonte: requirements, user_stories, acceptance_criteria, code"
+        ..., description="Tipo da fonte: requirements, user_stories, acceptance_criteria, code"
     )
-    source_data: Dict[str, Any] = Field(..., description="Dados da fonte")
+    source_data: dict[str, Any] = Field(..., description="Dados da fonte")
 
     # Configuração
-    test_types: List[TestType] = Field(
+    test_types: list[TestType] = Field(
         default_factory=lambda: [TestType.UNIT, TestType.INTEGRATION],
-        description="Tipos de teste a gerar"
+        description="Tipos de teste a gerar",
     )
-    framework: TestFramework = Field(
-        default=TestFramework.PYTEST,
-        description="Framework de teste"
-    )
+    framework: TestFramework = Field(default=TestFramework.PYTEST, description="Framework de teste")
     language: str = Field(default="python", description="Linguagem do código")
 
     # Contexto adicional
     plan_id: Optional[str] = Field(None, description="ID do plano")
-    code_snippets: Dict[str, str] = Field(
-        default_factory=dict,
-        description="Snippets de código para análise"
+    code_snippets: dict[str, str] = Field(
+        default_factory=dict, description="Snippets de código para análise"
     )
 
 
@@ -122,7 +116,7 @@ class TestGenerationResult(BaseModel):
     coverage_estimate: float
 
     # Informações de arquivos
-    files_created: List[str] = Field(default_factory=list, description="Arquivos gerados")
+    files_created: list[str] = Field(default_factory=list, description="Arquivos gerados")
 
     # Status
     generation_duration_ms: int

@@ -49,9 +49,7 @@ async def test_search_templates(client):
     client.client.search = AsyncMock(return_value=[mock_result])
 
     results = await client.search_templates(
-        query_vector=[0.1] * 1536,
-        limit=10,
-        score_threshold=0.7
+        query_vector=[0.1] * 1536, limit=10, score_threshold=0.7
     )
 
     assert len(results) == 1
@@ -72,10 +70,7 @@ async def test_search_code(client):
     client.client.search = AsyncMock(return_value=[mock_result])
 
     results = await client.search_code(
-        query_vector=[0.1] * 1536,
-        limit=10,
-        score_threshold=0.7,
-        language_filter="python"
+        query_vector=[0.1] * 1536, limit=10, score_threshold=0.7, language_filter="python"
     )
 
     assert len(results) == 1
@@ -95,11 +90,7 @@ async def test_search_code_without_filter(client):
 
     client.client.search = AsyncMock(return_value=[mock_result])
 
-    results = await client.search_code(
-        query_vector=[0.1] * 1536,
-        limit=10,
-        score_threshold=0.7
-    )
+    results = await client.search_code(query_vector=[0.1] * 1536, limit=10, score_threshold=0.7)
 
     assert len(results) == 1
     assert results[0]["payload"]["language"] == "javascript"
@@ -114,7 +105,7 @@ async def test_index_template(client):
     await client.index_template(
         template_id="tpl-001",
         vector=[0.1] * 1536,
-        payload={"name": "API Template", "language": "python"}
+        payload={"name": "API Template", "language": "python"},
     )
 
     client.client.upsert.assert_called_once()
@@ -127,9 +118,7 @@ async def test_index_code(client):
     client.client.upsert = AsyncMock()
 
     await client.index_code(
-        code_id="code-001",
-        vector=[0.1] * 1536,
-        payload={"name": "main.py", "language": "python"}
+        code_id="code-001", vector=[0.1] * 1536, payload={"name": "main.py", "language": "python"}
     )
 
     client.client.upsert.assert_called_once()
@@ -141,10 +130,7 @@ async def test_delete_points(client):
     client.client = AsyncMock()
     client.client.delete = AsyncMock()
 
-    await client.delete_points(
-        collection_name="nhm_templates",
-        ids=["tpl-001", "tpl-002"]
-    )
+    await client.delete_points(collection_name="nhm_templates", ids=["tpl-001", "tpl-002"])
 
     client.client.delete.assert_called_once()
 

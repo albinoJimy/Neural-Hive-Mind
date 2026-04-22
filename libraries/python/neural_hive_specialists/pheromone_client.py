@@ -7,8 +7,9 @@ digitais para comunicação assíncrona entre especialistas.
 
 import json
 import uuid
-from typing import Dict, Any, Optional, Union
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
+from typing import Any, Optional, Union
+
 import structlog
 
 try:
@@ -44,7 +45,7 @@ class PheromoneSignal:
         decision_id: Optional[str] = None,
         ttl_seconds: int = 3600,
         decay_rate: float = 0.1,
-        metadata: Optional[Dict[str, Any]] = None,
+        metadata: Optional[dict[str, Any]] = None,
     ):
         self.signal_id = str(uuid.uuid4())
         self.specialist_type = specialist_type
@@ -56,7 +57,7 @@ class PheromoneSignal:
         self.plan_id = plan_id
         self.intent_id = intent_id
         self.decision_id = decision_id
-        self.created_at = datetime.now(timezone.utc)
+        self.created_at = datetime.now(UTC)
         self.expires_at = self.created_at + timedelta(seconds=ttl_seconds)
         self.decay_rate = decay_rate
         self.metadata = metadata or {}
@@ -72,11 +73,11 @@ class PheromoneSignal:
 
     def calculate_current_strength(self) -> float:
         """Calcula força atual considerando decay temporal."""
-        elapsed_hours = (datetime.now(timezone.utc) - self.created_at).total_seconds() / 3600
+        elapsed_hours = (datetime.now(UTC) - self.created_at).total_seconds() / 3600
         decayed_strength = self.strength * ((1 - self.decay_rate) ** elapsed_hours)
         return max(0.0, decayed_strength)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Converte para dicionário serializável."""
         return {
             "signal_id": self.signal_id,
@@ -192,7 +193,7 @@ class PheromoneClient:
         plan_id: str,
         intent_id: str,
         decision_id: Optional[str] = None,
-        metadata: Optional[Dict[str, Any]] = None,
+        metadata: Optional[dict[str, Any]] = None,
     ) -> str:
         """
         Publica feromônio no Redis.
@@ -300,7 +301,7 @@ class PheromoneClient:
                 if signal_data.get("pheromone_type") == pheromone_type:
                     # Calcular força atual
                     created_at = datetime.fromisoformat(signal_data["created_at"])
-                    elapsed_hours = (datetime.now(timezone.utc) - created_at).total_seconds() / 3600
+                    elapsed_hours = (datetime.now(UTC) - created_at).total_seconds() / 3600
                     strength = signal_data["strength"]
                     decay_rate = signal_data.get("decay_rate", self.pheromone_decay_rate)
                     decayed = strength * ((1 - decay_rate) ** elapsed_hours)
@@ -311,7 +312,7 @@ class PheromoneClient:
 
     async def get_aggregated_pheromone(
         self, specialist_type: str, domain: Union[str, UnifiedDomain]
-    ) -> Dict[str, float]:
+    ) -> dict[str, float]:
         """
         Agrega feromônios de todos os tipos para um especialista.
 

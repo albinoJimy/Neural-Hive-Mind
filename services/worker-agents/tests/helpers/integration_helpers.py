@@ -10,8 +10,9 @@ This module provides utilities for:
 
 import asyncio
 import uuid
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional, TypeVar
+from typing import Any, Optional, TypeVar
 
 T = TypeVar("T")
 
@@ -21,14 +22,14 @@ class ExecutorTestResult:
     """Structured result from an executor test."""
 
     success: bool
-    output: Dict[str, Any]
-    metadata: Dict[str, Any]
-    logs: List[str]
+    output: dict[str, Any]
+    metadata: dict[str, Any]
+    logs: list[str]
     simulated: bool = False
     duration_seconds: Optional[float] = None
 
     @classmethod
-    def from_result(cls, result: Dict[str, Any]) -> "ExecutorTestResult":
+    def from_result(cls, result: dict[str, Any]) -> "ExecutorTestResult":
         """Create from executor result dict."""
         return cls(
             success=result.get("success", False),
@@ -46,10 +47,10 @@ class ExecutorTestHelper:
     @staticmethod
     def create_ticket(
         task_type: str,
-        parameters: Optional[Dict[str, Any]] = None,
+        parameters: Optional[dict[str, Any]] = None,
         ticket_id: Optional[str] = None,
         task_id: Optional[str] = None,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Create a test ticket with the given parameters.
 
@@ -78,7 +79,7 @@ class ExecutorTestHelper:
         branch: str = "main",
         commit_sha: str = "abc123",
         **extra_params,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Create a BUILD ticket."""
         params = {
             "artifact_id": artifact_id,
@@ -95,7 +96,7 @@ class ExecutorTestHelper:
         image: str = "test:latest",
         replicas: int = 1,
         **extra_params,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Create a DEPLOY ticket."""
         params = {
             "namespace": namespace,
@@ -113,7 +114,7 @@ class ExecutorTestHelper:
         working_dir: str = "/tmp",
         provider: Optional[str] = None,
         **extra_params,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Create a TEST ticket."""
         params = {
             "test_suite": test_suite,
@@ -130,7 +131,7 @@ class ExecutorTestHelper:
     def create_validate_ticket(
         validation_type: str = "policy",
         **extra_params,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Create a VALIDATE ticket."""
         params = {
             "validation_type": validation_type,
@@ -143,55 +144,55 @@ class ResultValidator:
     """Helper class for validating executor results."""
 
     @staticmethod
-    def assert_success(result: Dict[str, Any], message: str = "") -> None:
+    def assert_success(result: dict[str, Any], message: str = "") -> None:
         """Assert that the result indicates success."""
         assert result.get("success") is True, f"Expected success=True. {message}"
 
     @staticmethod
-    def assert_failure(result: Dict[str, Any], message: str = "") -> None:
+    def assert_failure(result: dict[str, Any], message: str = "") -> None:
         """Assert that the result indicates failure."""
         assert result.get("success") is False, f"Expected success=False. {message}"
 
     @staticmethod
-    def assert_simulated(result: Dict[str, Any], expected: bool = True) -> None:
+    def assert_simulated(result: dict[str, Any], expected: bool = True) -> None:
         """Assert the simulated flag matches expected value."""
         simulated = result.get("metadata", {}).get("simulated", None)
         assert simulated == expected, f"Expected simulated={expected}, got {simulated}"
 
     @staticmethod
-    def assert_has_output(result: Dict[str, Any], *keys: str) -> None:
+    def assert_has_output(result: dict[str, Any], *keys: str) -> None:
         """Assert that the output contains all specified keys."""
         output = result.get("output", {})
         for key in keys:
             assert key in output, f'Expected key "{key}" in output, got: {list(output.keys())}'
 
     @staticmethod
-    def assert_output_value(result: Dict[str, Any], key: str, expected: Any) -> None:
+    def assert_output_value(result: dict[str, Any], key: str, expected: Any) -> None:
         """Assert that a specific output value matches expected."""
         actual = result.get("output", {}).get(key)
         assert actual == expected, f"Expected output[{key}]={expected}, got {actual}"
 
     @staticmethod
-    def assert_has_logs(result: Dict[str, Any], min_count: int = 1) -> None:
+    def assert_has_logs(result: dict[str, Any], min_count: int = 1) -> None:
         """Assert that logs exist with at least min_count entries."""
         logs = result.get("logs", [])
         assert len(logs) >= min_count, f"Expected at least {min_count} logs, got {len(logs)}"
 
     @staticmethod
-    def assert_log_contains(result: Dict[str, Any], substring: str) -> None:
+    def assert_log_contains(result: dict[str, Any], substring: str) -> None:
         """Assert that at least one log entry contains the substring."""
         logs = result.get("logs", [])
         found = any(substring.lower() in log.lower() for log in logs)
         assert found, f'Expected log containing "{substring}" in: {logs}'
 
     @staticmethod
-    def assert_metadata_executor(result: Dict[str, Any], executor_name: str) -> None:
+    def assert_metadata_executor(result: dict[str, Any], executor_name: str) -> None:
         """Assert the executor name in metadata."""
         executor = result.get("metadata", {}).get("executor")
         assert executor == executor_name, f"Expected executor={executor_name}, got {executor}"
 
     @staticmethod
-    def validate_build_result(result: Dict[str, Any], simulated: bool = False) -> None:
+    def validate_build_result(result: dict[str, Any], simulated: bool = False) -> None:
         """Validate a BUILD executor result."""
         ResultValidator.assert_success(result)
         ResultValidator.assert_simulated(result, simulated)
@@ -204,7 +205,7 @@ class ResultValidator:
             ResultValidator.assert_has_output(result, "pipeline_id", "artifact_id")
 
     @staticmethod
-    def validate_deploy_result(result: Dict[str, Any], simulated: bool = False) -> None:
+    def validate_deploy_result(result: dict[str, Any], simulated: bool = False) -> None:
         """Validate a DEPLOY executor result."""
         ResultValidator.assert_success(result)
         ResultValidator.assert_simulated(result, simulated)
@@ -213,7 +214,7 @@ class ResultValidator:
         ResultValidator.assert_has_logs(result)
 
     @staticmethod
-    def validate_test_result(result: Dict[str, Any], simulated: bool = False) -> None:
+    def validate_test_result(result: dict[str, Any], simulated: bool = False) -> None:
         """Validate a TEST executor result."""
         ResultValidator.assert_success(result)
         ResultValidator.assert_simulated(result, simulated)
@@ -222,7 +223,7 @@ class ResultValidator:
         ResultValidator.assert_has_logs(result)
 
     @staticmethod
-    def validate_validate_result(result: Dict[str, Any], simulated: bool = False) -> None:
+    def validate_validate_result(result: dict[str, Any], simulated: bool = False) -> None:
         """Validate a VALIDATE executor result."""
         ResultValidator.assert_success(result)
         ResultValidator.assert_simulated(result, simulated)
@@ -303,9 +304,9 @@ async def poll_async_until(
 class MetricsCollector:
     """Collects and validates metrics calls during tests."""
 
-    calls: List[Dict[str, Any]] = field(default_factory=list)
+    calls: list[dict[str, Any]] = field(default_factory=list)
 
-    def record(self, metric_name: str, labels: Dict[str, str], value: Any = None) -> None:
+    def record(self, metric_name: str, labels: dict[str, str], value: Any = None) -> None:
         """Record a metrics call."""
         self.calls.append(
             {

@@ -1,9 +1,9 @@
 """Scout Signal data model based on Avro schema"""
 
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -78,15 +78,15 @@ class ScoutSignal(BaseModel):
     relevance_score: float
     risk_score: float
     description: str
-    raw_data: Dict[str, str]
-    features: List[float]
-    metadata: Dict[str, str] = Field(default_factory=dict)
+    raw_data: dict[str, str]
+    features: list[float]
+    metadata: dict[str, str] = Field(default_factory=dict)
     timestamp: int = Field(
-        default_factory=lambda: int(datetime.now(timezone.utc).timestamp() * 1000)
+        default_factory=lambda: int(datetime.now(UTC).timestamp() * 1000)
     )
     expires_at: int = Field(
         default_factory=lambda: int(
-            (datetime.now(timezone.utc) + timedelta(hours=24)).timestamp() * 1000
+            (datetime.now(UTC) + timedelta(hours=24)).timestamp() * 1000
         )
     )
     requires_validation: bool = False
@@ -105,7 +105,7 @@ class ScoutSignal(BaseModel):
             raise ValueError("Timestamp must be positive")
         return v
 
-    def to_avro_dict(self) -> Dict[str, Any]:
+    def to_avro_dict(self) -> dict[str, Any]:
         """Convert to Avro-compatible dictionary"""
         data = self.model_dump()
 
@@ -124,7 +124,7 @@ class ScoutSignal(BaseModel):
         return data
 
     @classmethod
-    def from_avro_dict(cls, data: Dict[str, Any]) -> "ScoutSignal":
+    def from_avro_dict(cls, data: dict[str, Any]) -> "ScoutSignal":
         """Create instance from Avro dictionary"""
         # Convert string enums back
         data["signal_type"] = SignalType(data["signal_type"])

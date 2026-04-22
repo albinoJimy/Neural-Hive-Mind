@@ -6,7 +6,7 @@ import pytest
 from neural_hive_specialists.drift_monitoring.drift_detector import DriftDetector
 
 
-@pytest.fixture
+@pytest.fixture()
 def drift_detector():
     evidently_monitor = MagicMock()
     evidently_monitor.detect_drift.return_value = {
@@ -33,8 +33,8 @@ def drift_detector():
     return detector
 
 
-@pytest.mark.unit
-@pytest.mark.asyncio
+@pytest.mark.unit()
+@pytest.mark.asyncio()
 async def test_check_drift_triggers_alert_and_persist(drift_detector):
     result = await drift_detector.check_drift()
 
@@ -46,8 +46,8 @@ async def test_check_drift_triggers_alert_and_persist(drift_detector):
     drift_detector.evidently_monitor.clear_current_data.assert_called_once()
 
 
-@pytest.mark.unit
-@pytest.mark.asyncio
+@pytest.mark.unit()
+@pytest.mark.asyncio()
 async def test_check_drift_respects_threshold(monkeypatch, drift_detector):
     drift_detector.evidently_monitor.detect_drift.return_value = {
         "drift_detected": True,
@@ -61,8 +61,8 @@ async def test_check_drift_respects_threshold(monkeypatch, drift_detector):
     drift_detector.drift_alerter.send_alert.assert_not_awaited()
 
 
-@pytest.mark.unit
-@pytest.mark.asyncio
+@pytest.mark.unit()
+@pytest.mark.asyncio()
 async def test_check_drift_handles_exception(drift_detector):
     drift_detector.evidently_monitor.detect_drift.side_effect = RuntimeError("boom")
 
@@ -79,7 +79,7 @@ async def test_check_drift_handles_exception(drift_detector):
 # =============================================================================
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_mongodb_collection():
     """Mock de colecao MongoDB com eventos de drift."""
     collection = MagicMock()
@@ -114,8 +114,8 @@ def mock_mongodb_collection():
     return collection
 
 
-@pytest.mark.integration
-@pytest.mark.asyncio
+@pytest.mark.integration()
+@pytest.mark.asyncio()
 async def test_drift_triggers_retraining_for_anomaly_model(mock_mongodb_collection):
     """
     Testa que drift em features de anomalia dispara retreinamento do modelo correto.
@@ -156,8 +156,8 @@ async def test_drift_triggers_retraining_for_anomaly_model(mock_mongodb_collecti
     assert model_type == "anomaly"
 
 
-@pytest.mark.integration
-@pytest.mark.asyncio
+@pytest.mark.integration()
+@pytest.mark.asyncio()
 async def test_drift_triggers_retraining_for_scheduling_model():
     """
     Testa que drift em features de scheduling dispara retreinamento correto.
@@ -197,8 +197,8 @@ async def test_drift_triggers_retraining_for_scheduling_model():
     assert model_type == "scheduling"
 
 
-@pytest.mark.integration
-@pytest.mark.asyncio
+@pytest.mark.integration()
+@pytest.mark.asyncio()
 async def test_drift_triggers_retraining_for_load_model():
     """
     Testa que drift em features de load dispara retreinamento correto.
@@ -227,8 +227,8 @@ async def test_drift_triggers_retraining_for_load_model():
     assert model_type == "load"
 
 
-@pytest.mark.integration
-@pytest.mark.asyncio
+@pytest.mark.integration()
+@pytest.mark.asyncio()
 async def test_retraining_improves_model_metrics():
     """
     Testa que retreinamento apos drift melhora metricas do modelo.
@@ -264,8 +264,8 @@ async def test_retraining_improves_model_metrics():
     print(f"Melhoria: {f1_improvement:.2%}")
 
 
-@pytest.mark.integration
-@pytest.mark.asyncio
+@pytest.mark.integration()
+@pytest.mark.asyncio()
 async def test_drift_below_threshold_does_not_trigger():
     """Testa que drift abaixo do threshold nao dispara retreinamento."""
     threshold = 0.2

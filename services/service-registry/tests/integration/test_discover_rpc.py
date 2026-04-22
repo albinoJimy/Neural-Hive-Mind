@@ -9,18 +9,19 @@ Valida o fluxo completo de descoberta de agentes:
 - Limite de resultados (max_results)
 """
 
-import pytest
-import grpc
-import sys
 import os
-from unittest.mock import Mock, AsyncMock
+import sys
+from unittest.mock import AsyncMock, Mock
 from uuid import uuid4
+
+import grpc
+import pytest
 
 # Adicionar src ao path para importacao
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../src"))
 
 from grpc_server.registry_servicer import ServiceRegistryServicer
-from models.agent import AgentType, AgentStatus, AgentInfo, AgentTelemetry
+from models.agent import AgentInfo, AgentStatus, AgentTelemetry, AgentType
 
 
 def create_mock_agent(
@@ -55,25 +56,25 @@ def create_mock_agent(
 class TestDiscoverAgentsRPC:
     """Testes de integracao para RPC DiscoverAgents"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_registry_service(self):
         """Mock do RegistryService"""
         service = AsyncMock()
         return service
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_matching_engine(self):
         """Mock do MatchingEngine"""
         engine = AsyncMock()
         engine.match_agents = AsyncMock(return_value=[])
         return engine
 
-    @pytest.fixture
+    @pytest.fixture()
     def servicer(self, mock_registry_service, mock_matching_engine):
         """Cria instancia do ServiceRegistryServicer com mocks"""
         return ServiceRegistryServicer(mock_registry_service, mock_matching_engine)
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_context(self):
         """Mock do gRPC context"""
         context = Mock()
@@ -91,7 +92,7 @@ class TestDiscoverAgentsRPC:
         request.max_results = max_results
         return request
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_discover_agents_with_single_capability(
         self, servicer, mock_context, mock_matching_engine
     ):
@@ -114,7 +115,7 @@ class TestDiscoverAgentsRPC:
         assert len(response.agents) == 2
         assert response.ranked is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_discover_agents_with_multiple_capabilities(
         self, servicer, mock_context, mock_matching_engine
     ):
@@ -138,7 +139,7 @@ class TestDiscoverAgentsRPC:
         assert "python" in response.agents[0].capabilities
         assert "terraform" in response.agents[0].capabilities
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_discover_agents_with_filters(self, servicer, mock_context, mock_matching_engine):
         """Testa descoberta com filtros de namespace/cluster"""
         agent1 = create_mock_agent(capabilities=["python"], namespace="production")
@@ -160,7 +161,7 @@ class TestDiscoverAgentsRPC:
         assert len(response.agents) == 1
         assert response.agents[0].namespace == "production"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_discover_agents_respects_max_results(
         self, servicer, mock_context, mock_matching_engine
     ):
@@ -179,7 +180,7 @@ class TestDiscoverAgentsRPC:
 
         assert len(response.agents) == 3
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_discover_agents_returns_ranked_results(
         self, servicer, mock_context, mock_matching_engine
     ):
@@ -206,7 +207,7 @@ class TestDiscoverAgentsRPC:
             response.agents[1].telemetry.success_rate >= response.agents[2].telemetry.success_rate
         )
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_discover_agents_no_match(self, servicer, mock_context, mock_matching_engine):
         """Testa que retorna lista vazia quando nenhum agente match"""
         mock_matching_engine.match_agents.return_value = []
@@ -219,7 +220,7 @@ class TestDiscoverAgentsRPC:
         assert response.ranked is True
         assert not mock_context.abort.called
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_discover_agents_default_max_results(
         self, servicer, mock_context, mock_matching_engine
     ):
@@ -240,7 +241,7 @@ class TestDiscoverAgentsRPC:
             agent_type=None,
         )
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_discover_agents_empty_filters(
         self, servicer, mock_context, mock_matching_engine
     ):
@@ -258,7 +259,7 @@ class TestDiscoverAgentsRPC:
             agent_type=None,
         )
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_discover_agents_internal_error(
         self, servicer, mock_context, mock_matching_engine
     ):

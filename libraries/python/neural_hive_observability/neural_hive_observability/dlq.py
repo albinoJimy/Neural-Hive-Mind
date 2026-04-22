@@ -36,13 +36,10 @@ import json
 import logging
 import time
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Dict, Optional, Callable
+from datetime import UTC, datetime
+from typing import Any, Optional
 
 from aiokafka import AIOKafkaProducer
-from aiokafka.structs import TopicPartition
-
-from neural_hive_observability.context import inject_context_to_metadata
 
 logger = logging.getLogger(__name__)
 
@@ -60,11 +57,11 @@ class DLQMessage:
     error_message: str
     error_type: str
     failure_count: int
-    timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    timestamp: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
     service: str = "unknown"
     consumer_group: str = "unknown"
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Converte para dict para serialização JSON."""
         return {
             "original_topic": self.original_topic,
@@ -132,9 +129,7 @@ class TokenBucketRateLimiter:
                 return True
             return False
 
-    async def acquire_with_timeout(
-        self, tokens: int = 1, timeout: float = 5.0
-    ) -> bool:
+    async def acquire_with_timeout(self, tokens: int = 1, timeout: float = 5.0) -> bool:
         """
         Tenta adquirir tokens com timeout e backoff.
 
@@ -291,7 +286,7 @@ class DLQProducer:
     async def send_dlq_message(
         self,
         dlq_message: DLQMessage,
-        tracing_context: Optional[Dict[str, Any]] = None,
+        tracing_context: Optional[dict[str, Any]] = None,
     ) -> bool:
         """
         Envia mensagem para DLQ.
@@ -338,9 +333,7 @@ class DLQProducer:
             return True
 
         except Exception as e:
-            logger.exception(
-                f"Falha ao enviar mensagem para DLQ: dlq_topic={dlq_topic}, error={e}"
-            )
+            logger.exception(f"Falha ao enviar mensagem para DLQ: dlq_topic={dlq_topic}, error={e}")
             return False
 
 
@@ -385,7 +378,7 @@ class DLQHandler:
         message,
         exception: Exception,
         failure_count: int,
-        tracing_context: Optional[Dict[str, Any]] = None,
+        tracing_context: Optional[dict[str, Any]] = None,
     ) -> bool:
         """
         Decide e executa ação para mensagem com falha.
@@ -466,7 +459,7 @@ class DLQHandler:
         """
         return min(self.retry_backoff_base * (2 ** min(failure_count, 10)), 60.0)
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """Retorna estatísticas do handler."""
         return {
             "messages_sent_to_dlq": self._messages_sent_to_dlq,

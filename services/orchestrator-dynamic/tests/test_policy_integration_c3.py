@@ -2,14 +2,14 @@
 Testes de integração da validação OPA (C3) na alocação de recursos.
 """
 
-import pytest
 from unittest.mock import AsyncMock, Mock
 
+import pytest
 from src.activities.ticket_generation import allocate_resources, set_activity_dependencies
-from src.policies.policy_validator import ValidationResult, PolicyViolation, PolicyWarning
+from src.policies.policy_validator import PolicyViolation, PolicyWarning, ValidationResult
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_ticket():
     return {
         "ticket_id": "ticket-123",
@@ -20,7 +20,7 @@ def sample_ticket():
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_allocation_metadata():
     return {
         "agent_id": "agent-42",
@@ -30,7 +30,7 @@ def sample_allocation_metadata():
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_config():
     cfg = Mock()
     cfg.opa_enabled = True
@@ -38,7 +38,7 @@ def mock_config():
     return cfg
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_config_fail_open(mock_config):
     cfg = Mock()
     cfg.opa_enabled = True
@@ -46,7 +46,7 @@ def mock_config_fail_open(mock_config):
     return cfg
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_scheduler(sample_allocation_metadata):
     scheduler = AsyncMock()
 
@@ -58,12 +58,12 @@ def mock_scheduler(sample_allocation_metadata):
     return scheduler
 
 
-@pytest.fixture
+@pytest.fixture()
 def policy_result_ok():
     return ValidationResult(valid=True, policy_decisions={"resource_limits": {"allow": True}})
 
 
-@pytest.fixture
+@pytest.fixture()
 def policy_result_warning():
     return ValidationResult(
         valid=True,
@@ -78,7 +78,7 @@ def _reset_dependencies():
     set_activity_dependencies(None, None, None, None, None, None, None)
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_c3_validation_success(sample_ticket, mock_scheduler, policy_result_ok, mock_config):
     validator = AsyncMock()
     validator.validate_resource_allocation.return_value = policy_result_ok
@@ -92,7 +92,7 @@ async def test_c3_validation_success(sample_ticket, mock_scheduler, policy_resul
     assert "policy_validated_at" in ticket["metadata"]
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_c3_validation_with_warnings(
     sample_ticket, mock_scheduler, policy_result_warning, mock_config
 ):
@@ -108,7 +108,7 @@ async def test_c3_validation_with_warnings(
     assert "policy_validated_at" in ticket["metadata"]
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_c3_validation_disabled(sample_ticket, mock_scheduler, policy_result_ok):
     validator = AsyncMock()
     validator.validate_resource_allocation.return_value = policy_result_ok
@@ -124,7 +124,7 @@ async def test_c3_validation_disabled(sample_ticket, mock_scheduler, policy_resu
     assert ticket["allocation_metadata"]["agent_id"] == "agent-42"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_c3_validation_violation_blocks_allocation(
     sample_ticket, mock_scheduler, mock_config
 ):
@@ -145,7 +145,7 @@ async def test_c3_validation_violation_blocks_allocation(
     _reset_dependencies()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_c3_validation_timeout_exceeds_maximum(sample_ticket, mock_scheduler, mock_config):
     violation = PolicyViolation(
         policy_name="resource_limits",
@@ -164,7 +164,7 @@ async def test_c3_validation_timeout_exceeds_maximum(sample_ticket, mock_schedul
     _reset_dependencies()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_c3_validation_capabilities_not_allowed(sample_ticket, mock_scheduler, mock_config):
     violation = PolicyViolation(
         policy_name="resource_limits",
@@ -183,7 +183,7 @@ async def test_c3_validation_capabilities_not_allowed(sample_ticket, mock_schedu
     _reset_dependencies()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_c3_validation_concurrent_tickets_limit(sample_ticket, mock_scheduler, mock_config):
     violation = PolicyViolation(
         policy_name="resource_limits",
@@ -202,7 +202,7 @@ async def test_c3_validation_concurrent_tickets_limit(sample_ticket, mock_schedu
     _reset_dependencies()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_c3_validation_fail_open_on_opa_error(
     sample_ticket, mock_scheduler, mock_config_fail_open
 ):
@@ -218,7 +218,7 @@ async def test_c3_validation_fail_open_on_opa_error(
     assert ticket["allocation_metadata"]["agent_id"] == "agent-42"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_c3_validation_fail_closed_on_opa_error(sample_ticket, mock_scheduler, mock_config):
     validator = AsyncMock()
     validator.validate_resource_allocation.side_effect = Exception("OPA down")
@@ -229,7 +229,7 @@ async def test_c3_validation_fail_closed_on_opa_error(sample_ticket, mock_schedu
     _reset_dependencies()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_c3_validation_metadata_added_to_ticket(
     sample_ticket, mock_scheduler, policy_result_ok, mock_config
 ):
@@ -244,7 +244,7 @@ async def test_c3_validation_metadata_added_to_ticket(
     assert ticket["metadata"]["policy_decisions"]["resource_limits"]["allow"] is True
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_c3_validation_metrics_recorded(sample_ticket, mock_scheduler, mock_config):
     decisions = {"resource_limits": {"allow": True, "evaluated": True}}
     validator = AsyncMock()
@@ -259,7 +259,7 @@ async def test_c3_validation_metrics_recorded(sample_ticket, mock_scheduler, moc
     assert ticket["metadata"]["policy_decisions"]["resource_limits"]["evaluated"] is True
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_c3_validation_agent_info_extraction(
     sample_ticket, sample_allocation_metadata, mock_config
 ):
@@ -283,7 +283,7 @@ async def test_c3_validation_agent_info_extraction(
     assert called_args["capacity"]["cpu"] == "500m"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_c3_validation_missing_allocation_metadata(sample_ticket, mock_config):
     scheduler = AsyncMock()
 
@@ -302,7 +302,7 @@ async def test_c3_validation_missing_allocation_metadata(sample_ticket, mock_con
     _reset_dependencies()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_c3_validation_invalid_agent_info(sample_ticket, mock_config):
     scheduler = AsyncMock()
 

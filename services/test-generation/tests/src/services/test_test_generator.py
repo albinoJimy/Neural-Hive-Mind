@@ -1,20 +1,22 @@
 """Tests para o serviço de geração de testes."""
 
+from unittest.mock import AsyncMock
+
 import pytest
-from unittest.mock import AsyncMock, patch
+from models.tests import TestFramework, TestType
+
 from services.test_generator import TestGeneratorService
-from models.tests import TestType, TestFramework, TestCase
 
 
 class TestTestGeneratorService:
     """Testes para TestGeneratorService."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def service(self, mock_openai_client, mock_settings):
         """Fixture do serviço."""
         return TestGeneratorService(llm_client=mock_openai_client)
 
-    @pytest.fixture
+    @pytest.fixture()
     def sample_requirement(self):
         """Requisito de exemplo."""
         return {
@@ -27,7 +29,7 @@ class TestTestGeneratorService:
             ],
         }
 
-    @pytest.fixture
+    @pytest.fixture()
     def sample_user_story(self):
         """User Story de exemplo."""
         return {
@@ -95,9 +97,7 @@ def calculate_sum(a: int, b: int) -> int:
 
     async def test_llm_call_error_handling(self, service, sample_requirement):
         """Testa tratamento de erros na chamada LLM."""
-        service.llm_client.chat.completions.create = AsyncMock(
-            side_effect=Exception("API Error")
-        )
+        service.llm_client.chat.completions.create = AsyncMock(side_effect=Exception("API Error"))
 
         with pytest.raises(Exception):
             await service.generate_tests(

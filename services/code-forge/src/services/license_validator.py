@@ -8,7 +8,7 @@ de compliance da organização.
 
 from datetime import datetime
 from enum import Enum
-from typing import Dict, List, Optional, Set
+from typing import Optional
 
 import structlog
 
@@ -27,7 +27,7 @@ class LicenseRisk(str, Enum):
 
 
 # Lista de licenças por categoria de risco
-PERMISSIVE_LICENSES: Set[str] = {
+PERMISSIVE_LICENSES: set[str] = {
     "MIT",
     "Apache-2.0",
     "Apache License 2.0",
@@ -41,7 +41,7 @@ PERMISSIVE_LICENSES: Set[str] = {
     "Python-2.0",
 }
 
-WEAK_COPYLEFT_LICENSES: Set[str] = {
+WEAK_COPYLEFT_LICENSES: set[str] = {
     "LGPL-2.1",
     "LGPL-2.1-ONLY",
     "LGPL-2.1-OR-LATER",
@@ -62,7 +62,7 @@ WEAK_COPYLEFT_LICENSES: Set[str] = {
     "ECLIPSE PUBLIC LICENSE",
 }
 
-STRONG_COPYLEFT_LICENSES: Set[str] = {
+STRONG_COPYLEFT_LICENSES: set[str] = {
     "GPL-2.0",
     "GPL-2.0-ONLY",
     "GPL-2.0-OR-LATER",
@@ -87,7 +87,7 @@ STRONG_COPYLEFT_LICENSES: Set[str] = {
 }
 
 # Licenças explicitamente proibidas (exemplo: licenças com patentes agressivas)
-PROHIBITED_LICENSES: Set[str] = {
+PROHIBITED_LICENSES: set[str] = {
     "JSON",  # Licença JSON tem cláusula de "boa fé" problemática
     "GPL-1.0",  # Muito antiga, problemas de compatibilidade
 }
@@ -104,8 +104,8 @@ class LicenseValidator:
 
     def __init__(
         self,
-        allowed_licenses: Optional[Set[str]] = None,
-        prohibited_licenses: Optional[Set[str]] = None,
+        allowed_licenses: Optional[set[str]] = None,
+        prohibited_licenses: Optional[set[str]] = None,
         require_sbom: bool = True,
     ):
         """
@@ -121,7 +121,7 @@ class LicenseValidator:
         self.require_sbom = require_sbom
 
     async def validate_licenses(
-        self, sbom_data: Optional[Dict], artifact_id: str, ticket_id: str
+        self, sbom_data: Optional[dict], artifact_id: str, ticket_id: str
     ) -> ValidationResult:
         """
         Valida licenças no SBOM de um artefato.
@@ -259,7 +259,7 @@ class LicenseValidator:
 
         return result
 
-    def _detect_sbom_format(self, sbom_data: Dict) -> str:
+    def _detect_sbom_format(self, sbom_data: dict) -> str:
         """Detecta o formato do SBOM (SPDX, CycloneDX ou genérico)."""
         if not sbom_data:
             return "unknown"
@@ -274,7 +274,7 @@ class LicenseValidator:
 
         return "generic"
 
-    def _extract_licenses_spdx(self, sbom_data: Dict) -> Set[str]:
+    def _extract_licenses_spdx(self, sbom_data: dict) -> set[str]:
         """Extrai licenças de um SBOM no formato SPDX."""
         licenses = set()
 
@@ -300,7 +300,7 @@ class LicenseValidator:
 
         return licenses
 
-    def _extract_licenses_cyclonedx(self, sbom_data: Dict) -> Set[str]:
+    def _extract_licenses_cyclonedx(self, sbom_data: dict) -> set[str]:
         """Extrai licenças de um SBOM no formato CycloneDX."""
         licenses = set()
 
@@ -328,7 +328,7 @@ class LicenseValidator:
 
         return licenses
 
-    def _extract_licenses_generic(self, sbom_data: Dict) -> Set[str]:
+    def _extract_licenses_generic(self, sbom_data: dict) -> set[str]:
         """Extrai licenças de formato genérico/unknown."""
         licenses = set()
 
@@ -361,7 +361,7 @@ class LicenseValidator:
 
         return licenses
 
-    def _classify_licenses(self, licenses: Set[str]) -> Dict[str, List[str]]:
+    def _classify_licenses(self, licenses: set[str]) -> dict[str, list[str]]:
         """Classifica licenças por categoria de risco."""
         analysis = {
             "permissive": [],
@@ -419,7 +419,7 @@ class LicenseValidator:
 
         return mappings.get(normalized, normalized)
 
-    def _calculate_score(self, analysis: Dict[str, List[str]]) -> tuple[float, int]:
+    def _calculate_score(self, analysis: dict[str, list[str]]) -> tuple[float, int]:
         """
         Calcula score baseado na análise de licenças.
 
@@ -461,7 +461,7 @@ class LicenseValidator:
 
         return score, issues
 
-    def get_license_policy(self) -> Dict:
+    def get_license_policy(self) -> dict:
         """Retorna a política de licenças configurada."""
         return {
             "allowed_licenses": list(self.allowed_licenses),

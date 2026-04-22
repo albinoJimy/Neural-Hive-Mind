@@ -3,18 +3,18 @@ Unit tests for OAuth2 Validator
 Test token validation, JWKS caching, and Keycloak integration
 """
 
-import pytest
 from datetime import datetime, timedelta
-from unittest.mock import Mock, AsyncMock, patch
-import httpx
-from jose import jwt
+from unittest.mock import AsyncMock, Mock, patch
 
+import httpx
+import pytest
+from jose import jwt
 from src.security.oauth2_validator import (
-    OAuth2Validator,
     JWKSCache,
+    OAuth2Validator,
     TokenValidationError,
-    get_oauth2_validator,
     close_oauth2_validator,
+    get_oauth2_validator,
 )
 
 
@@ -60,7 +60,7 @@ def create_test_token(
     return jwt.encode(default_payload, secret, algorithm=algorithm, headers=default_headers)
 
 
-@pytest.fixture
+@pytest.fixture()
 async def mock_settings():
     """Mock settings for testing"""
     settings = Mock()
@@ -74,7 +74,7 @@ async def mock_settings():
     return settings
 
 
-@pytest.fixture
+@pytest.fixture()
 async def mock_jwks():
     """Mock JWKS response"""
     return {
@@ -102,7 +102,7 @@ async def mock_jwks():
 class TestJWKSCache:
     """Test JWKS caching functionality"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_initial_fetch(self, mock_jwks):
         """Test initial JWKS fetch from server"""
         cache = JWKSCache(cache_duration=300)
@@ -122,7 +122,7 @@ class TestJWKSCache:
         assert cache.last_fetch is not None
         mock_client.get.assert_called_once_with("https://example.com/jwks")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_cache_hit(self, mock_jwks):
         """Test JWKS cache hit within TTL"""
         cache = JWKSCache(cache_duration=300)
@@ -139,7 +139,7 @@ class TestJWKSCache:
         assert result == mock_jwks
         mock_client.get.assert_not_called()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_cache_miss_expired(self, mock_jwks):
         """Test JWKS cache miss when TTL expired"""
         cache = JWKSCache(cache_duration=300)
@@ -160,7 +160,7 @@ class TestJWKSCache:
         assert cache.jwks == mock_jwks
         mock_client.get.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_fetch_error_with_fallback(self, mock_jwks):
         """Test using expired cache when fetch fails"""
         cache = JWKSCache(cache_duration=300)
@@ -176,7 +176,7 @@ class TestJWKSCache:
         assert result == mock_jwks  # Returns expired cache
         mock_client.get.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_fetch_error_no_fallback(self):
         """Test error when fetch fails with no cache"""
         cache = JWKSCache(cache_duration=300)
@@ -192,7 +192,7 @@ class TestJWKSCache:
 class TestOAuth2Validator:
     """Test OAuth2 token validation"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_initialize(self, mock_settings, mock_jwks):
         """Test validator initialization"""
         with patch("src.security.oauth2_validator.get_settings", return_value=mock_settings):
@@ -206,7 +206,7 @@ class TestOAuth2Validator:
             assert validator.http_client is not None
             validator.jwks_cache.get_jwks.assert_called_once_with(mock_settings.jwks_uri)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_validate_token_success(self, mock_settings, mock_jwks):
         """Test successful token validation"""
         with patch("src.security.oauth2_validator.get_settings", return_value=mock_settings):
@@ -232,7 +232,7 @@ class TestOAuth2Validator:
                     validator.jwks_cache.get_jwks.assert_called_once()
                     mock_decode.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_validate_token_missing_kid(self, mock_settings):
         """Test validation fails when token has no kid"""
         with patch("src.security.oauth2_validator.get_settings", return_value=mock_settings):
@@ -244,7 +244,7 @@ class TestOAuth2Validator:
                 with pytest.raises(TokenValidationError, match="Token JWT não contém 'kid'"):
                     await validator.validate_token("fake.jwt.token")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_validate_token_expired(self, mock_settings, mock_jwks):
         """Test validation fails for expired token"""
         with patch("src.security.oauth2_validator.get_settings", return_value=mock_settings):
@@ -264,7 +264,7 @@ class TestOAuth2Validator:
                     with pytest.raises(TokenValidationError, match="Token expirado"):
                         await validator.validate_token("fake.jwt.token")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_validate_token_invalid_client_id(self, mock_settings, mock_jwks):
         """Test validation fails for wrong client ID"""
         with patch("src.security.oauth2_validator.get_settings", return_value=mock_settings):
@@ -288,7 +288,7 @@ class TestOAuth2Validator:
                             "fake.jwt.token", client_id="expected-client"
                         )
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_validate_token_missing_scopes(self, mock_settings, mock_jwks):
         """Test validation fails for missing required scopes"""
         with patch("src.security.oauth2_validator.get_settings", return_value=mock_settings):
@@ -312,7 +312,7 @@ class TestOAuth2Validator:
                             "fake.jwt.token", required_scopes=["email", "admin"]
                         )
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_validate_token_invalid_roles(self, mock_settings, mock_jwks):
         """Test validation fails without Neural Hive roles"""
         with patch("src.security.oauth2_validator.get_settings", return_value=mock_settings):
@@ -333,7 +333,7 @@ class TestOAuth2Validator:
                     with pytest.raises(TokenValidationError, match="Token não tem roles válidos"):
                         await validator.validate_token("fake.jwt.token")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_validate_offline(self, mock_settings):
         """Test offline token validation"""
         with patch("src.security.oauth2_validator.get_settings", return_value=mock_settings):
@@ -353,7 +353,7 @@ class TestOAuth2Validator:
                 assert result == payload
                 mock_claims.assert_called_once_with("fake.jwt.token")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_validate_offline_expired(self, mock_settings):
         """Test offline validation fails for expired token"""
         with patch("src.security.oauth2_validator.get_settings", return_value=mock_settings):
@@ -370,7 +370,7 @@ class TestOAuth2Validator:
                 with pytest.raises(TokenValidationError, match="Token expirado"):
                     await validator.validate_offline("fake.jwt.token")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_introspect_token_active(self, mock_settings):
         """Test token introspection for active token"""
         with patch("src.security.oauth2_validator.get_settings", return_value=mock_settings):
@@ -394,7 +394,7 @@ class TestOAuth2Validator:
             assert result["sub"] == "user123"
             mock_client.post.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_introspect_token_inactive(self, mock_settings):
         """Test token introspection for inactive token"""
         with patch("src.security.oauth2_validator.get_settings", return_value=mock_settings):
@@ -411,7 +411,7 @@ class TestOAuth2Validator:
             with pytest.raises(TokenValidationError, match="Token inativo"):
                 await validator.introspect_token("fake.token")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_user_info(self, mock_settings):
         """Test fetching user info"""
         with patch("src.security.oauth2_validator.get_settings", return_value=mock_settings):
@@ -490,7 +490,7 @@ class TestOAuth2Validator:
 class TestOAuth2ValidatorSingleton:
     """Test singleton pattern for OAuth2 validator"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_oauth2_validator_singleton(self, mock_settings):
         """Test that get_oauth2_validator returns the same instance"""
         with patch("src.security.oauth2_validator.get_settings", return_value=mock_settings):
@@ -511,7 +511,7 @@ class TestOAuth2ValidatorSingleton:
                 MockValidator.assert_called_once()
                 mock_instance.initialize.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_close_oauth2_validator(self, mock_settings):
         """Test closing the global OAuth2 validator"""
         with patch("src.security.oauth2_validator.get_settings", return_value=mock_settings):
@@ -533,7 +533,7 @@ class TestOAuth2ValidatorSingleton:
                 assert src.security.oauth2_validator._oauth2_validator is None
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_jwks_cache_close():
     """Test closing JWKS cache resources"""
     cache = JWKSCache()
@@ -547,7 +547,7 @@ async def test_jwks_cache_close():
     mock_client.aclose.assert_called_once()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_validator_close(mock_settings):
     """Test closing validator resources"""
     with patch("src.security.oauth2_validator.get_settings", return_value=mock_settings):

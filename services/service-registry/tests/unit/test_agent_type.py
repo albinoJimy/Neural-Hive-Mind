@@ -4,9 +4,10 @@ Testes unitários para AgentType.from_proto_value()
 Este módulo testa a conversão de valores protobuf (int) para AgentType enum.
 """
 
-import pytest
-import sys
 import os
+import sys
+
+import pytest
 
 # Adicionar src ao path para importação
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../src"))

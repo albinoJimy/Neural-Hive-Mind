@@ -7,24 +7,24 @@ Este módulo testa a detecção automática de problemas nos serviços:
 - check_database_connection: Verifica conectividade com banco de dados
 """
 
-import pytest
-from unittest.mock import AsyncMock, patch, MagicMock
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+from unittest.mock import AsyncMock, MagicMock, patch
 
-from src.services.health_monitor import HealthMonitor, HealthStatus, LagStatus, ConnectionStatus
+import pytest
+from src.services.health_monitor import ConnectionStatus, HealthMonitor, HealthStatus, LagStatus
 
 
 class TestHealthMonitor:
     """Testes para o HealthMonitor."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def health_monitor(self, mock_service_registry_client):
         """Fixture do HealthMonitor."""
         return HealthMonitor(
             service_registry_client=mock_service_registry_client, check_interval_seconds=30
         )
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_check_service_health_healthy(self, health_monitor, mock_service_registry_client):
         """Testa detecção de serviço saudável."""
         mock_service_registry_client.get_service_address = AsyncMock(
@@ -43,7 +43,7 @@ class TestHealthMonitor:
         assert status.service_name == "worker-agents"
         assert status.checked_at is not None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_check_service_health_unhealthy(self, health_monitor):
         """Testa detecção de serviço não saudável."""
         with patch("aiohttp.ClientSession.get") as mock_get:
@@ -56,10 +56,11 @@ class TestHealthMonitor:
         assert status.healthy is False
         assert status.error_message is not None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_check_kafka_consumer_lag_ok(self, health_monitor):
         """Testa verificação de lag dentro do limite."""
         from unittest.mock import patch
+
         from aiokafka.structs import TopicPartition
 
         # Mock do AIOKafkaConsumer com métodos sincrónicos para committed/highwater
@@ -88,10 +89,11 @@ class TestHealthMonitor:
         assert lag_status.within_threshold is True
         assert lag_status.threshold == 10000
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_check_kafka_consumer_lag_high(self, health_monitor):
         """Testa verificação de lag acima do limite."""
         from unittest.mock import patch
+
         from aiokafka.structs import TopicPartition
 
         with patch("aiokafka.AIOKafkaConsumer") as mock_consumer_class:
@@ -117,7 +119,7 @@ class TestHealthMonitor:
         assert lag_status.lag == 14000
         assert lag_status.within_threshold is False
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_check_database_connection_ok(self, health_monitor):
         """Testa conexão com banco de dados funcionando."""
         with patch("motor.motor_asyncio.AsyncIOMotorClient") as mock_client_class:
@@ -130,7 +132,7 @@ class TestHealthMonitor:
         assert status.connected is True
         assert status.connection_string == "mongodb://localhost:27017"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_check_database_connection_failed(self, health_monitor):
         """Testa falha de conexão com banco de dados."""
         with patch("motor.motor_asyncio.AsyncIOMotorClient") as mock_client_class:
@@ -144,7 +146,7 @@ class TestHealthMonitor:
     def test_health_status_model(self):
         """Testa o modelo HealthStatus."""
         status = HealthStatus(
-            service_name="test-service", healthy=True, checked_at=datetime.now(timezone.utc)
+            service_name="test-service", healthy=True, checked_at=datetime.now(UTC)
         )
         assert status.service_name == "test-service"
         assert status.healthy is True

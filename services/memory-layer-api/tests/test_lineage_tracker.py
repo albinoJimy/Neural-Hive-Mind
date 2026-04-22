@@ -8,10 +8,10 @@ Testes para o módulo LineageTracker com foco em:
 - Métricas Prometheus
 """
 
-import pytest
-from datetime import datetime, timezone, timedelta
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock
 
+import pytest
 from src.services.lineage_tracker import LineageTracker
 
 
@@ -23,13 +23,13 @@ class MockSettings:
         self.mongodb_context_collection = "operational_context"
 
 
-@pytest.fixture
+@pytest.fixture()
 def settings():
     """Fixture de configurações"""
     return MockSettings()
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_mongodb():
     """Mock do cliente MongoDB"""
     mongodb = AsyncMock()
@@ -39,7 +39,7 @@ def mock_mongodb():
     return mongodb
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_neo4j():
     """Mock do cliente Neo4j"""
     neo4j = AsyncMock()
@@ -50,12 +50,12 @@ def mock_neo4j():
 class TestValidateLineageIntegrity:
     """Testes de validação de integridade de lineage"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_validate_lineage_integrity_timestamp_valid(
         self, settings, mock_mongodb, mock_neo4j
     ):
         """Testa validação com timestamps corretos"""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         source_timestamp = now - timedelta(hours=2)
         entity_timestamp = now - timedelta(hours=1)
 
@@ -86,12 +86,12 @@ class TestValidateLineageIntegrity:
 
         assert result is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_validate_lineage_integrity_timestamp_invalid(
         self, settings, mock_mongodb, mock_neo4j
     ):
         """Testa detecção de violação de timestamp"""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         # Source criada DEPOIS da entidade (violação)
         source_timestamp = now - timedelta(hours=1)
         entity_timestamp = now - timedelta(hours=2)
@@ -123,7 +123,7 @@ class TestValidateLineageIntegrity:
 
         assert result is False
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_validate_lineage_integrity_missing_entity(
         self, settings, mock_mongodb, mock_neo4j
     ):
@@ -136,7 +136,7 @@ class TestValidateLineageIntegrity:
 
         assert result is False
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_validate_lineage_integrity_missing_source(
         self, settings, mock_mongodb, mock_neo4j
     ):
@@ -150,7 +150,7 @@ class TestValidateLineageIntegrity:
                 return {
                     "entity_id": "entity-1",
                     "source_ids": ["source-1"],
-                    "timestamp": datetime.now(timezone.utc),
+                    "timestamp": datetime.now(UTC),
                 }
             else:
                 # Source não existe
@@ -164,7 +164,7 @@ class TestValidateLineageIntegrity:
 
         assert result is False
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_validate_lineage_integrity_cycle_detected(
         self, settings, mock_mongodb, mock_neo4j
     ):
@@ -173,7 +173,7 @@ class TestValidateLineageIntegrity:
             return_value={
                 "entity_id": "entity-1",
                 "source_ids": ["source-1"],
-                "timestamp": datetime.now(timezone.utc),
+                "timestamp": datetime.now(UTC),
             }
         )
 
@@ -186,12 +186,12 @@ class TestValidateLineageIntegrity:
 
         assert result is False
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_validate_lineage_integrity_timestamp_string_format(
         self, settings, mock_mongodb, mock_neo4j
     ):
         """Testa validação com timestamps em formato string ISO"""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         source_timestamp = (now - timedelta(hours=2)).isoformat()
         entity_timestamp = (now - timedelta(hours=1)).isoformat()
 
@@ -219,14 +219,14 @@ class TestValidateLineageIntegrity:
 
         assert result is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_validate_lineage_integrity_no_sources(self, settings, mock_mongodb, mock_neo4j):
         """Testa validação de entidade sem sources (raiz do lineage)"""
         mock_mongodb.find_one = AsyncMock(
             return_value={
                 "entity_id": "root-entity",
                 "source_ids": [],
-                "timestamp": datetime.now(timezone.utc),
+                "timestamp": datetime.now(UTC),
             }
         )
         mock_neo4j.run_query = AsyncMock(return_value=[{"cycle_count": 0}])
@@ -237,7 +237,7 @@ class TestValidateLineageIntegrity:
 
         assert result is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_validate_lineage_integrity_missing_timestamp(
         self, settings, mock_mongodb, mock_neo4j
     ):
@@ -261,7 +261,7 @@ class TestValidateLineageIntegrity:
 class TestTrackLineage:
     """Testes de rastreamento de lineage"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_track_lineage_creates_mongodb_document(self, settings, mock_mongodb, mock_neo4j):
         """Testa que lineage é persistido no MongoDB"""
         tracker = LineageTracker(mock_mongodb, mock_neo4j, settings)
@@ -285,7 +285,7 @@ class TestTrackLineage:
         assert document["source_ids"] == ["source-1", "source-2"]
         assert document["transformation_type"] == "derived"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_track_lineage_creates_neo4j_relationships(
         self, settings, mock_mongodb, mock_neo4j
     ):
@@ -307,7 +307,7 @@ class TestTrackLineage:
 class TestGetLineageTree:
     """Testes de obtenção de árvore de lineage"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_lineage_tree_upstream(self, settings, mock_mongodb, mock_neo4j):
         """Testa obtenção de árvore upstream"""
         mock_mongodb.find_one = AsyncMock(
@@ -322,7 +322,7 @@ class TestGetLineageTree:
         assert result["entity_id"] == "entity-1"
         assert result["direction"] == "upstream"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_lineage_tree_not_found(self, settings, mock_mongodb, mock_neo4j):
         """Testa obtenção quando entidade não existe"""
         mock_mongodb.find_one = AsyncMock(return_value=None)
@@ -339,7 +339,7 @@ class TestGetLineageTree:
 class TestGetLineagePath:
     """Testes de obtenção de caminho de lineage"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_lineage_path_found(self, settings, mock_mongodb, mock_neo4j):
         """Testa obtenção de caminho entre duas entidades"""
         mock_neo4j.run_query = AsyncMock(
@@ -367,7 +367,7 @@ class TestGetLineagePath:
 
         assert len(result) == 2
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_lineage_path_not_found(self, settings, mock_mongodb, mock_neo4j):
         """Testa quando não há caminho entre entidades"""
         mock_neo4j.run_query = AsyncMock(return_value=[])
@@ -382,7 +382,7 @@ class TestGetLineagePath:
 class TestGetImpactAnalysis:
     """Testes de análise de impacto"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_impact_analysis_returns_counts(self, settings, mock_mongodb, mock_neo4j):
         """Testa que análise de impacto retorna contagens"""
         mock_neo4j.run_query = AsyncMock(
@@ -397,7 +397,7 @@ class TestGetImpactAnalysis:
         assert result["total_impacted"] == 5
         assert len(result["impacted_entities"]) == 5
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_impact_analysis_no_impact(self, settings, mock_mongodb, mock_neo4j):
         """Testa quando não há entidades impactadas"""
         mock_neo4j.run_query = AsyncMock(return_value=[])

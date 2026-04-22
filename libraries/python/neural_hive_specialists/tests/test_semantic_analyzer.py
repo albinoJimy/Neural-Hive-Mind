@@ -4,15 +4,16 @@ Testes unitários para SemanticAnalyzer.
 Cobertura para semantic_pipeline/semantic_analyzer.py
 """
 
-import pytest
 from unittest.mock import MagicMock, patch
+
 import numpy as np
+import pytest
 
 
 class TestSemanticAnalyzer:
     """Testes para SemanticAnalyzer."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def config(self):
         """Configuração de teste."""
         return {
@@ -20,7 +21,7 @@ class TestSemanticAnalyzer:
             "semantic_similarity_threshold": 0.4,
         }
 
-    @pytest.fixture
+    @pytest.fixture()
     def sample_tasks(self):
         """Tarefas de exemplo."""
         return [

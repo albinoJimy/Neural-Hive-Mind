@@ -4,9 +4,9 @@ Unit tests para BuildMetricsCollector.
 Testa a coleta, agregação e análise de métricas de performance de builds.
 """
 
-import tempfile
-import os
 import json
+import os
+import tempfile
 
 from src.services.build_metrics import (
     BuildMetric,
@@ -561,7 +561,7 @@ class TestMetricsExport:
 
             assert os.path.exists(output_path)
 
-            with open(output_path, "r") as f:
+            with open(output_path) as f:
                 data = json.load(f)
                 assert len(data) == 1
                 assert data[0]["language"] == "python"
@@ -587,7 +587,7 @@ class TestMetricsExport:
 
             assert os.path.exists(output_path)
 
-            with open(output_path, "r") as f:
+            with open(output_path) as f:
                 content = f.read()
                 assert "python" in content
                 assert "120.5" in content

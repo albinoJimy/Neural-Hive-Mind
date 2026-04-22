@@ -8,7 +8,7 @@ Suporta:
 - CloudFormation templates para AWS
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 import structlog
 
@@ -25,7 +25,7 @@ class IaCGenerator:
         self.supported_formats = ["terraform", "helm", "kubernetes", "cloudformation"]
 
     def generate_terraform_module(
-        self, params: Dict[str, Any], provider: str = "aws", resources: Optional[List[str]] = None
+        self, params: dict[str, Any], provider: str = "aws", resources: Optional[list[str]] = None
     ) -> str:
         """
         Gera módulo Terraform completo com recursos específicos.
@@ -201,7 +201,7 @@ variable "retention_days" {{
 """
 
     def _generate_terraform_resources(
-        self, provider: str, resources: List[str], service_name: str, environment: str
+        self, provider: str, resources: list[str], service_name: str, environment: str
     ) -> str:
         """Gera recursos Terraform baseados no provider e lista."""
         if provider == "aws":
@@ -216,7 +216,7 @@ variable "retention_days" {{
             )
 
     def _generate_aws_resources(
-        self, resources: List[str], service_name: str, environment: str
+        self, resources: list[str], service_name: str, environment: str
     ) -> str:
         """Gera recursos AWS."""
 
@@ -631,7 +631,7 @@ resource "aws_cloudwatch_log_group" "main" {
         return "\n".join(code_blocks)
 
     def _generate_gcp_resources(
-        self, resources: List[str], service_name: str, environment: str
+        self, resources: list[str], service_name: str, environment: str
     ) -> str:
         """Gera recursos GCP."""
         return f"""# GCP Resources for {service_name}
@@ -677,7 +677,7 @@ resource "google_storage_bucket" "artifacts" {{
 """
 
     def _generate_azure_resources(
-        self, resources: List[str], service_name: str, environment: str
+        self, resources: list[str], service_name: str, environment: str
     ) -> str:
         """Gera recursos Azure."""
         return f"""# Azure Resources for {service_name}
@@ -714,7 +714,7 @@ resource "azurerm_container_registry" "main" {{
 """
 
     def _generate_kubernetes_terraform_resources(
-        self, resources: List[str], service_name: str, environment: str
+        self, resources: list[str], service_name: str, environment: str
     ) -> str:
         """Gera recursos Kubernetes via Terraform."""
         return f"""# Kubernetes Resources for {service_name}
@@ -819,7 +819,7 @@ resource "kubernetes_service" "main" {{
 }}
 """
 
-    def _generate_terraform_outputs(self, resources: List[str]) -> str:
+    def _generate_terraform_outputs(self, resources: list[str]) -> str:
         """Gera outputs Terraform."""
         outputs = []
 
@@ -945,8 +945,8 @@ output "ecr_repository_url" {
         return "\n".join(outputs)
 
     def generate_helm_chart(
-        self, params: Dict[str, Any], templates: Optional[List[str]] = None
-    ) -> Dict[str, str]:
+        self, params: dict[str, Any], templates: Optional[list[str]] = None
+    ) -> dict[str, str]:
         """
         Gera Helm Chart completo com todos os templates necessários.
 
@@ -1414,8 +1414,8 @@ metadata:
 """
 
     def generate_kubernetes_manifests(
-        self, params: Dict[str, Any], resources: Optional[List[str]] = None
-    ) -> Dict[str, str]:
+        self, params: dict[str, Any], resources: Optional[list[str]] = None
+    ) -> dict[str, str]:
         """
         Gera manifestos Kubernetes nativos (sem Helm).
 
@@ -1559,7 +1559,7 @@ metadata:
 
         return manifests
 
-    def generate_cloudformation_template(self, params: Dict[str, Any]) -> str:
+    def generate_cloudformation_template(self, params: dict[str, Any]) -> str:
         """
         Gera template CloudFormation para AWS.
 

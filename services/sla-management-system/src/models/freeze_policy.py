@@ -5,7 +5,7 @@ Modelos Pydantic para políticas de congelamento.
 import uuid
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from pydantic import BaseModel, Field
 
@@ -42,13 +42,13 @@ class FreezePolicy(BaseModel):
     description: str = Field(default="")
     scope: FreezeScope = Field(..., description="Escopo do freeze")
     target: str = Field(..., description="Namespace, service ou '*' para global")
-    actions: List[FreezeAction] = Field(..., description="Ações a executar")
+    actions: list[FreezeAction] = Field(..., description="Ações a executar")
     trigger_threshold_percent: float = Field(default=20, description="% de budget para acionar")
     auto_unfreeze: bool = Field(default=True)
     unfreeze_threshold_percent: float = Field(default=50, description="% para descongelar")
     enabled: bool = Field(default=True)
     created_at: datetime = Field(default_factory=datetime.utcnow)
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+    metadata: dict[str, Any] = Field(default_factory=dict)
 
     def should_trigger(self, budget) -> bool:
         """Verifica se deve acionar freeze."""
@@ -66,7 +66,7 @@ class FreezePolicy(BaseModel):
             return False
         return budget.error_budget_remaining >= self.unfreeze_threshold_percent
 
-    def to_kubernetes_annotation(self) -> Dict[str, str]:
+    def to_kubernetes_annotation(self) -> dict[str, str]:
         """Converte para annotation K8s."""
         return {
             "neural-hive.io/sla-freeze": "true",
@@ -90,4 +90,4 @@ class FreezeEvent(BaseModel):
     budget_remaining_percent: float = Field(...)
     burn_rate: float = Field(default=0)
     active: bool = Field(default=True)
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+    metadata: dict[str, Any] = Field(default_factory=dict)

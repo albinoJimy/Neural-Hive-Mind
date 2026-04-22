@@ -4,15 +4,16 @@ Testes unitários para AuditLogger.
 Cobertura para compliance/audit_logger.py
 """
 
+from datetime import UTC, datetime
+from unittest.mock import MagicMock, Mock, patch
+
 import pytest
-from unittest.mock import Mock, MagicMock, patch
-from datetime import datetime, timezone
 
 
 class TestAuditLogger:
     """Testes para AuditLogger."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def config(self):
         """Configuração de teste."""
         mock_config = Mock()
@@ -23,7 +24,7 @@ class TestAuditLogger:
         mock_config.audit_log_retention_days = 30
         return mock_config
 
-    @pytest.fixture
+    @pytest.fixture()
     def sample_event_data(self):
         """Dados de evento de exemplo."""
         return {
@@ -389,7 +390,7 @@ class TestAuditLogger:
 
         from datetime import timedelta
 
-        start_date = datetime.now(timezone.utc) - timedelta(days=7)
+        start_date = datetime.now(UTC) - timedelta(days=7)
         results = logger.query_audit_logs(
             filters={"start_date": start_date},
             limit=10,
@@ -426,12 +427,13 @@ class TestAuditLogger:
         ]
         mock_mongo_class.return_value = mock_client
 
-        from neural_hive_specialists.compliance.audit_logger import AuditLogger
         from datetime import timedelta
+
+        from neural_hive_specialists.compliance.audit_logger import AuditLogger
 
         logger = AuditLogger(config, specialist_type="test_specialist")
 
-        end_date = datetime.now(timezone.utc)
+        end_date = datetime.now(UTC)
         start_date = end_date - timedelta(days=7)
         summary = logger.get_audit_summary(start_date, end_date)
 
@@ -444,12 +446,13 @@ class TestAuditLogger:
         """Testa resumo quando audit logging está desabilitado."""
         config.enable_audit_logging = False
 
-        from neural_hive_specialists.compliance.audit_logger import AuditLogger
         from datetime import timedelta
+
+        from neural_hive_specialists.compliance.audit_logger import AuditLogger
 
         logger = AuditLogger(config, specialist_type="test_specialist")
 
-        end_date = datetime.now(timezone.utc)
+        end_date = datetime.now(UTC)
         start_date = end_date - timedelta(days=7)
         summary = logger.get_audit_summary(start_date, end_date)
 

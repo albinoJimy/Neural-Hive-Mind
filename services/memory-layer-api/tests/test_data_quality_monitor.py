@@ -9,10 +9,10 @@ Testes para o módulo DataQualityMonitor com foco em:
 """
 
 import os
-import pytest
-from datetime import datetime, timezone, timedelta
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock
 
+import pytest
 from src.services.data_quality_monitor import DataQualityMonitor
 
 
@@ -26,13 +26,13 @@ class MockSettings:
         self.freshness_threshold_hours = 24
 
 
-@pytest.fixture
+@pytest.fixture()
 def settings():
     """Fixture de configurações"""
     return MockSettings()
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_mongodb():
     """Mock do cliente MongoDB"""
     mongodb = AsyncMock()
@@ -42,7 +42,7 @@ def mock_mongodb():
     return mongodb
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_clickhouse():
     """Mock do cliente ClickHouse com resposta vazia (força fallback para MongoDB)"""
     clickhouse = MagicMock()
@@ -52,7 +52,7 @@ def mock_clickhouse():
     return clickhouse
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_clickhouse_with_data():
     """Mock do cliente ClickHouse com dados de baseline"""
     clickhouse = MagicMock()
@@ -66,12 +66,12 @@ def mock_clickhouse_with_data():
 class TestDetectAnomalies:
     """Testes de detecção de anomalias"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_detect_anomalies_identifies_outliers(
         self, settings, mock_mongodb, mock_clickhouse
     ):
         """Testa detecção de anomalias com Z-score"""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         # Dados históricos: 30 documentos com média ~95%
         historical_data = []
@@ -112,10 +112,10 @@ class TestDetectAnomalies:
         assert all(a["z_score"] < -3 for a in anomalies)
         assert all(a["severity"] in ["low", "medium", "high"] for a in anomalies)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_detect_anomalies_no_outliers(self, settings, mock_mongodb, mock_clickhouse):
         """Testa que dados normais não geram anomalias"""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         # Todos os dados com média 95% ± 2%
         all_data = []
@@ -136,7 +136,7 @@ class TestDetectAnomalies:
 
         assert len(anomalies) == 0
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_detect_anomalies_insufficient_data(
         self, settings, mock_mongodb, mock_clickhouse
     ):
@@ -144,7 +144,7 @@ class TestDetectAnomalies:
         # Apenas 5 documentos (mínimo é 10)
         mock_mongodb.find = AsyncMock(
             return_value=[
-                {"collection": "context", "timestamp": datetime.now(timezone.utc), "metrics": {}}
+                {"collection": "context", "timestamp": datetime.now(UTC), "metrics": {}}
                 for _ in range(5)
             ]
         )
@@ -155,12 +155,12 @@ class TestDetectAnomalies:
 
         assert len(anomalies) == 0
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_detect_anomalies_without_clickhouse_uses_mongodb_fallback(
         self, settings, mock_mongodb
     ):
         """Testa que sem ClickHouse usa fallback para MongoDB"""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         # Dados históricos no MongoDB
         historical_data = []
@@ -198,12 +198,12 @@ class TestDetectAnomalies:
         assert len(anomalies) > 0
         assert all(a["z_score"] < -3 for a in anomalies)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_detect_anomalies_classifies_severity(
         self, settings, mock_mongodb, mock_clickhouse
     ):
         """Testa classificação de severidade baseada em Z-score"""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         # Dados históricos com média 95% e std ~2%
         historical_data = []
@@ -253,7 +253,7 @@ class TestDetectAnomalies:
 class TestCalculateQualityScore:
     """Testes de cálculo de scores de qualidade"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_calculate_quality_score_returns_all_dimensions(self, settings, mock_mongodb):
         """Testa que todas as dimensões de qualidade são calculadas"""
         # Dados de amostra
@@ -262,7 +262,7 @@ class TestCalculateQualityScore:
                 "entity_id": f"entity-{i}",
                 "field1": "value1",
                 "field2": "value2",
-                "created_at": datetime.now(timezone.utc) - timedelta(hours=i),
+                "created_at": datetime.now(UTC) - timedelta(hours=i),
             }
             for i in range(10)
         ]
@@ -280,7 +280,7 @@ class TestCalculateQualityScore:
         assert "consistency_score" in scores
         assert "overall_score" in scores
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_calculate_quality_score_empty_sample(self, settings, mock_mongodb):
         """Testa comportamento com amostra vazia"""
         mock_mongodb.find = AsyncMock(return_value=[])
@@ -295,7 +295,7 @@ class TestCalculateQualityScore:
 class TestValidateData:
     """Testes de validação de dados"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_validate_data_missing_required_field(self, settings, mock_mongodb):
         """Testa validação de campo obrigatório faltando"""
         monitor = DataQualityMonitor(mock_mongodb, settings)
@@ -308,7 +308,7 @@ class TestValidateData:
         assert is_valid is False
         assert any("data_type" in v for v in violations)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_validate_data_invalid_type(self, settings, mock_mongodb):
         """Testa validação de tipo inválido"""
         monitor = DataQualityMonitor(mock_mongodb, settings)
@@ -321,7 +321,7 @@ class TestValidateData:
         assert is_valid is False
         assert any("count" in v for v in violations)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_validate_data_value_out_of_range(self, settings, mock_mongodb):
         """Testa validação de valor fora do range"""
         monitor = DataQualityMonitor(mock_mongodb, settings)
@@ -334,7 +334,7 @@ class TestValidateData:
         assert is_valid is False
         assert any("score" in v for v in violations)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_validate_data_valid_document(self, settings, mock_mongodb):
         """Testa validação de documento válido"""
         monitor = DataQualityMonitor(mock_mongodb, settings)
@@ -351,12 +351,12 @@ class TestValidateData:
 class TestClickHouseIntegration:
     """Testes de integração com ClickHouse para detecção de anomalias"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_detect_anomalies_uses_clickhouse_when_available(
         self, settings, mock_mongodb, mock_clickhouse_with_data
     ):
         """Testa que ClickHouse é usado como fonte primária quando disponível"""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         # Dados recentes com anomalia (70% quando baseline é 95% ± 2%)
         recent_data = [
@@ -382,10 +382,10 @@ class TestClickHouseIntegration:
         assert anomalies[0]["z_score"] < -3
         assert anomalies[0]["severity"] == "high"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_detect_anomalies_fallback_on_clickhouse_error(self, settings, mock_mongodb):
         """Testa fallback para MongoDB quando ClickHouse falha"""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         # ClickHouse que lança exceção
         clickhouse_with_error = MagicMock()
@@ -430,12 +430,12 @@ class TestClickHouseIntegration:
         # Deve detectar anomalias usando dados do MongoDB
         assert len(anomalies) > 0
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_detect_anomalies_clickhouse_insufficient_data_fallback(
         self, settings, mock_mongodb
     ):
         """Testa fallback quando ClickHouse retorna dados insuficientes"""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         # ClickHouse com poucos dados (count < 10)
         clickhouse_insufficient = MagicMock()
@@ -479,7 +479,7 @@ class TestClickHouseIntegration:
         # Deve usar fallback MongoDB e detectar anomalias
         assert len(anomalies) > 0
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     @pytest.mark.skipif(
         not os.getenv("CLICKHOUSE_HOST"),
         reason="ClickHouse não disponível (defina CLICKHOUSE_HOST para executar)",

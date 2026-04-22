@@ -6,9 +6,9 @@ o PVCManager cria dinamicamente um PersistentVolumeClaim para armazenar o contex
 """
 
 import logging
-from datetime import timezone
+from datetime import UTC
 
-UTC = timezone.utc  # type: ignore
+UTC = UTC  # type: ignore
 from uuid import uuid4
 
 from kubernetes import client, config

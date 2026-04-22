@@ -23,30 +23,31 @@ except Exception:
 # com modelos MLflow que foram treinados com import direto do módulo.
 # O pickle deserializa buscando 'probabilistic_wrapper' no sys.modules.
 import sys
+
 from . import probabilistic_wrapper as _pw_module
 
 sys.modules["probabilistic_wrapper"] = _pw_module
 
-from .base_specialist import BaseSpecialist
-from .pheromone_client import PheromoneClient, PheromoneType, PheromoneSignal
-from .cached_specialist import CachedSpecialist
-from .ensemble_specialist import EnsembleSpecialist
 from .ab_testing_specialist import ABTestingSpecialist
-from .config import SpecialistConfig
-from .mlflow_client import MLflowClient
-from .ledger_client import LedgerClient
-from .explainability_generator import ExplainabilityGenerator
-from .metrics import SpecialistMetrics
-from .grpc_server import create_grpc_server_with_observability
 from .auth_interceptor import AuthInterceptor
+from .base_specialist import BaseSpecialist
+from .cached_specialist import CachedSpecialist
+from .config import SpecialistConfig
+from .ensemble_specialist import EnsembleSpecialist
+from .explainability_generator import ExplainabilityGenerator
+from .grpc_server import create_grpc_server_with_observability
+from .ledger_client import LedgerClient
+from .metrics import SpecialistMetrics
+from .mlflow_client import MLflowClient
+from .pheromone_client import PheromoneClient, PheromoneSignal, PheromoneType
 from .probabilistic_wrapper import ProbabilisticModelWrapper
 from .schemas import (
+    SCHEMA_VERSION,
     CognitivePlanSchema,
-    TaskSchema,
     PlanValidationError,
     PlanVersionIncompatibleError,
     TaskDependencyError,
-    SCHEMA_VERSION,
+    TaskSchema,
 )
 
 __version__ = "1.0.10"

@@ -9,7 +9,7 @@ Implementa:
 """
 
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 import httpx
 import structlog
@@ -55,7 +55,7 @@ class CodeReviewClient:
             base_url=base_url, headers=self._get_headers(), timeout=timeout
         )
 
-    def _get_headers(self) -> Dict[str, str]:
+    def _get_headers(self) -> dict[str, str]:
         """Retorna headers HTTP para autenticação."""
         headers = {
             "Accept": (
@@ -86,9 +86,9 @@ class CodeReviewClient:
         source_branch: str,
         target_branch: str = "main",
         draft: bool = False,
-        labels: Optional[List[str]] = None,
-        reviewers: Optional[List[str]] = None,
-    ) -> Dict[str, Any]:
+        labels: Optional[list[str]] = None,
+        reviewers: Optional[list[str]] = None,
+    ) -> dict[str, Any]:
         """
         Cria Pull Request no GitHub.
 
@@ -150,7 +150,7 @@ class CodeReviewClient:
         }
 
     async def _request_github_reviewers(
-        self, repo_owner: str, repo_name: str, pr_number: int, reviewers: List[str]
+        self, repo_owner: str, repo_name: str, pr_number: int, reviewers: list[str]
     ):
         """Solicita reviewers no GitHub."""
         endpoint = f"/repos/{repo_owner}/{repo_name}/pulls/{pr_number}/requested_reviewers"
@@ -176,10 +176,10 @@ class CodeReviewClient:
         title: Optional[str] = None,
         description: Optional[str] = None,
         draft: bool = False,
-        labels: Optional[List[str]] = None,
-        assignees: Optional[List[str]] = None,
+        labels: Optional[list[str]] = None,
+        assignees: Optional[list[str]] = None,
         remove_source_branch: bool = False,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Cria Merge Request no GitLab.
 
@@ -240,9 +240,9 @@ class CodeReviewClient:
         repo_owner: str,
         repo_name: str,
         pr_number: int,
-        validation_results: List[ValidationResult],
+        validation_results: list[ValidationResult],
         overall_status: str,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Adiciona comentário com resultados de validação no PR.
 
@@ -273,7 +273,7 @@ class CodeReviewClient:
 
     async def _add_github_comment(
         self, repo_owner: str, repo_name: str, pr_number: int, body: str
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Adiciona comentário no PR do GitHub."""
         endpoint = f"/repos/{repo_owner}/{repo_name}/pulls/{pr_number}/comments"
         payload = {"body": body}
@@ -286,7 +286,7 @@ class CodeReviewClient:
 
     async def _add_gitlab_comment(
         self, repo_owner: str, repo_name: str, mr_number: int, body: str
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Adiciona comentário no MR do GitLab."""
         # Para GitLab, precisamos do project_id
         # Primeiro tentamos encontrar o projeto pelo nome
@@ -317,7 +317,7 @@ class CodeReviewClient:
         return None
 
     def _format_validation_comment(
-        self, validation_results: List[ValidationResult], overall_status: str
+        self, validation_results: list[ValidationResult], overall_status: str
     ) -> str:
         """Formata comentário de validação."""
         lines = [
@@ -403,7 +403,7 @@ class CodeReviewClient:
         pr_number: int,
         status: ReviewStatus,
         comment: Optional[str] = None,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Define status de review (aprova/rejeita).
 
@@ -443,7 +443,7 @@ class CodeReviewClient:
         pr_number: int,
         status: ReviewStatus,
         comment: Optional[str] = None,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Define status de review no GitHub."""
         event_map = {
             ReviewStatus.APPROVED: "APPROVE",
@@ -475,7 +475,7 @@ class CodeReviewClient:
         mr_number: int,
         status: ReviewStatus,
         comment: Optional[str] = None,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Define status de review no GitLab."""
         project_id = await self._get_gitlab_project_id(repo_owner, repo_name)
         if not project_id:
@@ -501,7 +501,7 @@ class CodeReviewClient:
 
     async def _add_bitbucket_comment(
         self, repo_owner: str, repo_name: str, pr_number: int, body: str
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Adiciona comentário no Pull Request do Bitbucket.
 
@@ -532,7 +532,7 @@ class CodeReviewClient:
 
     async def _add_azure_devops_comment(
         self, repo_owner: str, repo_name: str, pr_number: int, body: str
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Adiciona comentário no Pull Request do Azure DevOps.
 
@@ -577,7 +577,7 @@ class CodeReviewClient:
         pr_number: int,
         status: ReviewStatus,
         comment: Optional[str] = None,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Define status de aprovação no Bitbucket.
 
@@ -642,7 +642,7 @@ class CodeReviewClient:
         pr_number: int,
         status: ReviewStatus,
         comment: Optional[str] = None,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Define status de aprovação no Azure DevOps.
 
@@ -765,13 +765,13 @@ class CodeReviewIntegration:
         self,
         artifact_id: str,
         artifact_content: str,
-        validation_results: List[ValidationResult],
+        validation_results: list[ValidationResult],
         repo_owner: str,
         repo_name: str,
         source_branch: str,
         target_branch: str = "main",
         provider: Optional[GitProvider] = None,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Cria PR/MR para um artefato com comentários de validação.
 
@@ -859,7 +859,7 @@ class CodeReviewIntegration:
             raise ValueError(f"Unsupported provider: {provider}")
 
     def _generate_pr_description(
-        self, artifact_id: str, validation_results: List[ValidationResult]
+        self, artifact_id: str, validation_results: list[ValidationResult]
     ) -> str:
         """Gera descrição do PR/MR."""
         # Obter timestamp formatado ou N/A
@@ -899,7 +899,7 @@ The following validations were performed:
 *This is an automated pull request. Please review the generated code carefully before merging.*
 """
 
-    def _format_validation_summary(self, validation_results: List[ValidationResult]) -> str:
+    def _format_validation_summary(self, validation_results: list[ValidationResult]) -> str:
         """Formata resumo de validações."""
         if not validation_results:
             return "No validations performed."
@@ -914,7 +914,7 @@ The following validations were performed:
 
         return "\n".join(lines)
 
-    def _calculate_overall_status(self, validation_results: List[ValidationResult]) -> str:
+    def _calculate_overall_status(self, validation_results: list[ValidationResult]) -> str:
         """Calcula status geral baseado nas validações."""
         if not validation_results:
             return "commented"
@@ -931,7 +931,7 @@ The following validations were performed:
         else:
             return "approved"
 
-    def _all_validations_passed(self, validation_results: List[ValidationResult]) -> bool:
+    def _all_validations_passed(self, validation_results: list[ValidationResult]) -> bool:
         """Verifica se todas as validações passaram."""
         return all(
             r.status == ValidationStatus.PASSED and r.critical_issues == 0
@@ -939,9 +939,8 @@ The following validations were performed:
         )
 
     async def _convert_from_draft(
-        self, client: CodeReviewClient, repo_owner: str, repo_name: str, pr_or_mr: Dict[str, Any]
+        self, client: CodeReviewClient, repo_owner: str, repo_name: str, pr_or_mr: dict[str, Any]
     ):
         """Converte PR/MR de draft para normal."""
         # Implementação dependeria do provider
         # Para GitHub, seria um PATCH no PR com draft=false
-        pass

@@ -6,8 +6,9 @@ padrões de avaliação do Evolution Specialist, permitindo o
 meta-learning baseado em histórico.
 """
 
-from typing import List, Optional, Dict, Any
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+from typing import Any, Optional
+
 import structlog
 
 try:
@@ -18,7 +19,7 @@ except ImportError:
     AsyncIOMotorClient = None
     MOTOR_AVAILABLE = False
 
-from .models import Fingerprint, PatternRecord, EvolutionEvaluation, FeedbackData
+from .models import EvolutionEvaluation, FeedbackData, Fingerprint, PatternRecord
 
 logger = structlog.get_logger()
 
@@ -77,10 +78,10 @@ class PatternRegistry:
             "metrics": {
                 "times_matched": 0,
                 "success_rate": 0.5,
-                "last_updated": datetime.now(timezone.utc),
+                "last_updated": datetime.now(UTC),
             },
-            "created_at": datetime.now(timezone.utc),
-            "updated_at": datetime.now(timezone.utc),
+            "created_at": datetime.now(UTC),
+            "updated_at": datetime.now(UTC),
         }
 
         result = await self.collection.insert_one(doc)
@@ -108,7 +109,7 @@ class PatternRegistry:
         if corrected_weights:
             feedback_dict["corrected_weights"] = corrected_weights
 
-        update_doc = {"$set": {"feedback": feedback_dict, "updated_at": datetime.now(timezone.utc)}}
+        update_doc = {"$set": {"feedback": feedback_dict, "updated_at": datetime.now(UTC)}}
 
         result = await self.collection.update_one({"plan_id": plan_id}, update_doc)
 
@@ -123,7 +124,7 @@ class PatternRegistry:
 
     async def find_similar_patterns(
         self, fingerprint: Fingerprint, limit: int = 50, min_similarity: float = 0.0
-    ) -> List[PatternRecord]:
+    ) -> list[PatternRecord]:
         """
         Busca padrões similares baseado em fingerprint.
 
@@ -224,7 +225,7 @@ class PatternRegistry:
             "$inc": {"metrics.times_matched": 1},
             "$set": {
                 "metrics.success_rate": new_rate,
-                "metrics.last_updated": datetime.now(timezone.utc),
+                "metrics.last_updated": datetime.now(UTC),
             },
         }
 
@@ -267,7 +268,7 @@ class PatternRegistry:
 
         return count
 
-    async def get_statistics(self) -> Dict[str, Any]:
+    async def get_statistics(self) -> dict[str, Any]:
         """
         Retorna estatísticas gerais do registry.
 
@@ -338,10 +339,10 @@ class SyncPatternRegistry:
             "metrics": {
                 "times_matched": 0,
                 "success_rate": 0.5,
-                "last_updated": datetime.now(timezone.utc),
+                "last_updated": datetime.now(UTC),
             },
-            "created_at": datetime.now(timezone.utc),
-            "updated_at": datetime.now(timezone.utc),
+            "created_at": datetime.now(UTC),
+            "updated_at": datetime.now(UTC),
         }
 
         result = self.collection.insert_one(doc)
@@ -364,7 +365,7 @@ class SyncPatternRegistry:
         if corrected_weights:
             feedback_dict["corrected_weights"] = corrected_weights
 
-        update_doc = {"$set": {"feedback": feedback_dict, "updated_at": datetime.now(timezone.utc)}}
+        update_doc = {"$set": {"feedback": feedback_dict, "updated_at": datetime.now(UTC)}}
 
         result = self.collection.update_one({"plan_id": plan_id}, update_doc)
 
@@ -378,7 +379,7 @@ class SyncPatternRegistry:
 
     def find_similar_patterns(
         self, fingerprint: Fingerprint, limit: int = 50, min_similarity: float = 0.0
-    ) -> List[PatternRecord]:
+    ) -> list[PatternRecord]:
         """
         Busca padrões similares (síncrono).
 
@@ -437,7 +438,7 @@ class SyncPatternRegistry:
             "$inc": {"metrics.times_matched": 1},
             "$set": {
                 "metrics.success_rate": new_rate,
-                "metrics.last_updated": datetime.now(timezone.utc),
+                "metrics.last_updated": datetime.now(UTC),
             },
         }
 

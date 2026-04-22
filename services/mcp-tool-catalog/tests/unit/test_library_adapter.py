@@ -20,7 +20,7 @@ import pytest
 class TestLIBRARYAdapterExecution:
     """Testes de execucao de funcoes de biblioteca."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_sync_function_success(self):
         """Deve executar funcao sincrona com sucesso."""
         from src.adapters.library_adapter import LIBRARYAdapter
@@ -39,7 +39,7 @@ class TestLIBRARYAdapterExecution:
         assert result.output == "4.0"
         assert result.execution_time_ms > 0
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_with_multiple_parameters(self):
         """Deve executar funcao com multiplos parametros."""
         from src.adapters.library_adapter import LIBRARYAdapter
@@ -57,7 +57,7 @@ class TestLIBRARYAdapterExecution:
         assert result.success is True
         assert result.output == "8.0"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_with_no_parameters(self):
         """Deve executar funcao sem parametros."""
         from src.adapters.library_adapter import LIBRARYAdapter
@@ -75,7 +75,7 @@ class TestLIBRARYAdapterExecution:
         assert result.success is True
         assert len(result.output) > 0  # timestamp string
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_function_not_found(self):
         """Deve retornar erro quando funcao nao existe."""
         from src.adapters.library_adapter import LIBRARYAdapter
@@ -93,7 +93,7 @@ class TestLIBRARYAdapterExecution:
         assert result.success is False
         assert "not found" in result.error.lower() or "attribute" in result.error.lower()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_module_not_found(self):
         """Deve retornar erro quando modulo nao existe."""
         from src.adapters.library_adapter import LIBRARYAdapter
@@ -111,7 +111,7 @@ class TestLIBRARYAdapterExecution:
         assert result.success is False
         assert "not found" in result.error.lower() or "import" in result.error.lower()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_function_exception(self):
         """Deve capturar excecao lancada pela funcao."""
         from src.adapters.library_adapter import LIBRARYAdapter
@@ -129,7 +129,7 @@ class TestLIBRARYAdapterExecution:
         assert result.success is False
         assert result.error is not None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_with_class_method(self):
         """Deve executar metodo de classe."""
         from src.adapters.library_adapter import LIBRARYAdapter
@@ -153,7 +153,7 @@ class TestLIBRARYAdapterExecution:
 class TestLIBRARYAdapterAsyncExecution:
     """Testes de execucao de funcoes assincronas."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_async_function(self):
         """Deve executar funcao assincrona."""
         from src.adapters.library_adapter import LIBRARYAdapter
@@ -180,7 +180,7 @@ class TestLIBRARYAdapterAsyncExecution:
             assert result.success is True
             assert "processed: test" in result.output
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_async_function_exception(self):
         """Deve capturar excecao de funcao assincrona."""
         from src.adapters.library_adapter import LIBRARYAdapter
@@ -207,7 +207,7 @@ class TestLIBRARYAdapterAsyncExecution:
 class TestLIBRARYAdapterImportCaching:
     """Testes de cache de imports."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_import_caching(self):
         """Deve fazer cache de imports para evitar reimportacao."""
         from src.adapters.library_adapter import LIBRARYAdapter
@@ -239,7 +239,7 @@ class TestLIBRARYAdapterImportCaching:
         # Cache deve ter pelo menos um modulo
         assert len(adapter._import_cache) >= initial_cache_size
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_clear_import_cache(self):
         """Deve limpar cache de imports."""
         from src.adapters.library_adapter import LIBRARYAdapter
@@ -266,7 +266,7 @@ class TestLIBRARYAdapterImportCaching:
 class TestLIBRARYAdapterValidation:
     """Testes de validacao de disponibilidade."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_validate_available_builtin_module(self):
         """Deve validar modulo builtin disponivel."""
         from src.adapters.library_adapter import LIBRARYAdapter
@@ -277,7 +277,7 @@ class TestLIBRARYAdapterValidation:
 
         assert is_available is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_validate_available_standard_library(self):
         """Deve validar modulo da biblioteca padrao disponivel."""
         from src.adapters.library_adapter import LIBRARYAdapter
@@ -288,7 +288,7 @@ class TestLIBRARYAdapterValidation:
 
         assert is_available is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_validate_not_available_module(self):
         """Deve retornar False para modulo inexistente."""
         from src.adapters.library_adapter import LIBRARYAdapter
@@ -299,7 +299,7 @@ class TestLIBRARYAdapterValidation:
 
         assert is_available is False
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_validate_with_function(self):
         """Deve validar disponibilidade de funcao especifica."""
         from src.adapters.library_adapter import LIBRARYAdapter
@@ -311,7 +311,7 @@ class TestLIBRARYAdapterValidation:
 
         assert is_available is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_validate_function_not_exists(self):
         """Deve retornar False quando funcao nao existe."""
         from src.adapters.library_adapter import LIBRARYAdapter
@@ -326,7 +326,7 @@ class TestLIBRARYAdapterValidation:
 class TestLIBRARYAdapterCommandParsing:
     """Testes de parsing de comandos."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_parse_command_module_only(self):
         """Deve fazer parse de comando com apenas modulo."""
         from src.adapters.library_adapter import LIBRARYAdapter
@@ -338,7 +338,7 @@ class TestLIBRARYAdapterCommandParsing:
         assert module_name == "math"
         assert function_name is None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_parse_command_module_function(self):
         """Deve fazer parse de comando modulo:funcao."""
         from src.adapters.library_adapter import LIBRARYAdapter
@@ -350,7 +350,7 @@ class TestLIBRARYAdapterCommandParsing:
         assert module_name == "math"
         assert function_name == "sqrt"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_parse_command_nested_module(self):
         """Deve fazer parse de comando com modulo aninhado."""
         from src.adapters.library_adapter import LIBRARYAdapter
@@ -362,7 +362,7 @@ class TestLIBRARYAdapterCommandParsing:
         assert module_name == "os.path"
         assert function_name == "join"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_parse_command_with_submodule_function(self):
         """Deve fazer parse de comando com submodulo e funcao."""
         from src.adapters.library_adapter import LIBRARYAdapter
@@ -378,7 +378,7 @@ class TestLIBRARYAdapterCommandParsing:
 class TestLIBRARYAdapterOutputHandling:
     """Testes de tratamento de output."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_output_string_conversion(self):
         """Deve converter output para string."""
         from src.adapters.library_adapter import LIBRARYAdapter
@@ -396,7 +396,7 @@ class TestLIBRARYAdapterOutputHandling:
         assert result.success is True
         assert result.output == "120"  # 5! = 120
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_output_dict_conversion(self):
         """Deve converter dicionario para JSON string."""
         from src.adapters.library_adapter import LIBRARYAdapter
@@ -414,7 +414,7 @@ class TestLIBRARYAdapterOutputHandling:
         assert result.success is True
         assert "key" in result.output or "value" in result.output
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_output_list_conversion(self):
         """Deve converter lista para string."""
         from src.adapters.library_adapter import LIBRARYAdapter
@@ -436,7 +436,7 @@ class TestLIBRARYAdapterOutputHandling:
 class TestLIBRARYAdapterMetadata:
     """Testes de metadados."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_metadata_includes_module_info(self):
         """Deve incluir informacoes do modulo no metadata."""
         from src.adapters.library_adapter import LIBRARYAdapter
@@ -457,7 +457,7 @@ class TestLIBRARYAdapterMetadata:
         assert "function" in result.metadata
         assert result.metadata["function"] == "sqrt"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_metadata_includes_execution_time(self):
         """Deve incluir tempo de execucao no metadata."""
         from src.adapters.library_adapter import LIBRARYAdapter
@@ -479,7 +479,7 @@ class TestLIBRARYAdapterMetadata:
 class TestLIBRARYAdapterEdgeCases:
     """Testes de casos extremos."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_with_none_parameter(self):
         """Deve lidar com parametro None."""
         from src.adapters.library_adapter import LIBRARYAdapter
@@ -498,7 +498,7 @@ class TestLIBRARYAdapterEdgeCases:
         assert result.success is True
         assert "null" in result.output
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_with_empty_parameters(self):
         """Deve lidar com dicionario de parametros vazio."""
         from src.adapters.library_adapter import LIBRARYAdapter
@@ -517,7 +517,7 @@ class TestLIBRARYAdapterEdgeCases:
         # time.time() deve funcionar sem parâmetros
         assert result.success is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_with_large_output(self):
         """Deve lidar com output grande."""
         from src.adapters.library_adapter import LIBRARYAdapter
@@ -541,7 +541,7 @@ class TestLIBRARYAdapterEdgeCases:
 class TestLIBRARYAdapterSecurity:
     """Testes de seguranca."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_block_dangerous_imports(self):
         """Deve bloquear importacoes perigosas se configurado."""
         from src.adapters.library_adapter import LIBRARYAdapter
@@ -559,7 +559,7 @@ class TestLIBRARYAdapterSecurity:
         assert result.success is False
         assert "blocked" in result.error.lower() or "not allowed" in result.error.lower()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_allow_all_modules_when_not_blocking(self):
         """Deve permitir todos os modulos quando bloqueio desativado."""
         from src.adapters.library_adapter import LIBRARYAdapter

@@ -5,15 +5,16 @@ TDD: Testes escritos antes da implementação.
 Espec: Ferramentas estratégicas do Queen Agent via MCP
 """
 
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
 from datetime import datetime
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 
 
 class TestMakeDecisionTool:
     """Testes da ferramenta make_decision."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_make_decision_success(self):
         """Testa tomada de decisão com sucesso."""
         from queen_mcp_server.tools.queen_tools import make_decision
@@ -41,7 +42,7 @@ class TestMakeDecisionTool:
             assert result["action"] == "proceed"
             mock_call.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_make_decision_invalid_event_type(self):
         """Testa erro para event_type inválido."""
         from queen_mcp_server.tools.queen_tools import make_decision
@@ -49,7 +50,7 @@ class TestMakeDecisionTool:
         with pytest.raises(ValueError, match="Invalid event_type"):
             await make_decision(event_type="invalid_type", source_id="plan-456", trigger_data={})
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_make_decision_all_valid_event_types(self):
         """Testa todos os tipos de eventos válidos."""
         from queen_mcp_server.tools.queen_tools import make_decision
@@ -73,7 +74,7 @@ class TestMakeDecisionTool:
                 )
                 assert result["decision_id"] == "test"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_make_decision_with_default_priority(self):
         """Testa uso de prioridade padrão."""
         from queen_mcp_server.tools.queen_tools import make_decision
@@ -88,7 +89,7 @@ class TestMakeDecisionTool:
             # Verificar que foi chamado (não falha por falta de priority)
             mock_call.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_make_decision_http_error_handling(self):
         """Testa tratamento de erro HTTP."""
         from queen_mcp_server.tools.queen_tools import make_decision
@@ -113,7 +114,7 @@ class TestMakeDecisionTool:
 class TestArbitrateConflictTool:
     """Testes da ferramenta arbitrate_conflict."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_arbitrate_conflict_success(self):
         """Testa arbitragem de conflito com sucesso."""
         from queen_mcp_server.tools.queen_tools import arbitrate_conflict
@@ -143,7 +144,7 @@ class TestArbitrateConflictTool:
             assert result["final_decision"] == "approve"
             mock_call.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_arbitrate_conflict_insufficient_decisions(self):
         """Testa erro com menos de 2 decisões."""
         from queen_mcp_server.tools.queen_tools import arbitrate_conflict
@@ -151,7 +152,7 @@ class TestArbitrateConflictTool:
         with pytest.raises(ValueError, match="At least 2 decisions"):
             await arbitrate_conflict(decisions=[{"decision": "test"}])
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_arbitrate_conflict_single_decision_fails(self):
         """Testa que uma única decisão causa erro."""
         from queen_mcp_server.tools.queen_tools import arbitrate_conflict
@@ -161,7 +162,7 @@ class TestArbitrateConflictTool:
         with pytest.raises(ValueError, match="At least 2 decisions"):
             await arbitrate_conflict(decisions=single_decision)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_arbitrate_conflict_without_description(self):
         """Testa arbitragem sem descrição opcional."""
         from queen_mcp_server.tools.queen_tools import arbitrate_conflict
@@ -177,7 +178,7 @@ class TestArbitrateConflictTool:
 
             assert result["conflict_id"] == "conf-1"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_arbitrate_conflict_multiple_decisions(self):
         """Testa arbitragem com múltiplas decisões."""
         from queen_mcp_server.tools.queen_tools import arbitrate_conflict
@@ -202,7 +203,7 @@ class TestArbitrateConflictTool:
 class TestReplanWorkflowTool:
     """Testes da ferramenta replan_workflow."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_replan_workflow_success(self):
         """Testa replanejamento de workflow com sucesso."""
         from queen_mcp_server.tools.queen_tools import replan_workflow
@@ -231,7 +232,7 @@ class TestReplanWorkflowTool:
             assert result["new_plan_id"] == "plan-new-789"
             mock_call.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_replan_workflow_with_defaults(self):
         """Testa replanejamento com valores padrão."""
         from queen_mcp_server.tools.queen_tools import replan_workflow
@@ -249,7 +250,7 @@ class TestReplanWorkflowTool:
             assert call_args[0][3] is True  # preserve_progress padrão
             assert call_args[0][4] == 5  # priority padrão
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_replan_workflow_manual_trigger(self):
         """Testa replanejamento com trigger manual."""
         from queen_mcp_server.tools.queen_tools import replan_workflow
@@ -265,7 +266,7 @@ class TestReplanWorkflowTool:
 
             assert result["success"] is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_replan_workflow_error_trigger(self):
         """Testa replanejamento com trigger de erro."""
         from queen_mcp_server.tools.queen_tools import replan_workflow
@@ -281,7 +282,7 @@ class TestReplanWorkflowTool:
 
             assert result["replanning_id"] == "replan-3"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_replan_workflow_without_progress_preservation(self):
         """Testa replanejamento sem preservar progresso."""
         from queen_mcp_server.tools.queen_tools import replan_workflow
@@ -301,7 +302,7 @@ class TestReplanWorkflowTool:
 class TestApproveExceptionTool:
     """Testes da ferramenta approve_exception."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_approve_exception_success(self):
         """Testa aprovação de exceção com sucesso."""
         from queen_mcp_server.tools.queen_tools import approve_exception
@@ -328,7 +329,7 @@ class TestApproveExceptionTool:
             assert result["exception_request_id"] == "exc-123"
             mock_call.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_approve_exception_invalid_risk_score_high(self):
         """Testa erro para risk_score acima de 1.0."""
         from queen_mcp_server.tools.queen_tools import approve_exception
@@ -341,7 +342,7 @@ class TestApproveExceptionTool:
                 requested_by="test",
             )
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_approve_exception_invalid_risk_score_low(self):
         """Testa erro para risk_score abaixo de 0.0."""
         from queen_mcp_server.tools.queen_tools import approve_exception
@@ -354,7 +355,7 @@ class TestApproveExceptionTool:
                 requested_by="test",
             )
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_approve_exception_boundary_risk_scores(self):
         """Testa valores de limite válidos para risk_score."""
         from queen_mcp_server.tools.queen_tools import approve_exception
@@ -381,7 +382,7 @@ class TestApproveExceptionTool:
             )
             assert result_high["approved"] is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_approve_exception_with_expiration(self):
         """Testa aprovação com data de expiração."""
         from queen_mcp_server.tools.queen_tools import approve_exception
@@ -406,7 +407,7 @@ class TestApproveExceptionTool:
             # _call_queen_agent_exception_approval(exception_request_id, justification, risk_score, requested_by, expires_at)
             assert call_args[4] == expires
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_approve_exception_rejected_high_risk(self):
         """Testa rejeição de exceção de alto risco."""
         from queen_mcp_server.tools.queen_tools import approve_exception
@@ -433,7 +434,7 @@ class TestApproveExceptionTool:
 class TestAdjustQosTool:
     """Testes da ferramenta adjust_qos."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_adjust_qos_success(self):
         """Testa ajuste de QoS com sucesso."""
         from queen_mcp_server.tools.queen_tools import adjust_qos
@@ -462,7 +463,7 @@ class TestAdjustQosTool:
             assert result["previous_priority"] == 5
             mock_call.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_adjust_qos_invalid_type(self):
         """Testa erro para adjustment_type inválido."""
         from queen_mcp_server.tools.queen_tools import adjust_qos
@@ -470,7 +471,7 @@ class TestAdjustQosTool:
         with pytest.raises(ValueError, match="Invalid adjustment_type"):
             await adjust_qos(workflow_id="wf-123", adjustment_type="invalid_type")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_adjust_qos_all_valid_types(self):
         """Testa todos os tipos de ajuste válidos."""
         from queen_mcp_server.tools.queen_tools import adjust_qos
@@ -492,7 +493,7 @@ class TestAdjustQosTool:
                 result = await adjust_qos(workflow_id="wf-test", adjustment_type=adj_type)
                 assert result["success"] is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_adjust_qos_pause_with_duration(self):
         """Testa pausa com duração especificada."""
         from queen_mcp_server.tools.queen_tools import adjust_qos
@@ -511,7 +512,7 @@ class TestAdjustQosTool:
             # _call_queen_agent_qos_adjustment(workflow_id, adjustment_type, new_priority, reason, duration_seconds)
             assert call_args[4] == 300
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_adjust_qos_resume_execution(self):
         """Testa retomada de execução."""
         from queen_mcp_server.tools.queen_tools import adjust_qos
@@ -525,7 +526,7 @@ class TestAdjustQosTool:
 
             assert result["status"] == "running"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_adjust_qos_with_optional_params(self):
         """Testa ajuste com parâmetros opcionais."""
         from queen_mcp_server.tools.queen_tools import adjust_qos
@@ -567,11 +568,11 @@ class TestQueenMCPServerIntegration:
     def test_tools_have_metadata(self):
         """Testa que ferramentas têm metadata descritiva."""
         from queen_mcp_server.tools.queen_tools import (
-            make_decision,
-            arbitrate_conflict,
-            replan_workflow,
-            approve_exception,
             adjust_qos,
+            approve_exception,
+            arbitrate_conflict,
+            make_decision,
+            replan_workflow,
         )
 
         # Verificar que funções de tools existem e têm docstrings
@@ -603,7 +604,7 @@ class TestQueenMCPServerIntegration:
 class TestHelperFunctions:
     """Testes das funções auxiliares."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_call_queen_agent_decision_success(self):
         """Testa chamada bem-sucedida ao Queen Agent para decisão."""
         from queen_mcp_server.tools.queen_tools import _call_queen_agent_decision
@@ -625,7 +626,7 @@ class TestHelperFunctions:
             assert result["decision_id"] == "dec-1"
             assert result["decision_type"] == "STRATEGIC"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_call_queen_agent_arbitration_success(self):
         """Testa chamada bem-sucedida para arbitragem."""
         from queen_mcp_server.tools.queen_tools import _call_queen_agent_arbitration
@@ -651,7 +652,7 @@ class TestHelperFunctions:
 
             assert result["conflict_id"] == "conf-1"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_call_queen_agent_replanning_success(self):
         """Testa chamada bem-sucedida para replanejamento."""
         from queen_mcp_server.tools.queen_tools import _call_queen_agent_replanning
@@ -674,7 +675,7 @@ class TestHelperFunctions:
 
             assert result["replanning_id"] == "replan-1"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_call_queen_agent_exception_approval_success(self):
         """Testa chamada bem-sucedida para aprovação de exceção."""
         from queen_mcp_server.tools.queen_tools import _call_queen_agent_exception_approval
@@ -697,7 +698,7 @@ class TestHelperFunctions:
 
             assert result["approved"] is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_call_queen_agent_qos_adjustment_success(self):
         """Testa chamada bem-sucedida para ajuste de QoS."""
         from queen_mcp_server.tools.queen_tools import _call_queen_agent_qos_adjustment
@@ -724,7 +725,7 @@ class TestHelperFunctions:
 class TestHealthCheckTool:
     """Testes da ferramenta health_check."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_health_check_basic(self):
         """Testa health check básico sem verificação de serviços."""
         from queen_mcp_server.tools.queen_tools import health_check
@@ -738,7 +739,7 @@ class TestHealthCheckTool:
         assert result["components"]["mcp_server"] == "healthy"
         assert "queen_agent" not in result["components"]
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_health_check_with_services(self):
         """Testa health check com verificação de serviços."""
         from queen_mcp_server.tools.queen_tools import health_check
@@ -751,7 +752,7 @@ class TestHealthCheckTool:
         # Queen Agent pode não estar disponível em ambiente de teste
         assert result["components"]["mcp_server"] == "healthy"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_health_check_includes_version(self):
         """Testa que health check inclui versão."""
         from queen_mcp_server.tools.queen_tools import health_check
@@ -761,7 +762,7 @@ class TestHealthCheckTool:
         assert "version" in result
         assert isinstance(result["version"], str)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_health_check_degraded_when_queen_unreachable(self):
         """Testa status degraded quando Queen Agent não está disponível."""
         from queen_mcp_server.tools.queen_tools import health_check

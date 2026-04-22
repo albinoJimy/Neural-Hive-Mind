@@ -19,7 +19,7 @@ import pytest
 class TestK8sJobsClientInitialization:
     """Testes de inicializacao."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_initialize_from_kubeconfig(self):
         """Deve inicializar com kubeconfig."""
         from src.clients.k8s_jobs_client import KubernetesJobsClient
@@ -38,7 +38,7 @@ class TestK8sJobsClientInitialization:
                 assert client._initialized is True
                 mock_config.load_kube_config.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_initialize_incluster(self):
         """Deve inicializar in-cluster."""
         from src.clients.k8s_jobs_client import KubernetesJobsClient
@@ -63,7 +63,7 @@ class TestK8sJobsClientJobManifest:
 
     def test_build_job_manifest_basic(self):
         """Deve construir manifest basico."""
-        from src.clients.k8s_jobs_client import KubernetesJobsClient, K8sJobRequest
+        from src.clients.k8s_jobs_client import K8sJobRequest, KubernetesJobsClient
 
         client = KubernetesJobsClient(namespace="test-ns")
 
@@ -85,9 +85,9 @@ class TestK8sJobsClientJobManifest:
     def test_build_job_manifest_with_resources(self):
         """Deve construir manifest com resource limits."""
         from src.clients.k8s_jobs_client import (
-            KubernetesJobsClient,
             K8sJobRequest,
             K8sResourceRequirements,
+            KubernetesJobsClient,
         )
 
         client = KubernetesJobsClient(namespace="test-ns")
@@ -110,7 +110,7 @@ class TestK8sJobsClientJobManifest:
 
     def test_build_job_manifest_with_env_vars(self):
         """Deve construir manifest com env vars."""
-        from src.clients.k8s_jobs_client import KubernetesJobsClient, K8sJobRequest
+        from src.clients.k8s_jobs_client import K8sJobRequest, KubernetesJobsClient
 
         client = KubernetesJobsClient(namespace="test-ns")
 
@@ -146,10 +146,10 @@ class TestK8sJobsClientJobManifest:
 class TestK8sJobsClientExecution:
     """Testes de execucao de Job."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_job_success(self):
         """Deve executar Job com sucesso."""
-        from src.clients.k8s_jobs_client import KubernetesJobsClient, K8sJobRequest, K8sJobStatus
+        from src.clients.k8s_jobs_client import K8sJobRequest, K8sJobStatus, KubernetesJobsClient
 
         client = KubernetesJobsClient(namespace="test-ns")
         client._initialized = True
@@ -191,10 +191,10 @@ class TestK8sJobsClientExecution:
                                     assert result.exit_code == 0
                                     assert "Output line" in result.logs
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_job_failure(self):
         """Deve retornar falha quando Job falha."""
-        from src.clients.k8s_jobs_client import KubernetesJobsClient, K8sJobRequest, K8sJobStatus
+        from src.clients.k8s_jobs_client import K8sJobRequest, K8sJobStatus, KubernetesJobsClient
 
         client = KubernetesJobsClient(namespace="test-ns")
         client._initialized = True
@@ -222,13 +222,13 @@ class TestK8sJobsClientExecution:
                                     assert result.status == K8sJobStatus.FAILED
                                     assert result.exit_code == 1
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_job_timeout(self):
         """Deve levantar timeout."""
         from src.clients.k8s_jobs_client import (
-            KubernetesJobsClient,
             K8sJobRequest,
             K8sJobTimeoutError,
+            KubernetesJobsClient,
         )
 
         client = KubernetesJobsClient(namespace="test-ns")
@@ -252,7 +252,7 @@ class TestK8sJobsClientExecution:
 class TestK8sJobsClientStatus:
     """Testes de obtencao de status."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_job_status_succeeded(self):
         """Deve obter status succeeded."""
         from src.clients.k8s_jobs_client import KubernetesJobsClient
@@ -275,10 +275,10 @@ class TestK8sJobsClientStatus:
         assert status["succeeded"] == 1
         assert status["failed"] == 0
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_wait_for_job_completes(self):
         """Deve aguardar Job completar."""
-        from src.clients.k8s_jobs_client import KubernetesJobsClient, K8sJobStatus
+        from src.clients.k8s_jobs_client import K8sJobStatus, KubernetesJobsClient
 
         client = KubernetesJobsClient(namespace="test-ns", poll_interval=0.1)
 
@@ -289,10 +289,10 @@ class TestK8sJobsClientStatus:
 
             assert status == K8sJobStatus.SUCCEEDED
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_wait_for_job_fails(self):
         """Deve detectar Job falhou."""
-        from src.clients.k8s_jobs_client import KubernetesJobsClient, K8sJobStatus
+        from src.clients.k8s_jobs_client import K8sJobStatus, KubernetesJobsClient
 
         client = KubernetesJobsClient(namespace="test-ns", poll_interval=0.1)
 
@@ -307,7 +307,7 @@ class TestK8sJobsClientStatus:
 class TestK8sJobsClientPodOperations:
     """Testes de operacoes com Pods."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_pod_for_job(self):
         """Deve obter Pod criado pelo Job."""
         from src.clients.k8s_jobs_client import KubernetesJobsClient
@@ -327,7 +327,7 @@ class TestK8sJobsClientPodOperations:
 
         assert pod_name == "test-job-abc123"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_pod_logs(self):
         """Deve obter logs do Pod."""
         from src.clients.k8s_jobs_client import KubernetesJobsClient
@@ -341,7 +341,7 @@ class TestK8sJobsClientPodOperations:
         assert "Line 1" in logs
         assert "Line 3" in logs
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_pod_exit_code(self):
         """Deve obter exit code do container."""
         from src.clients.k8s_jobs_client import KubernetesJobsClient
@@ -366,7 +366,7 @@ class TestK8sJobsClientPodOperations:
 class TestK8sJobsClientHealthCheck:
     """Testes de health check."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_health_check_success(self):
         """Deve retornar True quando API acessivel."""
         from src.clients.k8s_jobs_client import KubernetesJobsClient
@@ -379,7 +379,7 @@ class TestK8sJobsClientHealthCheck:
 
         assert result is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_health_check_failure(self):
         """Deve retornar False quando API inacessivel."""
         from src.clients.k8s_jobs_client import KubernetesJobsClient
@@ -395,7 +395,7 @@ class TestK8sJobsClientHealthCheck:
 class TestK8sJobsClientCleanup:
     """Testes de cleanup de Jobs."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_delete_job_success(self):
         """Deve deletar Job com sucesso."""
         from src.clients.k8s_jobs_client import KubernetesJobsClient

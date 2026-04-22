@@ -3,7 +3,6 @@
 from typing import Any, List, Optional
 from openai import AsyncOpenAI
 import structlog
-import numpy as np
 
 from knowledge_graph_rag.models.knowledge import (
     KnowledgeNode,
@@ -23,9 +22,7 @@ class KnowledgeGraphRAG:
     """Serviço para busca no grafo de conhecimento com RAG."""
 
     def __init__(
-        self,
-        llm_client: Optional[AsyncOpenAI] = None,
-        neo4j_driver: Optional[Any] = None
+        self, llm_client: Optional[AsyncOpenAI] = None, neo4j_driver: Optional[Any] = None
     ):
         """Inicializa o serviço RAG."""
         settings = get_settings()
@@ -35,20 +32,15 @@ class KnowledgeGraphRAG:
         self._logger = logger
 
     async def create_node(
-        self,
-        node_type: NodeType,
-        name: str,
-        description: str,
-        properties: dict
+        self, node_type: NodeType, name: str, description: str, properties: dict
     ) -> KnowledgeNode:
         """Cria um novo nó no grafo."""
         import uuid
+
         node_id = f"{node_type.value.upper()}:{uuid.uuid4().hex[:8]}"
 
         # Gerar embedding
-        embedding = await self._generate_embedding(
-            f"{name}. {description}"
-        )
+        embedding = await self._generate_embedding(f"{name}. {description}")
 
         node = KnowledgeNode(
             id=node_id,
@@ -56,7 +48,7 @@ class KnowledgeGraphRAG:
             name=name,
             description=description,
             properties=properties,
-            embedding=embedding
+            embedding=embedding,
         )
 
         # TODO: Persistir no Neo4j e Qdrant
@@ -65,14 +57,11 @@ class KnowledgeGraphRAG:
         return node
 
     async def create_relation(
-        self,
-        source_id: str,
-        target_id: str,
-        relation_type: RelationType,
-        properties: dict
+        self, source_id: str, target_id: str, relation_type: RelationType, properties: dict
     ) -> KnowledgeRelation:
         """Cria uma relação entre nós."""
         import uuid
+
         relation_id = f"REL:{uuid.uuid4().hex[:8]}"
 
         relation = KnowledgeRelation(
@@ -80,7 +69,7 @@ class KnowledgeGraphRAG:
             source_id=source_id,
             target_id=target_id,
             relation_type=relation_type,
-            properties=properties
+            properties=properties,
         )
 
         # TODO: Persistir no Neo4j
@@ -88,10 +77,7 @@ class KnowledgeGraphRAG:
 
         return relation
 
-    async def search(
-        self,
-        query: GraphQuery
-    ) -> GraphSearchResult:
+    async def search(self, query: GraphQuery) -> GraphSearchResult:
         """
         Busca nós no grafo usando busca semântica.
 
@@ -112,16 +98,11 @@ class KnowledgeGraphRAG:
         relations = []
 
         return GraphSearchResult(
-            nodes=nodes,
-            relations=relations,
-            total_found=0,
-            query_id=f"Q-{query.query_text[:20]}"
+            nodes=nodes, relations=relations, total_found=0, query_id=f"Q-{query.query_text[:20]}"
         )
 
     async def generate_rag_context(
-        self,
-        query: str,
-        retrieved_nodes: List[KnowledgeNode]
+        self, query: str, retrieved_nodes: List[KnowledgeNode]
     ) -> RAGContext:
         """
         Gera contexto para RAG.
@@ -146,23 +127,16 @@ class KnowledgeGraphRAG:
         context_text = "\n\n".join(context_parts)
 
         # Calcular scores de relevância
-        relevance_scores = [
-            self._calculate_relevance(query, node)
-            for node in retrieved_nodes
-        ]
+        relevance_scores = [self._calculate_relevance(query, node) for node in retrieved_nodes]
 
         return RAGContext(
             query=query,
             retrieved_nodes=retrieved_nodes,
             context_text=context_text,
-            relevance_scores=relevance_scores
+            relevance_scores=relevance_scores,
         )
 
-    async def query_with_rag(
-        self,
-        query_text: str,
-        context: Optional[str] = None
-    ) -> str:
+    async def query_with_rag(self, query_text: str, context: Optional[str] = None) -> str:
         """
         Realiza query usando RAG.
 
@@ -182,8 +156,7 @@ class KnowledgeGraphRAG:
 
         # Gerar contexto RAG
         rag_context = await self.generate_rag_context(
-            query=query_text,
-            retrieved_nodes=search_result.nodes
+            query=query_text, retrieved_nodes=search_result.nodes
         )
 
         # Construir prompt com contexto
@@ -205,11 +178,14 @@ Baseado no contexto acima, forneça uma resposta precisa e detalhada.
         response = await self._llm_client.chat.completions.create(
             model="gpt-4-turbo-preview",
             messages=[
-                {"role": "system", "content": "Você é um assistente especialista em Neural Hive-Mind."},
-                {"role": "user", "content": prompt}
+                {
+                    "role": "system",
+                    "content": "Você é um assistente especialista em Neural Hive-Mind.",
+                },
+                {"role": "user", "content": prompt},
             ],
             temperature=0.7,
-            max_tokens=2000
+            max_tokens=2000,
         )
 
         return response.choices[0].message.content
@@ -218,12 +194,10 @@ Baseado no contexto acima, forneça uma resposta precisa e detalhada.
         """Gera embedding usando OpenAI."""
         try:
             from openai import AsyncOpenAI
+
             client = AsyncOpenAI(api_key=get_settings().openai_api_key)
 
-            response = await client.embeddings.create(
-                model=self._embedding_model,
-                input=text
-            )
+            response = await client.embeddings.create(model=self._embedding_model, input=text)
 
             return response.data[0].embedding
 

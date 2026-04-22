@@ -1,15 +1,16 @@
 """Testes unitários para LoadPredictor."""
 
-import pytest
+from datetime import datetime, timedelta
+from unittest.mock import AsyncMock, Mock, patch
+
 import numpy as np
 import pandas as pd
-from unittest.mock import Mock, patch, AsyncMock
-from datetime import datetime, timedelta
+import pytest
 
 from neural_hive_ml.predictive_models.load_predictor import LoadPredictor
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_config():
     """Configuração mock para LoadPredictor."""
     return {
@@ -21,7 +22,7 @@ def mock_config():
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_config_arima():
     """Configuração mock para ARIMA."""
     return {
@@ -32,7 +33,7 @@ def mock_config_arima():
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_registry():
     """ModelRegistry mock."""
     registry = Mock()
@@ -40,7 +41,7 @@ def mock_registry():
     return registry
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_metrics():
     """Metrics client mock."""
     metrics = Mock()
@@ -52,7 +53,7 @@ def mock_metrics():
     return metrics
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_redis():
     """Redis client mock."""
     redis = Mock()
@@ -63,7 +64,7 @@ def mock_redis():
     return redis
 
 
-@pytest.fixture
+@pytest.fixture()
 def time_series_data():
     """Dados de série temporal sintéticos (formato esperado pelo LoadPredictor)."""
     np.random.seed(42)
@@ -91,7 +92,7 @@ def time_series_data():
     return data
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_clickhouse():
     """Mock de cliente ClickHouse."""
     client = Mock()
@@ -117,7 +118,7 @@ def mock_clickhouse():
 # =============================================================================
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_initialization(mock_config, mock_registry, mock_metrics):
     """Testa inicialização básica do LoadPredictor."""
     predictor = LoadPredictor(
@@ -135,7 +136,7 @@ async def test_initialization(mock_config, mock_registry, mock_metrics):
 # =============================================================================
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_predict_load_prophet(mock_config, mock_registry, mock_metrics, time_series_data):
     """Testa predição de carga com Prophet."""
     with (
@@ -189,7 +190,7 @@ async def test_predict_load_prophet(mock_config, mock_registry, mock_metrics, ti
         assert len(forecast["confidence_lower"]) > 0
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_predict_load_multiple_horizons(
     mock_config, mock_registry, mock_metrics, time_series_data
 ):
@@ -233,7 +234,7 @@ async def test_predict_load_multiple_horizons(
             assert len(forecast["confidence_upper"]) == len(forecast["forecast"])
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_predict_load_arima(mock_config_arima, mock_registry, mock_metrics, time_series_data):
     """Testa predição de carga com ARIMA."""
     with (
@@ -273,7 +274,7 @@ async def test_predict_load_arima(mock_config_arima, mock_registry, mock_metrics
 # =============================================================================
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_seasonality_detection(mock_config, mock_registry, mock_metrics, time_series_data):
     """Valida que modelo detecta padrões sazonais."""
     with (
@@ -311,7 +312,7 @@ async def test_seasonality_detection(mock_config, mock_registry, mock_metrics, t
 # =============================================================================
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_cache_hit(mock_config, mock_registry, mock_metrics, mock_redis, time_series_data):
     """Testa que cache é usado quando disponível."""
     with (
@@ -359,7 +360,7 @@ async def test_cache_hit(mock_config, mock_registry, mock_metrics, mock_redis, t
         assert len(forecast1["forecast"]) == len(forecast2["forecast"])
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_cache_miss_rate(mock_config, mock_registry, mock_metrics, time_series_data):
     """Valida que cache hit rate > 80% em uso normal."""
     # Sem Redis, cache hit rate deve ser 0% (sempre miss)
@@ -392,7 +393,7 @@ async def test_cache_miss_rate(mock_config, mock_registry, mock_metrics, time_se
 # =============================================================================
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_train_model_metrics(mock_config, mock_registry, mock_metrics, time_series_data):
     """Valida que métricas de treinamento atendem os requisitos."""
     with (
@@ -429,7 +430,7 @@ async def test_train_model_metrics(mock_config, mock_registry, mock_metrics, tim
 # =============================================================================
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_brazilian_holidays(mock_config, mock_registry, mock_metrics, time_series_data):
     """Valida que feriados brasileiros são considerados."""
     # Adicionar configuração de feriados
@@ -471,7 +472,7 @@ async def test_brazilian_holidays(mock_config, mock_registry, mock_metrics, time
 # =============================================================================
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_model_persistence_and_reload(
     mock_config, mock_registry, mock_metrics, time_series_data
 ):
@@ -527,7 +528,7 @@ async def test_model_persistence_and_reload(
 # =============================================================================
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_clickhouse_integration(mock_config, mock_registry, mock_metrics, mock_clickhouse):
     """Testa integração com ClickHouse para buscar dados históricos."""
     predictor = LoadPredictor(
@@ -551,7 +552,7 @@ async def test_clickhouse_integration(mock_config, mock_registry, mock_metrics, 
 # =============================================================================
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_predict_load_latency_measurement(mock_config, mock_registry):
     """Testa que a latência de predição é medida e registrada corretamente."""
     # Mock de métricas que captura os valores passados
@@ -585,7 +586,7 @@ async def test_predict_load_latency_measurement(mock_config, mock_registry):
     assert last_record["horizon_minutes"] == 60
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_predict_load_latency_on_error(mock_config, mock_registry):
     """Testa que a latência é medida mesmo quando ocorre erro."""
     recorded_latencies = []

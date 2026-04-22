@@ -5,6 +5,7 @@ Valida extração de features NLP de texto de intenções.
 """
 
 import pytest
+
 from neural_hive_specialists.feature_extraction.nlp_feature_extractor import (
     NLPFeatureExtractor,
     get_nlp_extractor,

@@ -1,17 +1,18 @@
 """Testes para ExplorationEngine."""
 
-import pytest
-from unittest.mock import Mock, AsyncMock, patch
-from datetime import datetime, timedelta
 from collections import deque
+from datetime import datetime, timedelta
+from unittest.mock import AsyncMock, Mock, patch
 
+import pytest
 from src.engine.exploration_engine import ExplorationEngine
 from src.models.raw_event import RawEvent
 from src.models.scout_signal import ChannelType
+
 from neural_hive_domain import UnifiedDomain
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_settings():
     """Mock settings."""
     settings = Mock()
@@ -24,7 +25,7 @@ def mock_settings():
     return settings
 
 
-@pytest.fixture
+@pytest.fixture()
 def exploration_engine(mock_settings):
     """Fixture para ExplorationEngine."""
     with patch("src.engine.exploration_engine.get_settings", return_value=mock_settings):
@@ -38,7 +39,7 @@ def exploration_engine(mock_settings):
                                 yield engine
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_raw_event():
     """RawEvent de exemplo."""
     return RawEvent(
@@ -101,7 +102,7 @@ class TestExplorationEngineInit:
 class TestStartStop:
     """Testes de start/stop."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_start_initializes_components(self, exploration_engine):
         """Testa que start inicializa componentes."""
         exploration_engine.kafka_producer.start = AsyncMock()
@@ -113,7 +114,7 @@ class TestStartStop:
         assert exploration_engine._is_running is True
         exploration_engine.kafka_producer.start.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_stop_stops_components(self, exploration_engine):
         """Testa que stop para componentes."""
         exploration_engine._is_running = True
@@ -129,7 +130,7 @@ class TestStartStop:
 class TestProcessEvent:
     """Testes de process_event."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_process_event_when_not_running(self, exploration_engine, sample_raw_event):
         """Testa processamento quando engine não está rodando."""
         result = await exploration_engine.process_event(
@@ -139,7 +140,7 @@ class TestProcessEvent:
         assert result is None
         assert exploration_engine.stats["processed"] == 1
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_process_event_no_signal_detected(self, exploration_engine, sample_raw_event):
         """Testa quando nenhum sinal é detectado."""
         exploration_engine._is_running = True
@@ -152,7 +153,7 @@ class TestProcessEvent:
         assert result is None
         assert exploration_engine.stats["processed"] == 1
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_process_event_signal_detected(self, exploration_engine, sample_raw_event):
         """Testa quando sinal é detectado."""
         exploration_engine._is_running = True
@@ -180,7 +181,7 @@ class TestProcessEvent:
 class TestRateLimiting:
     """Testes de rate limiting."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_check_rate_limit_within_limit(self, exploration_engine):
         """Testa rate limit dentro do permitido."""
         exploration_engine.published_signals = deque()
@@ -189,7 +190,7 @@ class TestRateLimiting:
 
         assert result is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_check_rate_limit_exceeded(self, exploration_engine):
         """Testa rate limit excedido."""
         # Preencher com 100 sinais no último minuto
@@ -206,7 +207,7 @@ class TestRateLimiting:
 class TestStats:
     """Testes de estatísticas."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_stats(self, exploration_engine):
         """Testa obtenção de estatísticas."""
         exploration_engine.stats = {
@@ -225,7 +226,7 @@ class TestStats:
         assert stats["detected"] == 50
         assert stats["published"] == 40
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_reset_stats(self, exploration_engine):
         """Testa reset de estatísticas."""
         exploration_engine.stats["processed"] = 100
@@ -238,7 +239,7 @@ class TestStats:
 class TestSignalQueue:
     """Testes da fila de sinais."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_signal_queue_max_length(self, exploration_engine):
         """Testa que fila respeita maxlen."""
         # Tentar adicionar mais sinais que o limite
@@ -250,7 +251,7 @@ class TestSignalQueue:
         # Deve ter no máximo 1000
         assert len(exploration_engine.signal_queue) <= 1000
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_process_remaining_signals_on_stop(self, exploration_engine):
         """Testa processamento de sinais restantes no stop."""
         exploration_engine._is_running = True
@@ -275,7 +276,7 @@ class TestSignalQueue:
 class TestCodebaseScanning:
     """Testes de scan de codebase."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_scan_codebase_directory(self, exploration_engine, tmp_path):
         """Testa scan de diretório de codebase."""
         # Criar arquivos de teste
@@ -289,7 +290,7 @@ class TestCodebaseScanning:
 
         exploration_engine.file_signal_detector.scan_directory.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_scan_codebase_with_filters(self, exploration_engine, tmp_path):
         """Testa scan com filtros de extensão."""
         (tmp_path / "test.py").write_text("x = 1")
@@ -330,7 +331,7 @@ class TestCuriosityScoring:
 class TestDomainExploration:
     """Testes de exploração de domínios."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_explore_domain_success(self, exploration_engine):
         """Testa exploração de domínio com sucesso."""
         exploration_engine._is_running = True
@@ -341,7 +342,7 @@ class TestDomainExploration:
         assert "signals_detected" in results
         assert "duration_seconds" in results
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_explore_multiple_domains(self, exploration_engine):
         """Testa exploração de múltiplos domínios."""
         exploration_engine._is_running = True

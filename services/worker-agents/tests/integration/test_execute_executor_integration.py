@@ -15,12 +15,12 @@ Todos os testes usam mocks dos clientes externos.
 """
 
 import asyncio
-import pytest
 import uuid
 from dataclasses import dataclass
 from enum import Enum
 from unittest.mock import AsyncMock
 
+import pytest
 
 # ============================================
 # Classes Mock para Runtimes
@@ -91,7 +91,7 @@ class MockLocalExecutionResult:
 # ============================================
 
 
-@pytest.fixture
+@pytest.fixture()
 def execute_executor_with_k8s(worker_config, mock_metrics, mock_k8s_jobs_client):
     """ExecuteExecutor configurado com cliente K8s Jobs mockado."""
     from executors.execute_executor import ExecuteExecutor
@@ -110,7 +110,7 @@ def execute_executor_with_k8s(worker_config, mock_metrics, mock_k8s_jobs_client)
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def execute_executor_with_docker(worker_config, mock_metrics, mock_docker_runtime_client):
     """ExecuteExecutor configurado com cliente Docker mockado."""
     from executors.execute_executor import ExecuteExecutor
@@ -128,7 +128,7 @@ def execute_executor_with_docker(worker_config, mock_metrics, mock_docker_runtim
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def execute_executor_with_lambda(worker_config, mock_metrics, mock_lambda_runtime_client):
     """ExecuteExecutor configurado com cliente Lambda mockado."""
     from executors.execute_executor import ExecuteExecutor
@@ -146,7 +146,7 @@ def execute_executor_with_lambda(worker_config, mock_metrics, mock_lambda_runtim
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def execute_executor_with_local(worker_config, mock_metrics, mock_local_runtime_client):
     """ExecuteExecutor configurado com cliente Local mockado."""
     from executors.execute_executor import ExecuteExecutor
@@ -164,7 +164,7 @@ def execute_executor_with_local(worker_config, mock_metrics, mock_local_runtime_
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def execute_executor_all_runtimes(
     worker_config,
     mock_metrics,
@@ -191,7 +191,7 @@ def execute_executor_all_runtimes(
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def execute_executor_simulation_only(worker_config, mock_metrics):
     """ExecuteExecutor sem clientes externos (apenas simulacao)."""
     from executors.execute_executor import ExecuteExecutor
@@ -212,9 +212,9 @@ def execute_executor_simulation_only(worker_config, mock_metrics):
 class TestExecuteExecutorK8sSuccess:
     """Testes de execucao bem-sucedida via Kubernetes Jobs."""
 
-    @pytest.mark.asyncio
-    @pytest.mark.integration
-    @pytest.mark.executor_integration
+    @pytest.mark.asyncio()
+    @pytest.mark.integration()
+    @pytest.mark.executor_integration()
     async def test_execute_executor_k8s_success(
         self, execute_executor_with_k8s, execute_ticket_k8s, mock_k8s_jobs_client
     ):
@@ -230,9 +230,9 @@ class TestExecuteExecutorK8sSuccess:
 
         mock_k8s_jobs_client.execute_job.assert_called_once()
 
-    @pytest.mark.asyncio
-    @pytest.mark.integration
-    @pytest.mark.executor_integration
+    @pytest.mark.asyncio()
+    @pytest.mark.integration()
+    @pytest.mark.executor_integration()
     async def test_execute_executor_k8s_job_details(
         self, execute_executor_with_k8s, execute_ticket_k8s, mock_k8s_jobs_client
     ):
@@ -255,9 +255,9 @@ class TestExecuteExecutorK8sSuccess:
 class TestExecuteExecutorDockerSuccess:
     """Testes de execucao bem-sucedida via Docker."""
 
-    @pytest.mark.asyncio
-    @pytest.mark.integration
-    @pytest.mark.executor_integration
+    @pytest.mark.asyncio()
+    @pytest.mark.integration()
+    @pytest.mark.executor_integration()
     async def test_execute_executor_docker_success(
         self, execute_executor_with_docker, execute_ticket_docker, mock_docker_runtime_client
     ):
@@ -274,9 +274,9 @@ class TestExecuteExecutorDockerSuccess:
 
         mock_docker_runtime_client.execute_command.assert_called_once()
 
-    @pytest.mark.asyncio
-    @pytest.mark.integration
-    @pytest.mark.executor_integration
+    @pytest.mark.asyncio()
+    @pytest.mark.integration()
+    @pytest.mark.executor_integration()
     async def test_execute_executor_docker_container_id(
         self, execute_executor_with_docker, execute_ticket_docker, mock_docker_runtime_client
     ):
@@ -298,9 +298,9 @@ class TestExecuteExecutorDockerSuccess:
 class TestExecuteExecutorLambdaSuccess:
     """Testes de execucao bem-sucedida via AWS Lambda."""
 
-    @pytest.mark.asyncio
-    @pytest.mark.integration
-    @pytest.mark.executor_integration
+    @pytest.mark.asyncio()
+    @pytest.mark.integration()
+    @pytest.mark.executor_integration()
     async def test_execute_executor_lambda_success(
         self, execute_executor_with_lambda, execute_ticket_lambda, mock_lambda_runtime_client
     ):
@@ -316,9 +316,9 @@ class TestExecuteExecutorLambdaSuccess:
 
         mock_lambda_runtime_client.invoke_lambda.assert_called_once()
 
-    @pytest.mark.asyncio
-    @pytest.mark.integration
-    @pytest.mark.executor_integration
+    @pytest.mark.asyncio()
+    @pytest.mark.integration()
+    @pytest.mark.executor_integration()
     async def test_execute_executor_lambda_billing_info(
         self, execute_executor_with_lambda, execute_ticket_lambda, mock_lambda_runtime_client
     ):
@@ -341,9 +341,9 @@ class TestExecuteExecutorLambdaSuccess:
 class TestExecuteExecutorLocalSuccess:
     """Testes de execucao bem-sucedida local."""
 
-    @pytest.mark.asyncio
-    @pytest.mark.integration
-    @pytest.mark.executor_integration
+    @pytest.mark.asyncio()
+    @pytest.mark.integration()
+    @pytest.mark.executor_integration()
     async def test_execute_executor_local_success(
         self, execute_executor_with_local, execute_ticket, mock_local_runtime_client
     ):
@@ -359,9 +359,9 @@ class TestExecuteExecutorLocalSuccess:
 
         mock_local_runtime_client.execute_local.assert_called_once()
 
-    @pytest.mark.asyncio
-    @pytest.mark.integration
-    @pytest.mark.executor_integration
+    @pytest.mark.asyncio()
+    @pytest.mark.integration()
+    @pytest.mark.executor_integration()
     async def test_execute_executor_local_command_tracking(
         self, execute_executor_with_local, execute_ticket, mock_local_runtime_client
     ):
@@ -383,9 +383,9 @@ class TestExecuteExecutorLocalSuccess:
 class TestExecuteExecutorRuntimeFallbackChain:
     """Testes de cadeia de fallback entre runtimes."""
 
-    @pytest.mark.asyncio
-    @pytest.mark.integration
-    @pytest.mark.executor_integration
+    @pytest.mark.asyncio()
+    @pytest.mark.integration()
+    @pytest.mark.executor_integration()
     async def test_execute_executor_fallback_k8s_to_docker(
         self, worker_config, mock_metrics, execute_ticket_k8s
     ):
@@ -417,9 +417,9 @@ class TestExecuteExecutorRuntimeFallbackChain:
         assert result["success"] is True
         assert result["metadata"]["runtime"] == "docker"
 
-    @pytest.mark.asyncio
-    @pytest.mark.integration
-    @pytest.mark.executor_integration
+    @pytest.mark.asyncio()
+    @pytest.mark.integration()
+    @pytest.mark.executor_integration()
     async def test_execute_executor_fallback_docker_to_local(
         self, worker_config, mock_metrics, execute_ticket_docker
     ):
@@ -453,9 +453,9 @@ class TestExecuteExecutorRuntimeFallbackChain:
         assert result["success"] is True
         assert result["metadata"]["runtime"] == "local"
 
-    @pytest.mark.asyncio
-    @pytest.mark.integration
-    @pytest.mark.executor_integration
+    @pytest.mark.asyncio()
+    @pytest.mark.integration()
+    @pytest.mark.executor_integration()
     async def test_execute_executor_fallback_metrics(
         self, worker_config, mock_metrics, execute_ticket_k8s
     ):
@@ -493,9 +493,9 @@ class TestExecuteExecutorRuntimeFallbackChain:
 class TestExecuteExecutorTimeout:
     """Testes de timeout em diferentes runtimes."""
 
-    @pytest.mark.asyncio
-    @pytest.mark.integration
-    @pytest.mark.executor_integration
+    @pytest.mark.asyncio()
+    @pytest.mark.integration()
+    @pytest.mark.executor_integration()
     async def test_execute_executor_docker_timeout(
         self, worker_config, mock_metrics, execute_ticket_docker
     ):
@@ -536,9 +536,9 @@ class TestExecuteExecutorTimeout:
 class TestExecuteExecutorResourceLimits:
     """Testes de resource limits."""
 
-    @pytest.mark.asyncio
-    @pytest.mark.integration
-    @pytest.mark.executor_integration
+    @pytest.mark.asyncio()
+    @pytest.mark.integration()
+    @pytest.mark.executor_integration()
     async def test_execute_executor_k8s_resource_limits(
         self, execute_executor_with_k8s, mock_k8s_jobs_client
     ):
@@ -574,9 +574,9 @@ class TestExecuteExecutorResourceLimits:
             assert request.resource_limits.cpu_limit == "2000m"
             assert request.resource_limits.memory_limit == "1Gi"
 
-    @pytest.mark.asyncio
-    @pytest.mark.integration
-    @pytest.mark.executor_integration
+    @pytest.mark.asyncio()
+    @pytest.mark.integration()
+    @pytest.mark.executor_integration()
     async def test_execute_executor_docker_resource_limits(
         self, execute_executor_with_docker, mock_docker_runtime_client
     ):
@@ -609,9 +609,9 @@ class TestExecuteExecutorResourceLimits:
 class TestExecuteExecutorSimulationFallback:
     """Testes de fallback final para simulacao."""
 
-    @pytest.mark.asyncio
-    @pytest.mark.integration
-    @pytest.mark.executor_integration
+    @pytest.mark.asyncio()
+    @pytest.mark.integration()
+    @pytest.mark.executor_integration()
     async def test_execute_executor_simulation_fallback(
         self, execute_executor_simulation_only, execute_ticket
     ):
@@ -622,9 +622,9 @@ class TestExecuteExecutorSimulationFallback:
         assert result["metadata"]["simulated"] is True
         assert result["metadata"]["runtime"] == "simulation"
 
-    @pytest.mark.asyncio
-    @pytest.mark.integration
-    @pytest.mark.executor_integration
+    @pytest.mark.asyncio()
+    @pytest.mark.integration()
+    @pytest.mark.executor_integration()
     async def test_execute_executor_simulation_output(
         self, execute_executor_simulation_only, execute_ticket
     ):
@@ -635,9 +635,9 @@ class TestExecuteExecutorSimulationFallback:
         assert "stdout" in result["output"]
         assert "logs" in result
 
-    @pytest.mark.asyncio
-    @pytest.mark.integration
-    @pytest.mark.executor_integration
+    @pytest.mark.asyncio()
+    @pytest.mark.integration()
+    @pytest.mark.executor_integration()
     async def test_execute_executor_all_fail_to_simulation(
         self, worker_config, mock_metrics, execute_ticket_k8s
     ):
@@ -682,9 +682,9 @@ class TestExecuteExecutorSimulationFallback:
 class TestExecuteExecutorMetrics:
     """Testes de registro de metricas."""
 
-    @pytest.mark.asyncio
-    @pytest.mark.integration
-    @pytest.mark.executor_integration
+    @pytest.mark.asyncio()
+    @pytest.mark.integration()
+    @pytest.mark.executor_integration()
     async def test_execute_executor_metrics_recorded(
         self,
         execute_executor_with_docker,
@@ -709,9 +709,9 @@ class TestExecuteExecutorMetrics:
 class TestExecuteExecutorTicketValidation:
     """Testes de validacao de ticket."""
 
-    @pytest.mark.asyncio
-    @pytest.mark.integration
-    @pytest.mark.executor_integration
+    @pytest.mark.asyncio()
+    @pytest.mark.integration()
+    @pytest.mark.executor_integration()
     async def test_execute_executor_missing_ticket_id(self, execute_executor_with_docker):
         """Deve falhar com ticket sem ID."""
         invalid_ticket = {"task_type": "EXECUTE", "parameters": {}}
@@ -719,9 +719,9 @@ class TestExecuteExecutorTicketValidation:
         with pytest.raises(ValueError):
             await execute_executor_with_docker.execute(invalid_ticket)
 
-    @pytest.mark.asyncio
-    @pytest.mark.integration
-    @pytest.mark.executor_integration
+    @pytest.mark.asyncio()
+    @pytest.mark.integration()
+    @pytest.mark.executor_integration()
     async def test_execute_executor_wrong_task_type(self, execute_executor_with_docker):
         """Deve falhar com task_type incorreto."""
         invalid_ticket = {"ticket_id": str(uuid.uuid4()), "task_type": "BUILD", "parameters": {}}
@@ -738,9 +738,9 @@ class TestExecuteExecutorTicketValidation:
 class TestExecuteExecutorFailedExecution:
     """Testes de execucoes que falham."""
 
-    @pytest.mark.asyncio
-    @pytest.mark.integration
-    @pytest.mark.executor_integration
+    @pytest.mark.asyncio()
+    @pytest.mark.integration()
+    @pytest.mark.executor_integration()
     async def test_execute_executor_k8s_failed_job(
         self, execute_executor_with_k8s, execute_ticket_k8s, mock_k8s_jobs_client
     ):
@@ -754,9 +754,9 @@ class TestExecuteExecutorFailedExecution:
         assert result["success"] is False
         assert result["output"]["exit_code"] == 1
 
-    @pytest.mark.asyncio
-    @pytest.mark.integration
-    @pytest.mark.executor_integration
+    @pytest.mark.asyncio()
+    @pytest.mark.integration()
+    @pytest.mark.executor_integration()
     async def test_execute_executor_docker_failed_container(
         self, execute_executor_with_docker, execute_ticket_docker, mock_docker_runtime_client
     ):
@@ -770,9 +770,9 @@ class TestExecuteExecutorFailedExecution:
         assert result["success"] is False
         assert result["output"]["exit_code"] == 127
 
-    @pytest.mark.asyncio
-    @pytest.mark.integration
-    @pytest.mark.executor_integration
+    @pytest.mark.asyncio()
+    @pytest.mark.integration()
+    @pytest.mark.executor_integration()
     async def test_execute_executor_lambda_function_error(
         self, execute_executor_with_lambda, execute_ticket_lambda, mock_lambda_runtime_client
     ):

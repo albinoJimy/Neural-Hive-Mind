@@ -1,13 +1,13 @@
 """Testes E2E do fluxo cognitivo completo através dos serviços."""
 
 import asyncio
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import uuid4
 
 import pytest
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_full_cognitive_flow_e2e(
     kafka_producer,
     consume_from_topic,
@@ -33,7 +33,7 @@ async def test_full_cognitive_flow_e2e(
             "domain_devops": 0.6,
             "action_create": 0.95,
         },
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
     }
 
     # 2. Publicar no tópico de entrada
@@ -48,7 +48,7 @@ async def test_full_cognitive_flow_e2e(
     #    - Os eventos têm os campos esperados
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_feedback_loop_flow(
     kafka_producer,
 ):
@@ -70,7 +70,7 @@ async def test_feedback_loop_flow(
             "latency_p95": 120,
             "error_rate": 0.001,
         },
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
     }
 
     await kafka_producer.send_and_wait("experiments.completed", experiment)
@@ -88,7 +88,7 @@ async def test_feedback_loop_flow(
         },
         "source": "experiment_impact_analyzer",
         "priority": "high",
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
     }
 
     await kafka_producer.send_and_wait("hypotheses.created", hypothesis)
@@ -97,7 +97,7 @@ async def test_feedback_loop_flow(
     await asyncio.sleep(1)
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_ml_inference_flow(kafka_producer):
     """Testa fluxo de inferência ML.
 
@@ -115,7 +115,7 @@ async def test_ml_inference_flow(kafka_producer):
             "feature_2": "text_input",
             "categorical_feature": "category_a",
         },
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
     }
 
     await kafka_producer.send_and_wait("inference.requests", inference_request)
@@ -124,7 +124,7 @@ async def test_ml_inference_flow(kafka_producer):
     await asyncio.sleep(0.5)
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_message_propagation_latency(kafka_producer, consume_from_topic):
     """Testa latência de propagação de mensagens entre serviços."""
     import time
@@ -135,7 +135,7 @@ async def test_message_propagation_latency(kafka_producer, consume_from_topic):
     # Publicar mensagem
     message = {
         "test_id": str(uuid4()),
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
     }
 
     await kafka_producer.send_and_wait("cognitive.plans.created", message)
@@ -147,7 +147,7 @@ async def test_message_propagation_latency(kafka_producer, consume_from_topic):
     assert publish_latency < 0.1, f"Publish latency too high: {publish_latency}s"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_concurrent_message_processing(kafka_producer):
     """Testa processamento concorrente de múltiplas mensagens."""
     import time
@@ -161,11 +161,9 @@ async def test_concurrent_message_processing(kafka_producer):
         message = {
             "test_id": str(uuid4()),
             "batch": i,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
         }
-        tasks.append(
-            kafka_producer.send_and_wait("cognitive.plans.created", message)
-        )
+        tasks.append(kafka_producer.send_and_wait("cognitive.plans.created", message))
 
     await asyncio.gather(*tasks)
 
@@ -176,7 +174,7 @@ async def test_concurrent_message_processing(kafka_producer):
     assert avg_latency < 0.5, f"Average latency too high: {avg_latency}s"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_message_schema_compatibility():
     """Testa compatibilidade de schema entre versões."""
     # Schema v1
@@ -202,7 +200,7 @@ async def test_message_schema_compatibility():
     # (campos novos são opcionais)
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_error_handling_in_flow():
     """Testa handling de erros no fluxo."""
     # Mensagem malformada
@@ -217,7 +215,7 @@ async def test_error_handling_in_flow():
     assert malformed_message["intent"] == ""
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_service_resilience():
     """Testa resiliência dos serviços quando Kafka está indisponível."""
     # Simular Kafka indisponível

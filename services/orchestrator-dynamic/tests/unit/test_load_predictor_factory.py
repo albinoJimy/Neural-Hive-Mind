@@ -4,11 +4,11 @@ Testes unitários para LoadPredictorFactory.
 Valida criação e inicialização do LoadPredictor centralizado.
 """
 
-import pytest
-from unittest.mock import Mock, AsyncMock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
-from src.ml.load_predictor_factory import LoadPredictorFactory, LoadPredictorWrapper
+import pytest
 from src.config.settings import OrchestratorSettings
+from src.ml.load_predictor_factory import LoadPredictorFactory, LoadPredictorWrapper
 from src.observability.metrics import OrchestratorMetrics
 
 
@@ -45,7 +45,7 @@ class MockLoadPredictor:
         return []
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_config():
     """Configuração mockada com LoadPredictor habilitado."""
     config = Mock(spec=OrchestratorSettings)
@@ -59,7 +59,7 @@ def mock_config():
     return config
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_redis():
     """Cliente Redis mockado."""
     mock = AsyncMock()
@@ -69,13 +69,13 @@ def mock_redis():
     return mock
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_metrics():
     """Métricas mockadas."""
     return Mock(spec=OrchestratorMetrics)
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_mongodb():
     """Cliente MongoDB mockado."""
     mock = AsyncMock()
@@ -86,7 +86,7 @@ def mock_mongodb():
 class TestLoadPredictorFactory:
     """Testes de criação do LoadPredictor."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_create_load_predictor_with_ml_available(
         self, mock_config, mock_redis, mock_metrics, mock_mongodb
     ):
@@ -106,7 +106,7 @@ class TestLoadPredictorFactory:
                 assert isinstance(predictor, LoadPredictorWrapper)
                 assert predictor.enabled is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_create_load_predictor_when_disabled(
         self, mock_config, mock_redis, mock_metrics, mock_mongodb
     ):
@@ -125,7 +125,7 @@ class TestLoadPredictorFactory:
         assert predictor is not None
         assert predictor.enabled is False
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_create_load_predictor_ml_not_available(
         self, mock_config, mock_redis, mock_metrics, mock_mongodb
     ):
@@ -144,7 +144,7 @@ class TestLoadPredictorFactory:
             assert predictor is not None
             assert predictor.enabled is False
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_initialize_load_predictor_success(
         self, mock_config, mock_redis, mock_metrics, mock_mongodb
     ):
@@ -171,7 +171,7 @@ class TestLoadPredictorFactory:
 class TestLoadPredictorWrapper:
     """Testes do wrapper com cache Redis."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_predict_load_cache_hit(
         self, mock_config, mock_redis, mock_metrics, mock_mongodb
     ):
@@ -195,7 +195,7 @@ class TestLoadPredictorWrapper:
                 assert result["forecast"] == [0.5, 0.6, 0.7]
                 mock_redis.get.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_predict_load_cache_miss(
         self, mock_config, mock_redis, mock_metrics, mock_mongodb
     ):
@@ -219,7 +219,7 @@ class TestLoadPredictorWrapper:
                 # Deve salvar no cache
                 mock_redis.setex.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_predict_load_when_disabled(
         self, mock_config, mock_redis, mock_metrics, mock_mongodb
     ):
@@ -240,7 +240,7 @@ class TestLoadPredictorWrapper:
         assert result["forecast"] == []
         assert "disabled" in result.get("status", "")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_predict_bottlenecks_success(
         self, mock_config, mock_redis, mock_metrics, mock_mongodb
     ):
@@ -260,7 +260,7 @@ class TestLoadPredictorWrapper:
                 # MockLoadPredictor retorna lista vazia
                 assert result == []
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_predict_load_error_handling(
         self, mock_config, mock_redis, mock_metrics, mock_mongodb
     ):
@@ -298,7 +298,7 @@ class TestLoadPredictorWrapper:
                 # Deve retornar resposta de erro gracefully
                 assert "error" in result or result["forecast"] == []
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_predict_load_records_metrics(
         self, mock_config, mock_redis, mock_metrics, mock_mongodb
     ):
@@ -321,7 +321,7 @@ class TestLoadPredictorWrapper:
                 mock_metrics.record_load_forecast_latency.assert_called_once()
                 mock_metrics.record_load_forecast_mape.assert_called_once_with(5.2)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_predict_bottlenecks_records_metrics(
         self, mock_config, mock_redis, mock_metrics, mock_mongodb
     ):
@@ -368,7 +368,7 @@ class TestLoadPredictorWrapper:
 class TestLoadPredictorWrapperCache:
     """Testes específicos de cache do wrapper."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_cache_key_format(self, mock_config, mock_redis, mock_metrics, mock_mongodb):
         """Testa formato da chave de cache."""
         with patch("src.ml.load_predictor_factory.ML_AVAILABLE", True):
@@ -404,7 +404,7 @@ class TestLoadPredictorWrapperCache:
                 assert cache_key == "load_forecast:60m"
                 assert call_args[0][1] == 300  # TTL
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_cache_invalidation(self, mock_config, mock_redis, mock_metrics, mock_mongodb):
         """Testa invalidação de cache."""
         with patch("src.ml.load_predictor_factory.ML_AVAILABLE", True):
@@ -427,7 +427,7 @@ class TestLoadPredictorWrapperCache:
                 # Deve deletar a chave específica
                 mock_redis.delete.assert_called_once_with("load_forecast:60m")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_cache_invalidation_all(
         self, mock_config, mock_redis, mock_metrics, mock_mongodb
     ):

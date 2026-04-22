@@ -4,8 +4,8 @@ PostgreSQL Client para Analyst Agents.
 Implementa conexão assíncrona com PostgreSQL usando asyncpg.
 """
 
-from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List, Optional
+from datetime import UTC, datetime, timedelta
+from typing import Any, Optional
 
 import structlog
 
@@ -101,7 +101,7 @@ class PostgreSQLClient:
 
     async def execute_query(
         self, query: str, params: Optional[tuple] = None, fetch: str = "all"
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Executa query SQL e retorna resultados.
 
@@ -157,8 +157,8 @@ class PostgreSQLClient:
         analyst_type: Optional[str] = None,
         limit: int = 100,
         offset: int = 0,
-        time_range: Optional[Dict[str, datetime]] = None,
-    ) -> List[Dict[str, Any]]:
+        time_range: Optional[dict[str, datetime]] = None,
+    ) -> list[dict[str, Any]]:
         """
         Busca insights de analistas do PostgreSQL.
 
@@ -219,7 +219,7 @@ class PostgreSQLClient:
         action_type: Optional[str] = None,
         limit: int = 100,
         offset: int = 0,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Busca ações de analistas do PostgreSQL.
 
@@ -266,9 +266,9 @@ class PostgreSQLClient:
     async def get_feature_usage(
         self,
         feature_name: Optional[str] = None,
-        time_range: Optional[Dict[str, datetime]] = None,
+        time_range: Optional[dict[str, datetime]] = None,
         limit: int = 100,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Busca estatísticas de uso de features.
 
@@ -310,7 +310,7 @@ class PostgreSQLClient:
 
         return await self.execute_query(query, tuple(params) if params else None)
 
-    async def get_insight_by_id(self, insight_id: str) -> Optional[Dict[str, Any]]:
+    async def get_insight_by_id(self, insight_id: str) -> Optional[dict[str, Any]]:
         """
         Busca insight por ID.
 
@@ -333,7 +333,7 @@ class PostgreSQLClient:
         """
         return await self.execute_query(query, (insight_id,), fetch="one")
 
-    async def get_insights_by_plan(self, plan_id: str, limit: int = 100) -> List[Dict[str, Any]]:
+    async def get_insights_by_plan(self, plan_id: str, limit: int = 100) -> list[dict[str, Any]]:
         """
         Busca insights por plano.
 
@@ -386,7 +386,7 @@ class PostgreSQLClient:
         result = await self.execute_query(query, tuple(params) if params else None, fetch="val")
         return result if isinstance(result, int) else 0
 
-    async def get_insights_statistics(self, time_range_hours: int = 24) -> Dict[str, Any]:
+    async def get_insights_statistics(self, time_range_hours: int = 24) -> dict[str, Any]:
         """
         Obtém estatísticas agregadas de insights.
 
@@ -396,7 +396,7 @@ class PostgreSQLClient:
         Returns:
             Dicionário com estatísticas
         """
-        since = datetime.now(timezone.utc) - timedelta(hours=time_range_hours)
+        since = datetime.now(UTC) - timedelta(hours=time_range_hours)
 
         query = """
             SELECT
@@ -491,7 +491,7 @@ class PostgreSQLClient:
             raise
 
     async def insert_insight(
-        self, plan_id: str, analyst_type: str, insight_data: Dict[str, Any]
+        self, plan_id: str, analyst_type: str, insight_data: dict[str, Any]
     ) -> str:
         """
         Insere novo insight.
@@ -512,7 +512,7 @@ class PostgreSQLClient:
         result = await self.execute_query(query, (plan_id, analyst_type, insight_data), fetch="val")
         return str(result)
 
-    async def update_insight(self, insight_id: str, insight_data: Dict[str, Any]) -> bool:
+    async def update_insight(self, insight_id: str, insight_data: dict[str, Any]) -> bool:
         """
         Atualiza insight existente.
 
@@ -553,7 +553,7 @@ class PostgreSQLClient:
             return f"{user}:****@{parts[1]}"
         return dsn
 
-    async def health_check(self) -> Dict[str, Any]:
+    async def health_check(self) -> dict[str, Any]:
         """
         Verifica saúde da conexão PostgreSQL.
 
@@ -561,9 +561,9 @@ class PostgreSQLClient:
             Dicionário com status de saúde
         """
         try:
-            start = datetime.now(timezone.utc)
+            start = datetime.now(UTC)
             result = await self.execute_query("SELECT 1 as health_check", fetch="val")
-            latency_ms = (datetime.now(timezone.utc) - start).total_seconds() * 1000
+            latency_ms = (datetime.now(UTC) - start).total_seconds() * 1000
 
             return {
                 "status": "healthy" if result == 1 else "unhealthy",

@@ -5,8 +5,9 @@ TDD: Testes escritos antes da implementação.
 Espec: GAPS-05 Scout Agents
 """
 
-import pytest
 from unittest.mock import AsyncMock
+
+import pytest
 
 # Import com skip automático se módulo não disponível
 OrchestratorDynamicIntegration = pytest.importorskip(
@@ -32,7 +33,7 @@ class TestOrchestratorDynamicIntegrationInitialization:
 class TestRequestScoutExploration:
     """Testes de requisição de exploração ao Scout."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def integration(self):
         mock_scout_orchestrator = AsyncMock()
         mock_scout_orchestrator.coordinate_exploration = AsyncMock(
@@ -45,7 +46,7 @@ class TestRequestScoutExploration:
             scout_orchestrator=mock_scout_orchestrator, temporal_client=mock_temporal
         )
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_request_exploration_returns_id(self, integration):
         """Testa que request retorna exploration_id."""
         result = await integration.request_exploration(
@@ -55,7 +56,7 @@ class TestRequestScoutExploration:
         assert "exploration_id" in result
         assert result["status"] == "running"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_request_with_specific_scouts(self, integration):
         """Testa request com scouts específicos."""
         result = await integration.request_exploration(
@@ -68,7 +69,7 @@ class TestRequestScoutExploration:
 class TestGetExplorationResults:
     """Testes de obtenção de resultados de exploração."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def integration(self):
         mock_ledger = AsyncMock()
         mock_ledger.get_exploration = AsyncMock(
@@ -89,7 +90,7 @@ class TestGetExplorationResults:
         )
         return integration
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_completed_results(self, integration):
         """Testa obtenção de resultados completados."""
         results = await integration.get_exploration_results("scout-exp-1")
@@ -97,7 +98,7 @@ class TestGetExplorationResults:
         assert results["status"] == "completed"
         assert "patterns" in results["results"]
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_running_status(self, integration):
         """Testa obtenção de status de exploração em andamento."""
         mock_ledger = AsyncMock()
@@ -115,7 +116,7 @@ class TestGetExplorationResults:
 class TestTranslateScoutResultsToTemporalWorkflow:
     """Testes de tradução de resultados para Temporal Workflow."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def integration(self):
         mock_scout_orchestrator = AsyncMock()
         mock_temporal = AsyncMock()
@@ -149,7 +150,7 @@ class TestTranslateScoutResultsToTemporalWorkflow:
 class TestWorkflowIntegration:
     """Testes de integração com Temporal Workflow."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def integration(self):
         mock_scout_orchestrator = AsyncMock()
         mock_temporal = AsyncMock()
@@ -159,7 +160,7 @@ class TestWorkflowIntegration:
         )
         return integration
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_signal_workflow_completion(self, integration):
         """Testa sinalização de conclusão de workflow."""
         result = await integration.signal_workflow_completion(
@@ -168,7 +169,7 @@ class TestWorkflowIntegration:
 
         assert result["signaled"] is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_signal_workflow_failure(self, integration):
         """Testa sinalização de falha no workflow."""
         result = await integration.signal_workflow_failure(
@@ -181,7 +182,7 @@ class TestWorkflowIntegration:
 class TestContextEnrichment:
     """Testes de enriquecimento de contexto com scout data."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def integration(self):
         mock_scout_orchestrator = AsyncMock()
         mock_temporal = AsyncMock()

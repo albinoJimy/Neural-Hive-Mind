@@ -5,9 +5,9 @@ Creates human-readable explanations for plan generation decisions.
 """
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
-UTC = timezone.utc  # type: ignore
+UTC = UTC  # type: ignore
 
 import structlog
 from src.clients.mongodb_client import MongoDBClient

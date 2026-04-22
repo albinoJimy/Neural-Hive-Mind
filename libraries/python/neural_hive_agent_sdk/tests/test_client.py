@@ -2,20 +2,20 @@
 Testes para neural_hive_agent_sdk - AgentClient e componentes relacionados.
 """
 
-import pytest
 import asyncio
-from unittest.mock import MagicMock, AsyncMock, patch
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+from unittest.mock import AsyncMock, MagicMock, patch
 
-from neural_hive_agent_sdk import AgentClient, AgentType, AgentTelemetry, AgentConfig
+import pytest
 
+from neural_hive_agent_sdk import AgentClient, AgentConfig, AgentTelemetry, AgentType
 
 # ============================================================================
 # Fixtures
 # ============================================================================
 
 
-@pytest.fixture
+@pytest.fixture()
 def agent_config():
     """Retorna configuração padrão para testes."""
     return AgentConfig(
@@ -29,7 +29,7 @@ def agent_config():
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def agent_telemetry():
     """Retorna telemetria de teste."""
     return AgentTelemetry(
@@ -40,7 +40,7 @@ def agent_telemetry():
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_grpc_channel():
     """Mock de canal gRPC."""
     channel = MagicMock()
@@ -49,7 +49,7 @@ def mock_grpc_channel():
     return channel
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_agent_service_stub():
     """Mock do stub AgentService."""
     stub = MagicMock()
@@ -73,7 +73,7 @@ def mock_agent_service_stub():
     return stub
 
 
-@pytest.fixture
+@pytest.fixture()
 def agent_client(agent_config):
     """Retorna instância de AgentClient para testes."""
     return AgentClient(config=agent_config)
@@ -192,9 +192,9 @@ class TestAgentTelemetry:
 
     def test_telemetry_last_execution_at(self):
         """Testa que last_execution_at é timestamp recente."""
-        before = int(datetime.now(timezone.utc).timestamp())
+        before = int(datetime.now(UTC).timestamp())
         telemetry = AgentTelemetry()
-        after = int(datetime.now(timezone.utc).timestamp())
+        after = int(datetime.now(UTC).timestamp())
 
         assert before <= telemetry.last_execution_at <= after
 
@@ -242,7 +242,7 @@ class TestAgentClientInit:
 class TestAgentClientRegister:
     """Testes de registro do agente."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_register_success(self, agent_client, mock_grpc_channel, mock_agent_service_stub):
         """Testa registro bem-sucedido."""
         with patch(
@@ -262,7 +262,7 @@ class TestAgentClientRegister:
             # Stub pode ser None quando proto não disponível
             # assert agent_client.stub == mock_agent_service_stub
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_register_with_default_metadata(
         self, agent_client, mock_grpc_channel, mock_agent_service_stub
     ):
@@ -279,7 +279,7 @@ class TestAgentClientRegister:
             assert agent_id is not None
             assert agent_client.agent_id == agent_id
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_register_starts_heartbeat(
         self, agent_client, mock_grpc_channel, mock_agent_service_stub
     ):
@@ -297,7 +297,7 @@ class TestAgentClientRegister:
             assert agent_client._running is True
             assert agent_client._heartbeat_task is not None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_register_with_all_agent_types(
         self, agent_client, mock_grpc_channel, mock_agent_service_stub
     ):
@@ -325,7 +325,7 @@ class TestAgentClientRegister:
                 assert agent_id is not None
                 assert agent_client.agent_id == agent_id
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_register_connection_failure_retry(self, agent_client):
         """Testa retry em falha de conexão."""
         # Channel que falha 2 vezes depois succeeds
@@ -361,7 +361,7 @@ class TestAgentClientRegister:
 class TestAgentClientHeartbeat:
     """Testes de heartbeat do agente."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_start_heartbeat(self, agent_client, mock_grpc_channel, mock_agent_service_stub):
         """Testa início de heartbeat."""
         with patch(
@@ -377,7 +377,7 @@ class TestAgentClientHeartbeat:
             assert agent_client._heartbeat_task is not None
             assert agent_client._running is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_heartbeat_not_started_twice(
         self, agent_client, mock_grpc_channel, mock_agent_service_stub
     ):
@@ -399,7 +399,7 @@ class TestAgentClientHeartbeat:
             # Task deve ser a mesma
             assert agent_client._heartbeat_task == first_task
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_update_telemetry(self, agent_client, agent_telemetry):
         """Testa atualização de telemetria."""
         agent_client.update_telemetry(agent_telemetry)
@@ -417,7 +417,7 @@ class TestAgentClientHeartbeat:
 class TestAgentClientDeregister:
     """Testes de desregistro do agente."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_deregister_success(
         self, agent_client, mock_grpc_channel, mock_agent_service_stub
     ):
@@ -438,7 +438,7 @@ class TestAgentClientDeregister:
             # Validar estado
             assert agent_client._running is False
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_deregister_without_register(self, agent_client):
         """Testa desregistro sem registro prévio (não deve falhar)."""
         # Não deve lançar erro
@@ -524,7 +524,7 @@ class TestAgentTelemetry:
 class TestAgentClientContextManager:
     """Testes para context manager do AgentClient."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_context_manager_auto_deregister(self, agent_config):
         """Testa que context manager chama deregister automaticamente."""
         with patch("neural_hive_agent_sdk.client.grpc.aio.insecure_channel"):
@@ -536,7 +536,7 @@ class TestAgentClientContextManager:
             # Após sair do contexto, agent deve estar desregistrado
             # (verificado pelo estado do cliente)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_context_manager_with_exception(self, agent_config):
         """Testa que context manager desregistra mesmo com exceção."""
         with patch("neural_hive_agent_sdk.client.grpc.aio.insecure_channel"):
@@ -553,7 +553,7 @@ class TestAgentClientContextManager:
 class TestAgentClientEdgeCases:
     """Testes de edge cases para AgentClient."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_register_with_metadata(self, agent_client, mock_grpc_channel):
         """Testa registro com metadados customizados."""
         with patch(
@@ -570,7 +570,7 @@ class TestAgentClientEdgeCases:
 
             assert agent_id is not None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_send_heartbeat_without_registration(self, agent_client):
         """Testa envio de heartbeat sem registro prévio."""
         # Não deve lançar erro, apenas logar warning
@@ -579,7 +579,7 @@ class TestAgentClientEdgeCases:
         # agent_id ainda deve ser None
         assert agent_client.agent_id is None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_create_channel_max_retries(self, agent_config):
         """Testa _create_channel com máximo de tentativas esgotado."""
         client = AgentClient(config=agent_config)
@@ -592,7 +592,7 @@ class TestAgentClientEdgeCases:
             with pytest.raises(Exception):
                 await client._create_channel()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_heartbeat_loop_handles_cancel(self, agent_client):
         """Testa que heartbeat loop trata CancelledError corretamente."""
         agent_client._running = True
@@ -605,7 +605,7 @@ class TestAgentClientEdgeCases:
         with pytest.raises(asyncio.CancelledError):
             await task
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_heartbeat_loop_handles_exception(self, agent_client):
         """Testa que heartbeat loop trata exceções corretamente."""
         agent_client._running = True
@@ -628,7 +628,7 @@ class TestAgentClientEdgeCases:
         except asyncio.CancelledError:
             pass  # Esperado
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_deregister_closes_channel(self, agent_client, mock_grpc_channel):
         """Testa que deregister fecha o canal gRPC."""
         with patch(
@@ -680,7 +680,7 @@ class TestAgentConfigAdditional:
         assert config.GRPC_TIMEOUT_SECONDS == 10
         assert config.GRPC_MAX_RETRIES == 5
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_deregister_closes_channel(
         self, agent_client, mock_grpc_channel, mock_agent_service_stub
     ):
@@ -701,7 +701,7 @@ class TestAgentConfigAdditional:
             # Canal deve ser fechado
             channel.close.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_deregister_stops_heartbeat(
         self, agent_client, mock_grpc_channel, mock_agent_service_stub
     ):
@@ -731,13 +731,13 @@ class TestAgentConfigAdditional:
 class TestAgentClientContextManager:
     """Testes de context manager do AgentClient."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_context_manager_enter(self, agent_client):
         """Testa __aenter__ retorna o próprio cliente."""
         async with agent_client as client:
             assert client is agent_client
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_context_manager_exit_deregisters(
         self, agent_client, mock_grpc_channel, mock_agent_service_stub
     ):
@@ -767,7 +767,7 @@ class TestAgentClientContextManager:
 class TestAgentClientChannel:
     """Testes de criação de canal gRPC."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_create_channel_success(self, agent_client, mock_grpc_channel):
         """Testa criação de canal bem-sucedida."""
         with patch(
@@ -778,7 +778,7 @@ class TestAgentClientChannel:
 
             assert channel is not None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_create_channel_with_max_message_size(self, agent_client):
         """Testa que canal é criado com opções de tamanho de mensagem."""
         channel = MagicMock()
@@ -807,7 +807,7 @@ class TestAgentClientChannel:
 class TestAgentClientIntegration:
     """Testes de integração do ciclo de vida completo."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_full_lifecycle(
         self, agent_client, mock_grpc_channel, mock_agent_service_stub, agent_telemetry
     ):
@@ -836,7 +836,7 @@ class TestAgentClientIntegration:
             await agent_client.deregister()
             assert agent_client._running is False
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_multiple_register_deregister_cycles(
         self, agent_client, mock_grpc_channel, mock_agent_service_stub
     ):
@@ -873,7 +873,7 @@ class TestAgentClientIntegration:
 class TestAgentClientErrors:
     """Testes de tratamento de erros."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_register_with_invalid_endpoint(self, agent_client):
         """Testa registro com endpoint inválido."""
         # Endpoint que não existe - deve falhar após retries
@@ -885,7 +885,7 @@ class TestAgentClientErrors:
                 capabilities=["test"],
             )
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_heartbeat_continues_after_error(
         self, agent_client, mock_grpc_channel, mock_agent_service_stub
     ):
@@ -922,7 +922,7 @@ class TestAgentClientErrors:
 class TestAgentClientConcurrency:
     """Testes de operações concorrentes do AgentClient."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_concurrent_register_calls(
         self, agent_client, mock_grpc_channel, mock_agent_service_stub
     ):
@@ -947,7 +947,7 @@ class TestAgentClientConcurrency:
             successful = [r for r in results if not isinstance(r, Exception)]
             assert len(successful) > 0
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_concurrent_heartbeat_and_deregister(
         self, agent_client, mock_grpc_channel, mock_agent_service_stub
     ):
@@ -976,7 +976,7 @@ class TestAgentClientConcurrency:
 class TestAgentClientContextPropagation:
     """Testes de propagação de contexto."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_context_propagation_in_telemetry(self, agent_client, agent_telemetry):
         """Testa que contexto é propagado na telemetria."""
         # Adicionar contexto customizado
@@ -988,7 +988,7 @@ class TestAgentClientContextPropagation:
         assert agent_client.telemetry.success_rate == 0.88
         assert agent_client.telemetry.total_executions == 1234
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_context_propagation_in_metadata(
         self, agent_client, mock_grpc_channel, mock_agent_service_stub
     ):
@@ -1016,7 +1016,7 @@ class TestAgentClientContextPropagation:
 class TestAgentClientMetrics:
     """Testes de coleta de métricas."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_metrics_success_rate_calculation(self, agent_client, agent_telemetry):
         """Testa cálculo de taxa de sucesso."""
         agent_client.update_telemetry(agent_telemetry)
@@ -1029,7 +1029,7 @@ class TestAgentClientMetrics:
         expected_rate = 1 - (50 / 1000)
         assert abs(agent_client.telemetry.success_rate - expected_rate) < 0.01
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_metrics_avg_duration_tracking(self, agent_client):
         """Testa rastreamento de duração média."""
         telemetry = AgentTelemetry(
@@ -1043,10 +1043,10 @@ class TestAgentClientMetrics:
 
         assert agent_client.telemetry.avg_duration_ms == 250
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_metrics_timestamp_tracking(self, agent_client):
         """Testa que timestamp é registrado corretamente."""
-        before = int(datetime.now(timezone.utc).timestamp())
+        before = int(datetime.now(UTC).timestamp())
 
         telemetry = AgentTelemetry(
             total_executions=1,
@@ -1054,7 +1054,7 @@ class TestAgentClientMetrics:
 
         agent_client.update_telemetry(telemetry)
 
-        after = int(datetime.now(timezone.utc).timestamp())
+        after = int(datetime.now(UTC).timestamp())
 
         assert before <= agent_client.telemetry.last_execution_at <= after
 
@@ -1062,7 +1062,7 @@ class TestAgentClientMetrics:
 class TestAgentClientTimeout:
     """Testes de timeout."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_timeout_configuration(self, agent_config):
         """Testa configuração de timeout."""
         config = AgentConfig(
@@ -1073,7 +1073,7 @@ class TestAgentClientTimeout:
 
         assert client.config.GRPC_TIMEOUT_SECONDS == 10
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_timeout_in_channel_creation(self, agent_client):
         """Testa que timeout é aplicado na criação do canal."""
         client = AgentClient(config=AgentConfig(GRPC_TIMEOUT_SECONDS=3))
@@ -1084,7 +1084,7 @@ class TestAgentClientTimeout:
 class TestAgentClientErrorRecovery:
     """Testes de recuperação de erro."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_recovery_after_channel_failure(
         self, agent_client, mock_grpc_channel, mock_agent_service_stub
     ):
@@ -1117,7 +1117,7 @@ class TestAgentClientErrorRecovery:
 
             assert agent_id_2 is not None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_state_cleanup_after_error(self, agent_client):
         """Testa que estado é limpo após erro."""
         # Simular estado após erro

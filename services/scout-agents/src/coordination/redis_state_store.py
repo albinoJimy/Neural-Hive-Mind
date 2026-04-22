@@ -10,7 +10,7 @@ Responsável por:
 
 import json
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import Optional
 
 import structlog
 
@@ -79,7 +79,7 @@ class RedisStateStore:
         else:
             return self.key_prefix + ":" + ":".join(parts)
 
-    async def set_task_progress(self, scout_id: str, task_id: str, progress: Dict):
+    async def set_task_progress(self, scout_id: str, task_id: str, progress: dict):
         """
         Armazena progresso de tarefa.
 
@@ -100,7 +100,7 @@ class RedisStateStore:
 
         logger.debug("task_progress_stored", task_id=task_id)
 
-    async def get_task_progress(self, task_id: str) -> Optional[Dict]:
+    async def get_task_progress(self, task_id: str) -> Optional[dict]:
         """
         Recupera progresso de tarefa.
 
@@ -204,7 +204,7 @@ class RedisStateStore:
                 await self._redis.delete(key)
                 logger.debug("lock_released", resource=resource, scout_id=scout_id)
 
-    async def publish_discovery(self, exploration_id: str, discovery: Dict):
+    async def publish_discovery(self, exploration_id: str, discovery: dict):
         """
         Publica descoberta para outros scouts.
 
@@ -224,7 +224,7 @@ class RedisStateStore:
 
         logger.debug("discovery_published", exploration_id=exploration_id)
 
-    async def get_discoveries(self, exploration_id: str, limit: int = 100) -> List[Dict]:
+    async def get_discoveries(self, exploration_id: str, limit: int = 100) -> list[dict]:
         """
         Recupera descobertas de uma exploração.
 
@@ -243,7 +243,7 @@ class RedisStateStore:
 
         return []
 
-    async def set_scout_state(self, scout_id: str, state: Dict):
+    async def set_scout_state(self, scout_id: str, state: dict):
         """
         Armazena estado de um scout.
 
@@ -259,7 +259,7 @@ class RedisStateStore:
 
         logger.debug("scout_state_stored", scout_id=scout_id)
 
-    async def get_scout_state(self, scout_id: str) -> Optional[Dict]:
+    async def get_scout_state(self, scout_id: str) -> Optional[dict]:
         """
         Recupera estado de um scout.
 
@@ -278,7 +278,7 @@ class RedisStateStore:
 
         return None
 
-    async def get_all_scout_states(self) -> Dict[str, Dict]:
+    async def get_all_scout_states(self) -> dict[str, dict]:
         """
         Recupera estados de todos os scouts.
 

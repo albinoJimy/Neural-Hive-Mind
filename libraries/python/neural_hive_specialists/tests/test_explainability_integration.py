@@ -8,13 +8,14 @@ Valida que todo o pipeline de explicabilidade funciona corretamente:
 - Geração de narrativas estruturadas
 """
 
-import pytest
-from unittest.mock import Mock, MagicMock, patch
+from unittest.mock import MagicMock, Mock, patch
+
 import numpy as np
+import pytest
 from sklearn.ensemble import RandomForestClassifier
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_config():
     """Configuração mockada completa."""
     config = Mock()
@@ -35,7 +36,7 @@ def mock_config():
     return config
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_feature_extractor():
     """FeatureExtractor mockado que retorna features estruturadas."""
     extractor = Mock()
@@ -54,7 +55,7 @@ def mock_feature_extractor():
     return extractor
 
 
-@pytest.fixture
+@pytest.fixture()
 def simple_model():
     """Modelo sklearn simples para teste."""
     # Criar modelo RandomForest com dados sintéticos
@@ -65,7 +66,7 @@ def simple_model():
     return model
 
 
-@pytest.fixture
+@pytest.fixture()
 def evaluation_result():
     """Resultado de avaliação mockado."""
     return {
@@ -79,7 +80,7 @@ def evaluation_result():
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def cognitive_plan():
     """Plano cognitivo mockado."""
     return {
@@ -92,7 +93,7 @@ def cognitive_plan():
     }
 
 
-@pytest.mark.integration
+@pytest.mark.integration()
 class TestExplainabilityGeneratorIntegration:
     """Testes de integração end-to-end."""
 

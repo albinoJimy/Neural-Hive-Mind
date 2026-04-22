@@ -6,7 +6,7 @@ Middleware de rate limiting baseado em tokens.
 
 from typing import Any
 
-from fastapi import Request, Response, status
+from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import ASGIApp
 

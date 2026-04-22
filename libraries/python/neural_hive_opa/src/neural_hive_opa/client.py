@@ -323,9 +323,7 @@ class OPAClient:
                 return OPAResult(allow=True, reason="fail_open", cached=False)
             else:
                 self._logger.warning("opa_circuit_breaker_open_fail_closed")
-                raise CircuitBreakerOpenException(
-                    "OPA circuit breaker is open - too many failures"
-                )
+                raise CircuitBreakerOpenException("OPA circuit breaker is open - too many failures")
 
         # Tentar cache
         if opts.enable_cache and self.config.enable_cache:
@@ -347,9 +345,7 @@ class OPAClient:
             response = await self._make_request(path, input_data)
 
             latency = time.time() - start_time
-            opa_latency_seconds.labels(service=service_name, policy_path=path).observe(
-                latency
-            )
+            opa_latency_seconds.labels(service=service_name, policy_path=path).observe(latency)
             opa_requests_total.labels(
                 service=service_name, policy_path=path, status="success"
             ).inc()
@@ -377,9 +373,7 @@ class OPAClient:
 
         except httpx.HTTPError as e:
             latency = time.time() - start_time
-            opa_requests_total.labels(
-                service=service_name, policy_path=path, status="error"
-            ).inc()
+            opa_requests_total.labels(service=service_name, policy_path=path, status="error").inc()
 
             self._circuit_breaker.record_failure()
 

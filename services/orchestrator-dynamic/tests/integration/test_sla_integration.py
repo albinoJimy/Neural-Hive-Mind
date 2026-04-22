@@ -2,14 +2,14 @@
 Testes de integração end-to-end para monitoramento de SLA.
 """
 
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
 from datetime import datetime
+from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
 from src.activities.result_consolidation import consolidate_results, publish_telemetry
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_settings():
     """Fixture com settings mock."""
     settings = MagicMock()
@@ -26,7 +26,7 @@ def mock_settings():
     return settings
 
 
-@pytest.fixture
+@pytest.fixture()
 def tickets_deadline_approaching():
     """Tickets com deadline próximo."""
     now = datetime.now().timestamp() * 1000
@@ -45,7 +45,7 @@ def tickets_deadline_approaching():
     ]
 
 
-@pytest.fixture
+@pytest.fixture()
 def tickets_with_violations():
     """Tickets com violações de SLA."""
     now = datetime.now().timestamp() * 1000
@@ -65,7 +65,7 @@ def tickets_with_violations():
     ]
 
 
-@pytest.fixture
+@pytest.fixture()
 def tickets_healthy():
     """Tickets saudáveis sem problemas de SLA."""
     now = datetime.now().timestamp() * 1000
@@ -84,8 +84,8 @@ def tickets_healthy():
     ]
 
 
-@pytest.mark.asyncio
-@pytest.mark.integration
+@pytest.mark.asyncio()
+@pytest.mark.integration()
 async def test_workflow_with_deadline_approaching(tickets_deadline_approaching, mock_settings):
     """Testa workflow com deadline próximo."""
     with patch("src.activities.result_consolidation.get_settings", return_value=mock_settings):
@@ -151,8 +151,8 @@ async def test_workflow_with_deadline_approaching(tickets_deadline_approaching, 
                             mock_monitor.close.assert_called_once()
 
 
-@pytest.mark.asyncio
-@pytest.mark.integration
+@pytest.mark.asyncio()
+@pytest.mark.integration()
 async def test_workflow_with_budget_critical(tickets_healthy, mock_settings):
     """Testa workflow com budget crítico."""
     budget_data = {
@@ -190,8 +190,8 @@ async def test_workflow_with_budget_critical(tickets_healthy, mock_settings):
                 mock_metrics.update_budget_status.assert_called()
 
 
-@pytest.mark.asyncio
-@pytest.mark.integration
+@pytest.mark.asyncio()
+@pytest.mark.integration()
 async def test_workflow_with_sla_violation(tickets_with_violations, mock_settings):
     """Testa workflow com violação real de SLA."""
     with patch("src.activities.result_consolidation.get_settings", return_value=mock_settings):
@@ -220,8 +220,8 @@ async def test_workflow_with_sla_violation(tickets_with_violations, mock_setting
                 assert result["metrics"]["sla_violations"] == 1
 
 
-@pytest.mark.asyncio
-@pytest.mark.integration
+@pytest.mark.asyncio()
+@pytest.mark.integration()
 async def test_consolidate_results_with_sla_checks(tickets_healthy, mock_settings):
     """Testa integração completa em consolidate_results."""
     with patch("src.activities.result_consolidation.get_settings", return_value=mock_settings):
@@ -257,8 +257,8 @@ async def test_consolidate_results_with_sla_checks(tickets_healthy, mock_setting
                 assert result["budget_status"] == "HEALTHY"
 
 
-@pytest.mark.asyncio
-@pytest.mark.integration
+@pytest.mark.asyncio()
+@pytest.mark.integration()
 async def test_publish_telemetry_with_sla_metrics(tickets_healthy):
     """Testa inclusão de métricas SLA em telemetria."""
     workflow_result = {
@@ -287,8 +287,8 @@ async def test_publish_telemetry_with_sla_metrics(tickets_healthy):
         # (Como não há Kafka real, verificamos apenas que não houve exceção)
 
 
-@pytest.mark.asyncio
-@pytest.mark.integration
+@pytest.mark.asyncio()
+@pytest.mark.integration()
 async def test_sla_monitoring_failure_resilience(tickets_healthy, mock_settings):
     """Testa fail-open quando SLA Management System está indisponível."""
     with patch("src.activities.result_consolidation.get_settings", return_value=mock_settings):
@@ -312,8 +312,8 @@ async def test_sla_monitoring_failure_resilience(tickets_healthy, mock_settings)
                 assert result["budget_status"] == "UNKNOWN"
 
 
-@pytest.mark.asyncio
-@pytest.mark.integration
+@pytest.mark.asyncio()
+@pytest.mark.integration()
 async def test_sla_monitoring_disabled(tickets_healthy):
     """Testa comportamento quando SLA monitoring está desabilitado."""
     mock_settings = MagicMock()
@@ -339,7 +339,7 @@ async def test_sla_monitoring_disabled(tickets_healthy):
 from src.activities.ticket_generation import generate_execution_tickets, set_activity_dependencies
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_config_integration():
     """Config mock para testes de integração de timeout."""
     config = MagicMock()
@@ -348,7 +348,7 @@ def mock_config_integration():
     return config
 
 
-@pytest.fixture
+@pytest.fixture()
 def consolidated_decision():
     """Decisão consolidada mock."""
     return {
@@ -359,8 +359,8 @@ def consolidated_decision():
     }
 
 
-@pytest.mark.asyncio
-@pytest.mark.integration
+@pytest.mark.asyncio()
+@pytest.mark.integration()
 async def test_multiple_tickets_with_varying_durations(
     mock_config_integration, consolidated_decision
 ):
@@ -450,8 +450,8 @@ async def test_multiple_tickets_with_varying_durations(
             ), f"Ticket {task_id} tem timeout {actual_timeout}ms abaixo do mínimo 60000ms"
 
 
-@pytest.mark.asyncio
-@pytest.mark.integration
+@pytest.mark.asyncio()
+@pytest.mark.integration()
 async def test_timeout_consistency_across_risk_bands(
     mock_config_integration, consolidated_decision
 ):
@@ -496,8 +496,8 @@ async def test_timeout_consistency_across_risk_bands(
             )
 
 
-@pytest.mark.asyncio
-@pytest.mark.integration
+@pytest.mark.asyncio()
+@pytest.mark.integration()
 async def test_no_ticket_below_minimum_timeout_in_realistic_scenario(
     mock_config_integration, consolidated_decision
 ):
@@ -592,8 +592,8 @@ async def test_no_ticket_below_minimum_timeout_in_realistic_scenario(
                 )
 
 
-@pytest.mark.asyncio
-@pytest.mark.integration
+@pytest.mark.asyncio()
+@pytest.mark.integration()
 async def test_timeout_with_config_defaults_fallback(consolidated_decision):
     """Sem config injetado, deve usar defaults (60s, 3.0x)."""
     with patch("src.activities.ticket_generation.activity") as mock_activity:

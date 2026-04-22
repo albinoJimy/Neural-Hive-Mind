@@ -1,6 +1,6 @@
 """Kubernetes client for Guard Agents"""
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 import structlog
 from kubernetes import client, config
@@ -78,7 +78,7 @@ class KubernetesClient:
         namespace: Optional[str] = None,
         label_selector: Optional[str] = None,
         field_selector: Optional[str] = None,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Lista pods em um namespace com filtros opcionais
 
@@ -164,7 +164,7 @@ class KubernetesClient:
 
     async def rollback_deployment(
         self, deployment_name: str, revision: Optional[int] = None, namespace: Optional[str] = None
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Executa rollback de um deployment para revisao anterior
 
@@ -213,7 +213,7 @@ class KubernetesClient:
                                 "metadata": {
                                     "annotations": {
                                         "kubectl.kubernetes.io/restartedAt": datetime.datetime.now(
-                                            datetime.timezone.utc
+                                            datetime.UTC
                                         ).isoformat()
                                     }
                                 }
@@ -255,8 +255,8 @@ class KubernetesClient:
                 return {"success": False, "deployment": deployment_name, "error": str(e)}
 
     async def apply_network_policy(
-        self, policy_name: str, policy_spec: Dict[str, Any], namespace: Optional[str] = None
-    ) -> Dict[str, Any]:
+        self, policy_name: str, policy_spec: dict[str, Any], namespace: Optional[str] = None
+    ) -> dict[str, Any]:
         """
         Aplica ou atualiza uma NetworkPolicy
 
@@ -327,7 +327,7 @@ class KubernetesClient:
                 )
                 return {"success": False, "policy_name": policy_name, "error": str(e)}
 
-    def _build_network_policy_spec(self, policy_spec: Dict[str, Any]) -> client.V1NetworkPolicySpec:
+    def _build_network_policy_spec(self, policy_spec: dict[str, Any]) -> client.V1NetworkPolicySpec:
         """Constroi spec de NetworkPolicy baseado em target"""
         target = policy_spec.get("target", "isolate")
         pod_selector = policy_spec.get("pod_selector", {})
@@ -378,7 +378,7 @@ class KubernetesClient:
             )
 
     async def patch_pod_labels(
-        self, pod_name: str, labels: Dict[str, str], namespace: Optional[str] = None
+        self, pod_name: str, labels: dict[str, str], namespace: Optional[str] = None
     ) -> bool:
         """
         Adiciona ou atualiza labels em um pod
@@ -416,7 +416,7 @@ class KubernetesClient:
 
     async def get_deployment_revision_history(
         self, deployment_name: str, namespace: Optional[str] = None
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Lista historico de revisoes de um deployment
 

@@ -13,10 +13,7 @@ Requisitos:
 """
 
 import json
-from collections.abc import AsyncGenerator, Generator
-from io import BytesIO
-from typing import Any
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
@@ -55,9 +52,7 @@ class TestE2EDocIngestionFlow:
         assert upload_result["status"] == "uploaded"
 
         # Act - Obter status do documento
-        status_response = test_client_with_all_mocks.get(
-            f"/api/v1/documents/{document_id}/status"
-        )
+        status_response = test_client_with_all_mocks.get(f"/api/v1/documents/{document_id}/status")
 
         # Assert - Status obtido com sucesso
         assert status_response.status_code == 200
@@ -90,7 +85,13 @@ class TestE2EDocIngestionFlow:
     ) -> None:
         """Testa fluxo completo para documento Word."""
         # Arrange
-        files = {"file": ("test.docx", sample_docx_bytes, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")}
+        files = {
+            "file": (
+                "test.docx",
+                sample_docx_bytes,
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            )
+        }
         data = {
             "uploaded_by": "test@example.com",
             "title": "Test Word Document",
@@ -189,9 +190,7 @@ class TestE2EDocIngestionFlow:
         # Verificar que producer foi chamado (via mock)
         # Isso é verificado através do fixture test_client_with_kafka_mock
 
-    async def test_error_recovery_flow(
-        self, test_client_with_all_mocks: TestClient
-    ) -> None:
+    async def test_error_recovery_flow(self, test_client_with_all_mocks: TestClient) -> None:
         """Testa recuperação de erros no fluxo."""
         # Act - Tentar upload sem arquivo
         response = test_client_with_all_mocks.post(
@@ -216,9 +215,7 @@ class TestE2EDocIngestionFlow:
         for i in range(5):
             files = {"file": (f"test{i}.pdf", sample_pdf_bytes, "application/pdf")}
             data = {"uploaded_by": "test@example.com"}
-            test_client_with_all_mocks.post(
-                "/api/v1/documents/upload", files=files, data=data
-            )
+            test_client_with_all_mocks.post("/api/v1/documents/upload", files=files, data=data)
 
         # Act - Listar primeira página
         response = test_client_with_all_mocks.get("/api/v1/documents?limit=3&skip=0")
@@ -242,9 +239,7 @@ class TestE2EDocIngestionFlow:
         document_id = upload_response.json()["id"]
 
         # Act - Deletar documento
-        delete_response = test_client_with_all_mocks.delete(
-            f"/api/v1/documents/{document_id}"
-        )
+        delete_response = test_client_with_all_mocks.delete(f"/api/v1/documents/{document_id}")
 
         # Assert - Deleção bem-sucedida
         assert delete_response.status_code == 204
@@ -330,7 +325,9 @@ def test_client_with_all_mocks(
 
 
 @pytest.fixture
-def test_client_with_kafka_mock(mock_mongodb_client, mock_s3_client, mock_kafka_producer) -> TestClient:
+def test_client_with_kafka_mock(
+    mock_mongodb_client, mock_s3_client, mock_kafka_producer
+) -> TestClient:
     """Cria cliente de teste com mock Kafka específico."""
     from src.main import app
 

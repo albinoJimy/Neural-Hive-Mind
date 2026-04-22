@@ -4,9 +4,10 @@ Testes unitários para ExplanationQualityScorer.
 TDD: Testes escritos antes da implementação (GAPS-04 Task 4).
 """
 
-import pytest
 import sys
 from pathlib import Path
+
+import pytest
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
@@ -204,7 +205,7 @@ class TestAggregatedScore:
 class TestMongoDBIntegration:
     """Testes de integração com MongoDB."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_mongodb(self):
         """Mock do cliente MongoDB."""
         from unittest.mock import MagicMock
@@ -233,7 +234,6 @@ class TestMongoDBIntegration:
         """Testa que salvamento inclui timestamp."""
         scorer = ExplanationQualityScorer()
         scorer.mongodb = mock_mongodb
-
 
         scores = {"completeness": 0.8}
         scorer.save_scores("exp-123", scores)

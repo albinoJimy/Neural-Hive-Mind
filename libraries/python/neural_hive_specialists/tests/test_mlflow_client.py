@@ -4,9 +4,10 @@ Testes unitários para MLflowClient.
 Valida que get_last_model_update retorna None ao invés de 'unknown'.
 """
 
-import pytest
-from unittest.mock import Mock, patch
 from datetime import datetime
+from unittest.mock import Mock, patch
+
+import pytest
 
 from neural_hive_specialists.mlflow_client import MLflowClient
 
@@ -14,7 +15,7 @@ from neural_hive_specialists.mlflow_client import MLflowClient
 class TestMLflowClient:
     """Testes para MLflowClient."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def mlflow_client(self, mock_config):
         """Cria cliente MLflow para testes."""
         # Patch MLflowClient para evitar conexão real
@@ -95,6 +96,7 @@ class TestMLflowClient:
     def test_get_last_model_update_type_annotation(self):
         """Verifica que type annotation está correta (Optional[str])."""
         from typing import get_type_hints
+
         from neural_hive_specialists.mlflow_client import MLflowClient
 
         hints = get_type_hints(MLflowClient.get_last_model_update)
@@ -106,11 +108,11 @@ class TestMLflowClient:
         assert "None" in return_type or "Optional" in return_type
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestLoadModel:
     """Testes do método load_model."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def mlflow_client(self, mock_config):
         """Cria cliente MLflow para testes."""
         with (
@@ -213,11 +215,11 @@ class TestLoadModel:
                 mlflow_client.load_model("test_model", "Production")
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestLoadModelWithFallback:
     """Testes do método load_model_with_fallback."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def mlflow_client(self, mock_config, mock_metrics):
         """Cria cliente MLflow com métricas para testes."""
         with (
@@ -286,11 +288,11 @@ class TestLoadModelWithFallback:
             assert mock_metrics.increment_fallback_invocation.called or True
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestCircuitBreaker:
     """Testes de circuit breaker do MLflowClient."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def mlflow_client(self, mock_config, mock_metrics):
         """Cria cliente com circuit breaker habilitado."""
         mock_config.enable_circuit_breaker = True
@@ -322,11 +324,11 @@ class TestCircuitBreaker:
             mock_metrics.set_circuit_breaker_state.assert_any_call("mlflow", "closed")
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestCacheManagement:
     """Testes de gerenciamento de cache."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def mlflow_client(self, mock_config):
         """Cria cliente para testes de cache."""
         with (
@@ -375,11 +377,11 @@ class TestCacheManagement:
         assert expected_key == "my_model:Staging"
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestGetModelMetadata:
     """Testes do método get_model_metadata."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def mlflow_client(self, mock_config):
         """Cria cliente MLflow para testes."""
         with (
@@ -442,11 +444,11 @@ class TestGetModelMetadata:
             assert metadata == {}
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestIsConnected:
     """Testes do método is_connected."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def mlflow_client(self, mock_config):
         """Cria cliente MLflow para testes."""
         with (

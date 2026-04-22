@@ -4,10 +4,11 @@ Testes unitários para HierarchicalWeightCalculator.
 TDD: Testes escritos antes da implementação.
 """
 
-import pytest
 from unittest.mock import Mock
-from src.services.hierarchical_weights import HierarchicalWeightCalculator
+
+import pytest
 from src.models.seniority import SeniorityLevel
+from src.services.hierarchical_weights import HierarchicalWeightCalculator
 
 # UnifiedDomain é mockado no conftest
 from neural_hive_domain import UnifiedDomain
@@ -16,7 +17,7 @@ from neural_hive_domain import UnifiedDomain
 class TestHierarchicalWeightCalculator:
     """Testes do calculador de pesos hierárquicos."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_config(self):
         """Configuração mockada."""
         config = Mock()
@@ -35,7 +36,7 @@ class TestHierarchicalWeightCalculator:
         }
         return config
 
-    @pytest.fixture
+    @pytest.fixture()
     def calculator(self, mock_config):
         """Instância do calculador."""
         return HierarchicalWeightCalculator(mock_config)
@@ -149,7 +150,7 @@ class TestHierarchicalWeightCalculator:
 class TestCalculateBatchWeights:
     """Testes de cálculo em lote."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def calculator(self):
         """Instância do calculador."""
         config = Mock()

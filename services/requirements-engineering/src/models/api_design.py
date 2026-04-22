@@ -1,6 +1,6 @@
 """Modelos para design de API."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 
@@ -138,21 +138,21 @@ class APIDesign(BaseModel):
     tags: list[dict[str, str]] = Field(default_factory=list, description="Tags globais")
 
     created_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc), description="Data de criação"
+        default_factory=lambda: datetime.now(UTC), description="Data de criação"
     )
     updated_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc), description="Data de atualização"
+        default_factory=lambda: datetime.now(UTC), description="Data de atualização"
     )
 
     def add_endpoint(self, endpoint: APIEndpoint) -> None:
         """Adiciona um endpoint ao design."""
         self.endpoints.append(endpoint)
-        self.updated_at = datetime.now(timezone.utc)
+        self.updated_at = datetime.now(UTC)
 
     def add_security_scheme(self, security: APISecurity) -> None:
         """Adiciona um esquema de segurança."""
         self.security_schemes.append(security)
-        self.updated_at = datetime.now(timezone.utc)
+        self.updated_at = datetime.now(UTC)
 
     def get_endpoints_by_tag(self, tag: str) -> list[APIEndpoint]:
         """Retorna endpoints filtrados por tag."""

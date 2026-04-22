@@ -4,14 +4,14 @@ Testes para Dashboard API
 Testa endpoints de dashboard com métricas e estatísticas.
 """
 
-import pytest
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
-from datetime import datetime, timezone, timedelta
 
+import pytest
 from src.api.routers import dashboard
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_approval_service():
     """Mock do ApprovalService"""
     service = AsyncMock()
@@ -24,17 +24,17 @@ def mock_approval_service():
     return service
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_user():
     """Mock de usuário autenticado"""
     return {
         "user_id": "test-admin",
         "role": "neural-hive-admin",
-        "exp": (datetime.now(timezone.utc) + timedelta(hours=1)).timestamp(),
+        "exp": (datetime.now(UTC) + timedelta(hours=1)).timestamp(),
     }
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_get_dashboard_stats(mock_approval_service, mock_user):
     """Testa obtenção de estatísticas gerais"""
     # Configurar mocks
@@ -64,7 +64,7 @@ async def test_get_dashboard_stats(mock_approval_service, mock_user):
     assert result.auto_approved_rate == 50.0
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_get_dashboard_stats_empty_db(mock_approval_service, mock_user):
     """Testa estatísticas com base de dados vazia"""
     # Simular erro/exceção
@@ -86,7 +86,7 @@ async def test_get_dashboard_stats_empty_db(mock_approval_service, mock_user):
     assert result.auto_approved_rate == 0.0
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_get_approval_trends(mock_approval_service, mock_user):
     """Testa obtenção de tendências de aprovação"""
 
@@ -113,7 +113,7 @@ async def test_get_approval_trends(mock_approval_service, mock_user):
     assert all(hasattr(t, "approved") for t in result)
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_get_stats_by_risk_band(mock_approval_service, mock_user):
     """Testa estatísticas por banda de risco"""
     # Configurar mocks para cada banda
@@ -147,7 +147,7 @@ async def test_get_stats_by_risk_band(mock_approval_service, mock_user):
     assert all(hasattr(stat, "approval_rate") for stat in result)
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_get_ml_performance_stats(mock_approval_service, mock_user):
     """Testa métricas de performance do modelo ML"""
     mock_approval_service.db.specialist_feedback.count_documents = AsyncMock(
@@ -178,7 +178,7 @@ async def test_get_ml_performance_stats(mock_approval_service, mock_user):
     assert result.auto_approve_rate == 75.0
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_get_ml_performance_stats_error(mock_approval_service, mock_user):
     """Testa métricas ML com erro de conexão"""
     mock_approval_service.db.specialist_feedback.count_documents = AsyncMock(
@@ -197,7 +197,7 @@ async def test_get_ml_performance_stats_error(mock_approval_service, mock_user):
     assert result.accuracy == 0.0
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_get_recent_activity(mock_approval_service, mock_user):
     """Testa obtenção de atividade recente"""
     # Mock do cursor
@@ -209,7 +209,7 @@ async def test_get_recent_activity(mock_approval_service, mock_user):
                 "status": "approved",
                 "risk_band": "normal",
                 "is_destructive": False,
-                "created_at": datetime.now(timezone.utc),
+                "created_at": datetime.now(UTC),
                 "auto_decided": True,
                 "specialist_id": "spec-001",
             },
@@ -218,7 +218,7 @@ async def test_get_recent_activity(mock_approval_service, mock_user):
                 "status": "pending",
                 "risk_band": "high",
                 "is_destructive": True,
-                "created_at": datetime.now(timezone.utc) - timedelta(hours=1),
+                "created_at": datetime.now(UTC) - timedelta(hours=1),
                 "auto_decided": False,
                 "specialist_id": "spec-002",
             },
@@ -246,7 +246,7 @@ async def test_get_recent_activity(mock_approval_service, mock_user):
     assert result[0]["status"] == "approved"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_get_recent_activity_error(mock_approval_service, mock_user):
     """Testa atividade recente com erro"""
     mock_approval_service.db.plan_approvals.find = MagicMock(side_effect=Exception("DB error"))

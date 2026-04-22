@@ -13,18 +13,18 @@ Cobertura:
 - Rejeição de recomendações inválidas
 """
 
+from datetime import UTC, datetime
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import grpc
 import pytest
 import pytest_asyncio
-from datetime import datetime, timezone
-from unittest.mock import AsyncMock, MagicMock, patch
-import grpc
 from grpc.aio import AioRpcError
-
 from src.clients.optimizer_grpc_client import OptimizerGrpcClient
 from src.scheduler.intelligent_scheduler import IntelligentScheduler
 
 
-@pytest.fixture
+@pytest.fixture()
 def config():
     """Configuração para cliente gRPC."""
     return {
@@ -37,14 +37,14 @@ def config():
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_grpc_channel():
     """Mock gRPC channel."""
     channel = MagicMock()
     return channel
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_grpc_stub():
     """Mock gRPC stub para OptimizerAgent."""
     stub = MagicMock()
@@ -57,7 +57,7 @@ def mock_grpc_stub():
     forecast_response.resource_demand_cpu = 0.65
     forecast_response.resource_demand_memory = 0.58
     forecast_response.bottleneck_probability = 0.15
-    forecast_response.timestamp = int(datetime.now(timezone.utc).timestamp())
+    forecast_response.timestamp = int(datetime.now(UTC).timestamp())
 
     stub.GetLoadForecast = AsyncMock(return_value=forecast_response)
 
@@ -75,7 +75,7 @@ def mock_grpc_stub():
     return stub
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_metrics():
     """Mock Prometheus metrics."""
     metrics = MagicMock()
@@ -102,14 +102,14 @@ async def optimizer_client(config, mock_grpc_channel, mock_grpc_stub, mock_metri
 # ===== Testes de Conexão =====
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_client_initialization_success(optimizer_client):
     """Testa inicialização bem-sucedida do cliente gRPC."""
     assert optimizer_client._initialized is True
     assert optimizer_client.stub is not None
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_client_connection_failure_fallback(config, mock_metrics):
     """Testa fallback quando conexão gRPC falha."""
     with patch("grpc.aio.insecure_channel", side_effect=Exception("Connection refused")):
@@ -125,7 +125,7 @@ async def test_client_connection_failure_fallback(config, mock_metrics):
 # ===== Testes de Forecast Retrieval =====
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_get_load_forecast_success(optimizer_client, mock_grpc_stub):
     """Testa recuperação de forecast de carga com sucesso."""
     forecast = await optimizer_client.get_load_forecast(
@@ -141,7 +141,7 @@ async def test_get_load_forecast_success(optimizer_client, mock_grpc_stub):
     mock_grpc_stub.GetLoadForecast.assert_called_once()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_get_load_forecast_with_metadata(optimizer_client):
     """Testa que forecast inclui metadata completa."""
     forecast = await optimizer_client.get_load_forecast(
@@ -153,7 +153,7 @@ async def test_get_load_forecast_with_metadata(optimizer_client):
     assert forecast["forecast_horizon_minutes"] == 60
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_get_load_forecast_grpc_timeout(optimizer_client, mock_grpc_stub):
     """Testa timeout em chamada gRPC de forecast."""
     mock_grpc_stub.GetLoadForecast = AsyncMock(
@@ -179,7 +179,7 @@ async def test_get_load_forecast_grpc_timeout(optimizer_client, mock_grpc_stub):
 # ===== Testes de Scheduling Recommendations =====
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_get_scheduling_recommendation_success(optimizer_client, mock_grpc_stub):
     """Testa obtenção de recomendação de agendamento."""
     state = {
@@ -199,7 +199,7 @@ async def test_get_scheduling_recommendation_success(optimizer_client, mock_grpc
     assert "expected_impact" in recommendation
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_recommendation_rejected_low_confidence(optimizer_client, mock_grpc_stub):
     """Testa rejeição de recomendação com confiança baixa (< threshold)."""
     # Mock recomendação com baixa confiança
@@ -220,7 +220,7 @@ async def test_recommendation_rejected_low_confidence(optimizer_client, mock_grp
     optimizer_client.metrics.optimizer_recommendations_rejected.inc.assert_called()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_recommendation_applied_successfully(optimizer_client):
     """Testa aplicação bem-sucedida de recomendação."""
     state = {"current_queue_depth": 200, "active_workers": 8}
@@ -236,7 +236,7 @@ async def test_recommendation_applied_successfully(optimizer_client):
 # ===== Testes de Scheduler Integration =====
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_scheduler_uses_predictions(config, mock_metrics):
     """Testa que scheduler usa previsões para decisões de agendamento."""
     mock_optimizer_client = AsyncMock()
@@ -257,7 +257,7 @@ async def test_scheduler_uses_predictions(config, mock_metrics):
     assert "action" in decision
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_scheduler_fallback_on_optimizer_unavailable(config, mock_metrics):
     """Testa fallback do scheduler quando optimizer está indisponível."""
     mock_optimizer_client = AsyncMock()
@@ -279,7 +279,7 @@ async def test_scheduler_fallback_on_optimizer_unavailable(config, mock_metrics)
 # ===== Testes de Metadata Enrichment =====
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_metadata_enrichment_with_optimizer_data(optimizer_client):
     """Testa enriquecimento de metadata de tickets com dados de otimização."""
     forecast = await optimizer_client.get_load_forecast(
@@ -292,7 +292,7 @@ async def test_metadata_enrichment_with_optimizer_data(optimizer_client):
         "optimizer_predicted_load": forecast["predicted_volume"],
         "optimizer_confidence": forecast["confidence"],
         "optimizer_bottleneck_risk": forecast["bottleneck_probability"],
-        "optimizer_enriched_at": datetime.now(timezone.utc).isoformat(),
+        "optimizer_enriched_at": datetime.now(UTC).isoformat(),
     }
 
     assert enriched_metadata["optimizer_predicted_load"] == 125
@@ -302,7 +302,7 @@ async def test_metadata_enrichment_with_optimizer_data(optimizer_client):
 # ===== Testes de Cache =====
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_forecast_cache_hit(optimizer_client, mock_grpc_stub):
     """Testa cache de previsões (não refaz chamada gRPC)."""
     # Primeira chamada
@@ -322,7 +322,7 @@ async def test_forecast_cache_hit(optimizer_client, mock_grpc_stub):
     assert forecast1 == forecast2
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_forecast_cache_expiration(optimizer_client, mock_grpc_stub):
     """Testa expiração de cache (TTL)."""
     forecast1 = await optimizer_client.get_load_forecast(
@@ -330,7 +330,7 @@ async def test_forecast_cache_expiration(optimizer_client, mock_grpc_stub):
     )
 
     # Simular passagem de tempo (TTL expirado)
-    with patch("time.time", return_value=datetime.now(timezone.utc).timestamp() + 400):
+    with patch("time.time", return_value=datetime.now(UTC).timestamp() + 400):
         forecast2 = await optimizer_client.get_load_forecast(
             horizon_minutes=60, task_type="processing", risk_band="medium"
         )
@@ -342,7 +342,7 @@ async def test_forecast_cache_expiration(optimizer_client, mock_grpc_stub):
 # ===== Testes de Latência e Timeouts =====
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_grpc_latency_metric_recorded(optimizer_client):
     """Testa que latência de chamada gRPC é registrada."""
     await optimizer_client.get_load_forecast(
@@ -353,7 +353,7 @@ async def test_grpc_latency_metric_recorded(optimizer_client):
     optimizer_client.metrics.optimizer_grpc_latency.observe.assert_called()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_grpc_timeout_configuration(config):
     """Testa que timeout gRPC é configurado corretamente."""
     assert config["optimizer_grpc_timeout_seconds"] == 5
@@ -362,7 +362,7 @@ async def test_grpc_timeout_configuration(config):
 # ===== Testes de Validação de Recomendações =====
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_invalid_recommendation_rejected(optimizer_client, mock_grpc_stub):
     """Testa rejeição de recomendação inválida."""
     # Mock recomendação inválida (parâmetros faltando)
@@ -380,7 +380,7 @@ async def test_invalid_recommendation_rejected(optimizer_client, mock_grpc_stub)
     assert recommendation is None or "parameters" not in recommendation
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_recommendation_validation_parameters(optimizer_client):
     """Testa validação de parâmetros de recomendação."""
     state = {"current_queue_depth": 200, "active_workers": 10}

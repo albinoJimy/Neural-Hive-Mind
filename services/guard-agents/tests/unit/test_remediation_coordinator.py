@@ -1,11 +1,12 @@
 """Unit tests for RemediationCoordinator"""
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock
+
+import pytest
 from src.services.remediation_coordinator import RemediationCoordinator, RemediationType
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_k8s_client():
     """Mock Kubernetes client"""
     from unittest.mock import AsyncMock, MagicMock
@@ -49,7 +50,7 @@ def mock_k8s_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_redis_client():
     """Mock Redis client"""
     client = MagicMock()
@@ -60,7 +61,7 @@ def mock_redis_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_chaosmesh_client():
     """Mock ChaosMesh client"""
     client = MagicMock()
@@ -82,7 +83,7 @@ def mock_chaosmesh_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_script_executor():
     """Mock Script executor"""
     executor = MagicMock()
@@ -99,7 +100,7 @@ def mock_script_executor():
     return executor
 
 
-@pytest.fixture
+@pytest.fixture()
 def remediation_coordinator(mock_k8s_client, mock_redis_client):
     """RemediationCoordinator with mocked dependencies"""
     coordinator = RemediationCoordinator(k8s_client=mock_k8s_client, use_self_healing_engine=False)
@@ -110,7 +111,7 @@ def remediation_coordinator(mock_k8s_client, mock_redis_client):
 class TestClearCache:
     """Tests for _clear_cache method"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_clear_cache_redis_flush(self, remediation_coordinator, mock_redis_client):
         """Test clearing entire Redis cache"""
         action = {"cache": "redis"}
@@ -123,7 +124,7 @@ class TestClearCache:
         assert result["details"]["action"] == "flushdb"
         mock_redis_client.client.flushdb.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_clear_cache_redis_pattern(self, remediation_coordinator, mock_redis_client):
         """Test clearing Redis cache by pattern"""
         action = {"cache": "redis", "pattern": "session:*"}
@@ -135,7 +136,7 @@ class TestClearCache:
         assert result["details"]["pattern"] == "session:*"
         assert result["details"]["keys_deleted"] == 2
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_clear_cache_redis_not_available(self, remediation_coordinator):
         """Test cache clearing when Redis is not available"""
         remediation_coordinator.redis_client = None
@@ -147,7 +148,7 @@ class TestClearCache:
         assert result["success"] is True  # Graceful degradation
         assert "warning" in result["details"]
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_clear_cache_memcached(self, remediation_coordinator):
         """Test Memcached clearing (not implemented)"""
         action = {"cache": "memcached"}
@@ -163,7 +164,7 @@ class TestClearCache:
 class TestTriggerChaos:
     """Tests for _trigger_chaos method"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_trigger_chaos_pod_failure(self, remediation_coordinator, mock_chaosmesh_client):
         """Test triggering pod failure chaos"""
         remediation_coordinator.chaosmesh_client = mock_chaosmesh_client
@@ -177,7 +178,7 @@ class TestTriggerChaos:
         assert result["details"]["experiment_created"] is True
         mock_chaosmesh_client.create_pod_chaos.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_trigger_chaos_network_delay(
         self, remediation_coordinator, mock_chaosmesh_client
     ):
@@ -192,7 +193,7 @@ class TestTriggerChaos:
         assert result["details"]["latency"] == "100ms"
         mock_chaosmesh_client.create_network_chaos.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_trigger_chaos_not_available(self, remediation_coordinator):
         """Test chaos triggering when ChaosMesh is not available"""
         action = {"chaos_type": "pod_kill"}
@@ -207,7 +208,7 @@ class TestTriggerChaos:
 class TestExecScript:
     """Tests for _exec_script method"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_exec_script_predefined(self, remediation_coordinator, mock_script_executor):
         """Test executing predefined script"""
         remediation_coordinator.script_executor = mock_script_executor
@@ -221,7 +222,7 @@ class TestExecScript:
         assert result["details"]["job_name"] is not None
         mock_script_executor.execute_script.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_exec_script_inline(self, remediation_coordinator, mock_script_executor):
         """Test executing inline script content"""
         remediation_coordinator.script_executor = mock_script_executor
@@ -233,7 +234,7 @@ class TestExecScript:
         assert result["success"] is True
         mock_script_executor.execute_script.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_exec_script_not_available(self, remediation_coordinator):
         """Test script execution when executor is not available"""
         action = {"script": "test.sh"}
@@ -244,7 +245,7 @@ class TestExecScript:
         assert result["success"] is True  # Graceful degradation
         assert result["details"]["simulated"] is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_exec_script_no_script_specified(
         self, remediation_coordinator, mock_script_executor
     ):
@@ -285,7 +286,7 @@ class TestGetPredefinedScript:
 class TestRestartPod:
     """Tests for _restart_pod method"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_restart_pod_success(self, remediation_coordinator, mock_k8s_client):
         """Test successful pod restart"""
         action = {"selector": "app"}
@@ -300,7 +301,7 @@ class TestRestartPod:
         assert result["details"]["pod_deleted"] == "test-pod-abc123"
         mock_k8s_client.delete_pod.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_restart_pod_no_resources(self, remediation_coordinator):
         """Test pod restart with no resources"""
         action = {"selector": "app"}

@@ -4,11 +4,10 @@ Testes unitários para PatternMatcher
 Testa detecção de padrões complexos e cálculo de scores.
 """
 
+from unittest.mock import mock_open, patch
+
 import pytest
-from unittest.mock import patch, mock_open
-
-from src.services.pattern_matcher import PatternMatcher, PatternMatch
-
+from src.services.pattern_matcher import PatternMatch, PatternMatcher
 
 # Fixtures de padrões de teste
 MOCK_PATTERNS_YAML = """
@@ -126,7 +125,7 @@ class TestPatternMatcherLoading:
 class TestPatternMatcherObjectiveMatching:
     """Testes para matching de objectives"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def matcher(self):
         """PatternMatcher com padrões de teste"""
         with patch("builtins.open", mock_open(read_data=MOCK_PATTERNS_YAML)):
@@ -177,7 +176,7 @@ class TestPatternMatcherObjectiveMatching:
 class TestPatternMatcherEntityMatching:
     """Testes para matching de entities"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def matcher(self):
         """PatternMatcher com padrões de teste"""
         with patch("builtins.open", mock_open(read_data=MOCK_PATTERNS_YAML)):
@@ -231,7 +230,7 @@ class TestPatternMatcherEntityMatching:
 class TestPatternMatcherKeywordMatching:
     """Testes para matching de keywords"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def matcher(self):
         """PatternMatcher com padrões de teste"""
         with patch("builtins.open", mock_open(read_data=MOCK_PATTERNS_YAML)):
@@ -295,7 +294,7 @@ class TestPatternMatcherKeywordMatching:
 class TestPatternMatcherScoreCalculation:
     """Testes para cálculo de score agregado"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def matcher(self):
         """PatternMatcher com config de pesos"""
         with patch("builtins.open", mock_open(read_data=MOCK_PATTERNS_YAML)):
@@ -355,7 +354,7 @@ class TestPatternMatcherScoreCalculation:
 class TestPatternMatcherIntegration:
     """Testes de integração com intermediate representation real"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def matcher(self):
         """PatternMatcher com padrões reais do YAML"""
         with patch("builtins.open", mock_open(read_data=MOCK_PATTERNS_YAML)):
@@ -451,7 +450,7 @@ class TestPatternMatcherIntegration:
 class TestPatternMatcherGetTemplate:
     """Testes para recuperação de templates"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def matcher(self):
         """PatternMatcher com padrões de teste"""
         with patch("builtins.open", mock_open(read_data=MOCK_PATTERNS_YAML)):
@@ -481,7 +480,7 @@ class TestPatternMatcherGetTemplate:
 class TestPatternMatcherEdgeCases:
     """Testes para casos edge"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def matcher(self):
         """PatternMatcher com padrões de teste"""
         with patch("builtins.open", mock_open(read_data=MOCK_PATTERNS_YAML)):
@@ -570,7 +569,7 @@ class TestRealPatternsYamlFile:
     válidos com os campos obrigatórios.
     """
 
-    @pytest.fixture
+    @pytest.fixture()
     def real_matcher(self):
         """
         PatternMatcher carregado com o arquivo patterns.yaml real.
@@ -688,7 +687,7 @@ class TestMinCountValidationEarlyExit:
     Garante que padrões com min_count não fazem match sem entidades suficientes.
     """
 
-    @pytest.fixture
+    @pytest.fixture()
     def matcher(self):
         """PatternMatcher com padrões de teste"""
         with patch("builtins.open", mock_open(read_data=MOCK_PATTERNS_YAML)):

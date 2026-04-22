@@ -11,8 +11,7 @@ As metrics Prometheus são definidas e registradas nos serviços individuais:
 Este módulo NÃO registra metrics para evitar colisões com os serviços.
 """
 
-from datetime import datetime, timedelta, timezone
-from typing import Dict
+from datetime import UTC, datetime, timedelta
 
 import structlog
 
@@ -28,13 +27,13 @@ class MTTRTracker:
     """
 
     def __init__(self):
-        self._incident_start_times: Dict[str, datetime] = {}
+        self._incident_start_times: dict[str, datetime] = {}
         self._incident_resolutions: list[tuple[str, str, str, timedelta]] = []
 
     def start_tracking(self, incident_id: str, incident_type: str, severity: str):
         """Inicia rastreamento de incidente."""
         key = f"{incident_type}:{severity}:{incident_id}"
-        self._incident_start_times[key] = datetime.now(timezone.utc)
+        self._incident_start_times[key] = datetime.now(UTC)
 
     def end_tracking(self, incident_id: str, incident_type: str, severity: str) -> float:
         """
@@ -47,7 +46,7 @@ class MTTRTracker:
         start_time = self._incident_start_times.get(key)
 
         if start_time:
-            duration = datetime.now(timezone.utc) - start_time
+            duration = datetime.now(UTC) - start_time
             duration_seconds = duration.total_seconds()
 
             # Remove do rastreamento
@@ -115,7 +114,7 @@ def get_metrics_text() -> str:
     Returns:
         String com métricas no formato Prometheus
     """
-    from prometheus_client import generate_latest, REGISTRY
+    from prometheus_client import REGISTRY, generate_latest
 
     return generate_latest(REGISTRY).decode("utf-8")
 

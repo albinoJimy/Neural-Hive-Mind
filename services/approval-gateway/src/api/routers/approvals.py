@@ -1,25 +1,24 @@
 """Router REST para Approval Gateway."""
 
-from typing import Optional
 from datetime import datetime, timedelta
-from fastapi import APIRouter, HTTPException, status, Query
-from structlog import get_logger
+from typing import Optional
 
-from src.models.approval import (
-    ApprovalRequest,
-    ApprovalDecision,
-    ApprovalStatus,
-    ApprovalType,
-    ApprovalMetrics,
-)
-from src.services.approval_gateway import ApprovalGateway
+from fastapi import APIRouter, HTTPException, Query, status
 from src.api.schemas.approval_requests import (
+    ApprovalListResponse,
+    ApprovalResponse,
     CreateApprovalRequest,
     UpdateApprovalRequest,
-    ApprovalResponse,
-    ApprovalListResponse,
+)
+from src.models.approval import (
+    ApprovalMetrics,
+    ApprovalRequest,
+    ApprovalStatus,
+    ApprovalType,
 )
 from src.repositories.approvals_repository import ApprovalsRepository
+from src.services.approval_gateway import ApprovalGateway
+from structlog import get_logger
 
 logger = get_logger(__name__)
 
@@ -50,7 +49,7 @@ def get_repository() -> ApprovalsRepository:
     "/request",
     response_model=ApprovalResponse,
     status_code=status.HTTP_201_CREATED,
-    summary="Criar solicitação de aprovação"
+    summary="Criar solicitação de aprovação",
 )
 async def create_approval_request(request: CreateApprovalRequest) -> ApprovalResponse:
     """
@@ -72,7 +71,7 @@ async def create_approval_request(request: CreateApprovalRequest) -> ApprovalRes
             description=request.description,
             requested_by=request.requested_by,
             context=request.context or {},
-            expires_at=datetime.utcnow() + timedelta(hours=request.expires_in_hours)
+            expires_at=datetime.utcnow() + timedelta(hours=request.expires_in_hours),
         )
 
         # Avaliar
@@ -84,22 +83,18 @@ async def create_approval_request(request: CreateApprovalRequest) -> ApprovalRes
             confidence_score=decision.confidence_score,
             reasoning=decision.reasoning,
             approved_by=decision.approved_by,
-            requires_human_review=(decision.status == ApprovalStatus.PENDING)
+            requires_human_review=(decision.status == ApprovalStatus.PENDING),
         )
 
     except Exception as e:
         logger.error("create_approval_failed", error=str(e))
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Falha ao criar solicitação: {str(e)}"
+            detail=f"Falha ao criar solicitação: {e!s}",
         )
 
 
-@router.get(
-    "/{request_id}",
-    response_model=ApprovalResponse,
-    summary="Buscar solicitação por ID"
-)
+@router.get("/{request_id}", response_model=ApprovalResponse, summary="Buscar solicitação por ID")
 async def get_approval_request(request_id: str) -> ApprovalResponse:
     """Retorna uma solicitação específica."""
     repository = get_repository()
@@ -108,8 +103,7 @@ async def get_approval_request(request_id: str) -> ApprovalResponse:
 
     if not doc:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Solicitação {request_id} não encontrada"
+            status_code=status.HTTP_404_NOT_FOUND, detail=f"Solicitação {request_id} não encontrada"
         )
 
     return ApprovalResponse(
@@ -118,18 +112,17 @@ async def get_approval_request(request_id: str) -> ApprovalResponse:
         confidence_score=doc["decision"]["confidence_score"],
         reasoning=doc["decision"]["reasoning"],
         approved_by=doc["decision"].get("approved_by"),
-        requires_human_review=(doc["decision"]["status"] == ApprovalStatus.PENDING.value)
+        requires_human_review=(doc["decision"]["status"] == ApprovalStatus.PENDING.value),
     )
 
 
 @router.put(
     "/{request_id}",
     response_model=ApprovalResponse,
-    summary="Atualizar decisão (intervenção humana)"
+    summary="Atualizar decisão (intervenção humana)",
 )
 async def update_approval_request(
-    request_id: str,
-    update: UpdateApprovalRequest
+    request_id: str, update: UpdateApprovalRequest
 ) -> ApprovalResponse:
     """
     Atualiza uma solicitação (intervenção humana).
@@ -143,8 +136,7 @@ async def update_approval_request(
     doc = await repository.get_by_request_id(request_id)
     if not doc:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Solicitação {request_id} não encontrada"
+            status_code=status.HTTP_404_NOT_FOUND, detail=f"Solicitação {request_id} não encontrada"
         )
 
     # Atualizar
@@ -152,13 +144,13 @@ async def update_approval_request(
         request_id=request_id,
         status=update.status,
         approved_by=update.reviewed_by,
-        feedback=update.feedback
+        feedback=update.feedback,
     )
 
     if not updated:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Falha ao atualizar solicitação"
+            detail="Falha ao atualizar solicitação",
         )
 
     # Buscar atualizado
@@ -170,67 +162,51 @@ async def update_approval_request(
         confidence_score=doc["decision"]["confidence_score"],
         reasoning=doc["decision"]["reasoning"],
         approved_by=doc["decision"].get("approved_by"),
-        requires_human_review=False
+        requires_human_review=False,
     )
 
 
-@router.get(
-    "",
-    response_model=ApprovalListResponse,
-    summary="Listar solicitações"
-)
+@router.get("", response_model=ApprovalListResponse, summary="Listar solicitações")
 async def list_approvals(
     status: Optional[ApprovalStatus] = Query(None, description="Filtrar por status"),
     type: Optional[ApprovalType] = Query(None, description="Filtrar por tipo"),
     limit: int = Query(10, ge=1, le=100),
-    offset: int = Query(0, ge=0)
+    offset: int = Query(0, ge=0),
 ) -> ApprovalListResponse:
     """Lista solicitações com filtros."""
     repository = get_repository()
 
     items, total = await repository.list(
-        status=status,
-        approval_type=type,
-        limit=limit,
-        skip=offset
+        status=status, approval_type=type, limit=limit, skip=offset
     )
 
     pending_count = await repository.count_by_status(ApprovalStatus.PENDING)
 
     formatted_items = []
     for item in items:
-        formatted_items.append({
-            "request_id": item["request"]["id"],
-            "type": item["request"]["type"],
-            "title": item["request"]["title"],
-            "status": item["decision"]["status"],
-            "confidence_score": item["decision"]["confidence_score"],
-            "requested_by": item["request"]["requested_by"],
-            "created_at": item["created_at"],
-        })
+        formatted_items.append(
+            {
+                "request_id": item["request"]["id"],
+                "type": item["request"]["type"],
+                "title": item["request"]["title"],
+                "status": item["decision"]["status"],
+                "confidence_score": item["decision"]["confidence_score"],
+                "requested_by": item["request"]["requested_by"],
+                "created_at": item["created_at"],
+            }
+        )
 
-    return ApprovalListResponse(
-        total=total,
-        pending=pending_count,
-        items=formatted_items
-    )
+    return ApprovalListResponse(total=total, pending=pending_count, items=formatted_items)
 
 
-@router.get(
-    "/metrics",
-    response_model=ApprovalMetrics,
-    summary="Métricas de aprovações"
-)
+@router.get("/metrics", response_model=ApprovalMetrics, summary="Métricas de aprovações")
 async def get_metrics() -> ApprovalMetrics:
     """Retorna métricas agregadas de aprovações."""
     service = get_gateway_service()
     return await service.get_metrics()
 
 
-@router.post(
-    "/expire",
-    summary="Expirar solicitações pendentes"
-)
+@router.post("/expire", summary="Expirar solicitações pendentes")
 async def expire_pending_requests(
     timeout_hours: int = Query(24, ge=1, description="Timeout em horas")
 ) -> dict:
@@ -238,20 +214,10 @@ async def expire_pending_requests(
     service = get_gateway_service()
     expired = await service.expire_pending_requests(timeout_hours)
 
-    return {
-        "expired_count": expired,
-        "timeout_hours": timeout_hours
-    }
+    return {"expired_count": expired, "timeout_hours": timeout_hours}
 
 
-@router.get(
-    "/health",
-    summary="Health check"
-)
+@router.get("/health", summary="Health check")
 async def health_check() -> dict:
     """Verifica saúde do serviço."""
-    return {
-        "status": "healthy",
-        "service": "approval-gateway",
-        "version": "0.1.0"
-    }
+    return {"status": "healthy", "service": "approval-gateway", "version": "0.1.0"}

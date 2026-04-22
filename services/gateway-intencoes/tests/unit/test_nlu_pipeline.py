@@ -1,17 +1,18 @@
 """Testes unitários para NLUPipeline"""
 
-import pytest
-from unittest.mock import MagicMock, patch, AsyncMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
-from pipelines.nlu_pipeline import NLUPipeline
+import pytest
 from models.intent_envelope import NLUResult
+from pipelines.nlu_pipeline import NLUPipeline
+
 from neural_hive_domain import UnifiedDomain
 
 
 class TestNLUPipeline:
     """Testes para a classe NLUPipeline"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def nlu_pipeline(self):
         """Fixture do pipeline NLU"""
         pipeline = NLUPipeline(language_model="pt_core_news_sm", confidence_threshold=0.5)
@@ -19,7 +20,7 @@ class TestNLUPipeline:
         pipeline.classification_rules = pipeline._get_default_classification_rules()
         return pipeline
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_initialize_pipeline(self, nlu_pipeline):
         """Teste de inicialização do pipeline"""
         with patch("spacy.load") as mock_spacy_load:
@@ -31,7 +32,7 @@ class TestNLUPipeline:
             assert nlu_pipeline.is_ready() is True
             mock_spacy_load.assert_called_once_with("pt_core_news_sm")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_process_text_success(self, nlu_pipeline):
         """Teste de processamento de texto bem-sucedido"""
         # Mock do modelo spaCy
@@ -103,7 +104,7 @@ class TestNLUPipeline:
         assert result.entities[1].value == "Empresa"
         assert "implementar" in result.keywords or "sistema" in result.keywords
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_process_text_low_confidence(self, nlu_pipeline):
         """Teste com confiança baixa (abaixo do threshold)"""
         mock_nlp = MagicMock()
@@ -131,7 +132,7 @@ class TestNLUPipeline:
             assert result.confidence_status == "low"
             assert result.requires_manual_validation == True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_pii_masking(self, nlu_pipeline):
         """Teste de mascaramento de PII"""
         mock_nlp = MagicMock()
@@ -170,7 +171,7 @@ class TestNLUPipeline:
         assert "Maria Silva" not in result.processed_text
         assert "maria@exemplo.com" not in result.processed_text
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_domain_classification(self, nlu_pipeline):
         """Teste de classificação de domínios"""
         nlu_pipeline._ready = True
@@ -190,7 +191,7 @@ class TestNLUPipeline:
             domain, _, _ = await nlu_pipeline._classify_intent_advanced(text, [], "pt", {})
             assert domain == expected_domain
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_confidence_threshold_gating(self, nlu_pipeline):
         """Teste do gate de confiança"""
         nlu_pipeline._ready = True
@@ -226,7 +227,7 @@ class TestNLUPipeline:
             assert result.confidence_status == "low"
             assert result.classification == "unknown"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_entity_confidence_filtering(self, nlu_pipeline):
         """Teste de filtro de confiança de entidades"""
         mock_nlp = MagicMock()
@@ -267,7 +268,7 @@ class TestNLUPipeline:
         assert len(person_entities) >= 1
         assert person_entities[0].confidence >= 0.0
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_keyword_extraction(self, nlu_pipeline):
         """Teste de extração de palavras-chave"""
         mock_nlp = MagicMock()
@@ -330,7 +331,7 @@ class TestNLUPipeline:
         assert "de" not in keywords  # Stop word filtered out
         assert "." not in keywords  # Punctuation filtered out
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_process_not_ready(self, nlu_pipeline):
         """Teste de processamento quando pipeline não está pronto"""
         nlu_pipeline._ready = False
@@ -338,7 +339,7 @@ class TestNLUPipeline:
         with pytest.raises(RuntimeError, match="Pipeline NLU não inicializado"):
             await nlu_pipeline.process(text="test text", language="pt-BR", context={})
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_close_pipeline(self, nlu_pipeline):
         """Teste de fechamento do pipeline"""
         nlu_pipeline._ready = True
@@ -349,7 +350,7 @@ class TestNLUPipeline:
         assert nlu_pipeline.is_ready() is False
         assert nlu_pipeline.nlp is None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_domain_keywords_mapping(self, nlu_pipeline):
         """Teste do mapeamento de palavras-chave para domínios"""
         # Test business domain keywords
@@ -372,7 +373,7 @@ class TestNLUPipeline:
         domain, _, _ = await nlu_pipeline._classify_intent_advanced(security_text, [], "pt", {})
         assert domain == UnifiedDomain.SECURITY
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_cache_with_dict_type(self, nlu_pipeline):
         """Teste de cache retornando dict (tipo já deserializado)"""
         nlu_pipeline._ready = True
@@ -399,7 +400,7 @@ class TestNLUPipeline:
         assert result.domain == UnifiedDomain.TECHNICAL
         assert result.confidence == 0.85
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_cache_with_string_type(self, nlu_pipeline):
         """Teste de cache retornando string (JSON)"""
         nlu_pipeline._ready = True
@@ -430,7 +431,7 @@ class TestNLUPipeline:
         assert result.domain == UnifiedDomain.BUSINESS
         assert result.confidence == 0.75
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_cache_with_invalid_type(self, nlu_pipeline):
         """Teste de cache retornando tipo inválido (não dict, str ou bytes)"""
         nlu_pipeline._ready = True
@@ -445,7 +446,7 @@ class TestNLUPipeline:
         # Deve retornar None para tipo inválido
         assert result is None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_cache_with_bytes_type(self, nlu_pipeline):
         """Teste de cache retornando bytes"""
         nlu_pipeline._ready = True
@@ -476,7 +477,7 @@ class TestNLUPipeline:
         assert result.domain == UnifiedDomain.SECURITY
         assert result.confidence == 0.90
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_cache_with_none_value(self, nlu_pipeline):
         """Teste de cache retornando None (cache miss)"""
         nlu_pipeline._ready = True
@@ -491,7 +492,7 @@ class TestNLUPipeline:
         # Deve retornar None para cache miss
         assert result is None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_handle_empty_text(self, nlu_pipeline):
         """Testar processamento de texto vazio"""
         nlu_pipeline._ready = True
@@ -515,7 +516,7 @@ class TestNLUPipeline:
             assert result.confidence == 0.0
             assert result.classification == "empty"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_handle_invalid_language(self, nlu_pipeline):
         """Testar processamento com idioma inválido"""
         nlu_pipeline._ready = True
@@ -537,7 +538,7 @@ class TestNLUPipeline:
         # Deve processar mesmo com idioma inválido (fallback para pt)
         assert result is not None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_context_injection(self, nlu_pipeline):
         """Testar injeção de contexto no processamento"""
         nlu_pipeline._ready = True
@@ -569,7 +570,7 @@ class TestNLUPipeline:
             # Contexto deve influenciar na classificação
             assert result.domain == UnifiedDomain.TECHNICAL
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_confidence_threshold_gating_low(self, nlu_pipeline):
         """Testar gate de confiança baixa"""
         nlu_pipeline._ready = True
@@ -595,7 +596,7 @@ class TestNLUPipeline:
             assert result.confidence < nlu_pipeline.confidence_threshold
             assert result.confidence_status == "low"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_confidence_threshold_gating_high(self, nlu_pipeline):
         """Testar gate de confiança alta"""
         nlu_pipeline._ready = True
@@ -623,7 +624,7 @@ class TestNLUPipeline:
             assert result.confidence >= nlu_pipeline.confidence_threshold
             assert result.confidence_status == "high"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_fallback_behavior_on_error(self, nlu_pipeline):
         """Testar comportamento de fallback em erro"""
         nlu_pipeline._ready = True
@@ -636,7 +637,7 @@ class TestNLUPipeline:
         with pytest.raises(Exception):
             await nlu_pipeline.process(text="teste", language="pt-BR", context={})
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_timeout_handling(self, nlu_pipeline):
         """Testar tratamento de timeout"""
         import asyncio
@@ -656,7 +657,7 @@ class TestNLUPipeline:
             with pytest.raises((asyncio.TimeoutError, Exception)):
                 await asyncio.wait_for(nlu_pipeline.process("teste", "pt-BR", {}), timeout=0.1)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_metrics_emission(self, nlu_pipeline):
         """Testar emissão de métricas"""
         nlu_pipeline._ready = True
@@ -680,7 +681,7 @@ class TestNLUPipeline:
             # Verificar que processamento_time_ms foi calculado
             assert result.processing_time_ms >= 0
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_batch_processing(self, nlu_pipeline):
         """Testar processamento em lote"""
         nlu_pipeline._ready = True
@@ -709,7 +710,7 @@ class TestNLUPipeline:
         for result in results:
             assert result.domain == UnifiedDomain.TECHNICAL
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_adaptive_threshold_calculation(self, nlu_pipeline):
         """Testar cálculo de threshold adaptativo"""
         nlu_pipeline._ready = True
@@ -721,7 +722,7 @@ class TestNLUPipeline:
 
         assert 0.6 < adaptive_threshold < 0.9
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_multi_language_support(self, nlu_pipeline):
         """Testar suporte a múltiplos idiomas"""
         nlu_pipeline._ready = True

@@ -6,16 +6,16 @@ configurando observability e graceful shutdown.
 """
 
 import sys
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from typing import AsyncGenerator
 
 import structlog
 import uvicorn
 from fastapi import FastAPI
 
+from .clients import CopilotClient, OpenAIClient
 from .config import get_settings
 from .server import mcp
-from .clients import OpenAIClient, CopilotClient
 
 # Adicionar path do shared module
 sys.path.insert(0, "/app")

@@ -2,17 +2,18 @@
 Cliente wrapper para integração com MLflow.
 """
 
-import mlflow
-from mlflow.tracking import MlflowClient as MLflowTrackingClient
-from typing import Any, Dict, Optional
-from datetime import datetime
 import time
-import structlog
-from tenacity import retry, stop_after_attempt, wait_exponential
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
+from datetime import datetime
+from typing import Any, Optional
+
+import mlflow
+import structlog
 from circuitbreaker import CircuitBreaker, CircuitBreakerError
+from mlflow.tracking import MlflowClient as MLflowTrackingClient
 from opentelemetry import trace
 from opentelemetry.trace import Status, StatusCode
+from tenacity import retry, stop_after_attempt, wait_exponential
 
 from .config import SpecialistConfig
 
@@ -269,8 +270,8 @@ class MLflowClient:
 
                         # Attempt 1: Try loading via sklearn directly with custom unpickler
                         try:
-                            import pickle
                             import io
+                            import pickle
 
                             # Download model artifacts
                             artifacts_path = mlflow.artifacts.download_artifacts(
@@ -371,7 +372,7 @@ class MLflowClient:
                 )
                 raise
 
-    def log_evaluation(self, opinion: Dict[str, Any], plan_id: str, intent_id: str):
+    def log_evaluation(self, opinion: dict[str, Any], plan_id: str, intent_id: str):
         """
         Registra avaliação no MLflow.
 
@@ -420,7 +421,7 @@ class MLflowClient:
 
                 logger.warning("Failed to log evaluation to MLflow", plan_id=plan_id, error=str(e))
 
-    def get_model_metadata(self, model_name: str, stage: str) -> Dict[str, Any]:
+    def get_model_metadata(self, model_name: str, stage: str) -> dict[str, Any]:
         """
         Obtém metadados do modelo.
 
@@ -594,8 +595,8 @@ class MLflowClient:
         Returns:
             True se conectado, False caso contrário
         """
-        import threading
         import queue
+        import threading
 
         def _check():
             try:

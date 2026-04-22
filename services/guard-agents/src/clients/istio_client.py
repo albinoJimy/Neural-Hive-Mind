@@ -1,6 +1,6 @@
 """Cliente para integração com Istio via Kubernetes API"""
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 import structlog
 from kubernetes import client
@@ -32,9 +32,9 @@ class IstioClient:
         self,
         name: str,
         action: str,  # ALLOW, DENY, CUSTOM
-        selector: Dict[str, str],
-        rules: List[Dict[str, Any]],
-    ) -> Dict[str, Any]:
+        selector: dict[str, str],
+        rules: list[dict[str, Any]],
+    ) -> dict[str, Any]:
         """
         Aplica AuthorizationPolicy Istio.
 
@@ -104,8 +104,8 @@ class IstioClient:
                 raise
 
     async def block_ip(
-        self, source_ip: str, workload_selector: Optional[Dict[str, str]] = None
-    ) -> Dict[str, Any]:
+        self, source_ip: str, workload_selector: Optional[dict[str, str]] = None
+    ) -> dict[str, Any]:
         """
         Bloqueia IP específico usando AuthorizationPolicy.
 
@@ -128,10 +128,10 @@ class IstioClient:
     async def apply_rate_limit(
         self,
         name: str,
-        workload_selector: Dict[str, str],
+        workload_selector: dict[str, str],
         requests_per_unit: int = 100,
         unit: str = "MINUTE",
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Aplica rate limiting via EnvoyFilter.
 

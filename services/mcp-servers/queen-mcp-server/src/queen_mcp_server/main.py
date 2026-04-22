@@ -6,8 +6,8 @@ configurando observability e graceful shutdown.
 """
 
 import sys
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from typing import AsyncGenerator
 
 import structlog
 import uvicorn

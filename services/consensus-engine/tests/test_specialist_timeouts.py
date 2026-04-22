@@ -5,8 +5,9 @@ Valida que o sistema suporta timeouts configuráveis por specialist type
 com fallback para o timeout global (grpc_timeout_ms).
 """
 
-import pytest
 from unittest.mock import patch
+
+import pytest
 
 
 class TestSpecialistTimeouts:
@@ -65,8 +66,8 @@ class TestSpecialistTimeouts:
 
     def test_specialist_timeout_validation_positive(self):
         """Deve validar que timeout específico é positivo"""
-        from src.config.settings import Settings
         from pydantic import ValidationError
+        from src.config.settings import Settings
 
         with pytest.raises(ValidationError):
             Settings(

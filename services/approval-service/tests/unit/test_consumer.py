@@ -4,26 +4,26 @@ Testes unitarios para ApprovalRequestConsumer
 Testa deserializacao e processamento de mensagens Kafka.
 """
 
-import pytest
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
 
-from src.models.approval import ApprovalRequest, RiskBand
+import pytest
 from src.consumers.approval_request_consumer import ApprovalRequestConsumer
+from src.models.approval import ApprovalRequest, RiskBand
 
 
 class TestApprovalRequestConsumerDeserialize:
     """Testes para deserializacao de mensagens"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def consumer(self, mock_settings):
         """Cria instancia de ApprovalRequestConsumer para testes"""
         consumer = ApprovalRequestConsumer(mock_settings)
         consumer.avro_deserializer = None  # JSON mode
         return consumer
 
-    @pytest.fixture
+    @pytest.fixture()
     def valid_kafka_message(self, sample_cognitive_plan):
         """Mock de mensagem Kafka valida"""
         msg = MagicMock()
@@ -33,7 +33,7 @@ class TestApprovalRequestConsumerDeserialize:
         msg.offset.return_value = 100
         return msg
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_deserialize_json_success(
         self, consumer, valid_kafka_message, sample_cognitive_plan
     ):
@@ -46,7 +46,7 @@ class TestApprovalRequestConsumerDeserialize:
         assert result.risk_score == sample_cognitive_plan["risk_score"]
         assert result.is_destructive == sample_cognitive_plan["is_destructive"]
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_deserialize_with_risk_band_string(self, consumer):
         """Teste deserializacao com risk_band como string"""
         plan_data = {
@@ -66,7 +66,7 @@ class TestApprovalRequestConsumerDeserialize:
 
         assert result.risk_band == RiskBand.MEDIUM
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_deserialize_defaults_risk_band_high(self, consumer):
         """Teste que risk_band padrao e HIGH"""
         plan_data = {"plan_id": "plan-003", "intent_id": "intent-003", "risk_score": 0.8}
@@ -80,7 +80,7 @@ class TestApprovalRequestConsumerDeserialize:
 
         assert result.risk_band == RiskBand.HIGH
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_deserialize_invalid_json(self, consumer):
         """Teste deserializacao com JSON invalido"""
         msg = MagicMock()
@@ -92,7 +92,7 @@ class TestApprovalRequestConsumerDeserialize:
 
         assert result is None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_deserialize_missing_required_fields(self, consumer):
         """Teste deserializacao sem campos obrigatorios"""
         plan_data = {
@@ -114,7 +114,7 @@ class TestApprovalRequestConsumerDeserialize:
 class TestApprovalRequestConsumerHealth:
     """Testes para health check do consumer"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def consumer(self, mock_settings):
         """Cria instancia de ApprovalRequestConsumer para testes"""
         consumer = ApprovalRequestConsumer(mock_settings)
@@ -124,7 +124,7 @@ class TestApprovalRequestConsumerHealth:
 
     def test_is_healthy_when_running(self, consumer):
         """Teste health check quando consumer esta saudavel"""
-        consumer._last_poll_time = datetime.now(timezone.utc)
+        consumer._last_poll_time = datetime.now(UTC)
 
         is_healthy, reason = consumer.is_healthy(max_poll_age_seconds=60.0)
 
@@ -153,7 +153,7 @@ class TestApprovalRequestConsumerHealth:
         """Teste health check quando ultimo poll muito antigo"""
         from datetime import timedelta
 
-        consumer._last_poll_time = datetime.now(timezone.utc) - timedelta(seconds=120)
+        consumer._last_poll_time = datetime.now(UTC) - timedelta(seconds=120)
 
         is_healthy, reason = consumer.is_healthy(max_poll_age_seconds=60.0)
 
@@ -164,7 +164,7 @@ class TestApprovalRequestConsumerHealth:
 class TestApprovalRequestConsumerInit:
     """Testes para inicializacao do consumer"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     @patch("src.consumers.approval_request_consumer.Consumer")
     async def test_initialize_creates_consumer(self, mock_consumer_class, mock_settings):
         """Teste que initialize cria consumer Kafka"""
@@ -177,7 +177,7 @@ class TestApprovalRequestConsumerInit:
             [mock_settings.kafka_approval_requests_topic]
         )
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     @patch("src.consumers.approval_request_consumer.Consumer")
     async def test_initialize_with_security(self, mock_consumer_class, mock_settings):
         """Teste inicializacao com seguranca Kafka"""
@@ -197,7 +197,7 @@ class TestApprovalRequestConsumerInit:
 class TestApprovalRequestConsumerClose:
     """Testes para fechamento do consumer"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     @patch("src.consumers.approval_request_consumer.Consumer")
     async def test_close_stops_running(self, mock_consumer_class, mock_settings):
         """Teste que close para o consumer"""
@@ -214,7 +214,7 @@ class TestApprovalRequestConsumerClose:
 class TestApprovalRequestConsumerDuplicateHandling:
     """Testes para tratamento de duplicatas no consumer"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def consumer(self, mock_settings):
         """Cria instancia de ApprovalRequestConsumer para testes"""
         consumer = ApprovalRequestConsumer(mock_settings)
@@ -223,7 +223,7 @@ class TestApprovalRequestConsumerDuplicateHandling:
         consumer.running = True
         return consumer
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_duplicate_message_commits_and_skips(self, consumer, sample_cognitive_plan):
         """Teste que mensagem duplicada e commitada e pulada"""
         from pymongo.errors import DuplicateKeyError
@@ -261,7 +261,7 @@ class TestApprovalRequestConsumerDuplicateHandling:
 class TestApprovalRequestConsumerServiceHandoff:
     """Testes para handoff entre consumer e service"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def consumer(self, mock_settings):
         """Cria instancia de ApprovalRequestConsumer para testes"""
         consumer = ApprovalRequestConsumer(mock_settings)
@@ -270,7 +270,7 @@ class TestApprovalRequestConsumerServiceHandoff:
         consumer.running = True
         return consumer
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_callback_receives_approval_request_object(self, consumer, sample_cognitive_plan):
         """Teste que callback recebe ApprovalRequest e nao dict"""
         # Setup mock message

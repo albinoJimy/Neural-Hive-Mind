@@ -12,12 +12,12 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 # Importar métricas e wrapper
 from metrics.v3_metrics import (
-    v3_generation_duration,
-    v3_explanations_generated,
-    consensus_strength_gauge,
-    dominant_level_counter,
-    counterfactual_outcome_counter,
     V3Metrics,
+    consensus_strength_gauge,
+    counterfactual_outcome_counter,
+    dominant_level_counter,
+    v3_explanations_generated,
+    v3_generation_duration,
 )
 
 
@@ -328,11 +328,11 @@ class TestV3MetricsConstants:
             "quality_scorer",
             "reasoning_extractor",
         ]
-        assert V3Metrics.VALID_COMPONENTS == expected_components
+        assert expected_components == V3Metrics.VALID_COMPONENTS
 
     def test_valid_formats(self):
         """Testa lista de formatos válidos."""
-        assert V3Metrics.VALID_FORMATS == ["json", "text", "html"]
+        assert ["json", "text", "html"] == V3Metrics.VALID_FORMATS
 
     def test_valid_levels(self):
         """Testa lista de níveis válidos."""
@@ -344,7 +344,7 @@ class TestV3MetricsConstants:
             "expert",
             None,
         ]
-        assert V3Metrics.VALID_LEVELS == expected_levels
+        assert expected_levels == V3Metrics.VALID_LEVELS
 
     def test_valid_scenario_types(self):
         """Testa lista de tipos de cenário válidos."""
@@ -354,12 +354,12 @@ class TestV3MetricsConstants:
             "seniority_change",
             "vote_flip",
         ]
-        assert V3Metrics.VALID_SCENARIO_TYPES == expected_types
+        assert expected_types == V3Metrics.VALID_SCENARIO_TYPES
 
     def test_valid_outcomes(self):
         """Testa lista de outcomes válidos."""
-        assert V3Metrics.VALID_OUTCOMES == [
+        assert [
             "decision_changed",
             "decision_unchanged",
             "unknown",
-        ]
+        ] == V3Metrics.VALID_OUTCOMES

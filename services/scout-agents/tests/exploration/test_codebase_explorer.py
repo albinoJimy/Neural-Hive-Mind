@@ -6,9 +6,10 @@ Espec: @.agent-os/specs/2026-03-17-gaps-05-scout-agents/
 """
 
 import ast
-import pytest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
+
+import pytest
 
 # Import com skip automático se módulo não disponível
 CodebaseExplorer = pytest.importorskip("src.exploration.codebase_explorer").CodebaseExplorer
@@ -35,7 +36,7 @@ class TestCodebaseExplorerInitialization:
 class TestParsePythonAST:
     """Testes do método parse_python_ast."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def explorer(self):
         return CodebaseExplorer(root_path="/test/path")
 
@@ -123,7 +124,7 @@ def expensive_operation():
 class TestExtractDependencies:
     """Testes do método extract_dependencies."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def explorer(self):
         return CodebaseExplorer(root_path="/test/path")
 
@@ -165,7 +166,7 @@ from ..utils import helper
 class TestBuildDependencyGraph:
     """Testes do método build_dependency_graph."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def explorer(self):
         return CodebaseExplorer(root_path="/test/path")
 
@@ -207,7 +208,7 @@ class TestBuildDependencyGraph:
 class TestExploreDirectory:
     """Testes do método explore_directory."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def explorer(self):
         return CodebaseExplorer(root_path="/test/path")
 
@@ -258,7 +259,7 @@ class TestExploreDirectory:
 class TestCalculateComplexity:
     """Testes do método calculate_complexity."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def explorer(self):
         return CodebaseExplorer(root_path="/test/path")
 

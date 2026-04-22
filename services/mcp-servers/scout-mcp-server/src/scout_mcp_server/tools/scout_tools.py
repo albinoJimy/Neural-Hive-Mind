@@ -12,7 +12,6 @@ from pathlib import Path
 from typing import Any
 
 import structlog
-
 from scout_mcp_server.config import get_settings
 
 logger = structlog.get_logger(__name__)

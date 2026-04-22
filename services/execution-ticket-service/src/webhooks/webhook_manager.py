@@ -6,7 +6,7 @@ import asyncio
 import hashlib
 import hmac
 import time
-from typing import Dict, Optional
+from typing import Optional
 
 import aiohttp
 import structlog
@@ -22,7 +22,7 @@ logger = structlog.get_logger(__name__)
 tracer = get_tracer()
 
 
-def inject_context_to_headers(headers: Dict[str, str]) -> None:
+def inject_context_to_headers(headers: dict[str, str]) -> None:
     """
     Injeta contexto de trace OpenTelemetry em HTTP headers.
 

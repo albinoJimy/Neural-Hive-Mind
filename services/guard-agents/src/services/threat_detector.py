@@ -1,9 +1,9 @@
 """Threat detection service for identifying security anomalies (Fluxo E1)"""
 
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Dict, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 import structlog
 
@@ -36,7 +36,7 @@ class ThreatDetector:
         self.detection_rules = self._initialize_detection_rules()
         self.adaptive_thresholds = self._load_adaptive_thresholds()
 
-    def _initialize_detection_rules(self) -> Dict[str, Any]:
+    def _initialize_detection_rules(self) -> dict[str, Any]:
         """Carrega regras de detecção (podem vir de config ou ML model)"""
         return {
             "failed_auth_threshold": 5,
@@ -50,7 +50,7 @@ class ThreatDetector:
             "anomaly_score_threshold": 0.75,
         }
 
-    def _load_adaptive_thresholds(self) -> Dict[str, float]:
+    def _load_adaptive_thresholds(self) -> dict[str, float]:
         """Carrega limiares adaptativos conforme E1"""
         return {
             "cpu_usage": 0.85,
@@ -59,7 +59,7 @@ class ThreatDetector:
             "latency_p95": 500.0,  # ms
         }
 
-    async def detect_anomaly(self, event: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    async def detect_anomaly(self, event: dict[str, Any]) -> Optional[dict[str, Any]]:
         """
         Detecta anomalias em eventos (E1: Detectar anomalia)
 
@@ -108,8 +108,8 @@ class ThreatDetector:
             raise
 
     async def _detect_authentication_anomaly(
-        self, event: Dict[str, Any]
-    ) -> Optional[Dict[str, Any]]:
+        self, event: dict[str, Any]
+    ) -> Optional[dict[str, Any]]:
         """Detecta falhas de autenticação anômalas"""
         if event.get("type") != "authentication":
             return None
@@ -127,13 +127,13 @@ class ThreatDetector:
                     "failed_attempts": failed_count,
                     "source_ip": event.get("source_ip"),
                 },
-                "detected_at": datetime.now(timezone.utc).isoformat(),
+                "detected_at": datetime.now(UTC).isoformat(),
                 "raw_event": event,
             }
 
         return None
 
-    async def _detect_rate_anomaly(self, event: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    async def _detect_rate_anomaly(self, event: dict[str, Any]) -> Optional[dict[str, Any]]:
         """Detecta anomalias de taxa de requisições"""
         if event.get("type") != "request_metrics":
             return None
@@ -150,13 +150,13 @@ class ThreatDetector:
                     "threshold": self.detection_rules["request_rate_threshold"],
                     "source": event.get("source"),
                 },
-                "detected_at": datetime.now(timezone.utc).isoformat(),
+                "detected_at": datetime.now(UTC).isoformat(),
                 "raw_event": event,
             }
 
         return None
 
-    async def _detect_pattern_anomaly(self, event: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    async def _detect_pattern_anomaly(self, event: dict[str, Any]) -> Optional[dict[str, Any]]:
         """Detecta padrões maliciosos no payload"""
         import re
 
@@ -174,13 +174,13 @@ class ThreatDetector:
                         "matched_pattern": pattern,
                         "payload_snippet": payload[:200],
                     },
-                    "detected_at": datetime.now(timezone.utc).isoformat(),
+                    "detected_at": datetime.now(UTC).isoformat(),
                     "raw_event": event,
                 }
 
         return None
 
-    async def _detect_resource_anomaly(self, event: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    async def _detect_resource_anomaly(self, event: dict[str, Any]) -> Optional[dict[str, Any]]:
         """Detecta anomalias de uso de recursos (thresholds adaptativos)"""
         if event.get("type") != "resource_metrics":
             return None
@@ -200,7 +200,7 @@ class ThreatDetector:
                     "threshold": self.adaptive_thresholds["cpu_usage"],
                     "resource": event.get("resource_name"),
                 },
-                "detected_at": datetime.now(timezone.utc).isoformat(),
+                "detected_at": datetime.now(UTC).isoformat(),
                 "raw_event": event,
             }
 
@@ -217,13 +217,13 @@ class ThreatDetector:
                     "threshold": self.adaptive_thresholds["memory_usage"],
                     "resource": event.get("resource_name"),
                 },
-                "detected_at": datetime.now(timezone.utc).isoformat(),
+                "detected_at": datetime.now(UTC).isoformat(),
                 "raw_event": event,
             }
 
         return None
 
-    async def _detect_behavioral_anomaly(self, event: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    async def _detect_behavioral_anomaly(self, event: dict[str, Any]) -> Optional[dict[str, Any]]:
         """Detecta anomalias comportamentais usando ML"""
 
         # Se temos modelo ML, usar detecção avançada
@@ -261,7 +261,7 @@ class ThreatDetector:
                             "features": event.get("features", {}),
                             "inference_latency_ms": latency_seconds * 1000,
                         },
-                        "detected_at": datetime.now(timezone.utc).isoformat(),
+                        "detected_at": datetime.now(UTC).isoformat(),
                         "raw_event": event,
                     }
             except Exception as e:
@@ -281,13 +281,13 @@ class ThreatDetector:
                     "features": event.get("features", {}),
                     "detection_method": "heuristic",
                 },
-                "detected_at": datetime.now(timezone.utc).isoformat(),
+                "detected_at": datetime.now(UTC).isoformat(),
                 "raw_event": event,
             }
 
         return None
 
-    def _event_to_ticket(self, event: Dict[str, Any]) -> Dict[str, Any]:
+    def _event_to_ticket(self, event: dict[str, Any]) -> dict[str, Any]:
         """Converte evento de telemetria para formato de ticket"""
         return {
             "ticket_id": event.get("event_id", "unknown"),
@@ -296,7 +296,7 @@ class ThreatDetector:
             "capabilities": event.get("capabilities", []),
             "qos": event.get("qos", {}),
             "parameters": event.get("parameters", {}),
-            "timestamp": event.get("timestamp", datetime.now(timezone.utc).timestamp()),
+            "timestamp": event.get("timestamp", datetime.now(UTC).timestamp()),
             "estimated_duration_ms": event.get("estimated_duration_ms", 0),
             "sla_timeout_ms": event.get("sla_timeout_ms", 300000),
             "retry_count": event.get("retry_count", 0),
@@ -313,7 +313,7 @@ class ThreatDetector:
         else:
             return "low"
 
-    async def _cache_anomaly(self, anomaly: Dict[str, Any]):
+    async def _cache_anomaly(self, anomaly: dict[str, Any]):
         """Cacheia anomalia para acesso rápido"""
         if not self.redis:
             return
@@ -322,13 +322,13 @@ class ThreatDetector:
             import json
 
             anomaly_id = (
-                f"anomaly:{anomaly.get('threat_type')}:{datetime.now(timezone.utc).timestamp()}"
+                f"anomaly:{anomaly.get('threat_type')}:{datetime.now(UTC).timestamp()}"
             )
             await self.redis.set(anomaly_id, json.dumps(anomaly), ex=3600)  # 1 hora
         except Exception as e:
             logger.warning("threat_detector.cache_failed", error=str(e))
 
-    async def recalibrate_thresholds(self, metrics: Dict[str, float]):
+    async def recalibrate_thresholds(self, metrics: dict[str, float]):
         """Recalibra thresholds adaptativos (E1: recalibrar modelo)"""
         try:
             logger.info("threat_detector.recalibrating_thresholds", metrics=metrics)

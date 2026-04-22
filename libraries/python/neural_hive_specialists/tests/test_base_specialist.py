@@ -4,9 +4,10 @@ Testes unitários abrangentes para BaseSpecialist.
 Cobertura alvo: >90%
 """
 
-import pytest
 import json
-from unittest.mock import Mock, MagicMock, patch
+from unittest.mock import MagicMock, Mock, patch
+
+import pytest
 
 # Store patches para cleanup após o módulo
 _patches = []
@@ -93,7 +94,6 @@ from neural_hive_specialists.schemas import (
     PlanVersionIncompatibleError,
 )
 
-
 # ============================================================================
 # Specialist Concreto para Testes
 # ============================================================================
@@ -137,7 +137,7 @@ class HelperTestSpecialist(BaseSpecialist):
 # ============================================================================
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestBaseSpecialistInitialization:
     """Testes de inicialização do BaseSpecialist."""
 
@@ -188,11 +188,11 @@ class TestBaseSpecialistInitialization:
 # ============================================================================
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestDeserializePlan:
     """Testes de deserialização de plano cognitivo."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def specialist(self, mock_config, mocker):
         mocker.patch("neural_hive_specialists.base_specialist.MLflowClient")
         mocker.patch("neural_hive_specialists.base_specialist.LedgerClient")
@@ -286,11 +286,11 @@ class TestDeserializePlan:
 # ============================================================================
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestEvaluatePlan:
     """Testes do método evaluate_plan."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def specialist(self, mock_config, mock_ledger_client, mock_explainability_gen, mocker):
         mocker.patch("neural_hive_specialists.base_specialist.MLflowClient")
         mocker.patch("neural_hive_specialists.base_specialist.SpecialistMetrics")
@@ -450,11 +450,11 @@ class TestEvaluatePlan:
 # ============================================================================
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestValidateEvaluationResult:
     """Testes de validação do resultado de avaliação."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def specialist(self, mock_config, mocker):
         mocker.patch("neural_hive_specialists.base_specialist.MLflowClient")
         mocker.patch("neural_hive_specialists.base_specialist.LedgerClient")
@@ -537,11 +537,11 @@ class TestValidateEvaluationResult:
 # ============================================================================
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestHealthCheck:
     """Testes de health check."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def specialist(self, mock_config, mock_ledger_client, mocker):
         mocker.patch("neural_hive_specialists.base_specialist.MLflowClient")
         mocker.patch("neural_hive_specialists.base_specialist.ExplainabilityGenerator")
@@ -593,11 +593,11 @@ class TestHealthCheck:
 # ============================================================================
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestGetCapabilities:
     """Testes de obtenção de capacidades."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def specialist(self, mock_config, mocker):
         mocker.patch("neural_hive_specialists.base_specialist.MLflowClient")
         mocker.patch("neural_hive_specialists.base_specialist.LedgerClient")

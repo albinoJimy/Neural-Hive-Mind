@@ -98,7 +98,9 @@ class ExperimentRequest(BaseModel):
     rollback_on_failure: bool = Field(default=True, description="Rollback on failure")
     created_at: int = Field(..., description="Creation timestamp (Unix millis)")
     created_by: str = Field(..., description="Agent that created the experiment")
-    hypothesis_library_id: str | None = Field(None, description="ID da hipótese no hypothesis-library")
+    hypothesis_library_id: str | None = Field(
+        None, description="ID da hipótese no hypothesis-library"
+    )
     metadata: dict[str, str] = Field(default_factory=dict, description="Additional metadata")
 
     # Campos especificos para A/B Testing

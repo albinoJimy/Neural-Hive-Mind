@@ -1,22 +1,22 @@
 """Tests para o router de testes."""
 
+from unittest.mock import AsyncMock, patch
+
 import pytest
 from httpx import AsyncClient
-from unittest.mock import AsyncMock, patch
 from main import app
-from models.tests import TestType, TestFramework
 
 
 class TestTestsRouter:
     """Testes para o router de testes."""
 
-    @pytest.fixture
+    @pytest.fixture()
     async def client(self):
         """Cliente HTTP de teste."""
         async with AsyncClient(app=app, base_url="http://test") as ac:
             yield ac
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_generator(self):
         """Mock do gerador de testes."""
         with patch("api.routers.tests.TestGeneratorService") as mock:
@@ -132,7 +132,7 @@ class TestTestsRouter:
 class TestTestsRouterValidation:
     """Testes de validação do router."""
 
-    @pytest.fixture
+    @pytest.fixture()
     async def client(self):
         """Cliente HTTP de teste."""
         async with AsyncClient(app=app, base_url="http://test") as ac:

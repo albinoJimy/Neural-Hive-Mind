@@ -6,10 +6,10 @@ import numpy as np
 ROOT = Path(__file__).resolve().parents[3]
 sys.path.append(str(ROOT / "libraries" / "python"))
 
-from neural_hive_specialists.feature_extraction.ontology_mapper import (  # noqa: E402
+from neural_hive_domain import UnifiedDomain
+from neural_hive_specialists.feature_extraction.ontology_mapper import (
     OntologyMapper,
 )
-from neural_hive_domain import UnifiedDomain  # noqa: E402
 
 
 class DummyEmbeddingsGenerator:

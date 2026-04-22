@@ -26,9 +26,7 @@ class BasePipelineGenerator(ABC):
         Returns:
             GeneratedPipeline com conteúdo YAML gerado
         """
-        pass
 
     @abstractmethod
     def get_filename(self) -> str:
         """Retorna o nome padrão do arquivo para este tipo de pipeline."""
-        pass

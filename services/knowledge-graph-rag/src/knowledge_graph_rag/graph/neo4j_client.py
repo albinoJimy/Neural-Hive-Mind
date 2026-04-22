@@ -19,7 +19,7 @@ class Neo4jClient:
         uri: Optional[str] = None,
         user: Optional[str] = None,
         password: Optional[str] = None,
-        database: Optional[str] = None
+        database: Optional[str] = None,
     ):
         """Inicializa o cliente Neo4j.
 
@@ -37,10 +37,7 @@ class Neo4jClient:
 
     async def connect(self):
         """Estabelece conexão com Neo4j."""
-        self.driver = AsyncGraphDatabase.driver(
-            self.uri,
-            auth=(self.user, self.password)
-        )
+        self.driver = AsyncGraphDatabase.driver(self.uri, auth=(self.user, self.password))
         logger.info("neo4j_connected", uri=self.uri)
 
     async def close(self):
@@ -50,9 +47,7 @@ class Neo4jClient:
             logger.info("neo4j_closed")
 
     async def execute_query(
-        self,
-        query: str,
-        parameters: Dict[str, Any] = None
+        self, query: str, parameters: Dict[str, Any] = None
     ) -> List[Dict[str, Any]]:
         """Executa query Cypher.
 
@@ -69,9 +64,7 @@ class Neo4jClient:
             return [dict(record) for record in records]
 
     async def find_similar_architectures(
-        self,
-        requirements: List[str],
-        limit: int = 10
+        self, requirements: List[str], limit: int = 10
     ) -> List[Dict[str, Any]]:
         """Encontra arquiteturas similares baseado em requisitos.
 
@@ -95,20 +88,13 @@ class Neo4jClient:
         LIMIT $limit
         """
 
-        results = await self.execute_query(query, {
-            "requirements": requirements,
-            "limit": limit
-        })
+        results = await self.execute_query(query, {"requirements": requirements, "limit": limit})
 
         logger.info("similar_architectures_found", count=len(results))
 
         return results
 
-    async def get_connections_context(
-        self,
-        node_id: str,
-        depth: int = 2
-    ) -> List[Dict[str, Any]]:
+    async def get_connections_context(self, node_id: str, depth: int = 2) -> List[Dict[str, Any]]:
         """Obtém contexto de conexões de um nó.
 
         Args:
@@ -118,26 +104,24 @@ class Neo4jClient:
         Returns:
             Lista de conexões
         """
-        query = """
-        MATCH path = (n {id: $node_id})-[*1..""" + str(depth) + """]-(connected)
+        query = (
+            """
+        MATCH path = (n {id: $node_id})-[*1.."""
+            + str(depth)
+            + """]-(connected)
         RETURN n.id AS from_id,
                connected.id AS to_id,
                [(n)-[r]-(connected) | type(r)][0] AS connection_type,
                [(n)-[r]-(connected) | r.description][0] AS description
         LIMIT 100
         """
+        )
 
-        results = await self.execute_query(query, {
-            "node_id": node_id,
-            "depth": depth
-        })
+        results = await self.execute_query(query, {"node_id": node_id, "depth": depth})
 
         return results
 
-    async def get_component_templates(
-        self,
-        component_type: str
-    ) -> List[Dict[str, Any]]:
+    async def get_component_templates(self, component_type: str) -> List[Dict[str, Any]]:
         """Obtém templates para um tipo de componente.
 
         Args:
@@ -159,10 +143,7 @@ class Neo4jClient:
         return results
 
     async def create_architecture_node(
-        self,
-        plan_id: str,
-        architecture_type: str,
-        components: List[Dict[str, Any]]
+        self, plan_id: str, architecture_type: str, components: List[Dict[str, Any]]
     ) -> str:
         """Cria nó de arquitetura no grafo.
 
@@ -191,11 +172,10 @@ class Neo4jClient:
         RETURN a.plan_id AS plan_id
         """
 
-        await self.execute_query(query, {
-            "plan_id": plan_id,
-            "architecture_type": architecture_type,
-            "components": components
-        })
+        await self.execute_query(
+            query,
+            {"plan_id": plan_id, "architecture_type": architecture_type, "components": components},
+        )
 
         logger.info("architecture_node_created", plan_id=plan_id)
 

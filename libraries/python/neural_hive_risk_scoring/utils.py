@@ -3,6 +3,7 @@ Utility functions for neural_hive_risk_scoring
 """
 
 from typing import Union
+
 from neural_hive_domain import UnifiedDomain
 
 

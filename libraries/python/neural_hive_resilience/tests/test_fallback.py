@@ -1,13 +1,14 @@
 """Testes para módulo fallback."""
 
-import pytest
 import asyncio
 
+import pytest
+
 from neural_hive_resilience.fallback import (
+    ConditionalFallback,
     FallbackChain,
     FallbackConfig,
     FallbackStrategy,
-    ConditionalFallback,
     with_fallback,
 )
 
@@ -58,7 +59,7 @@ class TestFallbackConfig:
 class TestFallbackChain:
     """Testes para FallbackChain."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_primary_success(self):
         """Testa sucesso na função primária."""
         fallbacks = [
@@ -82,7 +83,7 @@ class TestFallbackChain:
         assert result.source == "primary"
         assert result.attempt == 0
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_first_fallback_success(self):
         """Testa sucesso no primeiro fallback."""
 
@@ -114,7 +115,7 @@ class TestFallbackChain:
         assert result.source == "cache"
         assert result.attempt == 1
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_second_fallback_success(self):
         """Testa sucesso no segundo fallback."""
 
@@ -146,7 +147,7 @@ class TestFallbackChain:
         assert result.source == "static"
         assert result.attempt == 2
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_all_fallbacks_failed(self):
         """Testa erro quando todos os fallbacks falham."""
 
@@ -176,7 +177,7 @@ class TestFallbackChain:
         assert exc_info.value.service == "test-service"
         assert len(exc_info.value.exceptions) == 3  # primary + 2 fallbacks
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_fallback_with_should_execute(self):
         """Testa fallback com condição should_execute."""
         call_count = {"primary": 0, "fallback1": 0}
@@ -212,7 +213,7 @@ class TestFallbackChain:
         assert result.result == "fallback1_value"
         assert call_count["fallback1"] == 1
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_fastest_strategy(self):
         """Testa estratégia fastest."""
         execution_delays = {
@@ -258,7 +259,7 @@ class TestFallbackChain:
 class TestConditionalFallback:
     """Testes para ConditionalFallback."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_condition_met(self):
         """Testa execução quando condição é atendida."""
 
@@ -281,7 +282,7 @@ class TestConditionalFallback:
         result = await conditional.execute(primary)
         assert result == "fallback_value"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_condition_not_met(self):
         """Testa erro quando condição não é atendida."""
 
@@ -308,7 +309,7 @@ class TestConditionalFallback:
 class TestFallbackDecorator:
     """Testes para decorator fallback."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_decorator_success(self):
         """Testa que decorator não interfere em sucesso."""
 
@@ -325,7 +326,7 @@ class TestFallbackDecorator:
         result = await primary_func()
         assert result == "primary"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_decorator_fallback_triggered(self):
         """Testa que fallback é executado em falha."""
 
@@ -342,7 +343,7 @@ class TestFallbackDecorator:
         result = await failing_func()
         assert result == "fallback_value"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_decorator_with_args(self):
         """Testa que fallback recebe argumentos corretamente."""
         received_args = None

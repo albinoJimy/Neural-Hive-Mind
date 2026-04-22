@@ -13,7 +13,7 @@ from typing import Any, Optional
 import structlog
 from fastapi import FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
-from prometheus_client import Counter, Histogram, generate_latest, CONTENT_TYPE_LATEST
+from prometheus_client import CONTENT_TYPE_LATEST, Counter, Histogram, generate_latest
 
 logger = structlog.get_logger(__name__)
 
@@ -145,12 +145,10 @@ class BaseMCPServer(ABC):
     @abstractmethod
     async def initialize(self) -> None:
         """Inicializa recursos do servidor. Deve ser implementado pelas subclasses."""
-        pass
 
     @abstractmethod
     async def cleanup(self) -> None:
         """Libera recursos do servidor. Deve ser implementado pelas subclasses."""
-        pass
 
 
 def record_request(method: str, status: str) -> None:

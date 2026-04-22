@@ -3,7 +3,7 @@ Consumer Kafka para alertas SLA e despacho para canais de notificação.
 """
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC
 from typing import Any
 
 import structlog
@@ -269,7 +269,7 @@ class SLAAlertConsumer:
         Returns:
             Lista de blocks Slack
         """
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         severity = alert_data.get("severity", "info").lower()
         emoji = self._get_emoji(severity)
@@ -287,11 +287,14 @@ class SLAAlertConsumer:
                 "type": "section",
                 "fields": [
                     {"type": "mrkdwn", "text": f"*Severity:*\n{severity.upper()}"},
-                    {"type": "mrkdwn", "text": f"*Service:*\n{alert_data.get('service_name', 'N/A')}"},
+                    {
+                        "type": "mrkdwn",
+                        "text": f"*Service:*\n{alert_data.get('service_name', 'N/A')}",
+                    },
                     {"type": "mrkdwn", "text": f"*SLO ID:*\n{alert_data.get('slo_id', 'N/A')}"},
                     {
                         "type": "mrkdwn",
-                        "text": f"*Triggered:*\n{datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')}",
+                        "text": f"*Triggered:*\n{datetime.now(UTC).strftime('%Y-%m-%d %H:%M:%S UTC')}",
                     },
                 ],
             },
@@ -321,9 +324,7 @@ class SLAAlertConsumer:
 
         # Adicionar detalhes se existirem
         if alert_data.get("details"):
-            details_text = "\n".join(
-                [f"• *{k}*: {v}" for k, v in alert_data["details"].items()]
-            )
+            details_text = "\n".join([f"• *{k}*: {v}" for k, v in alert_data["details"].items()])
             blocks.append(
                 {
                     "type": "section",

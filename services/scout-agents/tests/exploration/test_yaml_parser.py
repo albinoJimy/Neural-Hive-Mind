@@ -4,11 +4,10 @@ Parsing de YAML para análise de configurações.
 """
 
 import pytest
-
 from src.exploration.parsers.yaml_parser import YAMLParser
 
 
-@pytest.fixture
+@pytest.fixture()
 def yaml_parser():
     """Instância de YAMLParser para testes."""
     return YAMLParser()

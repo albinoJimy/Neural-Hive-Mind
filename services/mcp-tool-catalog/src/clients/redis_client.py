@@ -2,7 +2,7 @@
 
 import asyncio
 import json
-from typing import Dict, Optional
+from typing import Optional
 
 import structlog
 from redis.asyncio import Redis
@@ -90,7 +90,7 @@ class RedisClient:
         key = f"mcp:selection:{request_hash}"
         await self.client.setex(key, self.cache_ttl_seconds, json.dumps(response.to_avro()))
 
-    async def get_cached_selection(self, request_hash: str) -> Optional[Dict]:
+    async def get_cached_selection(self, request_hash: str) -> Optional[dict]:
         """Get cached selection."""
         key = f"mcp:selection:{request_hash}"
         cached = await self.client.get(key)

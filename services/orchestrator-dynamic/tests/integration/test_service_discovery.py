@@ -1,12 +1,11 @@
 """Testes de descoberta de serviços Fluxo G."""
 
 import pytest
-
 from src.clients.service_registry_client import ServiceRegistryClient
 from src.config.settings import get_settings
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_discover_requirements_engineering():
     """Testa descoberta do serviço requirements-engineering."""
     config = get_settings()
@@ -31,7 +30,7 @@ async def test_discover_requirements_engineering():
     await client.close()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_discover_documentation_generation():
     """Testa descoberta do serviço documentation-generation."""
     config = get_settings()
@@ -53,7 +52,7 @@ async def test_discover_documentation_generation():
     await client.close()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_discover_knowledge_graph_rag():
     """Testa descoberta do serviço knowledge-graph-rag."""
     config = get_settings()
@@ -75,7 +74,7 @@ async def test_discover_knowledge_graph_rag():
     await client.close()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_discover_approval_gateway():
     """Testa descoberta do serviço approval-gateway."""
     config = get_settings()
@@ -97,7 +96,7 @@ async def test_discover_approval_gateway():
     await client.close()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_discover_all_engineering_services():
     """Testa descoberta de todos os serviços de engenharia."""
     config = get_settings()
@@ -119,9 +118,7 @@ async def test_discover_all_engineering_services():
         "APPROVAL_GATEWAY",
     }
 
-    engineering_agents = [
-        a for a in agents if a.get("agent_type") in engineering_types
-    ]
+    engineering_agents = [a for a in agents if a.get("agent_type") in engineering_types]
 
     # Verificar tipos únicos encontrados
     found_types = {a.get("agent_type") for a in engineering_agents}

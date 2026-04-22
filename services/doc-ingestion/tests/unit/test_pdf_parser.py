@@ -68,9 +68,7 @@ class TestPDFParserExtractText:
         assert result == ""
 
     @pytest.mark.asyncio
-    async def test_extract_text_with_pdfplumber_success(
-        self, pdf_parser, sample_pdf_bytes
-    ):
+    async def test_extract_text_with_pdfplumber_success(self, pdf_parser, sample_pdf_bytes):
         """Testa extração bem-sucedida com pdfplumber."""
         with patch("src.services.parsers.pdf_parser.pdfplumber") as mock_pdfplumber:
             # Mock page
@@ -91,12 +89,12 @@ class TestPDFParserExtractText:
             assert result == "Sample PDF content"
 
     @pytest.mark.asyncio
-    async def test_extract_text_pdfplumber_fallback_to_pypdf2(
-        self, pdf_parser, sample_pdf_bytes
-    ):
+    async def test_extract_text_pdfplumber_fallback_to_pypdf2(self, pdf_parser, sample_pdf_bytes):
         """Testa fallback para PyPDF2 quando pdfplumber falha."""
-        with patch("src.services.parsers.pdf_parser.pdfplumber") as mock_pdfplumber, \
-             patch("src.services.parsers.pdf_parser.PyPDF2Reader") as mock_pypdf2:
+        with (
+            patch("src.services.parsers.pdf_parser.pdfplumber") as mock_pdfplumber,
+            patch("src.services.parsers.pdf_parser.PyPDF2Reader") as mock_pypdf2,
+        ):
             # pdfplumber raises exception
             mock_pdfplumber.open.side_effect = Exception("pdfplumber failed")
 
@@ -117,8 +115,10 @@ class TestPDFParserExtractText:
     @pytest.mark.asyncio
     async def test_extract_text_both_parsers_fail(self, pdf_parser, sample_pdf_bytes):
         """Testa retorno vazio quando ambos parsers falham."""
-        with patch("src.services.parsers.pdf_parser.pdfplumber") as mock_pdfplumber, \
-             patch("src.services.parsers.pdf_parser.PyPDF2Reader") as mock_pypdf2:
+        with (
+            patch("src.services.parsers.pdf_parser.pdfplumber") as mock_pdfplumber,
+            patch("src.services.parsers.pdf_parser.PyPDF2Reader") as mock_pypdf2,
+        ):
             # Ambos falham
             mock_pdfplumber.open.side_effect = Exception("Failed")
             mock_pypdf2.side_effect = Exception("Failed")
@@ -200,9 +200,7 @@ class TestPDFParserExtractMetadata:
         assert result == {}
 
     @pytest.mark.asyncio
-    async def test_extract_metadata_encrypted_pdf(
-        self, pdf_parser, encrypted_pdf_bytes
-    ):
+    async def test_extract_metadata_encrypted_pdf(self, pdf_parser, encrypted_pdf_bytes):
         """Testa metadados de PDF criptografado."""
         with patch("src.services.parsers.pdf_parser.PyPDF2Reader") as mock_reader_class:
             mock_reader = Mock()
@@ -233,9 +231,7 @@ class TestPDFParserExtractMetadata:
             assert "title" not in result
 
     @pytest.mark.asyncio
-    async def test_extract_metadata_extraction_error(
-        self, pdf_parser, sample_pdf_bytes
-    ):
+    async def test_extract_metadata_extraction_error(self, pdf_parser, sample_pdf_bytes):
         """Testa tratamento de erro na extração de metadados."""
         with patch("src.services.parsers.pdf_parser.PyPDF2Reader") as mock_reader_class:
             mock_reader_class.side_effect = Exception("Read error")

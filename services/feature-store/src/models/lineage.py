@@ -6,9 +6,9 @@ Define modelos Pydantic para rastreamento de origem e transformações de featur
 
 import hashlib
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from pydantic.functional_serializers import field_serializer
@@ -64,8 +64,8 @@ class LineageMetadata(BaseModel):
     computation_node: Optional[str] = Field(None, description="Nó que realizou a computação")
     cache_key: Optional[str] = Field(None, description="Chave de cache utilizada")
     feature_version: Optional[str] = Field(None, description="Versão da feature")
-    tags: List[str] = Field(default_factory=list, description="Tags para categorização")
-    custom_metadata: Dict[str, Any] = Field(
+    tags: list[str] = Field(default_factory=list, description="Tags para categorização")
+    custom_metadata: dict[str, Any] = Field(
         default_factory=dict, description="Metadados customizados"
     )
 
@@ -87,10 +87,10 @@ class FeatureLineage(BaseModel):
 
     # Origem
     source_type: SourceType = Field(..., description="Tipo de origem da feature")
-    source_plan_ids: List[str] = Field(
+    source_plan_ids: list[str] = Field(
         default_factory=list, description="IDs dos planos originais (para features derivadas)"
     )
-    data_sources: List[str] = Field(
+    data_sources: list[str] = Field(
         default_factory=list, description="Fontes de dados (mongodb, neo4j, redis, etc.)"
     )
 
@@ -106,16 +106,16 @@ class FeatureLineage(BaseModel):
     )
 
     # Dependências
-    feature_dependencies: List[str] = Field(
+    feature_dependencies: list[str] = Field(
         default_factory=list, description="IDs de features que esta feature depende"
     )
-    parent_lineage_ids: List[str] = Field(
+    parent_lineage_ids: list[str] = Field(
         default_factory=list, description="IDs de lineage dos pais (para features derivadas)"
     )
 
     # Auditoria
     created_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc),
+        default_factory=lambda: datetime.now(UTC),
         description="Timestamp de criação do lineage",
     )
     created_by: str = Field(
@@ -127,7 +127,7 @@ class FeatureLineage(BaseModel):
     )
 
     # Metadados de transformação
-    transformation_metadata: Dict[str, Any] = Field(
+    transformation_metadata: dict[str, Any] = Field(
         default_factory=dict, description="Metadados específicos da transformação"
     )
 
@@ -146,7 +146,7 @@ class FeatureLineage(BaseModel):
 
     def mark_modified(self) -> None:
         """Marca o lineage como modificado"""
-        self.modified_at = datetime.now(timezone.utc)
+        self.modified_at = datetime.now(UTC)
         self.modified_count += 1
 
     def add_dependency(self, feature_id: str) -> None:
@@ -184,10 +184,10 @@ class LineageTree(BaseModel):
 
     feature_id: str = Field(..., description="ID da feature raiz")
     lineage: Optional[FeatureLineage] = Field(None, description="Metadados de lineage da feature")
-    upstream: Dict[str, List[Dict[str, Any]]] = Field(
+    upstream: dict[str, list[dict[str, Any]]] = Field(
         default_factory=dict, description="Features upstream (fontes) por nível de profundidade"
     )
-    downstream: Dict[str, List[Dict[str, Any]]] = Field(
+    downstream: dict[str, list[dict[str, Any]]] = Field(
         default_factory=dict,
         description="Features downstream (derivadas) por nível de profundidade",
     )
@@ -208,10 +208,10 @@ class LineageImpact(BaseModel):
     total_downstream: int = Field(
         default=0, ge=0, description="Total de features downstream afetadas"
     )
-    affected_plans: List[str] = Field(
+    affected_plans: list[str] = Field(
         default_factory=list, description="IDs dos planos cognitivos afetados"
     )
-    critical_path: List[str] = Field(
+    critical_path: list[str] = Field(
         default_factory=list, description="Caminho crítico de dependências"
     )
     impact_score: float = Field(
@@ -238,10 +238,10 @@ class LineageIntegrityReport(BaseModel):
     valid: bool = Field(
         default=True, description="Indica se o lineage é válido (todas as checagens passaram)"
     )
-    errors: List[str] = Field(default_factory=list, description="Lista de erros encontrados")
-    warnings: List[str] = Field(default_factory=list, description="Lista de avisos")
+    errors: list[str] = Field(default_factory=list, description="Lista de erros encontrados")
+    warnings: list[str] = Field(default_factory=list, description="Lista de avisos")
     validation_timestamp: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc), description="Timestamp da validação"
+        default_factory=lambda: datetime.now(UTC), description="Timestamp da validação"
     )
 
 

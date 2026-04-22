@@ -4,10 +4,11 @@ Pytest configuration para testes E2E Vault+SPIFFE.
 Este arquivo configura hooks e fixtures globais para os testes E2E.
 """
 
+import asyncio
 import os
 import sys
+
 import pytest
-import asyncio
 
 # Adicionar paths ao Python path
 TESTS_DIR = os.path.dirname(os.path.abspath(__file__))

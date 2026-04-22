@@ -13,14 +13,13 @@ from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
-
 # ===== TESTES DA FERRAMENTA validate_security =====
 
 
 class TestValidateSecurity:
     """Testes da ferramenta validate_security."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_validate_security_approved_no_violations(self, mock_ticket):
         """
         DADO: Um ticket válido com todas as políticas satisfeitas
@@ -64,7 +63,7 @@ class TestValidateSecurity:
         assert result["risk_assessment"]["risk_score"] == 0.0
         assert result["approval_required"] is False
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_validate_security_rejected_critical_violations(self, mock_ticket):
         """
         DADO: Um ticket com violações CRITICAL
@@ -112,7 +111,7 @@ class TestValidateSecurity:
         assert len(result["violations"]) > 0
         assert result["risk_assessment"]["risk_score"] >= 0.8
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_validate_security_missing_required_field(self):
         """
         DADO: Uma chamada sem ticket_id
@@ -135,7 +134,7 @@ class TestValidateSecurity:
 class TestScanVulnerabilities:
     """Testes da ferramenta scan_vulnerabilities."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_scan_vulnerabilities_with_vulnerabilities_found(self, mock_vulnerability_report):
         """
         DADO: Uma imagem de container com vulnerabilidades
@@ -159,7 +158,7 @@ class TestScanVulnerabilities:
         assert len(result["vulnerabilities"]) == 2
         assert any(v["severity"] == "HIGH" for v in result["vulnerabilities"])
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_scan_vulnerabilities_no_vulnerabilities(self):
         """
         DADO: Uma imagem de container sem vulnerabilidades
@@ -188,7 +187,7 @@ class TestScanVulnerabilities:
         assert result["target"] == "alpine:latest"
         assert len(result["vulnerabilities"]) == 0
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_scan_vulnerabilities_invalid_scan_type(self):
         """
         DADO: Um tipo de scan inválido
@@ -207,7 +206,7 @@ class TestScanVulnerabilities:
 class TestDetectThreats:
     """Testes da ferramenta detect_threats."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_detect_threats_anomaly_detected(self, mock_event):
         """
         DADO: Um evento com falhas de autenticação anômalas
@@ -247,7 +246,7 @@ class TestDetectThreats:
         assert result["severity"] == "high"
         assert result["confidence"] >= 0.8
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_detect_threats_no_threat_found(self, mock_event):
         """
         DADO: Um evento normal sem anomalias
@@ -286,7 +285,7 @@ class TestDetectThreats:
 class TestCheckCompliance:
     """Testes da ferramenta check_compliance."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_check_compliance_all_compliant(self):
         """
         DADO: Um ticket com todas as compliance requirements satisfeitas
@@ -321,7 +320,7 @@ class TestCheckCompliance:
         assert result["breaches"] == []
         assert len(result["regulations_checked"]) >= 2
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_check_compliance_breaches_detected(self):
         """
         DADO: Um ticket com violações de compliance
@@ -369,7 +368,7 @@ class TestCheckCompliance:
 class TestRemediateIssue:
     """Testes da ferramenta remediate_issue."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_remediate_issue_successful(self):
         """
         DADO: Uma violação que pode ser automaticamente remediada
@@ -408,7 +407,7 @@ class TestRemediateIssue:
         assert result["issue_resolved"] is True
         assert "remediation_id" in result
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_remediate_issue_invalid_remediation_type(self):
         """
         DADO: Um tipo de remediação inválido
@@ -424,7 +423,7 @@ class TestRemediateIssue:
                 parameters={},
             )
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_remediate_issue_manual_intervention_required(self):
         """
         DADO: Uma violação que requer intervenção manual
@@ -526,7 +525,7 @@ class TestGuardMCPServerIntegration:
 class TestValidateSecurityEdgeCases:
     """Testes de edge cases para validate_security."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_validate_security_all_environments(self):
         """
         DADO: Todos os ambientes válidos
@@ -568,7 +567,7 @@ class TestValidateSecurityEdgeCases:
 
                 assert result["validation_status"] == "approved"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_validate_security_all_security_levels(self):
         """
         DADO: Todos os níveis de segurança válidos
@@ -615,7 +614,7 @@ class TestValidateSecurityEdgeCases:
 class TestScanVulnerabilitiesEdgeCases:
     """Testes de edge cases para scan_vulnerabilities."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_scan_vulnerabilities_all_scan_types(self):
         """
         DADO: Todos os tipos de scan válidos
@@ -650,7 +649,7 @@ class TestScanVulnerabilitiesEdgeCases:
 class TestRemediateIssueEdgeCases:
     """Testes de edge cases para remediate_issue."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_remediate_issue_all_remediation_types(self):
         """
         DADO: Todos os tipos de remediação válidos

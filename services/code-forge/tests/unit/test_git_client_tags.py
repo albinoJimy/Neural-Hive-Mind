@@ -7,14 +7,15 @@ Cobertura:
 - Obter tag atualmente ativa (get_current_tag)
 """
 
-import pytest
 from unittest.mock import Mock
+
+import pytest
 
 
 class TestGitClientListTags:
     """Testes de listagem de tags do repositório de templates."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_list_tags_empty_repo(self):
         """Deve retornar lista vazia quando repositório não tem tags."""
         from src.clients.git_client import GitClient
@@ -37,7 +38,7 @@ class TestGitClientListTags:
         assert tags == []
         mock_repo.remotes.origin.fetch.assert_called_once_with("tags --prune-tags")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_list_tags_multiple_versions(self):
         """Deve listar todas as tags disponíveis em ordem descendente."""
         from src.clients.git_client import GitClient
@@ -79,7 +80,7 @@ class TestGitClientListTags:
 class TestGitClientCheckoutTag:
     """Testes de checkout de tags específicas."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_checkout_tag_success(self):
         """Deve fazer checkout de tag com sucesso."""
         from src.clients.git_client import GitClient
@@ -106,7 +107,7 @@ class TestGitClientCheckoutTag:
         assert result is True
         mock_repo.git.checkout.assert_called_once_with("v1.5.0")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_checkout_tag_not_found(self):
         """Deve retornar False quando tag não existe."""
         from src.clients.git_client import GitClient
@@ -127,7 +128,7 @@ class TestGitClientCheckoutTag:
 
         assert result is False
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_checkout_tag_without_repo(self):
         """Deve lançar erro quando repo não foi clonado."""
         from src.clients.git_client import GitClient
@@ -148,7 +149,7 @@ class TestGitClientCheckoutTag:
 class TestGitClientGetCurrentTag:
     """Testes de obtenção da tag atual."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_current_tag_on_tag(self):
         """Deve retornar nome da tag quando HEAD está em uma tag."""
         from src.clients.git_client import GitClient
@@ -175,7 +176,7 @@ class TestGitClientGetCurrentTag:
 
         assert current_tag == "v1.5.0"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_current_tag_on_branch(self):
         """Deve retornar None quando HEAD não está em uma tag."""
         from src.clients.git_client import GitClient
@@ -206,7 +207,7 @@ class TestGitClientGetCurrentTag:
 class TestGitClientTagIntegration:
     """Testes de integração de versionamento de templates."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_full_tag_workflow(self):
         """Deve listar, fazer checkout e verificar tag atual."""
         from src.clients.git_client import GitClient

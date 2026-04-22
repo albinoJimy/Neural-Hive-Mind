@@ -5,15 +5,16 @@ Testa processamento de aprovações/rejeições, atualização de ledger,
 publicação de planos aprovados e métricas.
 """
 
+from datetime import UTC, datetime, timedelta
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
-from datetime import datetime, timezone, timedelta
-from unittest.mock import MagicMock, AsyncMock, patch
 
 
 class TestApprovalProcessorApproved:
     """Testes para processamento de planos aprovados"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def mongodb_client(self):
         """Mock MongoDB client"""
         client = MagicMock()
@@ -22,14 +23,14 @@ class TestApprovalProcessorApproved:
         client.revert_plan_approval_status = AsyncMock(return_value=True)
         return client
 
-    @pytest.fixture
+    @pytest.fixture()
     def plan_producer(self):
         """Mock plan producer"""
         producer = MagicMock()
         producer.send_plan = AsyncMock()
         return producer
 
-    @pytest.fixture
+    @pytest.fixture()
     def metrics(self):
         """Mock metrics"""
         m = MagicMock()
@@ -42,20 +43,20 @@ class TestApprovalProcessorApproved:
         m.increment_approval_dlq_messages = MagicMock()
         return m
 
-    @pytest.fixture
+    @pytest.fixture()
     def processor(self, mongodb_client, plan_producer, metrics):
         """Create ApprovalProcessor instance"""
         from src.services.approval_processor import ApprovalProcessor
 
         return ApprovalProcessor(mongodb_client, plan_producer, metrics)
 
-    @pytest.fixture
+    @pytest.fixture()
     def sample_ledger_entry(self):
         """Entrada de ledger de exemplo"""
         return {
             "plan_id": "plan-123",
             "intent_id": "intent-456",
-            "timestamp": datetime.now(timezone.utc) - timedelta(hours=1),
+            "timestamp": datetime.now(UTC) - timedelta(hours=1),
             "plan_data": {
                 "plan_id": "plan-123",
                 "intent_id": "intent-456",
@@ -75,7 +76,7 @@ class TestApprovalProcessorApproved:
             },
         }
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_process_approved_plan_updates_ledger(
         self, processor, mongodb_client, sample_ledger_entry
     ):
@@ -87,7 +88,7 @@ class TestApprovalProcessorApproved:
             "intent_id": "intent-456",
             "decision": "approved",
             "approved_by": "admin@example.com",
-            "approved_at": int(datetime.now(timezone.utc).timestamp() * 1000),
+            "approved_at": int(datetime.now(UTC).timestamp() * 1000),
         }
 
         await processor.process_approval_response(approval_response, {})
@@ -103,7 +104,7 @@ class TestApprovalProcessorApproved:
         assert calls[1].kwargs["plan_id"] == "plan-123"
         assert calls[1].kwargs["saga_state"] == "completed"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_process_approved_plan_publishes_to_kafka(
         self, processor, mongodb_client, plan_producer, sample_ledger_entry
     ):
@@ -115,14 +116,14 @@ class TestApprovalProcessorApproved:
             "intent_id": "intent-456",
             "decision": "approved",
             "approved_by": "admin@example.com",
-            "approved_at": int(datetime.now(timezone.utc).timestamp() * 1000),
+            "approved_at": int(datetime.now(UTC).timestamp() * 1000),
         }
 
         await processor.process_approval_response(approval_response, {})
 
         plan_producer.send_plan.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_process_approved_plan_records_metrics(
         self, processor, mongodb_client, metrics, sample_ledger_entry
     ):
@@ -134,7 +135,7 @@ class TestApprovalProcessorApproved:
             "intent_id": "intent-456",
             "decision": "approved",
             "approved_by": "admin@example.com",
-            "approved_at": int(datetime.now(timezone.utc).timestamp() * 1000),
+            "approved_at": int(datetime.now(UTC).timestamp() * 1000),
         }
 
         await processor.process_approval_response(approval_response, {})
@@ -148,7 +149,7 @@ class TestApprovalProcessorApproved:
 class TestApprovalProcessorRejected:
     """Testes para processamento de planos rejeitados"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def mongodb_client(self):
         """Mock MongoDB client"""
         client = MagicMock()
@@ -156,14 +157,14 @@ class TestApprovalProcessorRejected:
         client.update_plan_approval_status = AsyncMock(return_value=True)
         return client
 
-    @pytest.fixture
+    @pytest.fixture()
     def plan_producer(self):
         """Mock plan producer"""
         producer = MagicMock()
         producer.send_plan = AsyncMock()
         return producer
 
-    @pytest.fixture
+    @pytest.fixture()
     def metrics(self):
         """Mock metrics"""
         m = MagicMock()
@@ -173,20 +174,20 @@ class TestApprovalProcessorRejected:
         m.increment_approval_ledger_error = MagicMock()
         return m
 
-    @pytest.fixture
+    @pytest.fixture()
     def processor(self, mongodb_client, plan_producer, metrics):
         """Create ApprovalProcessor instance"""
         from src.services.approval_processor import ApprovalProcessor
 
         return ApprovalProcessor(mongodb_client, plan_producer, metrics)
 
-    @pytest.fixture
+    @pytest.fixture()
     def sample_ledger_entry(self):
         """Entrada de ledger de exemplo"""
         return {
             "plan_id": "plan-789",
             "intent_id": "intent-abc",
-            "timestamp": datetime.now(timezone.utc) - timedelta(minutes=30),
+            "timestamp": datetime.now(UTC) - timedelta(minutes=30),
             "plan_data": {
                 "plan_id": "plan-789",
                 "approval_status": "pending",
@@ -195,7 +196,7 @@ class TestApprovalProcessorRejected:
             },
         }
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_process_rejected_plan_updates_ledger(
         self, processor, mongodb_client, sample_ledger_entry
     ):
@@ -207,7 +208,7 @@ class TestApprovalProcessorRejected:
             "intent_id": "intent-abc",
             "decision": "rejected",
             "approved_by": "security@example.com",
-            "approved_at": int(datetime.now(timezone.utc).timestamp() * 1000),
+            "approved_at": int(datetime.now(UTC).timestamp() * 1000),
             "rejection_reason": "Operação muito arriscada para produção",
         }
 
@@ -219,7 +220,7 @@ class TestApprovalProcessorRejected:
         assert call_args.kwargs["approval_status"] == "rejected"
         assert call_args.kwargs["rejection_reason"] == "Operação muito arriscada para produção"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_process_rejected_plan_does_not_publish(
         self, processor, mongodb_client, plan_producer, sample_ledger_entry
     ):
@@ -231,7 +232,7 @@ class TestApprovalProcessorRejected:
             "intent_id": "intent-abc",
             "decision": "rejected",
             "approved_by": "security@example.com",
-            "approved_at": int(datetime.now(timezone.utc).timestamp() * 1000),
+            "approved_at": int(datetime.now(UTC).timestamp() * 1000),
             "rejection_reason": "Risco muito alto",
         }
 
@@ -239,7 +240,7 @@ class TestApprovalProcessorRejected:
 
         plan_producer.send_plan.assert_not_called()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_process_rejected_plan_records_metrics(
         self, processor, mongodb_client, metrics, sample_ledger_entry
     ):
@@ -251,7 +252,7 @@ class TestApprovalProcessorRejected:
             "intent_id": "intent-abc",
             "decision": "rejected",
             "approved_by": "security@example.com",
-            "approved_at": int(datetime.now(timezone.utc).timestamp() * 1000),
+            "approved_at": int(datetime.now(UTC).timestamp() * 1000),
         }
 
         await processor.process_approval_response(approval_response, {})
@@ -264,7 +265,7 @@ class TestApprovalProcessorRejected:
 class TestApprovalProcessorIdempotency:
     """Testes para idempotência do processamento"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def mongodb_client(self):
         """Mock MongoDB client"""
         client = MagicMock()
@@ -272,14 +273,14 @@ class TestApprovalProcessorIdempotency:
         client.update_plan_approval_status = AsyncMock(return_value=True)
         return client
 
-    @pytest.fixture
+    @pytest.fixture()
     def plan_producer(self):
         """Mock plan producer"""
         producer = MagicMock()
         producer.send_plan = AsyncMock()
         return producer
 
-    @pytest.fixture
+    @pytest.fixture()
     def metrics(self):
         """Mock metrics"""
         m = MagicMock()
@@ -289,14 +290,14 @@ class TestApprovalProcessorIdempotency:
         m.increment_approval_ledger_error = MagicMock()
         return m
 
-    @pytest.fixture
+    @pytest.fixture()
     def processor(self, mongodb_client, plan_producer, metrics):
         """Create ApprovalProcessor instance"""
         from src.services.approval_processor import ApprovalProcessor
 
         return ApprovalProcessor(mongodb_client, plan_producer, metrics)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_already_approved_plan_is_skipped(self, processor, mongodb_client, plan_producer):
         """Plano já aprovado com saga_state='completed' deve ser ignorado"""
         ledger_entry = {
@@ -313,7 +314,7 @@ class TestApprovalProcessorIdempotency:
             "intent_id": "intent-x",
             "decision": "approved",
             "approved_by": "admin",
-            "approved_at": int(datetime.now(timezone.utc).timestamp() * 1000),
+            "approved_at": int(datetime.now(UTC).timestamp() * 1000),
         }
 
         await processor.process_approval_response(approval_response, {})
@@ -322,7 +323,7 @@ class TestApprovalProcessorIdempotency:
         mongodb_client.update_plan_approval_status.assert_not_called()
         plan_producer.send_plan.assert_not_called()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_already_rejected_plan_is_skipped(self, processor, mongodb_client, plan_producer):
         """Plano já rejeitado deve ser ignorado"""
         ledger_entry = {
@@ -336,7 +337,7 @@ class TestApprovalProcessorIdempotency:
             "intent_id": "intent-x",
             "decision": "approved",
             "approved_by": "admin",
-            "approved_at": int(datetime.now(timezone.utc).timestamp() * 1000),
+            "approved_at": int(datetime.now(UTC).timestamp() * 1000),
         }
 
         await processor.process_approval_response(approval_response, {})
@@ -348,7 +349,7 @@ class TestApprovalProcessorIdempotency:
 class TestApprovalProcessorErrorHandling:
     """Testes para tratamento de erros"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def mongodb_client(self):
         """Mock MongoDB client"""
         client = MagicMock()
@@ -357,14 +358,14 @@ class TestApprovalProcessorErrorHandling:
         client.revert_plan_approval_status = AsyncMock(return_value=True)
         return client
 
-    @pytest.fixture
+    @pytest.fixture()
     def plan_producer(self):
         """Mock plan producer"""
         producer = MagicMock()
         producer.send_plan = AsyncMock()
         return producer
 
-    @pytest.fixture
+    @pytest.fixture()
     def metrics(self):
         """Mock metrics"""
         m = MagicMock()
@@ -377,14 +378,14 @@ class TestApprovalProcessorErrorHandling:
         m.increment_approval_dlq_messages = MagicMock()
         return m
 
-    @pytest.fixture
+    @pytest.fixture()
     def processor(self, mongodb_client, plan_producer, metrics):
         """Create ApprovalProcessor instance"""
         from src.services.approval_processor import ApprovalProcessor
 
         return ApprovalProcessor(mongodb_client, plan_producer, metrics)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_plan_not_found_in_ledger(self, processor, mongodb_client, metrics):
         """Plano não encontrado deve ser ignorado e registrar erro"""
         mongodb_client.query_ledger.return_value = None
@@ -394,7 +395,7 @@ class TestApprovalProcessorErrorHandling:
             "intent_id": "intent-x",
             "decision": "approved",
             "approved_by": "admin",
-            "approved_at": int(datetime.now(timezone.utc).timestamp() * 1000),
+            "approved_at": int(datetime.now(UTC).timestamp() * 1000),
         }
 
         # Não deve lançar exceção
@@ -402,7 +403,7 @@ class TestApprovalProcessorErrorHandling:
 
         metrics.increment_approval_ledger_error.assert_called_once_with("plan_not_found")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_missing_required_fields(self, processor, mongodb_client):
         """Campos obrigatórios ausentes devem ser ignorados"""
         approval_response = {"plan_id": None, "decision": None}  # Inválido  # Inválido
@@ -412,13 +413,13 @@ class TestApprovalProcessorErrorHandling:
 
         mongodb_client.query_ledger.assert_not_called()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_ledger_update_failure_raises(self, processor, mongodb_client, metrics):
         """Falha ao atualizar ledger na saga deve propagar exceção"""
         ledger_entry = {
             "plan_id": "plan-123",
             "intent_id": "intent-x",
-            "timestamp": datetime.now(timezone.utc),
+            "timestamp": datetime.now(UTC),
             "plan_data": {
                 "plan_id": "plan-123",
                 "intent_id": "intent-x",
@@ -446,7 +447,7 @@ class TestApprovalProcessorErrorHandling:
             "intent_id": "intent-x",
             "decision": "approved",
             "approved_by": "admin",
-            "approved_at": int(datetime.now(timezone.utc).timestamp() * 1000),
+            "approved_at": int(datetime.now(UTC).timestamp() * 1000),
         }
 
         with pytest.raises(RuntimeError):
@@ -456,7 +457,7 @@ class TestApprovalProcessorErrorHandling:
 class TestApprovalProcessorTimeToDecision:
     """Testes para cálculo de tempo até decisão"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def mongodb_client(self):
         """Mock MongoDB client"""
         client = MagicMock()
@@ -465,14 +466,14 @@ class TestApprovalProcessorTimeToDecision:
         client.revert_plan_approval_status = AsyncMock(return_value=True)
         return client
 
-    @pytest.fixture
+    @pytest.fixture()
     def plan_producer(self):
         """Mock plan producer"""
         producer = MagicMock()
         producer.send_plan = AsyncMock()
         return producer
 
-    @pytest.fixture
+    @pytest.fixture()
     def metrics(self):
         """Mock metrics"""
         m = MagicMock()
@@ -485,14 +486,14 @@ class TestApprovalProcessorTimeToDecision:
         m.increment_approval_dlq_messages = MagicMock()
         return m
 
-    @pytest.fixture
+    @pytest.fixture()
     def processor(self, mongodb_client, plan_producer, metrics):
         """Create ApprovalProcessor instance"""
         from src.services.approval_processor import ApprovalProcessor
 
         return ApprovalProcessor(mongodb_client, plan_producer, metrics)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_time_to_decision_calculated(self, processor, mongodb_client, metrics):
         """Tempo até decisão deve ser calculado e registrado"""
         # Usar timestamp fixo para controlar o cálculo
@@ -547,7 +548,7 @@ class TestApprovalProcessorTimeToDecision:
 class TestApprovalProcessorRetry:
     """Testes para mecanismo de retry na republicação de planos aprovados"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def mongodb_client(self):
         """Mock MongoDB client"""
         client = MagicMock()
@@ -556,14 +557,14 @@ class TestApprovalProcessorRetry:
         client.revert_plan_approval_status = AsyncMock(return_value=True)
         return client
 
-    @pytest.fixture
+    @pytest.fixture()
     def plan_producer(self):
         """Mock plan producer"""
         producer = MagicMock()
         producer.send_plan = AsyncMock()
         return producer
 
-    @pytest.fixture
+    @pytest.fixture()
     def metrics(self):
         """Mock metrics"""
         m = MagicMock()
@@ -576,20 +577,20 @@ class TestApprovalProcessorRetry:
         m.increment_approval_dlq_messages = MagicMock()
         return m
 
-    @pytest.fixture
+    @pytest.fixture()
     def processor(self, mongodb_client, plan_producer, metrics):
         """Create ApprovalProcessor instance"""
         from src.services.approval_processor import ApprovalProcessor
 
         return ApprovalProcessor(mongodb_client, plan_producer, metrics)
 
-    @pytest.fixture
+    @pytest.fixture()
     def sample_ledger_entry(self):
         """Entrada de ledger de exemplo com dados completos"""
         return {
             "plan_id": "plan-retry-123",
             "intent_id": "intent-retry-456",
-            "timestamp": datetime.now(timezone.utc) - timedelta(hours=1),
+            "timestamp": datetime.now(UTC) - timedelta(hours=1),
             "plan_data": {
                 "plan_id": "plan-retry-123",
                 "intent_id": "intent-retry-456",
@@ -609,7 +610,7 @@ class TestApprovalProcessorRetry:
             },
         }
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_republish_succeeds_on_first_attempt(
         self, processor, mongodb_client, plan_producer, metrics, sample_ledger_entry
     ):
@@ -621,7 +622,7 @@ class TestApprovalProcessorRetry:
             "intent_id": "intent-retry-456",
             "decision": "approved",
             "approved_by": "admin@example.com",
-            "approved_at": int(datetime.now(timezone.utc).timestamp() * 1000),
+            "approved_at": int(datetime.now(UTC).timestamp() * 1000),
         }
 
         await processor.process_approval_response(approval_response, {})
@@ -629,7 +630,7 @@ class TestApprovalProcessorRetry:
         plan_producer.send_plan.assert_called_once()
         metrics.increment_approval_ledger_error.assert_not_called()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_republish_succeeds_after_transient_failure(
         self, processor, mongodb_client, plan_producer, metrics, sample_ledger_entry
     ):
@@ -648,7 +649,7 @@ class TestApprovalProcessorRetry:
             "intent_id": "intent-retry-456",
             "decision": "approved",
             "approved_by": "admin@example.com",
-            "approved_at": int(datetime.now(timezone.utc).timestamp() * 1000),
+            "approved_at": int(datetime.now(UTC).timestamp() * 1000),
         }
 
         # Patch para acelerar os testes (sem esperar backoff real)
@@ -664,7 +665,7 @@ class TestApprovalProcessorRetry:
             for call in metrics.increment_approval_ledger_error.call_args_list
         )
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_republish_fails_after_max_retries(
         self, processor, mongodb_client, plan_producer, metrics, sample_ledger_entry
     ):
@@ -679,7 +680,7 @@ class TestApprovalProcessorRetry:
             "intent_id": "intent-retry-456",
             "decision": "approved",
             "approved_by": "admin@example.com",
-            "approved_at": int(datetime.now(timezone.utc).timestamp() * 1000),
+            "approved_at": int(datetime.now(UTC).timestamp() * 1000),
         }
 
         # Patch para acelerar os testes (sem esperar backoff real)
@@ -694,7 +695,7 @@ class TestApprovalProcessorRetry:
             reason="kafka_publish_failed", risk_band="high"
         )
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_retry_preserves_plan_data(
         self, processor, mongodb_client, plan_producer, metrics, sample_ledger_entry
     ):
@@ -716,7 +717,7 @@ class TestApprovalProcessorRetry:
             "intent_id": "intent-retry-456",
             "decision": "approved",
             "approved_by": "admin@example.com",
-            "approved_at": int(datetime.now(timezone.utc).timestamp() * 1000),
+            "approved_at": int(datetime.now(UTC).timestamp() * 1000),
         }
 
         # Patch para acelerar os testes (saga usa wait_exponential)
@@ -738,7 +739,7 @@ class TestApprovalProcessorRetry:
 class TestApprovalProcessorDLQ:
     """Testes para Dead Letter Queue de aprovações"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def mongodb_client(self):
         """Mock MongoDB client"""
         client = MagicMock()
@@ -747,21 +748,21 @@ class TestApprovalProcessorDLQ:
         client.revert_plan_approval_status = AsyncMock(return_value=True)
         return client
 
-    @pytest.fixture
+    @pytest.fixture()
     def plan_producer(self):
         """Mock plan producer"""
         producer = MagicMock()
         producer.send_plan = AsyncMock()
         return producer
 
-    @pytest.fixture
+    @pytest.fixture()
     def dlq_producer(self):
         """Mock DLQ producer"""
         producer = MagicMock()
         producer.send_dlq_entry = AsyncMock()
         return producer
 
-    @pytest.fixture
+    @pytest.fixture()
     def metrics(self):
         """Mock metrics"""
         m = MagicMock()
@@ -774,7 +775,7 @@ class TestApprovalProcessorDLQ:
         m.record_saga_compensation = MagicMock()
         return m
 
-    @pytest.fixture
+    @pytest.fixture()
     def processor(self, mongodb_client, plan_producer, metrics, dlq_producer):
         """Create ApprovalProcessor instance with DLQ producer"""
         from src.services.approval_processor import ApprovalProcessor
@@ -787,13 +788,13 @@ class TestApprovalProcessorDLQ:
             dlq_producer=dlq_producer,
         )
 
-    @pytest.fixture
+    @pytest.fixture()
     def sample_ledger_entry(self):
         """Entrada de ledger de exemplo com dados completos"""
         return {
             "plan_id": "plan-dlq-123",
             "intent_id": "intent-dlq-456",
-            "timestamp": datetime.now(timezone.utc) - timedelta(hours=1),
+            "timestamp": datetime.now(UTC) - timedelta(hours=1),
             "plan_data": {
                 "plan_id": "plan-dlq-123",
                 "intent_id": "intent-dlq-456",
@@ -813,7 +814,7 @@ class TestApprovalProcessorDLQ:
             },
         }
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_dlq_entry_sent_after_max_retries(
         self, processor, mongodb_client, plan_producer, dlq_producer, metrics, sample_ledger_entry
     ):
@@ -828,7 +829,7 @@ class TestApprovalProcessorDLQ:
             "intent_id": "intent-dlq-456",
             "decision": "approved",
             "approved_by": "admin@example.com",
-            "approved_at": int(datetime.now(timezone.utc).timestamp() * 1000),
+            "approved_at": int(datetime.now(UTC).timestamp() * 1000),
         }
 
         trace_context = {
@@ -856,7 +857,7 @@ class TestApprovalProcessorDLQ:
         assert dlq_entry.risk_band == "high"
         assert dlq_entry.is_destructive is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_dlq_metric_incremented_on_failure(
         self, processor, mongodb_client, plan_producer, dlq_producer, metrics, sample_ledger_entry
     ):
@@ -869,7 +870,7 @@ class TestApprovalProcessorDLQ:
             "intent_id": "intent-dlq-456",
             "decision": "approved",
             "approved_by": "admin@example.com",
-            "approved_at": int(datetime.now(timezone.utc).timestamp() * 1000),
+            "approved_at": int(datetime.now(UTC).timestamp() * 1000),
         }
 
         with patch("src.sagas.approval_saga.wait_exponential", return_value=lambda x: 0):
@@ -881,7 +882,7 @@ class TestApprovalProcessorDLQ:
             reason="saga_compensation", risk_band="high", is_destructive=True
         )
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_dlq_not_configured_does_not_crash(
         self, mongodb_client, plan_producer, metrics, sample_ledger_entry
     ):
@@ -905,7 +906,7 @@ class TestApprovalProcessorDLQ:
             "intent_id": "intent-dlq-456",
             "decision": "approved",
             "approved_by": "admin@example.com",
-            "approved_at": int(datetime.now(timezone.utc).timestamp() * 1000),
+            "approved_at": int(datetime.now(UTC).timestamp() * 1000),
         }
 
         with patch("src.sagas.approval_saga.wait_exponential", return_value=lambda x: 0):
@@ -917,7 +918,7 @@ class TestApprovalProcessorDLQ:
             reason="kafka_publish_failed", risk_band="high"
         )
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_dlq_failure_does_not_block_processing(
         self, processor, mongodb_client, plan_producer, dlq_producer, metrics, sample_ledger_entry
     ):
@@ -931,7 +932,7 @@ class TestApprovalProcessorDLQ:
             "intent_id": "intent-dlq-456",
             "decision": "approved",
             "approved_by": "admin@example.com",
-            "approved_at": int(datetime.now(timezone.utc).timestamp() * 1000),
+            "approved_at": int(datetime.now(UTC).timestamp() * 1000),
         }
 
         with patch("src.sagas.approval_saga.wait_exponential", return_value=lambda x: 0):
@@ -943,7 +944,7 @@ class TestApprovalProcessorDLQ:
             exc_info.value.__class__.__name__
         )
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_dlq_entry_contains_original_approval_response(
         self, processor, mongodb_client, plan_producer, dlq_producer, metrics, sample_ledger_entry
     ):
@@ -956,7 +957,7 @@ class TestApprovalProcessorDLQ:
             "intent_id": "intent-dlq-456",
             "decision": "approved",
             "approved_by": "admin@example.com",
-            "approved_at": int(datetime.now(timezone.utc).timestamp() * 1000),
+            "approved_at": int(datetime.now(UTC).timestamp() * 1000),
         }
 
         with patch("src.sagas.approval_saga.wait_exponential", return_value=lambda x: 0):
@@ -975,7 +976,7 @@ class TestApprovalProcessorDLQ:
 class TestApprovalProcessorIdempotencyWithSagaState:
     """Testes para idempotência com saga_state - Comment 1"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def mongodb_client(self):
         """Mock MongoDB client"""
         client = MagicMock()
@@ -984,14 +985,14 @@ class TestApprovalProcessorIdempotencyWithSagaState:
         client.revert_plan_approval_status = AsyncMock(return_value=True)
         return client
 
-    @pytest.fixture
+    @pytest.fixture()
     def plan_producer(self):
         """Mock plan producer"""
         producer = MagicMock()
         producer.send_plan = AsyncMock()
         return producer
 
-    @pytest.fixture
+    @pytest.fixture()
     def metrics(self):
         """Mock metrics"""
         m = MagicMock()
@@ -1004,14 +1005,14 @@ class TestApprovalProcessorIdempotencyWithSagaState:
         m.increment_approval_dlq_messages = MagicMock()
         return m
 
-    @pytest.fixture
+    @pytest.fixture()
     def processor(self, mongodb_client, plan_producer, metrics):
         """Create ApprovalProcessor instance"""
         from src.services.approval_processor import ApprovalProcessor
 
         return ApprovalProcessor(mongodb_client, plan_producer, metrics)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_approved_with_saga_completed_is_skipped(
         self, processor, mongodb_client, plan_producer
     ):
@@ -1030,7 +1031,7 @@ class TestApprovalProcessorIdempotencyWithSagaState:
             "intent_id": "intent-x",
             "decision": "approved",
             "approved_by": "admin",
-            "approved_at": int(datetime.now(timezone.utc).timestamp() * 1000),
+            "approved_at": int(datetime.now(UTC).timestamp() * 1000),
         }
 
         await processor.process_approval_response(approval_response, {})
@@ -1039,7 +1040,7 @@ class TestApprovalProcessorIdempotencyWithSagaState:
         mongodb_client.update_plan_approval_status.assert_not_called()
         plan_producer.send_plan.assert_not_called()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_approved_with_saga_executing_is_reprocessed(
         self, processor, mongodb_client, plan_producer
     ):
@@ -1047,7 +1048,7 @@ class TestApprovalProcessorIdempotencyWithSagaState:
         ledger_entry = {
             "plan_id": "plan-executing",
             "intent_id": "intent-crash",
-            "timestamp": datetime.now(timezone.utc) - timedelta(hours=1),
+            "timestamp": datetime.now(UTC) - timedelta(hours=1),
             "plan_data": {
                 "plan_id": "plan-executing",
                 "intent_id": "intent-crash",
@@ -1074,7 +1075,7 @@ class TestApprovalProcessorIdempotencyWithSagaState:
             "intent_id": "intent-crash",
             "decision": "approved",
             "approved_by": "admin",
-            "approved_at": int(datetime.now(timezone.utc).timestamp() * 1000),
+            "approved_at": int(datetime.now(UTC).timestamp() * 1000),
         }
 
         await processor.process_approval_response(approval_response, {})
@@ -1083,7 +1084,7 @@ class TestApprovalProcessorIdempotencyWithSagaState:
         mongodb_client.update_plan_approval_status.assert_called()
         plan_producer.send_plan.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_approved_with_saga_compensated_is_reprocessed(
         self, processor, mongodb_client, plan_producer
     ):
@@ -1091,7 +1092,7 @@ class TestApprovalProcessorIdempotencyWithSagaState:
         ledger_entry = {
             "plan_id": "plan-compensated",
             "intent_id": "intent-retry",
-            "timestamp": datetime.now(timezone.utc) - timedelta(hours=1),
+            "timestamp": datetime.now(UTC) - timedelta(hours=1),
             "plan_data": {
                 "plan_id": "plan-compensated",
                 "intent_id": "intent-retry",
@@ -1118,7 +1119,7 @@ class TestApprovalProcessorIdempotencyWithSagaState:
             "intent_id": "intent-retry",
             "decision": "approved",
             "approved_by": "admin",
-            "approved_at": int(datetime.now(timezone.utc).timestamp() * 1000),
+            "approved_at": int(datetime.now(UTC).timestamp() * 1000),
         }
 
         await processor.process_approval_response(approval_response, {})
@@ -1127,7 +1128,7 @@ class TestApprovalProcessorIdempotencyWithSagaState:
         mongodb_client.update_plan_approval_status.assert_called()
         plan_producer.send_plan.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_approved_with_saga_failed_is_reprocessed(
         self, processor, mongodb_client, plan_producer
     ):
@@ -1135,7 +1136,7 @@ class TestApprovalProcessorIdempotencyWithSagaState:
         ledger_entry = {
             "plan_id": "plan-failed",
             "intent_id": "intent-retry",
-            "timestamp": datetime.now(timezone.utc) - timedelta(hours=1),
+            "timestamp": datetime.now(UTC) - timedelta(hours=1),
             "plan_data": {
                 "plan_id": "plan-failed",
                 "intent_id": "intent-retry",
@@ -1162,7 +1163,7 @@ class TestApprovalProcessorIdempotencyWithSagaState:
             "intent_id": "intent-retry",
             "decision": "approved",
             "approved_by": "admin",
-            "approved_at": int(datetime.now(timezone.utc).timestamp() * 1000),
+            "approved_at": int(datetime.now(UTC).timestamp() * 1000),
         }
 
         await processor.process_approval_response(approval_response, {})
@@ -1171,7 +1172,7 @@ class TestApprovalProcessorIdempotencyWithSagaState:
         mongodb_client.update_plan_approval_status.assert_called()
         plan_producer.send_plan.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_approved_with_no_saga_state_is_reprocessed(
         self, processor, mongodb_client, plan_producer
     ):
@@ -1179,7 +1180,7 @@ class TestApprovalProcessorIdempotencyWithSagaState:
         ledger_entry = {
             "plan_id": "plan-legacy",
             "intent_id": "intent-legacy",
-            "timestamp": datetime.now(timezone.utc) - timedelta(hours=1),
+            "timestamp": datetime.now(UTC) - timedelta(hours=1),
             "plan_data": {
                 "plan_id": "plan-legacy",
                 "intent_id": "intent-legacy",
@@ -1206,7 +1207,7 @@ class TestApprovalProcessorIdempotencyWithSagaState:
             "intent_id": "intent-legacy",
             "decision": "approved",
             "approved_by": "admin",
-            "approved_at": int(datetime.now(timezone.utc).timestamp() * 1000),
+            "approved_at": int(datetime.now(UTC).timestamp() * 1000),
         }
 
         await processor.process_approval_response(approval_response, {})
@@ -1215,7 +1216,7 @@ class TestApprovalProcessorIdempotencyWithSagaState:
         mongodb_client.update_plan_approval_status.assert_called()
         plan_producer.send_plan.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_crash_after_executing_before_publish_recovery(
         self, processor, mongodb_client, plan_producer, metrics
     ):
@@ -1227,7 +1228,7 @@ class TestApprovalProcessorIdempotencyWithSagaState:
         ledger_entry = {
             "plan_id": "plan-crash-001",
             "intent_id": "intent-crash-001",
-            "timestamp": datetime.now(timezone.utc) - timedelta(minutes=30),
+            "timestamp": datetime.now(UTC) - timedelta(minutes=30),
             "plan_data": {
                 "plan_id": "plan-crash-001",
                 "intent_id": "intent-crash-001",
@@ -1235,7 +1236,7 @@ class TestApprovalProcessorIdempotencyWithSagaState:
                 "approval_status": "approved",
                 "saga_state": "executing",  # Crash ocorreu aqui
                 "approved_by": "original-admin",
-                "approved_at": datetime.now(timezone.utc) - timedelta(minutes=30),
+                "approved_at": datetime.now(UTC) - timedelta(minutes=30),
                 "risk_band": "high",
                 "is_destructive": True,
                 "tasks": [],
@@ -1258,7 +1259,7 @@ class TestApprovalProcessorIdempotencyWithSagaState:
             "decision": "approved",
             "approved_by": "original-admin",
             "approved_at": int(
-                (datetime.now(timezone.utc) - timedelta(minutes=30)).timestamp() * 1000
+                (datetime.now(UTC) - timedelta(minutes=30)).timestamp() * 1000
             ),
         }
 

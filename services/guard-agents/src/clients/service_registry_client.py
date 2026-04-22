@@ -2,7 +2,7 @@
 
 import asyncio
 import time
-from typing import List, Optional, Tuple
+from typing import Optional
 
 import grpc
 import structlog
@@ -126,7 +126,7 @@ class ServiceRegistryClient:
             logger.error("service_registry.connection_failed", error=str(e))
             raise
 
-    async def _get_grpc_metadata(self) -> List[Tuple[str, str]]:
+    async def _get_grpc_metadata(self) -> list[tuple[str, str]]:
         """Obter metadata gRPC com JWT-SVID para autenticação."""
         if not self.spiffe_enabled or not self.spiffe_manager:
             return []

@@ -6,12 +6,13 @@ Detecta problemas de saúde nos serviços e componentes do Neural Hive-Mind.
 
 import asyncio
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Dict, Optional
+from datetime import UTC, datetime
+from typing import Any, Optional
 
 import aiohttp
 import structlog
 from prometheus_client import Counter
+
 from neural_hive_observability import get_tracer
 
 logger = structlog.get_logger()
@@ -43,12 +44,12 @@ class HealthStatus:
 
     service_name: str
     healthy: bool
-    checked_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    checked_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     response_time_ms: Optional[float] = None
     error_message: Optional[str] = None
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Converte para dicionário."""
         return {
             "service_name": self.service_name,
@@ -69,10 +70,10 @@ class LagStatus:
     lag: int
     threshold: int
     within_threshold: bool
-    checked_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
-    partitions: Dict[int, int] = field(default_factory=dict)
+    checked_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    partitions: dict[int, int] = field(default_factory=dict)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Converte para dicionário."""
         return {
             "consumer_group": self.consumer_group,
@@ -92,12 +93,12 @@ class ConnectionStatus:
     connection_string: str
     connected: bool
     database_type: str
-    checked_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    checked_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     response_time_ms: Optional[float] = None
     error: Optional[str] = None
-    database_info: Optional[Dict[str, Any]] = None
+    database_info: Optional[dict[str, Any]] = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Converte para dicionário."""
         return {
             "connection_string": self.connection_string,
@@ -412,7 +413,7 @@ class HealthMonitor:
                 error=str(e),
             )
 
-    async def run_periodic_checks(self, services: list[str]) -> Dict[str, HealthStatus]:
+    async def run_periodic_checks(self, services: list[str]) -> dict[str, HealthStatus]:
         """
         Executa verificações periódicas para múltiplos serviços.
 

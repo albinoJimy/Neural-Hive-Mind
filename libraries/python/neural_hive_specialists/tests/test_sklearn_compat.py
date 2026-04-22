@@ -1,7 +1,8 @@
 """Testes para sklearn_compat.py."""
 
+from unittest.mock import MagicMock, Mock
+
 import pytest
-from unittest.mock import Mock, MagicMock
 
 try:
     import sklearn
@@ -11,13 +12,13 @@ except ImportError:
     SKLEARN_AVAILABLE = False
 
 from neural_hive_specialists.sklearn_compat import (
+    _PATCH_APPLIED,
     apply_sklearn_compatibility_patch,
     patch_model_after_loading,
-    _PATCH_APPLIED,
 )
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestApplySklearnCompatibilityPatch:
     """Testes para apply_sklearn_compatibility_patch."""
 
@@ -50,7 +51,7 @@ class TestApplySklearnCompatibilityPatch:
             # Verificar que foi aplicado (ou falhou silenciosamente)
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestPatchModelAfterLoading:
     """Testes para patch_model_after_loading."""
 
@@ -153,7 +154,7 @@ class TestPatchModelAfterLoading:
         assert result is mock_model
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestSklearnCompatModule:
     """Testes gerais do módulo."""
 

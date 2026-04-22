@@ -4,10 +4,11 @@ Testes unitários para API Extensions da Explainability API.
 TDD: Testes escritos antes da implementação (GAPS-04 Task 5).
 """
 
-import pytest
-from unittest.mock import Mock, AsyncMock, MagicMock
 import sys
 from pathlib import Path
+from unittest.mock import AsyncMock, MagicMock, Mock
+
+import pytest
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
@@ -18,7 +19,7 @@ from services.api_extensions import ExplainabilityAPIExtensions
 class TestGetExplanationByDecisionIdExtended:
     """Testes do endpoint GET /api/v1/explainability/{decision_id} estendido."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_db(self):
         """Mock do MongoDB."""
         db = MagicMock()
@@ -27,7 +28,7 @@ class TestGetExplanationByDecisionIdExtended:
         db.explainability_ledger = collection
         return db
 
-    @pytest.fixture
+    @pytest.fixture()
     def sample_extended_explanation(self):
         """Explicação extendida com campos hierárquicos."""
         return {
@@ -58,7 +59,7 @@ class TestGetExplanationByDecisionIdExtended:
             },
         }
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_by_decision_id_includes_hierarchical_fields(
         self, mock_db, sample_extended_explanation
     ):
@@ -73,7 +74,7 @@ class TestGetExplanationByDecisionIdExtended:
         assert "seniority_distribution" in response["consensus_process"]
         assert response["consensus_process"]["hierarchical_weights_enabled"] is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_by_decision_id_includes_quality_scores(
         self, mock_db, sample_extended_explanation
     ):
@@ -88,7 +89,7 @@ class TestGetExplanationByDecisionIdExtended:
         assert "overall" in response["explanation_quality"]
         assert 0 <= response["explanation_quality"]["overall"] <= 1
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_by_decision_id_shap_values_present(
         self, mock_db, sample_extended_explanation
     ):
@@ -113,13 +114,13 @@ class TestGetExplanationByDecisionIdExtended:
 class TestPostGenerateExplanation:
     """Testes do endpoint POST /api/v1/explainability/generate."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_services(self):
         """Mock dos serviços."""
         services = {"shap_calculator": Mock(), "quality_scorer": Mock()}
         return services
 
-    @pytest.fixture
+    @pytest.fixture()
     def sample_generation_request(self):
         """Request de geração de explicação."""
         return {
@@ -131,7 +132,7 @@ class TestPostGenerateExplanation:
             "specialist_votes": [{"specialist_type": "business", "confidence": 0.85, "risk": 0.15}],
         }
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_generate_creates_new_explanation(self, mock_services, sample_generation_request):
         """Testa que generate cria nova explicação."""
         api = ExplainabilityAPIExtensions(
@@ -151,7 +152,7 @@ class TestPostGenerateExplanation:
         assert "decision_id" in response
         assert response["decision_id"] == "decision-123"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_generate_respects_format_parameter(
         self, mock_services, sample_generation_request
     ):
@@ -174,7 +175,7 @@ class TestPostGenerateExplanation:
         assert "format" in response
         assert response["format"] == "json"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_generate_with_text_format(self, mock_services, sample_generation_request):
         """Testa geração em formato texto."""
         api = ExplainabilityAPIExtensions(
@@ -197,7 +198,7 @@ class TestPostGenerateExplanation:
         assert response["format"] == "text"
         assert "narrative" in response
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_generate_with_html_format(self, mock_services, sample_generation_request):
         """Testa geração em formato HTML."""
         api = ExplainabilityAPIExtensions(
@@ -224,7 +225,7 @@ class TestPostGenerateExplanation:
 class TestMultiFormatSupport:
     """Testes de suporte a múltiplos formatos."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def sample_explanation_data(self):
         """Dados de explicação para formatação."""
         return {
@@ -288,7 +289,7 @@ class TestMultiFormatSupport:
 class TestShapIntegration:
     """Testes de integração SHAP na API."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_shap_calculator(self):
         """Mock do ShapCalculator."""
         shap = Mock()
@@ -299,7 +300,7 @@ class TestShapIntegration:
         }
         return shap
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_shap_calculator_called_on_generate(self, mock_shap_calculator):
         """Testa que ShapCalculator é chamado na geração."""
         request = {
@@ -317,7 +318,7 @@ class TestShapIntegration:
         mock_shap_calculator.calculate_shap.assert_called_once()
         assert "shap_values" in response
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_shap_skipped_when_flag_false(self, mock_shap_calculator):
         """Testa que SHAP não é calculado quando flag é False."""
         request = {"decision_id": "dec-123", "include_shap": False, "specialist_votes": []}

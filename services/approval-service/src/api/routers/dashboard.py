@@ -4,8 +4,7 @@ Dashboard API Endpoints
 Endpoints REST para dashboard de aprovações com métricas e estatísticas.
 """
 
-from datetime import datetime, timedelta, timezone
-from typing import List
+from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
@@ -96,7 +95,7 @@ async def get_dashboard_stats(
     logger.info("Obtendo estatísticas do dashboard", user_id=user["user_id"], days=days)
 
     # Calcular data de início
-    start_date = datetime.now(timezone.utc) - timedelta(days=days)
+    start_date = datetime.now(UTC) - timedelta(days=days)
 
     # Buscar estatísticas do MongoDB
     try:
@@ -107,7 +106,7 @@ async def get_dashboard_stats(
         pending_approvals = await service.db.plan_approvals.count_documents({"status": "pending"})
 
         # Aprovações de hoje
-        today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+        today_start = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
 
         approved_today = await service.db.plan_approvals.count_documents(
             {"status": "approved", "decision_timestamp": {"$gte": today_start}}
@@ -118,7 +117,7 @@ async def get_dashboard_stats(
         )
 
         # Taxa de auto-aprovação (últimos 7 dias)
-        week_start = datetime.now(timezone.utc) - timedelta(days=7)
+        week_start = datetime.now(UTC) - timedelta(days=7)
         total_week = await service.db.plan_approvals.count_documents(
             {"created_at": {"$gte": week_start}}
         )
@@ -153,7 +152,7 @@ async def get_dashboard_stats(
         )
 
 
-@router.get("/trends", response_model=List[ApprovalTrend])
+@router.get("/trends", response_model=list[ApprovalTrend])
 async def get_approval_trends(
     days: int = Query(default=30, ge=1, le=90, description="Período em dias"),
     user: dict = Depends(get_current_admin_user),
@@ -174,7 +173,7 @@ async def get_approval_trends(
 
     trends = []
     for i in range(days):
-        date = datetime.now(timezone.utc) - timedelta(days=i)
+        date = datetime.now(UTC) - timedelta(days=i)
         day_start = date.replace(hour=0, minute=0, second=0, microsecond=0)
         day_end = day_start + timedelta(days=1)
 
@@ -217,7 +216,7 @@ async def get_approval_trends(
     return list(reversed(trends))
 
 
-@router.get("/by-risk-band", response_model=List[RiskBandStats])
+@router.get("/by-risk-band", response_model=list[RiskBandStats])
 async def get_stats_by_risk_band(
     user: dict = Depends(get_current_admin_user),
     service: ApprovalService = Depends(get_approval_service),

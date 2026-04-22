@@ -3,9 +3,8 @@ Testes unitarios para DockerfileGenerator.
 """
 
 import pytest
-
 from src.services.dockerfile_generator import DockerfileGenerator
-from src.types.artifact_types import CodeLanguage, ArtifactSubtype
+from src.types.artifact_types import ArtifactSubtype, CodeLanguage
 
 
 class TestDockerfileGenerator:

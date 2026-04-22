@@ -1,6 +1,6 @@
 import json
 from functools import lru_cache
-from typing import List, Optional, Union
+from typing import Optional, Union
 
 from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -25,7 +25,7 @@ class Settings(BaseSettings):
 
     # Nomes legados (deprecated, removidos em v1.6.0)
     # Mantidos aqui para Pydantic ler do environment, mas uso interno via propriedades
-    ETCD_ENDPOINTS: Optional[List[str]] = Field(
+    ETCD_ENDPOINTS: Optional[list[str]] = Field(
         default=None,
         description="[DEPRECATED - use REGISTRY_REDIS_ENDPOINTS] Endpoints do Redis",
     )
@@ -40,7 +40,7 @@ class Settings(BaseSettings):
 
     # Novos nomes (padrão para v1.4.0+)
     # Nota: Podem ser omitidos em favor de ETCD_* durante Fase 1 (v1.3.0)
-    REGISTRY_REDIS_ENDPOINTS: Optional[List[str]] = Field(
+    REGISTRY_REDIS_ENDPOINTS: Optional[list[str]] = Field(
         default=None,
         description="Endpoints do Redis para registry (formato host:port)",
     )
@@ -62,7 +62,7 @@ class Settings(BaseSettings):
     )
 
     # Configurações do Redis (para feromônios)
-    REDIS_CLUSTER_NODES: List[str] = Field(
+    REDIS_CLUSTER_NODES: list[str] = Field(
         default=["redis:6379"], description="Nós do cluster Redis"
     )
     REDIS_PASSWORD: Optional[str] = Field(
@@ -73,7 +73,7 @@ class Settings(BaseSettings):
         "REGISTRY_REDIS_ENDPOINTS", "ETCD_ENDPOINTS", "REDIS_CLUSTER_NODES", mode="before"
     )
     @classmethod
-    def parse_list_from_json_string(cls, v: Union[str, List[str], None]) -> Union[List[str], None]:
+    def parse_list_from_json_string(cls, v: Union[str, list[str], None]) -> Union[list[str], None]:
         """
         Parseia listas que vem como JSON string de variaveis de ambiente.
 
@@ -261,8 +261,8 @@ class Settings(BaseSettings):
 
         Emite aviso se ETCD_* está sendo usado como fallback.
         """
-        import warnings
         import os
+        import warnings
 
         # Verificar se REGISTRY_REDIS_* foi definido no environment
         # (mesmo que seja None no modelo, pode ter sido setado explicitamente como vazio)
@@ -321,7 +321,7 @@ class Settings(BaseSettings):
 
     # Propriedades para acessar valores migrados (abstração para código)
     @property
-    def registry_redis_endpoints(self) -> List[str]:
+    def registry_redis_endpoints(self) -> list[str]:
         """Endpoints do Redis para registry (mesclado de ETCD_ENDPOINTS para compatibilidade)"""
         if not hasattr(self, "_resolved_redis_endpoints"):
             # Força migração se propriedade acessada antes do validator
@@ -353,7 +353,7 @@ class Settings(BaseSettings):
         return getattr(self, "_resolved_redis_timeout", 5)
 
 
-@lru_cache()
+@lru_cache
 def get_settings() -> Settings:
     """Retorna configurações cacheadas"""
     return Settings()

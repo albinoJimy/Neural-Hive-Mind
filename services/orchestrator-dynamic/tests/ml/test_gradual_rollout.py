@@ -9,13 +9,13 @@ Valida:
 - Checkpoints de validação
 """
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock
 
+import pytest
 from src.ml.model_promotion import (
     ModelPromotionManager,
-    PromotionRequest,
     PromotionConfig,
+    PromotionRequest,
     PromotionStage,
 )
 
@@ -23,7 +23,7 @@ from src.ml.model_promotion import (
 class TestGradualRollout:
     """Testes para gradual rollout."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_config(self):
         """Mock de configuração."""
         config = MagicMock()
@@ -45,7 +45,7 @@ class TestGradualRollout:
         config.ml_rollback_mae_increase_pct = 20.0
         return config
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_model_registry(self):
         """Model registry mock."""
         registry = AsyncMock()
@@ -56,7 +56,7 @@ class TestGradualRollout:
         registry.rollback_model = AsyncMock(return_value={"success": True})
         return registry
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_continuous_validator(self):
         """Continuous validator mock."""
         validator = MagicMock()
@@ -65,7 +65,7 @@ class TestGradualRollout:
         )
         return validator
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_mongodb(self):
         """Cliente MongoDB mock."""
         mongodb = MagicMock()
@@ -75,7 +75,7 @@ class TestGradualRollout:
         mongodb.db.__getitem__ = MagicMock(return_value=collection)
         return mongodb
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_metrics(self):
         """Métricas mock."""
         metrics = MagicMock()
@@ -86,7 +86,7 @@ class TestGradualRollout:
         metrics.record_promotion = MagicMock()
         return metrics
 
-    @pytest.fixture
+    @pytest.fixture()
     def promotion_manager(
         self,
         mock_config,
@@ -105,7 +105,7 @@ class TestGradualRollout:
         )
         return manager
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_gradual_rollout_success(self, promotion_manager, mock_metrics):
         """Testa rollout gradual bem-sucedido."""
         # Arrange
@@ -139,7 +139,7 @@ class TestGradualRollout:
         mock_metrics.set_rollout_stage.assert_called()
         mock_metrics.set_rollout_traffic_pct.assert_called()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_gradual_rollout_degradation_rollback(self, promotion_manager, mock_metrics):
         """Testa rollback automático em degradação."""
         # Arrange
@@ -175,7 +175,7 @@ class TestGradualRollout:
         assert request.error_message is not None
         mock_metrics.record_rollout_degradation.assert_called()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_check_rollout_degradation_mae_increase(self, promotion_manager):
         """Testa detecção de degradação por aumento de MAE."""
         # Arrange
@@ -200,7 +200,7 @@ class TestGradualRollout:
         # Assert
         assert degradation is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_check_rollout_degradation_no_degradation(self, promotion_manager):
         """Testa validação sem degradação."""
         # Arrange
@@ -225,7 +225,7 @@ class TestGradualRollout:
         # Assert
         assert degradation is False
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_check_rollout_degradation_error_rate(self, promotion_manager):
         """Testa detecção de degradação por error rate."""
         # Arrange
@@ -256,7 +256,7 @@ class TestGradualRollout:
         # Assert
         assert degradation is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_check_rollout_degradation_insufficient_samples(self, promotion_manager):
         """Testa que amostras insuficientes não geram degradação."""
         # Arrange
@@ -284,7 +284,7 @@ class TestGradualRollout:
         # Assert
         assert degradation is False  # Não detecta degradação com amostras insuficientes
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_check_rollout_degradation_no_metrics(self, promotion_manager):
         """Testa que ausência de métricas não gera degradação."""
         # Arrange
@@ -303,7 +303,7 @@ class TestGradualRollout:
         # Assert
         assert degradation is False
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_gradual_rollout_disabled(self, promotion_manager):
         """Testa que rollout direto é usado quando gradual está desabilitado."""
         # Arrange
@@ -328,7 +328,7 @@ class TestGradualRollout:
         assert promotion_manager._execute_full_rollout.called
         assert request.stage == PromotionStage.COMPLETED
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_gradual_rollout_stages_progression(self, promotion_manager, mock_metrics):
         """Testa progressão correta pelos estágios de rollout."""
         # Arrange
@@ -365,7 +365,7 @@ class TestGradualRollout:
         traffic_calls = [call for call in mock_metrics.set_rollout_traffic_pct.call_args_list]
         assert len(traffic_calls) == 4
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_gradual_rollout_cleanup_on_success(self, promotion_manager):
         """Testa que estado é limpo após rollout bem-sucedido."""
         # Arrange
@@ -394,7 +394,7 @@ class TestGradualRollout:
         assert request.model_name not in promotion_manager._rollout_baseline_metrics
         assert request.model_name not in promotion_manager._canary_traffic_split
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_gradual_rollout_cleanup_on_failure(self, promotion_manager):
         """Testa que estado é limpo após rollback."""
         # Arrange
@@ -429,7 +429,7 @@ class TestGradualRollout:
         assert request.model_name not in promotion_manager._rollout_baseline_metrics
         assert request.model_name not in promotion_manager._canary_traffic_split
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_gradual_rollout_error_rate_rollback(self, promotion_manager, mock_metrics):
         """Testa rollback automático por error rate elevado via _collect_current_metrics."""
         # Arrange
@@ -470,7 +470,7 @@ class TestGradualRollout:
         assert request.error_message is not None
         mock_metrics.record_rollout_degradation.assert_called()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_collect_current_metrics_returns_error_rate(
         self, mock_config, mock_model_registry, mock_mongodb, mock_metrics
     ):

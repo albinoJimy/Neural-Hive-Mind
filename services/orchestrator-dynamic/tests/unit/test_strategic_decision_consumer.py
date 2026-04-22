@@ -5,12 +5,13 @@ Testa o consumer que processa strategic.decisions do Queen Agent,
 atualizando workflows e persistindo decisões para histórico.
 """
 
-import pytest
-import json
 import asyncio
+import json
 import sys
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 
 # Adicionar src ao path
 src_path = str(Path(__file__).parent.parent.parent / "src")
@@ -27,7 +28,7 @@ from src.consumers.strategic_decision_consumer import (
 )
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_config():
     """Config mock para testes."""
     config = MagicMock()
@@ -38,7 +39,7 @@ def mock_config():
     return config
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_mongodb_client():
     """MongoDB client mock."""
     mongodb = AsyncMock()
@@ -48,7 +49,7 @@ def mock_mongodb_client():
     return mongodb
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_temporal_client():
     """Temporal client mock."""
     temporal = AsyncMock()
@@ -56,7 +57,7 @@ def mock_temporal_client():
     return temporal
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_metrics():
     """Metrics mock."""
     metrics = MagicMock()
@@ -66,7 +67,7 @@ def mock_metrics():
     return metrics
 
 
-@pytest.fixture
+@pytest.fixture()
 def consumer(mock_config, mock_mongodb_client, mock_temporal_client, mock_metrics):
     """Consumer instance para testes."""
     return StrategicDecisionConsumer(
@@ -89,7 +90,7 @@ class TestStrategicDecisionConsumerInitialization:
         assert consumer.consumer is None
         assert consumer.running is False
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_consumer_initialize(self, consumer):
         """Consumer deve inicializar corretamente."""
         mock_producer = MagicMock()
@@ -109,7 +110,7 @@ class TestStrategicDecisionConsumerInitialization:
 class TestProcessMessage:
     """Testes de processamento de mensagens."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_process_priority_change_decision(self, consumer, mock_mongodb_client):
         """Deve processar decisão de mudança de prioridade."""
         decision_data = {
@@ -146,7 +147,7 @@ class TestProcessMessage:
         assert call_args.kwargs["plan_id"] == "plan-456"
         assert call_args.kwargs["updates"]["priority"] == "CRITICAL"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_process_cancellation_decision(
         self, consumer, mock_mongodb_client, mock_temporal_client
     ):
@@ -184,7 +185,7 @@ class TestProcessMessage:
         assert call_args.kwargs["plan_id"] == "plan-456"
         assert call_args.kwargs["updates"]["status"] == "CANCELLED"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_process_escalation_decision(self, consumer, mock_mongodb_client):
         """Deve processar decisão de escalada."""
         decision_data = {
@@ -215,7 +216,7 @@ class TestProcessMessage:
         assert call_args.kwargs["updates"]["escalated"] is True
         assert call_args.kwargs["updates"]["escalation_reason"] == "Critical issue detected"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_skip_cancellation_of_completed_plan(
         self, consumer, mock_mongodb_client, mock_temporal_client
     ):
@@ -245,7 +246,7 @@ class TestProcessMessage:
         # Não deve cancelar workflow já completado
         mock_temporal_client.cancel_workflow.assert_not_called()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_process_workflow_adjustment(self, consumer, mock_mongodb_client):
         """Deve processar ajuste de workflow."""
         decision_data = {
@@ -285,7 +286,7 @@ class TestProcessMessage:
         adjustments = call_args.kwargs["updates"]["workflow_adjustments"]
         assert len(adjustments) == 2
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_process_resource_reallocation(self, consumer, mock_mongodb_client):
         """Deve processar realocação de recursos."""
         decision_data = {
@@ -315,7 +316,7 @@ class TestProcessMessage:
         call_args = mock_mongodb_client.update_cognitive_plan.call_args
         assert call_args.kwargs["updates"]["resource_allocation"]["cpu"] == "4000m"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_process_policy_update(self, consumer, mock_mongodb_client):
         """Deve processar atualização de políticas."""
         decision_data = {
@@ -349,7 +350,7 @@ class TestProcessMessage:
 class TestStoreDecision:
     """Testes de armazenamento de decisão."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_store_decision_in_mongodb(self, consumer, mock_mongodb_client):
         """Deve armazenar decisão no MongoDB."""
         decision = {
@@ -368,7 +369,7 @@ class TestStoreDecision:
         assert "received_at" in stored_decision
         assert stored_decision["consumer"] == "orchestrator-dynamic"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_store_without_mongodb(self, consumer):
         """Deve lidar gracefully com MongoDB indisponível."""
         consumer.mongodb_client = None
@@ -382,7 +383,7 @@ class TestStoreDecision:
 class TestConsumerLifecycle:
     """Testes de ciclo de vida do consumer."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_start_stop_consumer(self, consumer):
         """Deve iniciar e parar consumer corretamente."""
         mock_producer = AsyncMock()
@@ -422,7 +423,7 @@ class TestConsumerLifecycle:
 class TestErrorHandling:
     """Testes de tratamento de erros."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_error_handling_invalid_json(self, consumer, mock_mongodb_client):
         """Deve lidar com JSON inválido na mensagem."""
         message = MagicMock()
@@ -436,7 +437,7 @@ class TestErrorHandling:
         mock_mongodb_client.update_cognitive_plan.assert_not_called()
         mock_mongodb_client.insert_strategic_decision.assert_not_called()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_error_recovery_on_mongodb_failure(self, consumer, mock_mongodb_client):
         """Deve recuperar de falha no MongoDB."""
         decision_data = {
@@ -464,7 +465,7 @@ class TestErrorHandling:
 class TestMetricsTracking:
     """Testes de tracking de métricas."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_metrics_tracking_on_process(self, consumer, mock_mongodb_client, mock_metrics):
         """Deve atualizar métricas ao processar decisão."""
         decision_data = {

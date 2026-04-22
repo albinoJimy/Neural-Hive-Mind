@@ -6,18 +6,18 @@ Este módulo testa o repositório MongoDB de padrões de avaliação.
 
 import pytest
 
-from neural_hive_specialists.evolution_hooks.pattern_registry import PatternRegistry
 from neural_hive_specialists.evolution_hooks.models import (
-    Fingerprint,
     EvolutionEvaluation,
     FeedbackData,
     FeedbackOutcome,
     FeedbackSource,
+    Fingerprint,
     TaskCountRange,
 )
+from neural_hive_specialists.evolution_hooks.pattern_registry import PatternRegistry
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 class TestPatternRegistry:
     """Testes para PatternRegistry."""
 

@@ -4,12 +4,12 @@ Benchmarks de performance para LIME Explainer.
 Mede tempo de execução de explicações LIME em diferentes cenários.
 """
 
-import pytest
 import numpy as np
+import pytest
 from sklearn.linear_model import LogisticRegression
 
 
-@pytest.fixture
+@pytest.fixture()
 def linear_model():
     """Modelo linear pequeno para benchmark."""
     X = np.random.rand(50, 4)
@@ -19,7 +19,7 @@ def linear_model():
     return model
 
 
-@pytest.fixture
+@pytest.fixture()
 def lime_config():
     """Configuração para LIMEExplainer."""
     return {
@@ -28,7 +28,7 @@ def lime_config():
     }
 
 
-@pytest.mark.benchmark
+@pytest.mark.benchmark()
 class TestLIMEBenchmarks:
     """Benchmarks de LIME."""
 

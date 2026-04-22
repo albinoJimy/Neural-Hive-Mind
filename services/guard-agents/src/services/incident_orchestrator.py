@@ -1,7 +1,7 @@
 """Orquestrador de incidentes que coordena todo o fluxo E1-E6"""
 
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from datetime import UTC, datetime
+from typing import Any, Optional
 
 import structlog
 
@@ -32,7 +32,7 @@ class IncidentOrchestrator:
         self.itsm_client = itsm_client
         self.sla_targets = self._initialize_sla_targets()
 
-    def _initialize_sla_targets(self) -> Dict[str, float]:
+    def _initialize_sla_targets(self) -> dict[str, float]:
         """Inicializa targets de SLA conforme documentação"""
         return {
             "mttd_seconds": 15.0,  # Mean Time To Detect
@@ -41,8 +41,8 @@ class IncidentOrchestrator:
         }
 
     async def process_incident_flow(
-        self, event: Dict[str, Any], context: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
+        self, event: dict[str, Any], context: Optional[dict[str, Any]] = None
+    ) -> dict[str, Any]:
         """
         Processa fluxo completo E1→E6 de forma orquestrada
 
@@ -61,7 +61,7 @@ class IncidentOrchestrator:
         Returns:
             Dict com resultado completo do fluxo
         """
-        flow_start_time = datetime.now(timezone.utc)
+        flow_start_time = datetime.now(UTC)
 
         try:
             logger.info(
@@ -128,15 +128,15 @@ class IncidentOrchestrator:
             )
             raise
 
-    async def _e1_detect_anomaly(self, event: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    async def _e1_detect_anomaly(self, event: dict[str, Any]) -> Optional[dict[str, Any]]:
         """E1: Detectar anomalia (Thresholds adaptativos)"""
         logger.debug("incident_orchestrator.e1_detecting", event_id=event.get("event_id"))
 
-        detection_start = datetime.now(timezone.utc)
+        detection_start = datetime.now(UTC)
 
         anomaly = await self.threat_detector.detect_anomaly(event)
 
-        detection_time = (datetime.now(timezone.utc) - detection_start).total_seconds()
+        detection_time = (datetime.now(UTC) - detection_start).total_seconds()
 
         if anomaly:
             logger.info(
@@ -156,8 +156,8 @@ class IncidentOrchestrator:
         return anomaly
 
     async def _e2_classify_severity(
-        self, anomaly: Dict[str, Any], context: Optional[Dict[str, Any]]
-    ) -> Dict[str, Any]:
+        self, anomaly: dict[str, Any], context: Optional[dict[str, Any]]
+    ) -> dict[str, Any]:
         """E2: Classificar severidade (Classificação mapeada a runbooks)"""
         logger.debug("incident_orchestrator.e2_classifying", threat_type=anomaly.get("threat_type"))
 
@@ -179,7 +179,7 @@ class IncidentOrchestrator:
 
         return incident
 
-    async def _e3_enforce_policies(self, incident: Dict[str, Any]) -> Dict[str, Any]:
+    async def _e3_enforce_policies(self, incident: dict[str, Any]) -> dict[str, Any]:
         """E3: Selecionar playbook e executar políticas de enforcement (OPA/Istio)"""
         logger.debug("incident_orchestrator.e3_enforcing", incident_id=incident.get("incident_id"))
 
@@ -201,8 +201,8 @@ class IncidentOrchestrator:
         return enforcement_result
 
     async def _e4_execute_remediation(
-        self, incident: Dict[str, Any], enforcement_result: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, incident: dict[str, Any], enforcement_result: dict[str, Any]
+    ) -> dict[str, Any]:
         """E4: Executar ações de autocura (Sequenciar ações atomicamente)"""
         logger.debug(
             "incident_orchestrator.e4_remediating", incident_id=incident.get("incident_id")
@@ -229,17 +229,17 @@ class IncidentOrchestrator:
 
     async def _e5_validate_sla_restoration(
         self,
-        incident: Dict[str, Any],
-        remediation_result: Dict[str, Any],
+        incident: dict[str, Any],
+        remediation_result: dict[str, Any],
         flow_start_time: datetime,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """E5: Validar restauração de SLA (Confirmar retorno ao SLA)"""
         logger.debug(
             "incident_orchestrator.e5_validating_sla", incident_id=incident.get("incident_id")
         )
 
         # Calcular MTTR
-        recovery_time = (datetime.now(timezone.utc) - flow_start_time).total_seconds()
+        recovery_time = (datetime.now(UTC) - flow_start_time).total_seconds()
 
         # Verificar se SLA foi restaurado
         sla_met = True
@@ -295,7 +295,7 @@ class IncidentOrchestrator:
 
             except Exception as e:
                 logger.error("incident_orchestrator.prometheus_validation_failed", error=str(e))
-                issues.append(f"Prometheus validation error: {str(e)}")
+                issues.append(f"Prometheus validation error: {e!s}")
 
         # E5: SLA não recuperado → abrir incidente crítico
         if not sla_met:
@@ -313,7 +313,7 @@ class IncidentOrchestrator:
             "mttr_target_s": self.sla_targets["mttr_seconds"],
             "prometheus_metrics": prometheus_metrics,
             "issues": issues,
-            "validated_at": datetime.now(timezone.utc).isoformat(),
+            "validated_at": datetime.now(UTC).isoformat(),
         }
 
         logger.info(
@@ -326,7 +326,7 @@ class IncidentOrchestrator:
 
         return validation
 
-    def _extract_affected_service(self, incident: Dict[str, Any]) -> Optional[str]:
+    def _extract_affected_service(self, incident: dict[str, Any]) -> Optional[str]:
         """Extrai nome do serviço afetado do incidente"""
         resources = incident.get("affected_resources", [])
         if resources:
@@ -341,11 +341,11 @@ class IncidentOrchestrator:
 
     async def _e6_document_lessons(
         self,
-        incident: Dict[str, Any],
-        enforcement_result: Dict[str, Any],
-        remediation_result: Dict[str, Any],
-        sla_validation: Dict[str, Any],
-    ) -> Dict[str, Any]:
+        incident: dict[str, Any],
+        enforcement_result: dict[str, Any],
+        remediation_result: dict[str, Any],
+        sla_validation: dict[str, Any],
+    ) -> dict[str, Any]:
         """E6: Documentar licoes aprendidas (Registro em ate 4h)"""
         logger.debug(
             "incident_orchestrator.e6_documenting", incident_id=incident.get("incident_id")
@@ -366,7 +366,7 @@ class IncidentOrchestrator:
                 "recovery_time_s": sla_validation.get("recovery_time_s"),
             },
             "recommendations": self._generate_recommendations(incident, sla_validation),
-            "documented_at": datetime.now(timezone.utc).isoformat(),
+            "documented_at": datetime.now(UTC).isoformat(),
         }
 
         # Persistir no Knowledge Base (colecao de post-mortems)
@@ -399,7 +399,7 @@ class IncidentOrchestrator:
                     "incident_id": incident_id,
                     "violation": "E6_DOCUMENTATION_DELAYED",
                     "error": error,
-                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "timestamp": datetime.now(UTC).isoformat(),
                 }
                 # Tentar publicar via metodo generico do producer
                 if hasattr(self.kafka_producer, "publish_compliance_alert"):
@@ -418,10 +418,10 @@ class IncidentOrchestrator:
 
     def _generate_incident_summary(
         self,
-        incident: Dict[str, Any],
-        enforcement_result: Dict[str, Any],
-        remediation_result: Dict[str, Any],
-        sla_validation: Dict[str, Any],
+        incident: dict[str, Any],
+        enforcement_result: dict[str, Any],
+        remediation_result: dict[str, Any],
+        sla_validation: dict[str, Any],
     ) -> str:
         """Gera resumo do incidente"""
         summary = (
@@ -433,7 +433,7 @@ class IncidentOrchestrator:
         )
         return summary
 
-    def _analyze_root_cause(self, incident: Dict[str, Any]) -> str:
+    def _analyze_root_cause(self, incident: dict[str, Any]) -> str:
         """
         Analisa causa raiz baseada em múltiplos fatores do incidente.
 
@@ -508,8 +508,8 @@ class IncidentOrchestrator:
         return " | ".join(analysis_parts)
 
     def _summarize_actions(
-        self, enforcement_result: Dict[str, Any], remediation_result: Dict[str, Any]
-    ) -> List[str]:
+        self, enforcement_result: dict[str, Any], remediation_result: dict[str, Any]
+    ) -> list[str]:
         """Sumariza ações tomadas"""
         actions = []
 
@@ -524,8 +524,8 @@ class IncidentOrchestrator:
         return actions
 
     def _generate_recommendations(
-        self, incident: Dict[str, Any], sla_validation: Dict[str, Any]
-    ) -> List[str]:
+        self, incident: dict[str, Any], sla_validation: dict[str, Any]
+    ) -> list[str]:
         """Gera recomendações"""
         recommendations = []
 
@@ -538,7 +538,7 @@ class IncidentOrchestrator:
 
         return recommendations
 
-    async def _open_critical_incident(self, incident: Dict[str, Any], issues: List[str]):
+    async def _open_critical_incident(self, incident: dict[str, Any], issues: list[str]):
         """
         E5: Abre incidente crítico quando SLA não é restaurado.
 
@@ -567,7 +567,7 @@ class IncidentOrchestrator:
             "issues": issues,
             "severity": severity,
             "threat_type": threat_type,
-            "created_at": datetime.now(timezone.utc).isoformat(),
+            "created_at": datetime.now(UTC).isoformat(),
         }
 
         # Usar itsm_client injetado via construtor
@@ -654,31 +654,31 @@ class IncidentOrchestrator:
                 logger.error("incident_orchestrator.publish_critical_incident_failed", error=str(e))
 
     def _create_no_incident_result(
-        self, event: Dict[str, Any], flow_start_time: datetime
-    ) -> Dict[str, Any]:
+        self, event: dict[str, Any], flow_start_time: datetime
+    ) -> dict[str, Any]:
         """Cria resultado quando não há incidente"""
-        duration_ms = (datetime.now(timezone.utc) - flow_start_time).total_seconds() * 1000
+        duration_ms = (datetime.now(UTC) - flow_start_time).total_seconds() * 1000
 
         return {
             "incident_detected": False,
             "event_id": event.get("event_id"),
             "duration_ms": duration_ms,
-            "processed_at": datetime.now(timezone.utc).isoformat(),
+            "processed_at": datetime.now(UTC).isoformat(),
         }
 
     def _create_final_result(
         self,
-        event: Dict[str, Any],
-        anomaly: Dict[str, Any],
-        incident: Dict[str, Any],
-        enforcement_result: Dict[str, Any],
-        remediation_result: Dict[str, Any],
-        sla_validation: Dict[str, Any],
-        lessons_learned: Dict[str, Any],
+        event: dict[str, Any],
+        anomaly: dict[str, Any],
+        incident: dict[str, Any],
+        enforcement_result: dict[str, Any],
+        remediation_result: dict[str, Any],
+        sla_validation: dict[str, Any],
+        lessons_learned: dict[str, Any],
         flow_start_time: datetime,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Cria resultado final do fluxo completo"""
-        duration_ms = (datetime.now(timezone.utc) - flow_start_time).total_seconds() * 1000
+        duration_ms = (datetime.now(UTC) - flow_start_time).total_seconds() * 1000
 
         return {
             "incident_id": incident.get("incident_id"),
@@ -705,10 +705,10 @@ class IncidentOrchestrator:
             "e5_sla_validation": sla_validation,
             "e6_lessons_learned": lessons_learned,
             "duration_ms": duration_ms,
-            "completed_at": datetime.now(timezone.utc).isoformat(),
+            "completed_at": datetime.now(UTC).isoformat(),
         }
 
-    async def _persist_incident_outcome(self, result: Dict[str, Any]):
+    async def _persist_incident_outcome(self, result: dict[str, Any]):
         """Persiste resultado final"""
         if self.mongodb and self.mongodb.incidents_collection:
             try:
@@ -724,7 +724,7 @@ class IncidentOrchestrator:
                     error=str(e),
                 )
 
-    async def _publish_incident_outcome(self, result: Dict[str, Any]):
+    async def _publish_incident_outcome(self, result: dict[str, Any]):
         """
         Publica evento de conclusão do fluxo E1-E6 no Kafka.
 

@@ -1,8 +1,8 @@
 """Main exploration engine orchestrating the scout pipeline"""
 
 from collections import deque
-from datetime import datetime, timedelta, timezone
-from typing import Any, Deque, Dict, List, Optional
+from datetime import UTC, datetime, timedelta
+from typing import Any, Deque, Optional
 
 import structlog
 
@@ -170,7 +170,7 @@ class ExplorationEngine:
 
     def _check_rate_limit(self) -> bool:
         """Check if rate limit allows publishing new signal"""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         cutoff = now - timedelta(minutes=1)
 
         # Remove old timestamps
@@ -205,7 +205,7 @@ class ExplorationEngine:
                 # Don't fail the whole pipeline if pheromone publish fails
 
             # Update rate limit tracker
-            self.published_signals.append(datetime.now(timezone.utc))
+            self.published_signals.append(datetime.now(UTC))
 
             logger.info(
                 "signal_published",
@@ -354,7 +354,7 @@ class ExplorationEngine:
 
     async def scan_codebase(
         self, directory: str, extensions: Optional[set] = None
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Escaneia diretório em busca de sinais de mudança.
 
@@ -387,7 +387,7 @@ class ExplorationEngine:
             logger.error("codebase_scan_failed", directory=directory, error=str(e))
             return []
 
-    async def get_curiosity_scores(self, directory: str, limit: int = 10) -> List[Dict[str, Any]]:
+    async def get_curiosity_scores(self, directory: str, limit: int = 10) -> list[dict[str, Any]]:
         """
         Retorna arquivos mais interessantes baseado em curiosidade.
 
@@ -413,7 +413,7 @@ class ExplorationEngine:
             logger.error("curiosity_calculation_failed", directory=directory, error=str(e))
             return []
 
-    async def get_exploration_summary(self, directory: str) -> Dict[str, Any]:
+    async def get_exploration_summary(self, directory: str) -> dict[str, Any]:
         """
         Retorna resumo completo de exploração de um diretório.
 
@@ -458,7 +458,7 @@ class ExplorationEngine:
             logger.error("exploration_summary_failed", directory=directory, error=str(e))
             return {}
 
-    async def rank_directories_by_interest(self, root: str) -> Dict[str, float]:
+    async def rank_directories_by_interest(self, root: str) -> dict[str, float]:
         """
         Rankeia subdiretórios por nível de interesse.
 

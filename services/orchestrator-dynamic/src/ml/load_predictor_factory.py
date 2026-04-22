@@ -436,6 +436,5 @@ class LoadPredictorFactory:
             ) -> None:
                 """Registra predição de bottleneck."""
                 # Métricas de bottlenecks são registradas pelo wrapper
-                pass
 
         return MetricsAdapter(self.metrics)

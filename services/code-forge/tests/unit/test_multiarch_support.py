@@ -4,15 +4,15 @@ Unit tests para Multi-arch Support (FASE 3.3).
 Testa suporte a builds multi-plataforma para amd64, arm64, etc.
 """
 
-import pytest
-from unittest.mock import Mock, patch, AsyncMock
+from unittest.mock import AsyncMock, Mock, patch
 
+import pytest
 from src.services.container_builder import (
-    ContainerBuilder,
+    PLATFORM_ALIASES,
     BuilderType,
     BuildResult,
+    ContainerBuilder,
     Platform,
-    PLATFORM_ALIASES,
 )
 
 
@@ -114,7 +114,7 @@ class TestPlatformNormalization:
 class TestDockerMultiArch:
     """Testes para builds multi-arch com Docker."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_docker_build_single_platform(self):
         """Testa build Docker com plataforma única."""
         builder = ContainerBuilder(builder_type=BuilderType.DOCKER)
@@ -139,7 +139,7 @@ class TestDockerMultiArch:
             platform_idx = all_args.index("--platform")
             assert all_args[platform_idx + 1] == "linux/amd64"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_docker_build_multi_platform(self):
         """Testa build Docker com múltiplas plataformas."""
         builder = ContainerBuilder(builder_type=BuilderType.DOCKER)
@@ -165,7 +165,7 @@ class TestDockerMultiArch:
             # Docker usa vírgula para separar plataformas
             assert "linux/amd64,linux/arm64" in all_args[platform_idx + 1]
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_docker_build_without_platform(self):
         """Testa build Docker sem especificar plataforma (padrão)."""
         builder = ContainerBuilder(builder_type=BuilderType.DOCKER)
@@ -195,14 +195,14 @@ class TestKanikoMultiArch:
         result = builder._normalize_platforms(["amd64", "arm64"])
         assert result == [Platform.LINUX_AMD64, Platform.LINUX_ARM64]
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_kaniko_build_with_platform(self):
         """Testa build Kaniko com plataforma especificada."""
         builder = ContainerBuilder(builder_type=BuilderType.KANIKO, enable_cache=False)
 
         # Criar Dockerfile temporário
-        import tempfile
         import os
+        import tempfile
 
         with tempfile.TemporaryDirectory() as tmpdir:
             dockerfile_path = os.path.join(tmpdir, "Dockerfile")

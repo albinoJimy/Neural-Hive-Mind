@@ -9,9 +9,7 @@ import pytest
 class TestParsingAPI:
     """Testes de integração para endpoints de parsing."""
 
-    async def test_parse_document_pdf(
-        self, test_client, sample_pdf_bytes
-    ):
+    async def test_parse_document_pdf(self, test_client, sample_pdf_bytes):
         """Testa parsing de documento PDF."""
         # Arrange - Upload documento primeiro
         files = {"file": ("test.pdf", sample_pdf_bytes, "application/pdf")}
@@ -54,9 +52,7 @@ class TestParsingAPI:
         # Assert - Se não encontrar, retorna 404
         assert response.status_code in [404, 500]
 
-    async def test_extract_entities_success(
-        self, test_client, sample_pdf_bytes
-    ):
+    async def test_extract_entities_success(self, test_client, sample_pdf_bytes):
         """Testa extração de entidades."""
         # Arrange - Upload e parse documento
         files = {"file": ("test.pdf", sample_pdf_bytes, "application/pdf")}
@@ -89,9 +85,7 @@ class TestParsingAPI:
             ],
         ):
             # Act
-            response = test_client.post(
-                f"/api/v1/documents/{document_id}/extract"
-            )
+            response = test_client.post(f"/api/v1/documents/{document_id}/extract")
 
         # Assert
         assert response.status_code == 202
@@ -114,9 +108,7 @@ class TestParsingAPI:
         assert response.status_code == 400
         assert "must be parsed" in response.json()["detail"].lower()
 
-    async def test_approve_document(
-        self, test_client, sample_pdf_bytes
-    ):
+    async def test_approve_document(self, test_client, sample_pdf_bytes):
         """Testa aprovação de documento."""
         # Arrange - Upload documento
         files = {"file": ("test.pdf", sample_pdf_bytes, "application/pdf")}
@@ -135,7 +127,7 @@ class TestParsingAPI:
         # Act
         response = test_client.post(
             f"/api/v1/documents/{document_id}/approve",
-            params={"approved_by": "admin@example.com", "notes": "Approved for migration"}
+            params={"approved_by": "admin@example.com", "notes": "Approved for migration"},
         )
 
         # Assert
@@ -145,9 +137,7 @@ class TestParsingAPI:
         assert result["status"] == "approved"
         assert result["approved_by"] == "admin@example.com"
 
-    async def test_approve_document_not_parsed(
-        self, test_client, sample_pdf_bytes
-    ):
+    async def test_approve_document_not_parsed(self, test_client, sample_pdf_bytes):
         """Testa aprovação de documento não parseado."""
         # Arrange - Upload documento (sem parse)
         files = {"file": ("test.pdf", sample_pdf_bytes, "application/pdf")}
@@ -157,17 +147,14 @@ class TestParsingAPI:
 
         # Act - Tentar aprovar sem parse
         response = test_client.post(
-            f"/api/v1/documents/{document_id}/approve",
-            params={"approved_by": "admin@example.com"}
+            f"/api/v1/documents/{document_id}/approve", params={"approved_by": "admin@example.com"}
         )
 
         # Assert
         assert response.status_code == 400
         assert "must be parsed" in response.json()["detail"].lower()
 
-    async def test_get_document_entities(
-        self, test_client, sample_pdf_bytes
-    ):
+    async def test_get_document_entities(self, test_client, sample_pdf_bytes):
         """Testa busca de entidades de documento."""
         # Arrange - Upload, parse e extrair entidades
         files = {"file": ("test.pdf", sample_pdf_bytes, "application/pdf")}
@@ -191,9 +178,7 @@ class TestParsingAPI:
         result = response.json()
         assert "job_id" in result
 
-    async def test_extract_with_custom_confidence(
-        self, test_client, sample_pdf_bytes
-    ):
+    async def test_extract_with_custom_confidence(self, test_client, sample_pdf_bytes):
         """Testa extração com confiança customizada."""
         # Arrange
         files = {"file": ("test.pdf", sample_pdf_bytes, "application/pdf")}
@@ -228,9 +213,7 @@ class TestParsingAPI:
 class TestParsingErrorHandling:
     """Testes de tratamento de erros na API de parsing."""
 
-    async def test_parse_with_s3_error(
-        self, test_client, sample_pdf_bytes
-    ):
+    async def test_parse_with_s3_error(self, test_client, sample_pdf_bytes):
         """Testa parsing com erro no S3."""
         # Arrange
         files = {"file": ("test.pdf", sample_pdf_bytes, "application/pdf")}
@@ -250,9 +233,7 @@ class TestParsingErrorHandling:
         # Assert
         assert response.status_code in [500, 202]  # 202 com erro no job
 
-    async def test_extract_with_llm_error(
-        self, test_client, sample_pdf_bytes
-    ):
+    async def test_extract_with_llm_error(self, test_client, sample_pdf_bytes):
         """Testa extração com erro no LLM."""
         # Arrange
         files = {"file": ("test.pdf", sample_pdf_bytes, "application/pdf")}

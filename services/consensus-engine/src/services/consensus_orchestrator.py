@@ -1,6 +1,6 @@
 import uuid
-from datetime import datetime, timezone
-from typing import Any, Dict, List
+from datetime import UTC, datetime
+from typing import Any
 
 import structlog
 from src.models.consolidated_decision import (
@@ -36,7 +36,7 @@ class ConsensusOrchestrator:
         self.hierarchical = HierarchicalWeightCalculator(config)
 
     async def process_consensus(
-        self, cognitive_plan: Dict[str, Any], specialist_opinions: List[Dict[str, Any]]
+        self, cognitive_plan: dict[str, Any], specialist_opinions: list[dict[str, Any]]
     ) -> ConsolidatedDecision:
         """Processa consenso completo
 
@@ -47,7 +47,7 @@ class ConsensusOrchestrator:
         Returns:
             ConsolidatedDecision pronta para persistência e publicação
         """
-        start_time = datetime.now(timezone.utc)
+        start_time = datetime.now(UTC)
 
         logger.info(
             "Iniciando processamento de consenso",
@@ -114,7 +114,7 @@ class ConsensusOrchestrator:
         specialist_votes = self._build_specialist_votes(specialist_opinions, weights)
 
         # 8. Calcular métricas
-        convergence_time_ms = int((datetime.now(timezone.utc) - start_time).total_seconds() * 1000)
+        convergence_time_ms = int((datetime.now(UTC) - start_time).total_seconds() * 1000)
 
         # Obter força de feromônio agregada
         # FIX BUG-002: Usar 'original_domain' (campo correto do schema Avro) em vez de 'domain'
@@ -232,8 +232,8 @@ class ConsensusOrchestrator:
         return decision
 
     async def _calculate_dynamic_weights(
-        self, cognitive_plan: Dict[str, Any], specialist_opinions: List[Dict[str, Any]]
-    ) -> Dict[str, float]:
+        self, cognitive_plan: dict[str, Any], specialist_opinions: list[dict[str, Any]]
+    ) -> dict[str, float]:
         """Calcula pesos dinâmicos baseados em feromônios e senioridade (GAPS-03-05)"""
         weights = {}
         # FIX BUG-002: Usar 'original_domain' (campo correto do schema Avro) em vez de 'domain'
@@ -300,7 +300,7 @@ class ConsensusOrchestrator:
         return weights
 
     async def _get_average_pheromone_strength(
-        self, specialist_opinions: List[Dict[str, Any]], domain: str
+        self, specialist_opinions: list[dict[str, Any]], domain: str
     ) -> float:
         """Obtém força média de feromônios para os especialistas"""
         if not self.config.enable_pheromones or not self.pheromone_client:
@@ -349,8 +349,8 @@ class ConsensusOrchestrator:
         return mapping.get(recommendation, DecisionType.REVIEW_REQUIRED)
 
     def _build_specialist_votes(
-        self, specialist_opinions: List[Dict[str, Any]], weights: Dict[str, float]
-    ) -> List[SpecialistVote]:
+        self, specialist_opinions: list[dict[str, Any]], weights: dict[str, float]
+    ) -> list[SpecialistVote]:
         """Constrói lista de votos estruturados (GAPS-03-05: com campos de senioridade)"""
         votes = []
         for opinion in specialist_opinions:
@@ -414,7 +414,7 @@ class ConsensusOrchestrator:
         confidence: float,
         risk: float,
         is_unanimous: bool,
-        violations: List[str],
+        violations: list[str],
     ) -> str:
         """Gera resumo da justificativa da decisão"""
         if is_unanimous:
@@ -430,8 +430,8 @@ class ConsensusOrchestrator:
         return summary
 
     def _calculate_seniority_distribution(
-        self, specialist_opinions: List[Dict[str, Any]]
-    ) -> Dict[str, int]:
+        self, specialist_opinions: list[dict[str, Any]]
+    ) -> dict[str, int]:
         """Calcula distribuição de votos por nível de senioridade (GAPS-03-05)
 
         Args:
@@ -462,8 +462,8 @@ class ConsensusOrchestrator:
     async def _publish_pheromones(
         self,
         decision: ConsolidatedDecision,
-        cognitive_plan: Dict[str, Any],
-        specialist_opinions: List[Dict[str, Any]],
+        cognitive_plan: dict[str, Any],
+        specialist_opinions: list[dict[str, Any]],
     ):
         """Publica feromônios baseados na decisão final"""
         if not self.config.enable_pheromones or not self.pheromone_client:

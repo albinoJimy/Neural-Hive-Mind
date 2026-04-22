@@ -4,19 +4,20 @@ TDD NOTE: Estes testes sao escritos ANTES da implementacao.
 Esperado que falhem inicialmente, servindo como contrato para a implementacao.
 """
 
-import pytest
-from unittest.mock import patch
 import os
+from unittest.mock import patch
+
+import pytest
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_hvac():
     """Mock do modulo hvac."""
     with patch("src.clients.vault_client.hvac") as mock:
         yield mock
 
 
-@pytest.fixture
+@pytest.fixture()
 def vault_client(mock_hvac):
     """Fixture que cria um VaultClient com mocks."""
     with patch.dict(os.environ, {"VAULT_ADDR": "http://localhost:8200"}):

@@ -4,11 +4,12 @@ Testes para os serviços de explicabilidade do Explainability API.
 Cobre ShapCalculator, QualityScorer e HierarchicalExplainer.
 """
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock
 
+import pytest
 
-@pytest.mark.asyncio
+
+@pytest.mark.asyncio()
 async def test_shap_calculator_init():
     """ShapCalculator deve inicializar com parametros corretos."""
     from src.services.shap_calculator import ShapCalculator
@@ -18,7 +19,7 @@ async def test_shap_calculator_init():
     assert calculator.n_background_samples == 100
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_shap_calculate_explanation():
     """Calculadora SHAP deve retornar valores de feature importance."""
     from src.services.shap_calculator import ShapCalculator
@@ -56,7 +57,7 @@ async def test_shap_calculate_explanation():
     assert result["num_votes"] == 3
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_shap_calculate_with_background():
     """Calculadora SHAP deve usar background samples."""
     from src.services.shap_calculator import ShapCalculator
@@ -85,7 +86,7 @@ async def test_shap_calculate_with_background():
     assert len(result) == 5
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_quality_scorer_init():
     """QualityScorer deve inicializar com cliente MongoDB."""
     from src.services.quality_scorer import ExplanationQualityScorer
@@ -97,7 +98,7 @@ async def test_quality_scorer_init():
     assert scorer.mongodb == mock_mongo
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_quality_score_completeness():
     """Score de qualidade deve medir completude."""
     from src.services.quality_scorer import ExplanationQualityScorer
@@ -119,7 +120,7 @@ async def test_quality_score_completeness():
     assert 0 <= scores["completeness"] <= 1
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_quality_score_clarity():
     """Score de qualidade deve medir clareza."""
     from src.services.quality_scorer import ExplanationQualityScorer
@@ -140,7 +141,7 @@ async def test_quality_score_clarity():
     assert 0 <= scores["clarity"] <= 1
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_quality_score_specificity():
     """Score de qualidade deve medir especificidade."""
     from src.services.quality_scorer import ExplanationQualityScorer
@@ -159,7 +160,7 @@ async def test_quality_score_specificity():
     assert "specificity" in scores
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_quality_overall_score():
     """Score geral deve combinar metricas parciais."""
     from src.services.quality_scorer import ExplanationQualityScorer
@@ -180,7 +181,7 @@ async def test_quality_overall_score():
     assert 0 <= overall_score <= 1
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_hierarchical_explainer_init():
     """HierarchicalExplainer deve inicializar corretamente."""
     from src.services.hierarchical_explainer import HierarchicalExplainer
@@ -190,7 +191,7 @@ async def test_hierarchical_explainer_init():
     assert explainer is not None
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_hierarchical_explain_decision():
     """Explicador hierarquico deve gerar explicação com pesos."""
     from src.services.hierarchical_explainer import HierarchicalExplainer
@@ -214,7 +215,7 @@ async def test_hierarchical_explain_decision():
     assert "seniority_impact" in explanation
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_hierarchical_seniority_weights():
     """Explicação deve calcular impacto de senioridade."""
     from src.services.hierarchical_explainer import HierarchicalExplainer
@@ -235,7 +236,7 @@ async def test_hierarchical_seniority_weights():
     assert weights["mid_level"] > weights["trainee"]
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_reasoning_extractor_init():
     """ReasoningExtractor deve inicializar corretamente."""
     from src.services.reasoning_extractor import ReasoningExtractor
@@ -245,7 +246,7 @@ async def test_reasoning_extractor_init():
     assert extractor is not None
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_reasoning_extract_from_decision():
     """Extrair reasoning deve identificar fatores de decisão."""
     from src.services.reasoning_extractor import ReasoningExtractor
@@ -267,7 +268,7 @@ async def test_reasoning_extract_from_decision():
     assert len(reasoning["factors"]) == 3
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_reasoning_format_as_text():
     """Formatar reasoning como texto deve ser legivel."""
     from src.services.reasoning_extractor import ReasoningExtractor
@@ -287,7 +288,7 @@ async def test_reasoning_format_as_text():
     assert "low_risk" in text or "high_confidence" in text
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_counterfactual_analyzer():
     """Analisador contrafactual deve gerar cenarios alternativos."""
     from src.services.counterfactual_analyzer import CounterfactualAnalyzer
@@ -304,7 +305,7 @@ async def test_counterfactual_analyzer():
     assert "counterfactual_changes" in counterfactual
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_api_extensions_init():
     """API Extensions deve inicializar com servicos."""
     from src.services.api_extensions import ExplainabilityAPIExtensions
@@ -326,7 +327,7 @@ async def test_api_extensions_init():
     assert extensions.shap_calculator == mock_shap
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_api_extensions_get_explainability():
     """API Extensions deve buscar explicação por decision_id."""
     from src.services.api_extensions import ExplainabilityAPIExtensions
@@ -355,7 +356,7 @@ async def test_api_extensions_get_explainability():
     assert result["decision_id"] == "decision-123"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_api_extensions_generate_explanation():
     """API Extensions deve gerar nova explicação."""
     from src.services.api_extensions import ExplainabilityAPIExtensions

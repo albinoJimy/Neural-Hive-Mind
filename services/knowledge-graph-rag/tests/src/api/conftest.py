@@ -1,15 +1,15 @@
 """Configuração pytest para API tests."""
 
 import sys
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 import pytest
 from fastapi import FastAPI
 
 
 # Mock service_registry_pb2 antes de importar main
-sys.modules['proto'] = Mock()
-sys.modules['proto'].service_registry_pb2 = Mock()
-sys.modules['proto'].service_registry_pb2.KNOWLEDGE_GRAPH_RAG = 7
+sys.modules["proto"] = Mock()
+sys.modules["proto"].service_registry_pb2 = Mock()
+sys.modules["proto"].service_registry_pb2.KNOWLEDGE_GRAPH_RAG = 7
 
 
 @pytest.fixture
@@ -42,6 +42,7 @@ def app():
 def client(app):
     """Cliente de teste."""
     from fastapi.testclient import TestClient
+
     return TestClient(app)
 
 

@@ -4,47 +4,47 @@ Testes unitários abrangentes para BayesianFilter.
 Cobertura: filtragem Bayesiana, atualização de priors, likelihoods.
 """
 
-import pytest
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import patch
 
+import pytest
 from src.detection.bayesian_filter import BayesianFilter
 from src.models.raw_event import RawEvent
-from neural_hive_domain import UnifiedDomain
 
+from neural_hive_domain import UnifiedDomain
 
 # ============================================================================
 # Fixtures
 # ============================================================================
 
 
-@pytest.fixture
+@pytest.fixture()
 def bayesian_filter():
     """Instância de BayesianFilter para testes."""
     return BayesianFilter()
 
 
-@pytest.fixture
+@pytest.fixture()
 def event_with_features():
     """Evento com features numéricas."""
     return RawEvent(
         event_id="feature-event-001",
         source="test-source",
         event_type="test",
-        timestamp=datetime.now(timezone.utc),
+        timestamp=datetime.now(UTC),
         payload={"metric1": 100, "metric2": 200, "metric3": 150},
         metadata={"trace_id": "trace-001"},
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def event_without_features():
     """Evento sem features numéricas."""
     return RawEvent(
         event_id="no-feature-event-001",
         source="test-source",
         event_type="test",
-        timestamp=datetime.now(timezone.utc),
+        timestamp=datetime.now(UTC),
         payload={"message": "test message", "status": "active"},
         metadata={"trace_id": "trace-002"},
     )

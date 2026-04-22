@@ -5,11 +5,11 @@ TDD: Testes escritos antes da implementação (RED phase).
 """
 
 from src.models.consolidated_decision import (
-    DecisionType,
     ConsensusMethod,
-    SpecialistVote,
     ConsensusMetrics,
     ConsolidatedDecision,
+    DecisionType,
+    SpecialistVote,
 )
 
 

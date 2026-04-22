@@ -11,14 +11,13 @@ from pathlib import Path
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
-import pytest
-from datetime import datetime, timezone
-from typing import Dict, Any, List
+from datetime import UTC, datetime
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
-from risk_scoring.config import RiskScoringConfig, RiskBand
-from risk_scoring.models import RiskAssessment, RiskMatrixConfig
-
+import pytest
+from risk_scoring.config import RiskBand, RiskScoringConfig
+from risk_scoring.models import RiskMatrixConfig
 
 # ========== E2E FIXTURES ==========
 
@@ -52,14 +51,14 @@ def e2e_config() -> RiskScoringConfig:
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def e2e_timestamp() -> datetime:
     """Timestamp consistente para testes E2E."""
-    return datetime(2026, 4, 7, 12, 0, 0, tzinfo=timezone.utc)
+    return datetime(2026, 4, 7, 12, 0, 0, tzinfo=UTC)
 
 
-@pytest.fixture
-def sample_decision_context(e2e_timestamp) -> Dict[str, Any]:
+@pytest.fixture()
+def sample_decision_context(e2e_timestamp) -> dict[str, Any]:
     """Contexto de decisão de exemplo para testes E2E."""
     return {
         "decision_id": "e2e_test_decision_001",
@@ -70,8 +69,8 @@ def sample_decision_context(e2e_timestamp) -> Dict[str, Any]:
     }
 
 
-@pytest.fixture
-def low_risk_scenario() -> Dict[str, Any]:
+@pytest.fixture()
+def low_risk_scenario() -> dict[str, Any]:
     """Cenário de baixo risco para testes."""
     return {
         "domain_id": "low_risk_domain",
@@ -91,8 +90,8 @@ def low_risk_scenario() -> Dict[str, Any]:
     }
 
 
-@pytest.fixture
-def low_risk_votes() -> List[Dict[str, Any]]:
+@pytest.fixture()
+def low_risk_votes() -> list[dict[str, Any]]:
     """Votos de especialistas para cenário de baixo risco."""
     return [
         {
@@ -143,8 +142,8 @@ def low_risk_votes() -> List[Dict[str, Any]]:
     ]
 
 
-@pytest.fixture
-def high_risk_scenario() -> Dict[str, Any]:
+@pytest.fixture()
+def high_risk_scenario() -> dict[str, Any]:
     """Cenário de alto risco para testes."""
     return {
         "domain_id": "high_risk_domain",
@@ -164,8 +163,8 @@ def high_risk_scenario() -> Dict[str, Any]:
     }
 
 
-@pytest.fixture
-def high_risk_votes() -> List[Dict[str, Any]]:
+@pytest.fixture()
+def high_risk_votes() -> list[dict[str, Any]]:
     """Votos de especialistas para cenário de alto risco."""
     return [
         {
@@ -216,8 +215,8 @@ def high_risk_votes() -> List[Dict[str, Any]]:
     ]
 
 
-@pytest.fixture
-def mixed_risk_votes() -> List[Dict[str, Any]]:
+@pytest.fixture()
+def mixed_risk_votes() -> list[dict[str, Any]]:
     """Votos mistos para testar cenários de consenso dividido."""
     return [
         {
@@ -263,7 +262,7 @@ def mixed_risk_votes() -> List[Dict[str, Any]]:
     ]
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_async_mongodb():
     """Mock MongoDB client assíncrono para testes E2E."""
     client = AsyncMock()
@@ -333,8 +332,8 @@ def mock_async_mongodb():
     return client
 
 
-@pytest.fixture
-def e2e_performance_thresholds() -> Dict[str, float]:
+@pytest.fixture()
+def e2e_performance_thresholds() -> dict[str, float]:
     """Limites de performance para testes E2E."""
     return {
         "max_assessment_latency_ms": 100,
@@ -349,15 +348,6 @@ def e2e_performance_thresholds() -> Dict[str, float]:
 
 def pytest_configure(config):
     """Configuração adicional para pytest."""
-    config.addinivalue_line(
-        "markers",
-        "e2e: marca testes como end-to-end (integrados)"
-    )
-    config.addinivalue_line(
-        "markers",
-        "slow: marca testes que podem demorar mais"
-    )
-    config.addinivalue_line(
-        "markers",
-        "performance: marca testes de performance"
-    )
+    config.addinivalue_line("markers", "e2e: marca testes como end-to-end (integrados)")
+    config.addinivalue_line("markers", "slow: marca testes que podem demorar mais")
+    config.addinivalue_line("markers", "performance: marca testes de performance")

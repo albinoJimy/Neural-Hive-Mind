@@ -4,9 +4,9 @@ Unit tests for ThreatDetector service (guard-agents).
 Tests signal detection, classification, and threat analysis.
 """
 
-import pytest
 from unittest.mock import AsyncMock, patch
 
+import pytest
 from src.services.threat_detector import ThreatDetector, ThreatType
 
 
@@ -62,7 +62,7 @@ class TestThreatDetectorInitialization:
 class TestAuthenticationAnomalyDetection:
     """Test authentication anomaly detection."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_normal_auth_event(self, sample_auth_event):
         """Test normal authentication event does not trigger anomaly."""
         detector = ThreatDetector()
@@ -70,7 +70,7 @@ class TestAuthenticationAnomalyDetection:
 
         assert result is None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_failed_auth_threshold_trigger(self, sample_failed_auth_event):
         """Test failed authentication event above threshold triggers anomaly."""
         detector = ThreatDetector()
@@ -82,7 +82,7 @@ class TestAuthenticationAnomalyDetection:
         assert result["details"]["failed_attempts"] == 7
         assert result["details"]["user_id"] == "user-456"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_failed_auth_confidence_calculation(self):
         """Test confidence increases with failed attempts."""
         detector = ThreatDetector()
@@ -102,7 +102,7 @@ class TestAuthenticationAnomalyDetection:
         assert result_10 is not None
         assert result_10["confidence"] == 1.0  # Max confidence
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_non_auth_event_ignored(self):
         """Test non-authentication events are ignored."""
         detector = ThreatDetector()
@@ -116,7 +116,7 @@ class TestAuthenticationAnomalyDetection:
 class TestRateAnomalyDetection:
     """Test rate-based anomaly detection."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_normal_request_rate(self, sample_request_metrics_event):
         """Test normal request rate does not trigger anomaly."""
         detector = ThreatDetector()
@@ -124,7 +124,7 @@ class TestRateAnomalyDetection:
 
         assert result is None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_dos_attack_detection(self, sample_dos_attack_event):
         """Test DoS attack detection via high request rate."""
         detector = ThreatDetector()
@@ -137,7 +137,7 @@ class TestRateAnomalyDetection:
         assert result["details"]["request_rate"] == 1500
         assert result["details"]["threshold"] == 1000
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_exact_threshold_trigger(self):
         """Test exact threshold value triggers anomaly."""
         detector = ThreatDetector()
@@ -155,7 +155,7 @@ class TestRateAnomalyDetection:
 class TestPatternAnomalyDetection:
     """Test pattern-based anomaly detection."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_safe_payload(self, sample_payload_event):
         """Test safe payload does not trigger anomaly."""
         detector = ThreatDetector()
@@ -164,7 +164,7 @@ class TestPatternAnomalyDetection:
         # Safe payload should not trigger
         assert result is None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_sql_injection_detection(self, sample_malicious_payload_event):
         """Test SQL injection pattern detection."""
         detector = ThreatDetector()
@@ -176,7 +176,7 @@ class TestPatternAnomalyDetection:
         assert result["confidence"] == 0.9
         assert "matched_pattern" in result["details"]
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_path_traversal_detection(self):
         """Test path traversal pattern detection."""
         detector = ThreatDetector()
@@ -187,7 +187,7 @@ class TestPatternAnomalyDetection:
         assert result is not None
         assert result["threat_type"] == ThreatType.MALICIOUS_PAYLOAD
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_xss_detection(self):
         """Test XSS pattern detection."""
         detector = ThreatDetector()
@@ -198,7 +198,7 @@ class TestPatternAnomalyDetection:
         assert result is not None
         assert result["threat_type"] == ThreatType.MALICIOUS_PAYLOAD
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_non_string_payload_ignored(self):
         """Test non-string payloads are ignored."""
         detector = ThreatDetector()
@@ -208,7 +208,7 @@ class TestPatternAnomalyDetection:
 
         assert result is None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_case_insensitive_pattern_matching(self):
         """Test pattern matching is case insensitive."""
         detector = ThreatDetector()
@@ -225,7 +225,7 @@ class TestPatternAnomalyDetection:
 class TestResourceAnomalyDetection:
     """Test resource-based anomaly detection."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_normal_resource_usage(self, sample_resource_metrics_event):
         """Test normal resource usage does not trigger anomaly."""
         detector = ThreatDetector()
@@ -233,7 +233,7 @@ class TestResourceAnomalyDetection:
 
         assert result is None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_high_cpu_usage_detection(self):
         """Test high CPU usage detection."""
         detector = ThreatDetector()
@@ -250,7 +250,7 @@ class TestResourceAnomalyDetection:
         assert result["severity"] == "medium"
         assert result["details"]["metric"] == "cpu_usage"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_high_memory_usage_detection(self):
         """Test high memory usage detection."""
         detector = ThreatDetector()
@@ -267,7 +267,7 @@ class TestResourceAnomalyDetection:
         assert result["severity"] == "high"
         assert result["details"]["metric"] == "memory_usage"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_combined_resource_alerts(self, sample_high_resource_event):
         """Test that both CPU and memory issues can be detected."""
         detector = ThreatDetector()
@@ -277,7 +277,7 @@ class TestResourceAnomalyDetection:
         assert result is not None
         assert result["details"]["metric"] in ["cpu_usage", "memory_usage"]
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_non_resource_event_ignored(self):
         """Test non-resource events are ignored."""
         detector = ThreatDetector()
@@ -291,7 +291,7 @@ class TestResourceAnomalyDetection:
 class TestBehavioralAnomalyDetection:
     """Test behavioral anomaly detection."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_normal_behavior(self, sample_behavioral_event):
         """Test normal behavior does not trigger anomaly."""
         detector = ThreatDetector()
@@ -299,7 +299,7 @@ class TestBehavioralAnomalyDetection:
 
         assert result is None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_anomalous_behavior_threshold(self, sample_anomalous_behavior_event):
         """Test anomalous behavior detection via threshold."""
         detector = ThreatDetector()
@@ -309,7 +309,7 @@ class TestBehavioralAnomalyDetection:
         assert result["threat_type"] == ThreatType.ANOMALOUS_BEHAVIOR
         assert result["details"]["anomaly_score"] == 0.85
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_ml_anomaly_detection(
         self, sample_anomalous_behavior_event, mock_anomaly_detector
     ):
@@ -333,7 +333,7 @@ class TestBehavioralAnomalyDetection:
         # When ML detects, it includes model_type in details
         assert "model_type" in result["details"]
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_ml_fallback_on_failure(
         self, sample_anomalous_behavior_event, mock_anomaly_detector
     ):
@@ -352,7 +352,7 @@ class TestBehavioralAnomalyDetection:
 class TestMainDetectionPipeline:
     """Test main detection pipeline."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_detect_no_anomaly(self, sample_auth_event):
         """Test detection pipeline with normal event."""
         detector = ThreatDetector()
@@ -360,7 +360,7 @@ class TestMainDetectionPipeline:
 
         assert result is None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_detect_authentication_anomaly(self, sample_failed_auth_event):
         """Test detection pipeline finds authentication anomaly."""
         detector = ThreatDetector()
@@ -370,7 +370,7 @@ class TestMainDetectionPipeline:
         assert result["threat_type"] == ThreatType.UNAUTHORIZED_ACCESS
         assert "detected_at" in result
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_detect_dos_attack(self, sample_dos_attack_event):
         """Test detection pipeline finds DoS attack."""
         detector = ThreatDetector()
@@ -379,7 +379,7 @@ class TestMainDetectionPipeline:
         assert result is not None
         assert result["threat_type"] == ThreatType.DOS_ATTACK
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_caching_anomaly(self, sample_failed_auth_event, mock_redis_client):
         """Test anomaly is cached in Redis."""
         detector = ThreatDetector(redis_client=mock_redis_client)
@@ -388,7 +388,7 @@ class TestMainDetectionPipeline:
         assert result is not None
         mock_redis_client.set.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_detection_exception_handling(self):
         """Test detection exceptions are propagated."""
         detector = ThreatDetector()
@@ -433,7 +433,7 @@ class TestSeverityMapping:
 class TestThresholdRecalibration:
     """Test adaptive threshold recalibration."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_threshold_increase_on_high_fpr(self, mock_redis_client):
         """Test thresholds increase when false positive rate is high."""
         detector = ThreatDetector(redis_client=mock_redis_client)
@@ -445,7 +445,7 @@ class TestThresholdRecalibration:
         assert detector.adaptive_thresholds["cpu_usage"] > initial_cpu_threshold
         mock_redis_client.set.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_threshold_saved_to_redis(self, mock_redis_client):
         """Test recalibrated thresholds are saved to Redis."""
         detector = ThreatDetector(redis_client=mock_redis_client)
@@ -457,7 +457,7 @@ class TestThresholdRecalibration:
         call_args = mock_redis_client.set.call_args
         assert call_args[0][0] == "adaptive_thresholds"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_recalibration_exception_handling(self):
         """Test recalibration handles exceptions."""
         detector = ThreatDetector()
@@ -512,7 +512,7 @@ class TestEventToTicketConversion:
 class TestMetrics:
     """Test metrics collection."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     @patch("src.services.threat_detector.MetricsCollector")
     async def test_anomaly_detection_metrics_recorded(
         self, mock_metrics_collector, mock_anomaly_detector

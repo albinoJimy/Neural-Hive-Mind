@@ -1,13 +1,19 @@
 """Testes unitários para MarkdownReportGenerator"""
 
-import pytest
 from datetime import datetime
 
+import pytest
+from src.models import (
+    DocumentStatus,
+    DocumentType,
+    Insight,
+    InsightConfidence,
+    LearningDocument,
+)
 from src.services.markdown_report_generator import MarkdownReportGenerator
-from src.models import DocumentFormat, DocumentStatus, DocumentType, Insight, InsightConfidence, ExperimentRun, LearningDocument
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_generator_initialization(output_dir):
     """Testa inicialização do gerador"""
     with pytest.MonkeyPatch.context() as m:
@@ -21,7 +27,7 @@ async def test_generator_initialization(output_dir):
         assert generator._output_dir == output_dir
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_generate_experiment_report(output_dir, mock_experiment_runs, mock_insights):
     """Testa geração de relatório de experimento"""
     with pytest.MonkeyPatch.context() as m:
@@ -49,7 +55,7 @@ async def test_generate_experiment_report(output_dir, mock_experiment_runs, mock
         assert "Resumo executivo" in content
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_generate_weekly_summary(output_dir, mock_experiment_runs):
     """Testa geração de relatório semanal"""
     with pytest.MonkeyPatch.context() as m:
@@ -75,7 +81,7 @@ async def test_generate_weekly_summary(output_dir, mock_experiment_runs):
         assert "Semanal" in content
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_generate_promotion_report(output_dir, mock_experiment_runs):
     """Testa geração de relatório de promoção"""
     with pytest.MonkeyPatch.context() as m:
@@ -100,7 +106,7 @@ async def test_generate_promotion_report(output_dir, mock_experiment_runs):
         assert "Aprovado para produção" in content
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_generate_rollback_analysis(output_dir):
     """Testa geração de análise de rollback"""
     with pytest.MonkeyPatch.context() as m:
@@ -124,7 +130,7 @@ async def test_generate_rollback_analysis(output_dir):
         assert "Incidente" in content
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_save_to_file(output_dir, mock_experiment_runs):
     """Testa salvar conteúdo em arquivo"""
     with pytest.MonkeyPatch.context() as m:
@@ -147,10 +153,11 @@ async def test_save_to_file(output_dir, mock_experiment_runs):
 
         # Verificar que arquivo foi criado
         import os
+
         assert os.path.exists(filepath)
 
         # Ler e verificar conteúdo
-        with open(filepath, "r") as f:
+        with open(filepath) as f:
             saved_content = f.read()
         assert saved_content == content
 

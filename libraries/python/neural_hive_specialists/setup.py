@@ -1,5 +1,6 @@
-from setuptools import setup
 import os
+
+from setuptools import setup
 
 # Get the directory where setup.py is located
 here = os.path.abspath(os.path.dirname(__file__))

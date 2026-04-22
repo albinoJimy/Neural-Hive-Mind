@@ -4,13 +4,13 @@ Testes unitários para ClickHouseClient.
 Testa conexão, queries, retry logic, cache, timeout e parametrização.
 """
 
-import pytest
-from unittest.mock import Mock, AsyncMock, patch
-from datetime import datetime, timezone, timedelta
 import json
+from datetime import UTC, datetime, timedelta
+from unittest.mock import AsyncMock, Mock, patch
+
+import pytest
 
 from src.clients.clickhouse_client import ClickHouseClient
-
 
 # Fixtures
 
@@ -39,7 +39,7 @@ def mock_config():
 @pytest.fixture
 def sample_execution_data():
     """Dados de execução de exemplo."""
-    base_time = datetime.now(timezone.utc) - timedelta(hours=24)
+    base_time = datetime.now(UTC) - timedelta(hours=24)
     return [
         (base_time + timedelta(hours=i), 100 + i, 60000, 500, 2048, "BUILD", "high")
         for i in range(24)
@@ -49,7 +49,7 @@ def sample_execution_data():
 @pytest.fixture
 def sample_metrics_data():
     """Dados de métricas de exemplo."""
-    base_time = datetime.now(timezone.utc) - timedelta(hours=12)
+    base_time = datetime.now(UTC) - timedelta(hours=12)
     return [
         (
             base_time + timedelta(hours=i),
@@ -137,8 +137,8 @@ class TestQueryExecutionTimeseries:
         mock_sync_client.execute = Mock(return_value=sample_execution_data)
         client.client = mock_sync_client
 
-        start_time = datetime.now(timezone.utc) - timedelta(days=1)
-        end_time = datetime.now(timezone.utc)
+        start_time = datetime.now(UTC) - timedelta(days=1)
+        end_time = datetime.now(UTC)
 
         result = await client.query_execution_timeseries(
             start_timestamp=start_time, end_timestamp=end_time, aggregation_interval="1h"
@@ -157,15 +157,15 @@ class TestQueryExecutionTimeseries:
         # Mock cache retornando dados
         cached_data = [
             {
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
                 "ticket_count": 100,
                 "avg_duration_ms": 60000,
             }
         ]
         mock_redis.get = AsyncMock(return_value=json.dumps(cached_data))
 
-        start_time = datetime.now(timezone.utc) - timedelta(hours=1)
-        end_time = datetime.now(timezone.utc)
+        start_time = datetime.now(UTC) - timedelta(hours=1)
+        end_time = datetime.now(UTC)
 
         result = await client.query_execution_timeseries(
             start_timestamp=start_time, end_timestamp=end_time
@@ -187,8 +187,8 @@ class TestQueryExecutionTimeseries:
         mock_sync_client.execute = Mock(return_value=sample_execution_data)
         client.client = mock_sync_client
 
-        start_time = datetime.now(timezone.utc) - timedelta(days=1)
-        end_time = datetime.now(timezone.utc)
+        start_time = datetime.now(UTC) - timedelta(days=1)
+        end_time = datetime.now(UTC)
 
         for interval in ["1m", "1h", "1d"]:
             result = await client.query_execution_timeseries(
@@ -208,8 +208,8 @@ class TestQueryExecutionTimeseries:
         mock_sync_client.execute = Mock(side_effect=Exception("Query error"))
         client.client = mock_sync_client
 
-        start_time = datetime.now(timezone.utc) - timedelta(hours=1)
-        end_time = datetime.now(timezone.utc)
+        start_time = datetime.now(UTC) - timedelta(hours=1)
+        end_time = datetime.now(UTC)
 
         result = await client.query_execution_timeseries(
             start_timestamp=start_time, end_timestamp=end_time
@@ -237,8 +237,8 @@ class TestQueryResourceUtilization:
         mock_sync_client.execute = Mock(return_value=sample_metrics_data)
         client.client = mock_sync_client
 
-        start_time = datetime.now(timezone.utc) - timedelta(hours=12)
-        end_time = datetime.now(timezone.utc)
+        start_time = datetime.now(UTC) - timedelta(hours=12)
+        end_time = datetime.now(UTC)
 
         result = await client.query_resource_utilization(
             start_timestamp=start_time, end_timestamp=end_time
@@ -263,16 +263,16 @@ class TestQuerySlaCompliance:
         client._initialized = True
 
         mock_data = [
-            (datetime.now(timezone.utc).date(), "service-a", 95.5, 1000),
-            (datetime.now(timezone.utc).date(), "service-b", 98.2, 1500),
+            (datetime.now(UTC).date(), "service-a", 95.5, 1000),
+            (datetime.now(UTC).date(), "service-b", 98.2, 1500),
         ]
 
         mock_sync_client = Mock()
         mock_sync_client.execute = Mock(return_value=mock_data)
         client.client = mock_sync_client
 
-        start_time = datetime.now(timezone.utc) - timedelta(days=7)
-        end_time = datetime.now(timezone.utc)
+        start_time = datetime.now(UTC) - timedelta(days=7)
+        end_time = datetime.now(UTC)
 
         result = await client.query_sla_compliance(
             start_timestamp=start_time, end_timestamp=end_time
@@ -296,16 +296,16 @@ class TestQueryBottleneckEvents:
         client._initialized = True
 
         mock_data = [
-            (datetime.now(timezone.utc), "queue_depth", 150, "worker-agents"),
-            (datetime.now(timezone.utc), "worker_utilization", 0.95, "worker-agents"),
+            (datetime.now(UTC), "queue_depth", 150, "worker-agents"),
+            (datetime.now(UTC), "worker_utilization", 0.95, "worker-agents"),
         ]
 
         mock_sync_client = Mock()
         mock_sync_client.execute = Mock(return_value=mock_data)
         client.client = mock_sync_client
 
-        start_time = datetime.now(timezone.utc) - timedelta(hours=1)
-        end_time = datetime.now(timezone.utc)
+        start_time = datetime.now(UTC) - timedelta(hours=1)
+        end_time = datetime.now(UTC)
 
         result = await client.query_bottleneck_events(
             start_timestamp=start_time, end_timestamp=end_time
@@ -349,7 +349,7 @@ class TestCache:
         """Testa armazenamento no cache."""
         client = ClickHouseClient(mock_redis, mock_config)
 
-        data = [{"timestamp": datetime.now(timezone.utc), "value": 100}]
+        data = [{"timestamp": datetime.now(UTC), "value": 100}]
 
         await client._cache_result("test_key", data, ttl=300)
 

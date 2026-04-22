@@ -62,9 +62,7 @@ class TestDocIngestionServiceRegistryClient:
         client = DocIngestionServiceRegistryClient()
 
         # Simular import falhando
-        with patch(
-            "src.clients.service_registry_client.service_registry_pb2", None
-        ):
+        with patch("src.clients.service_registry_client.service_registry_pb2", None):
             result = await client.initialize()
 
         assert result is False

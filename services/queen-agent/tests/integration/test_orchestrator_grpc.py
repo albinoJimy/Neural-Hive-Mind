@@ -10,18 +10,17 @@ Valida comunicação entre Queen Agent e Orchestrator Dynamic via gRPC:
 - GetWorkflowStatus: obter status de workflow
 """
 
-import pytest
-import pytest_asyncio
 import socket
 from datetime import datetime
 from unittest.mock import MagicMock
 
 import grpc
+import pytest
+import pytest_asyncio
 from grpc import aio
-
 from src.clients.orchestrator_client import OrchestratorClient
-from src.proto import orchestrator_strategic_pb2, orchestrator_strategic_pb2_grpc
 from src.config import Settings
+from src.proto import orchestrator_strategic_pb2, orchestrator_strategic_pb2_grpc
 
 
 def get_free_port() -> int:
@@ -132,7 +131,7 @@ class MockFailingServicer(orchestrator_strategic_pb2_grpc.OrchestratorStrategicS
         return orchestrator_strategic_pb2.PauseWorkflowResponse()
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_settings():
     """Configurações mock para testes"""
     settings = MagicMock(spec=Settings)
@@ -206,8 +205,8 @@ async def grpc_failing_server_and_client(mock_settings):
 # =============================================================================
 
 
-@pytest.mark.integration
-@pytest.mark.asyncio
+@pytest.mark.integration()
+@pytest.mark.asyncio()
 async def test_adjust_priorities_success(grpc_server_and_client):
     """
     Teste: ajuste de prioridade bem-sucedido
@@ -228,8 +227,8 @@ async def test_adjust_priorities_success(grpc_server_and_client):
     assert call.reason == "Urgência alta"
 
 
-@pytest.mark.integration
-@pytest.mark.asyncio
+@pytest.mark.integration()
+@pytest.mark.asyncio()
 async def test_adjust_priorities_with_metadata(grpc_server_and_client):
     """
     Teste: ajuste de prioridade com metadata
@@ -251,8 +250,8 @@ async def test_adjust_priorities_with_metadata(grpc_server_and_client):
     assert call.metadata["source"] == "queen-agent"
 
 
-@pytest.mark.integration
-@pytest.mark.asyncio
+@pytest.mark.integration()
+@pytest.mark.asyncio()
 async def test_adjust_priorities_server_error(grpc_failing_server_and_client):
     """
     Teste: erro do servidor ao ajustar prioridade
@@ -271,8 +270,8 @@ async def test_adjust_priorities_server_error(grpc_failing_server_and_client):
 # =============================================================================
 
 
-@pytest.mark.integration
-@pytest.mark.asyncio
+@pytest.mark.integration()
+@pytest.mark.asyncio()
 async def test_rebalance_resources_success(grpc_server_and_client):
     """
     Teste: rebalanceamento de recursos bem-sucedido
@@ -299,8 +298,8 @@ async def test_rebalance_resources_success(grpc_server_and_client):
     assert "wf-001" in call.workflow_ids
 
 
-@pytest.mark.integration
-@pytest.mark.asyncio
+@pytest.mark.integration()
+@pytest.mark.asyncio()
 async def test_rebalance_resources_multiple_workflows(grpc_server_and_client):
     """
     Teste: rebalanceamento para múltiplos workflows
@@ -332,8 +331,8 @@ async def test_rebalance_resources_multiple_workflows(grpc_server_and_client):
 # =============================================================================
 
 
-@pytest.mark.integration
-@pytest.mark.asyncio
+@pytest.mark.integration()
+@pytest.mark.asyncio()
 async def test_pause_workflow_success(grpc_server_and_client):
     """
     Teste: pausar workflow bem-sucedido
@@ -350,8 +349,8 @@ async def test_pause_workflow_success(grpc_server_and_client):
     assert call.reason == "Manutenção programada"
 
 
-@pytest.mark.integration
-@pytest.mark.asyncio
+@pytest.mark.integration()
+@pytest.mark.asyncio()
 async def test_pause_workflow_with_duration(grpc_server_and_client):
     """
     Teste: pausar workflow com duração definida
@@ -368,8 +367,8 @@ async def test_pause_workflow_with_duration(grpc_server_and_client):
     assert call.pause_duration_seconds == 3600
 
 
-@pytest.mark.integration
-@pytest.mark.asyncio
+@pytest.mark.integration()
+@pytest.mark.asyncio()
 async def test_pause_workflow_not_found(grpc_failing_server_and_client):
     """
     Teste: workflow não encontrado
@@ -386,8 +385,8 @@ async def test_pause_workflow_not_found(grpc_failing_server_and_client):
 # =============================================================================
 
 
-@pytest.mark.integration
-@pytest.mark.asyncio
+@pytest.mark.integration()
+@pytest.mark.asyncio()
 async def test_resume_workflow_success(grpc_server_and_client):
     """
     Teste: retomar workflow bem-sucedido
@@ -409,8 +408,8 @@ async def test_resume_workflow_success(grpc_server_and_client):
 # =============================================================================
 
 
-@pytest.mark.integration
-@pytest.mark.asyncio
+@pytest.mark.integration()
+@pytest.mark.asyncio()
 async def test_trigger_replanning_success(grpc_server_and_client):
     """
     Teste: acionar replanejamento bem-sucedido
@@ -430,8 +429,8 @@ async def test_trigger_replanning_success(grpc_server_and_client):
     assert call.trigger_type == orchestrator_strategic_pb2.TRIGGER_TYPE_SLA_VIOLATION
 
 
-@pytest.mark.integration
-@pytest.mark.asyncio
+@pytest.mark.integration()
+@pytest.mark.asyncio()
 async def test_trigger_replanning_with_context(grpc_server_and_client):
     """
     Teste: acionar replanejamento com contexto adicional
@@ -455,8 +454,8 @@ async def test_trigger_replanning_with_context(grpc_server_and_client):
     assert call.context["drift_score"] == "0.15"
 
 
-@pytest.mark.integration
-@pytest.mark.asyncio
+@pytest.mark.integration()
+@pytest.mark.asyncio()
 async def test_trigger_replanning_strategic(grpc_server_and_client):
     """
     Teste: acionar replanejamento estratégico
@@ -478,8 +477,8 @@ async def test_trigger_replanning_strategic(grpc_server_and_client):
 # =============================================================================
 
 
-@pytest.mark.integration
-@pytest.mark.asyncio
+@pytest.mark.integration()
+@pytest.mark.asyncio()
 async def test_get_workflow_status_success(grpc_server_and_client):
     """
     Teste: obter status de workflow bem-sucedido
@@ -498,8 +497,8 @@ async def test_get_workflow_status_success(grpc_server_and_client):
     assert status["tickets"]["completed"] == 45
 
 
-@pytest.mark.integration
-@pytest.mark.asyncio
+@pytest.mark.integration()
+@pytest.mark.asyncio()
 async def test_get_workflow_status_with_tickets(grpc_server_and_client):
     """
     Teste: obter status com detalhes de tickets
@@ -519,8 +518,8 @@ async def test_get_workflow_status_with_tickets(grpc_server_and_client):
 # =============================================================================
 
 
-@pytest.mark.integration
-@pytest.mark.asyncio
+@pytest.mark.integration()
+@pytest.mark.asyncio()
 async def test_client_connect_disconnect(mock_settings):
     """
     Teste: conectar e desconectar cliente
@@ -551,8 +550,8 @@ async def test_client_connect_disconnect(mock_settings):
     await server.stop(grace=0)
 
 
-@pytest.mark.integration
-@pytest.mark.asyncio
+@pytest.mark.integration()
+@pytest.mark.asyncio()
 async def test_client_connection_failure(mock_settings):
     """
     Teste: falha de conexão com servidor indisponível
@@ -577,8 +576,8 @@ async def test_client_connection_failure(mock_settings):
 # =============================================================================
 
 
-@pytest.mark.integration
-@pytest.mark.asyncio
+@pytest.mark.integration()
+@pytest.mark.asyncio()
 async def test_full_workflow_management_flow(grpc_server_and_client):
     """
     Teste E2E: fluxo completo de gerenciamento de workflow

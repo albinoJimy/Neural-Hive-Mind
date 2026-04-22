@@ -13,18 +13,16 @@ Cobertura:
 
 from unittest.mock import AsyncMock, Mock, patch
 
-import pytest
 import grpc
+import pytest
 from grpc.aio import AioRpcError
-
-
 
 # ============================================================================
 # Fixtures
 # ============================================================================
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_service_registry():
     """Mock do Service Registry client."""
     registry = AsyncMock()
@@ -40,14 +38,14 @@ def mock_service_registry():
     return registry
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_grpc_channel():
     """Mock do gRPC channel."""
     channel = AsyncMock()
     return channel
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_grpc_stub():
     """Mock do gRPC stub."""
     stub = AsyncMock()
@@ -94,7 +92,7 @@ class TestGRPCAdapterInitialization:
 class TestGRPCAdapterExecution:
     """Testes de execucao de chamadas gRPC."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_unary_call_success(self, mock_service_registry):
         """Testa chamada gRPC unary bem-sucedida."""
         from src.adapters.grpc_adapter import GRPCAdapter
@@ -125,7 +123,7 @@ class TestGRPCAdapterExecution:
             assert '{"key": "value"}' in result.output
             assert result.metadata.get("command") == "analyst_agents:GetInsight"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_with_service_discovery(self, mock_service_registry):
         """Testa execucao com discovery via Service Registry."""
         from src.adapters.grpc_adapter import GRPCAdapter
@@ -153,7 +151,7 @@ class TestGRPCAdapterExecution:
             mock_service_registry.discover_service.assert_called_once_with("analyst_agents")
             assert result.success is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_with_grpc_error(self, mock_service_registry):
         """Testa tratamento de erro gRPC."""
         from src.adapters.grpc_adapter import GRPCAdapter
@@ -183,11 +181,12 @@ class TestGRPCAdapterExecution:
             assert result.success is False
             assert "UNAVAILABLE" in result.error or "unavailable" in result.error.lower()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_with_timeout(self, mock_service_registry):
         """Testa timeout em chamada gRPC."""
-        from src.adapters.grpc_adapter import GRPCAdapter
         import asyncio
+
+        from src.adapters.grpc_adapter import GRPCAdapter
 
         adapter = GRPCAdapter(service_registry=mock_service_registry, timeout_seconds=1)
 
@@ -208,7 +207,7 @@ class TestGRPCAdapterExecution:
             assert result.success is False
             assert "timeout" in result.error.lower()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_with_retry_on_transient_error(self, mock_service_registry):
         """Testa retry em erros transientes."""
         from src.adapters.grpc_adapter import GRPCAdapter
@@ -245,7 +244,7 @@ class TestGRPCAdapterExecution:
             assert call_count == 2  # Falhou uma vez, depois sucedeu
             assert result.metadata.get("attempts") == 2
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_exhausts_retries(self, mock_service_registry):
         """Testa que exaustao de retries retorna falha."""
         from src.adapters.grpc_adapter import GRPCAdapter
@@ -279,7 +278,7 @@ class TestGRPCAdapterExecution:
 class TestServiceDiscovery:
     """Testes de descoberta de servicos."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_discover_service_via_registry(self, mock_service_registry):
         """Testa descoberta de servico via Service Registry."""
         from src.adapters.grpc_adapter import GRPCAdapter
@@ -293,7 +292,7 @@ class TestServiceDiscovery:
         assert service_info["port"] == 9090
         mock_service_registry.discover_service.assert_called_once_with("analyst_agents")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_discover_service_with_cache(self, mock_service_registry):
         """Testa cache de descoberta de servico."""
         from src.adapters.grpc_adapter import GRPCAdapter
@@ -308,7 +307,7 @@ class TestServiceDiscovery:
         # Registry deve ser chamado apenas uma vez
         mock_service_registry.discover_service.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_discover_service_without_registry(self):
         """Testa descoberta sem registry (usa DNS)."""
         from src.adapters.grpc_adapter import GRPCAdapter
@@ -334,7 +333,7 @@ class TestServiceDiscovery:
 class TestChannelManagement:
     """Testes de gerenciamento de canais gRPC."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_stub_creates_new_channel(self, mock_service_registry):
         """Testa que um novo canal e criado quando necessario."""
         from src.adapters.grpc_adapter import GRPCAdapter
@@ -355,7 +354,7 @@ class TestChannelManagement:
             assert stub is not None
             mock_channel.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_stub_reuses_cached_channel(self, mock_service_registry):
         """Testa que canal em cache e reutilizado."""
         from src.adapters.grpc_adapter import GRPCAdapter
@@ -374,7 +373,7 @@ class TestChannelManagement:
 
             mock_channel.assert_not_called()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_close_channel(self, mock_service_registry):
         """Testa fechamento de canal."""
         from src.adapters.grpc_adapter import GRPCAdapter
@@ -399,7 +398,7 @@ class TestChannelManagement:
 class TestAvailabilityValidation:
     """Testes de validacao de disponibilidade de ferramentas."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_validate_tool_availability_success(self, mock_service_registry):
         """Testa validacao de ferramenta disponivel."""
         from src.adapters.grpc_adapter import GRPCAdapter
@@ -410,7 +409,7 @@ class TestAvailabilityValidation:
 
         assert is_available is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_validate_tool_availability_service_not_found(self, mock_service_registry):
         """Testa validacao quando servico nao e encontrado."""
         from src.adapters.grpc_adapter import GRPCAdapter
@@ -423,7 +422,7 @@ class TestAvailabilityValidation:
 
         assert is_available is False
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_validate_tool_availability_with_health_check(self, mock_service_registry):
         """Testa validacao com health check gRPC."""
         from src.adapters.grpc_adapter import GRPCAdapter
@@ -453,7 +452,7 @@ class TestAvailabilityValidation:
 class TestMetadataAndTracing:
     """Testes de metadata gRPC e distributed tracing."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_with_trace_id(self, mock_service_registry):
         """Testa que trace_id e propagado."""
         from src.adapters.grpc_adapter import GRPCAdapter
@@ -487,7 +486,7 @@ class TestMetadataAndTracing:
             trace_ids = [v for k, v in metadata_sent if k == "trace_id"]
             assert any("trace-123" in str(v) for v in trace_ids)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_with_authentication_metadata(self, mock_service_registry):
         """Testa que metadata de autenticacao e enviada."""
         from src.adapters.grpc_adapter import GRPCAdapter
@@ -530,7 +529,7 @@ class TestMetadataAndTracing:
 class TestErrorHandling:
     """Testes de tratamento de erros especificos."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_handles_deadline_exceeded(self, mock_service_registry):
         """Testa tratamento de deadline exceeded."""
         from src.adapters.grpc_adapter import GRPCAdapter
@@ -559,7 +558,7 @@ class TestErrorHandling:
             assert result.success is False
             assert "deadline" in result.error.lower()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_handles_permission_denied(self, mock_service_registry):
         """Testa tratamento de permission denied."""
         from src.adapters.grpc_adapter import GRPCAdapter
@@ -588,7 +587,7 @@ class TestErrorHandling:
             assert result.success is False
             assert "permission" in result.error.lower() or "denied" in result.error.lower()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_handles_unauthenticated(self, mock_service_registry):
         """Testa tratamento de unauthenticated."""
         from src.adapters.grpc_adapter import GRPCAdapter
@@ -626,7 +625,7 @@ class TestErrorHandling:
 class TestPerformanceMetrics:
     """Testes de metricas de performance."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execution_time_is_recorded(self, mock_service_registry):
         """Testa que tempo de execucao e registrado."""
         from src.adapters.grpc_adapter import GRPCAdapter
@@ -653,7 +652,7 @@ class TestPerformanceMetrics:
             assert result.execution_time_ms >= 0
             assert "execution_time_ms" in str(result.metadata)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_metadata_contains_performance_info(self, mock_service_registry):
         """Testa que metadata contem informacoes de performance."""
         from src.adapters.grpc_adapter import GRPCAdapter

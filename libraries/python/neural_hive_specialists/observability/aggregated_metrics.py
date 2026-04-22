@@ -5,14 +5,15 @@ Calcula métricas como consensus_rate, avg_confidence_by_specialist,
 specialist_agreement_matrix para observabilidade holística do sistema.
 """
 
-from typing import Dict, Any, Optional
-from datetime import datetime, timedelta, timezone
-from pymongo import MongoClient
-from prometheus_client import Gauge
-import structlog
 import asyncio
 from collections import defaultdict
+from datetime import UTC, datetime, timedelta
+from typing import Any, Optional
+
 import numpy as np
+import structlog
+from prometheus_client import Gauge
+from pymongo import MongoClient
 
 logger = structlog.get_logger(__name__)
 
@@ -20,7 +21,7 @@ logger = structlog.get_logger(__name__)
 class AggregatedMetricsCollector:
     """Coleta e exporta métricas agregadas para Prometheus."""
 
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, config: dict[str, Any]):
         """
         Inicializa coletor de métricas agregadas.
 
@@ -189,7 +190,7 @@ class AggregatedMetricsCollector:
     async def _collect_consensus_metrics(self):
         """Coleta métricas de consenso entre especialistas."""
         try:
-            cutoff_time = datetime.now(timezone.utc) - timedelta(hours=self.metrics_window_hours)
+            cutoff_time = datetime.now(UTC) - timedelta(hours=self.metrics_window_hours)
 
             # Buscar planos recentes com múltiplas opiniões
             pipeline = [
@@ -249,7 +250,7 @@ class AggregatedMetricsCollector:
     async def _collect_specialist_metrics(self):
         """Coleta métricas individuais por especialista."""
         try:
-            cutoff_time = datetime.now(timezone.utc) - timedelta(hours=self.metrics_window_hours)
+            cutoff_time = datetime.now(UTC) - timedelta(hours=self.metrics_window_hours)
 
             pipeline = [
                 {"$match": {"evaluated_at": {"$gte": cutoff_time}}},
@@ -290,7 +291,7 @@ class AggregatedMetricsCollector:
     async def _collect_latency_metrics(self):
         """Coleta métricas de latência por especialista."""
         try:
-            cutoff_time = datetime.now(timezone.utc) - timedelta(hours=self.metrics_window_hours)
+            cutoff_time = datetime.now(UTC) - timedelta(hours=self.metrics_window_hours)
 
             # Buscar tempos de processamento
             pipeline = [
@@ -326,7 +327,7 @@ class AggregatedMetricsCollector:
     async def _collect_recommendation_distribution(self):
         """Coleta distribuição de recomendações."""
         try:
-            cutoff_time = datetime.now(timezone.utc) - timedelta(hours=self.metrics_window_hours)
+            cutoff_time = datetime.now(UTC) - timedelta(hours=self.metrics_window_hours)
 
             pipeline = [
                 {"$match": {"evaluated_at": {"$gte": cutoff_time}}},
@@ -385,7 +386,7 @@ class AggregatedMetricsCollector:
             # Calcular média de bufferização
             total_buffered_count = 0
             total_count = 0
-            cutoff_time = datetime.now(timezone.utc) - timedelta(hours=self.metrics_window_hours)
+            cutoff_time = datetime.now(UTC) - timedelta(hours=self.metrics_window_hours)
 
             docs = self.collection.find({"evaluated_at": {"$gte": cutoff_time}})
 
@@ -419,7 +420,7 @@ class AggregatedMetricsCollector:
         except Exception as e:
             logger.error("Failed to calculate ledger health", error=str(e))
 
-    def calculate_specialist_agreement_matrix(self) -> Dict[str, Dict[str, float]]:
+    def calculate_specialist_agreement_matrix(self) -> dict[str, dict[str, float]]:
         """
         Calcula matriz de concordância entre especialistas.
 
@@ -427,7 +428,7 @@ class AggregatedMetricsCollector:
             Matriz de concordância {specialist_a: {specialist_b: agreement_score}}
         """
         try:
-            cutoff_time = datetime.now(timezone.utc) - timedelta(hours=self.metrics_window_hours)
+            cutoff_time = datetime.now(UTC) - timedelta(hours=self.metrics_window_hours)
 
             # Buscar planos com múltiplas opiniões
             pipeline = [
@@ -489,7 +490,7 @@ class AggregatedMetricsCollector:
             logger.error("Failed to calculate agreement matrix", error=str(e))
             return {}
 
-    def get_system_health_summary(self) -> Dict[str, Any]:
+    def get_system_health_summary(self) -> dict[str, Any]:
         """
         Retorna resumo de saúde do sistema.
 

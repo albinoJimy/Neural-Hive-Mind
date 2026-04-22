@@ -9,7 +9,8 @@ Responsável por:
 """
 
 import asyncio
-from typing import Any, Callable, Dict, List, Optional
+from collections.abc import Callable
+from typing import Any, Optional
 
 import structlog
 
@@ -37,22 +38,22 @@ class QueenAgentIntegration:
         self.heartbeat_interval_sec = heartbeat_interval_sec
 
         # Capacidades do agente
-        self.capabilities: List[str] = [
+        self.capabilities: list[str] = [
             "codebase_exploration",
             "pattern_discovery",
             "solution_synthesis",
         ]
 
         # Handlers de comandos
-        self.command_handlers: Dict[str, Callable] = {}
+        self.command_handlers: dict[str, Callable] = {}
 
         # Status atual
-        self.current_status: Dict[str, Any] = {"status": "ready", "active_explorations": 0}
+        self.current_status: dict[str, Any] = {"status": "ready", "active_explorations": 0}
 
         # Task de heartbeat
         self._heartbeat_task: Optional[asyncio.Task] = None
 
-    async def register_agent(self) -> Dict[str, Any]:
+    async def register_agent(self) -> dict[str, Any]:
         """
         Registra o scout agent no Queen Agent.
 
@@ -83,7 +84,7 @@ class QueenAgentIntegration:
             logger.error("registration_failed", agent_id=self.agent_id, error=str(e))
             return {"agent_id": self.agent_id, "status": "failed", "error": str(e)}
 
-    async def send_heartbeat(self) -> Dict[str, Any]:
+    async def send_heartbeat(self) -> dict[str, Any]:
         """
         Envia heartbeat para Queen Agent.
 
@@ -119,7 +120,7 @@ class QueenAgentIntegration:
             except Exception as e:
                 logger.error("heartbeat_loop_error", error=str(e))
 
-    async def report_exploration_results(self, results: Dict[str, Any]) -> Dict[str, Any]:
+    async def report_exploration_results(self, results: dict[str, Any]) -> dict[str, Any]:
         """
         Reporta resultados de exploração ao Queen Agent.
 
@@ -158,7 +159,7 @@ class QueenAgentIntegration:
         self.command_handlers[command] = handler
         logger.info("command_handler_registered", command=command)
 
-    async def handle_command(self, command: Dict[str, Any]) -> Dict[str, Any]:
+    async def handle_command(self, command: dict[str, Any]) -> dict[str, Any]:
         """
         Processa comando recebido do Queen Agent.
 
@@ -185,7 +186,7 @@ class QueenAgentIntegration:
         else:
             return {"handled": False, "error": f"No handler for command: {command_name}"}
 
-    async def report_status(self, status: Dict[str, Any]) -> Dict[str, Any]:
+    async def report_status(self, status: dict[str, Any]) -> dict[str, Any]:
         """
         Reporta status atual ao Queen Agent.
 

@@ -11,13 +11,10 @@ Publica resultados no tópico learning.doc.generated
 import asyncio
 import json
 from datetime import datetime, timedelta
-from typing import Any, Callable, Optional
+from typing import Optional
 
 import structlog
 from aiokafka import AIOKafkaConsumer
-
-from neural_hive_observability import instrument_kafka_consumer
-
 from src.config import get_settings
 from src.models import (
     DocumentFormat,
@@ -33,6 +30,8 @@ from src.services import (
     ExperimentInsightExtractor,
     MarkdownReportGenerator,
 )
+
+from neural_hive_observability import instrument_kafka_consumer
 
 logger = structlog.get_logger()
 
@@ -273,8 +272,14 @@ class LearningEventConsumer:
                 experiment_id=run.info.experiment_id,
                 name=run.data.tags.get("mlflow.runName", run_id),
                 status=run.info.status,
-                start_time=datetime.fromtimestamp(run.info.start_time / 1000) if run.info.start_time else None,
-                end_time=datetime.fromtimestamp(run.info.end_time / 1000) if run.info.end_time else None,
+                start_time=(
+                    datetime.fromtimestamp(run.info.start_time / 1000)
+                    if run.info.start_time
+                    else None
+                ),
+                end_time=(
+                    datetime.fromtimestamp(run.info.end_time / 1000) if run.info.end_time else None
+                ),
                 metrics=run.data.metrics,
                 params={p.key: p.value for p in run.data.params},
                 tags=run.data.tags,
@@ -367,8 +372,16 @@ class LearningEventConsumer:
                         experiment_id=run.info.experiment_id,
                         name=run.data.tags.get("mlflow.runName", run.info.run_id),
                         status=run.info.status,
-                        start_time=datetime.fromtimestamp(run.info.start_time / 1000) if run.info.start_time else None,
-                        end_time=datetime.fromtimestamp(run.info.end_time / 1000) if run.info.end_time else None,
+                        start_time=(
+                            datetime.fromtimestamp(run.info.start_time / 1000)
+                            if run.info.start_time
+                            else None
+                        ),
+                        end_time=(
+                            datetime.fromtimestamp(run.info.end_time / 1000)
+                            if run.info.end_time
+                            else None
+                        ),
                         metrics=run.data.metrics,
                         params={p.key: p.value for p in run.data.params},
                         tags=run.data.tags,
@@ -396,8 +409,10 @@ class LearningEventConsumer:
                     )
 
             # Gerar resumo
-            summary = f"Modelo baseado no run {run_id[:8]} foi promovido para produção. " \
-                      f"Comparado com {len(runs) - 1} outros runs do mesmo período."
+            summary = (
+                f"Modelo baseado no run {run_id[:8]} foi promovido para produção. "
+                f"Comparado com {len(runs) - 1} outros runs do mesmo período."
+            )
 
             # Criar documento
             title = f"Relatório de Promoção de Modelo - {datetime.utcnow().strftime('%Y-%m-%d')}"
@@ -480,8 +495,16 @@ class LearningEventConsumer:
                         experiment_id=problem_run.info.experiment_id,
                         name=problem_run.data.tags.get("mlflow.runName", run_id),
                         status=problem_run.info.status,
-                        start_time=datetime.fromtimestamp(problem_run.info.start_time / 1000) if problem_run.info.start_time else None,
-                        end_time=datetime.fromtimestamp(problem_run.info.end_time / 1000) if problem_run.info.end_time else None,
+                        start_time=(
+                            datetime.fromtimestamp(problem_run.info.start_time / 1000)
+                            if problem_run.info.start_time
+                            else None
+                        ),
+                        end_time=(
+                            datetime.fromtimestamp(problem_run.info.end_time / 1000)
+                            if problem_run.info.end_time
+                            else None
+                        ),
                         metrics=problem_run.data.metrics,
                         params={p.key: p.value for p in problem_run.data.params},
                         tags=problem_run.data.tags,
@@ -502,8 +525,10 @@ class LearningEventConsumer:
             ]
 
             # Gerar resumo
-            summary = f"Rollback executado para o run {run_id[:8] if run_id else 'unknown'}. " \
-                      f"Motivo: {rollback_reason}"
+            summary = (
+                f"Rollback executado para o run {run_id[:8] if run_id else 'unknown'}. "
+                f"Motivo: {rollback_reason}"
+            )
 
             # Criar documento
             title = f"Análise de Rollback - {datetime.utcnow().strftime('%Y-%m-%d %H:%M')}"
@@ -567,9 +592,15 @@ class LearningEventConsumer:
                     doc_type=document.type.value,
                     title=document.title,
                     metadata={
-                        "generated_at": document.generated_at.isoformat() if document.generated_at else None,
-                        "period_start": document.period_start.isoformat() if document.period_start else None,
-                        "period_end": document.period_end.isoformat() if document.period_end else None,
+                        "generated_at": (
+                            document.generated_at.isoformat() if document.generated_at else None
+                        ),
+                        "period_start": (
+                            document.period_start.isoformat() if document.period_start else None
+                        ),
+                        "period_end": (
+                            document.period_end.isoformat() if document.period_end else None
+                        ),
                         **document.metadata,
                     },
                 )
@@ -606,7 +637,9 @@ class LearningEventConsumer:
 
         for insight in insights:
             if insight.category == "performance" and insight.confidence == InsightConfidence.HIGH:
-                recommendations.append("Considerar promover modelo para produção baseado em performance")
+                recommendations.append(
+                    "Considerar promover modelo para produção baseado em performance"
+                )
 
             elif insight.category == "improvement":
                 recommendations.append("Investigar hiperparâmetros que causaram melhoria")

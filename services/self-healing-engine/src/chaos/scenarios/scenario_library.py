@@ -5,7 +5,7 @@ Fornece cenários pré-definidos para testes comuns de resiliência,
 cada um configurado para validar playbooks específicos.
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 import structlog
 
@@ -44,11 +44,11 @@ class ScenarioLibrary:
             "slow_dependency": self.slow_dependency_scenario,
         }
 
-    def list_scenarios(self) -> List[str]:
+    def list_scenarios(self) -> list[str]:
         """Lista todos os cenários disponíveis."""
         return list(self._scenarios.keys())
 
-    def get_scenario_info(self, scenario_name: str) -> Optional[Dict[str, Any]]:
+    def get_scenario_info(self, scenario_name: str) -> Optional[dict[str, Any]]:
         """Retorna informações sobre um cenário específico."""
         scenarios_info = {
             "pod_failure": {
@@ -405,13 +405,13 @@ class ScenarioLibrary:
         self,
         name: str,
         description: str,
-        fault_injections: List[FaultInjection],
+        fault_injections: list[FaultInjection],
         validation_criteria: ValidationCriteria,
         environment: str = "staging",
         rollback_strategy: RollbackStrategy = RollbackStrategy.AUTOMATIC,
         timeout_seconds: int = 600,
         blast_radius_limit: int = 5,
-        metadata: Optional[Dict[str, Any]] = None,
+        metadata: Optional[dict[str, Any]] = None,
     ) -> ChaosExperiment:
         """
         Cria um cenário customizado.
@@ -445,7 +445,7 @@ class ScenarioLibrary:
     def get_recommended_scenarios(
         self,
         service_type: str,
-    ) -> List[str]:
+    ) -> list[str]:
         """
         Retorna cenários recomendados para um tipo de serviço.
 

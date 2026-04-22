@@ -22,6 +22,7 @@ def test_producers_init_exports():
     """Testa que producers __init__ exporta ExplanationProducer."""
     try:
         from producers import ExplanationProducer
+
         assert ExplanationProducer is not None
     except ImportError:
         # Se ExplanationProducer não existir, o teste pode falhar
@@ -32,6 +33,7 @@ def test_repositories_init_exports():
     """Testa que repositories __init__ está vazio ou válido."""
     try:
         from repositories import seniority_history_repo
+
         assert seniority_history_repo is not None
     except ImportError:
         # Se o módulo não existir, o teste pode falhar

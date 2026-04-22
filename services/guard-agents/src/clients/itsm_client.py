@@ -1,8 +1,8 @@
 """ITSM client for ticketing system integration"""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 import httpx
 import structlog
@@ -115,7 +115,7 @@ class ITSMClient:
         """Verifica se cliente está saudável"""
         return self.enabled and self._client is not None and self.base_url is not None
 
-    def _build_headers(self) -> Dict[str, str]:
+    def _build_headers(self) -> dict[str, str]:
         """Constrói headers baseado no tipo de ITSM"""
         headers = {"Content-Type": "application/json", "Accept": "application/json"}
 
@@ -140,9 +140,9 @@ class ITSMClient:
         priority: str = "high",
         category: str = "sla_breach",
         original_incident_id: Optional[str] = None,
-        issues: Optional[List[str]] = None,
-        metadata: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, Any]:
+        issues: Optional[list[str]] = None,
+        metadata: Optional[dict[str, Any]] = None,
+    ) -> dict[str, Any]:
         """
         Cria incidente no sistema ITSM.
 
@@ -244,9 +244,9 @@ class ITSMClient:
         priority: str,
         category: str,
         original_incident_id: Optional[str],
-        issues: Optional[List[str]],
-        metadata: Optional[Dict[str, Any]],
-    ) -> Dict[str, Any]:
+        issues: Optional[list[str]],
+        metadata: Optional[dict[str, Any]],
+    ) -> dict[str, Any]:
         """Constrói payload baseado no tipo de ITSM"""
 
         # Descrição completa
@@ -258,7 +258,7 @@ class ITSMClient:
         if original_incident_id:
             full_description += f"\n\nOriginal Incident ID: {original_incident_id}"
 
-        timestamp = datetime.now(timezone.utc).isoformat()
+        timestamp = datetime.now(UTC).isoformat()
 
         if self.itsm_type == ITSMType.SERVICENOW:
             return {
@@ -341,7 +341,7 @@ class ITSMClient:
         }
         return endpoints.get(self.itsm_type, "/incidents")
 
-    def _extract_ticket_id(self, response: Dict[str, Any]) -> Optional[str]:
+    def _extract_ticket_id(self, response: dict[str, Any]) -> Optional[str]:
         """Extrai ID do ticket da resposta"""
         if self.itsm_type == ITSMType.SERVICENOW:
             return response.get("result", {}).get("sys_id")
@@ -380,7 +380,7 @@ class ITSMClient:
         status: Optional[str] = None,
         notes: Optional[str] = None,
         resolution: Optional[str] = None,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Atualiza status de um incidente.
 
@@ -444,7 +444,7 @@ class ITSMClient:
 
                 return {"success": False, "error": str(e)}
 
-    async def get_incident_status(self, ticket_id: str) -> Dict[str, Any]:
+    async def get_incident_status(self, ticket_id: str) -> dict[str, Any]:
         """
         Obtém status de um incidente.
 

@@ -1,42 +1,41 @@
 """Testes unitários para Auth Middleware."""
 
 import pytest
-from fastapi import HTTPException, status
-
+from fastapi import status
 from src.api.auth import (
-    get_current_user_optional,
-    get_current_user,
-    get_current_user_with_permissions,
+    ForbiddenError,
     PermissionChecker,
+    UnauthorizedError,
+    get_current_user,
+    get_current_user_optional,
+    get_current_user_with_permissions,
+    get_user_id_from_payload,
     require_admin,
     require_approver,
     require_permission,
-    UnauthorizedError,
-    ForbiddenError,
-    get_user_id_from_payload,
 )
-from src.services.token_service import TokenService, TokenPayload
+from src.services.token_service import TokenService
 
 
 class TestAuthMiddleware:
     """Testes para middleware de autenticação (síncronos)."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def token_service(self):
         """Fixture para TokenService."""
         return TokenService()
 
-    @pytest.fixture
+    @pytest.fixture()
     def valid_token(self, token_service):
         """Fixture para token válido."""
         return token_service.create_access_token("user-123", ["read", "write"])
 
-    @pytest.fixture
+    @pytest.fixture()
     def admin_token(self, token_service):
         """Fixture para token de admin."""
         return token_service.create_access_token("admin-001", ["admin", "read"])
 
-    @pytest.fixture
+    @pytest.fixture()
     def token_payload(self, token_service, valid_token):
         """Fixture para TokenPayload."""
         return token_service.decode_token(valid_token)
@@ -72,6 +71,7 @@ class TestAuthMiddleware:
     def test_require_any_permission(self):
         """Testa factory require_any_permission."""
         from src.api.auth import require_any_permission
+
         checker = require_any_permission("read", "write", "admin")
         assert checker.required_permissions == ["read", "write", "admin"]
 
@@ -87,109 +87,94 @@ class TestAuthMiddleware:
         assert require_approver.required_permissions == ["approve"]
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 class TestAuthWithFastAPI:
     """Testes de integração com FastAPI (assíncronos)."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def token_service(self):
         """Fixture para TokenService."""
         return TokenService()
 
-    @pytest.fixture
+    @pytest.fixture()
     def user_token(self, token_service):
         """Fixture para token de usuário comum."""
         return token_service.create_access_token("user-123", ["read"])
 
-    @pytest.fixture
+    @pytest.fixture()
     def admin_token(self, token_service):
         """Fixture para token de admin."""
         return token_service.create_access_token("admin-001", ["admin", "read", "write"])
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_http_creds(self, user_token):
         """Cria mock de HTTPAuthorizationCredentials."""
         from fastapi.security import HTTPAuthorizationCredentials
-        return HTTPAuthorizationCredentials(
-            scheme="bearer",
-            credentials=user_token
-        )
 
-    @pytest.fixture
+        return HTTPAuthorizationCredentials(scheme="bearer", credentials=user_token)
+
+    @pytest.fixture()
     def mock_admin_creds(self, admin_token):
         """Cria mock de HTTPAuthorizationCredentials para admin."""
         from fastapi.security import HTTPAuthorizationCredentials
-        return HTTPAuthorizationCredentials(
-            scheme="bearer",
-            credentials=admin_token
-        )
 
-    @pytest.fixture
+        return HTTPAuthorizationCredentials(scheme="bearer", credentials=admin_token)
+
+    @pytest.fixture()
     def mock_invalid_creds(self):
         """Cria mock de HTTPAuthorizationCredentials inválido."""
         from fastapi.security import HTTPAuthorizationCredentials
-        return HTTPAuthorizationCredentials(
-            scheme="bearer",
-            credentials="invalid.token.here"
-        )
+
+        return HTTPAuthorizationCredentials(scheme="bearer", credentials="invalid.token.here")
 
     async def test_get_current_user_optional_with_token(self, token_service, mock_http_creds):
         """Testa get_current_user_optional com token válido."""
         result = await get_current_user_optional(
-            credentials=mock_http_creds,
-            token_service=token_service
+            credentials=mock_http_creds, token_service=token_service
         )
         assert result is not None
         assert result.sub == "user-123"
 
     async def test_get_current_user_optional_without_token(self, token_service):
         """Testa get_current_user_optional sem token."""
-        result = await get_current_user_optional(
-            credentials=None,
-            token_service=token_service
-        )
+        result = await get_current_user_optional(credentials=None, token_service=token_service)
         assert result is None
 
     async def test_get_current_user_with_valid_token(self, token_service, mock_http_creds):
         """Testa get_current_user com token válido."""
-        result = await get_current_user(
-            credentials=mock_http_creds,
-            token_service=token_service
-        )
+        result = await get_current_user(credentials=mock_http_creds, token_service=token_service)
         assert result is not None
         assert result.sub == "user-123"
 
     async def test_get_current_user_without_token(self, token_service):
         """Testa get_current_user sem token lança exceção."""
         with pytest.raises(UnauthorizedError):
-            await get_current_user(
-                credentials=None,
-                token_service=token_service
-            )
+            await get_current_user(credentials=None, token_service=token_service)
 
     async def test_get_current_user_with_invalid_token(self, token_service, mock_invalid_creds):
         """Testa get_current_user com token inválido lança exceção."""
         with pytest.raises(UnauthorizedError):
-            await get_current_user(
-                credentials=mock_invalid_creds,
-                token_service=token_service
-            )
+            await get_current_user(credentials=mock_invalid_creds, token_service=token_service)
 
-    async def test_get_current_user_with_permissions_sufficient(self, token_service, mock_admin_creds):
+    async def test_get_current_user_with_permissions_sufficient(
+        self, token_service, mock_admin_creds
+    ):
         """Testa get_current_user_with_permissions com permissões suficientes."""
         result = await get_current_user_with_permissions(
             required_permissions=["admin"],
             credentials=mock_admin_creds,
-            token_service=token_service
+            token_service=token_service,
         )
         assert result is not None
         assert result.sub == "admin-001"
 
-    async def test_get_current_user_with_permissions_insufficient(self, token_service, mock_http_creds):
+    async def test_get_current_user_with_permissions_insufficient(
+        self, token_service, mock_http_creds
+    ):
         """Testa get_current_user_with_permissions com permissões insuficientes."""
         with pytest.raises(ForbiddenError):
             await get_current_user_with_permissions(
                 required_permissions=["admin"],
                 credentials=mock_http_creds,
-                token_service=token_service
+                token_service=token_service,
             )

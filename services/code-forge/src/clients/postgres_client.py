@@ -7,7 +7,7 @@ Utiliza SQLAlchemy async com asyncpg para operações assíncronas.
 import asyncio
 import time
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 import structlog
 from sqlalchemy import JSON, TIMESTAMP, Boolean, Column, Integer, String, Text, func, select, update
@@ -339,8 +339,8 @@ class PostgresClient:
             return None
 
     async def list_pipelines(
-        self, filters: Dict[str, Any], offset: int = 0, limit: int = 100
-    ) -> List[PipelineResult]:
+        self, filters: dict[str, Any], offset: int = 0, limit: int = 100
+    ) -> list[PipelineResult]:
         """
         Lista pipelines com filtros.
 
@@ -460,8 +460,8 @@ class PostgresClient:
             raise
 
     async def get_pipeline_statistics(
-        self, filters: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
+        self, filters: Optional[dict[str, Any]] = None
+    ) -> dict[str, Any]:
         """
         Retorna estatísticas agregadas de pipelines.
 

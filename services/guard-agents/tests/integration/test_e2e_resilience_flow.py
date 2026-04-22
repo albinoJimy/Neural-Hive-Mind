@@ -3,12 +3,13 @@ Teste end-to-end do fluxo de resiliência E1-E6.
 Valida que um incidente Kafka percorre toda a pipeline até validação de SLA.
 """
 
+from datetime import UTC, datetime
+from unittest.mock import AsyncMock, Mock
+
 import pytest
-from datetime import datetime, timezone
-from unittest.mock import Mock, AsyncMock
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_incident_event():
     """Evento de incidente de segurança para teste"""
     return {
@@ -19,7 +20,7 @@ def mock_incident_event():
         "source_ip": "10.0.0.100",
         "user_id": "malicious_user",
         "payload": {"attack_type": "syn_flood"},
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
         "raw_data": {
             "incident_id": "INC-TEST-001",
             "affected_resources": ["neural-hive-resilience/deployment/api-gateway"],
@@ -27,7 +28,7 @@ def mock_incident_event():
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_context():
     """Contexto adicional do incidente"""
     return {
@@ -37,7 +38,7 @@ def mock_context():
     }
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_e1_e6_complete_flow(mock_incident_event, mock_context):
     """
     Testa fluxo completo E1→E6:
@@ -48,11 +49,11 @@ async def test_e1_e6_complete_flow(mock_incident_event, mock_context):
     - E5: Validar SLA (Prometheus)
     - E6: Documentar lições
     """
-    from src.services.incident_orchestrator import IncidentOrchestrator
-    from src.services.threat_detector import ThreatDetector
     from src.services.incident_classifier import IncidentClassifier
+    from src.services.incident_orchestrator import IncidentOrchestrator
     from src.services.policy_enforcer import PolicyEnforcer
     from src.services.remediation_coordinator import RemediationCoordinator
+    from src.services.threat_detector import ThreatDetector
 
     # Mocks
     mock_redis = Mock()
@@ -194,17 +195,17 @@ async def test_e1_e6_complete_flow(mock_incident_event, mock_context):
     print(f"   - Prometheus métricas: {result['sla_validation'].get('prometheus_metrics', {})}")
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_e2e_with_sla_violation():
     """
     Testa fluxo E1-E6 quando SLA NÃO é restaurado.
     Valida que incidente crítico é aberto (E5).
     """
-    from src.services.incident_orchestrator import IncidentOrchestrator
-    from src.services.threat_detector import ThreatDetector
     from src.services.incident_classifier import IncidentClassifier
+    from src.services.incident_orchestrator import IncidentOrchestrator
     from src.services.policy_enforcer import PolicyEnforcer
     from src.services.remediation_coordinator import RemediationCoordinator
+    from src.services.threat_detector import ThreatDetector
 
     # Mocks
     mock_redis = Mock()
@@ -273,7 +274,7 @@ async def test_e2e_with_sla_violation():
         "event_id": "INC-FAIL-001",
         "severity": "critical",
         "threat_type": "data_exfiltration",
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
     }
 
     result = await orchestrator.process_incident_flow(event=event)

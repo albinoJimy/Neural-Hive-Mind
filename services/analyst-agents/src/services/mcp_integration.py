@@ -4,7 +4,7 @@ Integra com scout-mcp-server e optimizer-mcp-server.
 """
 
 import json
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 import httpx
 import structlog
@@ -16,7 +16,6 @@ logger = structlog.get_logger()
 class MCPIntegrationError(Exception):
     """Erro na integração MCP."""
 
-    pass
 
 
 class MCPIntegration:
@@ -49,7 +48,7 @@ class MCPIntegration:
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=1, max=10),
     )
-    async def _post(self, url: str, data: Dict[str, Any]) -> Dict[str, Any]:
+    async def _post(self, url: str, data: dict[str, Any]) -> dict[str, Any]:
         """Executar POST request com retry."""
         if not self._client:
             raise MCPIntegrationError("Client not initialized")
@@ -67,7 +66,7 @@ class MCPIntegration:
 
     async def scout_list_files(
         self, path: str = ".", pattern: Optional[str] = None
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Listar arquivos via scout MCP server.
 
@@ -92,7 +91,7 @@ class MCPIntegration:
 
     async def scout_search_code(
         self, query: str, path: str = ".", file_pattern: Optional[str] = None
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Buscar código via scout MCP server.
 
@@ -116,7 +115,7 @@ class MCPIntegration:
 
         return result.get("data", {}).get("matches", [])
 
-    async def scout_analyze_structure(self, path: str = ".") -> Dict[str, Any]:
+    async def scout_analyze_structure(self, path: str = ".") -> dict[str, Any]:
         """
         Analisar estrutura do código via scout MCP server.
 
@@ -136,7 +135,7 @@ class MCPIntegration:
 
         return result.get("data", {})
 
-    async def optimizer_analyze_performance(self, code: str) -> Dict[str, Any]:
+    async def optimizer_analyze_performance(self, code: str) -> dict[str, Any]:
         """
         Analisar performance via optimizer MCP server.
 
@@ -158,7 +157,7 @@ class MCPIntegration:
 
         return result.get("data", {})
 
-    async def optimizer_suggest_refactors(self, code: str) -> List[Dict[str, Any]]:
+    async def optimizer_suggest_refactors(self, code: str) -> list[dict[str, Any]]:
         """
         Sugerir refatorações via optimizer MCP server.
 
@@ -178,7 +177,7 @@ class MCPIntegration:
 
         return result.get("data", {}).get("suggestions", [])
 
-    async def optimizer_optimize_queries(self, queries: List[str]) -> List[Dict[str, Any]]:
+    async def optimizer_optimize_queries(self, queries: list[str]) -> list[dict[str, Any]]:
         """
         Otimizar queries via optimizer MCP server.
 
@@ -201,8 +200,8 @@ class MCPIntegration:
     async def execute_aggregated_analysis(
         self,
         analysis_type: str,
-        params: Dict[str, Any],
-    ) -> Dict[str, Any]:
+        params: dict[str, Any],
+    ) -> dict[str, Any]:
         """
         Executar análise agregada usando múltiplas ferramentas MCP.
 
@@ -259,7 +258,7 @@ class MCPIntegration:
 
         return results
 
-    async def health_check(self) -> Dict[str, bool]:
+    async def health_check(self) -> dict[str, bool]:
         """
         Verificar saúde dos servidores MCP.
 

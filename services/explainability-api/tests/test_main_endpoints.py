@@ -4,12 +4,13 @@ Testes para os endpoints principais do Explainability API.
 Cobre health, ready, metrics, explainability e shap.
 """
 
-import pytest
-from unittest.mock import AsyncMock, MagicMock, Mock
 from datetime import datetime
+from unittest.mock import AsyncMock, MagicMock, Mock
+
+import pytest
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_health_endpoint():
     """Health check deve retornar status healthy."""
     from src.main import health_check
@@ -22,7 +23,7 @@ async def test_health_endpoint():
     assert "version" in response
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_readiness_endpoint_mongodb_connected():
     """Readiness check deve retornar ready quando MongoDB conectado."""
     from src.main import readiness_check
@@ -48,13 +49,12 @@ async def test_readiness_endpoint_mongodb_connected():
     assert body["checks"]["api"] is True
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_readiness_endpoint_mongodb_disconnected():
     """Readiness check deve retornar not_ready quando MongoDB desconectado."""
-    from src.main import readiness_check
-
     # Simular MongoDB desconectado
     import src.main
+    from src.main import readiness_check
 
     src.main.mongo_client = None
     src.main.explanation_producer = None
@@ -69,7 +69,7 @@ async def test_readiness_endpoint_mongodb_disconnected():
     assert body["checks"]["mongodb"] is False
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_readiness_endpoint_with_kafka():
     """Readiness check deve verificar Kafka producer."""
     from src.main import readiness_check
@@ -95,7 +95,7 @@ async def test_readiness_endpoint_with_kafka():
     assert body["checks"]["kafka_producer"] is True
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_metrics_endpoint():
     """Metrics endpoint deve retornar metricas Prometheus."""
     from src.main import metrics
@@ -106,7 +106,7 @@ async def test_metrics_endpoint():
     assert "text/plain" in response.headers["content-type"]
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_get_explainability_by_token_success():
     """Buscar explicação por token deve retornar dados."""
     from src.main import get_explainability_by_token
@@ -131,11 +131,11 @@ async def test_get_explainability_by_token_success():
     assert response["decision_id"] == "decision-123"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_get_explainability_by_token_not_found():
     """Buscar explicação por token inexistente deve retornar 404."""
-    from src.main import get_explainability_by_token
     from fastapi import HTTPException
+    from src.main import get_explainability_by_token
 
     mock_db = MagicMock()
     mock_db.explainability_ledger.find_one = AsyncMock(return_value=None)
@@ -150,7 +150,7 @@ async def test_get_explainability_by_token_not_found():
     assert exc_info.value.status_code == 404
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_get_explanation_extended():
     """Buscar explicação extendida por decision_id."""
     from src.main import get_explanation_extended
@@ -174,10 +174,10 @@ async def test_get_explanation_extended():
     assert "hierarchical_data" in response
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_generate_explanation():
     """Gerar explicação sob demanda."""
-    from src.main import generate_explanation_endpoint, GenerateExplanationRequest
+    from src.main import GenerateExplanationRequest, generate_explanation_endpoint
 
     mock_extensions = AsyncMock()
     mock_extensions.generate_explanation = AsyncMock(
@@ -202,7 +202,7 @@ async def test_generate_explanation():
     assert "explainability_token" in response
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_get_explanation_formatted():
     """Buscar explicação em formato especifico."""
     from src.main import get_explanation_formatted
@@ -222,11 +222,11 @@ async def test_get_explanation_formatted():
     assert "<html>" in str(response)
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_get_explanation_formatted_invalid_format():
     """Formato invalido deve retornar 400."""
-    from src.main import get_explanation_formatted
     from fastapi import HTTPException
+    from src.main import get_explanation_formatted
 
     mock_extensions = AsyncMock()
     mock_extensions.get_explainability_by_decision_id = AsyncMock(
@@ -244,7 +244,7 @@ async def test_get_explanation_formatted_invalid_format():
     assert "Invalid format" in exc_info.value.detail
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_get_explainability_stats():
     """Buscar estatisticas de explicabilidade."""
     from src.main import get_explainability_stats
@@ -269,7 +269,7 @@ async def test_get_explainability_stats():
     assert response["by_method"]["hierarchical"] == 80
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_get_explainability_stats_with_date_filter():
     """Estatisticas com filtro de data."""
     from src.main import get_explainability_stats
@@ -290,11 +290,11 @@ async def test_get_explainability_stats_with_date_filter():
     assert response["total_explanations"] == 50
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_global_exception_handler():
     """Handler global de excecao deve retornar 500."""
-    from src.main import global_exception_handler
     from fastapi import Request
+    from src.main import global_exception_handler
 
     request = MagicMock(spec=Request)
     request.url.path = "/api/v1/explainability/123"

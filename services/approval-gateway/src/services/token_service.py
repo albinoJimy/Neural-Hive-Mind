@@ -6,12 +6,10 @@ para autenticação e autorização.
 
 import time
 import uuid
-from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 from jose import JWTError, jwt
 from pydantic import BaseModel, Field
-
 from src.config.settings import get_settings
 
 settings = get_settings()
@@ -25,10 +23,7 @@ class TokenPayload(BaseModel):
     iat: int = Field(..., description="Issued at timestamp")
     jti: str = Field(..., description="JWT ID - unique token identifier")
     type: str = Field(..., description="Token type: access/refresh")
-    permissions: list[str] = Field(
-        default_factory=list,
-        description="User permissions"
-    )
+    permissions: list[str] = Field(default_factory=list, description="User permissions")
 
 
 class TokenPair(BaseModel):
@@ -54,7 +49,7 @@ class TokenService:
         self,
         user_id: str,
         permissions: Optional[list[str]] = None,
-        extra_claims: Optional[Dict[str, Any]] = None
+        extra_claims: Optional[dict[str, Any]] = None,
     ) -> str:
         """
         Cria um token de acesso.
@@ -88,7 +83,7 @@ class TokenService:
         self,
         user_id: str,
         permissions: Optional[list[str]] = None,
-        extra_claims: Optional[Dict[str, Any]] = None
+        extra_claims: Optional[dict[str, Any]] = None,
     ) -> str:
         """
         Cria um token de refresh.
@@ -118,11 +113,7 @@ class TokenService:
 
         return jwt.encode(payload, self._secret_key, algorithm=self._algorithm)
 
-    def create_token_pair(
-        self,
-        user_id: str,
-        permissions: Optional[list[str]] = None
-    ) -> TokenPair:
+    def create_token_pair(self, user_id: str, permissions: Optional[list[str]] = None) -> TokenPair:
         """
         Cria um par de tokens (access + refresh).
 
@@ -140,7 +131,7 @@ class TokenService:
             access_token=access_token,
             refresh_token=refresh_token,
             token_type="bearer",
-            expires_in=self._access_expire_minutes * 60
+            expires_in=self._access_expire_minutes * 60,
         )
 
     def decode_token(self, token: str) -> Optional[TokenPayload]:
@@ -154,22 +145,16 @@ class TokenService:
             TokenPayload se válido, None se inválido
         """
         try:
-            payload = jwt.decode(
-                token,
-                self._secret_key,
-                algorithms=[self._algorithm]
-            )
+            payload = jwt.decode(token, self._secret_key, algorithms=[self._algorithm])
 
             return TokenPayload(**payload)
 
-        except JWTError as e:
+        except JWTError:
             # Token inválido ou expirado
             return None
 
     def verify_access_token(
-        self,
-        token: str,
-        required_permissions: Optional[list[str]] = None
+        self, token: str, required_permissions: Optional[list[str]] = None
     ) -> Optional[TokenPayload]:
         """
         Verifica um token de acesso.
@@ -236,10 +221,7 @@ class TokenService:
             return None
 
         # Criar novo access token com as mesmas permissões
-        return self.create_access_token(
-            user_id=payload.sub,
-            permissions=payload.permissions
-        )
+        return self.create_access_token(user_id=payload.sub, permissions=payload.permissions)
 
     def get_user_id_from_token(self, token: str) -> Optional[str]:
         """

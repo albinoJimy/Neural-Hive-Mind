@@ -5,17 +5,17 @@ Testa registro de workers, atribuição de tarefas, e estratégias de balanceame
 """
 
 import asyncio
-import pytest
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock
-from datetime import datetime, timezone, timedelta
 
+import pytest
 from src.services.load_balancer import (
-    LoadBalancer,
     BalancingStrategy,
+    LoadBalancer,
 )
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_redis():
     """Mock Redis client"""
     # Criar wrapper client
@@ -37,7 +37,7 @@ def mock_redis():
     return redis_wrapper
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_settings():
     """Mock settings"""
     settings = MagicMock()
@@ -47,7 +47,7 @@ def mock_settings():
     return settings
 
 
-@pytest.fixture
+@pytest.fixture()
 def load_balancer(mock_redis, mock_settings):
     """Fixture para LoadBalancer"""
     return LoadBalancer(
@@ -71,7 +71,7 @@ class TestLoadBalancerInit:
 class TestRegisterWorker:
     """Testes de registro de workers"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_register_worker_success(self, load_balancer, mock_redis):
         """Testa registro bem-sucedido de worker"""
         success = await load_balancer.register_worker(
@@ -85,7 +85,7 @@ class TestRegisterWorker:
         assert load_balancer._local_cache["worker-1"].capacity == 1.5
         mock_redis.client.hset.assert_called()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_register_worker_default_capacity(self, load_balancer):
         """Testa registro com capacidade padrão"""
         await load_balancer.register_worker(worker_id="worker-2")
@@ -96,7 +96,7 @@ class TestRegisterWorker:
 class TestUnregisterWorker:
     """Testes de remoção de workers"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_unregister_worker_success(self, load_balancer, mock_redis):
         """Testa remoção bem-sucedida de worker"""
         # Primeiro registrar
@@ -109,7 +109,7 @@ class TestUnregisterWorker:
         assert "worker-1" not in load_balancer._local_cache
         mock_redis.client.hdel.assert_called()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_unregister_nonexistent_worker(self, load_balancer):
         """Testa remoção de worker inexistente"""
         success = await load_balancer.unregister_worker(worker_id="nonexistent")
@@ -120,7 +120,7 @@ class TestUnregisterWorker:
 class TestUpdateWorkerMetrics:
     """Testes de atualização de métricas"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_update_worker_metrics_all_fields(self, load_balancer):
         """Testa atualização de todos os campos de métricas"""
         await load_balancer.register_worker(worker_id="worker-1")
@@ -140,7 +140,7 @@ class TestUpdateWorkerMetrics:
         assert metrics.failed_tasks == 2
         assert metrics.avg_processing_time_ms == 150.5
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_update_worker_metrics_partial(self, load_balancer):
         """Testa atualização parcial de métricas"""
         await load_balancer.register_worker(worker_id="worker-1")
@@ -150,7 +150,7 @@ class TestUpdateWorkerMetrics:
         assert success is True
         assert load_balancer._local_cache["worker-1"].active_tasks == 10
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_update_metrics_creates_worker(self, load_balancer):
         """Testa que atualização cria worker se não existe"""
         # Registrar worker primeiro (evitar deadlock com lock não reentrante)
@@ -161,7 +161,7 @@ class TestUpdateWorkerMetrics:
         assert success is True
         assert "new-worker" in load_balancer._local_cache
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_update_metrics_updates_heartbeat(self, load_balancer):
         """Testa que atualização marca worker como saudável"""
         await load_balancer.register_worker(worker_id="worker-1")
@@ -175,7 +175,7 @@ class TestUpdateWorkerMetrics:
 class TestGetHealthyWorkers:
     """Testes de obtenção de workers saudáveis"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_healthy_workers_all(self, load_balancer):
         """Testa retorno de todos workers quando todos saudáveis"""
         await load_balancer.register_worker("worker-1")
@@ -189,7 +189,7 @@ class TestGetHealthyWorkers:
         assert "worker-2" in healthy
         assert "worker-3" in healthy
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_healthy_workers_filters_unhealthy(self, load_balancer):
         """Testa filtro de workers não saudáveis"""
         await load_balancer.register_worker("worker-1")
@@ -201,14 +201,14 @@ class TestGetHealthyWorkers:
         assert len(healthy) == 1
         assert "worker-1" in healthy
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_healthy_workers_filters_timeout(self, load_balancer):
         """Testa filtro de workers com heartbeat timeout"""
         await load_balancer.register_worker("worker-1")
         await load_balancer.register_worker("worker-2")
 
         # Simular timeout em worker-2
-        old_time = datetime.now(timezone.utc) - timedelta(seconds=60)
+        old_time = datetime.now(UTC) - timedelta(seconds=60)
         load_balancer._local_cache["worker-2"].last_heartbeat = old_time
 
         healthy = await load_balancer._get_healthy_workers()
@@ -221,7 +221,7 @@ class TestGetHealthyWorkers:
 class TestRoundRobinStrategy:
     """Testes da estratégia Round Robin"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_round_robin_distribution(self, load_balancer):
         """Testa distribuição round robin"""
         await load_balancer.register_worker("worker-1")
@@ -244,7 +244,7 @@ class TestRoundRobinStrategy:
 class TestLeastLoadedStrategy:
     """Testes da estratégia Least Loaded"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_least_loaded_selection(self, load_balancer):
         """Testa seleção do worker com menos carga"""
         await load_balancer.register_worker("worker-1")
@@ -265,7 +265,7 @@ class TestLeastLoadedStrategy:
 class TestWeightedStrategy:
     """Testes da estratégia Weighted"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_weighted_selection(self, load_balancer):
         """Testa seleção ponderada por capacidade"""
         await load_balancer.register_worker("worker-1", capacity=2.0)
@@ -289,7 +289,7 @@ class TestWeightedStrategy:
 class TestConsistentHashStrategy:
     """Testes da estratégia Consistent Hash"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_consistent_hash_same_task(self, load_balancer):
         """Testa que mesma tarefa vai para mesmo worker"""
         await load_balancer.register_worker("worker-1")
@@ -307,7 +307,7 @@ class TestConsistentHashStrategy:
 
         assert selected1 == selected2
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_consistent_hash_different_tasks(self, load_balancer):
         """Testa que tarefas diferentes podem ir para workers diferentes"""
         await load_balancer.register_worker("worker-1")
@@ -328,7 +328,7 @@ class TestConsistentHashStrategy:
 class TestAssignTask:
     """Testes de atribuição de tarefas"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_assign_task_success(self, load_balancer):
         """Testa atribuição bem-sucedida de tarefa"""
         await load_balancer.register_worker("worker-1")
@@ -339,14 +339,14 @@ class TestAssignTask:
         assert assignment is not None
         assert assignment.worker_id in ["worker-1", "worker-2"]
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_assign_task_no_workers(self, load_balancer):
         """Testa atribuição quando não há workers"""
         assignment = await load_balancer.assign_task(task_id="task-1")
 
         assert assignment is None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_assign_task_increments_active(self, load_balancer):
         """Testa que atribuição incrementa tarefas ativas"""
         await load_balancer.register_worker("worker-1")
@@ -357,7 +357,7 @@ class TestAssignTask:
 
         assert load_balancer._local_cache["worker-1"].active_tasks == initial_active + 1
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_assign_task_with_strategy_override(self, load_balancer):
         """Testa atribuição com estratégia override"""
         await load_balancer.register_worker("worker-1")
@@ -374,7 +374,7 @@ class TestAssignTask:
 class TestCompleteTask:
     """Testes de conclusão de tarefas"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_complete_task_success(self, load_balancer):
         """Testa conclusão bem-sucedida de tarefa"""
         await load_balancer.register_worker("worker-1")
@@ -391,7 +391,7 @@ class TestCompleteTask:
         assert load_balancer._local_cache["worker-1"].active_tasks == 4  # -1
         assert load_balancer._local_cache["worker-1"].completed_tasks == 11  # +1
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_complete_task_failure(self, load_balancer):
         """Testa conclusão com falha"""
         await load_balancer.register_worker("worker-1")
@@ -405,7 +405,7 @@ class TestCompleteTask:
         assert load_balancer._local_cache["worker-1"].active_tasks == 4
         assert load_balancer._local_cache["worker-1"].failed_tasks == 3  # +1
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_complete_task_updates_avg_time(self, load_balancer):
         """Testa que conclusão atualiza tempo médio"""
         await load_balancer.register_worker("worker-1")
@@ -427,7 +427,7 @@ class TestCompleteTask:
 class TestGetWorkersStatus:
     """Testes de obtenção de status de workers"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_workers_status(self, load_balancer):
         """Testa obtenção de status de todos workers"""
         await load_balancer.register_worker("worker-1", capacity=2.0)
@@ -447,7 +447,7 @@ class TestGetWorkersStatus:
 class TestGetStatistics:
     """Testes de obtenção de estatísticas"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_statistics(self, load_balancer):
         """Testa obtenção de estatísticas do balanceador"""
         await load_balancer.register_worker("worker-1")
@@ -467,7 +467,7 @@ class TestGetStatistics:
 class TestStartStop:
     """Testes de início e parada"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_start(self, load_balancer):
         """Testa início do balanceador"""
         await load_balancer.start()
@@ -484,7 +484,7 @@ class TestStartStop:
             except asyncio.CancelledError:
                 pass
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_stop(self, load_balancer):
         """Testa parada do balanceador"""
         await load_balancer.start()

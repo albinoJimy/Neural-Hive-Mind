@@ -9,18 +9,18 @@ TDD Approach:
 Estes testes foram escritos ANTES da implementação da funcionalidade.
 """
 
-import pytest
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock
-from datetime import datetime, timezone, timedelta
 
-from src.services.analytics_engine import AnalyticsEngine
+import pytest
 from src.models.insight import (
     AnalystInsight,
-    TimeWindow,
     InsightType,
     Priority,
     Recommendation,
+    TimeWindow,
 )
+from src.services.analytics_engine import AnalyticsEngine
 
 
 class TestAnalyticsEngineAnalyzeTelemetryWindow:
@@ -30,7 +30,7 @@ class TestAnalyticsEngineAnalyzeTelemetryWindow:
     # Testes de Happy Path - Casos de Sucesso
     # ========================================================================
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_analyze_telemetry_window_with_anomalies_returns_operational_insight(
         self,
     ):
@@ -42,7 +42,7 @@ class TestAnalyticsEngineAnalyzeTelemetryWindow:
         # Arrange
         analytics = AnalyticsEngine(min_confidence=0.7)
 
-        base_time = datetime.now(timezone.utc)
+        base_time = datetime.now(UTC)
         window = TimeWindow(
             start_timestamp=int((base_time - timedelta(hours=1)).timestamp() * 1000),
             end_timestamp=int(base_time.timestamp() * 1000),
@@ -71,7 +71,7 @@ class TestAnalyticsEngineAnalyzeTelemetryWindow:
             Priority.CRITICAL,
         ], "Anomalias de latência devem ter prioridade HIGH ou CRITICAL"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_analyze_telemetry_window_empty_data_returns_none(self):
         """
         DADO: telemetry_data vazio
@@ -81,8 +81,8 @@ class TestAnalyticsEngineAnalyzeTelemetryWindow:
         # Arrange
         analytics = AnalyticsEngine(min_confidence=0.7)
         window = TimeWindow(
-            start_timestamp=int(datetime.now(timezone.utc).timestamp() * 1000),
-            end_timestamp=int(datetime.now(timezone.utc).timestamp() * 1000),
+            start_timestamp=int(datetime.now(UTC).timestamp() * 1000),
+            end_timestamp=int(datetime.now(UTC).timestamp() * 1000),
         )
 
         # Act
@@ -91,7 +91,7 @@ class TestAnalyticsEngineAnalyzeTelemetryWindow:
         # Assert
         assert result is None, "Deve retornar None para dados vazios"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_analyze_telemetry_window_no_anomalies_returns_none(self):
         """
         DADO: telemetry_data sem anomalias (valores normais)
@@ -101,7 +101,7 @@ class TestAnalyticsEngineAnalyzeTelemetryWindow:
         # Arrange
         analytics = AnalyticsEngine(min_confidence=0.7)
 
-        base_time = datetime.now(timezone.utc)
+        base_time = datetime.now(UTC)
         window = TimeWindow(
             start_timestamp=int((base_time - timedelta(hours=1)).timestamp() * 1000),
             end_timestamp=int(base_time.timestamp() * 1000),
@@ -122,7 +122,7 @@ class TestAnalyticsEngineAnalyzeTelemetryWindow:
         # Assert
         assert result is None, "Deve retornar None quando não há anomalias"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_analyze_telemetry_window_with_critical_anomaly_sets_critical_priority(
         self,
     ):
@@ -134,7 +134,7 @@ class TestAnalyticsEngineAnalyzeTelemetryWindow:
         # Arrange
         analytics = AnalyticsEngine(min_confidence=0.7)
 
-        base_time = datetime.now(timezone.utc)
+        base_time = datetime.now(UTC)
         window = TimeWindow(
             start_timestamp=int((base_time - timedelta(hours=1)).timestamp() * 1000),
             end_timestamp=int(base_time.timestamp() * 1000),
@@ -158,7 +158,7 @@ class TestAnalyticsEngineAnalyzeTelemetryWindow:
     # Testes de Estrutura do Insight
     # ========================================================================
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_insight_contains_required_fields(self):
         """
         DADO: telemetry_data com anomalias
@@ -168,7 +168,7 @@ class TestAnalyticsEngineAnalyzeTelemetryWindow:
         # Arrange
         analytics = AnalyticsEngine(min_confidence=0.7)
 
-        base_time = datetime.now(timezone.utc)
+        base_time = datetime.now(UTC)
         window = TimeWindow(
             start_timestamp=int((base_time - timedelta(hours=1)).timestamp() * 1000),
             end_timestamp=int(base_time.timestamp() * 1000),
@@ -201,7 +201,7 @@ class TestAnalyticsEngineAnalyzeTelemetryWindow:
         assert result.related_entities is not None, "Deve ter related_entities"
         assert result.time_window is not None, "Deve ter time_window"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_insight_contains_anomaly_in_metrics(self):
         """
         DADO: telemetry_data com anomalias
@@ -211,7 +211,7 @@ class TestAnalyticsEngineAnalyzeTelemetryWindow:
         # Arrange
         analytics = AnalyticsEngine(min_confidence=0.7)
 
-        base_time = datetime.now(timezone.utc)
+        base_time = datetime.now(UTC)
         window = TimeWindow(
             start_timestamp=int((base_time - timedelta(hours=1)).timestamp() * 1000),
             end_timestamp=int(base_time.timestamp() * 1000),
@@ -231,7 +231,7 @@ class TestAnalyticsEngineAnalyzeTelemetryWindow:
         assert result.metrics["anomaly_count"] > 0, "Deve ter pelo menos 1 anomalia"
         assert "max_latency" in result.metrics, "Deve conter max_latency"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_insight_has_recommendations(self):
         """
         DADO: telemetry_data com anomalias
@@ -241,7 +241,7 @@ class TestAnalyticsEngineAnalyzeTelemetryWindow:
         # Arrange
         analytics = AnalyticsEngine(min_confidence=0.7)
 
-        base_time = datetime.now(timezone.utc)
+        base_time = datetime.now(UTC)
         window = TimeWindow(
             start_timestamp=int((base_time - timedelta(hours=1)).timestamp() * 1000),
             end_timestamp=int(base_time.timestamp() * 1000),
@@ -266,7 +266,7 @@ class TestAnalyticsEngineAnalyzeTelemetryWindow:
     # Testes de Integração com InsightGenerator
     # ========================================================================
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_insight_generator_integration_with_mock(self):
         """
         DADO: AnalyticsEngine com InsightGenerator mockado
@@ -300,8 +300,8 @@ class TestAnalyticsEngineAnalyzeTelemetryWindow:
                 ],
                 related_entities=[],
                 time_window=TimeWindow(
-                    start_timestamp=int(datetime.now(timezone.utc).timestamp() * 1000),
-                    end_timestamp=int(datetime.now(timezone.utc).timestamp() * 1000),
+                    start_timestamp=int(datetime.now(UTC).timestamp() * 1000),
+                    end_timestamp=int(datetime.now(UTC).timestamp() * 1000),
                 ),
             )
         )
@@ -310,7 +310,7 @@ class TestAnalyticsEngineAnalyzeTelemetryWindow:
         # NOTA: Esta injeção precisará ser implementada no construtor
         analytics = AnalyticsEngine(min_confidence=0.7, insight_generator=mock_insight_generator)
 
-        base_time = datetime.now(timezone.utc)
+        base_time = datetime.now(UTC)
         window = TimeWindow(
             start_timestamp=int((base_time - timedelta(hours=1)).timestamp() * 1000),
             end_timestamp=int(base_time.timestamp() * 1000),
@@ -333,7 +333,7 @@ class TestAnalyticsEngineAnalyzeTelemetryWindow:
     # Testes de Edge Cases
     # ========================================================================
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_analyze_telemetry_window_with_mixed_metrics(self):
         """
         DADO: telemetry_data com múltiplas métricas (latency, error_rate, throughput)
@@ -343,7 +343,7 @@ class TestAnalyticsEngineAnalyzeTelemetryWindow:
         # Arrange
         analytics = AnalyticsEngine(min_confidence=0.7)
 
-        base_time = datetime.now(timezone.utc)
+        base_time = datetime.now(UTC)
         window = TimeWindow(
             start_timestamp=int((base_time - timedelta(hours=1)).timestamp() * 1000),
             end_timestamp=int(base_time.timestamp() * 1000),
@@ -364,7 +364,7 @@ class TestAnalyticsEngineAnalyzeTelemetryWindow:
         assert result is not None, "Deve detectar anomalia em error_rate"
         assert result.insight_type == InsightType.OPERATIONAL
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_analyze_telemetry_window_with_insufficient_data(self):
         """
         DADO: telemetry_data com menos de 3 pontos (insuficiente para detecção)
@@ -374,7 +374,7 @@ class TestAnalyticsEngineAnalyzeTelemetryWindow:
         # Arrange
         analytics = AnalyticsEngine(min_confidence=0.7)
 
-        base_time = datetime.now(timezone.utc)
+        base_time = datetime.now(UTC)
         window = TimeWindow(
             start_timestamp=int((base_time - timedelta(hours=1)).timestamp() * 1000),
             end_timestamp=int(base_time.timestamp() * 1000),
@@ -399,7 +399,7 @@ class TestAnalyticsEngineAnalyzeTelemetryWindow:
     # Testes de Tracing
     # ========================================================================
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_analyze_telemetry_window_propagates_trace_context(self):
         """
         DADO: telemetry_data com contexto de tracing
@@ -409,7 +409,7 @@ class TestAnalyticsEngineAnalyzeTelemetryWindow:
         # Arrange
         analytics = AnalyticsEngine(min_confidence=0.7)
 
-        base_time = datetime.now(timezone.utc)
+        base_time = datetime.now(UTC)
         window = TimeWindow(
             start_timestamp=int((base_time - timedelta(hours=1)).timestamp() * 1000),
             end_timestamp=int(base_time.timestamp() * 1000),
@@ -438,7 +438,7 @@ class TestAnalyticsEngineAnalyzeTelemetryWindow:
     # Testes de Performance
     # ========================================================================
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_analyze_telemetry_window_with_large_dataset(self):
         """
         DADO: telemetry_data com 1000 pontos de dados
@@ -448,7 +448,7 @@ class TestAnalyticsEngineAnalyzeTelemetryWindow:
         # Arrange
         analytics = AnalyticsEngine(min_confidence=0.7)
 
-        base_time = datetime.now(timezone.utc)
+        base_time = datetime.now(UTC)
         window = TimeWindow(
             start_timestamp=int((base_time - timedelta(hours=1)).timestamp() * 1000),
             end_timestamp=int(base_time.timestamp() * 1000),

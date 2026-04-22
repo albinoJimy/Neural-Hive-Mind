@@ -2,7 +2,6 @@
 Router FastAPI para webhooks (Alertmanager).
 """
 
-from typing import Dict, List
 
 import structlog
 from fastapi import APIRouter, Depends, HTTPException
@@ -20,8 +19,8 @@ logger = structlog.get_logger(__name__)
 # Request models
 class AlertmanagerAlert(BaseModel):
     status: str
-    labels: Dict[str, str]
-    annotations: Dict[str, str]
+    labels: dict[str, str]
+    annotations: dict[str, str]
     startsAt: str
     endsAt: str
     generatorURL: str
@@ -32,11 +31,11 @@ class AlertmanagerWebhook(BaseModel):
     groupKey: str
     status: str
     receiver: str
-    groupLabels: Dict[str, str]
-    commonLabels: Dict[str, str]
-    commonAnnotations: Dict[str, str]
+    groupLabels: dict[str, str]
+    commonLabels: dict[str, str]
+    commonAnnotations: dict[str, str]
     externalURL: str
-    alerts: List[AlertmanagerAlert]
+    alerts: list[AlertmanagerAlert]
 
 
 # Response model

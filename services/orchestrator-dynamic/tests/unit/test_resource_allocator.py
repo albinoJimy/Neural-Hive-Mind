@@ -11,18 +11,18 @@ Cobertura:
 - Tratamento de telemetria
 """
 
-import pytest
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock
-from typing import Dict, List, Any
-import grpc
 
-from src.scheduler.resource_allocator import ResourceAllocator
+import grpc
+import pytest
 from src.clients.service_registry_client import ServiceRegistryClient
 from src.config.settings import OrchestratorSettings
 from src.observability.metrics import OrchestratorMetrics
+from src.scheduler.resource_allocator import ResourceAllocator
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_registry_client():
     """ServiceRegistryClient mock com discover_agents async."""
     client = AsyncMock(spec=ServiceRegistryClient)
@@ -30,7 +30,7 @@ def mock_registry_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_config():
     """Config com configurações do Service Registry."""
     config = MagicMock(spec=OrchestratorSettings)
@@ -40,7 +40,7 @@ def mock_config():
     return config
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_metrics():
     """Metrics mock."""
     metrics = MagicMock(spec=OrchestratorMetrics)
@@ -48,8 +48,8 @@ def mock_metrics():
     return metrics
 
 
-@pytest.fixture
-def sample_workers() -> List[Dict[str, Any]]:
+@pytest.fixture()
+def sample_workers() -> list[dict[str, Any]]:
     """Lista de workers com várias características."""
     return [
         {
@@ -82,8 +82,8 @@ def sample_workers() -> List[Dict[str, Any]]:
     ]
 
 
-@pytest.fixture
-def sample_ticket() -> Dict[str, Any]:
+@pytest.fixture()
+def sample_ticket() -> dict[str, Any]:
     """Ticket padrão para descoberta."""
     return {
         "ticket_id": "ticket-123",
@@ -96,7 +96,7 @@ def sample_ticket() -> Dict[str, Any]:
 class TestResourceAllocator:
     """Testes para ResourceAllocator."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_discover_workers_success(
         self, mock_registry_client, mock_config, mock_metrics, sample_workers, sample_ticket
     ):
@@ -119,7 +119,7 @@ class TestResourceAllocator:
         # Verificar chamada ao registry
         mock_registry_client.discover_agents.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_discover_workers_grpc_error(
         self, mock_registry_client, mock_config, mock_metrics, sample_ticket
     ):
@@ -141,7 +141,7 @@ class TestResourceAllocator:
         # Verificar métrica de falha
         mock_metrics.record_discovery_failure.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_discover_workers_with_filters(
         self, mock_registry_client, mock_config, mock_metrics, sample_workers, sample_ticket
     ):

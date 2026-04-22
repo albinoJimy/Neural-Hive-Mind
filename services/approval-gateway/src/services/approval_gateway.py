@@ -1,18 +1,18 @@
 """Serviço Approval Gateway."""
 
-from typing import List, Optional
-from datetime import datetime, timedelta
-from openai import AsyncOpenAI
-import structlog
+from datetime import datetime
+from typing import Optional
 
-from src.models.approval import (
-    ApprovalRequest,
-    ApprovalDecision,
-    ApprovalStatus,
-    ApprovalPolicy,
-    ApprovalMetrics,
-)
+import structlog
+from openai import AsyncOpenAI
 from src.config.settings import get_settings
+from src.models.approval import (
+    ApprovalDecision,
+    ApprovalMetrics,
+    ApprovalPolicy,
+    ApprovalRequest,
+    ApprovalStatus,
+)
 from src.repositories.approvals_repository import ApprovalsRepository
 
 logger = structlog.get_logger(__name__)
@@ -41,13 +41,11 @@ class ApprovalGateway:
             description="Política de aprovação padrão do sistema",
             auto_approve_threshold=settings.auto_approval_threshold,
             auto_reject_threshold=settings.auto_rejection_threshold,
-            require_human_threshold=settings.require_human_threshold
+            require_human_threshold=settings.require_human_threshold,
         )
 
     async def evaluate_request(
-        self,
-        request: ApprovalRequest,
-        policy: Optional[ApprovalPolicy] = None
+        self, request: ApprovalRequest, policy: Optional[ApprovalPolicy] = None
     ) -> ApprovalDecision:
         """
         Avalia uma solicitação de aprovação.
@@ -61,9 +59,7 @@ class ApprovalGateway:
         """
         policy = policy or self._default_policy
         self._logger.info(
-            "evaluating_approval_request",
-            request_id=request.id,
-            request_type=request.type
+            "evaluating_approval_request", request_id=request.id, request_type=request.type
         )
 
         # Verificar se a política se aplica
@@ -71,7 +67,7 @@ class ApprovalGateway:
             self._logger.info(
                 "policy_not_applicable",
                 request_type=request.type,
-                policy_types=policy.applies_to_types
+                policy_types=policy.applies_to_types,
             )
 
         # Verificar regras de crítico
@@ -106,14 +102,11 @@ class ApprovalGateway:
             confidence_score=confidence,
             reasoning=reasoning,
             approved_by=approved_by,
-            approved_at=datetime.utcnow()
+            approved_at=datetime.utcnow(),
         )
 
         self._logger.info(
-            "decision_made",
-            request_id=request.id,
-            status=status.value,
-            confidence=confidence
+            "decision_made", request_id=request.id, status=status.value, confidence=confidence
         )
 
         # Salvar no MongoDB
@@ -130,7 +123,7 @@ class ApprovalGateway:
             confidence_score=0.0,
             reasoning="Requer revisão humana devido a restrições de política",
             approved_by=None,
-            approved_at=datetime.utcnow()
+            approved_at=datetime.utcnow(),
         )
 
     async def _evaluate_with_llm(self, request: ApprovalRequest) -> tuple[float, str]:
@@ -152,12 +145,12 @@ class ApprovalGateway:
                             "Você é um avaliador especialista em requisitos de software, "
                             "arquitetura e desenvolvimento. Avalie solicitações de forma "
                             "objetiva e detalhada."
-                        )
+                        ),
                     },
-                    {"role": "user", "content": prompt}
+                    {"role": "user", "content": prompt},
                 ],
                 temperature=self._llm_temperature,
-                max_tokens=1000
+                max_tokens=1000,
             )
 
             content = response.choices[0].message.content
@@ -171,13 +164,11 @@ class ApprovalGateway:
         except Exception as e:
             self._logger.error("llm_evaluation_failed", error=str(e))
             # Em caso de erro, retorna score médio e explicação
-            return 0.5, f"Erro na avaliação automática: {str(e)}"
+            return 0.5, f"Erro na avaliação automática: {e!s}"
 
     def _build_evaluation_prompt(self, request: ApprovalRequest) -> str:
         """Constrói prompt para avaliação."""
-        context_str = "\n".join(
-            f"- {k}: {v}" for k, v in request.context.items()
-        )
+        context_str = "\n".join(f"- {k}: {v}" for k, v in request.context.items())
 
         return f"""Avalie a seguinte solicitação de aprovação:
 

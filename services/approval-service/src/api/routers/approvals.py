@@ -4,7 +4,7 @@ Approval API Endpoints
 Endpoints REST para gerenciamento de aprovacoes de planos cognitivos.
 """
 
-from typing import List, Optional
+from typing import Optional
 
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -72,7 +72,7 @@ def get_approval_service() -> ApprovalService:
     return _approval_service
 
 
-@router.get("/pending", response_model=List[ApprovalRequest])
+@router.get("/pending", response_model=list[ApprovalRequest])
 async def list_pending_approvals(
     limit: int = Query(default=50, ge=1, le=100, description="Limite de resultados"),
     offset: int = Query(default=0, ge=0, description="Offset para paginacao"),
@@ -119,7 +119,7 @@ async def list_pending_approvals(
         logger.error("Erro ao listar aprovacoes pendentes", error=str(e))
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Erro ao listar aprovacoes: {str(e)}",
+            detail=f"Erro ao listar aprovacoes: {e!s}",
         )
 
 
@@ -150,7 +150,7 @@ async def get_approval_stats(
         logger.error("Erro ao obter estatisticas", error=str(e))
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Erro ao obter estatisticas: {str(e)}",
+            detail=f"Erro ao obter estatisticas: {e!s}",
         )
 
 
@@ -198,7 +198,7 @@ async def get_ml_prediction(
         logger.error("Erro ao obter predicao ML", error=str(e), plan_id=plan_id)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Erro ao obter predicao ML: {str(e)}",
+            detail=f"Erro ao obter predicao ML: {e!s}",
         )
 
 
@@ -251,7 +251,7 @@ async def get_auto_decision(
         logger.error("Erro ao obter decisao automatica", error=str(e), plan_id=plan_id)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Erro ao obter decisao automatica: {str(e)}",
+            detail=f"Erro ao obter decisao automatica: {e!s}",
         )
 
 
@@ -293,7 +293,7 @@ async def get_approval(
         logger.error("Erro ao buscar aprovacao", error=str(e), plan_id=plan_id)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Erro ao buscar aprovacao: {str(e)}",
+            detail=f"Erro ao buscar aprovacao: {e!s}",
         )
 
 
@@ -346,7 +346,7 @@ async def approve_plan(
         logger.error("Erro ao aprovar plano", error=str(e), plan_id=plan_id)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Erro ao aprovar plano: {str(e)}",
+            detail=f"Erro ao aprovar plano: {e!s}",
         )
 
 
@@ -398,7 +398,7 @@ async def reject_plan(
         logger.error("Erro ao rejeitar plano", error=str(e), plan_id=plan_id)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Erro ao rejeitar plano: {str(e)}",
+            detail=f"Erro ao rejeitar plano: {e!s}",
         )
 
 
@@ -469,7 +469,7 @@ async def republish_approved_plan(
         logger.error("Erro ao republicar plano", error=str(e), plan_id=plan_id)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Erro ao republicar plano: {str(e)}",
+            detail=f"Erro ao republicar plano: {e!s}",
         )
 
 
@@ -540,5 +540,5 @@ async def revert_approval(
         logger.error("Erro ao reverter aprovacao", error=str(e), plan_id=plan_id)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Erro ao reverter aprovacao: {str(e)}",
+            detail=f"Erro ao reverter aprovacao: {e!s}",
         )

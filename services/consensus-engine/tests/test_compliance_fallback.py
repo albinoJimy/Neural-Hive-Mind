@@ -1,13 +1,13 @@
 import sys
-from types import SimpleNamespace
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
 ROOT = Path(__file__).resolve().parents[1] / "src"
 sys.path.append(str(ROOT))
 
-from services.compliance_fallback import ComplianceFallback  # noqa: E402
+from services.compliance_fallback import ComplianceFallback
 
 
 def _build_config(

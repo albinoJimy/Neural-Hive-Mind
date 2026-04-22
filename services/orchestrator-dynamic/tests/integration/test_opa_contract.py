@@ -7,13 +7,12 @@ Este módulo valida:
 - Casos edge (valores nulos, arrays vazios, campos opcionais)
 """
 
-import pytest
 from datetime import datetime, timedelta
-from typing import Dict, Any
+from typing import Any
 from unittest.mock import Mock
 
+import pytest
 from src.config.settings import OrchestratorSettings
-
 
 # Schemas de contrato para validação
 RESOURCE_LIMITS_INPUT_SCHEMA = {
@@ -47,7 +46,7 @@ SECURITY_CONSTRAINTS_INPUT_SCHEMA = {
 }
 
 
-@pytest.fixture
+@pytest.fixture()
 def contract_config():
     """Fixture com configurações para testes de contrato."""
     config = Mock(spec=OrchestratorSettings)
@@ -63,7 +62,7 @@ def contract_config():
     return config
 
 
-def validate_output_schema(result: Dict[str, Any], expected_fields: list) -> tuple:
+def validate_output_schema(result: dict[str, Any], expected_fields: list) -> tuple:
     """
     Valida schema de output da política OPA.
 
@@ -83,7 +82,7 @@ def validate_output_schema(result: Dict[str, Any], expected_fields: list) -> tup
     return len(missing_fields) == 0, missing_fields
 
 
-def validate_violation_schema(violation: Dict[str, Any]) -> tuple:
+def validate_violation_schema(violation: dict[str, Any]) -> tuple:
     """
     Valida schema de uma violação.
 

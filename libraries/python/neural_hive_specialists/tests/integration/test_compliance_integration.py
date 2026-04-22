@@ -8,20 +8,21 @@ Nota: Estes testes requerem MongoDB disponível e são marcados como 'integratio
 Para executar: pytest -m integration
 """
 
-import pytest
 import os
 import time
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from unittest.mock import Mock, patch
+
 import mongomock
+import pytest
 
-from neural_hive_specialists.compliance.compliance_layer import ComplianceLayer
 from neural_hive_specialists.compliance.audit_logger import AuditLogger
-from neural_hive_specialists.ledger_client import LedgerClient
+from neural_hive_specialists.compliance.compliance_layer import ComplianceLayer
 from neural_hive_specialists.config import SpecialistConfig
+from neural_hive_specialists.ledger_client import LedgerClient
 
 
-@pytest.fixture
+@pytest.fixture()
 def integration_config():
     """Cria configuração para testes de integração."""
     config = SpecialistConfig(
@@ -49,13 +50,13 @@ def integration_config():
     return config
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_mongodb():
     """Cria mock de MongoDB para testes."""
     return mongomock.MongoClient()
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_metrics():
     """Cria mock de métricas."""
     metrics = Mock()
@@ -68,7 +69,7 @@ def mock_metrics():
     return metrics
 
 
-@pytest.mark.integration
+@pytest.mark.integration()
 class TestComplianceFlowIntegration:
     """Testes de integração do fluxo completo de compliance."""
 
@@ -100,7 +101,7 @@ class TestComplianceFlowIntegration:
                 "reasoning": "Analysis complete",
                 "confidence": 0.95,
             },
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
         }
 
         # Criptografar campos
@@ -194,7 +195,7 @@ class TestComplianceFlowIntegration:
                 # Verificar que hash foi gerado corretamente
                 import hashlib
 
-                expected_hash = hashlib.sha256("corr-test-123".encode("utf-8")).hexdigest()
+                expected_hash = hashlib.sha256(b"corr-test-123").hexdigest()
                 # Note: correlation_id está criptografado, mas hash é do original
 
     def test_audit_logging_integration(self, integration_config, mock_mongodb, mock_metrics):
@@ -258,7 +259,7 @@ class TestComplianceFlowIntegration:
         compliance.pii_detector = None
 
         # Criar opinião antiga (mais de 90 dias)
-        old_timestamp = datetime.now(timezone.utc) - timedelta(days=95)
+        old_timestamp = datetime.now(UTC) - timedelta(days=95)
         old_opinion = {
             "opinion_id": "old-opinion-001",
             "correlation_id": "corr-old-123",
@@ -277,7 +278,7 @@ class TestComplianceFlowIntegration:
             "opinion_id": "recent-opinion-001",
             "correlation_id": "corr-recent-123",
             "trace_id": "trace-recent-456",
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "specialist_type": "business",
             "opinion": {"verdict": "approved", "reasoning": "Recent analysis"},
         }
@@ -286,7 +287,7 @@ class TestComplianceFlowIntegration:
         opinions_collection.insert_one(encrypted_recent)
 
         # Simular aplicação de retention policy (mask_after_90_days)
-        cutoff_date = datetime.now(timezone.utc) - timedelta(days=90)
+        cutoff_date = datetime.now(UTC) - timedelta(days=90)
 
         # Encontrar e mascarar opiniões antigas
         old_opinions = opinions_collection.find({"timestamp": {"$lt": cutoff_date.isoformat()}})
@@ -317,7 +318,7 @@ class TestComplianceFlowIntegration:
         assert recent_doc["opinion"]["reasoning"] == "Recent analysis"
 
 
-@pytest.mark.integration
+@pytest.mark.integration()
 class TestComplianceErrorHandling:
     """Testes de tratamento de erros em cenários de integração."""
 
@@ -361,12 +362,11 @@ class TestComplianceErrorHandling:
             with patch("neural_hive_specialists.ledger_client.MongoClient") as mock_client:
                 mock_client.side_effect = Exception("Connection failed")
                 # Sistema deve lidar com erro graciosamente
-                pass
         except Exception as e:
             pytest.fail(f"Não deveria lançar exceção: {e}")
 
 
-@pytest.mark.integration
+@pytest.mark.integration()
 class TestCompliancePerformance:
     """Testes de performance de operações de compliance."""
 
@@ -405,7 +405,7 @@ class TestCompliancePerformance:
             assert encrypted["correlation_id"].startswith("enc:")
 
 
-@pytest.mark.integration
+@pytest.mark.integration()
 @pytest.mark.skipif(os.getenv("CI") == "true", reason="Requer modelos spaCy instalados")
 class TestPIIDetectionIntegration:
     """

@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional
+from typing import Optional
 
 import structlog
 from clickhouse_driver import Client
@@ -37,7 +37,7 @@ class ClickHouseClient:
             self.client.disconnect()
             logger.info("clickhouse_client_closed")
 
-    def query(self, sql: str, parameters: dict = None) -> List[tuple]:
+    def query(self, sql: str, parameters: dict = None) -> list[tuple]:
         """Executar consulta SQL"""
         try:
             result = self.client.execute(sql, parameters or {})
@@ -47,8 +47,8 @@ class ClickHouseClient:
             return []
 
     def get_telemetry_aggregates(
-        self, start: int, end: int, metrics: List[str], group_by: List[str]
-    ) -> List[Dict]:
+        self, start: int, end: int, metrics: list[str], group_by: list[str]
+    ) -> list[dict]:
         """Agregar telemetria por janela temporal"""
         metrics_str = ", ".join([f"avg({m}) as avg_{m}, max({m}) as max_{m}" for m in metrics])
         group_by_str = ", ".join(group_by)
@@ -66,7 +66,7 @@ class ClickHouseClient:
             for row in result
         ]
 
-    def get_execution_statistics(self, start: int, end: int) -> Dict:
+    def get_execution_statistics(self, start: int, end: int) -> dict:
         """Estatísticas de execução"""
         sql = """
         SELECT
@@ -92,7 +92,7 @@ class ClickHouseClient:
 
     def detect_metric_anomalies(
         self, metric_name: str, start: int, end: int, threshold: float = 3.0
-    ) -> List[Dict]:
+    ) -> list[dict]:
         """Detectar anomalias em métricas usando desvio padrão"""
         sql = f"""
         WITH stats AS (

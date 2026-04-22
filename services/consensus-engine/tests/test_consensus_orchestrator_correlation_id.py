@@ -5,17 +5,16 @@ Verifica que o correlation_id é corretamente propagado do plano cognitivo para 
 decisão consolidada, com geração de UUID fallback quando ausente ou vazio.
 """
 
-import pytest
-import uuid
 import logging
+import uuid
 
+import pytest
 from src.services.consensus_orchestrator import ConsensusOrchestrator
-
 
 # Fixtures específicas para testes de correlation_id (não duplicadas do conftest.py)
 
 
-@pytest.fixture
+@pytest.fixture()
 def cognitive_plan_with_correlation_id():
     """Plano cognitivo com correlation_id válido."""
     return {
@@ -28,7 +27,7 @@ def cognitive_plan_with_correlation_id():
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def cognitive_plan_with_whitespace_correlation_id():
     """Plano cognitivo com correlation_id apenas com espaços."""
     return {
@@ -39,8 +38,8 @@ def cognitive_plan_with_whitespace_correlation_id():
     }
 
 
-@pytest.mark.unit
-@pytest.mark.asyncio
+@pytest.mark.unit()
+@pytest.mark.asyncio()
 class TestConsensusOrchestratorCorrelationId:
     """Testes para propagação de correlation_id no ConsensusOrchestrator."""
 

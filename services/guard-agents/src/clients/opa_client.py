@@ -1,6 +1,6 @@
 """Cliente HTTP para integração com Open Policy Agent (OPA)"""
 
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 import httpx
 import structlog
@@ -40,7 +40,7 @@ class OPAClient:
             await self._client.aclose()
             logger.info("opa_client.closed")
 
-    async def evaluate_policy(self, policy_path: str, input_data: Dict[str, Any]) -> Dict[str, Any]:
+    async def evaluate_policy(self, policy_path: str, input_data: dict[str, Any]) -> dict[str, Any]:
         """
         Avalia política OPA com dados de entrada.
 
@@ -83,10 +83,10 @@ class OPAClient:
                 error=str(e),
             )
             # Em caso de erro, retorna negado por segurança
-            return {"allowed": False, "reason": f"OPA evaluation failed: {str(e)}", "error": True}
+            return {"allowed": False, "reason": f"OPA evaluation failed: {e!s}", "error": True}
         except Exception as e:
             logger.error("opa_client.evaluation_error", policy_path=policy_path, error=str(e))
-            return {"allowed": False, "reason": f"OPA error: {str(e)}", "error": True}
+            return {"allowed": False, "reason": f"OPA error: {e!s}", "error": True}
 
     def is_connected(self) -> bool:
         """Verifica se cliente está conectado"""

@@ -3,7 +3,7 @@ import re
 import subprocess
 import time
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 import httpx
 import structlog
@@ -76,7 +76,7 @@ class SonarQubeClient:
         ]
 
         result = subprocess.run(
-            cmd, capture_output=True, text=True, timeout=self.scanner_timeout, cwd=source_path
+            cmd, capture_output=True, text=True, timeout=self.scanner_timeout, cwd=source_path, check=False
         )
 
         if "EXECUTION SUCCESS" in result.stdout:
@@ -129,7 +129,7 @@ class SonarQubeClient:
         logger.error("sonarqube_poll_timeout", task_id=task_id)
         return False
 
-    async def _fetch_issues(self, project_key: str) -> Dict[str, int]:
+    async def _fetch_issues(self, project_key: str) -> dict[str, int]:
         """
         Busca issues do projeto via API
 
@@ -192,7 +192,7 @@ class SonarQubeClient:
             logger.error("sonarqube_quality_gate_error", error=str(e))
             return "ERROR", 0.4
 
-    def _map_severity_counts(self, counts: Dict[str, int]) -> Dict[str, int]:
+    def _map_severity_counts(self, counts: dict[str, int]) -> dict[str, int]:
         """
         Mapeia severidades SonarQube para ValidationResult
 
@@ -212,7 +212,7 @@ class SonarQubeClient:
         self,
         status: ValidationStatus,
         score: float,
-        counts: Dict[str, int],
+        counts: dict[str, int],
         duration_ms: int,
         report_uri: Optional[str] = None,
     ) -> ValidationResult:
@@ -385,7 +385,7 @@ class SonarQubeClient:
 
     async def get_issues(
         self, project_key: str, severity: Optional[str] = None
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Busca issues do projeto
 
@@ -413,7 +413,7 @@ class SonarQubeClient:
             logger.error("sonarqube_get_issues_error", error=str(e))
             return []
 
-    async def get_metrics(self, project_key: str) -> Dict[str, Any]:
+    async def get_metrics(self, project_key: str) -> dict[str, Any]:
         """
         Busca métricas do projeto
 

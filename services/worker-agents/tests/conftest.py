@@ -12,9 +12,9 @@ import asyncio
 import logging
 import os
 import sys
+from collections.abc import Generator
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Generator
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -118,15 +118,15 @@ def _configure_logging() -> None:
 # ============================================
 
 
-@pytest.fixture
+@pytest.fixture()
 def worker_config():
     """
     Fixture providing a configurable WorkerAgentSettings instance.
 
     This creates a mock config that can be customized per test.
     """
-    from src.config.settings import WorkerAgentSettings
     from pydantic_settings import SettingsConfigDict
+    from src.config.settings import WorkerAgentSettings
 
     class TestSettings(WorkerAgentSettings):
         """Test settings with environment overrides."""
@@ -161,7 +161,7 @@ def worker_config():
     return settings
 
 
-@pytest.fixture
+@pytest.fixture()
 def worker_config_minimal():
     """Minimal config with all integrations disabled."""
     from src.config.settings import WorkerAgentSettings
@@ -185,7 +185,7 @@ def worker_config_minimal():
 # ============================================
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_vault_client():
     """Mock Vault client for tests."""
     client = MagicMock()
@@ -193,7 +193,7 @@ def mock_vault_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_code_forge_client():
     """Mock Code Forge client for tests."""
     from neural_hive_integration.clients.code_forge_client import PipelineStatus
@@ -226,7 +226,7 @@ def mock_code_forge_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_metrics():
     """Mock metrics collector."""
     metrics = MagicMock()
@@ -281,7 +281,7 @@ def mock_metrics():
 # ============================================
 
 
-@pytest.fixture
+@pytest.fixture()
 def build_executor(worker_config, mock_code_forge_client, mock_vault_client, mock_metrics):
     """BuildExecutor with mocked dependencies."""
     from executors.build_executor import BuildExecutor
@@ -294,7 +294,7 @@ def build_executor(worker_config, mock_code_forge_client, mock_vault_client, moc
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def build_executor_no_forge(worker_config_minimal, mock_vault_client, mock_metrics):
     """BuildExecutor without Code Forge client (simulation mode)."""
     from executors.build_executor import BuildExecutor
@@ -307,7 +307,7 @@ def build_executor_no_forge(worker_config_minimal, mock_vault_client, mock_metri
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def deploy_executor(worker_config, mock_vault_client, mock_metrics):
     """DeployExecutor with mocked dependencies."""
     from executors.deploy_executor import DeployExecutor
@@ -319,7 +319,7 @@ def deploy_executor(worker_config, mock_vault_client, mock_metrics):
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def deploy_executor_argocd_enabled(worker_config, mock_vault_client, mock_metrics):
     """DeployExecutor with ArgoCD enabled."""
     from executors.deploy_executor import DeployExecutor
@@ -332,7 +332,7 @@ def deploy_executor_argocd_enabled(worker_config, mock_vault_client, mock_metric
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def test_executor(worker_config, mock_vault_client, mock_metrics):
     """TestExecutor with mocked dependencies."""
     from executors.test_executor import TestExecutor
@@ -344,7 +344,7 @@ def test_executor(worker_config, mock_vault_client, mock_metrics):
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def validate_executor(worker_config, mock_vault_client, mock_metrics):
     """ValidateExecutor with mocked dependencies."""
     from executors.validate_executor import ValidateExecutor
@@ -356,7 +356,7 @@ def validate_executor(worker_config, mock_vault_client, mock_metrics):
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def validate_executor_minimal(worker_config_minimal, mock_vault_client, mock_metrics):
     """ValidateExecutor without any validation tools enabled."""
     from executors.validate_executor import ValidateExecutor
@@ -373,7 +373,7 @@ def validate_executor_minimal(worker_config_minimal, mock_vault_client, mock_met
 # ============================================
 
 
-@pytest.fixture
+@pytest.fixture()
 def build_ticket():
     """Sample BUILD ticket for testing."""
     import uuid
@@ -393,7 +393,7 @@ def build_ticket():
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def deploy_ticket():
     """Sample DEPLOY ticket for testing."""
     import uuid
@@ -415,7 +415,7 @@ def deploy_ticket():
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def test_ticket():
     """Sample TEST ticket for testing."""
     import uuid
@@ -433,7 +433,7 @@ def test_ticket():
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def test_ticket_github_actions():
     """Sample TEST ticket for GitHub Actions."""
     import uuid
@@ -454,7 +454,7 @@ def test_ticket_github_actions():
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def validate_ticket_policy():
     """Sample VALIDATE ticket for OPA policy validation."""
     import uuid
@@ -472,7 +472,7 @@ def validate_ticket_policy():
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def validate_ticket_sast():
     """Sample VALIDATE ticket for SAST validation."""
     import uuid
@@ -489,7 +489,7 @@ def validate_ticket_sast():
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def validate_ticket_sonarqube():
     """Sample VALIDATE ticket for SonarQube validation."""
     import uuid
@@ -507,7 +507,7 @@ def validate_ticket_sonarqube():
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def validate_ticket_snyk():
     """Sample VALIDATE ticket for Snyk validation."""
     import uuid
@@ -524,7 +524,7 @@ def validate_ticket_snyk():
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def validate_ticket_iac():
     """Sample VALIDATE ticket for IaC/Checkov validation."""
     import uuid
@@ -546,7 +546,7 @@ def validate_ticket_iac():
 # ============================================
 
 
-@pytest.fixture
+@pytest.fixture()
 def execute_ticket():
     """Sample EXECUTE ticket for testing."""
     import uuid
@@ -565,7 +565,7 @@ def execute_ticket():
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def execute_ticket_k8s():
     """Sample EXECUTE ticket for Kubernetes runtime."""
     import uuid
@@ -586,7 +586,7 @@ def execute_ticket_k8s():
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def execute_ticket_docker():
     """Sample EXECUTE ticket for Docker runtime."""
     import uuid
@@ -607,7 +607,7 @@ def execute_ticket_docker():
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def execute_ticket_lambda():
     """Sample EXECUTE ticket for Lambda runtime."""
     import uuid
@@ -626,7 +626,7 @@ def execute_ticket_lambda():
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_argocd_client():
     """Mock ArgoCD client for integration tests."""
 
@@ -661,7 +661,7 @@ def mock_argocd_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_flux_client():
     """Mock Flux client for integration tests."""
 
@@ -677,7 +677,7 @@ def mock_flux_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_github_actions_client():
     """Mock GitHub Actions client for integration tests."""
 
@@ -707,7 +707,7 @@ def mock_github_actions_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_gitlab_ci_client():
     """Mock GitLab CI client for integration tests."""
 
@@ -739,7 +739,7 @@ def mock_gitlab_ci_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_jenkins_client():
     """Mock Jenkins client for integration tests."""
 
@@ -768,7 +768,7 @@ def mock_jenkins_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_opa_client():
     """Mock OPA client for integration tests."""
     from enum import Enum
@@ -812,7 +812,7 @@ def mock_opa_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_k8s_jobs_client():
     """Mock Kubernetes Jobs client for integration tests."""
     from enum import Enum
@@ -837,7 +837,7 @@ def mock_k8s_jobs_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_docker_runtime_client():
     """Mock Docker runtime client for integration tests."""
 
@@ -855,7 +855,7 @@ def mock_docker_runtime_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_lambda_runtime_client():
     """Mock Lambda runtime client for integration tests."""
 
@@ -884,7 +884,7 @@ def mock_lambda_runtime_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_local_runtime_client():
     """Mock Local runtime client for integration tests."""
 
@@ -902,7 +902,7 @@ def mock_local_runtime_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def execute_executor(worker_config, mock_vault_client, mock_metrics):
     """ExecuteExecutor with mocked dependencies."""
     from executors.execute_executor import ExecuteExecutor

@@ -1,9 +1,10 @@
 """Testes de métricas para ArchitectureSpecialist."""
 
-import sys
 import os
-import pytest
+import sys
 from unittest.mock import MagicMock
+
+import pytest
 
 # Configurar paths
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "src"))
@@ -37,12 +38,12 @@ class MockArchitectureMetrics:
         self.risk_score.labels(specialist_type="architecture").set(score)
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_metrics():
     return MockArchitectureMetrics()
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_architecture_evaluation():
     return {
         "confidence_score": 0.72,

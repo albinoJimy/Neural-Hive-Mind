@@ -1,6 +1,6 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Dict, List, Optional
+from typing import Optional
 from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field
@@ -112,18 +112,18 @@ class AgentInfo(BaseModel):
 
     agent_id: UUID = Field(default_factory=uuid4)
     agent_type: AgentType
-    capabilities: List[str] = Field(default_factory=list)
-    metadata: Dict[str, str] = Field(default_factory=dict)
+    capabilities: list[str] = Field(default_factory=list)
+    metadata: dict[str, str] = Field(default_factory=dict)
     telemetry: AgentTelemetry = Field(default_factory=AgentTelemetry)
     status: AgentStatus = Field(default=AgentStatus.HEALTHY)
     namespace: str = Field(default="default")
     cluster: str = Field(default="local")
     version: str = Field(default="1.0.0")
-    registered_at: int = Field(default_factory=lambda: int(datetime.now(timezone.utc).timestamp()))
-    last_seen: int = Field(default_factory=lambda: int(datetime.now(timezone.utc).timestamp()))
+    registered_at: int = Field(default_factory=lambda: int(datetime.now(UTC).timestamp()))
+    last_seen: int = Field(default_factory=lambda: int(datetime.now(UTC).timestamp()))
     schema_version: int = Field(default=1)
 
-    def to_proto_dict(self) -> Dict:
+    def to_proto_dict(self) -> dict:
         """Converte para dicionário compatível com protobuf"""
         return {
             "agent_id": str(self.agent_id),
@@ -147,7 +147,7 @@ class AgentInfo(BaseModel):
         }
 
     @classmethod
-    def from_proto_dict(cls, data: Dict) -> "AgentInfo":
+    def from_proto_dict(cls, data: dict) -> "AgentInfo":
         """Cria instância a partir de dicionário protobuf"""
         telemetry_data = data.get("telemetry", {})
         return cls(
@@ -166,8 +166,8 @@ class AgentInfo(BaseModel):
             namespace=data.get("namespace", "default"),
             cluster=data.get("cluster", "local"),
             version=data.get("version", "1.0.0"),
-            registered_at=data.get("registered_at", int(datetime.now(timezone.utc).timestamp())),
-            last_seen=data.get("last_seen", int(datetime.now(timezone.utc).timestamp())),
+            registered_at=data.get("registered_at", int(datetime.now(UTC).timestamp())),
+            last_seen=data.get("last_seen", int(datetime.now(UTC).timestamp())),
             schema_version=data.get("schema_version", 1),
         )
 
@@ -182,9 +182,9 @@ class AgentInfo(BaseModel):
 
     def is_expired(self, timeout_seconds: int) -> bool:
         """Verifica se o agente está expirado"""
-        current_time = int(datetime.now(timezone.utc).timestamp())
+        current_time = int(datetime.now(UTC).timestamp())
         return (current_time - self.last_seen) > timeout_seconds
 
     def get_etcd_key(self, prefix: str = "/neural-hive/agents") -> str:
         """Retorna a chave etcd para este agente"""
-        return f"{prefix}/{self.agent_type.value.lower()}/{str(self.agent_id)}"
+        return f"{prefix}/{self.agent_type.value.lower()}/{self.agent_id!s}"

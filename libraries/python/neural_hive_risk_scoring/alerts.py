@@ -4,19 +4,21 @@ Risk Alerts
 Sistema de alertas baseado em thresholds dinâmicos e anomalias.
 """
 
-import structlog
-from typing import Dict, List, Optional, Callable, Any
-from datetime import datetime, timedelta, timezone
-from dataclasses import dataclass, field
-from enum import Enum
 from collections import defaultdict
+from collections.abc import Callable
+from dataclasses import dataclass, field
+from datetime import UTC, datetime, timedelta
+from enum import Enum
+from typing import Any, Optional
 
-from .config import RiskBand, RiskScoringConfig
-from .models import RiskAssessment
-from .thresholds import ThresholdMonitor
-from .history import RiskHistory, TrendDirection, AnomalyDetection
+import structlog
+
 from neural_hive_domain import UnifiedDomain
 
+from .config import RiskBand, RiskScoringConfig
+from .history import AnomalyDetection, RiskHistory, TrendDirection
+from .models import RiskAssessment
+from .thresholds import ThresholdMonitor
 
 logger = structlog.get_logger(__name__)
 
@@ -53,15 +55,15 @@ class RiskAlert:
     score: float
     band: RiskBand
     message: str
-    details: Dict[str, Any]
-    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    details: dict[str, Any]
+    timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))
     acknowledged: bool = False
     acknowledged_by: Optional[str] = None
     acknowledged_at: Optional[datetime] = None
     resolved: bool = False
     resolved_at: Optional[datetime] = None
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         """Converte para dicionário."""
         return {
             "id": self.id,
@@ -91,12 +93,12 @@ class AlertRule:
     enabled: bool = True
     min_severity: AlertSeverity = AlertSeverity.WARNING
     cooldown_minutes: int = 60  # Tempo mínimo entre alertas do mesmo tipo
-    conditions: Dict[str, Any] = field(default_factory=dict)
+    conditions: dict[str, Any] = field(default_factory=dict)
 
     def should_trigger(
         self,
         entity_id: str,
-        context: Dict[str, Any],
+        context: dict[str, Any],
         last_alert_time: Optional[datetime],
     ) -> bool:
         """Verifica se regra deve ser disparada."""
@@ -106,13 +108,13 @@ class AlertRule:
         # Verificar cooldown
         if last_alert_time:
             cooldown = timedelta(minutes=self.cooldown_minutes)
-            if datetime.now(timezone.utc) - last_alert_time < cooldown:
+            if datetime.now(UTC) - last_alert_time < cooldown:
                 return False
 
         # Verificar condições específicas
         return self._check_conditions(context)
 
-    def _check_conditions(self, context: Dict[str, Any]) -> bool:
+    def _check_conditions(self, context: dict[str, Any]) -> bool:
         """Verifica condições específicas da regra."""
         if self.alert_type == AlertType.THRESHOLD_VIOLATION:
             return context.get("threshold_violation", False)
@@ -242,24 +244,24 @@ class RiskAlertManager:
         self.config = config
 
         # Regras de alerta
-        self._rules: List[AlertRule] = self._default_rules()
+        self._rules: list[AlertRule] = self._default_rules()
 
         # Histórico de alertas
-        self._alerts: List[RiskAlert] = []
-        self._alerts_by_entity: Dict[str, List[RiskAlert]] = defaultdict(list)
-        self._last_alert_time: Dict[Tuple[str, AlertType], datetime] = {}
+        self._alerts: list[RiskAlert] = []
+        self._alerts_by_entity: dict[str, list[RiskAlert]] = defaultdict(list)
+        self._last_alert_time: dict[Tuple[str, AlertType], datetime] = {}
 
         # Estado para detecção de padrões
-        self._consecutive_high_risk: Dict[str, int] = defaultdict(int)
-        self._previous_scores: Dict[str, float] = {}
+        self._consecutive_high_risk: dict[str, int] = defaultdict(int)
+        self._previous_scores: dict[str, float] = {}
 
         # Handlers
-        self._handlers: List[AlertHandler] = [LoggingAlertHandler()]
+        self._handlers: list[AlertHandler] = [LoggingAlertHandler()]
 
         # Contador de IDs
         self._alert_id_counter = 0
 
-    def _default_rules(self) -> List[AlertRule]:
+    def _default_rules(self) -> list[AlertRule]:
         """Retorna regras padrão."""
         return [
             AlertRule(
@@ -307,7 +309,7 @@ class RiskAlertManager:
         self._handlers.append(handler)
         logger.info("alert_handler_added", handler_name=handler.name)
 
-    def process_assessment(self, assessment: RiskAssessment, entity_id: str) -> List[RiskAlert]:
+    def process_assessment(self, assessment: RiskAssessment, entity_id: str) -> list[RiskAlert]:
         """Processa avaliação e gera alertas se necessário.
 
         Args:
@@ -351,7 +353,7 @@ class RiskAlertManager:
 
         return generated_alerts
 
-    def _build_context(self, assessment: RiskAssessment, entity_id: str) -> Dict[str, Any]:
+    def _build_context(self, assessment: RiskAssessment, entity_id: str) -> dict[str, Any]:
         """Constrói contexto para avaliação de regras."""
         context = {
             "assessment": assessment,
@@ -399,12 +401,12 @@ class RiskAlertManager:
         rule: AlertRule,
         assessment: RiskAssessment,
         entity_id: str,
-        context: Dict[str, Any],
+        context: dict[str, Any],
     ) -> Optional[RiskAlert]:
         """Cria alerta baseado na regra."""
         self._alert_id_counter += 1
         alert_id = (
-            f"ALT-{datetime.now(timezone.utc).strftime('%Y%m%d')}-{self._alert_id_counter:06d}"
+            f"ALT-{datetime.now(UTC).strftime('%Y%m%d')}-{self._alert_id_counter:06d}"
         )
 
         # Determinar severidade
@@ -447,7 +449,7 @@ class RiskAlertManager:
         return alert
 
     def _determine_severity(
-        self, rule: AlertRule, assessment: RiskAssessment, context: Dict[str, Any]
+        self, rule: AlertRule, assessment: RiskAssessment, context: dict[str, Any]
     ) -> AlertSeverity:
         """Determina severidade do alerta."""
         # Baseado na band
@@ -461,7 +463,7 @@ class RiskAlertManager:
             return AlertSeverity.INFO
 
     def _generate_message(
-        self, rule: AlertRule, assessment: RiskAssessment, context: Dict[str, Any]
+        self, rule: AlertRule, assessment: RiskAssessment, context: dict[str, Any]
     ) -> str:
         """Gera mensagem do alerta."""
         entity_id = context.get("entity_id", "unknown")
@@ -538,7 +540,7 @@ class RiskAlertManager:
             if alert.id == alert_id and not alert.acknowledged:
                 alert.acknowledged = True
                 alert.acknowledged_by = acknowledged_by
-                alert.acknowledged_at = datetime.now(timezone.utc)
+                alert.acknowledged_at = datetime.now(UTC)
 
                 logger.info(
                     "alert_acknowledged",
@@ -563,7 +565,7 @@ class RiskAlertManager:
         for alert in self._alerts:
             if alert.id == alert_id and not alert.resolved:
                 alert.resolved = True
-                alert.resolved_at = datetime.now(timezone.utc)
+                alert.resolved_at = datetime.now(UTC)
 
                 logger.info("alert_resolved", alert_id=alert_id, resolved_by=resolved_by)
 
@@ -581,7 +583,7 @@ class RiskAlertManager:
         start: Optional[datetime] = None,
         end: Optional[datetime] = None,
         limit: Optional[int] = None,
-    ) -> List[RiskAlert]:
+    ) -> list[RiskAlert]:
         """Retorna alertas filtrados.
 
         Args:
@@ -628,24 +630,24 @@ class RiskAlertManager:
 
         return alerts
 
-    def get_alert_stats(self) -> Dict:
+    def get_alert_stats(self) -> dict:
         """Retorna estatísticas de alertas."""
         total = len(self._alerts)
         unacknowledged = sum(1 for a in self._alerts if not a.acknowledged)
         unresolved = sum(1 for a in self._alerts if not a.resolved)
 
         # Por tipo
-        by_type: Dict[str, int] = defaultdict(int)
+        by_type: dict[str, int] = defaultdict(int)
         for a in self._alerts:
             by_type[a.alert_type.value] += 1
 
         # Por severidade
-        by_severity: Dict[str, int] = defaultdict(int)
+        by_severity: dict[str, int] = defaultdict(int)
         for a in self._alerts:
             by_severity[a.severity.value] += 1
 
         # Por entidade (top 10)
-        by_entity: Dict[str, int] = defaultdict(int)
+        by_entity: dict[str, int] = defaultdict(int)
         for a in self._alerts:
             by_entity[a.entity_id] += 1
         top_entities = sorted(by_entity.items(), key=lambda x: x[1], reverse=True)[:10]
@@ -661,7 +663,7 @@ class RiskAlertManager:
 
     def cleanup_old_alerts(self, days: int = 30):
         """Remove alertas antigos."""
-        cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+        cutoff = datetime.now(UTC) - timedelta(days=days)
 
         self._alerts = [a for a in self._alerts if a.timestamp >= cutoff]
 

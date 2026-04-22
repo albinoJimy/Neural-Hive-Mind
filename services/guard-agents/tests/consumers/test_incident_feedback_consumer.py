@@ -5,21 +5,21 @@ Testa o consumer que processa security-incidents do Guard Agents,
 implementando feedback loop para ajuste de políticas de segurança.
 """
 
-import pytest
-import json
 import asyncio
-from unittest.mock import AsyncMock, MagicMock, patch
-from datetime import datetime, timezone
+import json
 from collections import defaultdict
+from datetime import UTC, datetime
+from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
 from src.consumers.incident_feedback_consumer import (
+    IncidentClassification,
     IncidentFeedbackConsumer,
     IncidentSeverity,
-    IncidentClassification,
 )
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_settings():
     """Settings mock para testes."""
     settings = MagicMock()
@@ -34,35 +34,35 @@ def mock_settings():
     return settings
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_incident_classifier():
     """Incident classifier mock."""
     classifier = AsyncMock()
     return classifier
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_security_validator():
     """Security validator mock."""
     validator = AsyncMock()
     return validator
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_policy_enforcer():
     """Policy enforcer mock."""
     enforcer = AsyncMock()
     return enforcer
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_mongodb_client():
     """MongoDB client mock."""
     mongodb = AsyncMock()
     return mongodb
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_metrics():
     """Metrics mock."""
     metrics = MagicMock()
@@ -72,7 +72,7 @@ def mock_metrics():
     return metrics
 
 
-@pytest.fixture
+@pytest.fixture()
 def consumer(
     mock_settings,
     mock_incident_classifier,
@@ -107,7 +107,7 @@ class TestIncidentFeedbackConsumerInitialization:
         assert consumer.running is False
         assert isinstance(consumer.incident_stats, defaultdict)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_consumer_initialize(self, consumer):
         """Consumer deve inicializar corretamente."""
         mock_producer = MagicMock()
@@ -127,7 +127,7 @@ class TestIncidentFeedbackConsumerInitialization:
 class TestProcessMessage:
     """Testes de processamento de mensagens."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_process_incident_feedback(self, consumer):
         """Deve processar feedback de incidente."""
         incident_data = {
@@ -158,7 +158,7 @@ class TestProcessMessage:
         assert consumer.incident_stats["THREAT_DETECTED"]["total"] == 1
         assert consumer.incident_stats["THREAT_DETECTED"]["true_positives"] == 1
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_process_false_positive(self, consumer):
         """Deve processar falso positivo."""
         incident_data = {
@@ -181,7 +181,7 @@ class TestProcessMessage:
         # Verificar falso positivo contabilizado
         assert consumer.incident_stats["THREAT_DETECTED"]["false_positives"] == 1
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_update_incident_stats_severity_averaging(self, consumer):
         """Deve calcular média de severidade corretamente."""
         # Primeiro incidente (HIGH = 3.0)
@@ -223,7 +223,7 @@ class TestProcessMessage:
 class TestAdjustSecurityParameters:
     """Testes de ajuste de parâmetros de segurança."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_increase_thresholds_high_fp_rate(self, consumer):
         """Deve aumentar thresholds quando taxa de FP é alta."""
         # Preparar estatísticas
@@ -233,7 +233,7 @@ class TestAdjustSecurityParameters:
             "false_positives": 15,  # 50% FP (alta)
             "false_negatives": 0,
             "avg_severity": 2.5,
-            "last_updated": datetime.now(timezone.utc),
+            "last_updated": datetime.now(UTC),
         }
 
         incident = {
@@ -247,7 +247,7 @@ class TestAdjustSecurityParameters:
             # Deve aumentar thresholds
             mock_adjust.assert_called_once_with("THREAT_DETECTED", "higher", 0.1)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_decrease_thresholds_low_fp_rate(self, consumer):
         """Deve reduzir thresholds quando taxa de FP é baixa."""
         consumer.incident_stats["THREAT_DETECTED"] = {
@@ -256,7 +256,7 @@ class TestAdjustSecurityParameters:
             "false_positives": 1,  # ~3% FP (baixa)
             "false_negatives": 0,
             "avg_severity": 2.5,
-            "last_updated": datetime.now(timezone.utc),
+            "last_updated": datetime.now(UTC),
         }
 
         incident = {
@@ -270,7 +270,7 @@ class TestAdjustSecurityParameters:
             # Deve reduzir thresholds
             mock_adjust.assert_called_once_with("THREAT_DETECTED", "lower", 0.05)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_reinforce_policies_high_severity(self, consumer):
         """Deve reforçar políticas quando severidade média é alta."""
         consumer.incident_stats["THREAT_DETECTED"] = {
@@ -279,7 +279,7 @@ class TestAdjustSecurityParameters:
             "false_positives": 5,
             "false_negatives": 5,
             "avg_severity": 3.5,  # Alta severidade
-            "last_updated": datetime.now(timezone.utc),
+            "last_updated": datetime.now(UTC),
         }
 
         incident = {
@@ -293,7 +293,7 @@ class TestAdjustSecurityParameters:
             # Deve reforçar políticas
             mock_reinforce.assert_called_once_with("THREAT_DETECTED")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_wait_for_minimum_samples(self, consumer):
         """Deve esperar por amostragem mínima antes de ajustar."""
         consumer.incident_stats["THREAT_DETECTED"] = {
@@ -302,7 +302,7 @@ class TestAdjustSecurityParameters:
             "false_positives": 5,
             "false_negatives": 0,
             "avg_severity": 2.5,
-            "last_updated": datetime.now(timezone.utc),
+            "last_updated": datetime.now(UTC),
         }
 
         incident = {
@@ -320,7 +320,7 @@ class TestAdjustSecurityParameters:
 class TestStoreFeedback:
     """Testes de armazenamento de feedback."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_store_feedback_in_mongodb(self, consumer):
         """Deve armazenar feedback no MongoDB."""
         incident = {
@@ -336,7 +336,7 @@ class TestStoreFeedback:
         # Deve armazenar com metadados
         consumer.mongodb_client.__getitem__.assert_called()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_store_without_mongodb(self, consumer):
         """Deve lidar gracefully com MongoDB indisponível."""
         consumer.mongodb_client = None
@@ -367,7 +367,7 @@ class TestGetFeedbackStats:
             "false_positives": 3,
             "false_negatives": 2,
             "avg_severity": 2.5,
-            "last_updated": datetime.now(timezone.utc),
+            "last_updated": datetime.now(UTC),
         }
         consumer.incident_stats["POLICY_VIOLATION"] = {
             "total": 10,
@@ -375,7 +375,7 @@ class TestGetFeedbackStats:
             "false_positives": 1,
             "false_negatives": 1,
             "avg_severity": 2.0,
-            "last_updated": datetime.now(timezone.utc),
+            "last_updated": datetime.now(UTC),
         }
 
         stats = consumer.get_feedback_stats()
@@ -390,7 +390,7 @@ class TestGetFeedbackStats:
 class TestConsumerLifecycle:
     """Testes de ciclo de vida do consumer."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_start_stop_consumer(self, consumer):
         """Deve iniciar e parar consumer corretamente."""
         mock_producer = MagicMock()

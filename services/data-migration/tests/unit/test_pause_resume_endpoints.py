@@ -1,12 +1,11 @@
 """Testes unitários para endpoints pause/resume de migrações."""
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
 from fastapi import HTTPException
 
 from src.api.routers.migrations import pause_migration, resume_migration
-from src.models.migration import MigrationStatus
 
 
 @pytest.fixture
@@ -31,9 +30,7 @@ class TestPauseMigrationEndpoint:
     """Testes para endpoint POST /migrations/{id}/pause."""
 
     @pytest.mark.asyncio
-    async def test_pause_migration_success(
-        self, mock_mongodb_client, mock_orchestrator
-    ):
+    async def test_pause_migration_success(self, mock_mongodb_client, mock_orchestrator):
         """Testa pausar migração com sucesso."""
         job_id = "test-job-1"
         mock_mongodb_client.find_migration_job_by_id.return_value = {
@@ -65,9 +62,7 @@ class TestPauseMigrationEndpoint:
         assert "not found" in str(exc_info.value.detail).lower()
 
     @pytest.mark.asyncio
-    async def test_pause_migration_invalid_status(
-        self, mock_mongodb_client, mock_orchestrator
-    ):
+    async def test_pause_migration_invalid_status(self, mock_mongodb_client, mock_orchestrator):
         """Testa erro quando status não permite pausa."""
         job_id = "test-job-1"
         mock_mongodb_client.find_migration_job_by_id.return_value = {
@@ -83,9 +78,7 @@ class TestPauseMigrationEndpoint:
         assert "cannot pause" in str(exc_info.value.detail).lower()
 
     @pytest.mark.asyncio
-    async def test_pause_migration_valid_statuses(
-        self, mock_mongodb_client, mock_orchestrator
-    ):
+    async def test_pause_migration_valid_statuses(self, mock_mongodb_client, mock_orchestrator):
         """Testa que todos os status válidos podem ser pausados."""
         valid_statuses = ["batch_migrating", "cdc_running", "validating"]
 
@@ -110,9 +103,7 @@ class TestResumeMigrationEndpoint:
     """Testes para endpoint POST /migrations/{id}/resume."""
 
     @pytest.mark.asyncio
-    async def test_resume_migration_success(
-        self, mock_mongodb_client, mock_orchestrator
-    ):
+    async def test_resume_migration_success(self, mock_mongodb_client, mock_orchestrator):
         """Testa retomar migração com sucesso."""
         job_id = "test-job-1"
         mock_mongodb_client.find_migration_job_by_id.return_value = {
@@ -144,9 +135,7 @@ class TestResumeMigrationEndpoint:
         assert "not found" in str(exc_info.value.detail).lower()
 
     @pytest.mark.asyncio
-    async def test_resume_migration_not_paused(
-        self, mock_mongodb_client, mock_orchestrator
-    ):
+    async def test_resume_migration_not_paused(self, mock_mongodb_client, mock_orchestrator):
         """Testa erro quando tentar retomar migração não pausada."""
         job_id = "test-job-1"
         mock_mongodb_client.find_migration_job_by_id.return_value = {

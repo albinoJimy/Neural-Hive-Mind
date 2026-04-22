@@ -4,20 +4,20 @@ Testes unitários para PVCManager.
 Testes para gerenciamento de PVCs em builds Kaniko com contextos grandes.
 """
 
-import pytest
-from unittest.mock import Mock, MagicMock, patch
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
+from unittest.mock import MagicMock, Mock, patch
 
+import pytest
 from src.services.kaniko.pvc_manager import (
-    PVCManager,
     CONFIGMAP_MAX_BYTES,
-    detect_large_context_and_create_pvc,
+    PVCManager,
     cleanup_build_pvc,
+    detect_large_context_and_create_pvc,
     get_pvc_mount_spec,
 )
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_k8s_client():
     """Mock do cliente Kubernetes."""
     client = MagicMock()
@@ -26,7 +26,7 @@ def mock_k8s_client():
     return core_v1_api
 
 
-@pytest.fixture
+@pytest.fixture()
 def pvc_manager(mock_k8s_client):
     """Instância do PVCManager com cliente mockado."""
     manager = PVCManager(namespace="test-namespace", storage_class="test-storage")
@@ -34,7 +34,7 @@ def pvc_manager(mock_k8s_client):
     return manager
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_dockerfile(tmp_path):
     """Cria um Dockerfile de exemplo."""
     dockerfile = tmp_path / "Dockerfile"
@@ -42,7 +42,7 @@ def sample_dockerfile(tmp_path):
     return str(dockerfile)
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_build_context(tmp_path):
     """Cria um contexto de build de exemplo."""
     context_dir = tmp_path / "context"
@@ -52,7 +52,7 @@ def sample_build_context(tmp_path):
     return str(context_dir)
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_pvc():
     """Mock de PVC criado."""
     pvc = Mock()
@@ -422,13 +422,13 @@ class TestCleanupAllBuildPVCs:
         old_pvc = Mock()
         old_pvc.metadata = Mock()
         old_pvc.metadata.name = "old-pvc"
-        old_pvc.metadata.creation_timestamp = datetime.now(timezone.utc) - timedelta(hours=25)
+        old_pvc.metadata.creation_timestamp = datetime.now(UTC) - timedelta(hours=25)
         old_pvc.metadata.labels = {"app": "kaniko", "temporary": "true"}
 
         new_pvc = Mock()
         new_pvc.metadata = Mock()
         new_pvc.metadata.name = "new-pvc"
-        new_pvc.metadata.creation_timestamp = datetime.now(timezone.utc) - timedelta(hours=1)
+        new_pvc.metadata.creation_timestamp = datetime.now(UTC) - timedelta(hours=1)
         new_pvc.metadata.labels = {"app": "kaniko", "temporary": "true"}
 
         mock_list = Mock()
@@ -447,7 +447,7 @@ class TestCleanupAllBuildPVCs:
         new_pvc = Mock()
         new_pvc.metadata = Mock()
         new_pvc.metadata.name = "new-pvc"
-        new_pvc.metadata.creation_timestamp = datetime.now(timezone.utc) - timedelta(hours=1)
+        new_pvc.metadata.creation_timestamp = datetime.now(UTC) - timedelta(hours=1)
         new_pvc.metadata.labels = {"app": "kaniko", "temporary": "true"}
 
         mock_list = Mock()
@@ -467,13 +467,13 @@ class TestCleanupAllBuildPVCs:
         old_pvc1 = Mock()
         old_pvc1.metadata = Mock()
         old_pvc1.metadata.name = "old-pvc-1"
-        old_pvc1.metadata.creation_timestamp = datetime.now(timezone.utc) - timedelta(hours=25)
+        old_pvc1.metadata.creation_timestamp = datetime.now(UTC) - timedelta(hours=25)
         old_pvc1.metadata.labels = {"app": "kaniko", "temporary": "true"}
 
         old_pvc2 = Mock()
         old_pvc2.metadata = Mock()
         old_pvc2.metadata.name = "old-pvc-2"
-        old_pvc2.metadata.creation_timestamp = datetime.now(timezone.utc) - timedelta(hours=25)
+        old_pvc2.metadata.creation_timestamp = datetime.now(UTC) - timedelta(hours=25)
         old_pvc2.metadata.labels = {"app": "kaniko", "temporary": "true"}
 
         mock_list = Mock()
@@ -590,6 +590,6 @@ class TestConstants:
     def test_configmap_max_bytes(self):
         """Testa que CONFIGMAP_MAX_BYTES está definido corretamente."""
         # Deve ser aproximadamente 800KB
-        assert CONFIGMAP_MAX_BYTES == 800 * 1024
-        assert CONFIGMAP_MAX_BYTES < 1024 * 1024  # Menos de 1MB
-        assert CONFIGMAP_MAX_BYTES > 700 * 1024  # Mais de 700KB
+        assert 800 * 1024 == CONFIGMAP_MAX_BYTES
+        assert 1024 * 1024 > CONFIGMAP_MAX_BYTES  # Menos de 1MB
+        assert 700 * 1024 < CONFIGMAP_MAX_BYTES  # Mais de 700KB

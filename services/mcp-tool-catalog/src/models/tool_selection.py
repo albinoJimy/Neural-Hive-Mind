@@ -4,7 +4,7 @@ import hashlib
 import json
 from datetime import datetime
 from enum import Enum
-from typing import Dict, List, Optional
+from typing import Optional
 from uuid import uuid4
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -44,11 +44,11 @@ class ToolSelectionRequest(BaseModel):
     artifact_type: ArtifactType
     language: str
     complexity_score: float = Field(ge=0.0, le=1.0)
-    required_categories: List[str]
+    required_categories: list[str]
     constraints: SelectionConstraints = Field(default_factory=SelectionConstraints)
-    context: Dict[str, str] = Field(default_factory=dict)
-    preferred_tools: List[str] = Field(default_factory=list)
-    excluded_tools: List[str] = Field(default_factory=list)
+    context: dict[str, str] = Field(default_factory=dict)
+    preferred_tools: list[str] = Field(default_factory=list)
+    excluded_tools: list[str] = Field(default_factory=list)
     created_at: datetime = Field(default_factory=datetime.utcnow)
     schema_version: int = 1
 
@@ -62,7 +62,7 @@ class ToolSelectionRequest(BaseModel):
 
     @field_validator("required_categories")
     @classmethod
-    def validate_categories(cls, v: List[str]) -> List[str]:
+    def validate_categories(cls, v: list[str]) -> list[str]:
         """Validate required_categories against ToolCategory enum."""
         valid_categories = {cat.value for cat in ToolCategoryEnum}
         for category in v:
@@ -80,7 +80,7 @@ class ToolSelectionRequest(BaseModel):
         }
         return hashlib.sha256(json.dumps(key_data, sort_keys=True).encode()).hexdigest()
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         """Convert to dictionary for serialization."""
         data = self.model_dump()
         data["created_at"] = int(self.created_at.timestamp() * 1000)
@@ -88,7 +88,7 @@ class ToolSelectionRequest(BaseModel):
         return data
 
     @classmethod
-    def from_avro(cls, avro_data: Dict) -> "ToolSelectionRequest":
+    def from_avro(cls, avro_data: dict) -> "ToolSelectionRequest":
         """Create from Avro deserialized data."""
         avro_data["created_at"] = datetime.fromtimestamp(avro_data["created_at"] / 1000.0)
         return cls(**avro_data)
@@ -119,20 +119,20 @@ class ToolSelectionResponse(BaseModel):
 
     response_id: str = Field(default_factory=lambda: str(uuid4()))
     request_id: str
-    selected_tools: List[SelectedTool]
+    selected_tools: list[SelectedTool]
     total_fitness_score: float = Field(ge=0.0, le=1.0)
     selection_method: SelectionMethod
     generations_evolved: int = Field(ge=0)
     population_size: int = Field(ge=0)
     convergence_time_ms: int = Field(ge=0)
-    alternative_combinations: List[List[str]] = Field(default_factory=list)
+    alternative_combinations: list[list[str]] = Field(default_factory=list)
     reasoning_summary: str
     confidence_score: float = Field(ge=0.0, le=1.0)
     cached: bool = False
     created_at: datetime = Field(default_factory=datetime.utcnow)
     schema_version: int = 1
 
-    def to_avro(self) -> Dict:
+    def to_avro(self) -> dict:
         """Convert to Avro-compatible dictionary."""
         data = self.model_dump()
         data["created_at"] = int(self.created_at.timestamp() * 1000)

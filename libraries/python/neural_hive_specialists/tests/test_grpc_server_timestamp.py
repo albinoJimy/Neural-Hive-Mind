@@ -5,23 +5,24 @@ Valida o caminho crítico de criação de timestamp no servidor gRPC, garantindo
 que as validações implementadas na v1.0.7 permaneçam funcionais.
 """
 
-import pytest
-from unittest.mock import MagicMock
-from datetime import datetime, timezone
 import json
+from datetime import UTC, datetime
+from unittest.mock import MagicMock
+
+import pytest
 from google.protobuf.timestamp_pb2 import Timestamp
 
 from neural_hive_specialists.grpc_server import SpecialistServicer
 from neural_hive_specialists.proto_gen import specialist_pb2
 
 
-@pytest.fixture
+@pytest.fixture()
 def servicer(mock_specialist):
     """Cria fixture servicer para testes do servidor gRPC."""
     return SpecialistServicer(mock_specialist)
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestBuildEvaluatePlanResponseTimestamp:
     """Testes para validação de timestamp em EvaluatePlanResponse."""
 
@@ -147,7 +148,7 @@ class TestBuildEvaluatePlanResponseTimestamp:
         Cria datetime específico e valida que seconds e nanos correspondem.
         """
         # Arrange
-        test_dt = datetime(2025, 1, 15, 10, 30, 45, 123456, tzinfo=timezone.utc)
+        test_dt = datetime(2025, 1, 15, 10, 30, 45, 123456, tzinfo=UTC)
 
         # Act
         timestamp = Timestamp()

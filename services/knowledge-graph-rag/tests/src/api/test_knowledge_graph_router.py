@@ -1,7 +1,7 @@
 """Tests para router Knowledge Graph."""
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import patch
 
 from knowledge_graph_rag.models.knowledge import NodeType, RelationType
 
@@ -45,18 +45,20 @@ class TestKnowledgeGraphRouter:
             name="Login",
             description="Funcionalidade de login",
             properties={},
-            embedding=[0.1] * 1536
+            embedding=[0.1] * 1536,
         )
         mock_rag_service.create_node.return_value = mock_node
 
-        with patch('src.api.routers.knowledge_graph.get_rag_service', return_value=mock_rag_service):
+        with patch(
+            "src.api.routers.knowledge_graph.get_rag_service", return_value=mock_rag_service
+        ):
             response = client.post(
                 "/api/v1/graph/nodes",
                 json={
                     "node_type": "requirement",
                     "name": "Login",
-                    "description": "Funcionalidade de login"
-                }
+                    "description": "Funcionalidade de login",
+                },
             )
 
         assert response.status_code == 201
@@ -69,11 +71,7 @@ class TestKnowledgeGraphRouter:
         """Testa criação de nó com tipo inválido."""
         response = client.post(
             "/api/v1/graph/nodes",
-            json={
-                "node_type": "invalid_type",
-                "name": "Test",
-                "description": "Test"
-            }
+            json={"node_type": "invalid_type", "name": "Test", "description": "Test"},
         )
 
         assert response.status_code == 422  # Validation error
@@ -88,18 +86,20 @@ class TestKnowledgeGraphRouter:
             source_id="REQ:001",
             target_id="USR:001",
             relation_type=RelationType.IMPLEMENTS,
-            properties={}
+            properties={},
         )
         mock_rag_service.create_relation.return_value = mock_relation
 
-        with patch('src.api.routers.knowledge_graph.get_rag_service', return_value=mock_rag_service):
+        with patch(
+            "src.api.routers.knowledge_graph.get_rag_service", return_value=mock_rag_service
+        ):
             response = client.post(
                 "/api/v1/graph/relations",
                 json={
                     "source_id": "REQ:001",
                     "target_id": "USR:001",
-                    "relation_type": "implements"
-                }
+                    "relation_type": "implements",
+                },
             )
 
         assert response.status_code == 201
@@ -117,23 +117,18 @@ class TestKnowledgeGraphRouter:
             id="DOC:001",
             node_type=NodeType.DOCUMENT,
             name="Architecture",
-            description="Arquitetura"
+            description="Arquitetura",
         )
         mock_result = GraphSearchResult(
-            nodes=[mock_node],
-            relations=[],
-            total_found=1,
-            query_id="Q-search"
+            nodes=[mock_node], relations=[], total_found=1, query_id="Q-search"
         )
         mock_rag_service.search.return_value = mock_result
 
-        with patch('src.api.routers.knowledge_graph.get_rag_service', return_value=mock_rag_service):
+        with patch(
+            "src.api.routers.knowledge_graph.get_rag_service", return_value=mock_rag_service
+        ):
             response = client.post(
-                "/api/v1/graph/search",
-                json={
-                    "query_text": "arquitetura",
-                    "limit": 10
-                }
+                "/api/v1/graph/search", json={"query_text": "arquitetura", "limit": 10}
             )
 
         assert response.status_code == 200
@@ -146,12 +141,11 @@ class TestKnowledgeGraphRouter:
         """Testa query com RAG."""
         mock_rag_service.query_with_rag.return_value = "Resposta gerada pelo LLM"
 
-        with patch('src.api.routers.knowledge_graph.get_rag_service', return_value=mock_rag_service):
+        with patch(
+            "src.api.routers.knowledge_graph.get_rag_service", return_value=mock_rag_service
+        ):
             response = client.post(
-                "/api/v1/graph/rag/query",
-                json={
-                    "query_text": "Explique a arquitetura do sistema"
-                }
+                "/api/v1/graph/rag/query", json={"query_text": "Explique a arquitetura do sistema"}
             )
 
         assert response.status_code == 200

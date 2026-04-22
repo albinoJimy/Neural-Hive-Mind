@@ -20,7 +20,7 @@ def _base_config():
     }
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 def test_collect_business_metrics_disabled():
     config = {**_base_config(), "enable_business_metrics": False}
     collector = BusinessMetricsCollector(config, metrics_registry={})
@@ -30,7 +30,7 @@ def test_collect_business_metrics_disabled():
     assert result["status"] == "disabled"
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 def test_collect_business_metrics_uses_cache(monkeypatch):
     config = _base_config()
     collector = BusinessMetricsCollector(config, metrics_registry={})

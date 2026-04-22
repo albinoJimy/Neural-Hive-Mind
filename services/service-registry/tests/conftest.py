@@ -2,17 +2,18 @@
 Pytest configuration and shared fixtures for service-registry tests.
 """
 
-import pytest
-import sys
 import os
+import sys
+from unittest.mock import AsyncMock, Mock
 from uuid import uuid4
-from unittest.mock import Mock, AsyncMock
+
+import pytest
 
 # Adicionar src ao path para importação
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../src"))
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_grpc_context():
     """Mock basico para gRPC context"""
     context = Mock()
@@ -21,10 +22,10 @@ def mock_grpc_context():
     return context
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_agent_info():
     """Cria AgentInfo de teste"""
-    from models.agent import AgentInfo, AgentType, AgentStatus, AgentTelemetry
+    from models.agent import AgentInfo, AgentStatus, AgentTelemetry, AgentType
 
     return AgentInfo(
         agent_id=uuid4(),
@@ -41,7 +42,7 @@ def mock_agent_info():
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_registry_service():
     """Mock do RegistryService"""
     service = AsyncMock()
@@ -52,7 +53,7 @@ def mock_registry_service():
     return service
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_matching_engine():
     """Mock do MatchingEngine"""
     engine = AsyncMock()
@@ -60,7 +61,7 @@ def mock_matching_engine():
     return engine
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_etcd_client():
     """Mock do EtcdClient"""
     client = AsyncMock()
@@ -71,7 +72,7 @@ def mock_etcd_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_pheromone_client():
     """Mock do PheromoneClient"""
     client = AsyncMock()

@@ -36,7 +36,9 @@ class TestMigrationStatus:
         assert MigrationStatus.PENDING.is_valid_transition(MigrationStatus.ANALYZING)
         assert MigrationStatus.ANALYZING.is_valid_transition(MigrationStatus.MAPPING)
         assert MigrationStatus.MAPPING.is_valid_transition(MigrationStatus.MAPPING_APPROVED)
-        assert MigrationStatus.MAPPING_APPROVED.is_valid_transition(MigrationStatus.SNAPSHOT_CREATED)
+        assert MigrationStatus.MAPPING_APPROVED.is_valid_transition(
+            MigrationStatus.SNAPSHOT_CREATED
+        )
         assert MigrationStatus.SNAPSHOT_CREATED.is_valid_transition(MigrationStatus.BATCH_MIGRATING)
         assert MigrationStatus.BATCH_MIGRATING.is_valid_transition(MigrationStatus.CDC_RUNNING)
         assert MigrationStatus.CDC_RUNNING.is_valid_transition(MigrationStatus.VALIDATING)

@@ -4,9 +4,10 @@ Testes para os endpoints principais do Self-Healing Engine.
 Cobre health, readiness, metrics e chaos endpoints.
 """
 
-import pytest
-from unittest.mock import AsyncMock, MagicMock
 import os
+from unittest.mock import AsyncMock, MagicMock
+
+import pytest
 
 
 @pytest.fixture(autouse=True)
@@ -31,7 +32,7 @@ def mock_env_vars():
             os.environ[k] = v
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_health_endpoint(mock_env_vars):
     """Health check deve retornar status healthy."""
     from src.api.health import health
@@ -43,7 +44,7 @@ async def test_health_endpoint(mock_env_vars):
     assert "version" in str(response)
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_liveness_endpoint(mock_env_vars):
     """Liveness probe deve retornar healthy."""
     from src.api.health import liveness
@@ -54,7 +55,7 @@ async def test_liveness_endpoint(mock_env_vars):
     assert "timestamp" in response
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_readiness_endpoint(mock_env_vars):
     """Readiness probe deve retornar healthy."""
     from src.api.health import readiness
@@ -65,7 +66,7 @@ async def test_readiness_endpoint(mock_env_vars):
     assert "timestamp" in response
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_health_with_chaos_disabled():
     """Chaos health endpoint deve retornar disabled quando chaos nao habilitado."""
     from src.api.chaos import chaos_health
@@ -79,7 +80,7 @@ async def test_health_with_chaos_disabled():
     assert "Chaos Engine não está habilitado" in response["message"]
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_health_with_chaos_enabled():
     """Chaos health endpoint deve retornar healthy quando chaos habilitado."""
     from src.api.chaos import chaos_health
@@ -102,7 +103,7 @@ async def test_health_with_chaos_enabled():
     assert response["scenarios_available"] == 2
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_list_scenarios_success():
     """Listar cenarios deve retornar lista de cenarios disponiveis."""
     from src.api.chaos import list_scenarios
@@ -123,11 +124,11 @@ async def test_list_scenarios_success():
     assert response["scenarios"][0]["name"] in ["pod_kill", "network_delay", "high_cpu"]
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_list_scenarios_chaos_disabled(mock_env_vars):
     """Listar cenarios deve retornar 503 quando chaos desabilitado."""
-    from src.api.chaos import list_scenarios
     from fastapi import HTTPException
+    from src.api.chaos import list_scenarios
 
     mock_engine = None
 
@@ -138,7 +139,7 @@ async def test_list_scenarios_chaos_disabled(mock_env_vars):
     assert "Chaos Engine não está habilitado" in exc_info.value.detail
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_get_scenario_info():
     """Obter info de cenario deve retornar detalhes."""
     from src.api.chaos import get_scenario
@@ -159,11 +160,11 @@ async def test_get_scenario_info():
     assert response["severity"] == "high"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_get_scenario_not_found():
     """Obter info de cenario inexistente deve retornar 404."""
-    from src.api.chaos import get_scenario
     from fastapi import HTTPException
+    from src.api.chaos import get_scenario
 
     mock_engine = MagicMock()
     mock_engine.get_scenario_info = MagicMock(return_value=None)
@@ -174,7 +175,7 @@ async def test_get_scenario_not_found():
     assert exc_info.value.status_code == 404
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_list_active_experiments():
     """Listar experimentos ativos deve retornar lista."""
     from src.api.chaos import list_active_experiments
@@ -192,7 +193,7 @@ async def test_list_active_experiments():
     assert len(response["experiments"]) == 2
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_create_experiment(mock_env_vars):
     """Criar experimento deve retornar response com experiment_id."""
     from src.api.chaos import create_experiment
@@ -225,10 +226,10 @@ async def test_create_experiment(mock_env_vars):
     assert response.status == "created"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_execute_scenario():
     """Executar cenario deve retornar relatorio."""
-    from src.api.chaos import execute_scenario, ScenarioRequest
+    from src.api.chaos import ScenarioRequest, execute_scenario
 
     mock_engine = AsyncMock()
     mock_engine.execute_scenario = AsyncMock(
@@ -245,7 +246,7 @@ async def test_execute_scenario():
     assert response.successful is True
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_rollback_experiment():
     """Rollback de experimento deve retornar sucesso."""
     from src.api.chaos import rollback_experiment
@@ -259,10 +260,10 @@ async def test_rollback_experiment():
     assert response["experiment_id"] == "exp-123"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_validate_playbook():
     """Validar playbook deve retornar resultado."""
-    from src.api.chaos import validate_playbook, PlaybookValidationRequest
+    from src.api.chaos import PlaybookValidationRequest, validate_playbook
 
     mock_engine = AsyncMock()
     mock_engine.validate_playbook = AsyncMock(
@@ -279,7 +280,7 @@ async def test_validate_playbook():
     assert response.recovery_time_seconds == 30
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_metrics_endpoint(mock_env_vars):
     """Metrics endpoint deve retornar texto Prometheus."""
     from src.api.health import metrics

@@ -14,8 +14,8 @@ Implementa as atividades chamadas pelo DataMigrationWorkflow:
 """
 
 import uuid
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from datetime import UTC, datetime
+from typing import Any, Optional
 
 import structlog
 
@@ -30,8 +30,8 @@ logger = structlog.get_logger(__name__)
 async def analyze_legacy_schema(
     legacy_connection_id: str,
     schema: str = "public",
-    tables: Optional[List[str]] = None,
-) -> Dict[str, Any]:
+    tables: Optional[list[str]] = None,
+) -> dict[str, Any]:
     """
     Analisa schema do banco legado.
 
@@ -142,7 +142,7 @@ async def analyze_legacy_schema(
                     "indexes": ["PRIMARY KEY (id)", "INDEX (user_id)"],
                 },
             ],
-            "analyzed_at": datetime.now(timezone.utc).isoformat(),
+            "analyzed_at": datetime.now(UTC).isoformat(),
         }
 
         logger.info(
@@ -169,9 +169,9 @@ async def analyze_legacy_schema(
 
 
 async def generate_schema_mapping(
-    schema_analysis: Dict[str, Any],
+    schema_analysis: dict[str, Any],
     target_service: str,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Gera mapeamento de schema legado → novo.
 
@@ -229,7 +229,7 @@ async def generate_schema_mapping(
             "legacy_connection_id": schema_analysis.get("legacy_connection_id"),
             "nhm_target": target_service,
             "tables": tables_mapping,
-            "created_at": datetime.now(timezone.utc).isoformat(),
+            "created_at": datetime.now(UTC).isoformat(),
             "version": 1,
         }
 
@@ -257,10 +257,10 @@ async def generate_schema_mapping(
 
 
 async def approve_mapping(
-    schema_mapping: Dict[str, Any],
+    schema_mapping: dict[str, Any],
     auto_approve: bool = True,
     approved_by: str = "system",
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Aprova mapeamento de schema (gate humano).
 
@@ -297,7 +297,7 @@ async def approve_mapping(
         return {
             "approved": True,
             "approved_by": approved_by,
-            "approved_at": datetime.now(timezone.utc).isoformat(),
+            "approved_at": datetime.now(UTC).isoformat(),
             "status": "approved",
         }
 
@@ -316,9 +316,9 @@ async def approve_mapping(
 
 async def create_snapshot(
     job_id: str,
-    table_mappings: List[Dict[str, Any]],
+    table_mappings: list[dict[str, Any]],
     strategy: str = "s3",
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Cria snapshot para rollback.
 
@@ -355,7 +355,7 @@ async def create_snapshot(
             "success": True,
             "snapshot_id": snapshot_id,
             "strategy": strategy,
-            "created_at": datetime.now(timezone.utc).isoformat(),
+            "created_at": datetime.now(UTC).isoformat(),
             "tables_snapshotted": len(table_mappings),
         }
 
@@ -374,10 +374,10 @@ async def create_snapshot(
 
 async def run_batch_migration(
     job_id: str,
-    schema_mapping: Dict[str, Any],
+    schema_mapping: dict[str, Any],
     batch_size: int = 1000,
     max_parallel: int = 5,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Executa migração batch de dados históricos.
 
@@ -425,7 +425,7 @@ async def run_batch_migration(
             "total_rows": total_rows,
             "progress_percentage": progress_percentage,
             "tables_processed": tables_processed,
-            "completed_at": datetime.now(timezone.utc).isoformat(),
+            "completed_at": datetime.now(UTC).isoformat(),
         }
 
     except Exception as e:
@@ -443,9 +443,9 @@ async def run_batch_migration(
 
 async def start_cdc(
     job_id: str,
-    schema_mapping: Dict[str, Any],
-    database_config: Dict[str, Any],
-) -> Dict[str, Any]:
+    schema_mapping: dict[str, Any],
+    database_config: dict[str, Any],
+) -> dict[str, Any]:
     """
     Inicia pipeline CDC para captura de mudanças em tempo real.
 
@@ -482,7 +482,7 @@ async def start_cdc(
             "success": True,
             "connector_id": connector_id,
             "status": "running",
-            "started_at": datetime.now(timezone.utc).isoformat(),
+            "started_at": datetime.now(UTC).isoformat(),
         }
 
     except Exception as e:
@@ -500,8 +500,8 @@ async def start_cdc(
 
 async def validate_data(
     job_id: str,
-    schema_mapping: Dict[str, Any],
-) -> Dict[str, Any]:
+    schema_mapping: dict[str, Any],
+) -> dict[str, Any]:
     """
     Valida dados migrados.
 
@@ -545,7 +545,7 @@ async def validate_data(
                 }
                 for t in tables
             ],
-            "validated_at": datetime.now(timezone.utc).isoformat(),
+            "validated_at": datetime.now(UTC).isoformat(),
         }
 
         logger.info(
@@ -571,7 +571,7 @@ async def validate_data(
 # =============================================================================
 
 
-async def cleanup_snapshot(snapshot_id: str) -> Dict[str, Any]:
+async def cleanup_snapshot(snapshot_id: str) -> dict[str, Any]:
     """
     Limpa snapshot após migração bem-sucedida.
 
@@ -595,7 +595,7 @@ async def cleanup_snapshot(snapshot_id: str) -> Dict[str, Any]:
         return {
             "success": True,
             "snapshot_id": snapshot_id,
-            "cleaned_at": datetime.now(timezone.utc).isoformat(),
+            "cleaned_at": datetime.now(UTC).isoformat(),
         }
 
     except Exception as e:
@@ -616,7 +616,7 @@ async def execute_rollback(
     snapshot_id: Optional[str],
     phase: str,
     reason: Optional[str] = None,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Executa rollback da migração.
 
@@ -670,7 +670,7 @@ async def execute_rollback(
             "phase": phase,
             "reason": reason,
             "tables_restored": tables_restored,
-            "rolled_back_at": datetime.now(timezone.utc).isoformat(),
+            "rolled_back_at": datetime.now(UTC).isoformat(),
         }
 
     except Exception as e:

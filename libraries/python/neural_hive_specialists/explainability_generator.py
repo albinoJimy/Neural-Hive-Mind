@@ -2,20 +2,21 @@
 Gerador de explicabilidade para pareceres de especialistas.
 """
 
-import uuid
-import time
 import hashlib
-from typing import Dict, Any, List, Tuple, Optional
+import time
+import uuid
+from typing import Any, Optional
+
 import structlog
+from circuitbreaker import CircuitBreaker, CircuitBreakerError
 from pymongo import MongoClient
 from tenacity import retry, stop_after_attempt, wait_exponential
-from circuitbreaker import CircuitBreaker, CircuitBreakerError
 
 from .config import SpecialistConfig
-from .explainability.shap_explainer import SHAPExplainer
+from .explainability.explainability_ledger_v2 import ExplainabilityLedgerV2
 from .explainability.lime_explainer import LIMEExplainer
 from .explainability.narrative_generator import NarrativeGenerator
-from .explainability.explainability_ledger_v2 import ExplainabilityLedgerV2
+from .explainability.shap_explainer import SHAPExplainer
 
 logger = structlog.get_logger()
 
@@ -85,10 +86,10 @@ class ExplainabilityGenerator:
 
     def generate(
         self,
-        evaluation_result: Dict[str, Any],
-        cognitive_plan: Dict[str, Any],
+        evaluation_result: dict[str, Any],
+        cognitive_plan: dict[str, Any],
         model: Any,
-    ) -> Tuple[str, Dict[str, Any]]:
+    ) -> tuple[str, dict[str, Any]]:
         """
         Gera token e metadados de explicabilidade.
 
@@ -276,7 +277,7 @@ class ExplainabilityGenerator:
                 self._metrics.increment_explainability_errors("unknown", str(type(e).__name__))
             return self._generate_minimal_explainability()
 
-    def _generate_minimal_explainability(self) -> Tuple[str, Dict[str, Any]]:
+    def _generate_minimal_explainability(self) -> tuple[str, dict[str, Any]]:
         """Gera explicabilidade mínima quando completa não disponível."""
         token = str(uuid.uuid4())
         metadata = {
@@ -325,11 +326,11 @@ class ExplainabilityGenerator:
 
     def _extract_feature_importances(
         self,
-        evaluation_result: Dict[str, Any],
+        evaluation_result: dict[str, Any],
         model: Any,
         method: str,
-        cognitive_plan: Optional[Dict[str, Any]] = None,
-    ) -> List[Dict[str, Any]]:
+        cognitive_plan: Optional[dict[str, Any]] = None,
+    ) -> list[dict[str, Any]]:
         """
         Extrai importâncias de features.
 
@@ -369,9 +370,9 @@ class ExplainabilityGenerator:
     def _extract_shap_importances(
         self,
         model: Any,
-        evaluation_result: Dict[str, Any],
-        cognitive_plan: Optional[Dict[str, Any]] = None,
-    ) -> List[Dict[str, Any]]:
+        evaluation_result: dict[str, Any],
+        cognitive_plan: Optional[dict[str, Any]] = None,
+    ) -> list[dict[str, Any]]:
         """Extrai importâncias usando SHAP com features estruturadas."""
         if self._feature_extractor is None or cognitive_plan is None:
             logger.warning("FeatureExtractor not available or no cognitive plan")
@@ -406,9 +407,9 @@ class ExplainabilityGenerator:
     def _extract_lime_importances(
         self,
         model: Any,
-        evaluation_result: Dict[str, Any],
-        cognitive_plan: Optional[Dict[str, Any]] = None,
-    ) -> List[Dict[str, Any]]:
+        evaluation_result: dict[str, Any],
+        cognitive_plan: Optional[dict[str, Any]] = None,
+    ) -> list[dict[str, Any]]:
         """Extrai importâncias usando LIME com features estruturadas."""
         if self._feature_extractor is None or cognitive_plan is None:
             logger.warning("FeatureExtractor not available or no cognitive plan")
@@ -441,8 +442,8 @@ class ExplainabilityGenerator:
             return []
 
     def _extract_rule_based_importances(
-        self, evaluation_result: Dict[str, Any]
-    ) -> List[Dict[str, Any]]:
+        self, evaluation_result: dict[str, Any]
+    ) -> list[dict[str, Any]]:
         """Extrai importâncias de reasoning_factors (regras explícitas)."""
         reasoning_factors = evaluation_result.get("reasoning_factors", [])
 
@@ -459,8 +460,8 @@ class ExplainabilityGenerator:
         return importances
 
     def _extract_heuristic_importances(
-        self, evaluation_result: Dict[str, Any]
-    ) -> List[Dict[str, Any]]:
+        self, evaluation_result: dict[str, Any]
+    ) -> list[dict[str, Any]]:
         """Extrai importâncias usando heurísticas simples."""
         return self._extract_rule_based_importances(evaluation_result)
 
@@ -491,7 +492,7 @@ class ExplainabilityGenerator:
 
         return type(model).__name__
 
-    def _extract_input_features(self, cognitive_plan: Dict[str, Any]) -> Dict[str, float]:
+    def _extract_input_features(self, cognitive_plan: dict[str, Any]) -> dict[str, float]:
         """Extrai features estruturadas do plano para persistência."""
         if self._feature_extractor:
             try:
@@ -502,16 +503,16 @@ class ExplainabilityGenerator:
                 return {}
         return {}
 
-    def _extract_feature_names(self, cognitive_plan: Dict[str, Any]) -> List[str]:
+    def _extract_feature_names(self, cognitive_plan: dict[str, Any]) -> list[str]:
         """Extrai nomes de features do plano."""
         input_features = self._extract_input_features(cognitive_plan)
         return sorted(input_features.keys())
 
     def _build_reasoning_links(
         self,
-        reasoning_factors: List[Dict[str, Any]],
-        feature_importances: List[Dict[str, Any]],
-    ) -> Dict[str, Dict[str, Any]]:
+        reasoning_factors: list[dict[str, Any]],
+        feature_importances: list[dict[str, Any]],
+    ) -> dict[str, dict[str, Any]]:
         """
         Constrói mapeamento entre reasoning_factors e SHAP features.
 
@@ -580,8 +581,9 @@ class ExplainabilityGenerator:
         """
         if self.shap_explainer.background_data is not None:
             try:
-                import pandas as pd
                 import json
+
+                import pandas as pd
 
                 df = self.shap_explainer.background_data
 
@@ -626,9 +628,9 @@ class ExplainabilityGenerator:
     def _persist_detailed_explanation(
         self,
         token: str,
-        evaluation_result: Dict[str, Any],
-        cognitive_plan: Dict[str, Any],
-        metadata: Dict[str, Any],
+        evaluation_result: dict[str, Any],
+        cognitive_plan: dict[str, Any],
+        metadata: dict[str, Any],
     ):
         """
         Persiste explicação detalhada no MongoDB.
@@ -660,9 +662,9 @@ class ExplainabilityGenerator:
     def _persist_detailed_explanation_impl(
         self,
         token: str,
-        evaluation_result: Dict[str, Any],
-        cognitive_plan: Dict[str, Any],
-        metadata: Dict[str, Any],
+        evaluation_result: dict[str, Any],
+        cognitive_plan: dict[str, Any],
+        metadata: dict[str, Any],
     ):
         """
         Implementação interna de _persist_detailed_explanation.
@@ -706,7 +708,7 @@ class ExplainabilityGenerator:
             logger.warning("Failed to persist detailed explanation", token=token, error=str(e))
             raise
 
-    def retrieve_explanation(self, token: str) -> Optional[Dict[str, Any]]:
+    def retrieve_explanation(self, token: str) -> Optional[dict[str, Any]]:
         """
         Recupera explicação detalhada por token.
 
@@ -721,7 +723,7 @@ class ExplainabilityGenerator:
         else:
             return self.retrieve_explanation_impl(token)
 
-    def retrieve_explanation_impl(self, token: str) -> Optional[Dict[str, Any]]:
+    def retrieve_explanation_impl(self, token: str) -> Optional[dict[str, Any]]:
         """
         Implementação interna de retrieve_explanation.
 

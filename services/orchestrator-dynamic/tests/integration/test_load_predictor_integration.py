@@ -142,7 +142,8 @@ class TestLoadPredictorIntegration:
             mock_load_predictor.predict_bottlenecks = AsyncMock(return_value=[])
 
             with patch(
-                "src.scheduler.intelligent_scheduler.LoadPredictor", return_value=mock_load_predictor
+                "src.scheduler.intelligent_scheduler.LoadPredictor",
+                return_value=mock_load_predictor,
             ):
                 factory = LoadPredictorFactory(
                     config=mock_config,
@@ -221,7 +222,8 @@ class TestIntelligentSchedulerIntegration:
             mock_load_predictor.predict_bottlenecks = AsyncMock(return_value=[])
 
             with patch(
-                "src.scheduler.intelligent_scheduler.LoadPredictor", return_value=mock_load_predictor
+                "src.scheduler.intelligent_scheduler.LoadPredictor",
+                return_value=mock_load_predictor,
             ):
                 # Patch clients
                 with patch(
@@ -279,7 +281,8 @@ class TestIntelligentSchedulerIntegration:
             mock_load_predictor.predict_bottlenecks = AsyncMock(return_value=mock_bottlenecks)
 
             with patch(
-                "src.scheduler.intelligent_scheduler.LoadPredictor", return_value=mock_load_predictor
+                "src.scheduler.intelligent_scheduler.LoadPredictor",
+                return_value=mock_load_predictor,
             ):
                 with patch(
                     "src.scheduler.intelligent_scheduler.get_redis_client", return_value=mock_redis
@@ -330,7 +333,8 @@ class TestResourceAllocatorIntegration:
             mock_load_predictor.predict_bottlenecks = AsyncMock(return_value=[])
 
             with patch(
-                "src.scheduler.intelligent_scheduler.LoadPredictor", return_value=mock_load_predictor
+                "src.scheduler.intelligent_scheduler.LoadPredictor",
+                return_value=mock_load_predictor,
             ):
                 factory = LoadPredictorFactory(
                     config=mock_config,
@@ -408,7 +412,9 @@ async def test_end_to_end_load_predictor_in_scheduling(
         mock_load_predictor.predict_load = AsyncMock(return_value=mock_forecast)
         mock_load_predictor.predict_bottlenecks = AsyncMock(return_value=[])
 
-        with patch("src.scheduler.intelligent_scheduler.LoadPredictor", return_value=mock_load_predictor):
+        with patch(
+            "src.scheduler.intelligent_scheduler.LoadPredictor", return_value=mock_load_predictor
+        ):
             with patch(
                 "src.scheduler.intelligent_scheduler.get_redis_client", return_value=mock_redis
             ):
@@ -595,7 +601,9 @@ class TestTicketEnrichmentWithLoadPredictor:
         """Testa que erros do LoadPredictor são tratados gracefulmente."""
         mock_load_predictor = AsyncMock()
         mock_load_predictor.initialize = AsyncMock()
-        mock_load_predictor.predict_load = AsyncMock(side_effect=Exception("ML service unavailable"))
+        mock_load_predictor.predict_load = AsyncMock(
+            side_effect=Exception("ML service unavailable")
+        )
         mock_load_predictor.predict_bottlenecks = AsyncMock(side_effect=Exception("Timeout"))
 
         resource_allocator = ResourceAllocator(

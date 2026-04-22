@@ -2,9 +2,9 @@
 Testes unitários para KanikoCacheOptimizer.
 """
 
-import pytest
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
+import pytest
 from src.services.kaniko.kaniko_cache_optimizer import (
     CacheConfig,
     CacheLevel,
@@ -187,9 +187,9 @@ class TestKanikoCacheOptimizer:
     def test_record_cache_hit_updates_metrics(self):
         """Cache hit atualiza last_cache_update."""
         optimizer = KanikoCacheOptimizer()
-        before = datetime.now(timezone.utc)
+        before = datetime.now(UTC)
         optimizer.record_cache_hit()
-        after = datetime.now(timezone.utc)
+        after = datetime.now(UTC)
         assert optimizer.metrics.last_cache_update >= before
         assert optimizer.metrics.last_cache_update <= after
 
@@ -304,7 +304,7 @@ class TestCreateOptimizedKanikoPodSpec:
 class TestCacheWarming:
     """Testes para warm_cache."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_warm_cache_disabled(self):
         """Não aquece cache se desabilitado."""
         config = CacheConfig(warm_cache_on_startup=False)
@@ -312,7 +312,7 @@ class TestCacheWarming:
         result = await optimizer.warm_cache()
         assert result["warmed"] is False
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_warm_cache_with_images(self):
         """Aquece cache com lista de imagens."""
         optimizer = KanikoCacheOptimizer()
@@ -324,7 +324,7 @@ class TestCacheWarming:
         assert "images_warmed" in result
         assert "total_count" in result
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_warm_cache_records_metrics(self):
         """Aquece cache e registra métricas."""
         optimizer = KanikoCacheOptimizer()

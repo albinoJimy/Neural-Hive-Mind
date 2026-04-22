@@ -6,17 +6,18 @@ Uso:
     python migrate_sboms_to_s3.py --dry-run  # Apenas mostra o que seria feito
     python migrate_sboms_to_s3.py            # Executa a migração
 """
-import asyncio
 import argparse
+import asyncio
 import os
 import sys
+
 import structlog
 
 # Adicionar path do projeto
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from src.clients.s3_artifact_client import S3ArtifactClient
 from src.clients.mongodb_client import MongoDBClient
+from src.clients.s3_artifact_client import S3ArtifactClient
 from src.config import get_settings
 
 logger = structlog.get_logger()

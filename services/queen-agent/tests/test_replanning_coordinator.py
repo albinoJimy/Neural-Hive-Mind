@@ -2,13 +2,13 @@
 Testes para ReplanningCoordinator - foco em get_replanning_stats
 """
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock
 
+import pytest
 from src.services.replanning_coordinator import ReplanningCoordinator
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_settings():
     """Mock de configurações"""
     settings = MagicMock()
@@ -16,13 +16,13 @@ def mock_settings():
     return settings
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_clients():
     """Mock dos clientes"""
     return {"orchestrator": AsyncMock(), "redis": AsyncMock()}
 
 
-@pytest.fixture
+@pytest.fixture()
 def replanning_coordinator(mock_clients, mock_settings):
     """Instância do ReplanningCoordinator com mocks"""
     return ReplanningCoordinator(
@@ -32,7 +32,7 @@ def replanning_coordinator(mock_clients, mock_settings):
     )
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_get_replanning_stats_with_active_cooldowns(replanning_coordinator, mock_clients):
     """Testa obtenção de estatísticas com cooldowns ativos"""
     # Mock do Redis SCAN para retornar chaves de cooldown
@@ -57,7 +57,7 @@ async def test_get_replanning_stats_with_active_cooldowns(replanning_coordinator
     assert "plan-3" in stats["cooldown_plans"]
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_get_replanning_stats_no_cooldowns(replanning_coordinator, mock_clients):
     """Testa obtenção de estatísticas sem cooldowns"""
     mock_redis = AsyncMock()
@@ -71,7 +71,7 @@ async def test_get_replanning_stats_no_cooldowns(replanning_coordinator, mock_cl
     assert stats["cooldown_plans"] == []
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_get_replanning_stats_handles_string_keys(replanning_coordinator, mock_clients):
     """Testa tratamento de chaves como strings (não bytes)"""
     mock_redis = AsyncMock()
@@ -86,7 +86,7 @@ async def test_get_replanning_stats_handles_string_keys(replanning_coordinator, 
     assert "plan-2" in stats["cooldown_plans"]
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_get_replanning_stats_handles_exception(replanning_coordinator, mock_clients):
     """Testa tratamento de exceção"""
     mock_redis = AsyncMock()
@@ -101,7 +101,7 @@ async def test_get_replanning_stats_handles_exception(replanning_coordinator, mo
     assert stats["cooldown_plans"] == []
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_trigger_replanning_success(replanning_coordinator, mock_clients):
     """Testa disparo de replanning com sucesso"""
     # Mock para não estar em cooldown
@@ -120,7 +120,7 @@ async def test_trigger_replanning_success(replanning_coordinator, mock_clients):
     mock_clients["redis"].cache_strategic_context.assert_called_once()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_trigger_replanning_in_cooldown(replanning_coordinator, mock_clients):
     """Testa rejeição de replanning quando em cooldown"""
     # Mock para estar em cooldown

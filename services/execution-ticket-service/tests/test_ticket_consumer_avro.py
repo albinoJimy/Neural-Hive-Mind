@@ -6,16 +6,15 @@ from types import SimpleNamespace
 
 import pytest
 from confluent_kafka import Producer
-from confluent_kafka.serialization import SerializationContext, MessageField
 from confluent_kafka.schema_registry import SchemaRegistryClient
-from confluent_kafka.schema_registry.avro import AvroSerializer, AvroDeserializer
+from confluent_kafka.schema_registry.avro import AvroDeserializer, AvroSerializer
+from confluent_kafka.serialization import MessageField, SerializationContext
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
-from src.consumers.ticket_consumer import TicketConsumer  # noqa: E402
-from src.models import ExecutionTicket  # noqa: E402
-
+from src.consumers.ticket_consumer import TicketConsumer
+from src.models import ExecutionTicket
 
 pytestmark = pytest.mark.skipif(
     not os.getenv("RUN_KAFKA_INTEGRATION_TESTS"),
@@ -97,7 +96,7 @@ def _schema_components(schema_registry_url: str):
     return registry, serializer
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_ticket():
     return {
         "ticket_id": "ticket-avro-1",
@@ -110,12 +109,12 @@ def sample_ticket():
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def settings():
     return _settings()
 
 
-@pytest.fixture
+@pytest.fixture()
 def avro_producer(settings):
     _, serializer = _schema_components(settings.kafka_schema_registry_url)
     producer = Producer({"bootstrap.servers": settings.kafka_bootstrap_servers})
@@ -128,7 +127,7 @@ def avro_producer(settings):
     return SimpleNamespace(raw=producer, send=_send, serializer=serializer)
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_consumer_deserializes_avro_ticket(
     monkeypatch, avro_producer, sample_ticket, settings
 ):
@@ -152,7 +151,7 @@ async def test_consumer_deserializes_avro_ticket(
     await consumer.stop()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_consumer_persists_to_postgres(monkeypatch, sample_ticket, settings):
     metrics = _build_metrics()
     consumer = TicketConsumer(settings, metrics)
@@ -188,7 +187,7 @@ async def test_consumer_persists_to_postgres(monkeypatch, sample_ticket, setting
     assert not mongo_called.is_set()  # audit trail desabilitado por padrão
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_consumer_handles_invalid_avro(monkeypatch, settings):
     metrics = _build_metrics()
     consumer = TicketConsumer(settings, metrics)
@@ -202,7 +201,7 @@ async def test_consumer_handles_invalid_avro(monkeypatch, settings):
     assert consumer.consumer is not None
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_consumer_commits_offset_after_success(monkeypatch, sample_ticket, settings):
     metrics = _build_metrics()
     consumer = TicketConsumer(settings, metrics)

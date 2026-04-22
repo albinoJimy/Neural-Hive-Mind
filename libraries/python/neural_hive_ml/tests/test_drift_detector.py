@@ -1,12 +1,14 @@
 """Testes para DriftDetector - Detecção de Model Drift."""
 
+from datetime import UTC, datetime
+from unittest.mock import AsyncMock, Mock, patch
+
 import pytest
-from datetime import datetime, timezone
-from unittest.mock import Mock, patch, AsyncMock
+
 from neural_hive_ml.drift_detector import DriftDetector
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_mongo_client():
     """Mock MongoDB client."""
     # Criar cursor mock - é um Mock regular com método to_list assíncrono
@@ -33,7 +35,7 @@ def mock_mongo_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_kafka_producer():
     """Mock Kafka producer."""
     producer = AsyncMock()
@@ -41,7 +43,7 @@ def mock_kafka_producer():
     return producer
 
 
-@pytest.fixture
+@pytest.fixture()
 def drift_detector(mock_mongo_client, mock_kafka_producer):
     """Fixture para DriftDetector."""
     return DriftDetector(
@@ -65,7 +67,7 @@ class TestDriftDetectorInit:
 class TestCalculateBaseline:
     """Testes de calculate_baseline."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_calculate_baseline_success(self, drift_detector, mock_mongo_client):
         """Testa cálculo de baseline com sucesso."""
         # O mock já está configurado com cursor_mock
@@ -79,7 +81,7 @@ class TestCalculateBaseline:
 class TestCalculateCurrent:
     """Testes de calculate_current."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_calculate_current_success(self, drift_detector, mock_mongo_client):
         """Testa cálculo de métricas atuais."""
         result = await drift_detector.calculate_current(window_hours=24)
@@ -91,7 +93,7 @@ class TestCalculateCurrent:
 class TestDetectDrift:
     """Testes de detect_drift."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_detect_drift_no_drift(self, drift_detector, mock_mongo_client):
         """Testa detecção sem drift."""
         result = await drift_detector.detect_drift(window_hours=168)
@@ -100,7 +102,7 @@ class TestDetectDrift:
         assert result["drift_detected"] is False
         assert len(result["alerts"]) == 0
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_detect_drift_with_confidence_drop(self, drift_detector, mock_mongo_client):
         """Testa detecção de drift no confidence."""
         # Reset mock com dados que mostram pequeno drop
@@ -115,7 +117,7 @@ class TestDetectDrift:
         # Confidence drop de 0.07 -> abaixo de 0.10 threshold
         assert result["drift_detected"] is False  # 0.72 - 0.72 = 0 < 0.10
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_detect_drift_significant(self, drift_detector, mock_mongo_client):
         """Testa detecção de drift significativo."""
         # Configurar aggregate com múltiplas chamadas
@@ -146,7 +148,7 @@ class TestDetectDrift:
 class TestPublishDriftAlert:
     """Testes de publish_drift_alert."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_publish_alert(self, drift_detector, mock_kafka_producer):
         """Testa publicação de alerta de drift."""
         drift_data = {"drift_detected": True, "confidence_drop": 0.12, "approve_rate_change": -0.10}
@@ -160,7 +162,7 @@ class TestPublishDriftAlert:
 class TestGetDriftMetrics:
     """Testes de get_drift_metrics (endpoint)."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_drift_metrics_complete(self, drift_detector):
         """Testa retorno completo de métricas de drift."""
         result = await drift_detector.get_drift_metrics(window_hours=168)
@@ -214,7 +216,7 @@ class TestDbProperty:
 class TestCalculateBaselineEdgeCases:
     """Testes de edge cases para calculate_baseline."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_calculate_baseline_empty_results(self, drift_detector, mock_mongo_client):
         """Testa calculate_baseline com resultados vazios."""
         cursor_mock = Mock()
@@ -228,7 +230,7 @@ class TestCalculateBaselineEdgeCases:
         assert result["avg_confidence"] == 0.72
         assert result["sample_count"] == 0
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_calculate_baseline_with_missing_fields(self, drift_detector, mock_mongo_client):
         """Testa calculate_baseline com campos faltando."""
         cursor_mock = Mock()
@@ -246,7 +248,7 @@ class TestCalculateBaselineEdgeCases:
 class TestCalculateCurrentEdgeCases:
     """Testes de edge cases para calculate_current."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_calculate_current_empty_results(self, drift_detector, mock_mongo_client):
         """Testa calculate_current com resultados vazios."""
         cursor_mock = Mock()
@@ -263,7 +265,7 @@ class TestCalculateCurrentEdgeCases:
 class TestDetectDriftEdgeCases:
     """Testes de edge cases para detect_drift."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_detect_drift_with_no_baseline_data(self, drift_detector, mock_mongo_client):
         """Testa detect_drift sem dados de baseline."""
         cursor_mock = Mock()
@@ -283,7 +285,7 @@ class TestDetectDriftEdgeCases:
         assert "baseline" in result
         assert "current" in result
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_detect_drift_with_approve_rate_change_only(
         self, drift_detector, mock_mongo_client
     ):
@@ -321,7 +323,7 @@ class TestDetectDriftEdgeCases:
 class TestPublishDriftAlertEdgeCases:
     """Testes de edge cases para publish_drift_alert."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_publish_alert_with_kafka_error(self, drift_detector, mock_kafka_producer):
         """Testa publicação quando Kafka falha."""
         mock_kafka_producer.produce_and_wait = AsyncMock(side_effect=Exception("Kafka error"))
@@ -333,7 +335,7 @@ class TestPublishDriftAlertEdgeCases:
         # Deve retornar False mesmo com erro
         assert result is False
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_publish_alert_without_drift(self, drift_detector, mock_kafka_producer):
         """Testa que alerta é publicado mesmo sem drift (comportamento atual)."""
         drift_data = {"drift_detected": False, "confidence_change": 0.02, "alerts": []}
@@ -353,7 +355,7 @@ class TestPublishDriftAlertEdgeCases:
 class TestGetActiveModelVersion:
     """Testes de _get_active_model_version."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_active_model_version_success(self, drift_detector, mock_mongo_client):
         """Testa busca de versão ativa com sucesso."""
         # Mock para retornar versão ativa
@@ -362,7 +364,7 @@ class TestGetActiveModelVersion:
                 "version": "v9",
                 "stage": "production",
                 "is_active": True,
-                "created_at": datetime.now(timezone.utc),
+                "created_at": datetime.now(UTC),
             }
         )
 
@@ -370,7 +372,7 @@ class TestGetActiveModelVersion:
 
         assert version == "v9"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_active_model_version_not_found(self, drift_detector, mock_mongo_client):
         """Testa busca quando não há modelo ativo."""
         mock_mongo_client.model_versions.find_one = AsyncMock(return_value=None)
@@ -379,7 +381,7 @@ class TestGetActiveModelVersion:
 
         assert version == "unknown"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_active_model_version_with_error(self, drift_detector, mock_mongo_client):
         """Testa tratamento de erro na busca de versão."""
         mock_mongo_client.model_versions.find_one = AsyncMock(side_effect=Exception("DB error"))
@@ -392,7 +394,7 @@ class TestGetActiveModelVersion:
 class TestDriftScoreCalculation:
     """Testes de cálculo de score de drift."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_drift_score_with_no_change(self, drift_detector, mock_mongo_client):
         """Testa score quando não há mudança."""
         cursor_mock = Mock()
@@ -407,7 +409,7 @@ class TestDriftScoreCalculation:
         assert result["drift_detected"] is False
         assert result["baseline"]["avg_confidence"] == result["current"]["avg_confidence"]
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_drift_score_with_minor_change(self, drift_detector, mock_mongo_client):
         """Testa score com mudança menor que threshold."""
         # Baseline: 0.75, Current: 0.70 (mudança de 0.05 < 0.10)
@@ -437,7 +439,7 @@ class TestDriftScoreCalculation:
 class TestDriftReportGeneration:
     """Testes de geração de relatório de drift."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_drift_report_with_recommendation(self, drift_detector):
         """Testa que drift_detected=True adiciona recomendação."""
         # Forçar drift
@@ -456,7 +458,7 @@ class TestDriftReportGeneration:
             assert result["drift_detected"] is True
             assert "recommendation" in result
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_drift_report_without_recommendation(self, drift_detector):
         """Testa que sem drift não há recomendação."""
         with patch.object(
@@ -478,7 +480,7 @@ class TestDriftReportGeneration:
 class TestThresholdComparison:
     """Testes de comparação com thresholds."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_confidence_threshold_exceeded_warning(self, drift_detector, mock_mongo_client):
         """Testa alerta de warning quando confidenceThreshold é levemente excedido."""
         # Mudança de 0.12 (> 0.10, mas < 0.15)
@@ -508,7 +510,7 @@ class TestThresholdComparison:
         # Mudança de 0.12 < 0.15 = warning
         assert confidence_alerts[0]["severity"] == "warning"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_confidence_threshold_exceeded_critical(self, drift_detector, mock_mongo_client):
         """Testa alerta crítico quando confidence drop é severo."""
         # Mudança de 0.20 (> 0.15)
@@ -552,7 +554,7 @@ class TestCustomThresholds:
         assert detector.confidence_threshold == 0.05
         assert detector.approve_rate_threshold == 0.10
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_drift_detection_with_custom_thresholds(
         self, mock_mongo_client, mock_kafka_producer
     ):

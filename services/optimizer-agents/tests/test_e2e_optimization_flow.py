@@ -10,14 +10,15 @@ Simula fluxo completo desde insight até aplicação de otimização:
 6. Atualizar Q-table
 """
 
-import pytest
-from unittest.mock import Mock, AsyncMock, patch
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+from unittest.mock import AsyncMock, Mock, patch
 
-from src.services.optimization_engine import OptimizationEngine
-from src.services.experiment_manager import ExperimentManager
-from src.models.optimization_event import OptimizationEvent
+import pytest
+
 from src.config.settings import Settings
+from src.models.optimization_event import OptimizationEvent
+from src.services.experiment_manager import ExperimentManager
+from src.services.optimization_engine import OptimizationEngine
 
 
 @pytest.fixture
@@ -94,7 +95,7 @@ def mock_argo_client():
         return_value={
             "status": "Succeeded",
             "phase": "Succeeded",
-            "finishedAt": datetime.now(timezone.utc).isoformat(),
+            "finishedAt": datetime.now(UTC).isoformat(),
         }
     )
     return client

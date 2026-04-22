@@ -5,17 +5,17 @@ Valida campos de aprovação, operações destrutivas, serialização Avro,
 e compatibilidade retroativa.
 """
 
-import pytest
-from datetime import datetime, timezone
-from src.models.cognitive_plan import CognitivePlan, TaskNode, RiskBand, PlanStatus, ApprovalStatus
+from datetime import UTC, datetime
 
+import pytest
+from src.models.cognitive_plan import ApprovalStatus, CognitivePlan, PlanStatus, RiskBand, TaskNode
 
 # ============================================================================
 # Fixtures
 # ============================================================================
 
 
-@pytest.fixture
+@pytest.fixture()
 def minimal_valid_plan_data():
     """Dados mínimos para criar um CognitivePlan válido."""
     return {
@@ -33,7 +33,7 @@ def minimal_valid_plan_data():
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_plan_requiring_approval():
     """Plano cognitivo que requer aprovação."""
     return {
@@ -63,7 +63,7 @@ def sample_plan_requiring_approval():
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_plan_approved():
     """Plano cognitivo aprovado."""
     return {
@@ -81,7 +81,7 @@ def sample_plan_approved():
         "requires_approval": True,
         "approval_status": ApprovalStatus.APPROVED,
         "approved_by": "admin-user-123",
-        "approved_at": datetime.now(timezone.utc),
+        "approved_at": datetime.now(UTC),
     }
 
 
@@ -119,7 +119,7 @@ class TestCognitivePlanApprovalFields:
 
     def test_set_approval_status_approved_with_metadata(self, minimal_valid_plan_data):
         """Definir status aprovado com approved_by e approved_at."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         minimal_valid_plan_data["requires_approval"] = True
         minimal_valid_plan_data["approval_status"] = ApprovalStatus.APPROVED
         minimal_valid_plan_data["approved_by"] = "admin-user-456"

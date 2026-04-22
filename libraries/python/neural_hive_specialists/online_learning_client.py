@@ -7,11 +7,12 @@ funcionalidades de online learning.
 
 import os
 import time
-from datetime import datetime, timedelta, timezone
-from typing import Dict, Any, Optional
-import structlog
+from datetime import UTC, datetime, timedelta
+from typing import Any, Optional
+
 import numpy as np
 import pybreaker
+import structlog
 
 logger = structlog.get_logger(__name__)
 
@@ -19,7 +20,6 @@ logger = structlog.get_logger(__name__)
 class OnlineLearningClientError(Exception):
     """Exceção base para erros do cliente de online learning."""
 
-    pass
 
 
 class OnlineLearningClient:
@@ -89,7 +89,7 @@ class OnlineLearningClient:
         if self._cached_model is None or self._cache_timestamp is None:
             return False
 
-        cache_age = datetime.now(timezone.utc) - self._cache_timestamp
+        cache_age = datetime.now(UTC) - self._cache_timestamp
         return cache_age < timedelta(seconds=self.cache_ttl_seconds)
 
     def _load_online_model(self) -> Optional[Any]:
@@ -162,7 +162,7 @@ class OnlineLearningClient:
 
             if model is not None:
                 self._cached_model = model
-                self._cache_timestamp = datetime.now(timezone.utc)
+                self._cache_timestamp = datetime.now(UTC)
 
             return model
 
@@ -176,7 +176,7 @@ class OnlineLearningClient:
         batch_model: Any,
         batch_weight: float = 0.7,
         online_weight: float = 0.3,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Executa predição combinando batch e online models.
 
@@ -211,7 +211,7 @@ class OnlineLearningClient:
                 specialist_type=self.specialist_type,
                 error=str(e),
             )
-            raise OnlineLearningClientError(f"Predição batch falhou: {str(e)}") from e
+            raise OnlineLearningClientError(f"Predição batch falhou: {e!s}") from e
 
         # Tentar predição online
         online_probas = None
@@ -308,7 +308,7 @@ class OnlineLearningClient:
                 "prediction": prediction,
                 "confidence": confidence,
                 "model_used": model_used,
-                "timestamp": datetime.now(timezone.utc),
+                "timestamp": datetime.now(UTC),
                 "online_learning_enabled": self.online_learning_enabled,
             }
 
@@ -322,7 +322,7 @@ class OnlineLearningClient:
                 error=str(e),
             )
 
-    def get_statistics(self) -> Dict[str, Any]:
+    def get_statistics(self) -> dict[str, Any]:
         """
         Retorna estatísticas de uso.
 

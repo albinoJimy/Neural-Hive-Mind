@@ -5,9 +5,7 @@ import tempfile
 from pathlib import Path
 
 import pytest
-
 from src.clients.mcp_server_client import MCPServerClient
-
 
 # Script Python que age como servidor MCP stdio mock
 MOCK_MCP_SERVER_SCRIPT = '''
@@ -157,7 +155,7 @@ if __name__ == "__main__":
 '''
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_mcp_server_path():
     """Cria script de servidor MCP mock temporário."""
     with tempfile.NamedTemporaryFile(
@@ -172,8 +170,8 @@ def mock_mcp_server_path():
     Path(server_path).unlink(missing_ok=True)
 
 
-@pytest.mark.e2e
-@pytest.mark.asyncio
+@pytest.mark.e2e()
+@pytest.mark.asyncio()
 async def test_stdio_list_tools_with_mock_server(mock_mcp_server_path):
     """Teste E2E: list_tools via stdio com servidor mock."""
     client = MCPServerClient(
@@ -191,8 +189,8 @@ async def test_stdio_list_tools_with_mock_server(mock_mcp_server_path):
     assert "stdio transport" in tools[0].description
 
 
-@pytest.mark.e2e
-@pytest.mark.asyncio
+@pytest.mark.e2e()
+@pytest.mark.asyncio()
 async def test_stdio_call_tool_with_mock_server(mock_mcp_server_path):
     """Teste E2E: call_tool via stdio com servidor mock."""
     client = MCPServerClient(
@@ -209,8 +207,8 @@ async def test_stdio_call_tool_with_mock_server(mock_mcp_server_path):
     assert "Hello from test" in result.content[0].text
 
 
-@pytest.mark.e2e
-@pytest.mark.asyncio
+@pytest.mark.e2e()
+@pytest.mark.asyncio()
 async def test_stdio_echo_tool_with_mock_server(mock_mcp_server_path):
     """Teste E2E: echo_tool via stdio com servidor mock."""
     client = MCPServerClient(
@@ -228,8 +226,8 @@ async def test_stdio_echo_tool_with_mock_server(mock_mcp_server_path):
     assert result.content[0].text == test_text
 
 
-@pytest.mark.e2e
-@pytest.mark.asyncio
+@pytest.mark.e2e()
+@pytest.mark.asyncio()
 async def test_stdio_get_resource_with_mock_server(mock_mcp_server_path):
     """Teste E2E: get_resource via stdio com servidor mock."""
     client = MCPServerClient(
@@ -246,8 +244,8 @@ async def test_stdio_get_resource_with_mock_server(mock_mcp_server_path):
     assert "config.yaml" in resource.text
 
 
-@pytest.mark.e2e
-@pytest.mark.asyncio
+@pytest.mark.e2e()
+@pytest.mark.asyncio()
 async def test_stdio_list_prompts_with_mock_server(mock_mcp_server_path):
     """Teste E2E: list_prompts via stdio com servidor mock."""
     client = MCPServerClient(
@@ -263,8 +261,8 @@ async def test_stdio_list_prompts_with_mock_server(mock_mcp_server_path):
     assert prompts[0].name == "test_prompt"
 
 
-@pytest.mark.e2e
-@pytest.mark.asyncio
+@pytest.mark.e2e()
+@pytest.mark.asyncio()
 async def test_stdio_multiple_requests_sequential(mock_mcp_server_path):
     """Teste E2E: múltiplas requisições sequenciais via stdio."""
     client = MCPServerClient(
@@ -291,8 +289,8 @@ async def test_stdio_multiple_requests_sequential(mock_mcp_server_path):
         assert len(prompts) == 1
 
 
-@pytest.mark.e2e
-@pytest.mark.asyncio
+@pytest.mark.e2e()
+@pytest.mark.asyncio()
 async def test_stdio_subprocess_restart_on_failure(mock_mcp_server_path):
     """Teste E2E: verificar que subprocess reinicia em caso de falha."""
     client = MCPServerClient(

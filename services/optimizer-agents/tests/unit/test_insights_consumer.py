@@ -10,13 +10,14 @@ Cobre:
 - Tratamento de erros
 """
 
-import pytest
 import json
 from unittest.mock import AsyncMock, Mock, patch
 
+import pytest
+
 from src.consumers.insights_consumer import InsightsConsumer
-from src.models.optimization_hypothesis import OptimizationHypothesis, OptimizationType
 from src.models.optimization_event import Adjustment
+from src.models.optimization_hypothesis import OptimizationHypothesis, OptimizationType
 
 
 @pytest.fixture

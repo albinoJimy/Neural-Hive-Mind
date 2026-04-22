@@ -10,16 +10,14 @@ import json
 
 import pytest
 from aiohttp import web
-
 from src.adapters.rest_adapter import RESTAdapter
-
 
 # ============================================================================
 # Fixtures de Mock HTTP Server
 # ============================================================================
 
 
-@pytest.fixture
+@pytest.fixture()
 def sonarqube_mock_app():
     """Mock da API SonarQube."""
     app = web.Application()
@@ -67,7 +65,7 @@ def sonarqube_mock_app():
     return app
 
 
-@pytest.fixture
+@pytest.fixture()
 def snyk_mock_app():
     """Mock da API Snyk."""
     app = web.Application()
@@ -100,7 +98,7 @@ def snyk_mock_app():
     return app
 
 
-@pytest.fixture
+@pytest.fixture()
 def checkmarx_mock_app():
     """Mock da API Checkmarx."""
     app = web.Application()
@@ -136,19 +134,19 @@ def checkmarx_mock_app():
     return app
 
 
-@pytest.fixture
+@pytest.fixture()
 async def sonarqube_server(sonarqube_mock_app, aiohttp_server):
     """Mock SonarQube server."""
     return await aiohttp_server(sonarqube_mock_app)
 
 
-@pytest.fixture
+@pytest.fixture()
 async def snyk_server(snyk_mock_app, aiohttp_server):
     """Mock Snyk server."""
     return await aiohttp_server(snyk_mock_app)
 
 
-@pytest.fixture
+@pytest.fixture()
 async def checkmarx_server(checkmarx_mock_app, aiohttp_server):
     """Mock Checkmarx server."""
     return await aiohttp_server(checkmarx_mock_app)
@@ -162,7 +160,7 @@ async def checkmarx_server(checkmarx_mock_app, aiohttp_server):
 class TestSonarQubeIntegration:
     """Testes de integracao com API SonarQube."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_sonarqube_analyze_success(self, sonarqube_server):
         """Testa chamada de analise SonarQube."""
         adapter = RESTAdapter(timeout_seconds=30, max_retries=1)
@@ -181,7 +179,7 @@ class TestSonarQubeIntegration:
         assert response_data["qualityGate"] == "OK"
         assert "issues" in response_data
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_sonarqube_unauthorized(self, sonarqube_server):
         """Testa erro de autenticacao SonarQube."""
         adapter = RESTAdapter(timeout_seconds=30, max_retries=1)
@@ -197,7 +195,7 @@ class TestSonarQubeIntegration:
         assert result.success is False
         assert result.exit_code == 401
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_sonarqube_issues_search(self, sonarqube_server):
         """Testa busca de issues SonarQube."""
         adapter = RESTAdapter(timeout_seconds=30, max_retries=1)
@@ -215,7 +213,7 @@ class TestSonarQubeIntegration:
         assert response_data["total"] == 17
         assert len(response_data["issues"]) == 1
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_sonarqube_health_check(self, sonarqube_server):
         """Testa health check SonarQube."""
         adapter = RESTAdapter(timeout_seconds=10, max_retries=1)
@@ -241,7 +239,7 @@ class TestSonarQubeIntegration:
 class TestSnykIntegration:
     """Testes de integracao com API Snyk."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_snyk_test_success(self, snyk_server):
         """Testa scan de vulnerabilidades Snyk."""
         adapter = RESTAdapter(timeout_seconds=30, max_retries=1)
@@ -259,7 +257,7 @@ class TestSnykIntegration:
         assert response_data["ok"] is True
         assert response_data["dependencyCount"] == 42
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_snyk_list_projects(self, snyk_server):
         """Testa listagem de projetos Snyk."""
         adapter = RESTAdapter(timeout_seconds=30, max_retries=1)
@@ -285,7 +283,7 @@ class TestSnykIntegration:
 class TestCheckmarxIntegration:
     """Testes de integracao com API Checkmarx."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_checkmarx_scan_success(self, checkmarx_server):
         """Testa scan Checkmarx."""
         adapter = RESTAdapter(timeout_seconds=30, max_retries=1)
@@ -303,7 +301,7 @@ class TestCheckmarxIntegration:
         assert response_data["status"] == "Completed"
         assert response_data["highVulnerabilities"] == 0
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_checkmarx_get_results(self, checkmarx_server):
         """Testa obtencao de resultados Checkmarx."""
         adapter = RESTAdapter(timeout_seconds=30, max_retries=1)
@@ -330,7 +328,7 @@ class TestCheckmarxIntegration:
 class TestRetryWithRealServer:
     """Testes de retry com servidor real."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def flaky_app(self):
         """App que falha nas primeiras requisicoes."""
         app = web.Application()
@@ -345,7 +343,7 @@ class TestRetryWithRealServer:
         app.router.add_get("/flaky", flaky_handler)
         return app
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_retry_succeeds_on_third_attempt(self, flaky_app, aiohttp_server):
         """Testa que retry funciona com servidor flaky."""
         server = await aiohttp_server(flaky_app)
@@ -371,7 +369,7 @@ class TestRetryWithRealServer:
 class TestTimeoutWithRealServer:
     """Testes de timeout com servidor real."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def slow_app(self):
         """App com endpoint lento."""
         app = web.Application()
@@ -383,7 +381,7 @@ class TestTimeoutWithRealServer:
         app.router.add_get("/slow", slow_handler)
         return app
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_timeout_triggers(self, slow_app, aiohttp_server):
         """Testa que timeout e acionado corretamente."""
         server = await aiohttp_server(slow_app)

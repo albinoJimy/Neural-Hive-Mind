@@ -7,9 +7,9 @@ ajuste de prioridades e balanceamento de carga.
 
 import logging
 import pickle
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
-UTC = timezone.utc  # type: ignore
+UTC = UTC  # type: ignore
 from enum import Enum
 
 import numpy as np

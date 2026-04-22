@@ -48,41 +48,41 @@ __version__ = "2.0.0"
 # Circuit Breaker
 from .circuit_breaker import MonitoredCircuitBreaker
 
-# Retry
-from .retry import (
-    RetryPolicy,
-    BackoffStrategy,
-    retry,
-    RetryContext,
-    RetryConfigError,
-)
-
-# Rate Limiting
-from .rate_limiter import (
-    TokenBucketRateLimiter,
-    SlidingWindowLogRateLimiter,
-    ConcurrencyLimiter,
-    RateLimiterFactory,
-    RateLimitAlgorithm,
-    RateLimitResult,
-)
-
-# Timeout
-from .timeout import (
-    timeout,
-    timeout_with_fallback,
-    TimeoutContext,
-    TimeoutWithFallback,
-)
-
 # Fallback
 from .fallback import (
+    ConditionalFallback,
     FallbackChain,
     FallbackConfig,
     FallbackResult,
     FallbackStrategy,
-    ConditionalFallback,
     with_fallback,
+)
+
+# Rate Limiting
+from .rate_limiter import (
+    ConcurrencyLimiter,
+    RateLimitAlgorithm,
+    RateLimiterFactory,
+    RateLimitResult,
+    SlidingWindowLogRateLimiter,
+    TokenBucketRateLimiter,
+)
+
+# Retry
+from .retry import (
+    BackoffStrategy,
+    RetryConfigError,
+    RetryContext,
+    RetryPolicy,
+    retry,
+)
+
+# Timeout
+from .timeout import (
+    TimeoutContext,
+    TimeoutWithFallback,
+    timeout,
+    timeout_with_fallback,
 )
 
 # Alias para compatibilidade
@@ -90,52 +90,52 @@ fallback = with_fallback
 
 # Bulkhead
 from .bulkhead import (
+    BulkheadConfig,
+    BulkheadFactory,
+    BulkheadStrategy,
     SemaphoreBulkhead,
     ThreadPoolBulkhead,
-    BulkheadFactory,
-    BulkheadConfig,
-    BulkheadStrategy,
     bulkhead,
-)
-
-# Registry
-from .registry import (
-    ResilienceRegistry,
-    PolicyType,
-    PolicyMetadata,
-    get_global_registry,
-    init_global_registry,
 )
 
 # Exceptions
 from .exceptions import (
-    # Base
-    ResilienceError,
-    # Circuit Breaker
-    CircuitBreakerError,
-    CircuitBreakerOpenError,
-    CircuitBreakerHalfOpenError,
-    # Retry
-    RetryError,
-    RetryableError,
-    NonRetryableError,
-    MaxRetriesExceededError,
-    # Rate Limiting
-    RateLimitError,
-    RateLimitExceededError,
-    ConcurrencyLimitExceededError,
-    # Timeout
-    TimeoutError as ResilienceTimeoutError,
-    # Fallback
-    FallbackError,
     AllFallbacksFailedError,
     # Bulkhead
     BulkheadError,
     BulkheadRejectedError,
+    # Circuit Breaker
+    CircuitBreakerError,
+    CircuitBreakerHalfOpenError,
+    CircuitBreakerOpenError,
+    ConcurrencyLimitExceededError,
+    # Fallback
+    FallbackError,
+    MaxRetriesExceededError,
+    NonRetryableError,
+    PolicyAlreadyExistsError,
+    PolicyNotFoundError,
+    # Rate Limiting
+    RateLimitError,
+    RateLimitExceededError,
     # Registry
     RegistryError,
-    PolicyNotFoundError,
-    PolicyAlreadyExistsError,
+    # Base
+    ResilienceError,
+    RetryableError,
+    # Retry
+    RetryError,
+    # Timeout
+    TimeoutError as ResilienceTimeoutError,
+)
+
+# Registry
+from .registry import (
+    PolicyMetadata,
+    PolicyType,
+    ResilienceRegistry,
+    get_global_registry,
+    init_global_registry,
 )
 
 # Re-exportar CircuitBreakerError do pybreaker para compatibilidade

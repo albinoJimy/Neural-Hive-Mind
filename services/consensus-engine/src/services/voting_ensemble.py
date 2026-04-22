@@ -1,5 +1,5 @@
 from collections import Counter
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Optional
 
 import structlog
 
@@ -13,8 +13,8 @@ class VotingEnsemble:
         self.config = config
 
     def aggregate_recommendations(
-        self, opinions: List[Dict[str, Any]], weights: Dict[str, float]
-    ) -> Tuple[str, Dict[str, float]]:
+        self, opinions: list[dict[str, Any]], weights: dict[str, float]
+    ) -> tuple[str, dict[str, float]]:
         """Agrega recomendações usando voting ponderado
 
         Args:
@@ -53,14 +53,14 @@ class VotingEnsemble:
 
         return winner, vote_distribution
 
-    def check_unanimity(self, opinions: List[Dict[str, Any]]) -> bool:
+    def check_unanimity(self, opinions: list[dict[str, Any]]) -> bool:
         """Verifica se há unanimidade nas recomendações"""
         recommendations = [op["opinion"]["recommendation"] for op in opinions]
         return len(set(recommendations)) == 1
 
     def check_majority(
-        self, opinions: List[Dict[str, Any]], threshold: float = 0.6
-    ) -> Tuple[bool, Optional[str]]:
+        self, opinions: list[dict[str, Any]], threshold: float = 0.6
+    ) -> tuple[bool, Optional[str]]:
         """Verifica se há maioria (>threshold) para alguma recomendação
 
         Args:

@@ -5,11 +5,12 @@ Monitora distribuição de features ao longo do tempo e detecta desvios
 significativos em relação ao dataset de referência.
 """
 
-import pandas as pd
+from datetime import UTC, datetime
+from typing import Any, Optional
+
 import numpy as np
-from typing import Dict, List, Any, Optional
+import pandas as pd
 import structlog
-from datetime import datetime, timezone
 
 logger = structlog.get_logger(__name__)
 
@@ -17,7 +18,7 @@ logger = structlog.get_logger(__name__)
 class EvidentlyMonitor:
     """Monitor de drift usando Evidently AI."""
 
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, config: dict[str, Any]):
         """
         Inicializa monitor de drift.
 
@@ -28,7 +29,7 @@ class EvidentlyMonitor:
         self.enabled = config.get("evidently_enabled", True)
         self.project_id = config.get("evidently_project_id", "default")
         self.reference_data: Optional[pd.DataFrame] = None
-        self.current_data: List[Dict[str, Any]] = []
+        self.current_data: list[dict[str, Any]] = []
         self._load_reference_data()
 
         logger.info("EvidentlyMonitor initialized", config=config)
@@ -55,7 +56,7 @@ class EvidentlyMonitor:
         else:
             logger.warning("No reference dataset configured")
 
-    def log_features(self, features: Dict[str, Any], timestamp: Optional[datetime] = None):
+    def log_features(self, features: dict[str, Any], timestamp: Optional[datetime] = None):
         """
         Registra features de uma avaliação.
 
@@ -63,12 +64,12 @@ class EvidentlyMonitor:
             features: Dicionário de features extraídas
             timestamp: Timestamp da avaliação (usa now() se None)
         """
-        record = {"timestamp": timestamp or datetime.now(timezone.utc), **features}
+        record = {"timestamp": timestamp or datetime.now(UTC), **features}
         self.current_data.append(record)
 
         logger.debug("Features logged", num_features=len(features))
 
-    def detect_drift(self) -> Dict[str, Any]:
+    def detect_drift(self) -> dict[str, Any]:
         """
         Detecta drift comparando dados atuais com referência.
 
@@ -102,8 +103,8 @@ class EvidentlyMonitor:
             current_df = pd.DataFrame(self.current_data)
 
             # Usar Evidently para detectar drift
-            from evidently.report import Report
             from evidently.metric_preset import DataDriftPreset
+            from evidently.report import Report
 
             report = Report(metrics=[DataDriftPreset()])
 
@@ -145,7 +146,7 @@ class EvidentlyMonitor:
                 "drift_score": drift_score,
                 "drifted_features": drifted_features,
                 "report": report_dict,
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
             }
 
         except ImportError:
@@ -177,8 +178,8 @@ class EvidentlyMonitor:
             return
 
         try:
-            from evidently.report import Report
             from evidently.metric_preset import DataDriftPreset, DataQualityPreset
+            from evidently.report import Report
 
             current_df = pd.DataFrame(self.current_data)
 
@@ -207,7 +208,7 @@ class EvidentlyMonitor:
         self.reference_data = new_reference
         logger.info("Reference data updated", shape=new_reference.shape)
 
-    def get_drift_score(self, reference_data: List[float], current_data: List[float]) -> float:
+    def get_drift_score(self, reference_data: list[float], current_data: list[float]) -> float:
         """
         Calcula PSI (Population Stability Index) entre duas distribuições.
 

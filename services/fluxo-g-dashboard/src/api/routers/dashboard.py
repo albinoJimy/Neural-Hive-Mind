@@ -1,9 +1,8 @@
 """Router API para Fluxo G Dashboard."""
 
-from fastapi import APIRouter, HTTPException
-from fastapi.responses import HTMLResponse
 from typing import Optional
 
+from fastapi import APIRouter, HTTPException
 from src.models.dashboard import DashboardMetrics, FluxoGWorkflowDetail
 from src.services.monitor_service import FluxoGMonitorService
 

@@ -11,26 +11,25 @@ Cobertura:
 - Integração com PriorityCalculator
 """
 
-import pytest
-from unittest.mock import MagicMock
 from datetime import datetime, timedelta
-from typing import Dict, Any
+from typing import Any
+from unittest.mock import MagicMock
 
-from src.scheduler.priority_queues import PriorityQueues, PriorityLevel
-from src.scheduler.queue_manager import QueueManager
+import pytest
 from src.config.settings import OrchestratorSettings
-
+from src.scheduler.priority_queues import PriorityLevel, PriorityQueues
+from src.scheduler.queue_manager import QueueManager
 
 # Fixtures ====================================================================
 
 
-@pytest.fixture
+@pytest.fixture()
 def priority_queues():
     """Instância limpa de PriorityQueues para cada teste."""
     return PriorityQueues()
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_config():
     """Config mock para QueueManager."""
     config = MagicMock(spec=OrchestratorSettings)
@@ -38,14 +37,14 @@ def mock_config():
     return config
 
 
-@pytest.fixture
+@pytest.fixture()
 def queue_manager(mock_config):
     """Instância de QueueManager para testes."""
     return QueueManager(mock_config)
 
 
-@pytest.fixture
-def sample_tickets() -> Dict[str, Dict[str, Any]]:
+@pytest.fixture()
+def sample_tickets() -> dict[str, dict[str, Any]]:
     """Tickets de amostra para testes."""
     now = datetime.now()
 
@@ -210,7 +209,7 @@ class TestPriorityQueuesEnqueue:
 class TestPriorityQueuesDequeue:
     """Testes de desenfileiramento."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_dequeue_from_specific_queue(self, priority_queues):
         """Dequeue de fila específica retorna ticket correto."""
         ticket = {"ticket_id": "test-dequeue-1"}
@@ -222,19 +221,19 @@ class TestPriorityQueuesDequeue:
         assert retrieved["ticket_id"] == "test-dequeue-1"
         assert priority_queues.get_queue_size("HIGH") == 0
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_dequeue_from_empty_queue(self, priority_queues):
         """Dequeue de fila vazia retorna None."""
         result = await priority_queues.dequeue("CRITICAL")
         assert result is None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_dequeue_all_empty_queues(self, priority_queues):
         """Dequeue com todas as filas vazias retorna None."""
         result = await priority_queues.dequeue()  # round-robin
         assert result is None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_weighted_round_robin_distribution(self, priority_queues):
         """Testa distribuição weighted round-robin (4:3:2:1)."""
         # Enfileirar 10 tickets em cada fila
@@ -268,7 +267,7 @@ class TestPriorityQueuesDequeue:
         # Total deve ser 20
         assert sum(queue_counts.values()) == 20
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_critical_preempts_normal(self, priority_queues):
         """Tickets CRITICAL são processados antes de NORMAL."""
         # Enfileirar NORMAL primeiro
@@ -281,7 +280,7 @@ class TestPriorityQueuesDequeue:
         ticket = await priority_queues.dequeue()
         assert ticket["ticket_id"] == "critical-1"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_high_preempts_low(self, priority_queues):
         """Tickets HIGH são processados antes de LOW."""
         priority_queues.enqueue({"ticket_id": "low-1"}, 0.2)
@@ -290,7 +289,7 @@ class TestPriorityQueuesDequeue:
         ticket = await priority_queues.dequeue()
         assert ticket["ticket_id"] == "high-1"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_fifo_within_same_priority(self, priority_queues):
         """Tickets da mesma prioridade seguem ordem FIFO."""
         # Enfileirar 3 tickets CRITICAL
@@ -510,7 +509,7 @@ class TestQueueManagerEnqueue:
 class TestQueueManagerDequeue:
     """Testes de desenfileiramento no QueueManager."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_next_ticket_round_robin(self, queue_manager, sample_tickets):
         """Dequeue usa weighted round-robin."""
         # Enfileirar tickets
@@ -522,7 +521,7 @@ class TestQueueManagerDequeue:
         ticket = await queue_manager.get_next_ticket()
         assert ticket["ticket_id"] == "ticket-critical-001"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_next_ticket_from_specific_queue(self, queue_manager, sample_tickets):
         """Dequeue de fila específica."""
         queue_manager.enqueue_ticket(sample_tickets["normal"])
@@ -607,7 +606,7 @@ class TestQueueManagerEdgeCases:
         with pytest.raises(ValueError, match="Invalid queue_name"):
             queue_manager.priority_queues.get_queue_size("INVALID")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_dequeue_empty_manager(self, queue_manager):
         """Dequeue de manager vazio retorna None."""
         ticket = await queue_manager.get_next_ticket()

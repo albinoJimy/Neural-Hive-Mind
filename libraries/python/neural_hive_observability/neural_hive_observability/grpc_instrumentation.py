@@ -7,11 +7,11 @@ automática e helpers para criação de servidores gRPC com contexto propagado.
 
 import logging
 from concurrent import futures
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Optional
 
 import grpc
 from opentelemetry import trace
-from opentelemetry.baggage import set_baggage, get_all as get_all_baggage
+from opentelemetry.baggage import get_all as get_all_baggage, set_baggage
 from opentelemetry.context import attach, detach
 from opentelemetry.instrumentation.grpc import GrpcInstrumentorClient, GrpcInstrumentorServer
 from opentelemetry.propagate import extract, inject
@@ -65,7 +65,7 @@ class NeuralHiveGrpcServerInterceptor(grpc.ServerInterceptor):
 
         return handler
 
-    def _wrap_unary_unary(self, handler, otel_context, metadata: Dict[str, str], method_path: str):
+    def _wrap_unary_unary(self, handler, otel_context, metadata: dict[str, str], method_path: str):
         def wrapper(request, servicer_context):
             token = attach(otel_context)
             span = trace.get_current_span()
@@ -85,7 +85,7 @@ class NeuralHiveGrpcServerInterceptor(grpc.ServerInterceptor):
 
         return wrapper
 
-    def _wrap_unary_stream(self, handler, otel_context, metadata: Dict[str, str], method_path: str):
+    def _wrap_unary_stream(self, handler, otel_context, metadata: dict[str, str], method_path: str):
         def wrapper(request, servicer_context):
             token = attach(otel_context)
             span = trace.get_current_span()
@@ -105,7 +105,7 @@ class NeuralHiveGrpcServerInterceptor(grpc.ServerInterceptor):
 
         return wrapper
 
-    def _wrap_stream_unary(self, handler, otel_context, metadata: Dict[str, str], method_path: str):
+    def _wrap_stream_unary(self, handler, otel_context, metadata: dict[str, str], method_path: str):
         def wrapper(request_iterator, servicer_context):
             token = attach(otel_context)
             span = trace.get_current_span()
@@ -126,7 +126,7 @@ class NeuralHiveGrpcServerInterceptor(grpc.ServerInterceptor):
         return wrapper
 
     def _wrap_stream_stream(
-        self, handler, otel_context, metadata: Dict[str, str], method_path: str
+        self, handler, otel_context, metadata: dict[str, str], method_path: str
     ):
         def wrapper(request_iterator, servicer_context):
             token = attach(otel_context)
@@ -147,7 +147,7 @@ class NeuralHiveGrpcServerInterceptor(grpc.ServerInterceptor):
 
         return wrapper
 
-    def _metadata_to_dict(self, metadata: Optional[Tuple[Tuple[str, str], ...]]) -> Dict[str, str]:
+    def _metadata_to_dict(self, metadata: Optional[tuple[tuple[str, str], ...]]) -> dict[str, str]:
         converted = {}
         if metadata:
             for key, value in metadata:
@@ -155,7 +155,7 @@ class NeuralHiveGrpcServerInterceptor(grpc.ServerInterceptor):
                     converted[key.lower()] = value
         return converted
 
-    def _build_context_from_metadata(self, metadata: Dict[str, str]):
+    def _build_context_from_metadata(self, metadata: dict[str, str]):
         ctx = extract(metadata)
         baggage_ctx = ctx
 
@@ -167,24 +167,24 @@ class NeuralHiveGrpcServerInterceptor(grpc.ServerInterceptor):
 
         return baggage_ctx
 
-    def _extract_baggage_values(self, metadata: Dict[str, str]) -> Dict[str, str]:
+    def _extract_baggage_values(self, metadata: dict[str, str]) -> dict[str, str]:
         values = {}
         for header, attr in self._header_mapping().items():
             if header in metadata:
                 values[attr] = metadata[header]
         return values
 
-    def _apply_baggage(self, baggage_values: Dict[str, str]) -> None:
+    def _apply_baggage(self, baggage_values: dict[str, str]) -> None:
         for key, value in baggage_values.items():
             set_baggage(f"neural.hive.{key.replace('_', '.')}", value)
 
-    def _parse_method(self, method_path: str) -> Tuple[str, str]:
+    def _parse_method(self, method_path: str) -> tuple[str, str]:
         parts = method_path.lstrip("/").split("/")
         service = parts[0] if parts else "unknown"
         method = parts[1] if len(parts) > 1 else "unknown"
         return service, method
 
-    def _enrich_span(self, span, method_path: str, baggage_values: Dict[str, str]) -> None:
+    def _enrich_span(self, span, method_path: str, baggage_values: dict[str, str]) -> None:
         if not span or not span.get_span_context().is_valid:
             return
 
@@ -203,7 +203,7 @@ class NeuralHiveGrpcServerInterceptor(grpc.ServerInterceptor):
             span.set_attribute(f"neural.hive.{key.replace('_', '.')}", value)
 
     @staticmethod
-    def _header_mapping() -> Dict[str, str]:
+    def _header_mapping() -> dict[str, str]:
         return {
             "x-neural-hive-intent-id": "intent.id",
             "x-neural-hive-plan-id": "plan.id",
@@ -232,7 +232,7 @@ def init_grpc_instrumentation(config: ObservabilityConfig) -> NeuralHiveGrpcServ
 def create_instrumented_grpc_server(
     config: ObservabilityConfig,
     max_workers: int = 10,
-    interceptors: Optional[List[grpc.ServerInterceptor]] = None,
+    interceptors: Optional[list[grpc.ServerInterceptor]] = None,
 ) -> grpc.Server:
     """
     Cria servidor gRPC com interceptors padrão Neural Hive.
@@ -265,7 +265,7 @@ def create_instrumented_grpc_server(
 
 
 def create_instrumented_async_grpc_server(
-    config: ObservabilityConfig, interceptors: Optional[List[grpc.aio.ServerInterceptor]] = None
+    config: ObservabilityConfig, interceptors: Optional[list[grpc.aio.ServerInterceptor]] = None
 ) -> grpc.aio.Server:
     """
     Cria servidor gRPC assíncrono com interceptors padrão Neural Hive.
@@ -317,7 +317,7 @@ def instrument_grpc_channel(
     return channel
 
 
-def extract_grpc_context(servicer_context) -> Tuple[Dict[str, str], Optional[Any]]:
+def extract_grpc_context(servicer_context) -> tuple[dict[str, str], Optional[Any]]:
     """
     Extrai contexto e baggage de metadados gRPC.
 
@@ -369,7 +369,7 @@ def extract_grpc_context(servicer_context) -> Tuple[Dict[str, str], Optional[Any
     return extracted, token
 
 
-def inject_grpc_context() -> List[Tuple[str, str]]:
+def inject_grpc_context() -> list[tuple[str, str]]:
     """
     Injeta contexto OpenTelemetry atual em metadata gRPC.
 
@@ -379,7 +379,7 @@ def inject_grpc_context() -> List[Tuple[str, str]]:
     Returns:
         Lista de tuplas (key, value) para uso como metadata gRPC
     """
-    metadata: Dict[str, str] = {}
+    metadata: dict[str, str] = {}
 
     # Injetar trace context (traceparent, tracestate)
     inject(metadata)

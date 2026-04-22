@@ -1,13 +1,14 @@
 """Preditor de carga do sistema usando Prophet/ARIMA."""
 
-from typing import Dict, Any, List, Optional
 import logging
 import time
+from datetime import datetime, timedelta
+from typing import Any, Optional
+
 import numpy as np
 import pandas as pd
-from datetime import datetime, timedelta
-from prophet import Prophet
 import pmdarima as pm
+from prophet import Prophet
 
 from neural_hive_ml.predictive_models.base_predictor import BasePredictor
 
@@ -19,7 +20,7 @@ class LoadPredictor(BasePredictor):
 
     def __init__(
         self,
-        config: Dict[str, Any],
+        config: dict[str, Any],
         model_registry: Optional[Any] = None,
         metrics: Optional[Any] = None,
         redis_client: Optional[Any] = None,
@@ -73,7 +74,7 @@ class LoadPredictor(BasePredictor):
 
     async def predict_load(
         self, horizon_minutes: int, include_confidence: bool = True
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Gera previsão de carga para horizonte especificado.
 
@@ -137,7 +138,7 @@ class LoadPredictor(BasePredictor):
                 )
             return {"forecast": [], "timestamps": [], "error": str(e)}
 
-    async def predict_bottlenecks(self, horizon_minutes: int = 360) -> List[Dict[str, Any]]:
+    async def predict_bottlenecks(self, horizon_minutes: int = 360) -> list[dict[str, Any]]:
         """
         Identifica potenciais bottlenecks futuros.
 
@@ -187,8 +188,8 @@ class LoadPredictor(BasePredictor):
             return []
 
     async def train_model(
-        self, training_window_days: int = 540, training_data: Optional[List[Dict[str, Any]]] = None
-    ) -> Dict[str, Any]:
+        self, training_window_days: int = 540, training_data: Optional[list[dict[str, Any]]] = None
+    ) -> dict[str, Any]:
         """
         Treina modelos Prophet para todos os horizontes.
 
@@ -264,7 +265,7 @@ class LoadPredictor(BasePredictor):
             logger.error(f"Erro ao treinar modelo: {e}")
             raise
 
-    def _extract_features(self, data: Dict[str, Any]) -> np.ndarray:
+    def _extract_features(self, data: dict[str, Any]) -> np.ndarray:
         """
         Extrai features de dados de time series.
 
@@ -272,7 +273,7 @@ class LoadPredictor(BasePredictor):
         """
         return np.array([])
 
-    def _prepare_timeseries_data(self, historical_data: List[Dict[str, Any]]) -> pd.DataFrame:
+    def _prepare_timeseries_data(self, historical_data: list[dict[str, Any]]) -> pd.DataFrame:
         """
         Converte dados históricos para formato Prophet (ds, y).
 
@@ -308,7 +309,7 @@ class LoadPredictor(BasePredictor):
 
     async def _predict_with_prophet(
         self, horizon_minutes: int, include_confidence: bool
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Gera forecast usando Prophet."""
         start_time = time.time()
 
@@ -339,7 +340,7 @@ class LoadPredictor(BasePredictor):
 
         return result
 
-    async def _predict_with_arima(self, horizon_minutes: int) -> Dict[str, Any]:
+    async def _predict_with_arima(self, horizon_minutes: int) -> dict[str, Any]:
         """Fallback usando ARIMA."""
         start_time = time.time()
         try:
@@ -396,7 +397,7 @@ class LoadPredictor(BasePredictor):
 
     def _evaluate_forecast(
         self, model: Prophet, df: pd.DataFrame, horizon_minutes: int
-    ) -> Dict[str, float]:
+    ) -> dict[str, float]:
         """
         Avalia acurácia do forecast usando validação cruzada.
 
@@ -435,7 +436,7 @@ class LoadPredictor(BasePredictor):
             "rmse": float(df_p["rmse"].mean()),
         }
 
-    async def _load_historical_data(self, days: int) -> List[Dict[str, Any]]:
+    async def _load_historical_data(self, days: int) -> list[dict[str, Any]]:
         """
         Carrega dados históricos de carga de banco de dados ou gera dados sintéticos.
 
@@ -546,7 +547,7 @@ class LoadPredictor(BasePredictor):
             logger.error(f"Erro ao carregar dados históricos: {e}, usando sintético")
             return self._generate_synthetic_data(days)
 
-    def _generate_synthetic_data(self, days: int) -> List[Dict[str, Any]]:
+    def _generate_synthetic_data(self, days: int) -> list[dict[str, Any]]:
         """
         Gera dados sintéticos de carga para desenvolvimento/teste.
 
@@ -576,7 +577,7 @@ class LoadPredictor(BasePredictor):
 
         return data
 
-    async def _get_from_cache(self, key: str) -> Optional[Dict[str, Any]]:
+    async def _get_from_cache(self, key: str) -> Optional[dict[str, Any]]:
         """Recupera forecast do cache Redis."""
         if not self.redis_client:
             return None
@@ -592,7 +593,7 @@ class LoadPredictor(BasePredictor):
 
         return None
 
-    async def _save_to_cache(self, key: str, data: Dict[str, Any]) -> None:
+    async def _save_to_cache(self, key: str, data: dict[str, Any]) -> None:
         """Salva forecast no cache Redis."""
         if not self.redis_client:
             return

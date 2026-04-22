@@ -19,9 +19,7 @@ class PrometheusSettings(BaseSettings):
         description="URL do Prometheus",
     )
     tls_verify: bool = Field(default=True, description="Verificar certificado TLS do Prometheus")
-    ca_bundle: str | None = Field(
-        default=None, description="Caminho para CA bundle do Prometheus"
-    )
+    ca_bundle: str | None = Field(default=None, description="Caminho para CA bundle do Prometheus")
     timeout_seconds: int = Field(default=30, description="Timeout para queries")
     max_retries: int = Field(default=3, description="Retries em caso de falha")
 
@@ -90,9 +88,7 @@ class SlackSettings(BaseSettings):
     """Configurações do Slack."""
 
     webhook_url: str | None = Field(default=None, description="Webhook URL para Slack alerts")
-    default_channel: str | None = Field(
-        default="#alerts", description="Canal padrão para alertas"
-    )
+    default_channel: str | None = Field(default="#alerts", description="Canal padrão para alertas")
 
 
 class PagerDutySettings(BaseSettings):
@@ -180,9 +176,7 @@ class Settings(BaseSettings):
     alertmanager: AlertmanagerSettings = Field(default_factory=AlertmanagerSettings)
     slack: SlackSettings = Field(default_factory=SlackSettings)
     pagerduty: PagerDutySettings = Field(default_factory=PagerDutySettings)
-    sla_alert_consumer: SLAAlertConsumerSettings = Field(
-        default_factory=SLAAlertConsumerSettings
-    )
+    sla_alert_consumer: SLAAlertConsumerSettings = Field(default_factory=SLAAlertConsumerSettings)
     calculator: CalculatorSettings = Field(default_factory=CalculatorSettings)
     policy: PolicySettings = Field(default_factory=PolicySettings)
     kubernetes: KubernetesSettings = Field(default_factory=KubernetesSettings)

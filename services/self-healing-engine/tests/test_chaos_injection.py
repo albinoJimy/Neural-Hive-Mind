@@ -4,11 +4,12 @@ Testes para injeção de chaos no Self-Healing Engine.
 Cobre pod kill, network delay, resource injection e recovery.
 """
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock
 
+import pytest
 
-@pytest.mark.asyncio
+
+@pytest.mark.asyncio()
 async def test_chaos_pod_injection():
     """Injeção de chaos pod deve deletar pod."""
     from src.chaos.injectors.pod_injector import PodInjector
@@ -26,7 +27,7 @@ async def test_chaos_pod_injection():
     assert result["action"] == "delete_pod"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_chaos_network_injection():
     """Injeção de chaos network deve adicionar delay."""
     from src.chaos.injectors.network_injector import NetworkInjector
@@ -51,7 +52,7 @@ async def test_chaos_network_injection():
     assert result["delay_ms"] == 1000
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_chaos_resource_injection():
     """Injeção de chaos resource deve consumir CPU."""
     from src.chaos.injectors.resource_injector import ResourceInjector
@@ -74,7 +75,7 @@ async def test_chaos_resource_injection():
     assert result["cpu_percent"] == 80
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_chaos_application_injection():
     """Injeção de chaos application deve causar erro."""
     from src.chaos.injectors.application_injector import ApplicationInjector
@@ -89,11 +90,11 @@ async def test_chaos_application_injection():
     assert result["success"] is True
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_chaos_experiment_execution():
     """Execução de experimento chaos deve completar."""
-    from src.chaos.chaos_models import ChaosExperiment, FaultInjection, FaultType, TargetSelector
     from src.chaos.chaos_engine import ChaosEngine
+    from src.chaos.chaos_models import ChaosExperiment, FaultInjection, FaultType, TargetSelector
 
     mock_playbook = MagicMock()
     mock_playbook_executor = MagicMock()
@@ -123,7 +124,7 @@ async def test_chaos_experiment_execution():
     assert result is not None
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_chaos_recovery_validation():
     """Validação de recovery deve medir tempo de recuperação."""
     from src.services.playbook_executor import PlaybookExecutor
@@ -151,7 +152,7 @@ async def test_chaos_recovery_validation():
     assert "success" in result
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_chaos_scenario_library():
     """Biblioteca de cenarios deve listar cenarios disponiveis."""
     from src.chaos.scenarios.scenario_library import ScenarioLibrary
@@ -163,7 +164,7 @@ async def test_chaos_scenario_library():
     assert len(scenarios) > 0
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_chaos_game_day_runner():
     """Game Day runner deve executar experimentos programados."""
     from src.chaos.game_day_runner import GameDayRunner
@@ -173,12 +174,17 @@ async def test_chaos_game_day_runner():
 
     runner = GameDayRunner(playbook_executor=mock_executor, chaos_engine=mock_chaos)
 
-    result = await runner.run_game_day(scenarios=[{"scenario_name": "pod_kill", "target_service": "test-service"}, {"scenario_name": "network_delay", "target_service": "test-service"}])
+    result = await runner.run_game_day(
+        scenarios=[
+            {"scenario_name": "pod_kill", "target_service": "test-service"},
+            {"scenario_name": "network_delay", "target_service": "test-service"},
+        ]
+    )
 
     assert result is not None
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_chaos_with_opa_approval():
     """Experimento chaos deve requerer aprovacao OPA quando habilitado."""
     from src.services.playbook_executor import PlaybookExecutor
@@ -198,7 +204,7 @@ async def test_chaos_with_opa_approval():
     assert allowed is True
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_chaos_opa_denied():
     """Experimento chaos deve ser bloqueado quando OPA nega."""
     from src.services.playbook_executor import PlaybookExecutor
@@ -223,7 +229,7 @@ async def test_chaos_opa_denied():
     assert allowed is False
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_chaos_circuit_breaker():
     """Circuit breaker deve abrir após falhas."""
     from src.services.circuit_breaker import CircuitBreaker, CircuitBreakerOpenError

@@ -11,9 +11,9 @@ Coordena toda a logica de testes A/B, incluindo:
 
 import uuid
 from dataclasses import asdict, dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
-UTC = timezone.utc  # type: ignore
+UTC = UTC  # type: ignore
 from typing import Any
 
 import structlog

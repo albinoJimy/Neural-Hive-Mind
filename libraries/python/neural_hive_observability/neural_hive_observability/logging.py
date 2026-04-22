@@ -5,10 +5,10 @@ Configura structlog com correlação automática de trace_id, span_id,
 intent_id e plan_id para facilitar troubleshooting distribuído.
 """
 
-import sys
 import logging
-from typing import Dict, Any, Optional
-from datetime import datetime, timezone
+import sys
+from datetime import UTC, datetime
+from typing import Any, Optional
 
 import structlog
 from opentelemetry import trace
@@ -18,8 +18,8 @@ from .config import ObservabilityConfig
 
 # Processor para adicionar correlação do OpenTelemetry
 def _add_trace_correlation(
-    logger: logging.Logger, method_name: str, event_dict: Dict[str, Any]
-) -> Dict[str, Any]:
+    logger: logging.Logger, method_name: str, event_dict: dict[str, Any]
+) -> dict[str, Any]:
     """
     Adiciona trace_id e span_id do OpenTelemetry ao log.
 
@@ -41,17 +41,17 @@ def _add_trace_correlation(
 
 # Processor para adicionar timestamp UTC
 def _add_timestamp_utc(
-    logger: logging.Logger, method_name: str, event_dict: Dict[str, Any]
-) -> Dict[str, Any]:
+    logger: logging.Logger, method_name: str, event_dict: dict[str, Any]
+) -> dict[str, Any]:
     """Adiciona timestamp UTC ao log."""
-    event_dict["timestamp"] = datetime.now(timezone.utc).isoformat()
+    event_dict["timestamp"] = datetime.now(UTC).isoformat()
     return event_dict
 
 
 # Processor para adicionar metadados do serviço
 def _add_service_metadata(
-    logger: logging.Logger, method_name: str, event_dict: Dict[str, Any]
-) -> Dict[str, Any]:
+    logger: logging.Logger, method_name: str, event_dict: dict[str, Any]
+) -> dict[str, Any]:
     """Adiciona metadados do serviço ao log."""
     # Obtém configuração do context ou usa defaults
     config = event_dict.get("_config", None)
@@ -72,8 +72,8 @@ def _add_service_metadata(
 
 # Processor para adicionar nível de log padrão
 def _add_log_level(
-    logger: logging.Logger, method_name: str, event_dict: Dict[str, Any]
-) -> Dict[str, Any]:
+    logger: logging.Logger, method_name: str, event_dict: dict[str, Any]
+) -> dict[str, Any]:
     """Adiciona nível de log ao evento."""
     event_dict["level"] = method_name.upper()
     return event_dict
@@ -81,8 +81,8 @@ def _add_log_level(
 
 # Processor para adicionar nome do logger
 def _add_logger_name(
-    logger: logging.Logger, method_name: str, event_dict: Dict[str, Any]
-) -> Dict[str, Any]:
+    logger: logging.Logger, method_name: str, event_dict: dict[str, Any]
+) -> dict[str, Any]:
     """Adiciona nome do logger ao evento."""
     event_dict["logger"] = logger.name
     return event_dict
@@ -428,7 +428,7 @@ class CorrelationFormatter(logging.Formatter):
         import json
 
         log_data = {
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "level": record.levelname,
             "logger": record.name,
             "message": record.getMessage(),
@@ -446,10 +446,10 @@ class CorrelationFormatter(logging.Formatter):
 class NeuralHiveLoggerAdapter(logging.LoggerAdapter):
     """Adapter legado para compatibilidade."""
 
-    def __init__(self, logger: logging.Logger, extra: Optional[Dict[str, Any]] = None):
+    def __init__(self, logger: logging.Logger, extra: Optional[dict[str, Any]] = None):
         super().__init__(logger, extra or {})
 
-    def process(self, msg: str, kwargs: Dict[str, Any]) -> tuple:
+    def process(self, msg: str, kwargs: dict[str, Any]) -> tuple:
         intent_id = kwargs.pop("intent_id", None)
         plan_id = kwargs.pop("plan_id", None)
         user_id = kwargs.pop("user_id", None)

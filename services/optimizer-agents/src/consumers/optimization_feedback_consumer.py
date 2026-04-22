@@ -14,9 +14,9 @@ Created: 2026-03-30 (Epic J)
 import asyncio
 import json
 from collections import defaultdict
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
-UTC = timezone.utc  # type: ignore
+UTC = UTC  # type: ignore
 from enum import Enum
 from typing import Any
 

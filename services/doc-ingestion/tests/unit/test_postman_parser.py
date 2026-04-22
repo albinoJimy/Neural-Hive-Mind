@@ -21,7 +21,7 @@ def sample_postman_v21():
             "name": "Test API Collection",
             "description": "Test description",
             "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-            "version": "1.0.0"
+            "version": "1.0.0",
         },
         "item": [
             {
@@ -32,37 +32,29 @@ def sample_postman_v21():
                         "raw": "https://api.example.com/users",
                         "protocol": "https",
                         "host": ["api", "example", "com"],
-                        "path": ["users"]
+                        "path": ["users"],
                     },
-                    "header": [
-                        {"key": "Authorization", "value": "Bearer token123"}
-                    ]
-                }
+                    "header": [{"key": "Authorization", "value": "Bearer token123"}],
+                },
             },
             {
                 "name": "Create User",
                 "request": {
                     "method": "POST",
                     "url": "https://api.example.com/users",
-                    "body": {
-                        "mode": "raw",
-                        "raw": '{"name": "John", "email": "john@example.com"}'
-                    }
-                }
+                    "body": {"mode": "raw", "raw": '{"name": "John", "email": "john@example.com"}'},
+                },
             },
             {
                 "name": "API Folder",
                 "item": [
                     {
                         "name": "Delete User",
-                        "request": {
-                            "method": "DELETE",
-                            "url": "https://api.example.com/users/1"
-                        }
+                        "request": {"method": "DELETE", "url": "https://api.example.com/users/1"},
                     }
-                ]
-            }
-        ]
+                ],
+            },
+        ],
     }
     return json.dumps(collection).encode()
 
@@ -141,18 +133,22 @@ class TestPostmanParserExtractApis:
     async def test_extract_apis_with_headers(self, postman_parser):
         """Testa extração com headers."""
         collection = {
-            "info": {"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"},
-            "item": [{
-                "name": "Test",
-                "request": {
-                    "method": "GET",
-                    "url": "https://api.test.com/endpoint",
-                    "header": [
-                        {"key": "Authorization", "value": "Bearer token"},
-                        {"key": "Content-Type", "value": "application/json"}
-                    ]
+            "info": {
+                "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+            },
+            "item": [
+                {
+                    "name": "Test",
+                    "request": {
+                        "method": "GET",
+                        "url": "https://api.test.com/endpoint",
+                        "header": [
+                            {"key": "Authorization", "value": "Bearer token"},
+                            {"key": "Content-Type", "value": "application/json"},
+                        ],
+                    },
                 }
-            }]
+            ],
         }
         content = json.dumps(collection).encode()
 
@@ -166,17 +162,28 @@ class TestPostmanParserExtractApis:
     async def test_extract_apis_nested_folders(self, postman_parser):
         """Testa extração com pastas aninhadas."""
         collection = {
-            "info": {"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"},
-            "item": [{
-                "name": "Parent Folder",
-                "item": [{
-                    "name": "Child Folder",
-                    "item": [{
-                        "name": "Nested API",
-                        "request": {"method": "GET", "url": "https://api.test.com/nested"}
-                    }]
-                }]
-            }]
+            "info": {
+                "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+            },
+            "item": [
+                {
+                    "name": "Parent Folder",
+                    "item": [
+                        {
+                            "name": "Child Folder",
+                            "item": [
+                                {
+                                    "name": "Nested API",
+                                    "request": {
+                                        "method": "GET",
+                                        "url": "https://api.test.com/nested",
+                                    },
+                                }
+                            ],
+                        }
+                    ],
+                }
+            ],
         }
         content = json.dumps(collection).encode()
 
@@ -190,11 +197,10 @@ class TestPostmanParserExtractApis:
     async def test_extract_apis_minimal_request(self, postman_parser):
         """Testa extração com request mínimo."""
         collection = {
-            "info": {"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"},
-            "item": [{
-                "name": "Minimal",
-                "request": {"url": "https://api.test.com/minimal"}
-            }]
+            "info": {
+                "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+            },
+            "item": [{"name": "Minimal", "request": {"url": "https://api.test.com/minimal"}}],
         }
         content = json.dumps(collection).encode()
 
@@ -208,11 +214,10 @@ class TestPostmanParserExtractApis:
     async def test_extract_apis_without_url(self, postman_parser):
         """Testa que requests sem URL são ignorados."""
         collection = {
-            "info": {"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"},
-            "item": [{
-                "name": "No URL",
-                "request": {"method": "POST"}
-            }]
+            "info": {
+                "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+            },
+            "item": [{"name": "No URL", "request": {"method": "POST"}}],
         }
         content = json.dumps(collection).encode()
 
@@ -225,15 +230,19 @@ class TestPostmanParserExtractApis:
     async def test_extract_apis_with_auth(self, postman_parser):
         """Testa extração com configuração de autenticação."""
         collection = {
-            "info": {"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"},
-            "item": [{
-                "name": "Auth API",
-                "request": {
-                    "method": "POST",
-                    "url": "https://api.test.com/auth",
-                    "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "abc123"}]}
+            "info": {
+                "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+            },
+            "item": [
+                {
+                    "name": "Auth API",
+                    "request": {
+                        "method": "POST",
+                        "url": "https://api.test.com/auth",
+                        "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "abc123"}]},
+                    },
                 }
-            }]
+            ],
         }
         content = json.dumps(collection).encode()
 
@@ -271,9 +280,9 @@ class TestPostmanParserExtractMetadata:
             "info": {
                 "name": "Test",
                 "description": {"content": "Rich description", "version": "1"},
-                "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+                "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
             },
-            "item": []
+            "item": [],
         }
         content = json.dumps(collection).encode()
 
@@ -285,8 +294,10 @@ class TestPostmanParserExtractMetadata:
     async def test_extract_metadata_minimal(self, postman_parser):
         """Testa metadados mínimos."""
         collection = {
-            "info": {"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"},
-            "item": []
+            "info": {
+                "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+            },
+            "item": [],
         }
         content = json.dumps(collection).encode()
 

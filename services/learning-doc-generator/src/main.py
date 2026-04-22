@@ -4,7 +4,7 @@ import asyncio
 
 import structlog
 from fastapi import FastAPI
-from prometheus_client import Counter, Histogram, make_asgi_app
+from prometheus_client import make_asgi_app
 from src.api import v1
 from src.api.v1.docs import AppState, set_state
 from src.clients import KafkaLearningDocProducer
@@ -21,8 +21,6 @@ from src.services import (
 
 from neural_hive_observability import init_observability
 from neural_hive_observability.health import HealthChecker, HealthStatus
-
-from src.observability.metrics import learning_doc_metrics
 
 logger = structlog.get_logger()
 
@@ -267,6 +265,7 @@ async def readiness():
         all_ready = all(checks.values())
         if not all_ready:
             from fastapi.responses import JSONResponse
+
             return JSONResponse(status_code=503, content={"ready": False, "checks": checks})
 
         return {"ready": True, "checks": checks}
@@ -274,6 +273,7 @@ async def readiness():
     except Exception as e:
         logger.error("Erro no readiness check", error=str(e))
         from fastapi.responses import JSONResponse
+
         return JSONResponse(
             status_code=503, content={"ready": False, "checks": checks, "error": str(e)}
         )
@@ -283,6 +283,7 @@ async def readiness():
 async def metrics():
     """Endpoint métricas Prometheus (compatibilidade)"""
     from fastapi.responses import Response
+
     # O endpoint principal está montado abaixo, este é apenas para compatibilidade
     return Response(content="Prometheus metrics disponíveis em /metrics", media_type="text/plain")
 

@@ -1,8 +1,8 @@
 """Unit tests for impact models."""
 
-import pytest
-from datetime import datetime, timezone
+from datetime import UTC
 
+import pytest
 from src.models.impact import (
     BatchImpactAnalysisRequest,
     ExperimentCorrelation,
@@ -17,10 +17,10 @@ from src.models.impact import (
     ShortTermImpact,
 )
 
-UTC = timezone.utc
+UTC = UTC
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestMetricImpact:
     """Test suite for MetricImpact model."""
 
@@ -44,7 +44,7 @@ class TestMetricImpact:
         assert impact.statistical_significance is True
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestShortTermImpact:
     """Test suite for ShortTermImpact model."""
 
@@ -64,7 +64,7 @@ class TestShortTermImpact:
         assert impact.error_rate_change == -10.0
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestLongTermImpact:
     """Test suite for LongTermImpact model."""
 
@@ -85,7 +85,7 @@ class TestLongTermImpact:
         assert "error_rate" in impact.trend_analysis
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestExperimentImpact:
     """Test suite for ExperimentImpact model."""
 
@@ -124,7 +124,7 @@ class TestExperimentImpact:
         assert "overall_direction" in data
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestImpactAnalysisRequest:
     """Test suite for ImpactAnalysisRequest model."""
 
@@ -142,7 +142,7 @@ class TestImpactAnalysisRequest:
         assert request.include_correlations is True
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestBatchImpactAnalysisRequest:
     """Test suite for BatchImpactAnalysisRequest model."""
 
@@ -164,7 +164,7 @@ class TestBatchImpactAnalysisRequest:
             )
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestImpactEnums:
     """Test suite for impact enums."""
 
@@ -197,7 +197,7 @@ class TestImpactEnums:
         assert ImpactTimeframe.BOTH.value == "both"
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestExperimentCorrelation:
     """Test suite for ExperimentCorrelation model."""
 

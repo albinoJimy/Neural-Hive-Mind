@@ -43,9 +43,7 @@ class VisioParser:
             return ""
 
         # Executa operação síncrona em thread pool
-        return await asyncio.to_thread(
-            self._extract_text_sync, file_content
-        )
+        return await asyncio.to_thread(self._extract_text_sync, file_content)
 
     def _extract_text_sync(self, file_content: bytes) -> str:
         """
@@ -101,9 +99,7 @@ class VisioParser:
             return []
 
         # Executa operação síncrona em thread pool
-        return await asyncio.to_thread(
-            self._extract_shapes_sync, file_content
-        )
+        return await asyncio.to_thread(self._extract_shapes_sync, file_content)
 
     def _extract_shapes_sync(self, file_content: bytes) -> list[dict[str, Any]]:
         """
@@ -150,9 +146,7 @@ class VisioParser:
             return {}
 
         # Executa operação síncrona em thread pool
-        return await asyncio.to_thread(
-            self._extract_metadata_sync, file_content
-        )
+        return await asyncio.to_thread(self._extract_metadata_sync, file_content)
 
     def _extract_metadata_sync(self, file_content: bytes) -> dict[str, Any]:
         """

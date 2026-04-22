@@ -10,21 +10,21 @@ Esta biblioteca fornece modelos de machine learning reutilizáveis para:
 - Canary Deployment de modelos (CanaryDeployer)
 """
 
-from neural_hive_ml.predictive_models import (
-    SchedulingPredictor,
-    LoadPredictor,
-    AnomalyDetector,
-)
-from neural_hive_ml.mlflow_client import MLflowClient
 from neural_hive_ml.config import (
-    get_mlflow_settings,
-    get_online_learning_settings,
     MLflowSettings,
     OnlineLearningSettings,
+    get_mlflow_settings,
+    get_online_learning_settings,
 )
+from neural_hive_ml.drift_detector import CanaryDeployer, DriftDetector
+from neural_hive_ml.mlflow_client import MLflowClient
 from neural_hive_ml.model_version_repository import ModelVersionRepository
+from neural_hive_ml.predictive_models import (
+    AnomalyDetector,
+    LoadPredictor,
+    SchedulingPredictor,
+)
 from neural_hive_ml.retraining_job import RetrainingJob
-from neural_hive_ml.drift_detector import DriftDetector, CanaryDeployer
 
 __version__ = "1.2.0"
 __all__ = [

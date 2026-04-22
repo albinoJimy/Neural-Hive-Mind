@@ -4,14 +4,14 @@ Cobertura de funcionalidades de análise estática de código.
 """
 
 import ast
-import pytest
-from pathlib import Path
 import tempfile
+from pathlib import Path
 
+import pytest
 from src.exploration.codebase_explorer import CodebaseExplorer
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_python_code():
     """Código Python de exemplo para testes."""
     return '''
@@ -85,7 +85,7 @@ class SingletonFactory:
 '''
 
 
-@pytest.fixture
+@pytest.fixture()
 def temp_codebase_dir():
     """Diretório temporário para testes de codebase."""
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -127,7 +127,7 @@ class BaseClass:
         yield tmpdir
 
 
-@pytest.fixture
+@pytest.fixture()
 def explorer(temp_codebase_dir):
     """Explorador para testes."""
     return CodebaseExplorer(temp_codebase_dir, file_extensions=[".py"])

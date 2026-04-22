@@ -8,29 +8,29 @@ Cobre:
 - Enums (TaskType, TicketStatus, Priority, RiskBand, SecurityLevel, etc.)
 """
 
-import pytest
-from datetime import datetime, timezone
-from unittest.mock import patch
-
 # Configure path
 import sys
+from datetime import datetime
 from pathlib import Path
+
+import pytest
+
 src_path = Path(__file__).parent.parent / "src"
 if str(src_path) not in sys.path:
     sys.path.insert(0, str(src_path))
 
 from src.models.execution_ticket import (
-    TaskType,
-    TicketStatus,
+    SLA,
+    Consistency,
+    DeliveryMode,
+    Durability,
+    ExecutionTicket,
     Priority,
+    QoS,
     RiskBand,
     SecurityLevel,
-    DeliveryMode,
-    Consistency,
-    Durability,
-    SLA,
-    QoS,
-    ExecutionTicket,
+    TaskType,
+    TicketStatus,
 )
 
 

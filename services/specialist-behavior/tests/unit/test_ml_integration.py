@@ -1,9 +1,9 @@
 """Testes de integração ML para BehaviorSpecialist."""
 
-import sys
 import os
+import sys
+
 import pytest
-from typing import Dict
 
 # Configurar paths
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "src"))
@@ -26,7 +26,7 @@ class MockMLflowClient:
             return None
         return MockBehaviorModel()
 
-    def get_model_metadata(self, model_name: str, stage: str) -> Dict:
+    def get_model_metadata(self, model_name: str, stage: str) -> dict:
         if not self._model_available:
             return {}
         return self._model_metadata.copy()
@@ -56,12 +56,12 @@ class MockBehaviorModel:
         return 1 if X.mean() > 0.5 else 0
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_mlflow_client():
     return MockMLflowClient(model_available=True)
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_behavior_features():
     return {
         "usability_score": 0.85,

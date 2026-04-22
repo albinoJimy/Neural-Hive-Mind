@@ -2,25 +2,26 @@
 Testes para DynamicThresholds e ThresholdMonitor
 """
 
+from datetime import UTC, datetime, timedelta
+
 import pytest
-from datetime import datetime, timedelta, timezone
 
 from neural_hive_risk_scoring import (
     DynamicThresholds,
+    RiskScoringConfig,
     ThresholdAdjustmentStrategy,
     ThresholdMonitor,
-    RiskScoringConfig,
     UnifiedDomain,
 )
 
 
-@pytest.fixture
+@pytest.fixture()
 def config():
     """Configuração de teste."""
     return RiskScoringConfig()
 
 
-@pytest.fixture
+@pytest.fixture()
 def dynamic_thresholds(config):
     """Thresholds dinâmicos de teste."""
     return DynamicThresholds(
@@ -31,7 +32,7 @@ def dynamic_thresholds(config):
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def threshold_monitor(dynamic_thresholds):
     """Monitor de thresholds de teste."""
     return ThresholdMonitor(dynamic_thresholds)
@@ -233,7 +234,7 @@ class TestThresholdMonitor:
         assert len(threshold_monitor.get_violations()) >= 1
 
         # Limpar violações recentes
-        threshold_monitor.clear_violations(before=datetime.now(timezone.utc) + timedelta(hours=1))
+        threshold_monitor.clear_violations(before=datetime.now(UTC) + timedelta(hours=1))
 
         # Deve estar vazio
         assert len(threshold_monitor.get_violations()) == 0
@@ -336,9 +337,9 @@ class TestThresholdMonitor:
 
     def test_violation_timestamp(self, threshold_monitor):
         """Testa timestamp da violação."""
-        before = datetime.now(timezone.utc)
+        before = datetime.now(UTC)
         violation = threshold_monitor.check_violation(UnifiedDomain.SECURITY, 0.95)
-        after = datetime.now(timezone.utc)
+        after = datetime.now(UTC)
 
         if violation:
             assert before <= violation.timestamp <= after

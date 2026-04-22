@@ -7,7 +7,7 @@ de consenso do Neural-Hive-Mind.
 EPIC-204-01: Modelo ML para SHAP
 """
 
-from typing import Any, Dict, List
+from typing import Any
 
 import joblib
 import numpy as np
@@ -69,7 +69,7 @@ class DecisionWrapperModel:
         self.model_type = model_type
         self.is_trained = False
 
-    def extract_features(self, decision_data: Dict[str, Any]) -> np.ndarray:
+    def extract_features(self, decision_data: dict[str, Any]) -> np.ndarray:
         """
         Extrai features de uma decisão consolidada.
 
@@ -130,7 +130,7 @@ class DecisionWrapperModel:
 
         return np.array(features).reshape(1, -1)
 
-    def train(self, historical_decisions: List[Dict[str, Any]]) -> Dict[str, float]:
+    def train(self, historical_decisions: list[dict[str, Any]]) -> dict[str, float]:
         """
         Treina modelo com decisões históricas.
 
@@ -229,7 +229,7 @@ class DecisionWrapperModel:
 
         return metrics
 
-    def predict_proba(self, decision_data: Dict[str, Any]) -> float:
+    def predict_proba(self, decision_data: dict[str, Any]) -> float:
         """
         Prediz probabilidade de aprovação.
 
@@ -251,7 +251,7 @@ class DecisionWrapperModel:
         # Retornar probabilidade de classe 1 (approve)
         return float(proba[1])
 
-    def predict(self, decision_data: Dict[str, Any]) -> int:
+    def predict(self, decision_data: dict[str, Any]) -> int:
         """
         Prediz classe (0=reject, 1=approve).
 
@@ -307,7 +307,7 @@ class DecisionWrapperModel:
 
         logger.info("shap_model_loaded", path=path)
 
-    def get_feature_importance(self) -> Dict[str, float]:
+    def get_feature_importance(self) -> dict[str, float]:
         """
         Retorna importância das features do modelo treinado.
 
@@ -346,7 +346,7 @@ class FeatureExtractor:
             "voting_confidence",
         ]
 
-    def extract_batch(self, decisions: List[Dict[str, Any]]) -> np.ndarray:
+    def extract_batch(self, decisions: list[dict[str, Any]]) -> np.ndarray:
         """
         Extrai features de um lote de decisões.
 
@@ -374,7 +374,7 @@ class FeatureExtractor:
 
         return np.array(features_list)
 
-    def validate_features(self, features: np.ndarray) -> Dict[str, Any]:
+    def validate_features(self, features: np.ndarray) -> dict[str, Any]:
         """
         Valida array de features.
 
@@ -437,7 +437,7 @@ class ModelTrainer:
         self.target_accuracy = target_accuracy
         self.model = DecisionWrapperModel(model_type=model_type)
 
-    def train_from_decisions(self, decisions: List[Dict[str, Any]]) -> Dict[str, Any]:
+    def train_from_decisions(self, decisions: list[dict[str, Any]]) -> dict[str, Any]:
         """
         Treina modelo a partir de lista de decisões.
 

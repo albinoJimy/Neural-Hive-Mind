@@ -10,8 +10,6 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-
-
 # Import test helpers
 from tests.fixtures.executor_fixtures import (
     create_mock_code_forge_client,
@@ -22,14 +20,13 @@ from tests.helpers.integration_helpers import (
     ResultValidator,
 )
 
-
 pytestmark = [pytest.mark.integration]
 
 
 class TestBuildExecutorWithMockCodeForge:
     """Tests for BuildExecutor with mocked Code Forge client."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_build_executor_with_mock_code_forge_success(
         self, worker_config, mock_vault_client, mock_metrics
     ):
@@ -74,7 +71,7 @@ class TestBuildExecutorWithMockCodeForge:
         # Verify metrics were recorded
         mock_metrics.build_tasks_executed_total.labels.assert_called()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_build_executor_code_forge_connection_failure_fallback(
         self, worker_config, mock_vault_client, mock_metrics
     ):
@@ -100,7 +97,7 @@ class TestBuildExecutorWithMockCodeForge:
         ResultValidator.assert_simulated(result, expected=True)
         ResultValidator.assert_has_output(result, "artifact_url", "build_id")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_build_executor_pipeline_timeout(
         self, worker_config, mock_vault_client, mock_metrics
     ):
@@ -129,7 +126,7 @@ class TestBuildExecutorWithMockCodeForge:
         ResultValidator.assert_simulated(result, expected=False)
         ResultValidator.assert_output_value(result, "pipeline_id", "pipeline-timeout")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_build_executor_pipeline_failed_status(
         self, worker_config, mock_vault_client, mock_metrics
     ):
@@ -157,7 +154,7 @@ class TestBuildExecutorWithMockCodeForge:
         ResultValidator.assert_failure(result)
         ResultValidator.assert_simulated(result, expected=False)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_build_executor_retry_logic_success(
         self, worker_config, mock_vault_client, mock_metrics
     ):
@@ -203,7 +200,7 @@ class TestBuildExecutorWithMockCodeForge:
         ResultValidator.assert_simulated(result, expected=False)
         assert call_count["value"] == 3, "Expected 3 calls (2 failures + 1 success)"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_build_executor_retry_exhausted(
         self, worker_config, mock_vault_client, mock_metrics
     ):
@@ -239,7 +236,7 @@ class TestBuildExecutorWithMockCodeForge:
 class TestBuildExecutorSimulation:
     """Tests for BuildExecutor simulation mode (no Code Forge client)."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_build_executor_simulation_mode(
         self, worker_config_minimal, mock_vault_client, mock_metrics
     ):
@@ -263,7 +260,7 @@ class TestBuildExecutorSimulation:
         ResultValidator.assert_has_output(result, "artifact_url", "build_id", "commit_sha")
         ResultValidator.assert_log_contains(result, "simulated")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_build_executor_simulation_metrics(
         self, worker_config_minimal, mock_vault_client, mock_metrics
     ):
@@ -289,7 +286,7 @@ class TestBuildExecutorSimulation:
 class TestBuildExecutorValidation:
     """Tests for BuildExecutor input validation."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_build_executor_missing_ticket_id(self, build_executor):
         """Test that missing ticket_id raises ValidationError."""
         from executors.base_executor import ValidationError
@@ -305,7 +302,7 @@ class TestBuildExecutorValidation:
 
         assert "ticket_id" in str(exc_info.value)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_build_executor_wrong_task_type(self, build_executor):
         """Test that wrong task_type raises ValidationError."""
         from executors.base_executor import ValidationError
@@ -323,17 +320,18 @@ class TestBuildExecutorValidation:
         assert "task type mismatch" in str(exc_info.value).lower()
 
 
-@pytest.mark.real_integration
-@pytest.mark.code_forge
+@pytest.mark.real_integration()
+@pytest.mark.code_forge()
 class TestBuildExecutorRealCodeForge:
     """Tests that require a real Code Forge instance."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_build_executor_with_real_code_forge(
         self, worker_config, mock_vault_client, mock_metrics
     ):
         """Test with real Code Forge (requires CODE_FORGE_URL env var)."""
         from src.executors.build_executor import BuildExecutor
+
         from neural_hive_integration.clients.code_forge_client import CodeForgeClient
 
         code_forge_url = os.getenv("CODE_FORGE_URL")

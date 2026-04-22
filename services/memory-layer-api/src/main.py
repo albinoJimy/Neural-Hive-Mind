@@ -3,7 +3,7 @@ Memory Layer API - Unified access to multicamadas memory
 """
 
 from contextlib import asynccontextmanager
-from typing import Any, Dict
+from typing import Any
 
 import structlog
 from fastapi import FastAPI, HTTPException, Request
@@ -24,7 +24,7 @@ from src.services.retention_policy_manager import RetentionPolicyManager
 logger = structlog.get_logger(__name__)
 
 # Global state
-app_state: Dict[str, Any] = {}
+app_state: dict[str, Any] = {}
 
 
 @asynccontextmanager
@@ -274,7 +274,7 @@ async def query_memory(request: MemoryQueryRequest):
         return result
     except Exception as e:
         logger.error("Query failed", error=str(e), entity_id=request.entity_id)
-        raise HTTPException(status_code=500, detail=f"Query failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Query failed: {e!s}")
 
 
 @app.get("/api/v1/memory/lineage/{entity_id}")
@@ -287,7 +287,7 @@ async def get_lineage(entity_id: str, depth: int = 3):
         return lineage
     except Exception as e:
         logger.error("Lineage query failed", error=str(e), entity_id=entity_id)
-        raise HTTPException(status_code=500, detail=f"Lineage query failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Lineage query failed: {e!s}")
 
 
 @app.get("/api/v1/memory/quality/stats")
@@ -300,7 +300,7 @@ async def get_quality_stats(data_type: str = None):
         return {"data_type": data_type, "stats": stats}
     except Exception as e:
         logger.error("Quality stats query failed", error=str(e))
-        raise HTTPException(status_code=500, detail=f"Quality stats failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Quality stats failed: {e!s}")
 
 
 @app.post("/api/v1/memory/invalidate")
@@ -313,7 +313,7 @@ async def invalidate_cache(pattern: str, cascade: bool = False):
         return {"status": "success", "pattern": pattern, "cascade": cascade}
     except Exception as e:
         logger.error("Cache invalidation failed", error=str(e), pattern=pattern)
-        raise HTTPException(status_code=500, detail=f"Cache invalidation failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Cache invalidation failed: {e!s}")
 
 
 @app.get("/api/v1/memory/catalog/assets")
@@ -329,7 +329,7 @@ async def list_data_assets(limit: int = 100, offset: int = 0):
         return {"assets": assets, "count": len(assets)}
     except Exception as e:
         logger.error("Asset catalog query failed", error=str(e))
-        raise HTTPException(status_code=500, detail=f"Asset catalog failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Asset catalog failed: {e!s}")
 
 
 @app.exception_handler(Exception)

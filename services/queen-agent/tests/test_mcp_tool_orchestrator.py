@@ -30,7 +30,7 @@ MCPToolOrchestrator = load_mcp_orchestrator()
 class TestMCPToolOrchestrator:
     """Testes do MCPToolOrchestrator."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def orchestrator(self):
         """Retorna instância do orchestrator."""
 
@@ -40,7 +40,7 @@ class TestMCPToolOrchestrator:
 
         return MCPToolOrchestrator(scout_client=scout_client, optimizer_client=optimizer_client)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_tools_parallel(self, orchestrator):
         """Testa execução paralela de ferramentas."""
         # Mock responses
@@ -66,7 +66,7 @@ class TestMCPToolOrchestrator:
         assert results[0]["server"] == "scout"
         assert results[1]["server"] == "optimizer"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_tools_sequence(self, orchestrator):
         """Testa execução sequencial de ferramentas."""
 
@@ -93,7 +93,7 @@ class TestMCPToolOrchestrator:
         assert results[0]["status"] == "success"
         assert results[1]["status"] == "success"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_aggregate_results(self, orchestrator):
         """Testa agregação de resultados."""
         results = [
@@ -125,7 +125,7 @@ class TestMCPToolOrchestrator:
         assert aggregated["by_server"]["scout"] == 2
         assert aggregated["by_server"]["optimizer"] == 1
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_tools_with_unknown_server(self, orchestrator):
         """Testa erro com servidor desconhecido."""
         requests = [
@@ -135,7 +135,7 @@ class TestMCPToolOrchestrator:
         with pytest.raises(ValueError):
             await orchestrator.execute_tools_parallel(requests)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_tools_handles_partial_failure(self, orchestrator):
         """Testa que falhas parciais são tratadas."""
         # Mock: first succeeds, second fails
@@ -157,7 +157,7 @@ class TestMCPToolOrchestrator:
         assert results[0]["status"] == "success"
         assert results[1]["status"] == "error"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_available_tools(self, orchestrator):
         """Testa listagem de ferramentas disponíveis."""
         orchestrator._clients["scout"].list_tools.return_value = [
@@ -178,7 +178,7 @@ class TestMCPToolOrchestrator:
 class TestMCPToolOrchestratorIntegration:
     """Testes de integração do MCPToolOrchestrator."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_full_workflow(self):
         """Testa workflow completo: descoberta -> execução -> agregação."""
 

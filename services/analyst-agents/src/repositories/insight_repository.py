@@ -3,8 +3,8 @@ Repositório MongoDB para Insights.
 """
 
 import uuid
-from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List, Optional
+from datetime import UTC, datetime, timedelta
+from typing import Any, List, Optional
 
 import structlog
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -51,8 +51,8 @@ class InsightRepository:
         doc = insight.dict()
         doc["insight_id"] = str(uuid.uuid4())
         doc["status"] = InsightStatus.PENDING
-        doc["created_at"] = datetime.now(timezone.utc)
-        doc["expires_at"] = datetime.now(timezone.utc) + timedelta(days=self.ttl_days)
+        doc["created_at"] = datetime.now(UTC)
+        doc["expires_at"] = datetime.now(UTC) + timedelta(days=self.ttl_days)
 
         # Initialize default metrics (required field)
         doc["metrics"] = InsightMetrics(
@@ -76,13 +76,13 @@ class InsightRepository:
         self,
         analysis_type: Optional[AnalysisType] = None,
         source: Optional[InsightSource] = None,
-        tags: Optional[List[str]] = None,
+        tags: Optional[list[str]] = None,
         status: Optional[InsightStatus] = None,
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
         limit: int = 50,
         offset: int = 0,
-    ) -> tuple[List[InsightResponse], int]:
+    ) -> tuple[list[InsightResponse], int]:
         """Listar insights com filtros."""
         filters = {}
 
@@ -117,7 +117,7 @@ class InsightRepository:
         return items, total
 
     async def update_status(
-        self, insight_id: str, status: InsightStatus, data: Optional[Dict[str, Any]] = None
+        self, insight_id: str, status: InsightStatus, data: Optional[dict[str, Any]] = None
     ) -> Optional[InsightResponse]:
         """Atualizar status do insight."""
         update_doc = {"status": status.value}
@@ -134,7 +134,7 @@ class InsightRepository:
         return await self.get_by_id(insight_id)
 
     async def update_metrics(
-        self, insight_id: str, metrics: Dict[str, Any]
+        self, insight_id: str, metrics: dict[str, Any]
     ) -> Optional[InsightResponse]:
         """Atualizar métricas do insight."""
         result = await self._db[self.collection].update_one(
@@ -164,8 +164,8 @@ class InsightRepository:
         self,
         cache_key: str,
         metric_name: str,
-        data: List[Dict[str, Any]],
-        statistics: Dict[str, float],
+        data: List[dict[str, Any]],
+        statistics: dict[str, float],
     ) -> TimeSeriesCacheEntry:
         """Salvar no cache de série temporal."""
         doc = {
@@ -173,8 +173,8 @@ class InsightRepository:
             "metric_name": metric_name,
             "data": data,
             "statistics": statistics,
-            "created_at": datetime.now(timezone.utc),
-            "expires_at": datetime.now(timezone.utc) + timedelta(hours=self.cache_ttl_hours),
+            "created_at": datetime.now(UTC),
+            "expires_at": datetime.now(UTC) + timedelta(hours=self.cache_ttl_hours),
         }
 
         await self._db[self.cache_collection].update_one(
@@ -188,9 +188,9 @@ class InsightRepository:
         result = await self._db[self.cache_collection].delete_one({"cache_key": cache_key})
         return result.deleted_count > 0
 
-    async def get_analytics_summary(self, time_range_hours: int = 24) -> Dict[str, Any]:
+    async def get_analytics_summary(self, time_range_hours: int = 24) -> dict[str, Any]:
         """Obter resumo agregado para dashboard."""
-        start_date = datetime.now(timezone.utc) - timedelta(hours=time_range_hours)
+        start_date = datetime.now(UTC) - timedelta(hours=time_range_hours)
 
         pipeline = [
             {"$match": {"created_at": {"$gte": start_date}}},

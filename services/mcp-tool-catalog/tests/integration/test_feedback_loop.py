@@ -11,16 +11,14 @@ Cobertura:
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-
-from src.models.tool_descriptor import ToolDescriptor, ToolCategory, IntegrationType
-
+from src.models.tool_descriptor import IntegrationType, ToolCategory, ToolDescriptor
 
 # ============================================================================
 # Fixtures
 # ============================================================================
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_mongodb():
     """Mock de cliente MongoDB."""
     client = MagicMock()
@@ -45,7 +43,7 @@ def mock_mongodb():
     return client, collection
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_redis():
     """Mock de cliente Redis."""
     client = MagicMock()
@@ -56,7 +54,7 @@ def mock_redis():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def tool_registry_class():
     """Importa ToolRegistry para testes."""
     from src.services.tool_registry import ToolRegistry
@@ -64,7 +62,7 @@ def tool_registry_class():
     return ToolRegistry
 
 
-@pytest.fixture
+@pytest.fixture()
 def cli_tool():
     """Ferramenta CLI para testes."""
     return ToolDescriptor(
@@ -90,7 +88,7 @@ def cli_tool():
 class TestReputationUpdate:
     """Testes de atualizacao de reputacao."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_reputation_increases_on_success(self, mock_mongodb, mock_redis):
         """Verifica que reputacao aumenta apos execucao bem-sucedida."""
         _, collection = mock_mongodb
@@ -145,7 +143,7 @@ class TestReputationUpdate:
         assert update_dict["$set"]["reputation_score"] > 0.8
         assert update_dict["$set"]["success_count"] == 81
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_reputation_decreases_on_failure(self, mock_mongodb, mock_redis):
         """Verifica que reputacao diminui apos falha."""
         _, collection = mock_mongodb
@@ -187,7 +185,7 @@ class TestReputationUpdate:
         assert update_dict["$set"]["reputation_score"] < 0.8
         assert update_dict["$set"]["failure_count"] == 21
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_reputation_bounded_0_to_1(self, mock_mongodb):
         """Verifica que reputacao sempre esta entre 0 e 1."""
         _, collection = mock_mongodb
@@ -227,7 +225,7 @@ class TestReputationUpdate:
 class TestExecutionTimeUpdate:
     """Testes de atualizacao de tempo de execucao."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_average_execution_time_updated(self, mock_mongodb):
         """Verifica que media de tempo e atualizada."""
         _, collection = mock_mongodb
@@ -260,7 +258,7 @@ class TestExecutionTimeUpdate:
         # Nova media deve estar entre old (5000) e new (3000)
         assert 3000 < update_calls[0]["$set"]["average_execution_time_ms"] < 5000
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execution_time_exponential_moving_average(self, mock_mongodb):
         """Verifica calculo de EMA para tempo de execucao."""
         _, collection = mock_mongodb
@@ -290,7 +288,7 @@ class TestExecutionTimeUpdate:
 class TestHealthStatus:
     """Testes de status de saude da ferramenta."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_tool_marked_unhealthy_after_failures(self, mock_mongodb):
         """Verifica que ferramenta e marcada unhealthy apos N falhas."""
         _, collection = mock_mongodb
@@ -329,7 +327,7 @@ class TestHealthStatus:
         assert update_calls[0]["$set"]["is_healthy"] is False
         assert update_calls[0]["$set"]["consecutive_failures"] == 5
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_tool_marked_healthy_after_successes(self, mock_mongodb):
         """Verifica que ferramenta volta a healthy apos sucessos."""
         _, collection = mock_mongodb
@@ -382,7 +380,7 @@ class TestHealthStatus:
 class TestFeedbackPropagation:
     """Testes de propagacao de feedback para MongoDB e cache."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_feedback_updates_mongodb(self, mock_mongodb, mock_redis):
         """Verifica que feedback persiste no MongoDB."""
         _, collection = mock_mongodb
@@ -411,7 +409,7 @@ class TestFeedbackPropagation:
 
         assert update_called is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_feedback_invalidates_cache(self, mock_redis):
         """Verifica que feedback invalida cache Redis."""
         # Cache tem valor antigo
@@ -434,7 +432,7 @@ class TestFeedbackPropagation:
         assert delete_called is True
         assert deleted_key == cache_key
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_feedback_updates_all_caches(self, mock_redis):
         """Verifica que feedback invalida todos os caches relacionados."""
         delete_calls = []
@@ -466,7 +464,7 @@ class TestFeedbackPropagation:
 class TestIntegratedFeedbackScenarios:
     """Testes de cenarios integrados de feedback."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_complete_success_feedback_flow(self, mock_mongodb, mock_redis):
         """Testa fluxo completo de feedback de sucesso."""
         _, collection = mock_mongodb
@@ -514,7 +512,7 @@ class TestIntegratedFeedbackScenarios:
         assert updates[0]["$set"]["reputation_score"] > 0.8
         assert updates[0]["$set"]["success_count"] == 81
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_complete_failure_feedback_flow(self, mock_mongodb, mock_redis):
         """Testa fluxo completo de feedback de falha."""
         _, collection = mock_mongodb
@@ -555,7 +553,7 @@ class TestIntegratedFeedbackScenarios:
         assert updates[0]["$set"]["failure_count"] == 21
         assert updates[0]["$set"]["consecutive_successes"] == 0
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_rapid_succession_feedback(self, mock_mongodb, mock_redis):
         """Testa feedback em rapida sucessao."""
         _, collection = mock_mongodb

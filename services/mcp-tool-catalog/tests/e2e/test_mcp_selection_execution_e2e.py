@@ -1,10 +1,9 @@
 import pytest
-
 from src.models.tool_selection import ToolSelectionRequest
 
 
-@pytest.mark.e2e
-@pytest.mark.asyncio
+@pytest.mark.e2e()
+@pytest.mark.asyncio()
 async def test_genetic_selection_with_real_execution(genetic_selector, tool_executor):
     """Test full flow: genetic selection + real tool execution."""
 
@@ -49,8 +48,8 @@ async def test_genetic_selection_with_real_execution(genetic_selector, tool_exec
             )
 
 
-@pytest.mark.e2e
-@pytest.mark.asyncio
+@pytest.mark.e2e()
+@pytest.mark.asyncio()
 async def test_cache_hit_after_selection(genetic_selector):
     """Test cache hit on repeated selection."""
     request = ToolSelectionRequest(

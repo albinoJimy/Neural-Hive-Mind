@@ -2,15 +2,15 @@
 Testes unitários para AlertManager.
 """
 
-import pytest
-from unittest.mock import AsyncMock, MagicMock
 from datetime import datetime
+from unittest.mock import AsyncMock, MagicMock
 
-from src.sla.alert_manager import AlertManager
+import pytest
 from src.config.settings import OrchestratorSettings
+from src.sla.alert_manager import AlertManager
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_config():
     """Fixture com configurações mock."""
     config = MagicMock(spec=OrchestratorSettings)
@@ -20,7 +20,7 @@ def mock_config():
     return config
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_kafka_producer():
     """Fixture com Kafka producer mock."""
     producer = AsyncMock()
@@ -28,7 +28,7 @@ def mock_kafka_producer():
     return producer
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_redis():
     """Fixture com cliente Redis mock."""
     redis = AsyncMock()
@@ -37,7 +37,7 @@ def mock_redis():
     return redis
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_metrics():
     """Fixture com métricas mock."""
     metrics = MagicMock()
@@ -48,7 +48,7 @@ def mock_metrics():
     return metrics
 
 
-@pytest.fixture
+@pytest.fixture()
 def budget_critical_context():
     """Contexto para alerta de budget crítico."""
     return {
@@ -60,7 +60,7 @@ def budget_critical_context():
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def deadline_approaching_context():
     """Contexto para alerta de deadline próximo."""
     return {
@@ -72,7 +72,7 @@ def deadline_approaching_context():
     }
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_send_proactive_alert_budget_critical(
     mock_config, mock_kafka_producer, mock_redis, mock_metrics, budget_critical_context
 ):
@@ -101,7 +101,7 @@ async def test_send_proactive_alert_budget_critical(
     mock_metrics.record_sla_alert_sent.assert_called_once_with("BUDGET_CRITICAL", "CRITICAL")
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_send_proactive_alert_deadline_approaching(
     mock_config, mock_kafka_producer, mock_redis, mock_metrics, deadline_approaching_context
 ):
@@ -126,7 +126,7 @@ async def test_send_proactive_alert_deadline_approaching(
     assert "ticket_id" in alert_payload["context"]
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_send_proactive_alert_deduplicated(
     mock_config, mock_kafka_producer, mock_redis, mock_metrics, budget_critical_context
 ):
@@ -144,7 +144,7 @@ async def test_send_proactive_alert_deduplicated(
     mock_metrics.record_sla_alert_deduplicated.assert_called_once()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_send_proactive_alert_no_redis(
     mock_config, mock_kafka_producer, mock_metrics, budget_critical_context
 ):
@@ -158,7 +158,7 @@ async def test_send_proactive_alert_no_redis(
     mock_kafka_producer.publish_ticket.assert_called_once()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_send_proactive_alert_kafka_failure(
     mock_config, mock_kafka_producer, mock_redis, mock_metrics, budget_critical_context
 ):
@@ -174,7 +174,7 @@ async def test_send_proactive_alert_kafka_failure(
     mock_metrics.record_sla_monitor_error.assert_called_once_with("alert_publish")
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_publish_sla_violation_success(mock_config, mock_kafka_producer, mock_metrics):
     """Testa publicação bem-sucedida de violação SLA."""
     manager = AlertManager(mock_config, mock_kafka_producer, mock_metrics)
@@ -207,7 +207,7 @@ async def test_publish_sla_violation_success(mock_config, mock_kafka_producer, m
     mock_metrics.record_sla_violation_published.assert_called_once_with("DEADLINE_EXCEEDED")
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_publish_sla_violation_with_defaults(mock_config, mock_kafka_producer, mock_metrics):
     """Testa publicação de violação com campos mínimos (defaults aplicados)."""
     manager = AlertManager(mock_config, mock_kafka_producer, mock_metrics)
@@ -227,7 +227,7 @@ async def test_publish_sla_violation_with_defaults(mock_config, mock_kafka_produ
     assert "timestamp" in violation_event
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_publish_sla_violation_kafka_failure(mock_config, mock_kafka_producer, mock_metrics):
     """Testa falha na publicação de violação."""
     mock_kafka_producer.publish_ticket = AsyncMock(side_effect=Exception("Kafka error"))
@@ -246,7 +246,7 @@ async def test_publish_sla_violation_kafka_failure(mock_config, mock_kafka_produ
     mock_metrics.record_sla_monitor_error.assert_called_once_with("violation_publish")
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_send_budget_alert(mock_config, mock_kafka_producer, mock_redis, mock_metrics):
     """Testa alerta específico de budget."""
     manager = AlertManager(mock_config, mock_kafka_producer, mock_metrics)
@@ -269,7 +269,7 @@ async def test_send_budget_alert(mock_config, mock_kafka_producer, mock_redis, m
     assert alert_payload["context"]["budget_remaining"] == 0.18
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_send_deadline_alert(mock_config, mock_kafka_producer, mock_redis, mock_metrics):
     """Testa alerta específico de deadline."""
     manager = AlertManager(mock_config, mock_kafka_producer, mock_metrics)
@@ -292,7 +292,7 @@ async def test_send_deadline_alert(mock_config, mock_kafka_producer, mock_redis,
     assert alert_payload["context"]["remaining_seconds"] == 45
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_alert_deduplication_cache(
     mock_config, mock_kafka_producer, mock_redis, mock_metrics, budget_critical_context
 ):
@@ -318,7 +318,7 @@ async def test_alert_deduplication_cache(
     mock_metrics.record_sla_alert_deduplicated.assert_called_once()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_send_proactive_alert_producer_none(
     mock_config, mock_metrics, budget_critical_context
 ):
@@ -331,7 +331,7 @@ async def test_send_proactive_alert_producer_none(
     mock_metrics.record_sla_monitor_error.assert_called_once_with("producer_not_initialized")
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_publish_sla_violation_producer_none(mock_config, mock_metrics):
     """Testa publicação de violação quando producer é None."""
     manager = AlertManager(mock_config, None, mock_metrics)

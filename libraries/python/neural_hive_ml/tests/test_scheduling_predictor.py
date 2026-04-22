@@ -1,21 +1,22 @@
 """Testes unitários para SchedulingPredictor."""
 
-import pytest
+import tempfile
+from unittest.mock import AsyncMock, Mock, patch
+
 import numpy as np
 import pandas as pd
-from unittest.mock import Mock, patch, AsyncMock
-import tempfile
+import pytest
 
 from neural_hive_ml.predictive_models.scheduling_predictor import SchedulingPredictor
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_config():
     """Configuração mock para SchedulingPredictor."""
     return {"model_name": "scheduling-predictor", "model_type": "xgboost", "hyperparameters": {}}
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_config_ensemble():
     """Configuração mock para modo ensemble."""
     return {
@@ -26,7 +27,7 @@ def mock_config_ensemble():
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_registry():
     """ModelRegistry mock."""
     registry = Mock()
@@ -34,7 +35,7 @@ def mock_registry():
     return registry
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_metrics():
     """Metrics client mock."""
     metrics = Mock()
@@ -43,7 +44,7 @@ def mock_metrics():
     return metrics
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_ticket():
     """Ticket de exemplo para testes."""
     return {
@@ -59,7 +60,7 @@ def sample_ticket():
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def training_data():
     """Dados de treinamento sintéticos."""
     np.random.seed(42)
@@ -108,7 +109,7 @@ def training_data():
 # =============================================================================
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_initialization(mock_config, mock_registry, mock_metrics):
     """Testa inicialização básica do SchedulingPredictor."""
     predictor = SchedulingPredictor(
@@ -126,7 +127,7 @@ async def test_initialization(mock_config, mock_registry, mock_metrics):
 # =============================================================================
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_predict_duration_xgboost(
     mock_config, mock_registry, mock_metrics, sample_ticket, training_data
 ):
@@ -169,7 +170,7 @@ async def test_predict_duration_xgboost(
         assert prediction["model_type"] == "xgboost"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_predict_resources(
     mock_config, mock_registry, mock_metrics, sample_ticket, training_data
 ):
@@ -206,7 +207,7 @@ async def test_predict_resources(
         assert 0 <= resources["confidence"] <= 1
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_predict_duration_ensemble(
     mock_config_ensemble, mock_registry, mock_metrics, sample_ticket, training_data
 ):
@@ -246,7 +247,7 @@ async def test_predict_duration_ensemble(
 # =============================================================================
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_train_model_metrics(mock_config, mock_registry, mock_metrics, training_data):
     """Valida que métricas de treinamento atendem os requisitos."""
     with (
@@ -275,7 +276,7 @@ async def test_train_model_metrics(mock_config, mock_registry, mock_metrics, tra
         assert metrics["training_samples"] == len(training_data)
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_hyperparameter_tuning(mock_config, mock_registry, mock_metrics, training_data):
     """Testa tuning de hiperparâmetros."""
     mock_config["enable_tuning"] = True
@@ -313,7 +314,7 @@ async def test_hyperparameter_tuning(mock_config, mock_registry, mock_metrics, t
 # =============================================================================
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_fallback_on_prediction_error(
     mock_config, mock_registry, mock_metrics, sample_ticket
 ):
@@ -339,7 +340,7 @@ async def test_fallback_on_prediction_error(
 # =============================================================================
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_prediction_latency(
     mock_config, mock_registry, mock_metrics, sample_ticket, training_data
 ):
@@ -379,7 +380,7 @@ async def test_prediction_latency(
 # =============================================================================
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_model_persistence_and_reload(
     mock_config, mock_registry, mock_metrics, sample_ticket, training_data
 ):
@@ -432,7 +433,7 @@ async def test_model_persistence_and_reload(
 # =============================================================================
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_heuristic_duration_estimate(mock_config, sample_ticket):
     """Testa estimativa heurística de duração."""
     predictor = SchedulingPredictor(config=mock_config)
@@ -445,7 +446,7 @@ async def test_heuristic_duration_estimate(mock_config, sample_ticket):
     assert result >= sample_ticket["estimated_duration_ms"] * 0.8
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_calculate_confidence(mock_config, sample_ticket):
     """Testa cálculo de confiança."""
     predictor = SchedulingPredictor(config=mock_config)
@@ -458,7 +459,7 @@ async def test_calculate_confidence(mock_config, sample_ticket):
     assert 0 <= confidence <= 1
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_predict_resources_with_fallback(mock_config, sample_ticket):
     """Testa predição de recursos com fallback."""
     predictor = SchedulingPredictor(config=mock_config)
@@ -472,7 +473,7 @@ async def test_predict_resources_with_fallback(mock_config, sample_ticket):
     assert result["memory_mb"] >= 128
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_predict_duration_error_handling(mock_config, sample_ticket):
     """Testa tratamento de erro na predição de duração."""
     predictor = SchedulingPredictor(config=mock_config)
@@ -487,7 +488,7 @@ async def test_predict_duration_error_handling(mock_config, sample_ticket):
     assert result["predicted_duration_ms"] > 0
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_get_feature_names(mock_config):
     """Testa obtenção de nomes de features."""
     predictor = SchedulingPredictor(config=mock_config)
@@ -501,7 +502,7 @@ async def test_get_feature_names(mock_config):
     assert "qos_priority" in feature_names
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_predict_resources_based_on_duration(mock_config, sample_ticket):
     """Testa que recursos são baseados na duração predita."""
     predictor = SchedulingPredictor(config=mock_config)
@@ -518,7 +519,7 @@ async def test_predict_resources_based_on_duration(mock_config, sample_ticket):
     assert "memory_mb" in result
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_predict_duration_without_model(mock_config, sample_ticket):
     """Testa predição sem modelo carregado."""
     predictor = SchedulingPredictor(config=mock_config)
@@ -531,7 +532,7 @@ async def test_predict_duration_without_model(mock_config, sample_ticket):
     assert result["predicted_duration_ms"] > 0
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_predict_duration_with_ensemble(mock_config_ensemble, sample_ticket):
     """Testa predição com ensemble de modelos."""
     predictor = SchedulingPredictor(config=mock_config_ensemble)
@@ -554,7 +555,7 @@ async def test_predict_duration_with_ensemble(mock_config_ensemble, sample_ticke
     assert abs(result["predicted_duration_ms"] - 10000) < 100
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_initialize_with_model_types(mock_config, mock_registry):
     """Testa inicialização com diferentes tipos de modelo."""
     # Testar com lightgbm
@@ -564,7 +565,7 @@ async def test_initialize_with_model_types(mock_config, mock_registry):
     assert predictor.model_type == "lightgbm"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_initialize_loads_from_registry(mock_config, mock_registry):
     """Testa que initialize carrega modelo do registry."""
     predictor = SchedulingPredictor(config=mock_config, model_registry=mock_registry)
@@ -579,7 +580,7 @@ async def test_initialize_loads_from_registry(mock_config, mock_registry):
     assert predictor.model is not None
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_initialize_handles_errors(mock_config, mock_registry):
     """Testa tratamento de erro na inicialização."""
     predictor = SchedulingPredictor(config=mock_config, model_registry=mock_registry)
@@ -599,7 +600,7 @@ async def test_initialize_handles_errors(mock_config, mock_registry):
 # =============================================================================
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_predict_duration_with_missing_features(mock_config, sample_ticket):
     """Testa predição com features faltando."""
     predictor = SchedulingPredictor(config=mock_config)
@@ -619,7 +620,7 @@ async def test_predict_duration_with_missing_features(mock_config, sample_ticket
     assert "confidence" in result
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_batch_prediction(mock_config, sample_ticket):
     """Testa predição em lote de múltiplos tickets."""
     predictor = SchedulingPredictor(config=mock_config)
@@ -641,7 +642,7 @@ async def test_batch_prediction(mock_config, sample_ticket):
         assert pred["predicted_duration_ms"] > 0
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_feature_importance_extraction(mock_config, mock_registry, training_data):
     """Testa extração de importância de features."""
     with (
@@ -673,7 +674,7 @@ async def test_feature_importance_extraction(mock_config, mock_registry, trainin
             assert val >= 0
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_confidence_calculation_with_high_risk(mock_config):
     """Testa cálculo de confiança com alto risco."""
     predictor = SchedulingPredictor(config=mock_config)
@@ -687,7 +688,7 @@ async def test_confidence_calculation_with_high_risk(mock_config):
     assert 0.5 <= confidence <= 0.8
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_confidence_calculation_with_historical_stats(mock_config):
     """Testa cálculo de confiança com estatísticas históricas."""
     predictor = SchedulingPredictor(config=mock_config)
@@ -701,7 +702,7 @@ async def test_confidence_calculation_with_historical_stats(mock_config):
     assert 0.9 <= confidence <= 1.0
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_predict_resources_with_high_risk_ticket(mock_config):
     """Testa predição de recursos para ticket de alto risco."""
     predictor = SchedulingPredictor(config=mock_config)
@@ -720,7 +721,7 @@ async def test_predict_resources_with_high_risk_ticket(mock_config):
     assert result["memory_mb"] > 256
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_predict_resources_with_low_complexity(mock_config):
     """Testa predição de recursos para ticket simples."""
     predictor = SchedulingPredictor(config=mock_config)
@@ -739,7 +740,7 @@ async def test_predict_resources_with_low_complexity(mock_config):
     assert result["memory_mb"] <= 512
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_confidence_interval_estimation(
     mock_config, mock_registry, mock_metrics, sample_ticket, training_data
 ):
@@ -770,7 +771,7 @@ async def test_confidence_interval_estimation(
         assert pred["predicted_duration_ms"] > 0
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_model_versioning_tracking(mock_config, mock_registry, training_data):
     """Testa rastreamento de versão do modelo."""
     with (
@@ -794,7 +795,7 @@ async def test_model_versioning_tracking(mock_config, mock_registry, training_da
         assert predictor.model is not None
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_error_handling_invalid_ticket(mock_config):
     """Testa tratamento de erro para ticket inválido."""
     predictor = SchedulingPredictor(config=mock_config)

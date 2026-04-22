@@ -8,7 +8,7 @@ injeção de falhas, validação e relatórios.
 import uuid
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from pydantic import BaseModel, Field
 
@@ -66,8 +66,8 @@ class TargetSelector(BaseModel):
     """Seletor de alvos para injeção de falhas."""
 
     namespace: str = Field(default="default", description="Namespace Kubernetes")
-    labels: Dict[str, str] = Field(default_factory=dict, description="Labels para seleção")
-    pod_names: List[str] = Field(default_factory=list, description="Nomes específicos de pods")
+    labels: dict[str, str] = Field(default_factory=dict, description="Labels para seleção")
+    pod_names: list[str] = Field(default_factory=list, description="Nomes específicos de pods")
     deployment_name: Optional[str] = Field(default=None, description="Nome do deployment")
     service_name: Optional[str] = Field(default=None, description="Nome do serviço")
     percentage: int = Field(default=100, ge=0, le=100, description="Percentual de pods afetados")
@@ -132,7 +132,7 @@ class ValidationCriteria(BaseModel):
     max_latency_p99_ms: Optional[int] = Field(
         default=None, ge=0, description="Latência P99 máxima em ms"
     )
-    custom_metrics: Dict[str, Any] = Field(
+    custom_metrics: dict[str, Any] = Field(
         default_factory=dict, description="Métricas customizadas"
     )
     required_playbook: Optional[str] = Field(
@@ -153,8 +153,8 @@ class FaultInjection(BaseModel):
     start_time: Optional[datetime] = Field(default=None, description="Hora de início")
     end_time: Optional[datetime] = Field(default=None, description="Hora de término")
     status: str = Field(default="pending", description="Status da injeção")
-    affected_pods: List[str] = Field(default_factory=list, description="Pods afetados")
-    rollback_data: Dict[str, Any] = Field(default_factory=dict, description="Dados para rollback")
+    affected_pods: list[str] = Field(default_factory=list, description="Pods afetados")
+    rollback_data: dict[str, Any] = Field(default_factory=dict, description="Dados para rollback")
 
 
 class ChaosExperiment(BaseModel):
@@ -164,7 +164,7 @@ class ChaosExperiment(BaseModel):
     name: str = Field(..., min_length=1, max_length=200, description="Nome do experimento")
     description: Optional[str] = Field(default=None, description="Descrição do experimento")
     environment: str = Field(default="staging", description="Ambiente de execução")
-    fault_injections: List[FaultInjection] = Field(
+    fault_injections: list[FaultInjection] = Field(
         default_factory=list, description="Injeções de falha"
     )
     validation_criteria: ValidationCriteria = Field(
@@ -185,7 +185,7 @@ class ChaosExperiment(BaseModel):
     completed_at: Optional[datetime] = Field(default=None, description="Data de conclusão")
     approved_by: Optional[str] = Field(default=None, description="Aprovador do experimento")
     executed_by: Optional[str] = Field(default=None, description="Executor do experimento")
-    metadata: Dict[str, Any] = Field(default_factory=dict, description="Metadados adicionais")
+    metadata: dict[str, Any] = Field(default_factory=dict, description="Metadados adicionais")
 
 
 class ValidationResult(BaseModel):
@@ -204,9 +204,9 @@ class ValidationResult(BaseModel):
     )
     latency_p95_ms: Optional[float] = Field(default=None, description="Latência P95 em ms")
     latency_p99_ms: Optional[float] = Field(default=None, description="Latência P99 em ms")
-    criteria_met: Dict[str, bool] = Field(default_factory=dict, description="Critérios atendidos")
-    observations: List[str] = Field(default_factory=list, description="Observações do validador")
-    metrics_snapshot: Dict[str, Any] = Field(
+    criteria_met: dict[str, bool] = Field(default_factory=dict, description="Critérios atendidos")
+    observations: list[str] = Field(default_factory=list, description="Observações do validador")
+    metrics_snapshot: dict[str, Any] = Field(
         default_factory=dict, description="Snapshot de métricas"
     )
     timestamp: datetime = Field(
@@ -224,20 +224,20 @@ class ExperimentReport(BaseModel):
     end_time: datetime = Field(..., description="Hora de término")
     duration_seconds: float = Field(..., description="Duração total em segundos")
     status: ChaosExperimentStatus = Field(..., description="Status final")
-    fault_injections: List[FaultInjection] = Field(
+    fault_injections: list[FaultInjection] = Field(
         default_factory=list, description="Injeções executadas"
     )
-    validations: List[ValidationResult] = Field(
+    validations: list[ValidationResult] = Field(
         default_factory=list, description="Resultados de validação"
     )
     blast_radius: int = Field(default=0, description="Número de pods afetados")
-    playbooks_triggered: List[str] = Field(default_factory=list, description="Playbooks acionados")
+    playbooks_triggered: list[str] = Field(default_factory=list, description="Playbooks acionados")
     outcome: str = Field(..., description="Resultado final (success/failure)")
     failure_reason: Optional[str] = Field(default=None, description="Razão de falha se aplicável")
-    recommendations: List[str] = Field(
+    recommendations: list[str] = Field(
         default_factory=list, description="Recomendações baseadas no teste"
     )
-    metrics_summary: Dict[str, Any] = Field(default_factory=dict, description="Resumo de métricas")
+    metrics_summary: dict[str, Any] = Field(default_factory=dict, description="Resumo de métricas")
     generated_at: datetime = Field(
         default_factory=datetime.utcnow, description="Data de geração do relatório"
     )
@@ -249,7 +249,7 @@ class ChaosExperimentRequest(BaseModel):
     name: str = Field(..., min_length=1, max_length=200, description="Nome do experimento")
     description: Optional[str] = Field(default=None, description="Descrição")
     environment: str = Field(default="staging", description="Ambiente")
-    fault_injections: List[FaultInjection] = Field(
+    fault_injections: list[FaultInjection] = Field(
         ..., min_length=1, description="Injeções de falha"
     )
     validation_criteria: Optional[ValidationCriteria] = Field(
@@ -261,7 +261,7 @@ class ChaosExperimentRequest(BaseModel):
     timeout_seconds: int = Field(default=600, ge=60, le=3600, description="Timeout em segundos")
     blast_radius_limit: int = Field(default=5, ge=1, le=50, description="Limite de blast radius")
     approved_by: Optional[str] = Field(default=None, description="Aprovador")
-    metadata: Dict[str, Any] = Field(default_factory=dict, description="Metadados")
+    metadata: dict[str, Any] = Field(default_factory=dict, description="Metadados")
 
 
 class ChaosExperimentResponse(BaseModel):
@@ -282,6 +282,6 @@ class ScenarioConfig(BaseModel):
     target_service: str = Field(..., description="Serviço alvo")
     target_namespace: str = Field(default="default", description="Namespace alvo")
     playbook_to_validate: Optional[str] = Field(default=None, description="Playbook para validar")
-    custom_parameters: Dict[str, Any] = Field(
+    custom_parameters: dict[str, Any] = Field(
         default_factory=dict, description="Parâmetros customizados"
     )

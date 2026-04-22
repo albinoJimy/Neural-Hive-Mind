@@ -2,7 +2,7 @@
 
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from pydantic import BaseModel, Field
 
@@ -36,9 +36,8 @@ class ApprovalRequest(BaseModel):
     description: str = Field(..., description="Descrição detalhada")
 
     # Contexto da solicitação
-    context: Dict[str, Any] = Field(
-        default_factory=dict,
-        description="Contexto adicional (artifacts, metadados)"
+    context: dict[str, Any] = Field(
+        default_factory=dict, description="Contexto adicional (artifacts, metadados)"
     )
 
     # Metadados
@@ -59,12 +58,7 @@ class ApprovalDecision(BaseModel):
     status: ApprovalStatus = Field(..., description="Decisão tomada")
 
     # Análise
-    confidence_score: float = Field(
-        ...,
-        ge=0.0,
-        le=1.0,
-        description="Grau de confiança na decisão"
-    )
+    confidence_score: float = Field(..., ge=0.0, le=1.0, description="Grau de confiança na decisão")
     reasoning: str = Field(..., description="Raciocínio da decisão")
 
     # Detalhes
@@ -73,7 +67,7 @@ class ApprovalDecision(BaseModel):
 
     # Feedback para aprendizado
     feedback: Optional[str] = Field(None, description="Feedback adicional")
-    tags: List[str] = Field(default_factory=list, description="Tags para categorização")
+    tags: list[str] = Field(default_factory=list, description="Tags para categorização")
 
     class Config:
         populate_by_name = True
@@ -103,39 +97,27 @@ class ApprovalPolicy(BaseModel):
     description: str
 
     # Condições
-    applies_to_types: List[ApprovalType] = Field(
-        default_factory=list,
-        description="Tipos de aprovação a que se aplica"
+    applies_to_types: list[ApprovalType] = Field(
+        default_factory=list, description="Tipos de aprovação a que se aplica"
     )
 
     # Thresholds
     auto_approve_threshold: float = Field(
-        default=0.8,
-        ge=0.0,
-        le=1.0,
-        description="Confiança mínima para aprovação automática"
+        default=0.8, ge=0.0, le=1.0, description="Confiança mínima para aprovação automática"
     )
     auto_reject_threshold: float = Field(
-        default=0.3,
-        ge=0.0,
-        le=1.0,
-        description="Confiança máxima para rejeição automática"
+        default=0.3, ge=0.0, le=1.0, description="Confiança máxima para rejeição automática"
     )
     require_human_threshold: float = Field(
-        default=0.5,
-        ge=0.0,
-        le=1.0,
-        description="Confiança que requer intervenção humana"
+        default=0.5, ge=0.0, le=1.0, description="Confiança que requer intervenção humana"
     )
 
     # Regras adicionais
     require_human_for_critical: bool = Field(
-        default=True,
-        description="Requer humano para itens críticos"
+        default=True, description="Requer humano para itens críticos"
     )
     max_auto_approve_complexity: int = Field(
-        default=5,
-        description="Complexidade máxima para aprovação automática"
+        default=5, description="Complexidade máxima para aprovação automática"
     )
 
     is_active: bool = Field(default=True)

@@ -5,7 +5,6 @@ Testa o ciclo: Criação -> Serialização -> Deserialização -> API Response
 garantindo que valores booleanos são preservados em todas as camadas.
 """
 
-
 from src.models.tool_descriptor import (
     AuthenticationMethod,
     IntegrationType,

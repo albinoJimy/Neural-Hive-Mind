@@ -1,17 +1,16 @@
 """Repositório de solicitações de aprovação."""
 
-from typing import List, Optional
 from datetime import datetime
-from bson import ObjectId
-import structlog
+from typing import Optional
 
+import structlog
+from src.db.mongodb import get_mongodb_client
 from src.models.approval import (
-    ApprovalRequest,
     ApprovalDecision,
+    ApprovalRequest,
     ApprovalStatus,
     ApprovalType,
 )
-from src.db.mongodb import get_mongodb_client
 
 logger = structlog.get_logger(__name__)
 
@@ -66,9 +65,7 @@ class ApprovalsRepository:
         """Busca solicitação por ID."""
         await self._db.connect()
 
-        doc = await self._db.database[self._collection].find_one(
-            {"request.id": request_id}
-        )
+        doc = await self._db.database[self._collection].find_one({"request.id": request_id})
 
         return doc
 
@@ -77,7 +74,7 @@ class ApprovalsRepository:
         request_id: str,
         status: ApprovalStatus,
         approved_by: str,
-        feedback: Optional[str] = None
+        feedback: Optional[str] = None,
     ) -> bool:
         """Atualiza decisão (intervenção humana)."""
         await self._db.connect()
@@ -92,7 +89,7 @@ class ApprovalsRepository:
                     "decision.approved_at": datetime.utcnow().isoformat(),
                     "updated_at": datetime.utcnow().isoformat(),
                 }
-            }
+            },
         )
 
         return result.modified_count > 0
@@ -102,8 +99,8 @@ class ApprovalsRepository:
         status: Optional[ApprovalStatus] = None,
         approval_type: Optional[ApprovalType] = None,
         limit: int = 10,
-        skip: int = 0
-    ) -> tuple[List[dict], int]:
+        skip: int = 0,
+    ) -> tuple[list[dict], int]:
         """
         Lista solicitações com filtros.
 
@@ -144,14 +141,14 @@ class ApprovalsRepository:
         """Expira solicitações pendentes antigas."""
         await self._db.connect()
 
-        cutoff = datetime.utcnow().replace(
-            hour=0, minute=0, second=0, microsecond=0
-        ) - __import__('datetime').timedelta(hours=timeout_hours)
+        cutoff = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0) - __import__(
+            "datetime"
+        ).timedelta(hours=timeout_hours)
 
         result = await self._db.database[self._collection].update_many(
             {
                 "decision.status": ApprovalStatus.PENDING.value,
-                "created_at": {"$lt": cutoff.isoformat()}
+                "created_at": {"$lt": cutoff.isoformat()},
             },
             {
                 "$set": {
@@ -159,7 +156,7 @@ class ApprovalsRepository:
                     "decision.reasoning": "Solicitação expirada por timeout",
                     "updated_at": datetime.utcnow().isoformat(),
                 }
-            }
+            },
         )
 
         return result.modified_count
@@ -168,14 +165,7 @@ class ApprovalsRepository:
         """Retorna métricas agregadas."""
         await self._db.connect()
 
-        pipeline = [
-            {
-                "$group": {
-                    "_id": "$decision.status",
-                    "count": {"$sum": 1}
-                }
-            }
-        ]
+        pipeline = [{"$group": {"_id": "$decision.status", "count": {"$sum": 1}}}]
 
         results = await self._db.database[self._collection].aggregate(pipeline).to_list(None)
 

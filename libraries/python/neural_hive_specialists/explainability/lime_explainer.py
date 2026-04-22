@@ -5,11 +5,12 @@ Integra com FeatureExtractor e gera explicações locais por perturbação
 de features estruturadas.
 """
 
-import numpy as np
-from typing import Dict, List, Any
-import structlog
-from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
 import time
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
+from typing import Any
+
+import numpy as np
+import structlog
 
 logger = structlog.get_logger(__name__)
 
@@ -17,7 +18,7 @@ logger = structlog.get_logger(__name__)
 class LIMEExplainer:
     """Explainer LIME para modelos de especialistas."""
 
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, config: dict[str, Any]):
         """
         Inicializa explainer LIME.
 
@@ -31,8 +32,8 @@ class LIMEExplainer:
         logger.info("LIMEExplainer initialized", num_samples=self.num_samples)
 
     def explain(
-        self, model: Any, features: Dict[str, Any], feature_names: List[str]
-    ) -> Dict[str, Any]:
+        self, model: Any, features: dict[str, Any], feature_names: list[str]
+    ) -> dict[str, Any]:
         """
         Gera explicação LIME para predição do modelo.
 
@@ -81,8 +82,8 @@ class LIMEExplainer:
             return {"method": "lime", "feature_importances": [], "error": str(e)}
 
     def _compute_lime(
-        self, model: Any, features: Dict[str, Any], feature_names: List[str]
-    ) -> Dict[str, Any]:
+        self, model: Any, features: dict[str, Any], feature_names: list[str]
+    ) -> dict[str, Any]:
         """
         Computa valores LIME (método auxiliar para timeout).
 
@@ -168,7 +169,7 @@ class LIMEExplainer:
         }
 
     def _generate_training_data(
-        self, features: Dict[str, Any], feature_names: List[str], num_samples: int = 100
+        self, features: dict[str, Any], feature_names: list[str], num_samples: int = 100
     ) -> np.ndarray:
         """
         Gera training data sintético para LIME.
@@ -205,11 +206,11 @@ class LIMEExplainer:
 
     def get_top_features(
         self,
-        lime_result: Dict[str, Any],
+        lime_result: dict[str, Any],
         top_n: int = 5,
         positive_only: bool = False,
         negative_only: bool = False,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Retorna top N features mais importantes.
 

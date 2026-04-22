@@ -110,9 +110,7 @@ class TestWordParserExtractText:
             assert result == "Cell 1 | Cell 2"
 
     @pytest.mark.asyncio
-    async def test_extract_text_paragraphs_and_tables(
-        self, word_parser, sample_docx_bytes
-    ):
+    async def test_extract_text_paragraphs_and_tables(self, word_parser, sample_docx_bytes):
         """Testa extração de parágrafos e tabelas."""
         with patch("src.services.parsers.word_parser.Document") as mock_doc_class:
             # Mock paragraphs
@@ -148,9 +146,7 @@ class TestWordParserExtractText:
             assert result == ""
 
     @pytest.mark.asyncio
-    async def test_extract_text_empty_cells_in_table(
-        self, word_parser, sample_docx_bytes
-    ):
+    async def test_extract_text_empty_cells_in_table(self, word_parser, sample_docx_bytes):
         """Testa que células vazias em tabelas são ignoradas."""
         with patch("src.services.parsers.word_parser.Document") as mock_doc_class:
             # Mock table with empty cells
@@ -250,9 +246,7 @@ class TestWordParserExtractMetadata:
             assert "author" not in result
 
     @pytest.mark.asyncio
-    async def test_extract_metadata_extraction_error(
-        self, word_parser, sample_docx_bytes
-    ):
+    async def test_extract_metadata_extraction_error(self, word_parser, sample_docx_bytes):
         """Testa tratamento de erro na extração de metadados."""
         with patch("src.services.parsers.word_parser.Document") as mock_doc_class:
             mock_doc_class.side_effect = Exception("Read error")

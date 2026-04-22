@@ -4,14 +4,15 @@ Testes unitários para SemanticPipeline.
 Cobertura para semantic_pipeline/semantic_pipeline.py
 """
 
-import pytest
 from unittest.mock import Mock, patch
+
+import pytest
 
 
 class TestSemanticPipeline:
     """Testes para SemanticPipeline."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def config(self):
         """Configuração de teste."""
         return {
@@ -21,7 +22,7 @@ class TestSemanticPipeline:
             "ontology_analysis_weight": 0.4,
         }
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_feature_extractor(self):
         """Feature extractor mockado."""
         mock_fe = Mock()
@@ -33,7 +34,7 @@ class TestSemanticPipeline:
         )
         return mock_fe
 
-    @pytest.fixture
+    @pytest.fixture()
     def sample_cognitive_plan(self):
         """Plano cognitivo de exemplo."""
         return {
@@ -56,7 +57,7 @@ class TestSemanticPipeline:
             "metadata": {"domain": "technical"},
         }
 
-    @pytest.fixture
+    @pytest.fixture()
     def sample_context(self):
         """Contexto de exemplo."""
         return {

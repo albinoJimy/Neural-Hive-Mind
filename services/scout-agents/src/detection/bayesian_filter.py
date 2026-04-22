@@ -1,6 +1,5 @@
 """Bayesian filter for noise reduction in signal detection"""
 
-from typing import Dict, Tuple
 
 import numpy as np
 import structlog
@@ -19,14 +18,14 @@ class BayesianFilter:
     def __init__(self):
         # Prior distributions per domain (Beta distribution parameters)
         # Start with uniform prior Beta(1, 1)
-        self.priors: Dict[str, Tuple[float, float]] = {
+        self.priors: dict[str, tuple[float, float]] = {
             domain.value: (1.0, 1.0) for domain in UnifiedDomain
         }
 
         # Likelihood parameters (mean and std for normal distribution)
-        self.likelihoods: Dict[str, Tuple[float, float]] = {}
+        self.likelihoods: dict[str, tuple[float, float]] = {}
 
-    def filter(self, event: RawEvent, domain: UnifiedDomain) -> Tuple[bool, float]:
+    def filter(self, event: RawEvent, domain: UnifiedDomain) -> tuple[bool, float]:
         """
         Apply Bayesian filter to event
 
@@ -171,7 +170,7 @@ class BayesianFilter:
 
         logger.debug("likelihood_updated", domain=domain.value, mean=new_mean, std=new_std)
 
-    def get_posterior_stats(self, domain: UnifiedDomain) -> Dict[str, float]:
+    def get_posterior_stats(self, domain: UnifiedDomain) -> dict[str, float]:
         """
         Get statistical summary of posterior distribution
 

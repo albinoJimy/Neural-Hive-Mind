@@ -1,18 +1,18 @@
 """Testes unitários para DriftDetector - Detecção de Model Drift."""
 
+from datetime import UTC, datetime, timedelta
+from unittest.mock import AsyncMock, MagicMock, Mock
+
 import pytest
-from datetime import datetime, timedelta, timezone
-from unittest.mock import Mock, AsyncMock, MagicMock
 
-from neural_hive_ml.drift_detector import DriftDetector, CanaryDeployer
-
+from neural_hive_ml.drift_detector import CanaryDeployer, DriftDetector
 
 # =============================================================================
 # Fixtures
 # =============================================================================
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_mongo_client():
     """Mock do cliente MongoDB."""
     client = Mock()
@@ -23,7 +23,7 @@ def mock_mongo_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_kafka_producer():
     """Mock do producer Kafka."""
     producer = AsyncMock()
@@ -31,7 +31,7 @@ def mock_kafka_producer():
     return producer
 
 
-@pytest.fixture
+@pytest.fixture()
 def drift_detector(mock_mongo_client, mock_kafka_producer):
     """Fixture para DriftDetector."""
     return DriftDetector(
@@ -43,7 +43,7 @@ def drift_detector(mock_mongo_client, mock_kafka_producer):
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_aggregation_results():
     """Mock de resultados de agregação MongoDB."""
     return {"_id": None, "approve_rate": 0.70, "avg_confidence": 0.75, "count": 100}
@@ -123,7 +123,7 @@ class TestBuildAggregationPipeline:
         window_hours = 24
         pipeline = drift_detector._build_aggregation_pipeline(window_hours)
 
-        since = datetime.now(timezone.utc) - timedelta(hours=window_hours)
+        since = datetime.now(UTC) - timedelta(hours=window_hours)
         match_since = pipeline[0]["$match"]["created_at"]["$gte"]
 
         # Verifica que o timestamp está próximo (diferença de segundos aceitável)
@@ -139,7 +139,7 @@ class TestBuildAggregationPipeline:
 class TestCalculateBaseline:
     """Testes para calculate_baseline."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_calculate_baseline_with_results(self, drift_detector, mock_aggregation_results):
         """Testa cálculo de baseline com dados válidos."""
         # Mock da agregação
@@ -153,7 +153,7 @@ class TestCalculateBaseline:
         assert result["avg_confidence"] == 0.75
         assert result["sample_count"] == 100
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_calculate_baseline_with_empty_results(self, drift_detector):
         """Testa cálculo de baseline sem dados (retorna padrão)."""
         mock_cursor = AsyncMock()
@@ -167,7 +167,7 @@ class TestCalculateBaseline:
         assert result["avg_confidence"] == 0.72
         assert result["sample_count"] == 0
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_calculate_baseline_with_partial_results(self, drift_detector):
         """Testa cálculo de baseline com resultados parciais."""
         partial_result = {"_id": None, "count": 50}
@@ -181,7 +181,7 @@ class TestCalculateBaseline:
         assert result["avg_confidence"] == 0.0
         assert result["sample_count"] == 50
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_calculate_baseline_on_error(self, drift_detector):
         """Testa tratamento de erro no cálculo de baseline."""
         drift_detector.db.plan_approvals.aggregate = Mock(side_effect=Exception("DB Error"))
@@ -198,7 +198,7 @@ class TestCalculateBaseline:
 class TestCalculateCurrent:
     """Testes para calculate_current."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_calculate_current_with_results(self, drift_detector, mock_aggregation_results):
         """Testa cálculo de métricas atuais com dados válidos."""
         mock_cursor = AsyncMock()
@@ -211,7 +211,7 @@ class TestCalculateCurrent:
         assert result["avg_confidence"] == 0.75
         assert result["sample_count"] == 100
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_calculate_current_with_empty_results(self, drift_detector):
         """Testa cálculo de métricas atuais sem dados."""
         mock_cursor = AsyncMock()
@@ -233,14 +233,14 @@ class TestCalculateCurrent:
 class TestGetActiveModelVersion:
     """Testes para _get_active_model_version."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_active_model_version_found(self, drift_detector):
         """Testa busca de versão ativa quando encontrado."""
         mock_doc = {
             "version": "v1.2.3",
             "stage": "production",
             "is_active": True,
-            "created_at": datetime.now(timezone.utc),
+            "created_at": datetime.now(UTC),
         }
         drift_detector.db.model_versions.find_one = AsyncMock(return_value=mock_doc)
 
@@ -248,7 +248,7 @@ class TestGetActiveModelVersion:
 
         assert version == "v1.2.3"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_active_model_version_not_found(self, drift_detector):
         """Testa busca de versão ativa quando não encontrado."""
         drift_detector.db.model_versions.find_one = AsyncMock(return_value=None)
@@ -257,7 +257,7 @@ class TestGetActiveModelVersion:
 
         assert version == "unknown"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_active_model_version_on_error(self, drift_detector):
         """Testa tratamento de erro na busca de versão."""
         drift_detector.db.model_versions.find_one = Mock(side_effect=Exception("Connection error"))
@@ -275,7 +275,7 @@ class TestGetActiveModelVersion:
 class TestDetectDriftNoDrift:
     """Testes para detect_drift quando não há drift."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_detect_drift_no_drift_similar_metrics(self, drift_detector):
         """Testa detecção quando métricas são semelhantes (sem drift)."""
         # Track call count to differentiate baseline vs current calls
@@ -314,7 +314,7 @@ class TestDetectDriftNoDrift:
         assert result["baseline"]["approve_rate"] == 0.70
         assert result["current"]["approve_rate"] == 0.72
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_detect_drift_exactly_at_threshold(self, drift_detector):
         """Testa detecção quando mudança é exatamente no threshold."""
         call_count = [0]
@@ -360,7 +360,7 @@ class TestDetectDriftNoDrift:
 class TestDetectDriftMeanShift:
     """Testes para detect_drift com mudança de média."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_detect_drift_mean_confidence_drop(self, drift_detector):
         """Testa detecção de queda na confiança média."""
         call_count = [0]
@@ -399,7 +399,7 @@ class TestDetectDriftMeanShift:
         assert result["alerts"][0]["threshold"] == 0.10
         assert result["alerts"][0]["severity"] == "warning"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_detect_drift_mean_confidence_increase(self, drift_detector):
         """Testa detecção de aumento na confiança média."""
         call_count = [0]
@@ -435,7 +435,7 @@ class TestDetectDriftMeanShift:
         assert result["alerts"][0]["metric"] == "avg_confidence"
         assert result["alerts"][0]["change"] == 0.15
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_detect_drift_approve_rate_change(self, drift_detector):
         """Testa detecção de mudança no approve rate."""
         call_count = [0]
@@ -471,7 +471,7 @@ class TestDetectDriftMeanShift:
         assert result["alerts"][0]["metric"] == "approve_rate"
         assert result["alerts"][0]["change"] == -0.20
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_detect_drift_critical_severity(self, drift_detector):
         """Testa detecção de drift com severidade crítica."""
         call_count = [0]
@@ -506,7 +506,7 @@ class TestDetectDriftMeanShift:
         assert result["drift_detected"] is True
         assert result["alerts"][0]["severity"] == "critical"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_detect_drift_multiple_alerts(self, drift_detector):
         """Testa detecção de múltiplos drifts simultâneos."""
         call_count = [0]
@@ -553,7 +553,7 @@ class TestDetectDriftMeanShift:
 class TestDetectDriftWithTimestamps:
     """Testes para rastreamento de drift ao longo do tempo."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_detect_drift_includes_timestamp(self, drift_detector):
         """Testa que resultado inclui timestamp de última atualização."""
 
@@ -575,7 +575,7 @@ class TestDetectDriftWithTimestamps:
         # Verifica formato ISO
         datetime.fromisoformat(result["last_updated"])
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_detect_drift_window_hours_in_result(self, drift_detector):
         """Testa que window_hours está incluído no resultado."""
 
@@ -596,7 +596,7 @@ class TestDetectDriftWithTimestamps:
         # Note: window_hours no resultado é o argumento passado, não usado nas chamadas internas
         assert result["window_hours"] == 72
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_detect_drift_on_error_returns_error_dict(self, drift_detector):
         """Testa tratamento de erro em detect_drift."""
         drift_detector.db.plan_approvals.aggregate = Mock(
@@ -619,7 +619,7 @@ class TestDetectDriftWithTimestamps:
 class TestPublishDriftAlert:
     """Testes para publish_drift_alert."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_publish_drift_alert_success(self, drift_detector, mock_kafka_producer):
         """Testa publicação de alerta com sucesso."""
         drift_data = {
@@ -640,7 +640,7 @@ class TestPublishDriftAlert:
         assert call_args[1]["topic"] == "ml.model_drift_detected"
         assert call_args[1]["key"] == "drift_alert"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_publish_drift_alert_without_kafka(self, drift_detector):
         """Testa publicação sem Kafka configurado."""
         drift_detector.kafka_producer = None
@@ -651,7 +651,7 @@ class TestPublishDriftAlert:
 
         assert result is False
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_publish_drift_alert_on_kafka_error(self, drift_detector):
         """Testa tratamento de erro ao publicar no Kafka."""
         mock_kafka = AsyncMock()
@@ -673,7 +673,7 @@ class TestPublishDriftAlert:
 class TestGetDriftMetrics:
     """Testes para get_drift_metrics."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_drift_metrics_includes_recommendation(self, drift_detector):
         """Testa que métricas incluem recomendação quando há drift."""
         call_count = [0]
@@ -709,7 +709,7 @@ class TestGetDriftMetrics:
         assert "recommendation" in result
         assert "retraining" in result["recommendation"]
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_drift_metrics_without_drift(self, drift_detector):
         """Testa que métricas sem drift não têm recomendação."""
 
@@ -780,7 +780,7 @@ class TestCanaryDeployerInitialization:
 class TestCanaryDeployerStartCanary:
     """Testes para start_canary."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_start_canary_success(self):
         """Testa início bem-sucedido de canary."""
         mock_repo = MagicMock()
@@ -797,7 +797,7 @@ class TestCanaryDeployerStartCanary:
         assert result["canary_traffic_percentage"] == 10
         assert result["duration_minutes"] == 60
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_start_canary_version_not_found(self):
         """Testa início de canary com versão não encontrada."""
         mock_repo = MagicMock()
@@ -812,7 +812,7 @@ class TestCanaryDeployerStartCanary:
         assert "error" in result
         assert "not found" in result["error"]
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_start_canary_stores_in_active_canaries(self):
         """Testa que canary é armazenado em _active_canaries."""
         mock_repo = MagicMock()
@@ -838,7 +838,7 @@ class TestCanaryDeployerStartCanary:
 class TestCanaryDeployerCollectMetrics:
     """Testes para collect_canary_metrics."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_collect_canary_metrics_success(self):
         """Testa coleta de métricas de canary."""
         mock_repo = MagicMock()
@@ -865,7 +865,7 @@ class TestCanaryDeployerCollectMetrics:
         assert "comparison" in result["metrics"]
         assert result["metrics"]["canary"]["f1_score"] == 0.75  # baseline + 0.02
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_collect_canary_metrics_not_found(self):
         """Testa coleta de canary inexistente."""
         mock_repo = MagicMock()
@@ -888,7 +888,7 @@ class TestCanaryDeployerCollectMetrics:
 class TestCanaryDeployerValidateCanary:
     """Testes para validate_canary."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_validate_canary_should_promote(self):
         """Testa validação que recomenda promoção."""
         mock_repo = MagicMock()
@@ -921,7 +921,7 @@ class TestCanaryDeployerValidateCanary:
         assert result["should_promote"] is True
         assert any("F1 score improved" in r for r in result["reasons"])
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_validate_canary_insufficient_samples(self):
         """Testa validação com samples insuficientes."""
         mock_repo = MagicMock()
@@ -954,7 +954,7 @@ class TestCanaryDeployerValidateCanary:
         assert result["should_promote"] is False
         assert any("Insufficient samples" in r for r in result["reasons"])
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_validate_canary_f1_degraded(self):
         """Testa validação quando F1 degradou."""
         mock_repo = MagicMock()
@@ -986,7 +986,7 @@ class TestCanaryDeployerValidateCanary:
         assert result["should_promote"] is False
         assert any("F1 score degraded" in r for r in result["reasons"])
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_validate_canary_not_found(self):
         """Testa validação de canary inexistente."""
         mock_repo = MagicMock()
@@ -1008,7 +1008,7 @@ class TestCanaryDeployerValidateCanary:
 class TestCanaryDeployerPromoteOrRollback:
     """Testes para promote_or_rollback."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_promote_or_rollback_promotes(self):
         """Testa promoção quando should_promote=True."""
         mock_repo = MagicMock()
@@ -1027,7 +1027,7 @@ class TestCanaryDeployerPromoteOrRollback:
         assert result["status"] == "promoted"
         assert result["version"] == "v2.0.0"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_promote_or_rollback_rolls_back(self):
         """Testa rollback quando should_promote=False."""
         mock_repo = MagicMock()
@@ -1054,7 +1054,7 @@ class TestCanaryDeployerPromoteOrRollback:
 class TestCanaryDeployerCalculateTrafficSplit:
     """Testes para _calculate_traffic_split."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_calculate_traffic_split_default(self):
         """Testa cálculo de split com valores padrão."""
         mock_repo = Mock()
@@ -1069,7 +1069,7 @@ class TestCanaryDeployerCalculateTrafficSplit:
         assert result["canary_percentage"] == 10
         assert result["baseline_percentage"] == 90
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_calculate_traffic_split_custom_percentage(self):
         """Testa cálculo de split com percentual customizado."""
         mock_repo = Mock()
@@ -1128,12 +1128,12 @@ class TestDriftDetectorRealLogic:
         for window in [1, 6, 24, 48, 168, 720]:
             pipeline = drift_detector._build_aggregation_pipeline(window)
             match_since = pipeline[0]["$match"]["created_at"]["$gte"]
-            expected = datetime.now(timezone.utc) - timedelta(hours=window)
+            expected = datetime.now(UTC) - timedelta(hours=window)
             # Verifica que timestamp está correto (±5 segundos tolerância)
             time_diff = abs((expected - match_since).total_seconds())
             assert time_diff < 5, f"Janela {window}h produziu timestamp incorreto"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_detect_drift_change_calculation_logic(self, drift_detector):
         """Testa cálculo de mudanças sem mock excessivo."""
         # Setup mínimo - apenas mock de aggregate
@@ -1188,7 +1188,7 @@ class TestDriftDetectorRealLogic:
         assert confidence_alert["severity"] == "critical"
         assert confidence_alert["change"] == -0.15
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_detect_drift_edge_case_zero_baseline(self, drift_detector):
         """Testa detecção quando baseline tem zero samples."""
         # Baseline vazio, current com dados
@@ -1225,7 +1225,7 @@ class TestDriftDetectorRealLogic:
 class TestCanaryDeployerRealLogic:
     """Testes que exercitam lógica real do CanaryDeployer."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_publish_canary_event_without_kafka(self):
         """Testa _publish_canary_event sem Kafka (caminho silencioso)."""
         deployer = CanaryDeployer(model_repo=Mock(), kafka_producer=None)  # Sem Kafka
@@ -1233,7 +1233,7 @@ class TestCanaryDeployerRealLogic:
         # Não deve lançar erro
         await deployer._publish_canary_event("canary_started", "cid", "v2", "v1")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_publish_canary_event_kafka_error(self):
         """Testa tratamento de erro ao publicar evento canary."""
         mock_kafka = AsyncMock()
@@ -1244,7 +1244,7 @@ class TestCanaryDeployerRealLogic:
         # Não deve lançar erro - trata exceção internamente
         await deployer._publish_canary_event("canary_started", "cid", "v2", "v1")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_promote_nonexistent_canary(self):
         """Testa promoção de canary inexistente."""
         mock_repo = Mock()
@@ -1255,7 +1255,7 @@ class TestCanaryDeployerRealLogic:
         assert result["status"] == "failed"
         assert "not found" in result["error"]
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_rollback_nonexistent_canary(self):
         """Testa rollback de canary inexistente."""
         deployer = CanaryDeployer(model_repo=Mock(), kafka_producer=AsyncMock())
@@ -1265,7 +1265,7 @@ class TestCanaryDeployerRealLogic:
         assert result["status"] == "failed"
         assert "not found" in result["error"]
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_promote_with_repo_failure(self):
         """Testa promoção quando repositório falha."""
         mock_repo = MagicMock()
@@ -1285,7 +1285,7 @@ class TestCanaryDeployerRealLogic:
         assert result["status"] == "failed"
         assert "Promotion failed" in result["error"]
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_promote_success_updates_canary_state(self):
         """Testa que promoção bem-sucedida atualiza estado do canary."""
         mock_repo = MagicMock()
@@ -1312,7 +1312,7 @@ class TestCanaryDeployerRealLogic:
         assert result["version"] == "v2.0"
         assert result["previous_version"] == "v1.0"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_rollback_updates_canary_state(self):
         """Testa que rollback atualiza estado do canary."""
         mock_repo = MagicMock()
@@ -1337,7 +1337,7 @@ class TestCanaryDeployerRealLogic:
         assert result["status"] == "rolled_back"
         assert result["remained_version"] == "v1.0"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_collect_canary_metrics_uses_baseline_f1(self):
         """Testa que collect_canary_metrics usa baseline_f1 do canary."""
         mock_repo = MagicMock()
@@ -1361,7 +1361,7 @@ class TestCanaryDeployerRealLogic:
         assert result["metrics"]["canary"]["f1_score"] == pytest.approx(0.82)
         assert result["metrics"]["comparison"]["f1_delta"] == pytest.approx(0.02)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_validate_canary_with_marginal_improvement(self):
         """Testa validação com melhoria marginal (< 0.01)."""
         mock_repo = MagicMock()
@@ -1394,7 +1394,7 @@ class TestCanaryDeployerRealLogic:
         assert result["should_promote"] is True
         assert any("marginal" in r.lower() for r in result["reasons"])
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_validate_canary_exactly_at_threshold(self):
         """Testa validação exatamente no threshold de samples."""
         mock_repo = MagicMock()
@@ -1426,7 +1426,7 @@ class TestCanaryDeployerRealLogic:
         # 50 >= min_samples (50), então deve promover
         assert result["should_promote"] is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_promote_or_rollback_integration(self):
         """Testa fluxo completo de promoção/rollback."""
         mock_repo = MagicMock()
@@ -1458,7 +1458,7 @@ class TestCanaryDeployerRealLogic:
 class TestDriftDetectorErrorHandling:
     """Testes para caminhos de erro não cobertos."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_calculate_current_exception_handling(self, drift_detector):
         """Testa tratamento de exceção em calculate_current."""
         drift_detector.db.plan_approvals.aggregate = Mock(
@@ -1468,7 +1468,7 @@ class TestDriftDetectorErrorHandling:
         with pytest.raises(Exception, match="Connection timeout"):
             await drift_detector.calculate_current()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_active_model_version_database_error(self, drift_detector):
         """Testa busca de versão ativa com erro de banco."""
         drift_detector.db.model_versions.find_one = Mock(
@@ -1480,7 +1480,7 @@ class TestDriftDetectorErrorHandling:
         # Deve retornar "unknown" em caso de erro
         assert version == "unknown"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_active_model_version_without_version_field(self, drift_detector):
         """Testa busca quando documento não tem campo 'version'."""
         drift_detector.db.model_versions.find_one = AsyncMock(
@@ -1491,7 +1491,7 @@ class TestDriftDetectorErrorHandling:
 
         assert version == "unknown"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_publish_drift_alert_serialization_error(self, drift_detector):
         """Testa tratamento de erro ao serializar dados do alerta."""
         mock_kafka = AsyncMock()
@@ -1504,7 +1504,7 @@ class TestDriftDetectorErrorHandling:
 
         assert result is False
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_detect_drift_with_calculate_current_error(self, drift_detector):
         """Testa detect_drift quando calculate_current falha."""
         # Baseline ok, current falha
@@ -1541,7 +1541,7 @@ class TestDriftDetectorErrorHandling:
 class TestCanaryDeployerEdgeCases:
     """Testes para casos extremos e lógica de negócio."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_start_canary_with_same_versions(self):
         """Testa start_canary quando versões são iguais."""
         mock_repo = MagicMock()
@@ -1557,7 +1557,7 @@ class TestCanaryDeployerEdgeCases:
         assert result["status"] == "running"
         assert "canary_id" in result
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_collect_canary_metrics_without_baseline_f1(self):
         """Testa coleta de métricas quando baseline_f1 não foi definido."""
         mock_repo = MagicMock()
@@ -1590,7 +1590,7 @@ class TestCanaryDeployerEdgeCases:
         # Ambas instâncias compartilham o mesmo dict
         assert deployer1._active_canaries is deployer2._active_canaries
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_validate_canary_empty_comparison_metrics(self):
         """Testa validação quando comparison está vazio."""
         mock_repo = MagicMock()
@@ -1658,7 +1658,7 @@ class TestDriftDetectorAdditionalCoverage:
         assert detector.approve_rate_threshold == 0.25
         assert detector.baseline_window_hours == 48
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_calculate_baseline_with_valid_results(self, drift_detector):
         """Testa calculate_baseline retornando resultados válidos."""
         mock_cursor = AsyncMock()
@@ -1673,7 +1673,7 @@ class TestDriftDetectorAdditionalCoverage:
         assert result["avg_confidence"] == 0.80
         assert result["sample_count"] == 200
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_calculate_baseline_with_missing_fields(self, drift_detector):
         """Testa calculate_baseline com campos faltando."""
         mock_cursor = AsyncMock()
@@ -1695,7 +1695,7 @@ class TestDriftDetectorAdditionalCoverage:
         assert result["avg_confidence"] == 0.0
         assert result["sample_count"] == 50
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_calculate_current_with_valid_data(self, drift_detector):
         """Testa calculate_current com dados válidos."""
         mock_cursor = AsyncMock()
@@ -1710,7 +1710,7 @@ class TestDriftDetectorAdditionalCoverage:
         assert result["avg_confidence"] == 0.70
         assert result["sample_count"] == 75
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_detect_drift_critical_severity_boundary(self, drift_detector):
         """Testa detecção de drift com severidade crítica no limite."""
         call_count = [0]
@@ -1749,7 +1749,7 @@ class TestDriftDetectorAdditionalCoverage:
         confidence_alert = next(a for a in result["alerts"] if a["metric"] == "avg_confidence")
         assert confidence_alert["severity"] == "critical"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_detect_drift_above_critical_threshold(self, drift_detector):
         """Testa detecção acima do threshold crítico."""
         call_count = [0]
@@ -1786,7 +1786,7 @@ class TestDriftDetectorAdditionalCoverage:
         confidence_alert = next(a for a in result["alerts"] if a["metric"] == "avg_confidence")
         assert confidence_alert["severity"] == "critical"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_detect_drift_does_not_alert_when_below_threshold(self, drift_detector):
         """Testa que não há alerta quando mudança é abaixo do threshold."""
 
@@ -1809,7 +1809,7 @@ class TestDriftDetectorAdditionalCoverage:
         assert result["drift_detected"] is False
         assert len(result["alerts"]) == 0
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_detect_drift_includes_model_version(self, drift_detector):
         """Testa que detect_drift inclui versão do modelo."""
 
@@ -1831,7 +1831,7 @@ class TestDriftDetectorAdditionalCoverage:
 
         assert result["model_version"] == "v2.1.0"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_active_model_version_returns_version(self, drift_detector):
         """Testa _get_active_model_version retornando versão."""
         drift_detector.db.model_versions.find_one = AsyncMock(
@@ -1842,7 +1842,7 @@ class TestDriftDetectorAdditionalCoverage:
 
         assert version == "v3.0.0"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_active_model_version_empty_doc(self, drift_detector):
         """Testa _get_active_model_version com documento vazio."""
         drift_detector.db.model_versions.find_one = AsyncMock(return_value={})
@@ -1851,7 +1851,7 @@ class TestDriftDetectorAdditionalCoverage:
 
         assert version == "unknown"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_publish_drift_alert_without_producer(self, drift_detector):
         """Testa publish_drift_alert sem producer Kafka."""
         drift_detector.kafka_producer = None
@@ -1867,7 +1867,7 @@ class TestDriftDetectorAdditionalCoverage:
 
         assert result is False
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_publish_drift_alert_with_producer(self, drift_detector, mock_kafka_producer):
         """Testa publish_drift_alert com producer Kafka."""
         drift_data = {
@@ -1883,7 +1883,7 @@ class TestDriftDetectorAdditionalCoverage:
         assert result is True
         mock_kafka_producer.produce_and_wait.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_drift_metrics_no_drift(self, drift_detector):
         """Testa get_drift_metrics quando não há drift."""
 
@@ -1930,7 +1930,7 @@ class TestCanaryDeployerAdditionalCoverage:
         assert deployer.canary_duration_minutes == 90
         assert deployer.canary_traffic_percentage == 15
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_calculate_traffic_split_returns_percentages(self):
         """Testa _calculate_traffic_split retorna percentuais corretos."""
         deployer = CanaryDeployer(
@@ -1944,7 +1944,7 @@ class TestCanaryDeployerAdditionalCoverage:
         assert result["canary_percentage"] == 20
         assert result["baseline_percentage"] == 80
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_start_canary_returns_status(self):
         """Testa start_canary retorna status correto."""
         mock_repo = MagicMock()
@@ -1967,7 +1967,7 @@ class TestCanaryDeployerAdditionalCoverage:
         assert result["duration_minutes"] == 120
         assert "started_at" in result
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_collect_canary_metrics_returns_structure(self):
         """Testa collect_canary_metrics retorna estrutura correta."""
         mock_repo = MagicMock()
@@ -1989,7 +1989,7 @@ class TestCanaryDeployerAdditionalCoverage:
         assert "comparison" in result["metrics"]
         assert "collected_at" in result
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_validate_canary_returns_structure(self):
         """Testa validate_canary retorna estrutura correta."""
         mock_repo = MagicMock()
@@ -2010,7 +2010,7 @@ class TestCanaryDeployerAdditionalCoverage:
         assert "metrics_summary" in result
         assert isinstance(result["reasons"], list)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_promote_or_rollback_returns_status(self):
         """Testa promote_or_rollback retorna status correto."""
         mock_repo = MagicMock()
@@ -2083,7 +2083,7 @@ class TestDriftDetectorInternalMethods:
         group_stage = pipeline[1]["$group"]
         assert group_stage["_id"] is None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_calculate_baseline_calls_aggregate(self, drift_detector):
         """Testa que calculate_baseline chama aggregate com pipeline correto."""
         mock_cursor = AsyncMock()
@@ -2102,7 +2102,7 @@ class TestDriftDetectorInternalMethods:
         assert isinstance(pipeline, list)
         assert len(pipeline) == 2
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_calculate_current_calls_aggregate(self, drift_detector):
         """Testa que calculate_current chama aggregate."""
         mock_cursor = AsyncMock()
@@ -2115,7 +2115,7 @@ class TestDriftDetectorInternalMethods:
 
         drift_detector.db.plan_approvals.aggregate.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_detect_drift_calls_calculate_methods(self, drift_detector):
         """Testa que detect_drift chama calculate_baseline e calculate_current."""
         mock_cursor = AsyncMock()
@@ -2149,7 +2149,7 @@ class TestDriftDetectorInternalMethods:
             assert baseline_called[0], "calculate_baseline deve ser chamado"
             assert current_called[0], "calculate_current deve ser chamado"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_detect_drift_calls_get_active_model_version(self, drift_detector):
         """Testa que detect_drift chama _get_active_model_version."""
         mock_cursor = AsyncMock()
@@ -2165,7 +2165,7 @@ class TestDriftDetectorInternalMethods:
 
         assert result["model_version"] == "v2.5.0"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_detect_drift_alerts_on_confidence_threshold(self, drift_detector):
         """Testa alerta quando confidence atinge threshold."""
         call_count = [0]
@@ -2202,7 +2202,7 @@ class TestDriftDetectorInternalMethods:
         assert result["alerts"][0]["metric"] == "avg_confidence"
         assert result["alerts"][0]["change"] == -0.10
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_detect_drift_alerts_on_approve_rate_threshold(self, drift_detector):
         """Testa alerta quando approve_rate atinge threshold."""
         call_count = [0]
@@ -2238,7 +2238,7 @@ class TestDriftDetectorInternalMethods:
         assert len(result["alerts"]) == 1
         assert result["alerts"][0]["metric"] == "approve_rate"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_publish_drift_alert_constructs_event(self, drift_detector, mock_kafka_producer):
         """Testa que publish_drift_alert constrói evento corretamente."""
         drift_data = {
@@ -2257,7 +2257,7 @@ class TestDriftDetectorInternalMethods:
         assert call_kwargs["topic"] == "ml.model_drift_detected"
         assert call_kwargs["key"] == "drift_alert"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_drift_metrics_adds_recommendation_on_drift(self, drift_detector):
         """Testa que get_drift_metrics adiciona recomendação quando há drift."""
         call_count = [0]
@@ -2293,7 +2293,7 @@ class TestDriftDetectorInternalMethods:
         assert "recommendation" in result
         assert "retraining" in result["recommendation"]
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_drift_metrics_no_recommendation_without_drift(self, drift_detector):
         """Testa que get_drift_metrics não adiciona recomendação sem drift."""
 
@@ -2323,7 +2323,7 @@ class TestDriftDetectorInternalMethods:
 class TestCanaryDeployerInternalLogic:
     """Testes para lógica interna do CanaryDeployer."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_start_canary_stores_state_correctly(self):
         """Testa que start_canary armazena estado corretamente."""
         mock_repo = MagicMock()
@@ -2350,7 +2350,7 @@ class TestCanaryDeployerInternalLogic:
         assert "started_at" in canary
         assert "metrics" in canary
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_collect_canary_metrics_calculates_delta(self):
         """Testa que collect_canary_metrics calcula delta corretamente."""
         mock_repo = MagicMock()
@@ -2371,7 +2371,7 @@ class TestCanaryDeployerInternalLogic:
         # accuracy_delta = 0.81 - 0.80 = 0.01
         assert result["metrics"]["comparison"]["accuracy_delta"] == pytest.approx(0.01)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_validate_canary_checks_sample_threshold(self):
         """Testa que validate_canary verifica threshold de samples."""
         mock_repo = MagicMock()
@@ -2403,7 +2403,7 @@ class TestCanaryDeployerInternalLogic:
         assert result["should_promote"] is False
         assert any("Insufficient samples" in r for r in result["reasons"])
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_promote_updates_status_and_publishes_event(self):
         """Testa que _promote atualiza status e publica evento."""
         mock_repo = MagicMock()
@@ -2428,7 +2428,7 @@ class TestCanaryDeployerInternalLogic:
             version="v2.0", stage="production", promoted_by="canary"
         )
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_rollback_updates_status_and_publishes_event(self):
         """Testa que _rollback atualiza status e publica evento."""
         mock_repo = MagicMock()

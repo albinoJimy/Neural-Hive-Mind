@@ -6,14 +6,14 @@ user_id e outros identificadores através de chamadas HTTP, Kafka e RPC.
 """
 
 import logging
-from contextlib import contextmanager
-from typing import Dict, List, Optional, Any, Tuple
 import threading
+from contextlib import contextmanager
+from typing import Any, Optional
 
-from opentelemetry import trace, context
-from opentelemetry.propagate import inject, extract
-from opentelemetry.baggage import set_baggage, get_all as get_all_baggage
+from opentelemetry import context, trace
+from opentelemetry.baggage import get_all as get_all_baggage, set_baggage
 from opentelemetry.context import attach, detach
+from opentelemetry.propagate import extract, inject
 
 from .config import ObservabilityConfig
 
@@ -156,7 +156,7 @@ class ContextManager:
             for token in reversed(tokens):
                 detach(token)
 
-    def get_current_correlation(self) -> Dict[str, Any]:
+    def get_current_correlation(self) -> dict[str, Any]:
         """
         Retorna contexto de correlação atual.
 
@@ -181,7 +181,7 @@ class ContextManager:
 
         return correlation
 
-    def inject_http_headers(self, headers: Dict[str, str]) -> Dict[str, str]:
+    def inject_http_headers(self, headers: dict[str, str]) -> dict[str, str]:
         """
         Injeta contexto em headers HTTP.
 
@@ -224,7 +224,7 @@ class ContextManager:
 
         return new_headers
 
-    def extract_http_headers(self, headers: Dict[str, str]) -> Optional[Dict[str, str]]:
+    def extract_http_headers(self, headers: dict[str, str]) -> Optional[dict[str, str]]:
         """
         Extrai contexto de headers HTTP.
 
@@ -262,7 +262,7 @@ class ContextManager:
             logger.warning(f"Erro ao extrair contexto de headers HTTP: {e}")
             return None
 
-    def inject_kafka_headers(self, headers: Dict[str, bytes]) -> Dict[str, bytes]:
+    def inject_kafka_headers(self, headers: dict[str, bytes]) -> dict[str, bytes]:
         """
         Injeta contexto em headers Kafka.
 
@@ -292,7 +292,7 @@ class ContextManager:
 
         return kafka_headers
 
-    def extract_kafka_headers(self, headers: Dict[str, bytes]) -> Optional[Dict[str, str]]:
+    def extract_kafka_headers(self, headers: dict[str, bytes]) -> Optional[dict[str, str]]:
         """
         Extrai contexto de headers Kafka.
 
@@ -379,7 +379,7 @@ class ChildContext:
         intent_id: Optional[str] = None,
         plan_id: Optional[str] = None,
         operation: Optional[str] = None,
-        additional_context: Optional[Dict[str, Any]] = None,
+        additional_context: Optional[dict[str, Any]] = None,
     ):
         """
         Inicializa contexto filho.
@@ -425,7 +425,7 @@ class ChildContext:
         if self._context_token:
             detach(self._context_token)
 
-    def get_correlation(self) -> Dict[str, Any]:
+    def get_correlation(self) -> dict[str, Any]:
         """Retorna correlação do contexto filho."""
         return self.parent_manager.get_current_correlation()
 
@@ -433,7 +433,7 @@ class ChildContext:
 # Funções utilitárias para compatibilidade e uso direto
 
 
-def extract_context_from_metadata(metadata: Dict[str, str]) -> Optional[Dict[str, str]]:
+def extract_context_from_metadata(metadata: dict[str, str]) -> Optional[dict[str, str]]:
     """
     Extrai contexto Neural Hive de metadados gRPC ou HTTP.
 
@@ -515,8 +515,8 @@ def set_baggage_value(key: str, value: str) -> None:
 
 
 def inject_context_to_metadata(
-    metadata: Optional[List[Tuple[str, str]]] = None
-) -> List[Tuple[str, str]]:
+    metadata: Optional[list[tuple[str, str]]] = None
+) -> list[tuple[str, str]]:
     """
     Injeta contexto Neural Hive em metadados gRPC.
 
@@ -532,7 +532,7 @@ def inject_context_to_metadata(
     result = list(metadata) if metadata else []
 
     # Converter para dicionário para injeção OpenTelemetry
-    headers_dict: Dict[str, str] = {}
+    headers_dict: dict[str, str] = {}
     inject(headers_dict)
 
     # Adicionar headers OpenTelemetry ao resultado

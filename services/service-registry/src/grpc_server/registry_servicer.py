@@ -1,6 +1,6 @@
 import json
-from datetime import datetime, timezone
-from typing import AsyncIterator
+from collections.abc import AsyncIterator
+from datetime import UTC, datetime
 from uuid import UUID
 
 import grpc
@@ -62,7 +62,7 @@ class ServiceRegistryServicer:
                 response = service_registry_pb2.RegisterResponse(
                     agent_id=str(agent_id),
                     registration_token=registration_token,
-                    registered_at=int(datetime.now(timezone.utc).timestamp()),
+                    registered_at=int(datetime.now(UTC).timestamp()),
                 )
 
                 span.set_status(Status(StatusCode.OK))
@@ -79,7 +79,7 @@ class ServiceRegistryServicer:
             except Exception as e:
                 logger.error("register_internal_error", error=str(e))
                 span.set_status(Status(StatusCode.ERROR, str(e)))
-                return context.abort(grpc.StatusCode.INTERNAL, f"Erro interno: {str(e)}")
+                return context.abort(grpc.StatusCode.INTERNAL, f"Erro interno: {e!s}")
 
     async def Heartbeat(self, request, context):
         """RPC: Enviar heartbeat"""
@@ -108,12 +108,12 @@ class ServiceRegistryServicer:
                 )
 
                 # Criar response
-                from datetime import datetime, timezone
+                from datetime import datetime
 
                 from src.proto import service_registry_pb2
 
                 response = service_registry_pb2.HeartbeatResponse(
-                    status=status.value, last_seen=int(datetime.now(timezone.utc).timestamp())
+                    status=status.value, last_seen=int(datetime.now(UTC).timestamp())
                 )
 
                 span.set_attribute("agent_id", str(agent_id))
@@ -133,7 +133,7 @@ class ServiceRegistryServicer:
             except Exception as e:
                 logger.error("heartbeat_internal_error", error=str(e))
                 span.set_status(Status(StatusCode.ERROR, str(e)))
-                await context.abort(grpc.StatusCode.INTERNAL, f"Erro interno: {str(e)}")
+                await context.abort(grpc.StatusCode.INTERNAL, f"Erro interno: {e!s}")
                 # Retornar resposta vazia para evitar TypeError na serialização
                 from src.proto import service_registry_pb2
 
@@ -165,7 +165,7 @@ class ServiceRegistryServicer:
             except Exception as e:
                 logger.error("deregister_internal_error", error=str(e))
                 span.set_status(Status(StatusCode.ERROR, str(e)))
-                await context.abort(grpc.StatusCode.INTERNAL, f"Erro interno: {str(e)}")
+                await context.abort(grpc.StatusCode.INTERNAL, f"Erro interno: {e!s}")
                 from src.proto import service_registry_pb2
 
                 return service_registry_pb2.DeregisterResponse(success=False)
@@ -225,7 +225,7 @@ class ServiceRegistryServicer:
                 logger.error("discover_agents_error", error=str(e))
                 span.set_status(Status(StatusCode.ERROR, str(e)))
                 # context.abort raises exception in production; in tests returns mock result
-                return context.abort(grpc.StatusCode.INTERNAL, f"Erro interno: {str(e)}")
+                return context.abort(grpc.StatusCode.INTERNAL, f"Erro interno: {e!s}")
 
     async def GetAgent(self, request, context):
         """RPC: Obter informações de um agente específico"""
@@ -271,7 +271,7 @@ class ServiceRegistryServicer:
             except Exception as e:
                 logger.error("get_agent_error", error=str(e))
                 span.set_status(Status(StatusCode.ERROR, str(e)))
-                await context.abort(grpc.StatusCode.INTERNAL, f"Erro interno: {str(e)}")
+                await context.abort(grpc.StatusCode.INTERNAL, f"Erro interno: {e!s}")
                 from src.proto import service_registry_pb2
 
                 return service_registry_pb2.GetAgentResponse()
@@ -311,7 +311,7 @@ class ServiceRegistryServicer:
             except Exception as e:
                 logger.error("list_agents_error", error=str(e))
                 span.set_status(Status(StatusCode.ERROR, str(e)))
-                await context.abort(grpc.StatusCode.INTERNAL, f"Erro interno: {str(e)}")
+                await context.abort(grpc.StatusCode.INTERNAL, f"Erro interno: {e!s}")
                 from src.proto import service_registry_pb2
 
                 return service_registry_pb2.ListAgentsResponse(agents=[])
@@ -423,7 +423,7 @@ class ServiceRegistryServicer:
                             event = service_registry_pb2.AgentChangeEvent(
                                 event_type=proto_event_type,
                                 agent=agent_proto,
-                                timestamp=int(datetime.now(timezone.utc).timestamp()),
+                                timestamp=int(datetime.now(UTC).timestamp()),
                             )
 
                             # Yield evento para stream
@@ -447,7 +447,7 @@ class ServiceRegistryServicer:
             except Exception as e:
                 logger.error("watch_agents_error", error=str(e))
                 span.set_status(Status(StatusCode.ERROR, str(e)))
-                context.abort(grpc.StatusCode.INTERNAL, f"Erro interno: {str(e)}")
+                context.abort(grpc.StatusCode.INTERNAL, f"Erro interno: {e!s}")
 
     async def NotifyAgent(self, request, context):
         """RPC: Envia notificação para agente (best-effort)."""
@@ -486,4 +486,4 @@ class ServiceRegistryServicer:
 
             except Exception as e:
                 logger.error("notify_agent_error", error=str(e))
-                context.abort(grpc.StatusCode.INTERNAL, f"Erro interno: {str(e)}")
+                context.abort(grpc.StatusCode.INTERNAL, f"Erro interno: {e!s}")

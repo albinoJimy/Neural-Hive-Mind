@@ -5,16 +5,17 @@ Valida as validações defensivas implementadas no SpecialistsGrpcClient para
 prevenir o TypeError relacionado ao campo evaluated_at.
 """
 
+from datetime import UTC, datetime
+from unittest.mock import AsyncMock, MagicMock
+
 import pytest
-from unittest.mock import MagicMock, AsyncMock
-from datetime import datetime, timezone
 from google.protobuf.timestamp_pb2 import Timestamp
 
 from neural_hive_specialists.proto_gen import specialist_pb2
 
 
-@pytest.mark.unit
-@pytest.mark.asyncio
+@pytest.mark.unit()
+@pytest.mark.asyncio()
 class TestSpecialistsGrpcClientTimestampValidation:
     """Testes para validação de timestamp no cliente gRPC."""
 
@@ -380,7 +381,7 @@ class TestSpecialistsGrpcClientTimestampValidation:
                 processing_time_ms=150 + i * 10,
             )
             timestamp = Timestamp()
-            timestamp.FromDatetime(datetime.now(timezone.utc))
+            timestamp.FromDatetime(datetime.now(UTC))
             response.evaluated_at.CopyFrom(timestamp)
             valid_responses.append(response)
 

@@ -3,10 +3,11 @@ Configuração base para especialistas neurais usando Pydantic.
 """
 
 import os
+from typing import Literal, Optional
+
+import structlog
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from typing import List, Optional, Literal
-import structlog
 
 logger = structlog.get_logger()
 
@@ -212,7 +213,7 @@ class SpecialistConfig(BaseSettings):
         env="ENABLE_JWT_AUTH",
         description="Feature flag para habilitar/desabilitar autenticação JWT",
     )
-    jwt_public_endpoints: List[str] = Field(
+    jwt_public_endpoints: list[str] = Field(
         default=[
             "HealthCheck",
             "/grpc.health.v1.Health/Check",
@@ -232,8 +233,8 @@ class SpecialistConfig(BaseSettings):
     prometheus_port: int = Field(default=8080, env="PROMETHEUS_PORT")
 
     # Capacidades
-    supported_domains: List[str] = Field(default_factory=list)
-    supported_plan_versions: List[str] = Field(default=["1.0.0"])
+    supported_domains: list[str] = Field(default_factory=list)
+    supported_plan_versions: list[str] = Field(default=["1.0.0"])
 
     # Thresholds
     min_confidence_score: float = Field(default=0.8, description="Score mínimo de confiança")
@@ -540,12 +541,12 @@ class SpecialistConfig(BaseSettings):
         env="ENABLE_PII_DETECTION",
         description="Feature flag para detecção de PII com Presidio",
     )
-    pii_detection_languages: List[str] = Field(
+    pii_detection_languages: list[str] = Field(
         default=["pt", "en"],
         env="PII_DETECTION_LANGUAGES",
         description="Idiomas suportados para detecção de PII",
     )
-    pii_entities_to_detect: List[str] = Field(
+    pii_entities_to_detect: list[str] = Field(
         default=[
             "PERSON",
             "EMAIL_ADDRESS",
@@ -574,7 +575,7 @@ class SpecialistConfig(BaseSettings):
         env="ENCRYPTION_KEY_PATH",
         description="Caminho para chave Fernet (gera automaticamente se não fornecido)",
     )
-    fields_to_encrypt: List[str] = Field(
+    fields_to_encrypt: list[str] = Field(
         default=["trace_id", "span_id", "intent_id"],
         env="FIELDS_TO_ENCRYPT",
         description="Campos a criptografar em opinião (correlation_id removido para permitir buscas via hash)",
@@ -604,7 +605,7 @@ class SpecialistConfig(BaseSettings):
         env="AUDIT_LOG_RETENTION_DAYS",
         description="Retenção de audit logs em dias (2 anos por padrão)",
     )
-    audit_events_to_log: List[str] = Field(
+    audit_events_to_log: list[str] = Field(
         default=[
             "config_change",
             "data_access",
@@ -718,17 +719,17 @@ class SpecialistConfig(BaseSettings):
         env="ENABLE_ENSEMBLE",
         description="Feature flag para habilitar ensemble de múltiplos modelos",
     )
-    ensemble_models: List[str] = Field(
+    ensemble_models: list[str] = Field(
         default_factory=list,
         env="ENSEMBLE_MODELS",
         description="Lista de nomes de modelos MLflow para ensemble (ex: ['technical-rf-model', 'technical-gb-model'])",
     )
-    ensemble_stages: List[str] = Field(
+    ensemble_stages: list[str] = Field(
         default_factory=lambda: ["Production"],
         env="ENSEMBLE_STAGES",
         description="Stages correspondentes aos modelos de ensemble (deve ter mesmo tamanho que ensemble_models)",
     )
-    ensemble_weights: Optional[List[float]] = Field(
+    ensemble_weights: Optional[list[float]] = Field(
         default=None,
         env="ENSEMBLE_WEIGHTS",
         description="Pesos fixos para ensemble (deve somar 1.0). Se None, usar pesos iguais [1/N, 1/N, ...]",
@@ -853,7 +854,7 @@ class SpecialistConfig(BaseSettings):
         env="FEEDBACK_REQUIRE_AUTHENTICATION",
         description="Requerer JWT para submissão de feedback",
     )
-    feedback_allowed_roles: List[str] = Field(
+    feedback_allowed_roles: list[str] = Field(
         default=["admin", "specialist_reviewer", "human_expert"],
         env="FEEDBACK_ALLOWED_ROLES",
         description="Roles permitidos para submeter feedback",
@@ -918,7 +919,7 @@ class SpecialistConfig(BaseSettings):
         env="TRAINING_RANDOM_SEED",
         description="Seed para reprodutibilidade",
     )
-    training_model_types: List[str] = Field(
+    training_model_types: list[str] = Field(
         default=["random_forest", "gradient_boosting"],
         env="TRAINING_MODEL_TYPES",
         description="Tipos de modelo a treinar",

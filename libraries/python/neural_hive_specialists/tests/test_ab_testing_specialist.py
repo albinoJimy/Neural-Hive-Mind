@@ -5,9 +5,11 @@ Testa carregamento de modelos A/B, seleção determinística de variante,
 coleta de métricas e análise estatística.
 """
 
-import pytest
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import MagicMock, Mock, patch
+
 import numpy as np
+import pytest
+
 from neural_hive_specialists.ab_testing_specialist import ABTestingSpecialist
 from neural_hive_specialists.config import SpecialistConfig
 
@@ -30,7 +32,7 @@ class ConcreteABTestingSpecialist(ABTestingSpecialist):
         }
 
 
-@pytest.fixture
+@pytest.fixture()
 def ab_test_config():
     """Configuração para A/B testing specialist."""
     return SpecialistConfig(
@@ -70,7 +72,7 @@ def ab_test_config():
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_mlflow_client():
     """Mock do MLflowClient."""
     with patch("neural_hive_specialists.mlflow_client.MLflowClient") as mock_client:
@@ -96,7 +98,7 @@ def mock_mlflow_client():
         yield client_instance
 
 
-@pytest.fixture
+@pytest.fixture()
 def ab_testing_specialist(ab_test_config, mock_mlflow_client):
     """Instância de ABTestingSpecialist configurada."""
     # Mockar métodos abstratos
@@ -569,7 +571,7 @@ class TestABTestingErrorHandling:
         assert "error" in stats or stats["model_a"]["sample_size"] == 0
 
 
-@pytest.mark.integration
+@pytest.mark.integration()
 class TestABTestingIntegration:
     """Testes de integração end-to-end."""
 

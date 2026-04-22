@@ -125,13 +125,31 @@ class Settings(BaseSettings):
         description="Se True, usa adaptive threshold calculado pelo NLU para decisões de roteamento; se False, usa thresholds fixos",
     )
 
+    # FEAT-A-005: Threshold Service - Externalização de configurações NLU
+    nlu_threshold_auto_reload: bool = Field(
+        default=False,
+        description="Habilita recarga automática de configuração de thresholds",
+    )
+    nlu_threshold_reload_interval: int = Field(
+        default=300,
+        description="Intervalo de recarga de thresholds em segundos (padrão: 5 minutos)",
+    )
+    nlu_threshold_cache_ttl: int = Field(
+        default=300,
+        description="TTL do cache de thresholds em segundos (0 = sem expiração, padrão: 5 minutos)",
+    )
+    nlu_threshold_config_path: str | None = Field(
+        default=None,
+        description="Caminho para arquivo YAML de configuração de thresholds (opcional)",
+    )
+
     # Redis Cache
     redis_cluster_nodes: str = Field(
         default="neural-hive-cache.redis-cluster.svc.cluster.local:6379"
     )
     redis_mode: str = Field(
         default="cluster",
-        description="Modo de conexão Redis: 'cluster' para Redis Cluster (segue redirecionamentos MOVED/ASK), 'standalone' para Redis single-node"
+        description="Modo de conexão Redis: 'cluster' para Redis Cluster (segue redirecionamentos MOVED/ASK), 'standalone' para Redis single-node",
     )
     redis_password: str | None = Field(default=None)
     redis_ca_cert_path: str | None = Field(default=None)

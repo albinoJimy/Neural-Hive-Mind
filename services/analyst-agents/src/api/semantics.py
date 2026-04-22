@@ -1,4 +1,3 @@
-from typing import List
 
 import structlog
 from fastapi import APIRouter, HTTPException, Request
@@ -16,25 +15,25 @@ class SimilarityRequest(BaseModel):
 
 class SimilaritySearchRequest(BaseModel):
     query: str
-    texts: List[str]
+    texts: list[str]
     top_k: int = Field(5, ge=1, le=100)
     threshold: float = Field(0.7, ge=0.0, le=1.0)
 
 
 class ClusterRequest(BaseModel):
-    texts: List[str]
+    texts: list[str]
     eps: float = Field(0.5, ge=0.0, le=1.0)
     min_samples: int = Field(2, ge=1)
 
 
 class DriftDetectionRequest(BaseModel):
-    baseline_texts: List[str]
-    current_texts: List[str]
+    baseline_texts: list[str]
+    current_texts: list[str]
     threshold: float = Field(0.3, ge=0.0, le=1.0)
 
 
 class OutlierRequest(BaseModel):
-    texts: List[str]
+    texts: list[str]
     threshold_percentile: float = Field(95.0, ge=50.0, le=99.9)
 
 

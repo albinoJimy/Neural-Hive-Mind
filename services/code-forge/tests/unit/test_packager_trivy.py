@@ -4,11 +4,10 @@ Testes unitários para integração Packager + Trivy.
 Valida que o Packager executa scan de vulnerabilidades nos artefatos.
 """
 
-import pytest
-from unittest.mock import AsyncMock
 from datetime import datetime
+from unittest.mock import AsyncMock
 
-from src.services.packager import Packager
+import pytest
 from src.models.artifact import (
     CodeForgeArtifact,
     GenerationMethod,
@@ -16,23 +15,24 @@ from src.models.artifact import (
     ValidationStatus,
     ValidationType,
 )
-from src.types.artifact_types import ArtifactCategory
 from src.models.execution_ticket import (
+    SLA,
+    Consistency,
+    DeliveryMode,
+    Durability,
     ExecutionTicket,
+    Priority,
+    QoS,
+    RiskBand,
+    SecurityLevel,
     TaskType,
     TicketStatus,
-    Priority,
-    RiskBand,
-    SLA,
-    QoS,
-    SecurityLevel,
-    DeliveryMode,
-    Consistency,
-    Durability,
 )
+from src.services.packager import Packager
+from src.types.artifact_types import ArtifactCategory
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_trivy_client():
     """Mock do TrivyClient."""
     client = AsyncMock()
@@ -41,7 +41,7 @@ def mock_trivy_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_sigstore_client():
     """Mock do SigstoreClient."""
     client = AsyncMock()
@@ -50,7 +50,7 @@ def mock_sigstore_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_s3_client():
     """Mock do S3ArtifactClient."""
     client = AsyncMock()
@@ -58,7 +58,7 @@ def mock_s3_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_registry_client():
     """Mock do ArtifactRegistryClient."""
     client = AsyncMock()
@@ -66,7 +66,7 @@ def mock_registry_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_postgres_client():
     """Mock do PostgresClient."""
     client = AsyncMock()
@@ -74,7 +74,7 @@ def mock_postgres_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_artifact():
     """Artefato de exemplo."""
     return CodeForgeArtifact(
@@ -90,7 +90,7 @@ def sample_artifact():
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_ticket():
     """Ticket de execução completo para testes."""
     now = datetime.now()
@@ -111,7 +111,7 @@ def sample_ticket():
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def packager_with_trivy(
     mock_trivy_client,
     mock_sigstore_client,
@@ -132,7 +132,7 @@ def packager_with_trivy(
 class TestPackagerTrivyIntegration:
     """Testes de integração Packager + Trivy."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_package_with_trivy_scan_success(
         self,
         packager_with_trivy,
@@ -178,7 +178,7 @@ class TestPackagerTrivyIntegration:
         assert len(sample_artifact.validation_results) == 1
         assert sample_artifact.validation_results[0].status == ValidationStatus.PASSED
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_package_without_trivy_client(
         self,
         sample_artifact,
@@ -212,7 +212,7 @@ class TestPackagerTrivyIntegration:
         # Não deve ter resultados de validação
         assert len(sample_artifact.validation_results) == 0
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_package_with_trivy_scan_finds_vulnerabilities(
         self,
         packager_with_trivy,
@@ -254,7 +254,7 @@ class TestPackagerTrivyIntegration:
         assert len(sample_artifact.validation_results) == 1
         assert sample_artifact.validation_results[0].high_issues == 2
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_package_with_container_type(
         self, packager_with_trivy, sample_ticket, mock_trivy_client, mock_sigstore_client
     ):
@@ -303,7 +303,7 @@ class TestPackagerTrivyIntegration:
         # Para container com file:// URI, deve usar filesystem scan
         mock_trivy_client.scan_filesystem.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_package_scan_error_continues(
         self,
         packager_with_trivy,
@@ -340,7 +340,7 @@ class TestPackagerTrivyIntegration:
 class TestPackagerWithoutTrivy:
     """Testes do Packager sem Trivy (backward compatibility)."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_package_backward_compatibility(
         self,
         sample_artifact,

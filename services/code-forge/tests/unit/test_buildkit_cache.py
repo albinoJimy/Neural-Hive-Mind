@@ -4,10 +4,10 @@ Unit tests para BuildKit cache integration (FASE 3.2).
 Testa a funcionalidade de cache distribuído para builds.
 """
 
-import pytest
-from unittest.mock import Mock, patch, AsyncMock
+from unittest.mock import AsyncMock, Mock, patch
 
-from src.services.container_builder import ContainerBuilder, BuilderType, BuildResult
+import pytest
+from src.services.container_builder import BuilderType, BuildResult, ContainerBuilder
 
 
 class TestCacheInitialization:
@@ -37,7 +37,7 @@ class TestCacheInitialization:
 class TestDockerCacheFlags:
     """Testes para flags de cache no Docker build."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_docker_build_with_cache_repo(self):
         """Testa build Docker com cache repo especificado."""
         builder = ContainerBuilder(
@@ -64,7 +64,7 @@ class TestDockerCacheFlags:
             assert "type=registry,ref=ghcr.io/myorg/cache" in all_args
             assert "--cache-to" in all_args
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_docker_build_with_local_cache(self):
         """Testa build Docker com cache local."""
         builder = ContainerBuilder(
@@ -89,7 +89,7 @@ class TestDockerCacheFlags:
             cache_from_idx = all_args.index("--cache-from")
             assert all_args[cache_from_idx + 1] == "type=local"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_docker_build_without_cache(self):
         """Testa build Docker sem cache."""
         builder = ContainerBuilder(builder_type=BuilderType.DOCKER, enable_cache=False)
@@ -125,7 +125,7 @@ class TestKanikoCacheFlags:
         assert builder.enable_cache is True
         assert builder.cache_repo == "ghcr.io/myorg/kaniko-cache"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_kaniko_build_with_cache_flags(self):
         """Testa que flags de cache são adicionadas aos args Kaniko."""
         builder = ContainerBuilder(
@@ -135,8 +135,8 @@ class TestKanikoCacheFlags:
         )
 
         # Criar Dockerfile temporário para o teste
-        import tempfile
         import os
+        import tempfile
 
         with tempfile.TemporaryDirectory() as tmpdir:
             dockerfile_path = os.path.join(tmpdir, "Dockerfile")
@@ -153,7 +153,7 @@ class TestKanikoCacheFlags:
             # mas podemos validar que o builder foi configurado corretamente
             assert result is not None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_kaniko_build_without_cache_configured(self):
         """Testa builder Kaniko com cache desabilitado."""
         builder = ContainerBuilder(builder_type=BuilderType.KANIKO, enable_cache=False)
@@ -165,7 +165,7 @@ class TestKanikoCacheFlags:
 class TestCacheOverride:
     """Testes para sobrescrita de cache na chamada do método."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_override_cache_enabled(self):
         """Testa habilitar cache em build mesmo com builder desabilitado."""
         builder = ContainerBuilder(
@@ -192,7 +192,7 @@ class TestCacheOverride:
             all_args = list(mock_exec.call_args[0])
             assert "--cache-from" in all_args
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_override_cache_disabled(self):
         """Testa desabilitar cache em build mesmo com builder habilitado."""
         builder = ContainerBuilder(

@@ -9,20 +9,22 @@ Valida:
 - Isolamento de configuração por tenant
 """
 
-import pytest
-from unittest.mock import Mock, patch
-import tempfile
 import json
+import tempfile
+from unittest.mock import Mock, patch
+
+import pytest
+
+from neural_hive_specialists.config import SpecialistConfig
 
 # Import conftest fixtures e configurações primeiro
 # Os patches estão em conftest.py, não aplicamos patches aqui
 from neural_hive_specialists.multi_tenant_specialist import (
     MultiTenantSpecialist,
 )
-from neural_hive_specialists.config import SpecialistConfig
 
 
-@pytest.fixture
+@pytest.fixture()
 def tenant_configs_file():
     """Cria arquivo temporário de configs de tenant."""
     tenant_configs = {
@@ -68,7 +70,7 @@ def tenant_configs_file():
         pass
 
 
-@pytest.fixture
+@pytest.fixture()
 def config_with_tenant_file(tenant_configs_file):
     """Configuração com arquivo de tenant configs."""
     return SpecialistConfig(
@@ -108,7 +110,7 @@ class ConcreteMultiTenantSpecialist(MultiTenantSpecialist):
         }
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_request():
     """Mock de EvaluatePlanRequest."""
     request = Mock()

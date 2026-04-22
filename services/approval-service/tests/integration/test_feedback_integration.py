@@ -6,15 +6,15 @@ submissao de feedback para continuous learning dos specialists.
 """
 
 import asyncio
-import pytest
 
+import pytest
 from src.services.approval_service import ApprovalService
 
 
 class TestFeedbackIntegration:
     """Testes de integracao do feedback ML."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def approval_service_with_feedback(
         self,
         mock_settings,
@@ -34,7 +34,7 @@ class TestFeedbackIntegration:
             ledger_client=mock_ledger_client,
         )
 
-    @pytest.fixture
+    @pytest.fixture()
     def approval_service_without_feedback(
         self, mock_settings, mock_mongodb_client, mock_response_producer, mock_metrics
     ):
@@ -49,7 +49,7 @@ class TestFeedbackIntegration:
             ledger_client=None,
         )
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_approve_plan_with_feedback_success(
         self,
         approval_service_with_feedback,
@@ -91,7 +91,7 @@ class TestFeedbackIntegration:
         assert feedback_data["submitted_by"] == "admin@example.com"
         assert feedback_data["metadata"]["source"] == "approval_service"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_reject_plan_with_feedback_success(
         self,
         approval_service_with_feedback,
@@ -129,7 +129,7 @@ class TestFeedbackIntegration:
         assert feedback_data["human_rating"] == 0.0
         assert feedback_data["human_recommendation"] == "reject"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_approve_without_opinions_graceful_degradation(
         self,
         approval_service_with_feedback,
@@ -157,7 +157,7 @@ class TestFeedbackIntegration:
         # Feedback nao deve ser submetido (sem opinioes)
         mock_feedback_collector.submit_feedback.assert_not_called()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_approve_when_feedback_collector_fails(
         self,
         approval_service_with_feedback,
@@ -182,7 +182,7 @@ class TestFeedbackIntegration:
         # Assert - aprovacao deve funcionar
         assert decision.decision == "approved"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_approve_when_ledger_fails(
         self,
         approval_service_with_feedback,
@@ -210,7 +210,7 @@ class TestFeedbackIntegration:
         # Feedback nao deve ser chamado (ledger falhou antes)
         mock_feedback_collector.submit_feedback.assert_not_called()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_approve_without_feedback_collection_enabled(
         self, approval_service_without_feedback, mock_mongodb_client, sample_approval_request
     ):
@@ -226,7 +226,7 @@ class TestFeedbackIntegration:
         # Assert
         assert decision.decision == "approved"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_feedback_for_multiple_specialists(
         self,
         approval_service_with_feedback,
@@ -280,7 +280,7 @@ class TestFeedbackIntegration:
         ]
         assert opinion_ids == ["op-1", "op-2", "op-3"]
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_feedback_continues_if_one_submission_fails(
         self,
         approval_service_with_feedback,

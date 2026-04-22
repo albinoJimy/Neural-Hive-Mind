@@ -2,9 +2,10 @@
 
 import os
 import sys
-import pytest
-from unittest.mock import patch, Mock
 from datetime import datetime
+from unittest.mock import Mock, patch
+
+import pytest
 
 # Adicionar diretório de scripts ao path
 sys.path.insert(

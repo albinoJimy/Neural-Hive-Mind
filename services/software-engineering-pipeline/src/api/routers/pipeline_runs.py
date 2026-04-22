@@ -1,7 +1,7 @@
 """Router para execuções de pipeline."""
 
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query, status
@@ -140,7 +140,7 @@ async def get_repository_stats(
 
     success_rate = await repo.get_success_rate(full_repo_url, days=days)
 
-    end_date = datetime.now(timezone.utc)
+    end_date = datetime.now(UTC)
     start_date = end_date - timedelta(days=days)
 
     pipeline = [

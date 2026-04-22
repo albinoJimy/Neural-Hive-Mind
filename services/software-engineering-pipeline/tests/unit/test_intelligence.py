@@ -1,14 +1,15 @@
+from datetime import UTC, datetime, timedelta
+
 import pytest
-from datetime import datetime, timedelta, timezone
 from src.intelligence.anomaly_detector import (
     AnomalyDetector,
 )
 from src.intelligence.flaky_test_detector import FlakyTestDetector
-from src.intelligence.insights_generator import InsightsGenerator, InsightConfig
+from src.intelligence.insights_generator import InsightConfig, InsightsGenerator
 from src.models.schemas import Severity
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_detect_performance_degradation():
     detector = AnomalyDetector()
 
@@ -30,7 +31,7 @@ async def test_detect_performance_degradation():
     assert anomalies[0].type == "performance_degradation"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_detect_no_flaky_tests():
     detector = AnomalyDetector()
 
@@ -58,7 +59,7 @@ async def test_detect_no_flaky_tests():
     assert len(anomalies) == 0
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_detect_flaky_tests():
     detector = AnomalyDetector()
 
@@ -95,7 +96,7 @@ async def test_detect_flaky_tests():
     assert "test_login" in anomalies[0].affected_component
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_flaky_test_detector():
     detector = FlakyTestDetector(flaky_threshold=0.3)
 
@@ -123,7 +124,7 @@ async def test_flaky_test_detector():
     assert len(flaky_tests) >= 1
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_insights_generator_basic():
     generator = InsightsGenerator()
 
@@ -154,7 +155,7 @@ async def test_insights_generator_basic():
         },
     ]
 
-    timeframe_end = datetime.now(timezone.utc)
+    timeframe_end = datetime.now(UTC)
     timeframe_start = timeframe_end - timedelta(days=1)
 
     report = await generator.generate_insights(
@@ -170,22 +171,22 @@ async def test_insights_generator_basic():
     assert len(report.flaky_tests) > 0  # test_a should be flaky
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_insights_generator_empty_runs():
     generator = InsightsGenerator()
 
     report = await generator.generate_insights(
         "https://github.com/org/repo",
         [],
-        datetime.now(timezone.utc) - timedelta(days=1),
-        datetime.now(timezone.utc),
+        datetime.now(UTC) - timedelta(days=1),
+        datetime.now(UTC),
     )
 
     assert report.total_runs == 0
     assert report.success_rate == 0.0
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_insights_generator_slow_tests():
     generator = InsightsGenerator(config=InsightConfig(slow_test_threshold_seconds=5))
 
@@ -203,7 +204,7 @@ async def test_insights_generator_slow_tests():
         },
     ]
 
-    timeframe_end = datetime.now(timezone.utc)
+    timeframe_end = datetime.now(UTC)
     timeframe_start = timeframe_end - timedelta(days=1)
 
     report = await generator.generate_insights(
@@ -217,7 +218,7 @@ async def test_insights_generator_slow_tests():
     assert report.slow_tests[0].insight_type == "slow_test"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_security_anomaly_detection():
     detector = AnomalyDetector()
 
@@ -236,7 +237,7 @@ async def test_security_anomaly_detection():
     assert anomalies[0].severity == Severity.CRITICAL
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_security_anomaly_high_vulns():
     detector = AnomalyDetector()
 
@@ -255,7 +256,7 @@ async def test_security_anomaly_high_vulns():
     assert anomalies[0].severity == Severity.HIGH
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_insights_generator_optimization_opportunities():
     generator = InsightsGenerator(config=InsightConfig(cache_miss_threshold=2))
 
@@ -295,7 +296,7 @@ async def test_insights_generator_optimization_opportunities():
         },
     ]
 
-    timeframe_end = datetime.now(timezone.utc)
+    timeframe_end = datetime.now(UTC)
     timeframe_start = timeframe_end - timedelta(days=1)
 
     report = await generator.generate_insights(

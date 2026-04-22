@@ -9,12 +9,13 @@ Cobertura:
 - Metricas de violacoes
 """
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
+
 import httpx
+import pytest
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_opa_client():
     """Mock OPAClient para testes."""
     from clients.opa_client import ViolationSeverity
@@ -33,7 +34,7 @@ def mock_opa_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_metrics_with_policy_violations():
     """Mock metrics com policy_violations_total."""
     metrics = MagicMock()
@@ -61,7 +62,7 @@ def mock_metrics_with_policy_violations():
     return metrics
 
 
-@pytest.fixture
+@pytest.fixture()
 def validate_executor_with_opa_client(
     worker_config, mock_opa_client, mock_metrics_with_policy_violations
 ):
@@ -78,7 +79,7 @@ def validate_executor_with_opa_client(
     return executor
 
 
-@pytest.fixture
+@pytest.fixture()
 def validate_ticket_opa():
     """Ticket de validacao OPA."""
     import uuid
@@ -99,7 +100,7 @@ def validate_ticket_opa():
 class TestExecuteOPAWithClient:
     """Testes de _execute_opa_with_client."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_opa_success(
         self, validate_executor_with_opa_client, mock_opa_client, validate_ticket_opa
     ):
@@ -124,7 +125,7 @@ class TestExecuteOPAWithClient:
         assert result["output"]["violations"] == []
         assert result["metadata"]["client_type"] == "dedicated"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_opa_with_violations(
         self, validate_executor_with_opa_client, mock_opa_client, validate_ticket_opa
     ):
@@ -156,7 +157,7 @@ class TestExecuteOPAWithClient:
         assert len(result["output"]["violations"]) == 1
         assert result["output"]["violations"][0]["rule_id"] == "auth_required"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_opa_timeout_fallback(
         self, validate_executor_with_opa_client, mock_opa_client, validate_ticket_opa
     ):
@@ -172,7 +173,7 @@ class TestExecuteOPAWithClient:
         assert result["output"]["validation_passed"] is False
         assert result["metadata"]["conservative_failure"] is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_opa_api_error_fallback(
         self, validate_executor_with_opa_client, mock_opa_client, validate_ticket_opa
     ):
@@ -192,7 +193,7 @@ class TestExecuteOPAWithClient:
 class TestExecuteOPALegacy:
     """Testes de _execute_opa_legacy."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def validate_executor_legacy(self, worker_config, mock_metrics_with_policy_violations):
         """ValidateExecutor sem OPAClient (modo legacy)."""
         from executors.validate_executor import ValidateExecutor
@@ -209,7 +210,7 @@ class TestExecuteOPALegacy:
         )
         return executor
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_legacy_dict_result(self, validate_executor_legacy, validate_ticket_opa):
         """Deve tratar resultado dicionario no modo legacy."""
         mock_response = MagicMock()
@@ -230,7 +231,7 @@ class TestExecuteOPALegacy:
             assert result["output"]["validation_passed"] is True
             assert result["metadata"]["client_type"] == "legacy"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_legacy_boolean_true_result(self, validate_executor_legacy, validate_ticket_opa):
         """Deve tratar resultado booleano true no modo legacy."""
         mock_response = MagicMock()
@@ -250,7 +251,7 @@ class TestExecuteOPALegacy:
             assert result["success"] is True
             assert result["output"]["validation_passed"] is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_legacy_boolean_false_result(self, validate_executor_legacy, validate_ticket_opa):
         """Deve tratar resultado booleano false no modo legacy."""
         mock_response = MagicMock()
@@ -270,7 +271,7 @@ class TestExecuteOPALegacy:
             assert result["success"] is False
             assert result["output"]["validation_passed"] is False
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_legacy_list_result(self, validate_executor_legacy, validate_ticket_opa):
         """Deve tratar resultado lista como violacoes no modo legacy."""
         mock_response = MagicMock()
@@ -296,7 +297,7 @@ class TestExecuteOPALegacy:
             assert result["output"]["validation_passed"] is False
             assert len(result["output"]["violations"]) == 2
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_legacy_error_fallback(self, validate_executor_legacy, validate_ticket_opa):
         """Deve usar fallback conservador em erro no modo legacy."""
         with patch("httpx.AsyncClient") as mock_client_class:
@@ -316,7 +317,7 @@ class TestExecuteOPALegacy:
 class TestOPAFallback:
     """Testes de _execute_opa_fallback."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_fallback_returns_conservative_failure(self, validate_executor_with_opa_client):
         """Deve retornar falha conservadora."""
         result = await validate_executor_with_opa_client._execute_opa_fallback(
@@ -330,7 +331,7 @@ class TestOPAFallback:
         assert result["metadata"]["conservative_failure"] is True
         assert "OPA unavailable" in result["logs"][1]
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_fallback_includes_reason(self, validate_executor_with_opa_client):
         """Deve incluir motivo do fallback."""
         result = await validate_executor_with_opa_client._execute_opa_fallback(
@@ -392,8 +393,8 @@ class TestRecordOPAViolationMetrics:
 
     def test_record_metrics_without_metrics_instance(self, worker_config):
         """Nao deve falhar sem instancia de metricas."""
-        from executors.validate_executor import ValidateExecutor
         from clients.opa_client import ViolationSeverity
+        from executors.validate_executor import ValidateExecutor
 
         executor = ValidateExecutor(config=worker_config, metrics=None)  # Sem metricas
 

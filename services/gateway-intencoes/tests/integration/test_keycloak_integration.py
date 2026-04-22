@@ -4,9 +4,10 @@ Test real Keycloak integration with testcontainers
 """
 
 import asyncio
-import pytest
 from datetime import datetime, timedelta
+
 import httpx
+import pytest
 
 # Skip tests if dependencies not available
 pytest_plugins = []
@@ -27,7 +28,7 @@ from src.security.oauth2_validator import OAuth2Validator, TokenValidationError
 
 
 @pytest.mark.skipif(not TESTCONTAINERS_AVAILABLE, reason="testcontainers not available")
-@pytest.mark.integration
+@pytest.mark.integration()
 class TestKeycloakIntegration:
     """Integration tests with real Keycloak instance"""
 
@@ -77,7 +78,7 @@ class TestKeycloakIntegration:
 
         return settings
 
-    @pytest.fixture
+    @pytest.fixture()
     async def admin_token(self, keycloak_settings):
         """Get admin token for API operations"""
         token_url = (
@@ -101,7 +102,7 @@ class TestKeycloakIntegration:
             else:
                 pytest.skip(f"Could not get admin token: {response.status_code}")
 
-    @pytest.fixture
+    @pytest.fixture()
     async def test_realm_setup(self, keycloak_settings, admin_token):
         """Setup test realm and client"""
         admin_api_url = f"{keycloak_settings.keycloak_url}/auth/admin/realms"
@@ -161,7 +162,7 @@ class TestKeycloakIntegration:
 
             yield keycloak_settings
 
-    @pytest.fixture
+    @pytest.fixture()
     async def oauth2_validator_integration(self, test_realm_setup):
         """Create OAuth2 validator with real Keycloak"""
         from unittest.mock import patch
@@ -194,7 +195,7 @@ class TestKeycloakIntegration:
             else:
                 pytest.skip(f"Could not get test token: {response.status_code} - {response.text}")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_jwks_fetch(self, oauth2_validator_integration, test_realm_setup):
         """Test JWKS fetching from real Keycloak"""
         validator = oauth2_validator_integration
@@ -210,7 +211,7 @@ class TestKeycloakIntegration:
         assert "kty" in key
         assert key["kty"] == "RSA"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_token_validation_success(self, oauth2_validator_integration, test_realm_setup):
         """Test successful token validation with real token"""
         validator = oauth2_validator_integration
@@ -227,7 +228,7 @@ class TestKeycloakIntegration:
         assert "iss" in payload
         assert test_realm_setup.keycloak_realm in payload["iss"]
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_token_validation_expired(self, oauth2_validator_integration, test_realm_setup):
         """Test validation fails for expired token"""
         validator = oauth2_validator_integration
@@ -249,7 +250,7 @@ class TestKeycloakIntegration:
         with pytest.raises(TokenValidationError):
             await validator.validate_token(expired_token)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_token_introspection(self, oauth2_validator_integration, test_realm_setup):
         """Test token introspection endpoint"""
         validator = oauth2_validator_integration
@@ -265,7 +266,7 @@ class TestKeycloakIntegration:
         assert "username" in introspection_result
         assert introspection_result["username"] == "testuser"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_user_info(self, oauth2_validator_integration, test_realm_setup):
         """Test user info endpoint"""
         validator = oauth2_validator_integration
@@ -282,7 +283,7 @@ class TestKeycloakIntegration:
         assert "email" in user_info
         assert user_info["email"] == "test@neural-hive.com"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_offline_validation(self, oauth2_validator_integration, test_realm_setup):
         """Test offline token validation"""
         validator = oauth2_validator_integration
@@ -298,7 +299,7 @@ class TestKeycloakIntegration:
         assert "iss" in payload
         assert test_realm_setup.keycloak_realm in payload["iss"]
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_user_context_extraction(self, oauth2_validator_integration, test_realm_setup):
         """Test user context extraction from real token"""
         validator = oauth2_validator_integration
@@ -316,7 +317,7 @@ class TestKeycloakIntegration:
         assert "user_id" in context
         assert "roles" in context
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_jwks_cache_behavior(self, oauth2_validator_integration, test_realm_setup):
         """Test JWKS caching behavior"""
         validator = oauth2_validator_integration
@@ -343,7 +344,7 @@ class TestKeycloakIntegration:
         assert jwks1 == jwks3  # Content should be the same
         assert third_fetch_time > second_fetch_time  # New fetch time
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_concurrent_token_validation(
         self, oauth2_validator_integration, test_realm_setup
     ):
@@ -369,7 +370,7 @@ class TestKeycloakIntegration:
         successful_results = [r for r in results if r is True]
         assert len(successful_results) >= 8  # Allow for some potential timing issues
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_token_with_custom_claims(self, oauth2_validator_integration, test_realm_setup):
         """Test validation with custom claims and roles"""
         validator = oauth2_validator_integration
@@ -388,7 +389,7 @@ class TestKeycloakIntegration:
             scopes = payload["scope"].split()
             assert "openid" in scopes
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_error_handling(self, oauth2_validator_integration, test_realm_setup):
         """Test error handling for various invalid scenarios"""
         validator = oauth2_validator_integration
@@ -410,12 +411,12 @@ class TestKeycloakIntegration:
             await validator.get_user_info("invalid.token.here")
 
 
-@pytest.mark.integration
+@pytest.mark.integration()
 @pytest.mark.skipif(not TESTCONTAINERS_AVAILABLE, reason="testcontainers not available")
 class TestKeycloakFailureScenarios:
     """Test Keycloak failure scenarios and recovery"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_keycloak_unavailable(self):
         """Test behavior when Keycloak is unavailable"""
         from unittest.mock import Mock, patch
@@ -444,10 +445,11 @@ class TestKeycloakFailureScenarios:
 
             await validator.close()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_jwks_fallback_behavior(self):
         """Test JWKS cache fallback to expired cache on network errors"""
         from unittest.mock import AsyncMock
+
         import httpx
 
         validator = OAuth2Validator()

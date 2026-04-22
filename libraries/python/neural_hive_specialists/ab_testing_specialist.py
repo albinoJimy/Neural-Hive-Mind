@@ -6,7 +6,7 @@ usando distribuição determinística baseada em hash para seleção de variante
 """
 
 import hashlib
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Optional
 
 import structlog
 from opentelemetry import trace
@@ -42,8 +42,8 @@ class ABTestingSpecialist(BaseSpecialist):
         super().__init__(config)
         self.model_a: Optional[Any] = None
         self.model_b: Optional[Any] = None
-        self.model_a_metadata: Dict = {}
-        self.model_b_metadata: Dict = {}
+        self.model_a_metadata: dict = {}
+        self.model_b_metadata: dict = {}
 
     def _load_model(self) -> Optional[Any]:
         """
@@ -163,7 +163,7 @@ class ABTestingSpecialist(BaseSpecialist):
         # Retornar modelo A como padrão
         return self.model_a
 
-    def _select_model_for_request(self, plan_id: str, intent_id: str) -> Tuple[str, Optional[Any]]:
+    def _select_model_for_request(self, plan_id: str, intent_id: str) -> tuple[str, Optional[Any]]:
         """
         Seleciona modelo (A ou B) para request usando hash determinístico.
 
@@ -390,7 +390,7 @@ class ABTestingSpecialist(BaseSpecialist):
             logger.error("Erro no modelo de fallback", variant=variant, error=str(e))
             return None
 
-    def get_ab_test_statistics(self) -> Dict[str, Any]:
+    def get_ab_test_statistics(self) -> dict[str, Any]:
         """
         Retorna estatísticas do A/B test.
 
@@ -501,7 +501,7 @@ class ABTestingSpecialist(BaseSpecialist):
                 "recommendation": "error",
             }
 
-    def _collect_variant_stats(self, variant: str) -> Dict[str, Any]:
+    def _collect_variant_stats(self, variant: str) -> dict[str, Any]:
         """
         Coleta estatísticas de uma variante do Prometheus registry.
 

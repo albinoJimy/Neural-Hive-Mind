@@ -129,7 +129,7 @@ class ValidateExecutor(BaseTaskExecutor):
                     ["trivy", "fs", "--format", "json", working_dir],
                     capture_output=True,
                     text=True,
-                    timeout=self.trivy_timeout_seconds,
+                    timeout=self.trivy_timeout_seconds, check=False,
                 )
                 report = {}
                 try:

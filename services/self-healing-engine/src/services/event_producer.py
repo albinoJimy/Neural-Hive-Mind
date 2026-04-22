@@ -8,10 +8,9 @@ Publica eventos relacionados a:
 """
 
 import json
-import asyncio
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 import structlog
 from aiokafka import AIOKafkaProducer
@@ -73,11 +72,11 @@ class SelfHealingEvent:
         self,
         event_type: EventType,
         source: str,
-        data: Dict[str, Any],
+        data: dict[str, Any],
         severity: str = "info",
         timestamp: Optional[datetime] = None,
         correlation_id: Optional[str] = None,
-        metadata: Optional[Dict[str, Any]] = None,
+        metadata: Optional[dict[str, Any]] = None,
     ):
         """Cria um novo evento.
 
@@ -94,11 +93,11 @@ class SelfHealingEvent:
         self.source = source
         self.data = data
         self.severity = severity
-        self.timestamp = timestamp or datetime.now(timezone.utc)
+        self.timestamp = timestamp or datetime.now(UTC)
         self.correlation_id = correlation_id
         self.metadata = metadata or {}
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Converte para dicionário."""
         return {
             "event_type": self.event_type.value,
@@ -232,7 +231,7 @@ class EventProducer:
         self,
         anomaly_type: str,
         entity_id: str,
-        details: Dict[str, Any],
+        details: dict[str, Any],
         severity: str = "warning",
         correlation_id: Optional[str] = None,
     ) -> bool:
@@ -255,7 +254,7 @@ class EventProducer:
         remediation_id: str,
         incident_type: str,
         playbook_name: str,
-        context: Dict[str, Any],
+        context: dict[str, Any],
         correlation_id: Optional[str] = None,
     ) -> bool:
         """Publica evento de remediação iniciada."""
@@ -276,7 +275,7 @@ class EventProducer:
     async def publish_remediation_completed(
         self,
         remediation_id: str,
-        result: Dict[str, Any],
+        result: dict[str, Any],
         duration_seconds: float,
         correlation_id: Optional[str] = None,
     ) -> bool:
@@ -299,7 +298,7 @@ class EventProducer:
         self,
         remediation_id: str,
         error: str,
-        context: Dict[str, Any],
+        context: dict[str, Any],
         correlation_id: Optional[str] = None,
     ) -> bool:
         """Publica evento de falha na remediação."""
@@ -321,7 +320,7 @@ class EventProducer:
         service_name: str,
         check_type: str,
         error: str,
-        details: Dict[str, Any],
+        details: dict[str, Any],
         correlation_id: Optional[str] = None,
     ) -> bool:
         """Publica evento de health check falhando."""
@@ -408,8 +407,8 @@ class EventProducer:
 
     async def publish_batch_events(
         self,
-        events: List[SelfHealingEvent],
-    ) -> Dict[str, int]:
+        events: list[SelfHealingEvent],
+    ) -> dict[str, int]:
         """Publica múltiplos eventos em batch.
 
         Args:

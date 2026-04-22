@@ -1,17 +1,18 @@
 """Testes unitários para AnomalyDetector."""
 
-import pytest
+import os
+import tempfile
+from unittest.mock import AsyncMock, Mock, patch
+
+import joblib
 import numpy as np
 import pandas as pd
-from unittest.mock import Mock, patch, AsyncMock
-import tempfile
-import os
-import joblib
+import pytest
 
 from neural_hive_ml.predictive_models.anomaly_detector import AnomalyDetector
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_config():
     """Configuração mock para AnomalyDetector."""
     return {
@@ -21,7 +22,7 @@ def mock_config():
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_config_autoencoder():
     """Configuração mock para AnomalyDetector com autoencoder."""
     return {
@@ -31,7 +32,7 @@ def mock_config_autoencoder():
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_registry():
     """ModelRegistry mock."""
     registry = Mock()
@@ -39,7 +40,7 @@ def mock_registry():
     return registry
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_metrics():
     """Metrics client mock."""
     metrics = Mock()
@@ -47,7 +48,7 @@ def mock_metrics():
     return metrics
 
 
-@pytest.fixture
+@pytest.fixture()
 def training_data_normal():
     """Dados de treinamento normais (100 amostras)."""
     np.random.seed(42)
@@ -76,7 +77,7 @@ def training_data_normal():
     return pd.DataFrame(data)
 
 
-@pytest.fixture
+@pytest.fixture()
 def training_data_with_anomalies():
     """Dados de treinamento com 10 anomalias."""
     np.random.seed(42)
@@ -134,7 +135,7 @@ def training_data_with_anomalies():
     return pd.concat([df_normal, df_anomaly], ignore_index=True)
 
 
-@pytest.fixture
+@pytest.fixture()
 def labels_with_anomalies():
     """Labels para dados com anomalias (100 normais + 10 anômalos)."""
     return np.array([1] * 100 + [-1] * 10)
@@ -145,7 +146,7 @@ def labels_with_anomalies():
 # =============================================================================
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_isolation_forest_persistence(
     mock_config, mock_registry, mock_metrics, training_data_with_anomalies, labels_with_anomalies
 ):
@@ -233,7 +234,7 @@ async def test_isolation_forest_persistence(
 # =============================================================================
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_autoencoder_persistence(
     mock_config_autoencoder, mock_registry, mock_metrics, training_data_normal
 ):
@@ -333,7 +334,7 @@ async def test_autoencoder_persistence(
 # =============================================================================
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_artifact_download_failure_fallback(mock_config, mock_registry, mock_metrics):
     """
     Testa fallback quando download de artifacts falha.
@@ -383,7 +384,7 @@ async def test_artifact_download_failure_fallback(mock_config, mock_registry, mo
 # =============================================================================
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_mlflow_api_correctness(
     mock_config, mock_config_autoencoder, mock_registry, mock_metrics, training_data_normal
 ):
@@ -446,7 +447,7 @@ async def test_mlflow_api_correctness(
 # =============================================================================
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_precision_recall_after_reload(
     mock_config, mock_registry, mock_metrics, training_data_with_anomalies, labels_with_anomalies
 ):
@@ -508,7 +509,7 @@ async def test_precision_recall_after_reload(
 
             predictions = detector2._predict_labels(detector2.scaler.transform(X_test))
 
-            from sklearn.metrics import precision_score, recall_score, f1_score
+            from sklearn.metrics import f1_score, precision_score, recall_score
 
             precision = precision_score(y_test, predictions)
             recall = recall_score(y_test, predictions)
@@ -525,7 +526,7 @@ async def test_precision_recall_after_reload(
 # =============================================================================
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_integration_with_scheduler(
     mock_config, mock_registry, mock_metrics, training_data_with_anomalies, labels_with_anomalies
 ):
@@ -607,7 +608,7 @@ async def test_integration_with_scheduler(
     assert mock_metrics.record_anomaly_detection.called
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_fallback_on_detector_failure(mock_config, mock_registry, mock_metrics):
     """
     Testa fallback quando detector falha.
@@ -640,7 +641,7 @@ async def test_fallback_on_detector_failure(mock_config, mock_registry, mock_met
     assert result["is_anomaly"] is False  # Normal pelo heurístico
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_anomaly_priority_adjustment(
     mock_config, mock_registry, mock_metrics, training_data_with_anomalies, labels_with_anomalies
 ):
@@ -702,7 +703,7 @@ async def test_anomaly_priority_adjustment(
 # =============================================================================
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_detect_with_window_size(
     mock_config, mock_registry, mock_metrics, training_data_with_anomalies, labels_with_anomalies
 ):
@@ -743,7 +744,7 @@ async def test_detect_with_window_size(
         assert "anomaly_score" in result
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_detect_with_custom_threshold(
     mock_config, mock_registry, mock_metrics, training_data_normal
 ):
@@ -774,7 +775,7 @@ async def test_detect_with_custom_threshold(
         assert "anomaly_rate" in metrics
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_detect_seasonal_anomaly(mock_config, mock_registry, mock_metrics):
     """Testa detecção de anomalias sazonais baseadas em tempo."""
     detector = AnomalyDetector(
@@ -798,7 +799,7 @@ async def test_detect_seasonal_anomaly(mock_config, mock_registry, mock_metrics)
     assert "anomaly_score" in result
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_feature_importance_anomaly(
     mock_config, mock_registry, mock_metrics, training_data_with_anomalies, labels_with_anomalies
 ):
@@ -841,7 +842,7 @@ async def test_feature_importance_anomaly(
         assert len(importance) == len(detector.feature_names)
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_batch_detect(
     mock_config, mock_registry, mock_metrics, training_data_with_anomalies, labels_with_anomalies
 ):
@@ -890,7 +891,7 @@ async def test_batch_detect(
             assert "is_anomaly" in result
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_update_baseline(mock_config, mock_registry, mock_metrics, training_data_normal):
     """Testa atualização do baseline de detecção."""
     with (
@@ -924,7 +925,7 @@ async def test_update_baseline(mock_config, mock_registry, mock_metrics, trainin
         assert detector.scaler is not None
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_get_anomaly_report(
     mock_config, mock_registry, mock_metrics, training_data_with_anomalies, labels_with_anomalies
 ):
@@ -956,7 +957,7 @@ async def test_get_anomaly_report(
         assert "f1_score" in metrics
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_threshold_sensitivity(
     mock_config, mock_registry, mock_metrics, training_data_normal
 ):
@@ -987,7 +988,7 @@ async def test_threshold_sensitivity(
         assert metrics_low["anomaly_rate"] <= 0.05
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_anomaly_persisting(
     mock_config, mock_registry, mock_metrics, training_data_with_anomalies, labels_with_anomalies
 ):
@@ -1034,7 +1035,7 @@ async def test_anomaly_persisting(
         assert sum(results) >= 3
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_explain_anomaly_types(mock_config, mock_registry, mock_metrics):
     """Testa diferentes tipos de explicação de anomalias."""
     detector = AnomalyDetector(

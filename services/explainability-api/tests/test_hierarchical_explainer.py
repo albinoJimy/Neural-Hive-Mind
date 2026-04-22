@@ -4,15 +4,14 @@ Testes unitários para HierarchicalExplainer.
 TDD: Testes escritos antes da implementação (Explainability API v3 Task 3).
 """
 
-from typing import Dict, Any
 import sys
 from pathlib import Path
+from typing import Any
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from services.hierarchical_explainer import HierarchicalExplainer
-
 
 # Multiplicadores de senioridade (mesmos valores do consensus-engine)
 SENIORITY_MULTIPLIERS = {
@@ -27,7 +26,7 @@ SENIORITY_MULTIPLIERS = {
 # Helper function para criar votos de teste
 def create_vote(
     level: str, vote: str, confidence: float, specialist_id: str = "test"
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Cria um voto de especialista para testes.
 
@@ -433,6 +432,7 @@ class TestCaching:
         # Segunda chamada imediata (cache ainda pode estar válido por milissegundos)
         # Terceira chamada após expiração garantida
         import time
+
         time.sleep(0.1)  # 100ms
 
         result2 = explainer.explain(votes)
@@ -566,10 +566,7 @@ class TestEdgeCases:
         """Testa cenário onde todos os votos são iguais."""
         explainer = HierarchicalExplainer()
 
-        votes = [
-            create_vote("expert", "approve", 0.9, f"business_{i}")
-            for i in range(5)
-        ]
+        votes = [create_vote("expert", "approve", 0.9, f"business_{i}") for i in range(5)]
 
         result = explainer.explain(votes)
 
@@ -664,12 +661,11 @@ class TestEdgeCases:
 
         decision = {
             "decision_id": "test_decision_123",
-            "specialist_votes": [
-                create_vote("expert", "approve", 0.8, "business")
-            ]
+            "specialist_votes": [create_vote("expert", "approve", 0.8, "business")],
         }
 
         import asyncio
+
         result = asyncio.run(explainer.explain_decision(decision))
 
         assert result["decision_id"] == "test_decision_123"
@@ -678,13 +674,10 @@ class TestEdgeCases:
         """Testa explain_decision sem decision_id."""
         explainer = HierarchicalExplainer()
 
-        decision = {
-            "specialist_votes": [
-                create_vote("expert", "approve", 0.8, "business")
-            ]
-        }
+        decision = {"specialist_votes": [create_vote("expert", "approve", 0.8, "business")]}
 
         import asyncio
+
         result = asyncio.run(explainer.explain_decision(decision))
 
         # Deve usar "unknown" como padrão
@@ -699,10 +692,11 @@ class TestEdgeCases:
             "specialist_votes": [
                 create_vote("expert", "approve", 0.8, "business"),
                 create_vote("senior", "approve", 0.7, "technical"),
-            ]
+            ],
         }
 
         import asyncio
+
         result = asyncio.run(explainer.explain_decision(decision))
 
         assert "hierarchical_weights" in result
@@ -716,10 +710,11 @@ class TestEdgeCases:
             "decision_id": "test_decision",
             "specialist_votes": [
                 create_vote("expert", "approve", 0.8, "business"),
-            ]
+            ],
         }
 
         import asyncio
+
         result = asyncio.run(explainer.explain_decision(decision))
 
         assert "seniority_impact" in result

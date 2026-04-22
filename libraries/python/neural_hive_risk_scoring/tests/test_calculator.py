@@ -2,32 +2,33 @@
 Testes para RiskCalculator
 """
 
+from datetime import UTC, datetime, timedelta
+
 import pytest
-from datetime import datetime, timedelta, timezone
 
 from neural_hive_risk_scoring import (
+    AggregationStrategy,
+    RiskAssessment,
+    RiskBand,
     RiskCalculator,
     RiskScoringConfig,
-    RiskBand,
-    RiskAssessment,
-    AggregationStrategy,
     UnifiedDomain,
 )
 
 
-@pytest.fixture
+@pytest.fixture()
 def config():
     """Configuração de teste."""
     return RiskScoringConfig()
 
 
-@pytest.fixture
+@pytest.fixture()
 def calculator(config):
     """Calculadora de teste."""
     return RiskCalculator(config=config, aggregation_strategy=AggregationStrategy.WEIGHTED_AVERAGE)
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_assessments():
     """Avaliações de exemplo."""
     return [
@@ -162,7 +163,7 @@ class TestRiskCalculator:
 
     def test_calculate_risk_velocity(self, calculator):
         """Testa cálculo de velocidade de risco."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         historical_scores = [
             (now, 0.3),
             (now + timedelta(hours=1), 0.5),
@@ -178,7 +179,7 @@ class TestRiskCalculator:
 
     def test_calculate_risk_velocity_insufficient_data(self, calculator):
         """Testa velocidade com dados insuficientes."""
-        historical_scores = [(datetime.now(timezone.utc), 0.5)]
+        historical_scores = [(datetime.now(UTC), 0.5)]
 
         velocity = calculator.calculate_risk_velocity(historical_scores)
 
@@ -324,7 +325,7 @@ class TestRiskCalculator:
 
     def test_velocity_stable_trend(self, calculator):
         """Testa velocidade com tendência estável."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         historical_scores = [
             (now, 0.5),
             (now + timedelta(hours=1), 0.501),
@@ -338,7 +339,7 @@ class TestRiskCalculator:
 
     def test_velocity_decreasing_trend(self, calculator):
         """Testa velocidade com tendência decrescente."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         historical_scores = [
             (now, 0.7),
             (now + timedelta(hours=1), 0.5),
@@ -352,7 +353,7 @@ class TestRiskCalculator:
 
     def test_velocity_with_acceleration(self, calculator):
         """Testa cálculo de aceleração."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         historical_scores = [
             (now, 0.5),
             (now + timedelta(hours=1), 0.55),

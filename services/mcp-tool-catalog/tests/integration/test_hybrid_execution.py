@@ -14,18 +14,16 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from aiohttp import web
-
-from src.services.tool_executor import ToolExecutor
-from src.models.tool_descriptor import ToolDescriptor, ToolCategory, IntegrationType
 from src.adapters.base_adapter import ExecutionResult
-
+from src.models.tool_descriptor import IntegrationType, ToolCategory, ToolDescriptor
+from src.services.tool_executor import ToolExecutor
 
 # ============================================================================
 # Fixtures de Mock MCP Server
 # ============================================================================
 
 
-@pytest.fixture
+@pytest.fixture()
 def mcp_server_app():
     """
     Aplicacao aiohttp.web simulando MCP Server (JSON-RPC 2.0).
@@ -89,7 +87,7 @@ def mcp_server_app():
     return app
 
 
-@pytest.fixture
+@pytest.fixture()
 def failing_mcp_server_app():
     """MCP Server que sempre falha."""
     app = web.Application()
@@ -101,7 +99,7 @@ def failing_mcp_server_app():
     return app
 
 
-@pytest.fixture
+@pytest.fixture()
 def slow_mcp_server_app():
     """MCP Server que responde lentamente."""
     app = web.Application()
@@ -114,19 +112,19 @@ def slow_mcp_server_app():
     return app
 
 
-@pytest.fixture
+@pytest.fixture()
 async def mcp_server(mcp_server_app, aiohttp_server):
     """Mock MCP Server rodando."""
     return await aiohttp_server(mcp_server_app)
 
 
-@pytest.fixture
+@pytest.fixture()
 async def failing_mcp_server(failing_mcp_server_app, aiohttp_server):
     """Mock MCP Server que falha."""
     return await aiohttp_server(failing_mcp_server_app)
 
 
-@pytest.fixture
+@pytest.fixture()
 async def slow_mcp_server(slow_mcp_server_app, aiohttp_server):
     """Mock MCP Server lento."""
     return await aiohttp_server(slow_mcp_server_app)
@@ -137,7 +135,7 @@ async def slow_mcp_server(slow_mcp_server_app, aiohttp_server):
 # ============================================================================
 
 
-@pytest.fixture
+@pytest.fixture()
 def trivy_tool():
     """Ferramenta Trivy para testes."""
     return ToolDescriptor(
@@ -156,7 +154,7 @@ def trivy_tool():
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def cli_tool():
     """Ferramenta CLI para testes."""
     return ToolDescriptor(
@@ -180,7 +178,7 @@ def cli_tool():
 # ============================================================================
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_metrics():
     """Mock de metricas."""
     metrics = MagicMock()
@@ -189,7 +187,7 @@ def mock_metrics():
     return metrics
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_registry():
     """Mock de registry."""
     registry = MagicMock()
@@ -205,7 +203,7 @@ def mock_registry():
 class TestMCPFallback:
     """Testes de fallback de MCP para adapter."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_mcp_server_down_fallback_to_cli_adapter(
         self, failing_mcp_server, cli_tool, mock_metrics, mock_registry
     ):
@@ -253,7 +251,7 @@ class TestMCPFallback:
 
             await executor.stop()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_mcp_server_timeout_fallback_to_container_adapter(
         self, slow_mcp_server, trivy_tool, mock_metrics, mock_registry
     ):
@@ -306,7 +304,7 @@ class TestMCPFallback:
 class TestGracefulDegradation:
     """Testes de degradacao graceful."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_partial_mcp_servers_available(
         self, mcp_server, failing_mcp_server, mock_metrics, mock_registry
     ):
@@ -337,7 +335,7 @@ class TestGracefulDegradation:
 
             await executor.stop()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_all_mcp_servers_down_use_adapters(
         self, failing_mcp_server, trivy_tool, mock_metrics, mock_registry
     ):
@@ -390,7 +388,7 @@ class TestGracefulDegradation:
 class TestHybridMetrics:
     """Testes de metricas para execucao hibrida."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_metrics_recorded_for_mcp_execution(
         self, mcp_server, trivy_tool, mock_metrics, mock_registry
     ):
@@ -426,7 +424,7 @@ class TestHybridMetrics:
 
             await executor.stop()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_metrics_recorded_for_adapter_execution(
         self, cli_tool, mock_metrics, mock_registry
     ):
@@ -461,7 +459,7 @@ class TestHybridMetrics:
                     assert call_args.kwargs["execution_route"] == "adapter"
                     assert call_args.kwargs["adapter_type"] == "CLI"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_metrics_recorded_for_fallback(
         self, failing_mcp_server, trivy_tool, mock_metrics, mock_registry
     ):
@@ -520,7 +518,7 @@ class TestHybridMetrics:
 class TestMCPServerExecution:
     """Testes de execucao com MCP server real (mock)."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_mcp_execution_success(self, mcp_server, trivy_tool, mock_metrics, mock_registry):
         """Testa execucao bem-sucedida via MCP server."""
         settings = MagicMock()

@@ -5,12 +5,13 @@ O teste servirá como contrato para a implementação na Task 2, onde auth.py
 será modificado para importar e usar settings.get_settings().
 """
 
+from unittest.mock import Mock, PropertyMock, patch
+
 import pytest
-from unittest.mock import patch, Mock, PropertyMock
 from src.security.auth import verify_token
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_verify_token_uses_secret_from_settings():
     """Test that verify_token uses JWT_SECRET from settings (with Vault support)"""
     # Mock settings with the expected secret
@@ -35,7 +36,7 @@ async def test_verify_token_uses_secret_from_settings():
         assert result["sub"] == "user123"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_verify_token_raises_for_invalid_token():
     """Test that verify_token raises HTTPException for invalid tokens"""
     from fastapi import HTTPException

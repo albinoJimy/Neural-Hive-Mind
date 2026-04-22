@@ -10,11 +10,12 @@ Cobertura:
 """
 
 import asyncio
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
 
-@pytest.fixture
+
+@pytest.fixture()
 def local_client():
     """Fixture para LocalRuntimeClient."""
     from clients.local_runtime_client import LocalRuntimeClient
@@ -27,7 +28,7 @@ def local_client():
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def local_client_no_sandbox():
     """Fixture para LocalRuntimeClient sem sandbox."""
     from clients.local_runtime_client import LocalRuntimeClient
@@ -40,7 +41,7 @@ def local_client_no_sandbox():
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def execution_request():
     """Fixture para LocalExecutionRequest."""
     from clients.local_runtime_client import LocalExecutionRequest
@@ -115,7 +116,7 @@ class TestCommandValidation:
 class TestCommandExecution:
     """Testes de execução de comandos."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_echo_success(self, local_client, execution_request):
         """Deve executar echo com sucesso."""
         mock_process = MagicMock()
@@ -134,7 +135,7 @@ class TestCommandExecution:
             assert result.pid == 12345
             assert result.duration_ms > 0
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_with_env_vars(self, local_client):
         """Deve passar variáveis de ambiente."""
         from clients.local_runtime_client import LocalExecutionRequest
@@ -161,7 +162,7 @@ class TestCommandExecution:
             assert "env" in call_kwargs
             assert "TEST_VAR" in call_kwargs["env"]
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_with_working_dir(self, local_client):
         """Deve usar diretório de trabalho especificado."""
         from clients.local_runtime_client import LocalExecutionRequest
@@ -186,7 +187,7 @@ class TestCommandExecution:
                 call_kwargs = mock_exec.call_args[1]
                 assert call_kwargs["cwd"] == "/tmp/custom-dir"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_nonzero_exit_code(self, local_client):
         """Deve capturar exit code diferente de zero."""
         from clients.local_runtime_client import LocalExecutionRequest
@@ -214,7 +215,7 @@ class TestCommandExecution:
 class TestCommandTimeout:
     """Testes de timeout de execução."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_timeout(self, local_client):
         """Deve levantar timeout quando comando demora demais."""
         from clients.local_runtime_client import LocalExecutionRequest, LocalTimeoutError
@@ -242,10 +243,10 @@ class TestCommandTimeout:
 class TestCommandNotAllowed:
     """Testes de comandos não permitidos."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_disallowed_command(self, local_client):
         """Deve rejeitar execução de comando não permitido."""
-        from clients.local_runtime_client import LocalExecutionRequest, CommandNotAllowedError
+        from clients.local_runtime_client import CommandNotAllowedError, LocalExecutionRequest
 
         request = LocalExecutionRequest(
             command="rm",
@@ -290,7 +291,7 @@ class TestAllowedCommandsManagement:
 class TestHealthCheck:
     """Testes de health check."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_health_check_success(self, local_client):
         """Deve retornar True quando echo funciona."""
         mock_process = MagicMock()
@@ -305,7 +306,7 @@ class TestHealthCheck:
 
             assert result is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_health_check_failure(self, local_client):
         """Deve retornar False quando echo falha."""
         with patch("asyncio.create_subprocess_exec", new_callable=AsyncMock) as mock_exec:
@@ -366,7 +367,7 @@ class TestEnvironmentBuild:
 class TestMetricsRecording:
     """Testes de registro de métricas."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_metrics_recorded_on_success(self, local_client, execution_request):
         """Deve registrar métricas em execução bem-sucedida."""
         mock_metrics = MagicMock()
@@ -386,7 +387,7 @@ class TestMetricsRecording:
 
             mock_metrics.local_executions_total.labels.assert_called_with(status="success")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_metrics_recorded_on_failure(self, local_client):
         """Deve registrar métricas em execução com falha."""
         from clients.local_runtime_client import LocalExecutionRequest
@@ -418,7 +419,7 @@ class TestMetricsRecording:
 class TestClientClose:
     """Testes de fechamento do cliente."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_close_client(self, local_client):
         """Deve fechar cliente sem erro."""
         # Não deve levantar exceção

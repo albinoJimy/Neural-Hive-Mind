@@ -1,17 +1,18 @@
 """Testes unitários para AnalystAgentsClient"""
 
-import pytest
-from unittest.mock import AsyncMock, patch
-import httpx
-import sys
 import os
+import sys
+from unittest.mock import AsyncMock, patch
+
+import httpx
+import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from src.clients.analyst_agents_client import AnalystAgentsClient
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_httpx_client():
     """Mock do httpx.AsyncClient"""
     client = AsyncMock()
@@ -21,7 +22,7 @@ def mock_httpx_client():
     return client
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_initialize_success(mock_httpx_client):
     """Testar inicialização bem-sucedida do cliente"""
     with patch("httpx.AsyncClient", return_value=mock_httpx_client):
@@ -31,7 +32,7 @@ async def test_initialize_success(mock_httpx_client):
         assert client.client is not None
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_get_embedding_success(mock_httpx_client):
     """Testar geração de embedding bem-sucedida"""
     # Mock response
@@ -50,7 +51,7 @@ async def test_get_embedding_success(mock_httpx_client):
         mock_httpx_client.post.assert_called_once()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_get_embedding_failure(mock_httpx_client):
     """Testar falha na geração de embedding"""
     mock_httpx_client.post.side_effect = httpx.HTTPError("Connection failed")
@@ -64,7 +65,7 @@ async def test_get_embedding_failure(mock_httpx_client):
         assert embedding is None
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_find_similar_templates_success(mock_httpx_client):
     """Testar busca de templates similares bem-sucedida"""
     mock_response = AsyncMock()
@@ -87,7 +88,7 @@ async def test_find_similar_templates_success(mock_httpx_client):
         assert templates[0]["similarity"] == 0.9
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_get_architectural_patterns_success(mock_httpx_client):
     """Testar busca de padrões arquiteturais bem-sucedida"""
     mock_response = AsyncMock()
@@ -105,7 +106,7 @@ async def test_get_architectural_patterns_success(mock_httpx_client):
         assert "microservices" in patterns
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_close_connection(mock_httpx_client):
     """Testar fechamento da conexão"""
     with patch("httpx.AsyncClient", return_value=mock_httpx_client):

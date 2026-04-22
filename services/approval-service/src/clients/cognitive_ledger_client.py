@@ -5,7 +5,7 @@ Permite buscar opinion_ids associados a um plan_id para integracao
 com o sistema de feedback ML.
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 import structlog
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -49,7 +49,7 @@ class CognitiveLedgerClient:
             collection=self.settings.mongodb_opinions_collection,
         )
 
-    async def get_opinions_by_plan_id(self, plan_id: str) -> List[Dict[str, Any]]:
+    async def get_opinions_by_plan_id(self, plan_id: str) -> list[dict[str, Any]]:
         """
         Busca todas as opinioes de specialists para um plan_id.
 

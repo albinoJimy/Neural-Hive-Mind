@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Any
 
-from bson import ObjectId
 from pydantic import BaseModel, ConfigDict, Field
 
 from src.models.hypothesis import Hypothesis, PyObjectId, utcnow
@@ -15,45 +14,29 @@ class HypothesisVersion(BaseModel):
     """Versão de uma hipótese."""
 
     id: PyObjectId | None = Field(None, alias="_id", description="MongoDB ObjectId")
-    version_id: str = Field(
-        ...,
-        description="Unique version identifier (hypothesis_id:version)"
-    )
+    version_id: str = Field(..., description="Unique version identifier (hypothesis_id:version)")
     hypothesis_id: str = Field(..., description="ID da hipótese pai")
     version_number: int = Field(..., ge=1, description="Número da versão")
 
     # Snapshot completo da hipótese
-    snapshot: dict[str, Any] = Field(
-        ...,
-        description="Snapshot completo do estado da hipótese"
-    )
+    snapshot: dict[str, Any] = Field(..., description="Snapshot completo do estado da hipótese")
 
     # Metadados da versão
     created_at: datetime = Field(
-        default_factory=utcnow,
-        description="Timestamp da criação desta versão"
+        default_factory=utcnow, description="Timestamp da criação desta versão"
     )
-    created_by: str = Field(
-        ...,
-        description="Quem criou esta versão"
-    )
-    change_reason: str = Field(
-        default="",
-        description="Razão da mudança"
-    )
+    created_by: str = Field(..., description="Quem criou esta versão")
+    change_reason: str = Field(default="", description="Razão da mudança")
     change_type: str = Field(
-        default="update",
-        description="Tipo: create, update, status_change, archive"
+        default="update", description="Tipo: create, update, status_change, archive"
     )
 
     # Diff para versões anteriores
     changes: dict[str, Any] = Field(
-        default_factory=dict,
-        description="Campos alterados em relação à versão anterior"
+        default_factory=dict, description="Campos alterados em relação à versão anterior"
     )
     parent_version: int | None = Field(
-        None,
-        description="Número da versão pai (None para primeira versão)"
+        None, description="Número da versão pai (None para primeira versão)"
     )
 
     model_config = ConfigDict(
@@ -76,7 +59,7 @@ class HypothesisVersion(BaseModel):
         change_type: str = "update",
         changes: dict[str, Any] | None = None,
         parent_version: int | None = None,
-    ) -> "HypothesisVersion":
+    ) -> HypothesisVersion:
         """
         Cria uma HypothesisVersion a partir de uma Hypothesis.
 
@@ -109,13 +92,9 @@ class VersionDiff(BaseModel):
 
     version_from: int = Field(..., description="Versão de origem")
     version_to: int = Field(..., description="Versão de destino")
-    changed_fields: list[str] = Field(
-        default_factory=list,
-        description="Campos alterados"
-    )
+    changed_fields: list[str] = Field(default_factory=list, description="Campos alterados")
     changes: dict[str, dict[str, Any]] = Field(
-        default_factory=dict,
-        description="Detalhe das mudanças por campo"
+        default_factory=dict, description="Detalhe das mudanças por campo"
     )
 
     @classmethod
@@ -123,7 +102,7 @@ class VersionDiff(BaseModel):
         cls,
         from_snapshot: dict[str, Any],
         to_snapshot: dict[str, Any],
-    ) -> "VersionDiff":
+    ) -> VersionDiff:
         """
         Compara dois snapshots e retorna o diff.
 

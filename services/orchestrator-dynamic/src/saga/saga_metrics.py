@@ -1,9 +1,9 @@
 """Métricas para eventos de Saga."""
 
 from collections import defaultdict
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
-UTC = timezone.utc  # type: ignore
+UTC = UTC  # type: ignore
 from time import perf_counter
 from typing import Any, Optional
 

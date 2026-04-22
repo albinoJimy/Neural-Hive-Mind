@@ -5,20 +5,19 @@ Testa detecção de idioma e tradução de intenções.
 """
 
 import pytest
-
 from src.services.multilanguage_processor import (
-    LanguageDetector,
-    TranslationService,
-    MultiLanguageProcessor,
-    LanguageCode,
     DetectedLanguage,
+    LanguageCode,
+    LanguageDetector,
+    MultiLanguageProcessor,
+    TranslationService,
 )
 
 
 class TestLanguageDetector:
     """Testes para LanguageDetector"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def detector(self):
         """Detector de idioma"""
         return LanguageDetector()
@@ -103,7 +102,7 @@ class TestLanguageDetector:
 class TestTranslationService:
     """Testes para TranslationService"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def translator(self):
         """Serviço de tradução"""
         return TranslationService()
@@ -157,7 +156,7 @@ class TestTranslationService:
 class TestMultiLanguageProcessor:
     """Testes para MultiLanguageProcessor"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def processor(self):
         """Processador multi-idioma"""
         return MultiLanguageProcessor()

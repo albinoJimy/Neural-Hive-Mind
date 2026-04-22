@@ -2,8 +2,8 @@
 API REST endpoints para operações com ferramentas MCP.
 """
 
-from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List, Optional
+from datetime import UTC, datetime, timedelta
+from typing import Any, Optional
 
 import structlog
 from fastapi import APIRouter, HTTPException, Path, Query
@@ -30,7 +30,7 @@ class ToolResponse(BaseModel):
     cost_score: float
     average_execution_time_ms: float
     integration_type: str
-    capabilities: List[str]
+    capabilities: list[str]
     metadata: dict
 
 
@@ -38,7 +38,7 @@ class ToolListResponse(BaseModel):
     """Resposta com lista de ferramentas."""
 
     total: int
-    tools: List[ToolResponse]
+    tools: list[ToolResponse]
 
 
 class ToolHealthResponse(BaseModel):
@@ -56,7 +56,7 @@ class ToolFeedbackRequest(BaseModel):
     tool_id: str
     success: bool
     execution_time_ms: int = Field(ge=0)
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+    metadata: dict[str, Any] = Field(default_factory=dict)
 
 
 # ===== Dependency Injection =====
@@ -264,7 +264,7 @@ async def check_tool_health(tool_id: str = Path(..., description="ID da ferramen
                 # Se TTL < 300, foi definido há (300 - TTL) segundos
                 default_ttl = 300
                 seconds_ago = default_ttl - ttl
-                last_check_time = datetime.now(timezone.utc) - timedelta(seconds=seconds_ago)
+                last_check_time = datetime.now(UTC) - timedelta(seconds=seconds_ago)
                 last_check_str = last_check_time.isoformat() + "Z"
 
         return ToolHealthResponse(
@@ -312,7 +312,7 @@ async def submit_tool_feedback(
             selection_id=feedback.selection_id,
             success=feedback.success,
         )
-        return None
+        return
     except HTTPException:
         raise
     except Exception as e:

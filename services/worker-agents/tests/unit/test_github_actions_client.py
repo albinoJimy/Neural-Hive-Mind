@@ -19,7 +19,7 @@ import pytest
 class TestGitHubActionsClientTrigger:
     """Testes de trigger de workflow."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_trigger_workflow_success(self):
         """Deve disparar workflow com sucesso."""
         from src.clients.github_actions_client import GitHubActionsClient
@@ -44,7 +44,7 @@ class TestGitHubActionsClientTrigger:
                 assert run_id == "12345"
                 mock_http.post.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_trigger_workflow_invalid_repo(self):
         """Deve retornar erro para repo invalido."""
         from src.clients.github_actions_client import GitHubActionsClient
@@ -54,11 +54,11 @@ class TestGitHubActionsClientTrigger:
         with pytest.raises(ValueError, match="Invalid repo format"):
             await client.trigger_workflow(repo="invalid-repo", workflow_id="ci.yml")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_trigger_workflow_api_error(self):
         """Deve propagar erro da API."""
-        from src.clients.github_actions_client import GitHubActionsClient, GitHubActionsAPIError
         import httpx
+        from src.clients.github_actions_client import GitHubActionsAPIError, GitHubActionsClient
 
         client = GitHubActionsClient(token="test-token")
 
@@ -82,7 +82,7 @@ class TestGitHubActionsClientTrigger:
 class TestGitHubActionsClientStatus:
     """Testes de obtencao de status."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_workflow_run_success(self):
         """Deve obter status do workflow."""
         from src.clients.github_actions_client import GitHubActionsClient
@@ -113,7 +113,7 @@ class TestGitHubActionsClientStatus:
             assert status.conclusion == "success"
             assert status.success is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_workflow_run_not_found(self):
         """Deve retornar status queued quando run nao encontrado."""
         from src.clients.github_actions_client import GitHubActionsClient
@@ -134,7 +134,7 @@ class TestGitHubActionsClientStatus:
 class TestGitHubActionsClientWait:
     """Testes de wait for run."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_wait_for_run_completes(self):
         """Deve aguardar run completar."""
         from src.clients.github_actions_client import GitHubActionsClient, WorkflowRunStatus
@@ -155,13 +155,13 @@ class TestGitHubActionsClientWait:
                     assert status.completed is True
                     assert status.success is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_wait_for_run_timeout(self):
         """Deve levantar timeout quando excede limite."""
         from src.clients.github_actions_client import (
             GitHubActionsClient,
-            WorkflowRunStatus,
             GitHubActionsTimeoutError,
+            WorkflowRunStatus,
         )
 
         client = GitHubActionsClient(token="test-token", default_repo="test/repo")
@@ -179,7 +179,7 @@ class TestGitHubActionsClientWait:
 class TestGitHubActionsClientArtifacts:
     """Testes de artifacts."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_list_artifacts_success(self):
         """Deve listar artifacts do run."""
         from src.clients.github_actions_client import GitHubActionsClient
@@ -205,7 +205,7 @@ class TestGitHubActionsClientArtifacts:
             assert len(artifacts) == 2
             assert artifacts[0]["name"] == "test-results"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_download_artifact_success(self):
         """Deve baixar artifact."""
         from src.clients.github_actions_client import GitHubActionsClient
@@ -227,7 +227,7 @@ class TestGitHubActionsClientArtifacts:
 class TestGitHubActionsClientTestResults:
     """Testes de obtencao de test results."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_test_results_success(self):
         """Deve obter test results de artifacts."""
         from src.clients.github_actions_client import GitHubActionsClient
@@ -260,7 +260,7 @@ class TestGitHubActionsClientTestResults:
 class TestGitHubActionsClientOperations:
     """Testes de operacoes diversas."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_cancel_workflow_run(self):
         """Deve cancelar workflow run."""
         from src.clients.github_actions_client import GitHubActionsClient
@@ -277,7 +277,7 @@ class TestGitHubActionsClientOperations:
 
             assert result is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_rerun_workflow(self):
         """Deve re-executar workflow."""
         from src.clients.github_actions_client import GitHubActionsClient, WorkflowRunStatus

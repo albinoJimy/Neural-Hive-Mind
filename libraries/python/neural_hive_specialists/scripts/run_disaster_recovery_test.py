@@ -17,14 +17,15 @@ Uso:
 """
 
 import argparse
-import sys
-import os
-import json
-from datetime import datetime, timezone
-from typing import Optional
-import structlog
-import aiohttp
 import asyncio
+import json
+import os
+import sys
+from datetime import UTC, datetime
+from typing import Optional
+
+import aiohttp
+import structlog
 
 # Adicionar path do library ao sys.path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
@@ -34,9 +35,9 @@ from neural_hive_specialists.disaster_recovery.disaster_recovery_manager import 
     DisasterRecoveryManager,
 )
 from neural_hive_specialists.disaster_recovery.storage_client import (
-    S3StorageClient,
     GCSStorageClient,
     LocalStorageClient,
+    S3StorageClient,
 )
 
 logger = structlog.get_logger()
@@ -145,7 +146,7 @@ async def send_alert_async(
         slack_webhook_url: URL do webhook do Slack (opcional)
     """
     alert_data = {
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
         "severity": "critical",
         "service": "neural-hive-disaster-recovery",
         "specialist_type": specialist_type,
@@ -295,7 +296,7 @@ async def _send_to_slack(
                         },
                     ],
                     "footer": "Neural Hive Specialists - Disaster Recovery",
-                    "ts": int(datetime.now(timezone.utc).timestamp()),
+                    "ts": int(datetime.now(UTC).timestamp()),
                 }
             ]
         }
@@ -467,7 +468,7 @@ def main():
                 f"Teste de recovery falhou para specialist-{args.specialist_type}\n"
                 f"Backup: {result.get('backup_id', 'N/A')}\n"
                 f"Erro: {result.get('error', 'Desconhecido')}\n"
-                f"Timestamp: {datetime.now(timezone.utc).isoformat()}"
+                f"Timestamp: {datetime.now(UTC).isoformat()}"
             )
             send_alert(alert_message, specialist_type=args.specialist_type)
 
@@ -475,13 +476,13 @@ def main():
         return 0 if result["status"] == "success" else 1
 
     except Exception as e:
-        print(f"ERRO: {str(e)}", file=sys.stderr)
+        print(f"ERRO: {e!s}", file=sys.stderr)
         logger.exception("Erro fatal no script de teste")
 
         # Enviar alerta em caso de exceção
         if args.alert_on_failure:
             send_alert(
-                f"Erro fatal no teste de recovery: {str(e)}",
+                f"Erro fatal no teste de recovery: {e!s}",
                 specialist_type=args.specialist_type,
             )
 

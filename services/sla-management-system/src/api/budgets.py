@@ -4,7 +4,7 @@ Router FastAPI para endpoints de error budgets.
 
 import json
 import time
-from typing import List, Optional
+from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from pydantic import BaseModel
@@ -21,7 +21,7 @@ router = APIRouter(prefix="/api/v1/budgets", tags=["Error Budgets"])
 
 # Response models
 class BudgetListResponse(BaseModel):
-    budgets: List[ErrorBudget]
+    budgets: list[ErrorBudget]
     total: int
 
 
@@ -40,7 +40,7 @@ class BudgetTrends(BaseModel):
 class BudgetHistoryResponse(BaseModel):
     """Response para histórico de budgets com suporte a tendências."""
 
-    budgets: List[ErrorBudget]
+    budgets: list[ErrorBudget]
     total: int
     period_days: int
     aggregation: Optional[str] = None
@@ -173,7 +173,7 @@ async def recalculate_budget(
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Calculation failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Calculation failed: {e!s}")
 
 
 @router.get("/{slo_id}/history", response_model=BudgetHistoryResponse)
@@ -298,7 +298,7 @@ async def get_budget_history(
             result_count=0,
             slo_id=slo_id,
         )
-        raise HTTPException(status_code=500, detail=f"Erro ao buscar histórico: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Erro ao buscar histórico: {e!s}")
 
     # Buscar tendências se solicitado
     trends = None

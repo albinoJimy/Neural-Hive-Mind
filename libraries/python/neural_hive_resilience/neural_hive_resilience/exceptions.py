@@ -28,7 +28,6 @@ class ResilienceError(Exception):
 class CircuitBreakerError(ResilienceError):
     """Exceção base para erros de circuit breaker."""
 
-    pass
 
 
 class CircuitBreakerOpenError(CircuitBreakerError):
@@ -69,7 +68,6 @@ class CircuitBreakerHalfOpenError(CircuitBreakerError):
 class RetryError(ResilienceError):
     """Exceção base para erros de retry."""
 
-    pass
 
 
 class RetryableError(RetryError):
@@ -96,7 +94,6 @@ class NonRetryableError(RetryError):
     Usada para marcar exceções que devem falhar imediatamente.
     """
 
-    pass
 
 
 class MaxRetriesExceededError(RetryError):
@@ -125,7 +122,6 @@ class MaxRetriesExceededError(RetryError):
 class RateLimitError(ResilienceError):
     """Exceção base para erros de rate limiting."""
 
-    pass
 
 
 class RateLimitExceededError(RateLimitError):
@@ -188,7 +184,6 @@ class TimeoutError(ResilienceError):
 class FallbackError(ResilienceError):
     """Exceção base para erros de fallback."""
 
-    pass
 
 
 class AllFallbacksFailedError(FallbackError):
@@ -216,7 +211,6 @@ class AllFallbacksFailedError(FallbackError):
 class BulkheadError(ResilienceError):
     """Exceção base para erros de bulkhead."""
 
-    pass
 
 
 class BulkheadRejectedError(BulkheadError):
@@ -246,7 +240,6 @@ class BulkheadRejectedError(BulkheadError):
 class RegistryError(ResilienceError):
     """Exceção base para erros do registro de resiliência."""
 
-    pass
 
 
 class PolicyNotFoundError(RegistryError):

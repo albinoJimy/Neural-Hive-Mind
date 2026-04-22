@@ -14,11 +14,11 @@ import pytest
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "src"))
 
-from engine.parallel_executor import ParallelExecutor, ParallelExecutionConfig, TaskPriority
-from engine.execution_engine import ExecutionEngine
 from engine.dependency_coordinator import DependencyCoordinator
-from executors.registry import TaskExecutorRegistry
+from engine.execution_engine import ExecutionEngine
+from engine.parallel_executor import ParallelExecutionConfig, ParallelExecutor, TaskPriority
 from executors.base_executor import BaseTaskExecutor
+from executors.registry import TaskExecutorRegistry
 
 
 class MockExecutor(BaseTaskExecutor):
@@ -43,7 +43,7 @@ class MockExecutor(BaseTaskExecutor):
         return "MOCK"
 
 
-@pytest.fixture
+@pytest.fixture()
 async def execution_engine():
     """Cria ExecutionEngine com mock executor."""
     config = MagicMock()
@@ -78,7 +78,7 @@ async def execution_engine():
     await engine.shutdown()
 
 
-@pytest.fixture
+@pytest.fixture()
 def parallel_config():
     """Configuração para testes de integração."""
     return ParallelExecutionConfig(
@@ -93,7 +93,7 @@ def parallel_config():
 class TestParallelExecutorIntegration:
     """Testes de integração do ParallelExecutor."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_parallel_with_real_engine(self, parallel_config, execution_engine):
         """Testa execução paralela com ExecutionEngine real."""
         executor = ParallelExecutor(parallel_config, execution_engine)
@@ -113,7 +113,7 @@ class TestParallelExecutorIntegration:
         assert len(results) == 5
         assert all(r["success"] for r in results)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_with_dependencies_complex(self, parallel_config, execution_engine):
         """Testa execução com grafo de dependências complexo."""
         executor = ParallelExecutor(parallel_config, execution_engine)
@@ -140,7 +140,7 @@ class TestParallelExecutorIntegration:
         successful = sum(1 for r in results if r["success"])
         assert successful >= 3  # Pelo menos os independentes
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_start_stop_processors(self, parallel_config, execution_engine):
         """Testa ciclo de vida dos processor workers."""
         executor = ParallelExecutor(parallel_config, execution_engine)
@@ -167,7 +167,7 @@ class TestParallelExecutorIntegration:
         status = executor.get_status()
         assert status["running"] is False
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_priority_ordering(self, parallel_config, execution_engine):
         """Testa que tickets de maior prioridade são processados primeiro."""
         executor = ParallelExecutor(parallel_config, execution_engine)
@@ -193,7 +193,7 @@ class TestParallelExecutorIntegration:
 
         await executor.stop(timeout_seconds=1)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_concurrent_limit_by_type(self, execution_engine):
         """Testa limite de concorrência por tipo."""
         config = ParallelExecutionConfig(
@@ -217,7 +217,7 @@ class TestParallelExecutorIntegration:
 class TestParallelExecutorMetrics:
     """Testes de métricas do ParallelExecutor."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_metrics_recorded(self, parallel_config, execution_engine):
         """Testa que métricas são registradas."""
         mock_metrics = MagicMock()
@@ -245,7 +245,7 @@ class TestParallelExecutorMetrics:
 class TestParallelExecutorErrors:
     """Testes de tratamento de erros."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_handles_executor_exception(self, parallel_config):
         """Testa tratamento de exceções no executor."""
         # Criar engine que lança exceção
@@ -263,7 +263,7 @@ class TestParallelExecutorErrors:
         assert len(results) == 2
         assert all(r["success"] is False for r in results)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_handles_timeout_during_execution(self, parallel_config, execution_engine):
         """Testa timeout durante execução."""
         executor = ParallelExecutor(parallel_config, execution_engine)
@@ -281,7 +281,7 @@ class TestParallelExecutorErrors:
 class TestParallelExecutorBatching:
     """Testes de batch processing."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_batch_processing_enabled(self, execution_engine):
         """Testa processamento em batch habilitado."""
         config = ParallelExecutionConfig(max_parallel_tasks=5, enable_batching=True, batch_size=3)
@@ -295,7 +295,7 @@ class TestParallelExecutorBatching:
 
         assert len(correlation_ids) == 6
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_batch_processing_disabled(self, execution_engine):
         """Testa processamento em batch desabilitado."""
         config = ParallelExecutionConfig(max_parallel_tasks=5, enable_batching=False)
@@ -313,7 +313,7 @@ class TestParallelExecutorBatching:
 class TestParallelExecutorRecovery:
     """Testes de recuperação de falhas."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_continues_after_individual_failure(self, parallel_config, execution_engine):
         """Testa que executor continua após falha individual."""
         executor = ParallelExecutor(parallel_config, execution_engine)

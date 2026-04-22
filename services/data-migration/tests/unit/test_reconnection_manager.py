@@ -5,7 +5,6 @@ Autor: Neural Hive Mind
 Criado: 2026-04-19 (BUG-H-001)
 """
 
-import asyncio
 from datetime import datetime, timezone
 from typing import AsyncIterator, Callable, Optional, TypeVar
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -219,9 +218,7 @@ class TestReconnectionManager:
         async def handler(msg):
             pass
 
-        manager = ReconnectionManager(
-            config=ReconnectionConfig(max_retries=2, initial_delay_ms=10)
-        )
+        manager = ReconnectionManager(config=ReconnectionConfig(max_retries=2, initial_delay_ms=10))
 
         consumer = AsyncIteratorWrapper(failing_generator)
 
@@ -250,9 +247,7 @@ class TestReconnectionManager:
         async def handler(msg):
             pass
 
-        manager = ReconnectionManager(
-            config=ReconnectionConfig(max_retries=3, initial_delay_ms=10)
-        )
+        manager = ReconnectionManager(config=ReconnectionConfig(max_retries=3, initial_delay_ms=10))
 
         consumer = AsyncIteratorWrapper(always_failing_generator)
 
@@ -317,9 +312,7 @@ class TestReconnectionManager:
         async def handler(msg):
             pass
 
-        manager = ReconnectionManager(
-            config=ReconnectionConfig(max_retries=5, initial_delay_ms=10)
-        )
+        manager = ReconnectionManager(config=ReconnectionConfig(max_retries=5, initial_delay_ms=10))
 
         await manager.consume_messages_with_retry(
             consume_func=create_consumer,

@@ -1,6 +1,6 @@
 # Optimizer MCP Server Configuration
 
-from typing import List
+
 from pydantic_settings import BaseSettings
 
 from neural_hive_security.cors import CORSConfig
@@ -30,7 +30,7 @@ class OptimizerMCPServerSettings(BaseSettings):
         env_file = ".env"
 
     @property
-    def CORS_ORIGINS(self) -> List[str]:
+    def CORS_ORIGINS(self) -> list[str]:
         """CORS origins dinâmicas por ambiente."""
         return CORSConfig.get_origins_for_environment(
             self.environment, is_public_api=self.is_public_api

@@ -9,14 +9,15 @@ Substitui heurísticas de string-match por pipeline de features baseado em:
 Gera feature vector padronizado para inferência de modelos ML.
 """
 
-import numpy as np
 import time
-from typing import Dict, List, Any, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Optional
+
+import numpy as np
 import structlog
 
-from .ontology_mapper import OntologyMapper
-from .graph_analyzer import GraphAnalyzer
 from .embeddings_generator import EmbeddingsGenerator
+from .graph_analyzer import GraphAnalyzer
+from .ontology_mapper import OntologyMapper
 
 if TYPE_CHECKING:
     from ..metrics import SpecialistMetrics
@@ -29,7 +30,7 @@ class FeatureExtractor:
 
     def __init__(
         self,
-        config: Optional[Dict[str, Any]] = None,
+        config: Optional[dict[str, Any]] = None,
         metrics: Optional["SpecialistMetrics"] = None,
     ):
         """
@@ -65,8 +66,8 @@ class FeatureExtractor:
         logger.info("FeatureExtractor initialized", config=self.config)
 
     def extract_features(
-        self, cognitive_plan: Dict[str, Any], include_embeddings: bool = True
-    ) -> Dict[str, Any]:
+        self, cognitive_plan: dict[str, Any], include_embeddings: bool = True
+    ) -> dict[str, Any]:
         """
         Extrai features estruturadas do plano cognitivo.
 
@@ -132,7 +133,7 @@ class FeatureExtractor:
             "aggregated_features": aggregated_features,
         }
 
-    def _extract_metadata_features(self, cognitive_plan: Dict[str, Any]) -> Dict[str, Any]:
+    def _extract_metadata_features(self, cognitive_plan: dict[str, Any]) -> dict[str, Any]:
         """Extrai features de metadados básicos."""
         import random
 
@@ -164,8 +165,8 @@ class FeatureExtractor:
         return features
 
     def _extract_ontology_features(
-        self, domain: str, tasks: List[Dict[str, Any]]
-    ) -> Dict[str, Any]:
+        self, domain: str, tasks: list[dict[str, Any]]
+    ) -> dict[str, Any]:
         """Extrai features baseadas em ontologia."""
         # Mapear domínio para UnifiedDomain diretamente
         unified_domain = self.ontology_mapper.map_domain_to_unified_domain(domain)
@@ -213,7 +214,7 @@ class FeatureExtractor:
 
         return features
 
-    def _extract_graph_features(self, tasks: List[Dict[str, Any]]) -> Dict[str, Any]:
+    def _extract_graph_features(self, tasks: list[dict[str, Any]]) -> dict[str, Any]:
         """Extrai features de análise de grafo."""
         # Construir grafo
         self.graph_analyzer.build_graph(tasks)
@@ -231,7 +232,7 @@ class FeatureExtractor:
 
         return graph_features
 
-    def _extract_embedding_features(self, tasks: List[Dict[str, Any]]) -> Dict[str, Any]:
+    def _extract_embedding_features(self, tasks: list[dict[str, Any]]) -> dict[str, Any]:
         """Extrai features de embeddings semânticos."""
         # Gerar embeddings de tarefas
         task_embeddings = self.embeddings_generator.generate_task_embeddings(tasks)
@@ -252,7 +253,7 @@ class FeatureExtractor:
 
         return features
 
-    def _aggregate_features(self, *feature_dicts) -> Dict[str, Any]:
+    def _aggregate_features(self, *feature_dicts) -> dict[str, Any]:
         """
         Agrega features de diferentes fontes em vetor único.
 
@@ -273,7 +274,7 @@ class FeatureExtractor:
         return aggregated
 
     def get_feature_vector(
-        self, cognitive_plan: Dict[str, Any], include_embeddings: bool = True
+        self, cognitive_plan: dict[str, Any], include_embeddings: bool = True
     ) -> np.ndarray:
         """
         Retorna vetor de features para inferência de modelo.
@@ -296,7 +297,7 @@ class FeatureExtractor:
 
         return feature_vector
 
-    def get_feature_names(self, include_embeddings: bool = True) -> List[str]:
+    def get_feature_names(self, include_embeddings: bool = True) -> list[str]:
         """
         Retorna nomes das features no vetor.
 

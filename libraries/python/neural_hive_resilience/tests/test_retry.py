@@ -1,18 +1,19 @@
 """Testes para módulo retry."""
 
-import pytest
 import asyncio
 
-from neural_hive_resilience.retry import (
-    RetryPolicy,
-    BackoffStrategy,
-    retry,
-    RetryContext,
-)
+import pytest
+
 from neural_hive_resilience.exceptions import (
-    RetryableError,
-    NonRetryableError,
     MaxRetriesExceededError,
+    NonRetryableError,
+    RetryableError,
+)
+from neural_hive_resilience.retry import (
+    BackoffStrategy,
+    RetryContext,
+    RetryPolicy,
+    retry,
 )
 
 
@@ -180,7 +181,7 @@ class TestRetryPolicy:
 class TestRetryDecorator:
     """Testes para decorator retry."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_retry_success_on_first_attempt(self):
         """Testa sucesso na primeira tentativa."""
 
@@ -196,7 +197,7 @@ class TestRetryDecorator:
 
         assert result == "success"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_retry_with_retryable_exception(self):
         """Testa retry com exceção retriável."""
         attempt_count = 0
@@ -224,7 +225,7 @@ class TestRetryDecorator:
         assert result == "success"
         assert attempt_count == 3
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_retry_max_attempts_exceeded(self):
         """Testa erro quando máximo de tentativas é excedido."""
 
@@ -245,7 +246,7 @@ class TestRetryDecorator:
         with pytest.raises(MaxRetriesExceededError):
             await decorated()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_retry_non_retryable_exception(self):
         """Testa que exceções non-retryable não são retriadas."""
         attempt_count = 0
@@ -271,7 +272,7 @@ class TestRetryDecorator:
 
         assert attempt_count == 1
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_retry_with_on_retry_callback(self):
         """Testa callback on_retry."""
         attempt_counts = []
@@ -299,7 +300,7 @@ class TestRetryDecorator:
 
         assert attempt_counts == [1, 2]
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_retry_sync_function_raises(self):
         """Testa que função síncrona levanta erro."""
 
@@ -320,7 +321,7 @@ class TestRetryDecorator:
 class TestRetryContext:
     """Testes para RetryContext."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_retry_context_success(self):
         """Testa execução bem-sucedida no contexto."""
         policy = RetryPolicy(max_attempts=3)
@@ -333,7 +334,7 @@ class TestRetryContext:
 
         assert result == "result"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_retry_context_with_retries(self):
         """Testa retry no contexto."""
         attempt_count = 0
@@ -356,7 +357,7 @@ class TestRetryContext:
         assert result == "success"
         assert attempt_count == 2
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_retry_context_max_attempts_exceeded(self):
         """Testa erro quando máximo de tentativas é excedido."""
 

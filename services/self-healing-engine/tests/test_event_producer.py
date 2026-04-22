@@ -1,9 +1,8 @@
 """Testes para o Event Producer Kafka."""
 
-import pytest
-from unittest.mock import AsyncMock, patch, MagicMock
-from datetime import datetime, timezone
+from unittest.mock import AsyncMock, MagicMock
 
+import pytest
 from src.services.event_producer import (
     EventProducer,
     EventType,
@@ -11,7 +10,7 @@ from src.services.event_producer import (
 )
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_kafka_producer():
     """Mock do AIOKafkaProducer."""
     producer = MagicMock()
@@ -21,7 +20,7 @@ def mock_kafka_producer():
     return producer
 
 
-@pytest.fixture
+@pytest.fixture()
 def event_producer(mock_kafka_producer):
     """EventProducer com Kafka mockado."""
     producer = EventProducer(
@@ -70,13 +69,13 @@ class TestSelfHealingEvent:
 class TestKafkaEventProducer:
     """Testes para EventProducer."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_start(self, event_producer):
         """Testa inicialização do produtor."""
         await event_producer.start()
         assert event_producer._producer is not None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_publish_event_success(self, event_producer, mock_kafka_producer):
         """Testa publicação de evento com sucesso."""
         event = SelfHealingEvent(
@@ -90,7 +89,7 @@ class TestKafkaEventProducer:
         assert result is True
         mock_kafka_producer.send_and_wait.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_publish_anomaly_detected(self, event_producer, mock_kafka_producer):
         """Testa publicação de anomalia detectada."""
         result = await event_producer.publish_anomaly_detected(
@@ -103,7 +102,7 @@ class TestKafkaEventProducer:
         assert result is True
         mock_kafka_producer.send_and_wait.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_publish_remediation_started(self, event_producer, mock_kafka_producer):
         """Testa publicação de remediação iniciada."""
         result = await event_producer.publish_remediation_started(
@@ -116,7 +115,7 @@ class TestKafkaEventProducer:
         assert result is True
         mock_kafka_producer.send_and_wait.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_publish_remediation_completed(self, event_producer, mock_kafka_producer):
         """Testa publicação de remediação completada."""
         result = await event_producer.publish_remediation_completed(
@@ -127,7 +126,7 @@ class TestKafkaEventProducer:
 
         assert result is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_publish_remediation_failed(self, event_producer, mock_kafka_producer):
         """Testa publicação de falha na remediação."""
         result = await event_producer.publish_remediation_failed(
@@ -138,7 +137,7 @@ class TestKafkaEventProducer:
 
         assert result is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_publish_health_check_failed(self, event_producer, mock_kafka_producer):
         """Testa publicação de health check falhando."""
         result = await event_producer.publish_health_check_failed(
@@ -150,7 +149,7 @@ class TestKafkaEventProducer:
 
         assert result is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_publish_playbook_executed(self, event_producer, mock_kafka_producer):
         """Testa publicação de playbook executado."""
         result = await event_producer.publish_playbook_executed(
@@ -162,7 +161,7 @@ class TestKafkaEventProducer:
 
         assert result is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_publish_circuit_breaker_opened(self, event_producer, mock_kafka_producer):
         """Testa publicação de circuit breaker abrindo."""
         result = await event_producer.publish_circuit_breaker_opened(
@@ -173,7 +172,7 @@ class TestKafkaEventProducer:
 
         assert result is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_publish_memory_leak_detected(self, event_producer, mock_kafka_producer):
         """Testa publicação de memory leak detectado."""
         result = await event_producer.publish_memory_leak_detected(
@@ -185,7 +184,7 @@ class TestKafkaEventProducer:
 
         assert result is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_publish_batch_events(self, event_producer, mock_kafka_producer):
         """Testa publicação em lote de múltiplos eventos."""
         events = [
@@ -203,7 +202,7 @@ class TestKafkaEventProducer:
         assert results["failed"] == 0
         assert mock_kafka_producer.send_and_wait.call_count == 3
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_publish_disabled(self, event_producer):
         """Testa que eventos são ignorados quando desabilitado."""
         event_producer.enabled = False
@@ -218,7 +217,7 @@ class TestKafkaEventProducer:
 
         assert result is False  # Não publicado
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_stop(self, event_producer, mock_kafka_producer):
         """Testa parada do produtor."""
         await event_producer.stop()

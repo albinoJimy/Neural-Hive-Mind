@@ -1,20 +1,21 @@
 """Tests for neural_hive_exceptions library."""
 
 import grpc
+
 from neural_hive_exceptions import (
+    ConfigErrorCode,
+    ConfigurationError,
+    ConnectionError,
+    DatabaseError,
+    GRPCError,
+    InfrastructureErrorCode,
+    KafkaError,
     NeuralHiveError,
+    TimeoutError,
     ValidationError,
     ValidationErrorCode,
-    ConfigurationError,
-    ConfigErrorCode,
-    ConnectionError,
-    TimeoutError,
-    DatabaseError,
-    KafkaError,
-    InfrastructureErrorCode,
-    GRPCError,
-    grpc_error_to_status,
     error_code,
+    grpc_error_to_status,
 )
 
 

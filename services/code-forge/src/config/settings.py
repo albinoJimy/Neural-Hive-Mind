@@ -252,7 +252,7 @@ class Settings(BaseSettings):
         SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", case_sensitive=True)
 
 
-@lru_cache()
+@lru_cache
 def get_settings() -> Settings:
     """Retorna singleton de Settings"""
     return Settings()

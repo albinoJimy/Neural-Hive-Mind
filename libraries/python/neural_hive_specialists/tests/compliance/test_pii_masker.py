@@ -6,19 +6,20 @@ detecção de múltiplos tipos, preservação de formato, overlapping entities.
 """
 
 import pytest
+
 from neural_hive_specialists.compliance.pii_masker import (
-    PIIMasker,
     MaskStrategy,
     PIIEntity,
+    PIIMasker,
     create_masker,
 )
 from neural_hive_specialists.compliance.pii_patterns import (
-    PIIType,
     PIICategory,
+    PIIType,
 )
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestPIIMaskerInitialization:
     """Testes de inicialização do PIIMasker."""
 
@@ -61,11 +62,11 @@ class TestPIIMaskerInitialization:
         assert PIIType.PHONE in masker.type_strategies
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestMaskEmail:
     """Testes de mascaramento de emails."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def masker(self):
         return PIIMasker(enable_spacy=False)
 
@@ -86,11 +87,11 @@ class TestMaskEmail:
         assert "user2@example.org" not in result.text
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestMaskCPF:
     """Testes de mascaramento de CPF."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def masker(self):
         return PIIMasker(enable_spacy=False)
 
@@ -113,11 +114,11 @@ class TestMaskCPF:
         assert "123.456" in result.text or result.text.startswith("123")
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestMaskPhone:
     """Testes de mascaramento de telefone."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def masker(self):
         return PIIMasker(enable_spacy=False)
 
@@ -135,11 +136,11 @@ class TestMaskPhone:
         assert "11-99999-9999" not in result.text or len(result.entities) >= 1
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestMaskCreditCard:
     """Testes de mascaramento de cartão de crédito."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def masker(self):
         return PIIMasker(enable_spacy=False)
 
@@ -151,11 +152,11 @@ class TestMaskCreditCard:
         assert "4532 1234 5678 9010" not in result.text or len(result.entities) >= 1
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestMaskIPAddress:
     """Testes de mascaramento de IP address."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def masker(self):
         return PIIMasker(enable_spacy=False)
 
@@ -169,7 +170,7 @@ class TestMaskIPAddress:
         )
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestMaskStrategies:
     """Testes das estratégias de mascaramento."""
 
@@ -202,11 +203,11 @@ class TestMaskStrategies:
         assert "now" in result.text
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestMaskResultStructure:
     """Testes da estrutura do resultado."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def masker(self):
         return PIIMasker(enable_spacy=False)
 
@@ -241,11 +242,11 @@ class TestMaskResultStructure:
             assert result.metadata["by_type"]["EMAIL"] >= 1
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestMaskEmptyAndNone:
     """Testes de casos vazios e None."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def masker(self):
         return PIIMasker(enable_spacy=False)
 
@@ -267,11 +268,11 @@ class TestMaskEmptyAndNone:
         assert result.metadata["total"] == 0
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestMaskWithTypesFilter:
     """Testes de filtro por tipo."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def masker(self):
         return PIIMasker(enable_spacy=False)
 
@@ -295,11 +296,11 @@ class TestMaskWithTypesFilter:
         assert "123.456.789-00" not in result.text
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestMaskOverlappingEntities:
     """Testes de entidades sobrepostas."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def masker(self):
         return PIIMasker(enable_spacy=False)
 
@@ -324,11 +325,11 @@ class TestMaskOverlappingEntities:
                     )
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestMaskPreservingFormat:
     """Testes de preservação de formato."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def masker(self):
         return PIIMasker(enable_spacy=False)
 
@@ -357,7 +358,7 @@ class TestMaskPreservingFormat:
         assert "+" in result.text or " " in result.text or "-" in result.text
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestCreateMaskerFactory:
     """Testes da factory function."""
 
@@ -384,11 +385,11 @@ class TestCreateMaskerFactory:
         assert masker.enable_spacy is False
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestPIITypeCategories:
     """Testes de categorias de PII."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def masker(self):
         return PIIMasker(enable_spacy=False)
 
@@ -419,7 +420,7 @@ class TestPIITypeCategories:
             ]
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestPIIEntityStructure:
     """Testes da estrutura PIIEntity."""
 
@@ -454,11 +455,11 @@ class TestPIIEntityStructure:
         assert entity.masked_value is None
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestMaskMultiplePIITypes:
     """Testes de múltiplos tipos de PII no mesmo texto."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def masker(self):
         return PIIMasker(enable_spacy=False)
 
@@ -478,11 +479,11 @@ class TestMaskMultiplePIITypes:
         assert PIIType.PHONE in entities_by_type or len(result.entities) >= 1
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestMaskIBAN:
     """Testes de mascaramento de IBAN."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def masker(self):
         return PIIMasker(enable_spacy=False)
 
@@ -494,11 +495,11 @@ class TestMaskIBAN:
         # IBAN pode não ser detectado se pattern não cobrir este formato específico
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestMaskUUID:
     """Testes de mascaramento de UUID."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def masker(self):
         return PIIMasker(enable_spacy=False)
 

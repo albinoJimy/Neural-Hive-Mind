@@ -4,20 +4,20 @@ Testes unitários para DataFusionEngine.
 Testes simplificados que focam na lógica de fusão de dados.
 """
 
-import pytest
+from datetime import UTC, datetime
 from unittest.mock import Mock
-from datetime import datetime, timezone
 
-from src.services.data_fusion_engine import DataFusionEngine, ConflictResolution, AggregatedResult
+import pytest
+from src.services.data_fusion_engine import AggregatedResult, ConflictResolution, DataFusionEngine
 
 
-@pytest.fixture
+@pytest.fixture()
 def data_fusion_engine():
     """Instância do DataFusionEngine."""
     return DataFusionEngine(conflict_resolution=ConflictResolution.HIGHEST_CONFIDENCE)
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_query_request():
     """Mock de QueryRequest."""
     request = Mock()
@@ -108,7 +108,7 @@ class TestNormalizeSchemas:
 class TestAlignTemporal:
     """Testes para alinhamento temporal."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_align_without_time_window(self, data_fusion_engine):
         """Testa alinhamento sem janela temporal."""
         normalized = {"mongodb": {"type": "list", "items": []}}
@@ -117,12 +117,12 @@ class TestAlignTemporal:
 
         assert result == normalized
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_align_with_time_window_filter(self, data_fusion_engine):
         """Testa filtro por janela temporal."""
         time_window = {
-            "start": datetime(2024, 1, 1, tzinfo=timezone.utc),
-            "end": datetime(2024, 1, 31, tzinfo=timezone.utc),
+            "start": datetime(2024, 1, 1, tzinfo=UTC),
+            "end": datetime(2024, 1, 31, tzinfo=UTC),
         }
 
         normalized = {
@@ -146,7 +146,7 @@ class TestAlignTemporal:
 class TestJoinSources:
     """Testes para junção de fontes."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_join_sources_empty(self, data_fusion_engine):
         """Testa junção com dados vazios."""
         aligned = {}
@@ -156,7 +156,7 @@ class TestJoinSources:
         assert result["sources"] == []
         assert result["by_source"] == aligned
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_join_sources_with_data(self, data_fusion_engine):
         """Testa junção com dados."""
         aligned = {
@@ -215,7 +215,7 @@ class TestResolveConflicts:
 class TestFuseSources:
     """Testes para fusão de fontes."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_fuse_sources_basic(self, data_fusion_engine, mock_query_request):
         """Testa fusão básica de fontes."""
         source_results = {
@@ -230,7 +230,7 @@ class TestFuseSources:
         assert result.sources == ["mongodb", "clickhouse"]
         assert result.fused_data is not None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_fuse_sources_with_error(self, data_fusion_engine, mock_query_request):
         """Testa fusão com erro em fonte."""
         source_results = {
@@ -248,7 +248,7 @@ class TestFuseSources:
 class TestGetCorrelation:
     """Testes para cálculo de correlação."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_correlation_insufficient_data(self, data_fusion_engine):
         """Testa correlação com dados insuficientes."""
         source_results = {"mongodb": [{"value": 10}], "clickhouse": [{"value": 20}]}
@@ -257,7 +257,7 @@ class TestGetCorrelation:
 
         assert result is None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_correlation_success(self, data_fusion_engine):
         """Testa cálculo de correlação."""
         source_results = {

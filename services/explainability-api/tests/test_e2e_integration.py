@@ -10,10 +10,11 @@ Testa o fluxo completo:
 TDD: Testes escritos antes da implementação (GAPS-04 Task 7).
 """
 
-import pytest
-from unittest.mock import AsyncMock, MagicMock
-from pathlib import Path
 import sys
+from pathlib import Path
+from unittest.mock import AsyncMock, MagicMock
+
+import pytest
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -22,7 +23,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 class TestE2EConsensusToExplanation:
     """Testes E2E do fluxo Consenso → Explicação."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def consensus_decision(self):
         """Decisão de consenso completa com campos hierárquicos."""
         return {
@@ -88,7 +89,7 @@ class TestE2EConsensusToExplanation:
             "explainability_token": "token-e2e-123",
         }
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_services(self):
         """Mock de todos os serviços."""
         return {
@@ -97,7 +98,7 @@ class TestE2EConsensusToExplanation:
             "reasoning_extractor": MagicMock(),
         }
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_full_flow_hierarchical_fields_present(self, consensus_decision, mock_services):
         """Testa que campos hierárquicos estão presentes na explicação final."""
         from src.services.api_extensions import ExplainabilityAPIExtensions
@@ -145,7 +146,7 @@ class TestE2EConsensusToExplanation:
         assert "decision_id" in explanation
         assert explanation["decision_id"] == "e2e-decision-123"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_explanation_shap_values_calculated(self, consensus_decision, mock_services):
         """Testa que SHAP values são calculados corretamente."""
         from src.services.api_extensions import ExplainabilityAPIExtensions
@@ -180,7 +181,7 @@ class TestE2EConsensusToExplanation:
         # Verificar que calculate_shap foi chamado
         mock_services["shap_calculator"].calculate_shap.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_explanation_quality_scores_calculated(self, consensus_decision, mock_services):
         """Testa que quality scores são calculados corretamente."""
         from src.services.api_extensions import ExplainabilityAPIExtensions
@@ -217,7 +218,7 @@ class TestE2EConsensusToExplanation:
         assert 0.0 <= explanation["explanation_quality"]["overall"] <= 1.0
         assert explanation["explanation_quality"]["completeness"] >= 0.7  # Alta completude
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_full_flow_with_consumer(self, consensus_decision, mock_services):
         """Testa fluxo completo via Kafka consumer."""
         from src.consumers.consensus_decision_consumer import ConsensusDecisionConsumer
@@ -275,7 +276,7 @@ class TestE2EConsensusToExplanation:
 class TestE2EQueryFlow:
     """Testes E2E do fluxo de consulta de explicações."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_db(self):
         """Mock do MongoDB com explicação completa."""
         db = MagicMock()
@@ -312,7 +313,7 @@ class TestE2EQueryFlow:
         db.explainability_ledger = collection
         return db
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_query_by_decision_id_returns_full_explanation(self, mock_db):
         """Testa que query por decision_id retorna explicação completa."""
         from src.services.api_extensions import ExplainabilityAPIExtensions
@@ -331,7 +332,7 @@ class TestE2EQueryFlow:
         assert "seniority_distribution" in explanation["consensus_process"]
         assert explanation["consensus_process"]["hierarchical_weights_enabled"] is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_query_includes_seniority_weights(self, mock_db):
         """Testa que query inclui pesos de senioridade."""
         from src.services.api_extensions import ExplainabilityAPIExtensions
@@ -349,7 +350,7 @@ class TestE2EQueryFlow:
         assert opinion["seniority_multiplier"] == 1.5
         assert "final_weight" in opinion
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_query_includes_quality_scores(self, mock_db):
         """Testa que query inclui scores de qualidade."""
         from src.services.api_extensions import ExplainabilityAPIExtensions
@@ -371,7 +372,7 @@ class TestE2EQueryFlow:
 class TestE2EMultiFormatOutput:
     """Testes E2E para múltiplos formatos de saída."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def base_explanation(self):
         """Explicação base para formatação."""
         return {

@@ -6,7 +6,6 @@ nao estao cobertos pelos testes existentes.
 """
 
 
-
 class TestCodeForgeMetricsAttributes:
     """Testes para verificar que todos os atributos de metrica existem."""
 

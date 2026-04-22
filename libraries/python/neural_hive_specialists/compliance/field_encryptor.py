@@ -3,8 +3,9 @@ Criptografia de campos sensíveis usando Fernet (AES-128).
 """
 
 import os
+from typing import Any, Optional
+
 import structlog
-from typing import Dict, Any, Optional
 from cryptography.fernet import Fernet, InvalidToken
 
 logger = structlog.get_logger(__name__)
@@ -131,8 +132,8 @@ class FieldEncryptor:
             return encrypted_value
 
     def encrypt_dict(
-        self, data: Dict[str, Any], fields_to_encrypt: Optional[list] = None
-    ) -> Dict[str, Any]:
+        self, data: dict[str, Any], fields_to_encrypt: Optional[list] = None
+    ) -> dict[str, Any]:
         """
         Criptografa campos específicos em dicionário.
 
@@ -164,8 +165,8 @@ class FieldEncryptor:
         return encrypted_data
 
     def decrypt_dict(
-        self, data: Dict[str, Any], fields_to_decrypt: Optional[list] = None
-    ) -> Dict[str, Any]:
+        self, data: dict[str, Any], fields_to_decrypt: Optional[list] = None
+    ) -> dict[str, Any]:
         """
         Descriptografa campos específicos em dicionário.
 

@@ -1,7 +1,8 @@
 """Kafka producer para eventos de remediação"""
 
 import json
-from typing import Any, Dict, Optional
+from datetime import UTC
+from typing import Any, Optional
 
 import structlog
 from aiokafka import AIOKafkaProducer
@@ -66,8 +67,8 @@ class RemediationProducer:
         incident_id: str,
         action_type: str,
         status: str,
-        details: Optional[Dict[str, Any]] = None,
-        metadata: Optional[Dict[str, Any]] = None,
+        details: Optional[dict[str, Any]] = None,
+        metadata: Optional[dict[str, Any]] = None,
     ) -> bool:
         """
         Publica evento de ação de remediação.
@@ -126,7 +127,7 @@ class RemediationProducer:
             )
             return False
 
-    async def publish_remediation_result(self, remediation_id: str, result: Dict[str, Any]) -> bool:
+    async def publish_remediation_result(self, remediation_id: str, result: dict[str, Any]) -> bool:
         """
         Publica resultado completo de remediação.
 
@@ -178,6 +179,6 @@ class RemediationProducer:
     @staticmethod
     def _get_timestamp() -> str:
         """Retorna timestamp ISO 8601"""
-        from datetime import datetime, timezone
+        from datetime import datetime
 
-        return datetime.now(timezone.utc).isoformat()
+        return datetime.now(UTC).isoformat()

@@ -13,7 +13,7 @@ import re
 from collections import defaultdict
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Optional
 
 import structlog
 
@@ -89,8 +89,8 @@ class CuriosityCalculator:
         self.decay_hours = decay_hours
 
         # Rastreamento de visitas
-        self._visits: Dict[str, List[datetime]] = defaultdict(list)
-        self._visit_counts: Dict[str, int] = defaultdict(int)
+        self._visits: dict[str, list[datetime]] = defaultdict(list)
+        self._visit_counts: dict[str, int] = defaultdict(int)
 
     def calculate_score(self, code: str, filename: str, consider_visits: bool = True) -> float:
         """
@@ -296,7 +296,7 @@ class CuriosityCalculator:
         scores = []
         for filepath in dir_path.rglob("*.py"):
             try:
-                with open(filepath, "r", encoding="utf-8") as f:
+                with open(filepath, encoding="utf-8") as f:
                     code = f.read()
                 score = self.calculate_score(code, str(filepath))
                 scores.append(score)
@@ -312,7 +312,7 @@ class CuriosityCalculator:
         weighted_sum = sum(s * w for s, w in zip(scores, weights))
         return min(100, weighted_sum / sum(weights))
 
-    def rank_directories(self, root: str) -> Dict[str, float]:
+    def rank_directories(self, root: str) -> dict[str, float]:
         """
         Rankeia subdiretórios por curiosidade.
 
@@ -331,7 +331,7 @@ class CuriosityCalculator:
 
         return scores
 
-    def get_top_interesting_files(self, directory: str, limit: int = 10) -> List[tuple[str, float]]:
+    def get_top_interesting_files(self, directory: str, limit: int = 10) -> list[tuple[str, float]]:
         """
         Retorna os arquivos mais interessantes de um diretório.
 
@@ -355,7 +355,7 @@ class CuriosityCalculator:
                 ".json",
             }:
                 try:
-                    with open(filepath, "r", encoding="utf-8") as f:
+                    with open(filepath, encoding="utf-8") as f:
                         code = f.read()
                     score = self.calculate_score(code, str(filepath))
                     file_scores.append((str(filepath), score))

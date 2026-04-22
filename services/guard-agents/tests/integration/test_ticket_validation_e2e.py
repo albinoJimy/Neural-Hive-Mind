@@ -11,15 +11,16 @@ Este teste valida o fluxo completo:
 7. Verifica métricas Prometheus
 """
 
-import pytest
 import asyncio
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+
+import pytest
 from aiokafka import AIOKafkaProducer
 from motor.motor_asyncio import AsyncIOMotorClient
 
 
-@pytest.fixture
+@pytest.fixture()
 async def kafka_producer():
     """Fixture Kafka producer."""
     producer = AIOKafkaProducer(
@@ -30,7 +31,7 @@ async def kafka_producer():
     await producer.stop()
 
 
-@pytest.fixture
+@pytest.fixture()
 async def mongodb_client():
     """Fixture MongoDB client."""
     client = AsyncIOMotorClient("mongodb://localhost:27017")
@@ -43,7 +44,7 @@ async def mongodb_client():
 def create_sample_ticket():
     """Cria ticket de teste."""
     return {
-        "ticket_id": f"test-{int(datetime.now(timezone.utc).timestamp())}",
+        "ticket_id": f"test-{int(datetime.now(UTC).timestamp())}",
         "plan_id": "test-plan",
         "intent_id": "test-intent",
         "correlation_id": "test-corr",
@@ -56,8 +57,8 @@ def create_sample_ticket():
     }
 
 
-@pytest.mark.asyncio
-@pytest.mark.integration
+@pytest.mark.asyncio()
+@pytest.mark.integration()
 async def test_e2e_ticket_approved(kafka_producer, mongodb_client):
     """
     Testa fluxo E2E de ticket aprovado.
@@ -85,8 +86,8 @@ async def test_e2e_ticket_approved(kafka_producer, mongodb_client):
     assert validation["ticket_id"] == ticket["ticket_id"]
 
 
-@pytest.mark.asyncio
-@pytest.mark.integration
+@pytest.mark.asyncio()
+@pytest.mark.integration()
 async def test_e2e_ticket_rejected_secrets(kafka_producer, mongodb_client):
     """
     Testa fluxo E2E de ticket rejeitado por secrets expostos.
@@ -116,8 +117,8 @@ async def test_e2e_ticket_rejected_secrets(kafka_producer, mongodb_client):
     assert len(validation["violations"]) > 0
 
 
-@pytest.mark.asyncio
-@pytest.mark.integration
+@pytest.mark.asyncio()
+@pytest.mark.integration()
 async def test_e2e_ticket_requires_approval(kafka_producer, mongodb_client):
     """
     Testa fluxo E2E de ticket que requer aprovação.
@@ -148,8 +149,8 @@ async def test_e2e_ticket_requires_approval(kafka_producer, mongodb_client):
     assert validation["validation_status"] in ["REQUIRES_APPROVAL", "REJECTED"]
 
 
-@pytest.mark.asyncio
-@pytest.mark.integration
+@pytest.mark.asyncio()
+@pytest.mark.integration()
 async def test_e2e_multiple_violations(kafka_producer, mongodb_client):
     """
     Testa ticket com múltiplas violações.
@@ -186,8 +187,8 @@ async def test_e2e_multiple_violations(kafka_producer, mongodb_client):
     assert len(validation["violations"]) >= 2
 
 
-@pytest.mark.asyncio
-@pytest.mark.integration
+@pytest.mark.asyncio()
+@pytest.mark.integration()
 async def test_e2e_manual_approval_flow(kafka_producer, mongodb_client):
     """
     Testa fluxo de aprovação manual via API.
@@ -270,8 +271,8 @@ async def test_e2e_manual_approval_flow(kafka_producer, mongodb_client):
     assert validation.get("approved_by") == "test-user"
 
 
-@pytest.mark.asyncio
-@pytest.mark.integration
+@pytest.mark.asyncio()
+@pytest.mark.integration()
 async def test_e2e_validation_flow_timing(kafka_producer, mongodb_client):
     """
     Testa timing do fluxo de validação.

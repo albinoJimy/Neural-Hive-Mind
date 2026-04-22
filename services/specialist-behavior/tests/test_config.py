@@ -4,8 +4,9 @@ Testes para BehaviorSpecialistConfig - importando código de src/.
 Estes testes importam o BehaviorSpecialistConfig real do código fonte.
 """
 
-import sys
 import os
+import sys
+
 import pytest
 
 # Configurar path para importar código real
@@ -125,6 +126,7 @@ class TestBehaviorSpecialistConfig:
     def test_config_is_specialist_config_subclass(self, env_vars):
         """Verifica que BehaviorSpecialistConfig herda de SpecialistConfig."""
         from src.config import BehaviorSpecialistConfig
+
         from neural_hive_specialists import SpecialistConfig
 
         config = BehaviorSpecialistConfig()

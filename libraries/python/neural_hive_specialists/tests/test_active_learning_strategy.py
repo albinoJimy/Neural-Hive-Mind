@@ -8,23 +8,23 @@ Espec: @.agent-os/specs/2026-03-17-active-learning-feedback/
 import pytest
 
 from neural_hive_specialists.feedback.active_learning.learning_strategy import (
+    DEFAULT_CONFIDENCE_WEIGHT,
+    DEFAULT_NOVELTY_WEIGHT,
+    DEFAULT_REPRESENTATION_WEIGHT,
     ActiveLearningStrategy,
     InformationValue,
-    DEFAULT_CONFIDENCE_WEIGHT,
-    DEFAULT_REPRESENTATION_WEIGHT,
-    DEFAULT_NOVELTY_WEIGHT,
 )
 
 
 class TestActiveLearningStrategy:
     """Testes do ActiveLearningStrategy."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def strategy(self):
         """Instância padrão da estratégia."""
         return ActiveLearningStrategy()
 
-    @pytest.fixture
+    @pytest.fixture()
     def strategy_custom_weights(self):
         """Instância com pesos customizados."""
         return ActiveLearningStrategy(

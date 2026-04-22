@@ -7,9 +7,9 @@ atualizar o ledger e publicar planos aprovados para execução.
 
 import logging
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
-UTC = timezone.utc  # type: ignore
+UTC = UTC  # type: ignore
 from typing import Any
 
 import structlog

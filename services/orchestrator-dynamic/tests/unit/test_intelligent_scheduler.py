@@ -16,19 +16,19 @@ Cobertura:
 """
 
 import asyncio
-import pytest
-from datetime import datetime, timezone, timedelta
+from datetime import UTC, datetime, timedelta
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock
-from typing import Dict, List, Any
 
+import pytest
+from src.config.settings import OrchestratorSettings
+from src.observability.metrics import OrchestratorMetrics
 from src.scheduler.intelligent_scheduler import IntelligentScheduler
 from src.scheduler.priority_calculator import PriorityCalculator
 from src.scheduler.resource_allocator import ResourceAllocator
-from src.config.settings import OrchestratorSettings
-from src.observability.metrics import OrchestratorMetrics
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_config():
     """Config mock com configurações do scheduler."""
     config = MagicMock(spec=OrchestratorSettings)
@@ -38,7 +38,7 @@ def mock_config():
     return config
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_metrics():
     """Metrics mock com todos os métodos de gravação."""
     metrics = MagicMock(spec=OrchestratorMetrics)
@@ -50,7 +50,7 @@ def mock_metrics():
     return metrics
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_priority_calculator():
     """PriorityCalculator mock retornando scores configuráveis."""
     calc = MagicMock(spec=PriorityCalculator)
@@ -58,7 +58,7 @@ def mock_priority_calculator():
     return calc
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_resource_allocator():
     """ResourceAllocator mock com métodos async."""
     allocator = AsyncMock(spec=ResourceAllocator)
@@ -67,8 +67,8 @@ def mock_resource_allocator():
     return allocator
 
 
-@pytest.fixture
-def sample_ticket() -> Dict[str, Any]:
+@pytest.fixture()
+def sample_ticket() -> dict[str, Any]:
     """Ticket padrão com todos os campos obrigatórios."""
     return {
         "ticket_id": "ticket-123",
@@ -79,19 +79,19 @@ def sample_ticket() -> Dict[str, Any]:
             "durability": "PERSISTENT",
         },
         "sla": {
-            "deadline": (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat(),
+            "deadline": (datetime.now(UTC) + timedelta(hours=1)).isoformat(),
             "timeout_ms": 3600000,
         },
         "required_capabilities": ["python", "data-processing"],
         "namespace": "default",
         "security_level": "standard",
         "estimated_duration_ms": 1000,
-        "created_at": datetime.now(timezone.utc).isoformat(),
+        "created_at": datetime.now(UTC).isoformat(),
     }
 
 
-@pytest.fixture
-def sample_workers() -> List[Dict[str, Any]]:
+@pytest.fixture()
+def sample_workers() -> list[dict[str, Any]]:
     """Lista de workers com diferentes características."""
     return [
         {
@@ -116,7 +116,7 @@ def sample_workers() -> List[Dict[str, Any]]:
 class TestIntelligentScheduler:
     """Testes para IntelligentScheduler."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_schedule_ticket_success_with_workers(
         self,
         mock_config,
@@ -156,7 +156,7 @@ class TestIntelligentScheduler:
         mock_priority_calculator.calculate_priority_score.assert_called_once_with(sample_ticket)
         mock_metrics.record_scheduler_allocation.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_schedule_ticket_no_workers_fallback(
         self,
         mock_config,
@@ -185,7 +185,7 @@ class TestIntelligentScheduler:
         assert result["allocation_metadata"]["agent_id"] == "worker-agent-pool"
         assert result["allocation_metadata"]["workers_evaluated"] == 0
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_schedule_ticket_no_suitable_worker_fallback(
         self,
         mock_config,
@@ -215,7 +215,7 @@ class TestIntelligentScheduler:
         assert result["allocation_metadata"]["allocation_method"] == "fallback_stub"
         assert result["allocation_metadata"]["agent_id"] == "worker-agent-pool"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_schedule_ticket_with_ml_predictions_priority_boost(
         self,
         mock_config,
@@ -251,7 +251,7 @@ class TestIntelligentScheduler:
         # Verificar boost (0.75 * 1.2 = 0.9)
         assert result["allocation_metadata"]["priority_score"] == min(0.75 * 1.2, 1.0)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_schedule_ticket_cache_hit(
         self,
         mock_config,
@@ -284,7 +284,7 @@ class TestIntelligentScheduler:
         # Verificar cache hit gravado
         mock_metrics.record_cache_hit.assert_called()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_schedule_ticket_cache_miss_different_capabilities(
         self,
         mock_config,
@@ -317,7 +317,7 @@ class TestIntelligentScheduler:
         # Verificar: discover_workers chamado duas vezes
         assert mock_resource_allocator.discover_workers.call_count == 2
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_schedule_ticket_cache_expiration(
         self,
         mock_config,
@@ -355,7 +355,7 @@ class TestIntelligentScheduler:
         # Verificar: discover_workers chamado duas vezes
         assert mock_resource_allocator.discover_workers.call_count == 2
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_schedule_ticket_discovery_timeout(
         self,
         mock_config,
@@ -390,7 +390,7 @@ class TestIntelligentScheduler:
         # Verificar métrica de falha
         mock_metrics.record_discovery_failure.assert_called()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_schedule_ticket_discovery_exception(
         self,
         mock_config,
@@ -417,7 +417,7 @@ class TestIntelligentScheduler:
         # Verificar fallback gracioso
         assert result["allocation_metadata"]["allocation_method"] == "fallback_stub"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_schedule_ticket_latency_measurement(
         self,
         mock_config,

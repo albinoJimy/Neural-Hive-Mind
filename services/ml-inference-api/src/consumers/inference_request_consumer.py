@@ -2,15 +2,14 @@
 
 import asyncio
 import json
-from datetime import datetime, timezone
-from typing import Any
+from datetime import UTC, datetime
 from uuid import uuid4
 
 import structlog
 from aiokafka import AIOKafkaConsumer
 from aiokafka.errors import KafkaError
 
-from src.models.inference import InferenceRequest, InferenceStatus, ModelType
+from src.models.inference import InferenceRequest, ModelType
 from src.services.inference_service import InferenceService
 
 logger = structlog.get_logger(__name__)
@@ -132,7 +131,7 @@ class InferenceRequestConsumer:
             model_type=model_type,
             features=features,
             context=context,
-            created_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
         )
 
         # Processar inferência

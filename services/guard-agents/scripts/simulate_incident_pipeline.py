@@ -14,11 +14,11 @@ Tipos de incidente:
     - malicious_payload
     - data_exfiltration
 """
-import asyncio
 import argparse
+import asyncio
 import json
-from datetime import datetime, timezone
-from typing import Dict, Any
+from datetime import UTC, datetime
+from typing import Any
 
 
 # Mock clients para simulação
@@ -28,7 +28,6 @@ class MockRedisClient:
 
     async def get(self, key: str):
         print(f"[Redis] GET {key}")
-        return None
 
 
 class MockMongoDBClient:
@@ -36,7 +35,7 @@ class MockMongoDBClient:
         self.incidents_collection = self
         self.remediation_collection = self
 
-    async def insert_one(self, document: Dict[str, Any]):
+    async def insert_one(self, document: dict[str, Any]):
         print(f"[MongoDB] INSERT: {document.get('incident_id', 'N/A')}")
 
     async def update_one(self, filter_doc, update_doc, upsert=False):
@@ -53,14 +52,14 @@ import sys
 
 sys.path.insert(0, "/home/jimy/Base/Neural-Hive-Mind/services/guard-agents")
 
-from src.services.threat_detector import ThreatDetector
 from src.services.incident_classifier import IncidentClassifier
+from src.services.incident_orchestrator import IncidentOrchestrator
 from src.services.policy_enforcer import PolicyEnforcer
 from src.services.remediation_coordinator import RemediationCoordinator
-from src.services.incident_orchestrator import IncidentOrchestrator
+from src.services.threat_detector import ThreatDetector
 
 
-def create_incident_event(incident_type: str) -> Dict[str, Any]:
+def create_incident_event(incident_type: str) -> dict[str, Any]:
     """Cria evento baseado no tipo de incidente"""
     events = {
         "unauthorized_access": {
@@ -69,14 +68,14 @@ def create_incident_event(incident_type: str) -> Dict[str, Any]:
             "user_id": "attacker-001",
             "failed_attempts": 15,
             "source_ip": "192.168.1.100",
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
         },
         "dos_attack": {
             "type": "request_metrics",
             "event_id": f"evt-{incident_type}-001",
             "requests_per_minute": 10000,
             "source": "external-lb",
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
         },
         "resource_abuse": {
             "type": "resource_metrics",
@@ -87,21 +86,21 @@ def create_incident_event(incident_type: str) -> Dict[str, Any]:
             },
             "resource_name": "pod-critical-001",
             "namespace": "production",
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
         },
         "malicious_payload": {
             "type": "request",
             "event_id": f"evt-{incident_type}-001",
             "payload": "SELECT * FROM users WHERE '1'='1' OR DROP TABLE users;",
             "source_ip": "10.0.0.1",
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
         },
         "data_exfiltration": {
             "type": "network",
             "event_id": f"evt-{incident_type}-001",
             "data_size_mb": 500,
             "destination": "unknown-external-host",
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
         },
     }
 

@@ -1,7 +1,7 @@
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
-UTC = timezone.utc  # type: ignore
+UTC = UTC  # type: ignore
 
 import grpc
 import structlog

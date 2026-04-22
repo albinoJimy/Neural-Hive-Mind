@@ -1,9 +1,10 @@
 """Testes de métricas para BehaviorSpecialist."""
 
-import sys
 import os
-import pytest
+import sys
 from unittest.mock import MagicMock
+
+import pytest
 
 # Configurar paths
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "src"))
@@ -34,12 +35,12 @@ class MockBehaviorMetrics:
         self.risk_score.labels(specialist_type="behavior").set(score)
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_metrics():
     return MockBehaviorMetrics()
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_behavior_evaluation():
     return {
         "confidence_score": 0.78,

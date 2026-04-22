@@ -1,14 +1,15 @@
 """Testes para AggregatedMetricsCollector."""
 
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import patch, MagicMock
 
 from neural_hive_specialists.observability.aggregated_metrics import (
     AggregatedMetricsCollector,
 )
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_config():
     """Config mock para testes."""
     return {
@@ -18,7 +19,7 @@ def mock_config():
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def collector(mock_config):
     """Instância de AggregatedMetricsCollector para testes."""
     with patch("neural_hive_specialists.observability.aggregated_metrics.MongoClient"):
@@ -64,7 +65,7 @@ class TestAggregatedMetricsCollectorInit:
 class TestCollectConsensusMetrics:
     """Testes para _collect_consensus_metrics."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_collect_consensus_metrics_success(self, collector):
         """Testa coleta bem-sucedida de métricas de consenso."""
         # Mock collection
@@ -100,7 +101,7 @@ class TestCollectConsensusMetrics:
         # Avg = (0.667 + 1.0) / 2 = 0.834
         assert collector.consensus_rate._value.get() > 0
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_collect_consensus_metrics_no_data(self, collector):
         """Testa coleta quando não há dados."""
         mock_collection = MagicMock()
@@ -117,7 +118,7 @@ class TestCollectConsensusMetrics:
 class TestCollectSpecialistMetrics:
     """Testes para _collect_specialist_metrics."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_collect_specialist_metrics_success(self, collector):
         """Testa coleta bem-sucedida de métricas por especialista."""
         mock_collection = MagicMock()
@@ -146,7 +147,7 @@ class TestCollectSpecialistMetrics:
         # Verificar que métricas foram setadas
         # (valores exatos dependem do mock do Gauge)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_collect_specialist_metrics_buffered_rate(self, collector):
         """Testa cálculo de buffered_rate."""
         mock_collection = MagicMock()
@@ -171,7 +172,7 @@ class TestCollectSpecialistMetrics:
 class TestCollectLatencyMetrics:
     """Testes para _collect_latency_metrics."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_collect_latency_metrics_success(self, collector):
         """Testa coleta bem-sucedida de métricas de latência."""
         mock_collection = MagicMock()
@@ -189,7 +190,7 @@ class TestCollectLatencyMetrics:
         # Deve calcular percentis P50, P95, P99
         # P50 de [100, 150, 200, 250, 300, 120, 180, 220, 280, 320] ≈ 210
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_collect_latency_metrics_empty_times(self, collector):
         """Testa coleta com lista de tempos vazia."""
         mock_collection = MagicMock()
@@ -206,7 +207,7 @@ class TestCollectLatencyMetrics:
 class TestCollectRecommendationDistribution:
     """Testes para _collect_recommendation_distribution."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_collect_distribution_success(self, collector):
         """Testa coleta bem-sucedida de distribuição."""
         mock_collection = MagicMock()
@@ -238,7 +239,7 @@ class TestCollectRecommendationDistribution:
 class TestCollectLedgerHealth:
     """Testes para _collect_ledger_health."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_collect_ledger_health_success(self, collector):
         """Testa cálculo de saúde do ledger."""
         mock_collection = MagicMock()
@@ -334,7 +335,7 @@ class TestGetSystemHealthSummary:
 class TestCollectAllMetrics:
     """Testes para collect_all_metrics."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_collect_all_metrics_success(self, collector):
         """Testa coleta de todas as métricas."""
         # Mock collection
@@ -351,7 +352,7 @@ class TestCollectAllMetrics:
 
         # Não deve lançar erro
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_collect_all_metrics_parallel(self, collector):
         """Testa que coletas executam em paralelo."""
         mock_collection = MagicMock()
@@ -384,7 +385,7 @@ class TestEdgeCases:
         assert collector.metrics_window_hours == 24
         assert collector.mongodb_database == "neural_hive"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_collect_with_mongo_error(self, collector):
         """Testa tratamento de erro do MongoDB."""
         mock_collection = MagicMock()

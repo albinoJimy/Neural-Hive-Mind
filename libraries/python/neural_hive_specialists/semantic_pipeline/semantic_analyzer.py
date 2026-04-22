@@ -6,13 +6,12 @@ sentence-transformers. Calcula similaridade coseno entre descrições de tarefas
 e conceitos de domínio.
 """
 
-from typing import Dict, List, Any, Optional, TYPE_CHECKING
+from typing import Any, Optional
+
 import numpy as np
 import structlog
 
 # Lazy imports para evitar carregar dependências pesadas no import do módulo
-if TYPE_CHECKING:
-    pass
 
 logger = structlog.get_logger(__name__)
 
@@ -84,7 +83,7 @@ class SemanticAnalyzer:
         "refactoring and technical debt reduction",
     ]
 
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, config: dict[str, Any]):
         """
         Inicializa analisador semântico.
 
@@ -103,7 +102,7 @@ class SemanticAnalyzer:
         self._model: Optional[Any] = None
 
         # Cache de embeddings de conceitos
-        self._concept_embeddings_cache: Dict[str, np.ndarray] = {}
+        self._concept_embeddings_cache: dict[str, np.ndarray] = {}
 
         logger.info(
             "SemanticAnalyzer initialized",
@@ -121,7 +120,7 @@ class SemanticAnalyzer:
                 raise ImportError("sentence-transformers não está instalado")
         return self._model
 
-    def analyze_security(self, tasks: List[Dict[str, Any]]) -> float:
+    def analyze_security(self, tasks: list[dict[str, Any]]) -> float:
         """
         Analisa aspectos de segurança usando similaridade semântica.
 
@@ -175,7 +174,7 @@ class SemanticAnalyzer:
             logger.error("Failed to analyze security semantically", error=str(e), exc_info=True)
             return 0.5
 
-    def analyze_architecture(self, tasks: List[Dict[str, Any]]) -> float:
+    def analyze_architecture(self, tasks: list[dict[str, Any]]) -> float:
         """
         Analisa padrões arquiteturais usando similaridade semântica.
 
@@ -225,7 +224,7 @@ class SemanticAnalyzer:
             )
             return 0.5
 
-    def analyze_performance(self, tasks: List[Dict[str, Any]]) -> float:
+    def analyze_performance(self, tasks: list[dict[str, Any]]) -> float:
         """
         Analisa aspectos de performance usando similaridade semântica.
 
@@ -275,7 +274,7 @@ class SemanticAnalyzer:
             )
             return 0.5
 
-    def analyze_code_quality(self, tasks: List[Dict[str, Any]]) -> float:
+    def analyze_code_quality(self, tasks: list[dict[str, Any]]) -> float:
         """
         Analisa qualidade de código usando similaridade semântica.
 
@@ -325,7 +324,7 @@ class SemanticAnalyzer:
             )
             return 0.5
 
-    def _get_concept_embeddings(self, concepts: List[str], cache_key: str) -> np.ndarray:
+    def _get_concept_embeddings(self, concepts: list[str], cache_key: str) -> np.ndarray:
         """
         Obtém embeddings de conceitos (com cache).
 
@@ -344,7 +343,7 @@ class SemanticAnalyzer:
         return self._concept_embeddings_cache[cache_key]
 
     def compute_task_similarity(
-        self, task_description: str, reference_concepts: List[str]
+        self, task_description: str, reference_concepts: list[str]
     ) -> float:
         """
         Computa similaridade de uma tarefa com conceitos de referência.

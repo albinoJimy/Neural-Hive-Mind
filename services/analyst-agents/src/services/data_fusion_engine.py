@@ -5,9 +5,9 @@ Funde dados de múltiplas fontes (MongoDB, PostgreSQL, ClickHouse, Neo4j)
 em uma visão consolidada para análise.
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 import structlog
 
@@ -32,9 +32,9 @@ class AggregatedResult:
     def __init__(
         self,
         query_id: str,
-        sources: List[str],
-        results: Dict[str, Any],
-        metadata: Optional[Dict[str, Any]] = None,
+        sources: list[str],
+        results: dict[str, Any],
+        metadata: Optional[dict[str, Any]] = None,
     ):
         self.query_id = query_id
         self.sources = sources
@@ -44,7 +44,7 @@ class AggregatedResult:
         self.conflicts = []
         self.warnings = []
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Converte para dicionário."""
         return {
             "query_id": self.query_id,
@@ -75,7 +75,7 @@ class DataFusionEngine:
     async def fuse_sources(
         self,
         query_request: QueryRequest,
-        source_results: Dict[str, Any],
+        source_results: dict[str, Any],
     ) -> AggregatedResult:
         """
         Funde dados de múltiplas fontes.
@@ -127,7 +127,7 @@ class DataFusionEngine:
 
         return result
 
-    async def _normalize_schemas(self, source_results: Dict[str, Any]) -> Dict[str, Any]:
+    async def _normalize_schemas(self, source_results: dict[str, Any]) -> dict[str, Any]:
         """
         Normaliza esquemas de diferentes fontes.
 
@@ -161,7 +161,7 @@ class DataFusionEngine:
 
         return normalized
 
-    def _normalize_mongodb(self, data: Any) -> Dict[str, Any]:
+    def _normalize_mongodb(self, data: Any) -> dict[str, Any]:
         """Normaliza dados do MongoDB."""
         if isinstance(data, list):
             return {
@@ -178,7 +178,7 @@ class DataFusionEngine:
             }
         return {"raw": data, "source": "mongodb"}
 
-    def _normalize_postgresql(self, data: Any) -> Dict[str, Any]:
+    def _normalize_postgresql(self, data: Any) -> dict[str, Any]:
         """Normaliza dados do PostgreSQL."""
         if isinstance(data, list):
             return {
@@ -195,7 +195,7 @@ class DataFusionEngine:
             }
         return {"raw": data, "source": "postgresql"}
 
-    def _normalize_clickhouse(self, data: Any) -> Dict[str, Any]:
+    def _normalize_clickhouse(self, data: Any) -> dict[str, Any]:
         """Normaliza dados do ClickHouse."""
         if isinstance(data, list):
             return {
@@ -212,7 +212,7 @@ class DataFusionEngine:
             }
         return {"raw": data, "source": "clickhouse"}
 
-    def _normalize_neo4j(self, data: Any) -> Dict[str, Any]:
+    def _normalize_neo4j(self, data: Any) -> dict[str, Any]:
         """Normaliza dados do Neo4j."""
         if isinstance(data, list):
             return {
@@ -229,7 +229,7 @@ class DataFusionEngine:
             }
         return {"raw": data, "source": "neo4j"}
 
-    def _normalize_generic(self, data: Any) -> Dict[str, Any]:
+    def _normalize_generic(self, data: Any) -> dict[str, Any]:
         """Normaliza dados genéricos."""
         return {
             "type": "generic",
@@ -239,9 +239,9 @@ class DataFusionEngine:
 
     async def _align_temporal(
         self,
-        normalized: Dict[str, Any],
+        normalized: dict[str, Any],
         query_request: QueryRequest,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Alinha dados temporalmente.
 
@@ -283,8 +283,8 @@ class DataFusionEngine:
 
     def _is_in_time_window(
         self,
-        item: Dict[str, Any],
-        time_window: Dict[str, datetime],
+        item: dict[str, Any],
+        time_window: dict[str, datetime],
     ) -> bool:
         """Verifica se item está na janela temporal."""
         # Tentar encontrar timestamp em campos comuns
@@ -306,7 +306,7 @@ class DataFusionEngine:
 
         return True  # Se não encontrar timestamp, assume que está na janela
 
-    async def _join_sources(self, aligned: Dict[str, Any]) -> Dict[str, Any]:
+    async def _join_sources(self, aligned: dict[str, Any]) -> dict[str, Any]:
         """
         Junta dados de múltiplas fontes.
 
@@ -345,7 +345,7 @@ class DataFusionEngine:
 
         return joined
 
-    def _extract_metrics(self, data: Dict[str, Any]) -> Dict[str, Any]:
+    def _extract_metrics(self, data: dict[str, Any]) -> dict[str, Any]:
         """Extrai métricas de dados normalizados."""
         metrics = {}
 
@@ -382,7 +382,7 @@ class DataFusionEngine:
 
         return metrics
 
-    async def _resolve_conflicts(self, fused: Dict[str, Any]) -> Dict[str, Any]:
+    async def _resolve_conflicts(self, fused: dict[str, Any]) -> dict[str, Any]:
         """
         Resolve conflitos entre fontes.
 
@@ -406,8 +406,8 @@ class DataFusionEngine:
         return resolved
 
     def _resolve_metric_conflict(
-        self, metric: str, source_values: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, metric: str, source_values: dict[str, Any]
+    ) -> dict[str, Any]:
         """
         Resolve conflito para uma métrica específica.
 
@@ -455,9 +455,9 @@ class DataFusionEngine:
 
     async def _enrich_with_context(
         self,
-        resolved: Dict[str, Any],
+        resolved: dict[str, Any],
         query_request: QueryRequest,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Enriquece dados com contexto adicional.
 
@@ -472,7 +472,7 @@ class DataFusionEngine:
 
         # Adicionar metadata de fusão
         enriched["fusion_metadata"] = {
-            "fused_at": datetime.now(timezone.utc).isoformat(),
+            "fused_at": datetime.now(UTC).isoformat(),
             "sources_count": len(resolved.get("sources", [])),
             "metrics_count": len(resolved.get("resolved_metrics", {})),
             "conflict_resolution": self.conflict_resolution.value,
@@ -489,7 +489,7 @@ class DataFusionEngine:
 
     async def get_correlation(
         self,
-        source_results: Dict[str, Any],
+        source_results: dict[str, Any],
         metric_x: str,
         metric_y: str,
     ) -> Optional[float]:

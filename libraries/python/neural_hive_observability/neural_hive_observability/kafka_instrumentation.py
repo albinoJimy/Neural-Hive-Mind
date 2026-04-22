@@ -6,11 +6,11 @@ garantindo correlação distribuída via headers e spans OpenTelemetry.
 """
 
 import logging
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Optional
 
 from opentelemetry import trace
 from opentelemetry.context import attach
-from opentelemetry.propagate import inject, extract
+from opentelemetry.propagate import extract, inject
 from opentelemetry.trace import Status, StatusCode
 
 from .config import ObservabilityConfig
@@ -140,7 +140,7 @@ class InstrumentedKafkaProducer:
     def __getattr__(self, item):
         return getattr(self._producer, item)
 
-    def _normalize_headers(self, headers: Optional[Any]) -> Dict[str, Any]:
+    def _normalize_headers(self, headers: Optional[Any]) -> dict[str, Any]:
         if headers is None:
             return {}
 
@@ -152,7 +152,7 @@ class InstrumentedKafkaProducer:
 
         return {}
 
-    def _headers_dict_to_sequence(self, headers: Dict[str, Any]) -> List[Tuple[str, Any]]:
+    def _headers_dict_to_sequence(self, headers: dict[str, Any]) -> list[tuple[str, Any]]:
         sequence = []
         for key, value in headers.items():
             if isinstance(value, bytes):
@@ -278,7 +278,7 @@ class InstrumentedAIOKafkaProducer:
     def __getattr__(self, item):
         return getattr(self._producer, item)
 
-    def _normalize_headers(self, headers: Optional[Any]) -> Dict[str, Any]:
+    def _normalize_headers(self, headers: Optional[Any]) -> dict[str, Any]:
         if headers is None:
             return {}
 
@@ -290,7 +290,7 @@ class InstrumentedAIOKafkaProducer:
 
         return {}
 
-    def _headers_dict_to_sequence(self, headers: Dict[str, Any]) -> List[Tuple[str, Any]]:
+    def _headers_dict_to_sequence(self, headers: dict[str, Any]) -> list[tuple[str, Any]]:
         sequence = []
         for key, value in headers.items():
             if isinstance(value, bytes):
@@ -365,7 +365,7 @@ class InstrumentedAIOKafkaConsumer:
 
                 yield message
 
-    def _headers_to_dict(self, headers: Optional[List[Tuple[str, bytes]]]) -> Dict[str, Any]:
+    def _headers_to_dict(self, headers: Optional[list[tuple[str, bytes]]]) -> dict[str, Any]:
         if not headers:
             return {}
 

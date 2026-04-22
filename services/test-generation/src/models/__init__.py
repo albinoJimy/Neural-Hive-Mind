@@ -1,10 +1,10 @@
 """Models do Test Generation Service."""
 
-from .tests import (  # noqa: F401
-    TestType,
-    TestFramework,
+from .tests import (
     TestCase,
-    TestSuite,
-    TestGenerationRequest,
     TestCoverage,
+    TestFramework,
+    TestGenerationRequest,
+    TestSuite,
+    TestType,
 )

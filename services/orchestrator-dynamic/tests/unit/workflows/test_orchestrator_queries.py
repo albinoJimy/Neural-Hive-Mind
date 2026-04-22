@@ -5,19 +5,18 @@ Testa os métodos @workflow.query que expõem estado do workflow.
 """
 
 import pytest
-
 from src.workflows.orchestration_workflow import OrchestrationWorkflow
 
 
 class TestOrchestrationWorkflowQueries:
     """Testes para queries do OrchestrationWorkflow."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def workflow(self):
         """Retorna instância do workflow para testes."""
         return OrchestrationWorkflow()
 
-    @pytest.fixture
+    @pytest.fixture()
     def sample_tickets(self):
         """Retorna lista de tickets de exemplo."""
         return [
@@ -47,7 +46,7 @@ class TestOrchestrationWorkflowQueries:
             },
         ]
 
-    @pytest.fixture
+    @pytest.fixture()
     def rejected_tickets(self):
         """Retorna lista de tickets rejeitados."""
         return [{"ticket_id": "ticket-rejected-001", "rejection_reason": "resource_unavailable"}]

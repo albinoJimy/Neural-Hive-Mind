@@ -2,10 +2,11 @@
 Testes para AuthInterceptor.
 """
 
-import pytest
-import jwt
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from unittest.mock import Mock
+
+import jwt
+import pytest
 from prometheus_client import REGISTRY
 
 from neural_hive_specialists.auth_interceptor import AuthInterceptor
@@ -13,7 +14,7 @@ from neural_hive_specialists.config import SpecialistConfig
 from neural_hive_specialists.metrics import SpecialistMetrics
 
 
-@pytest.fixture
+@pytest.fixture()
 def config():
     """Fixture de configuração para testes."""
     return SpecialistConfig(
@@ -41,7 +42,7 @@ def config():
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def metrics(config):
     """Fixture de métricas para testes."""
     # Limpar métricas anteriores do registry
@@ -59,20 +60,20 @@ def metrics(config):
     return SpecialistMetrics(config, "test_specialist")
 
 
-@pytest.fixture
+@pytest.fixture()
 def auth_interceptor(config, metrics):
     """Fixture de AuthInterceptor."""
     return AuthInterceptor(config, metrics)
 
 
-@pytest.fixture
+@pytest.fixture()
 def valid_token(config):
     """Fixture de token JWT válido."""
     payload = {
         "sub": "consensus-engine",
         "service_type": "consensus-engine",
-        "iat": datetime.now(timezone.utc),
-        "exp": datetime.now(timezone.utc) + timedelta(hours=1),
+        "iat": datetime.now(UTC),
+        "exp": datetime.now(UTC) + timedelta(hours=1),
         "iss": config.jwt_issuer,
         "aud": config.jwt_audience,
     }
@@ -105,8 +106,8 @@ class TestAuthInterceptor:
         payload = {
             "sub": "consensus-engine",
             "service_type": "consensus-engine",
-            "iat": datetime.now(timezone.utc),
-            "exp": datetime.now(timezone.utc) + timedelta(hours=1),
+            "iat": datetime.now(UTC),
+            "exp": datetime.now(UTC) + timedelta(hours=1),
             "iss": config.jwt_issuer,
             "aud": config.jwt_audience,
         }
@@ -121,8 +122,8 @@ class TestAuthInterceptor:
         payload = {
             "sub": "consensus-engine",
             "service_type": "consensus-engine",
-            "iat": datetime.now(timezone.utc) - timedelta(hours=2),
-            "exp": datetime.now(timezone.utc) - timedelta(hours=1),
+            "iat": datetime.now(UTC) - timedelta(hours=2),
+            "exp": datetime.now(UTC) - timedelta(hours=1),
             "iss": config.jwt_issuer,
             "aud": config.jwt_audience,
         }
@@ -136,8 +137,8 @@ class TestAuthInterceptor:
         payload = {
             "sub": "consensus-engine",
             "service_type": "consensus-engine",
-            "iat": datetime.now(timezone.utc),
-            "exp": datetime.now(timezone.utc) + timedelta(hours=1),
+            "iat": datetime.now(UTC),
+            "exp": datetime.now(UTC) + timedelta(hours=1),
             "iss": config.jwt_issuer,
             "aud": config.jwt_audience,
         }
@@ -283,8 +284,8 @@ class TestAuthInterceptor:
         payload = {
             "sub": "consensus-engine",
             "service_type": "consensus-engine",
-            "iat": datetime.now(timezone.utc),
-            "exp": datetime.now(timezone.utc) + timedelta(hours=1),
+            "iat": datetime.now(UTC),
+            "exp": datetime.now(UTC) + timedelta(hours=1),
             "iss": config.jwt_issuer,
             "aud": config.jwt_audience,
         }
@@ -307,8 +308,8 @@ class TestAuthInterceptor:
         payload = {
             "sub": "consensus-engine",
             "service_type": "consensus-engine",
-            "iat": datetime.now(timezone.utc) - timedelta(hours=2),
-            "exp": datetime.now(timezone.utc) - timedelta(hours=1),
+            "iat": datetime.now(UTC) - timedelta(hours=2),
+            "exp": datetime.now(UTC) - timedelta(hours=1),
             "iss": config.jwt_issuer,
             "aud": config.jwt_audience,
         }
@@ -336,8 +337,8 @@ class TestAuthInterceptor:
         payload = {
             "sub": "unknown-service",
             "service_type": "unknown",
-            "iat": datetime.now(timezone.utc),
-            "exp": datetime.now(timezone.utc) + timedelta(hours=1),
+            "iat": datetime.now(UTC),
+            "exp": datetime.now(UTC) + timedelta(hours=1),
             "iss": config.jwt_issuer,
             "aud": config.jwt_audience,
         }
@@ -384,8 +385,8 @@ class TestAuthInterceptorMetrics:
         payload = {
             "sub": "consensus-engine",
             "service_type": "consensus-engine",
-            "iat": datetime.now(timezone.utc),
-            "exp": datetime.now(timezone.utc) + timedelta(hours=1),
+            "iat": datetime.now(UTC),
+            "exp": datetime.now(UTC) + timedelta(hours=1),
             "iss": config.jwt_issuer,
             "aud": config.jwt_audience,
         }
@@ -482,8 +483,8 @@ class TestAuthInterceptorMetrics:
         payload = {
             "sub": "consensus-engine",
             "service_type": "consensus-engine",
-            "iat": datetime.now(timezone.utc),
-            "exp": datetime.now(timezone.utc) + timedelta(hours=1),
+            "iat": datetime.now(UTC),
+            "exp": datetime.now(UTC) + timedelta(hours=1),
             "iss": config.jwt_issuer,
             "aud": config.jwt_audience,
         }

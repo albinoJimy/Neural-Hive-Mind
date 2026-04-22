@@ -1,7 +1,8 @@
 """Testes para o playbook de recuperação de deadlock - TDD Approach."""
 
-import yaml
 from pathlib import Path
+
+import yaml
 
 
 class TestDeadlockRecoveryPlaybook:

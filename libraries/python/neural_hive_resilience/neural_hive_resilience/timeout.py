@@ -7,20 +7,19 @@ Este módulo implementa mecanismos de timeout para operações assíncronas:
 """
 
 import asyncio
+from collections.abc import Awaitable, Callable
 from functools import wraps
 from typing import (
     Any,
-    Awaitable,
-    Callable,
     Optional,
     TypeVar,
     Union,
 )
-from prometheus_client import Counter, Histogram
+
 import structlog
+from prometheus_client import Counter, Histogram
 
 from .exceptions import TimeoutError as ResilienceTimeoutError
-
 
 # Type variables
 T = TypeVar("T")

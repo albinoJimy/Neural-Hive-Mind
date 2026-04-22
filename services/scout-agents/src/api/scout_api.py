@@ -138,4 +138,3 @@ class ScoutAPI:
             if not deleted:
                 raise HTTPException(status_code=404, detail="Exploration not found")
 
-            return None

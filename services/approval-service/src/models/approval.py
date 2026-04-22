@@ -7,7 +7,7 @@ Define os modelos Pydantic para o fluxo de aprovacao de planos.
 import uuid
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Literal, Optional
+from typing import Any, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -41,10 +41,10 @@ class ApprovalRequest(BaseModel):
     risk_score: float = Field(..., ge=0.0, le=1.0, description="Score de risco (0-1)")
     risk_band: RiskBand = Field(..., description="Banda de risco")
     is_destructive: bool = Field(default=False, description="Se contem operacoes destrutivas")
-    destructive_tasks: List[str] = Field(
+    destructive_tasks: list[str] = Field(
         default_factory=list, description="IDs das tasks destrutivas"
     )
-    risk_matrix: Optional[Dict[str, float]] = Field(
+    risk_matrix: Optional[dict[str, float]] = Field(
         None, description="Matriz de risco multi-dominio"
     )
     status: ApprovalStatus = Field(
@@ -57,7 +57,7 @@ class ApprovalRequest(BaseModel):
     approved_at: Optional[datetime] = Field(None, description="Timestamp da aprovacao")
     rejection_reason: Optional[str] = Field(None, description="Motivo da rejeicao")
     comments: Optional[str] = Field(None, description="Comentarios adicionais")
-    cognitive_plan: Dict[str, Any] = Field(..., description="Dados completos do plano cognitivo")
+    cognitive_plan: dict[str, Any] = Field(..., description="Dados completos do plano cognitivo")
 
     model_config = ConfigDict(use_enum_values=True)
 
@@ -84,11 +84,11 @@ class ApprovalResponse(BaseModel):
     approved_by: str = Field(..., description="ID do usuario que decidiu")
     approved_at: datetime = Field(..., description="Timestamp da decisao")
     rejection_reason: Optional[str] = Field(None, description="Motivo da rejeicao")
-    cognitive_plan: Optional[Dict[str, Any]] = Field(
+    cognitive_plan: Optional[dict[str, Any]] = Field(
         None, description="Plano completo (se aprovado)"
     )
 
-    def to_kafka_dict(self) -> Dict[str, Any]:
+    def to_kafka_dict(self) -> dict[str, Any]:
         """Converte para dicionario compativel com Kafka/Avro"""
         import json
 
@@ -114,7 +114,7 @@ class ApprovalStats(BaseModel):
     avg_approval_time_seconds: Optional[float] = Field(
         None, description="Tempo medio de aprovacao em segundos"
     )
-    by_risk_band: Dict[str, int] = Field(
+    by_risk_band: dict[str, int] = Field(
         default_factory=dict, description="Contagem por banda de risco"
     )
 

@@ -24,9 +24,9 @@ from .traffic_switcher import (
     EnvoyTrafficSwitcher,
     KubernetesTrafficSwitcher,
     MockTrafficSwitcher,
-    TrafficSwitchError,
     TrafficSwitcher,
     TrafficSwitcherFactory,
+    TrafficSwitchError,
     TrafficSwitchStrategy,
 )
 

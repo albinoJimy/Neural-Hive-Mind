@@ -2,16 +2,17 @@
 Testes unitarios para Rate Limiter com Sliding Window e Burst Support
 """
 
-import pytest
 import asyncio
-from unittest.mock import AsyncMock
 import time
+from unittest.mock import AsyncMock
+
+import pytest
 
 
 class TestRateLimiter:
     """Testes para o Rate Limiter"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_redis(self):
         """Mock do cliente Redis"""
         redis = AsyncMock()
@@ -19,7 +20,7 @@ class TestRateLimiter:
         redis.pipeline_operations = AsyncMock(return_value=[0, 1, 1, True])
         return redis
 
-    @pytest.fixture
+    @pytest.fixture()
     def rate_limiter(self, mock_redis):
         """Fixture do rate limiter"""
         from middleware.rate_limiter import RateLimiter
@@ -28,7 +29,7 @@ class TestRateLimiter:
             redis_client=mock_redis, enabled=True, default_limit=100, burst_size=20, fail_open=True
         )
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_rate_limit_allowed(self, rate_limiter, mock_redis):
         """Testar requisicao dentro do limite"""
         # zcard returns 50 (within limit of 100 + 20 burst = 120)
@@ -40,7 +41,7 @@ class TestRateLimiter:
         assert result.limit == 100  # Reports base limit
         assert result.remaining == 50  # 100 - 50
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_rate_limit_exceeded(self, rate_limiter, mock_redis):
         """Testar requisicao acima do limite (base + burst)"""
         # zcard returns 121 (above limit of 100 + 20 burst = 120)
@@ -52,7 +53,7 @@ class TestRateLimiter:
         assert result.remaining == 0
         assert result.retry_after is not None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_rate_limit_burst_allows_extra_requests(self, rate_limiter, mock_redis):
         """Testar que burst_size permite requisicoes extras alem do limite base"""
         # zcard returns 110 (above base limit 100 but within burst allowance 100+20=120)
@@ -63,7 +64,7 @@ class TestRateLimiter:
         assert result.allowed is True
         assert result.limit == 100  # Reports base limit to user
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_rate_limit_at_burst_limit(self, rate_limiter, mock_redis):
         """Testar requisicao exatamente no limite efetivo (base + burst)"""
         # zcard returns 120 (exactly at limit of 100 + 20 burst)
@@ -74,7 +75,7 @@ class TestRateLimiter:
         assert result.allowed is True
         assert result.remaining == 0
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_rate_limit_tenant_override(self, rate_limiter, mock_redis):
         """Testar limite especifico por tenant"""
         rate_limiter.set_tenant_limit("premium-tenant", 500)
@@ -86,7 +87,7 @@ class TestRateLimiter:
         assert result.allowed is True
         assert result.limit == 500
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_rate_limit_user_override(self, rate_limiter, mock_redis):
         """Testar limite especifico por usuario"""
         rate_limiter.set_user_limit("admin-user", 1000)
@@ -98,7 +99,7 @@ class TestRateLimiter:
         assert result.allowed is True
         assert result.limit == 1000
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_rate_limit_user_takes_priority_over_tenant(self, rate_limiter, mock_redis):
         """Testar que limite de usuario tem prioridade sobre tenant"""
         rate_limiter.set_tenant_limit("tenant1", 500)
@@ -111,7 +112,7 @@ class TestRateLimiter:
         assert result.allowed is True
         assert result.limit == 2000
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_rate_limit_fail_open(self, rate_limiter, mock_redis):
         """Testar fail-open quando Redis falha"""
         mock_redis.pipeline_operations.side_effect = Exception("Redis connection failed")
@@ -121,7 +122,7 @@ class TestRateLimiter:
         # Deve permitir requisicao mesmo com erro (fail-open)
         assert result.allowed is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_rate_limit_fail_closed(self, mock_redis):
         """Testar fail-closed quando Redis falha"""
         from middleware.rate_limiter import RateLimiter
@@ -141,7 +142,7 @@ class TestRateLimiter:
         # Deve bloquear requisicao com erro (fail-closed)
         assert result.allowed is False
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_rate_limit_disabled(self, mock_redis):
         """Testar comportamento quando rate limiting esta desabilitado"""
         from middleware.rate_limiter import RateLimiter
@@ -156,7 +157,7 @@ class TestRateLimiter:
         # Redis nao deve ser chamado
         mock_redis.pipeline_operations.assert_not_called()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_rate_limit_at_exact_base_limit(self, rate_limiter, mock_redis):
         """Testar requisicao exatamente no limite base"""
         # zcard returns 100 (at base limit, but allowed due to burst)
@@ -167,7 +168,7 @@ class TestRateLimiter:
         assert result.allowed is True
         assert result.remaining == 0  # Remaining based on base limit
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_rate_limit_result_has_reset_time(self, rate_limiter, mock_redis):
         """Testar que resultado inclui tempo de reset"""
         mock_redis.pipeline_operations.return_value = [0, 1, 50, True]
@@ -179,7 +180,7 @@ class TestRateLimiter:
         assert result.reset_at >= current_time + 59
         assert result.reset_at <= current_time + 61
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_sliding_window_redis_operations(self, rate_limiter, mock_redis):
         """Testar que operacoes Redis corretas sao chamadas para sliding window"""
         mock_redis.pipeline_operations.return_value = [0, 1, 50, True]
@@ -207,7 +208,7 @@ class TestRateLimiter:
         assert call_args[3]["method"] == "expire"
         assert call_args[3]["args"][1] == 61  # WINDOW_SIZE + 1
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_burst_size_zero(self, mock_redis):
         """Testar com burst_size = 0 (sem burst permitido)"""
         from middleware.rate_limiter import RateLimiter
@@ -227,7 +228,7 @@ class TestRateLimiter:
 
         assert result.allowed is False
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_large_burst_size(self, mock_redis):
         """Testar com burst_size grande"""
         from middleware.rate_limiter import RateLimiter
@@ -280,7 +281,7 @@ class TestRateLimiter:
         assert "user1" in limits["user_limits"]
         assert "tenant1" in limits["tenant_limits"]
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_rate_limit_without_tenant(self, rate_limiter, mock_redis):
         """Testar rate limit sem tenant_id"""
         mock_redis.pipeline_operations.return_value = [0, 1, 50, True]
@@ -290,7 +291,7 @@ class TestRateLimiter:
         assert result.allowed is True
         assert result.limit == 100  # Usa limite default
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_retry_after_calculated_correctly(self, rate_limiter, mock_redis):
         """Testar que retry_after e calculado corretamente quando bloqueado"""
         # zcard returns 121 (above effective limit)
@@ -310,10 +311,10 @@ class TestRateLimiterSingleton:
     def test_get_set_rate_limiter(self):
         """Testar get/set do singleton"""
         from middleware.rate_limiter import (
+            RateLimiter,
+            close_rate_limiter,
             get_rate_limiter,
             set_rate_limiter,
-            close_rate_limiter,
-            RateLimiter,
         )
 
         # Limpar estado anterior
@@ -337,14 +338,14 @@ class TestRateLimiterSingleton:
 class TestRateLimiterMetrics:
     """Testes para metricas Prometheus do Rate Limiter"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_redis(self):
         """Mock do cliente Redis"""
         redis = AsyncMock()
         redis.pipeline_operations = AsyncMock(return_value=[0, 1, 50, True])
         return redis
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_metrics_include_user_id_label(self, mock_redis):
         """Testar que metricas incluem user_id como label"""
         from middleware.rate_limiter import RateLimiter
@@ -358,7 +359,7 @@ class TestRateLimiterMetrics:
         assert "user_id" in limiter.rate_limit_current_usage._labelnames
         assert "user_id" in limiter.rate_limit_requests_total._labelnames
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_metrics_recorded_on_allowed_request(self, mock_redis):
         """Testar que metricas sao registradas em requisicao permitida"""
         from middleware.rate_limiter import RateLimiter
@@ -374,7 +375,7 @@ class TestRateLimiterMetrics:
         assert result.allowed is True
         # Metricas devem ser registradas (verificamos que nao lancou excecao)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_metrics_recorded_on_exceeded_request(self, mock_redis):
         """Testar que metricas sao registradas quando limite e excedido"""
         from middleware.rate_limiter import RateLimiter
@@ -391,7 +392,7 @@ class TestRateLimiterMetrics:
         assert result.allowed is False
         # Metricas de exceeded devem ser incrementadas
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_sliding_window_resets_correctly(self, rate_limiter, mock_redis):
         """Testar que janela deslizante reseta corretamente"""
         # Primeira requisição
@@ -412,7 +413,7 @@ class TestRateLimiterMetrics:
 
         assert result2.remaining == 49
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_redis_error_fallback_to_fail_open(self, rate_limiter, mock_redis):
         """Testar fallback fail-open quando Redis falha"""
         # Simular erro de conexão Redis
@@ -423,7 +424,7 @@ class TestRateLimiterMetrics:
         # Com fail_open=True, deve permitir
         assert result.allowed is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_redis_error_with_fail_closed(self, mock_redis):
         """Testar fail-closed quando Redis falha"""
         from middleware.rate_limiter import RateLimiter
@@ -444,7 +445,7 @@ class TestRateLimiterMetrics:
         assert result.allowed is False
         assert result.retry_after is not None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_endpoint_specific_rate_limiting(self, rate_limiter, mock_redis):
         """Testar rate limiting específico por endpoint"""
         # Endpoint custoso tem limite menor

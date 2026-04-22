@@ -1,9 +1,9 @@
 """Schemas de request/response para Approval Gateway."""
 
-from typing import Any, Dict, List, Optional
-from pydantic import BaseModel, Field
+from typing import Any, Optional
 
-from src.models.approval import ApprovalType, ApprovalStatus
+from pydantic import BaseModel, Field
+from src.models.approval import ApprovalStatus, ApprovalType
 
 
 class CreateApprovalRequest(BaseModel):
@@ -13,15 +13,11 @@ class CreateApprovalRequest(BaseModel):
     title: str = Field(..., min_length=1, max_length=200, description="Título")
     description: str = Field(..., min_length=1, description="Descrição detalhada")
     requested_by: str = Field(..., description="Solicitante")
-    context: Optional[Dict[str, Any]] = Field(
-        default_factory=dict,
-        description="Contexto adicional"
+    context: Optional[dict[str, Any]] = Field(
+        default_factory=dict, description="Contexto adicional"
     )
     expires_in_hours: Optional[int] = Field(
-        default=24,
-        ge=1,
-        le=168,
-        description="Horas até expirar"
+        default=24, ge=1, le=168, description="Horas até expirar"
     )
 
 
@@ -42,8 +38,7 @@ class ApprovalResponse(BaseModel):
     reasoning: str
     approved_by: Optional[str]
     requires_human_review: bool = Field(
-        default=False,
-        description="Se True, requer intervenção humana"
+        default=False, description="Se True, requer intervenção humana"
     )
 
 
@@ -52,4 +47,4 @@ class ApprovalListResponse(BaseModel):
 
     total: int
     pending: int
-    items: List[Dict[str, Any]]
+    items: list[dict[str, Any]]

@@ -2,53 +2,54 @@
 Testes para RiskAlertManager e componentes relacionados
 """
 
-import pytest
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from unittest.mock import Mock
 
+import pytest
+
 from neural_hive_risk_scoring import (
-    RiskAlertManager,
-    RiskAlert,
     AlertRule,
-    AlertType,
     AlertSeverity,
-    LoggingAlertHandler,
+    AlertType,
     CallbackAlertHandler,
     DynamicThresholds,
-    ThresholdMonitor,
+    LoggingAlertHandler,
+    RiskAlert,
+    RiskAlertManager,
+    RiskAssessment,
+    RiskBand,
     RiskHistory,
     RiskScoringConfig,
-    RiskBand,
-    RiskAssessment,
+    ThresholdMonitor,
     UnifiedDomain,
 )
 
 
-@pytest.fixture
+@pytest.fixture()
 def config():
     """Configuração de teste."""
     return RiskScoringConfig()
 
 
-@pytest.fixture
+@pytest.fixture()
 def dynamic_thresholds(config):
     """Thresholds dinâmicos de teste."""
     return DynamicThresholds(base_config=config)
 
 
-@pytest.fixture
+@pytest.fixture()
 def threshold_monitor(dynamic_thresholds):
     """Monitor de thresholds de teste."""
     return ThresholdMonitor(dynamic_thresholds)
 
 
-@pytest.fixture
+@pytest.fixture()
 def risk_history():
     """Histórico de risco de teste."""
     return RiskHistory()
 
 
-@pytest.fixture
+@pytest.fixture()
 def alert_manager(threshold_monitor, risk_history, config):
     """Gerenciador de alertas de teste."""
     return RiskAlertManager(
@@ -56,7 +57,7 @@ def alert_manager(threshold_monitor, risk_history, config):
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_assessment():
     """Avaliação de exemplo."""
     return RiskAssessment(
@@ -101,7 +102,7 @@ class TestAlertRule:
         )
 
         context = {"threshold_violation": True}
-        last_alert = datetime.now(timezone.utc) - timedelta(minutes=30)
+        last_alert = datetime.now(UTC) - timedelta(minutes=30)
 
         result = rule.should_trigger("entity-1", context, last_alert)
 
@@ -364,7 +365,7 @@ class TestRiskAlertManager:
             band=RiskBand.MEDIUM,
             message="Old alert",
             details={},
-            timestamp=datetime.now(timezone.utc) - timedelta(days=60),
+            timestamp=datetime.now(UTC) - timedelta(days=60),
         )
         alert_manager._store_alert(old_alert)
 
@@ -394,7 +395,7 @@ class TestRiskAlertManager:
     def test_custom_rule_triggering(self, alert_manager, risk_history, sample_assessment):
         """Testa regra customizada."""
         # Registrar histórico para detecção de tendência
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         for i in range(10):
             assessment = RiskAssessment(
                 score=0.3 + i * 0.05,
@@ -428,7 +429,7 @@ class TestRiskAlertManager:
 
     def test_anomaly_alert_rule(self, alert_manager, risk_history):
         """Testa regra de alerta de anomalia."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         # Histórico normal
         for i in range(20):
@@ -557,7 +558,7 @@ class TestRiskAlertManager:
 
     def test_get_alerts_by_time_range(self, alert_manager):
         """Testa filtro por intervalo de tempo."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         # Criar alerta antigo
         old_alert = RiskAlert(
@@ -659,7 +660,7 @@ class TestRiskAlertManager:
 
     def test_alert_timestamp_ordering(self, alert_manager):
         """Testa ordenação de alertas por timestamp."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         # Criar alertas em ordem reversa
         for i in range(5):

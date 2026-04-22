@@ -2,7 +2,7 @@
 
 import asyncio
 import json
-from typing import List, Optional
+from typing import Optional
 
 import structlog
 from aiokafka import AIOKafkaProducer
@@ -149,7 +149,7 @@ class KafkaSignalProducer:
             logger.error("opportunity_publish_failed", signal_id=signal.signal_id, error=str(e))
             return False
 
-    async def publish_batch(self, signals: List[ScoutSignal]) -> int:
+    async def publish_batch(self, signals: list[ScoutSignal]) -> int:
         """
         Publish multiple signals in batch
 

@@ -1,8 +1,8 @@
 """Incident classification service for severity assessment (Fluxo E2)"""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 import structlog
 
@@ -37,7 +37,7 @@ class IncidentClassifier:
         self.classification_rules = self._initialize_classification_rules()
         self.severity_matrix = self._initialize_severity_matrix()
 
-    def _initialize_classification_rules(self) -> Dict[str, Any]:
+    def _initialize_classification_rules(self) -> dict[str, Any]:
         """Carrega regras de classificação mapeadas a runbooks"""
         return {
             "threat_severity_mapping": {
@@ -59,7 +59,7 @@ class IncidentClassifier:
             "confidence_threshold": 0.7,
         }
 
-    def _initialize_severity_matrix(self) -> Dict[str, Dict[str, IncidentSeverity]]:
+    def _initialize_severity_matrix(self) -> dict[str, dict[str, IncidentSeverity]]:
         """Matriz de severidade baseada em impacto e risco"""
         return {
             "security": {
@@ -83,8 +83,8 @@ class IncidentClassifier:
         }
 
     async def classify_incident(
-        self, anomaly: Dict[str, Any], context: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
+        self, anomaly: dict[str, Any], context: Optional[dict[str, Any]] = None
+    ) -> dict[str, Any]:
         """
         Classifica severidade de incidente (E2: Classificar severidade)
 
@@ -125,7 +125,7 @@ class IncidentClassifier:
                 "business_impact": self._estimate_business_impact(severity, impact),
                 "sla_breach_risk": self._assess_sla_risk(severity, impact),
                 "requires_human_review": self._requires_human_review(confidence, severity),
-                "classified_at": datetime.now(timezone.utc).isoformat(),
+                "classified_at": datetime.now(UTC).isoformat(),
                 "anomaly": anomaly,
                 "context": context or {},
             }
@@ -149,7 +149,7 @@ class IncidentClassifier:
             return self._create_fallback_classification(anomaly, str(e))
 
     async def _determine_severity(
-        self, anomaly: Dict[str, Any], context: Optional[Dict[str, Any]]
+        self, anomaly: dict[str, Any], context: Optional[dict[str, Any]]
     ) -> IncidentSeverity:
         """Determina severidade baseada em regras e contexto"""
         threat_type = anomaly.get("threat_type")
@@ -176,8 +176,8 @@ class IncidentClassifier:
         return base_severity
 
     async def _assess_impact(
-        self, anomaly: Dict[str, Any], context: Optional[Dict[str, Any]]
-    ) -> List[IncidentImpact]:
+        self, anomaly: dict[str, Any], context: Optional[dict[str, Any]]
+    ) -> list[IncidentImpact]:
         """Avalia tipos de impacto do incidente"""
         impacts = []
         threat_type = anomaly.get("threat_type")
@@ -202,7 +202,7 @@ class IncidentClassifier:
         return impacts
 
     async def _calculate_priority(
-        self, severity: IncidentSeverity, impact: List[IncidentImpact], confidence: float
+        self, severity: IncidentSeverity, impact: list[IncidentImpact], confidence: float
     ) -> int:
         """Calcula prioridade numérica (1-5, menor = maior prioridade)"""
         # Base em severidade
@@ -246,8 +246,8 @@ class IncidentClassifier:
         return runbook_id
 
     def _extract_affected_resources(
-        self, anomaly: Dict[str, Any], context: Optional[Dict[str, Any]]
-    ) -> List[str]:
+        self, anomaly: dict[str, Any], context: Optional[dict[str, Any]]
+    ) -> list[str]:
         """Extrai recursos afetados"""
         resources = []
 
@@ -265,7 +265,7 @@ class IncidentClassifier:
         return list(set(resources))
 
     def _estimate_business_impact(
-        self, severity: IncidentSeverity, impact: List[IncidentImpact]
+        self, severity: IncidentSeverity, impact: list[IncidentImpact]
     ) -> str:
         """Estima impacto no negócio"""
         if severity == IncidentSeverity.CRITICAL:
@@ -279,7 +279,7 @@ class IncidentClassifier:
         else:
             return "LOW - Minimal business impact"
 
-    def _assess_sla_risk(self, severity: IncidentSeverity, impact: List[IncidentImpact]) -> bool:
+    def _assess_sla_risk(self, severity: IncidentSeverity, impact: list[IncidentImpact]) -> bool:
         """Avalia risco de quebra de SLA"""
         if severity in [IncidentSeverity.CRITICAL, IncidentSeverity.HIGH]:
             return True
@@ -296,12 +296,12 @@ class IncidentClassifier:
             return True
         return False
 
-    def _generate_incident_id(self, anomaly: Dict[str, Any]) -> str:
+    def _generate_incident_id(self, anomaly: dict[str, Any]) -> str:
         """Gera ID único para incidente"""
         import hashlib
         from datetime import datetime
 
-        timestamp = datetime.now(timezone.utc).isoformat()
+        timestamp = datetime.now(UTC).isoformat()
         threat_type = anomaly.get("threat_type", "unknown")
         raw_str = f"{timestamp}:{threat_type}:{anomaly.get('detected_at', '')}"
 
@@ -309,8 +309,8 @@ class IncidentClassifier:
         return f"INC-{threat_type.upper()[:4]}-{incident_hash}"
 
     def _create_fallback_classification(
-        self, anomaly: Dict[str, Any], error: str
-    ) -> Dict[str, Any]:
+        self, anomaly: dict[str, Any], error: str
+    ) -> dict[str, Any]:
         """Cria classificação de fallback quando falha (E2: acionar duty engineer)"""
         return {
             "incident_id": self._generate_incident_id(anomaly),
@@ -325,6 +325,6 @@ class IncidentClassifier:
             "sla_breach_risk": True,
             "requires_human_review": True,
             "classification_error": error,
-            "classified_at": datetime.now(timezone.utc).isoformat(),
+            "classified_at": datetime.now(UTC).isoformat(),
             "anomaly": anomaly,
         }

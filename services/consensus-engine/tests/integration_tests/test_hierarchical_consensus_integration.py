@@ -6,11 +6,12 @@ CognitivePlan → ConsensusOrchestrator → ConsolidatedDecision
 com pesos hierárquicos aplicados.
 """
 
-import pytest
 import sys
-from pathlib import Path
-from unittest.mock import Mock, AsyncMock, MagicMock
 from enum import Enum
+from pathlib import Path
+from unittest.mock import AsyncMock, MagicMock, Mock
+
+import pytest
 
 
 # Mock neural_hive_domain BEFORE imports
@@ -58,14 +59,14 @@ sys.modules["neural_hive_observability"] = mock_observability
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
-from src.services.consensus_orchestrator import ConsensusOrchestrator
 from src.models.consolidated_decision import (
-    DecisionType,
     ConsensusMethod,
+    DecisionType,
 )
+from src.services.consensus_orchestrator import ConsensusOrchestrator
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_config():
     """Configuração mock com consenso hierárquico habilitado."""
     config = Mock()
@@ -94,7 +95,7 @@ def mock_config():
     return config
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_pheromone_client():
     """Cliente de feromônios mock."""
     client = AsyncMock()
@@ -107,7 +108,7 @@ def mock_pheromone_client():
 class TestHierarchicalConsensusIntegration:
     """Testes de integração do fluxo completo de consenso hierárquico."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_hierarchical_weights_applied_in_consensus(
         self, mock_config, mock_pheromone_client
     ):
@@ -171,7 +172,7 @@ class TestHierarchicalConsensusIntegration:
         # Business (senior) deve ter peso maior que technical (junior)
         assert business_vote.weight > technical_vote.weight
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_expert_architecture_has_highest_weight(self, mock_config, mock_pheromone_client):
         """Expert architecture deve ter o maior peso no consenso."""
         orchestrator = ConsensusOrchestrator(mock_config, mock_pheromone_client)
@@ -222,7 +223,7 @@ class TestHierarchicalConsensusIntegration:
         assert architecture_vote.seniority_multiplier == 2.0
         assert architecture_vote.weight > business_vote.weight
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_seniority_distribution_in_metrics(self, mock_config, mock_pheromone_client):
         """Métricas devem refletir distribuição de senioridade corretamente."""
         orchestrator = ConsensusOrchestrator(mock_config, mock_pheromone_client)
@@ -291,7 +292,7 @@ class TestHierarchicalConsensusIntegration:
             "mid_level": 1,
         }
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_hierarchical_disabled_uses_base_weights(self, mock_pheromone_client):
         """Quando hierarquia desabilitada, deve usar pesos base."""
         config = Mock()
@@ -358,7 +359,7 @@ class TestHierarchicalConsensusIntegration:
 
         assert business_vote.weight == technical_vote.weight == 0.2
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_avro_serialization_includes_hierarchical_fields(
         self, mock_config, mock_pheromone_client
     ):
@@ -411,7 +412,7 @@ class TestHierarchicalConsensusIntegration:
 class TestHierarchicalConsensusScenarios:
     """Cenários realísticos de consenso hierárquico."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_unanimous_experts_approve_quickly(self, mock_config, mock_pheromone_client):
         """Cenário: Especialistas experts unanimam aprovação."""
         orchestrator = ConsensusOrchestrator(mock_config, mock_pheromone_client)
@@ -456,7 +457,7 @@ class TestHierarchicalConsensusScenarios:
         assert decision.consensus_method == ConsensusMethod.UNANIMOUS
         assert decision.consensus_metrics.unanimous is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_mixed_seniority_divergent_opinions(self, mock_config, mock_pheromone_client):
         """Cenário: Senioridade mista com opiniões divergentes."""
         orchestrator = ConsensusOrchestrator(mock_config, mock_pheromone_client)

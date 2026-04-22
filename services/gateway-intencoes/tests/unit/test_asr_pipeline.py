@@ -1,22 +1,22 @@
 """Testes unitários para ASRPipeline"""
 
-import pytest
 import asyncio
 from unittest.mock import MagicMock, patch
-import numpy as np
 
+import numpy as np
+import pytest
 from pipelines.asr_pipeline import ASRPipeline, ASRResult
 
 
 class TestASRPipeline:
     """Testes para a classe ASRPipeline"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def asr_pipeline(self):
         """Fixture do pipeline ASR"""
         return ASRPipeline(model_name="base", device="cpu")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_initialize_pipeline(self, asr_pipeline):
         """Teste de inicialização do pipeline"""
         with patch("whisper.load_model") as mock_load_model:
@@ -28,7 +28,7 @@ class TestASRPipeline:
             assert asr_pipeline.is_ready() is True
             mock_load_model.assert_called_once_with("base", device="cpu")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_process_audio_success(self, asr_pipeline):
         """Teste de processamento de áudio bem-sucedido"""
         # Mock do modelo Whisper
@@ -66,7 +66,7 @@ class TestASRPipeline:
             assert result.duration == 2.5
             assert result.processing_time_ms > 0
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_process_audio_empty_result(self, asr_pipeline):
         """Teste com resultado de transcrição vazio"""
         mock_model = MagicMock()
@@ -90,7 +90,7 @@ class TestASRPipeline:
             assert result.text == ""
             assert result.confidence == 0.0
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_process_audio_not_ready(self, asr_pipeline):
         """Teste de processamento quando pipeline não está pronto"""
         asr_pipeline._ready = False
@@ -98,7 +98,7 @@ class TestASRPipeline:
         with pytest.raises(RuntimeError, match="Pipeline ASR não inicializado"):
             await asr_pipeline.process(audio_data=b"fake-data", language="pt-BR")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_process_audio_too_large(self, asr_pipeline):
         """Teste com arquivo de áudio muito grande"""
         asr_pipeline._ready = True
@@ -109,7 +109,7 @@ class TestASRPipeline:
         with pytest.raises(ValueError, match="Arquivo de áudio muito grande"):
             await asr_pipeline.process(audio_data=large_audio_data, language="pt-BR")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_process_audio_too_short(self, asr_pipeline):
         """Teste com arquivo de áudio muito curto"""
         mock_model = MagicMock()
@@ -134,7 +134,7 @@ class TestASRPipeline:
             with pytest.raises(ValueError, match="Áudio muito curto"):
                 await asr_pipeline.process(audio_data=b"fake-data", language="pt-BR")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_language_detection(self, asr_pipeline):
         """Teste de detecção de idioma"""
         mock_model = MagicMock()
@@ -162,7 +162,7 @@ class TestASRPipeline:
             assert result.language == "en"
             assert result.text == "This is English text"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_text_normalization(self, asr_pipeline):
         """Teste de normalização de texto"""
         mock_model = MagicMock()
@@ -192,7 +192,7 @@ class TestASRPipeline:
             # Verify normalization removed extra spaces
             assert result.text == "Texto com espaços extras e ruído"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_timeout_handling(self, asr_pipeline):
         """Teste de tratamento de timeout"""
         mock_model = MagicMock()
@@ -219,7 +219,7 @@ class TestASRPipeline:
             with pytest.raises(asyncio.TimeoutError):
                 await asr_pipeline.process(audio_data=b"fake-audio-data" * 100, language="pt-BR")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_close_pipeline(self, asr_pipeline):
         """Teste de fechamento do pipeline"""
         asr_pipeline._ready = True
@@ -253,7 +253,7 @@ class TestASRPipeline:
         confidence_poor = asr_pipeline._calculate_confidence(segments_poor, 1.0)
         assert 0.0 <= confidence_poor <= 0.5  # Should be low
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_handle_large_audio(self, asr_pipeline):
         """Testar processamento de áudio grande"""
         mock_model = MagicMock()
@@ -289,7 +289,7 @@ class TestASRPipeline:
             assert result.text == "transcrição de áudio longo"
             assert result.duration == 120.0
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_audio_format_validation(self, asr_pipeline):
         """Testar validação de formato de áudio"""
         asr_pipeline._ready = True
@@ -300,7 +300,7 @@ class TestASRPipeline:
         for fmt in supported_formats:
             assert fmt in asr_pipeline.supported_formats
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_quality_check(self, asr_pipeline):
         """Testar verificação de qualidade do áudio"""
         asr_pipeline._ready = True
@@ -321,7 +321,7 @@ class TestASRPipeline:
             assert result["sample_rate"] < 16000
             assert len(result["issues"]) > 0
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_cache_audio_result(self, asr_pipeline):
         """Testar cache de resultado de áudio"""
         import hashlib
@@ -335,7 +335,7 @@ class TestASRPipeline:
         assert cache_key is not None
         assert len(cache_key) == 32  # MD5 hash length
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_error_handling_invalid_audio(self, asr_pipeline):
         """Testar tratamento de erro com áudio inválido"""
         asr_pipeline._ready = True
@@ -353,7 +353,7 @@ class TestASRPipeline:
             with pytest.raises(ValueError, match="Áudio inválido"):
                 await asr_pipeline.process(audio_data=b"invalid-audio", language="pt-BR")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_concurrent_limit(self, asr_pipeline):
         """Testar limite de jobs concorrentes"""
         asr_pipeline._ready = True
@@ -363,7 +363,7 @@ class TestASRPipeline:
         with pytest.raises(RuntimeError, match="Limite de jobs concorrentes"):
             await asr_pipeline.process(audio_data=b"fake-audio", language="pt-BR")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_speaker_detection(self, asr_pipeline):
         """Testar detecção de falante (diarização)"""
         mock_model = MagicMock()
@@ -400,7 +400,7 @@ class TestASRPipeline:
 
             assert "João" in result.text
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_metrics_emission(self, asr_pipeline):
         """Testar emissão de métricas"""
         mock_model = MagicMock()

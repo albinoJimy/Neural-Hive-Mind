@@ -4,12 +4,13 @@ BackupManifest: Schema Pydantic para metadados de backup de disaster recovery.
 Define estrutura de manifest salvo como metadata.json na raiz do backup .tar.gz.
 """
 
-import os
 import hashlib
+import os
 from datetime import datetime
-from typing import Dict, Any, Optional
-from pydantic import BaseModel, Field
+from typing import Any, Optional
+
 import structlog
+from pydantic import BaseModel, Field
 
 logger = structlog.get_logger()
 
@@ -21,7 +22,7 @@ class ComponentMetadata(BaseModel):
     size_bytes: int = Field(default=0, description="Tamanho do componente em bytes")
     checksum: Optional[str] = Field(default=None, description="SHA-256 checksum do componente")
     file_count: int = Field(default=0, description="Número de arquivos no componente")
-    metadata: Dict[str, Any] = Field(
+    metadata: dict[str, Any] = Field(
         default_factory=dict, description="Metadados específicos do componente"
     )
 
@@ -52,13 +53,13 @@ class BackupManifest(BaseModel):
     backup_version: str = Field(default="1.0.0", description="Versão do schema de backup")
 
     # Componentes do backup
-    components: Dict[str, ComponentMetadata] = Field(
+    components: dict[str, ComponentMetadata] = Field(
         default_factory=dict,
         description="Componentes incluídos no backup (model, config, ledger, cache, features, metrics)",
     )
 
     # Checksums gerais
-    checksums: Dict[str, str] = Field(
+    checksums: dict[str, str] = Field(
         default_factory=dict, description="SHA-256 checksums de cada componente"
     )
 
@@ -68,7 +69,7 @@ class BackupManifest(BaseModel):
         default="neural-hive-disaster-recovery",
         description="Identificador de quem criou o backup",
     )
-    metadata: Dict[str, Any] = Field(
+    metadata: dict[str, Any] = Field(
         default_factory=dict,
         description="Metadados adicionais (ambiente, versão, etc.)",
     )
@@ -106,7 +107,7 @@ class BackupManifest(BaseModel):
         Returns:
             Instância de BackupManifest
         """
-        with open(file_path, "r") as f:
+        with open(file_path) as f:
             return cls.from_json(f.read())
 
     def save_to_file(self, file_path: str) -> None:
@@ -232,7 +233,7 @@ class BackupManifest(BaseModel):
 
         return sha256_hash.hexdigest()
 
-    def get_summary(self) -> Dict[str, Any]:
+    def get_summary(self) -> dict[str, Any]:
         """
         Retorna resumo do backup.
 
@@ -258,7 +259,7 @@ class BackupManifest(BaseModel):
         name: str,
         component_dir: str,
         included: bool = True,
-        metadata: Optional[Dict[str, Any]] = None,
+        metadata: Optional[dict[str, Any]] = None,
     ) -> None:
         """
         Adiciona componente ao manifest.

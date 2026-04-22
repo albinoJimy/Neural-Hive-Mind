@@ -3,29 +3,30 @@ Testes E2E para Analytics API V2.
 Usa mocks para evitar dependências externas.
 """
 
-import pytest
-from datetime import datetime, timezone, timedelta
-from httpx import AsyncClient, ASGITransport
+from datetime import UTC, datetime, timedelta
 
+import pytest
+from httpx import ASGITransport, AsyncClient
 from src.main import app
 from src.models.insight_extended import (
-    InsightCreate,
     AnalysisType,
+    InsightCreate,
+    InsightMetadata,
     InsightSource,
     InsightStatus,
-    InsightMetadata,
 )
 
 
-@pytest.fixture
+@pytest.fixture()
 async def mock_app_state():
     """Mock app state com repository mockado."""
+    import uuid
+    from datetime import datetime, timedelta
     from unittest.mock import AsyncMock, MagicMock
+
+    from src.models.insight_extended import InsightMetrics, InsightResponse, InsightStatus
     from src.repositories.insight_repository import InsightRepository
     from src.services.timeseries_analyzer import TimeSeriesAnalyzer
-    import uuid
-    from datetime import datetime, timezone, timedelta
-    from src.models.insight_extended import InsightResponse, InsightStatus, InsightMetrics
 
     # In-memory storage para testes
     storage = {"insights": {}, "cache": {}}
@@ -41,8 +42,8 @@ async def mock_app_state():
             doc = insight.model_dump()
             doc["insight_id"] = str(uuid.uuid4())
             doc["status"] = InsightStatus.PENDING.value
-            doc["created_at"] = datetime.now(timezone.utc)
-            doc["expires_at"] = datetime.now(timezone.utc) + timedelta(days=90)
+            doc["created_at"] = datetime.now(UTC)
+            doc["expires_at"] = datetime.now(UTC) + timedelta(days=90)
             doc["metrics"] = InsightMetrics(
                 processing_time_ms=0, confidence_score=0.0, data_points=0
             ).model_dump()
@@ -145,8 +146,8 @@ async def mock_app_state():
     return repo
 
 
-@pytest.mark.e2e
-@pytest.mark.asyncio
+@pytest.mark.e2e()
+@pytest.mark.asyncio()
 async def test_e2e_insight_lifecycle(mock_app_state):
     """Teste E2E: Criar insight → Consultar → Exportar → Deletar."""
     repo = mock_app_state
@@ -191,16 +192,16 @@ async def test_e2e_insight_lifecycle(mock_app_state):
             assert "text/csv" in response.headers["content-type"]
 
 
-@pytest.mark.e2e
-@pytest.mark.asyncio
+@pytest.mark.e2e()
+@pytest.mark.asyncio()
 async def test_e2e_timeseries_analysis(mock_app_state):
     """Teste E2E: Buscar série temporal → Detectar anomalias."""
     from urllib.parse import quote
 
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
-        start = quote((datetime.now(timezone.utc) - timedelta(hours=1)).isoformat())
-        end = quote(datetime.now(timezone.utc).isoformat())
+        start = quote((datetime.now(UTC) - timedelta(hours=1)).isoformat())
+        end = quote(datetime.now(UTC).isoformat())
 
         # Buscar série temporal
         response = await client.get(
@@ -221,8 +222,8 @@ async def test_e2e_timeseries_analysis(mock_app_state):
         assert "total_anomalies" in anomaly_data["summary"]
 
 
-@pytest.mark.e2e
-@pytest.mark.asyncio
+@pytest.mark.e2e()
+@pytest.mark.asyncio()
 async def test_e2e_dashboard_aggregation(mock_app_state):
     """Teste E2E: Criar insights → Ver dashboard agregado."""
     repo = mock_app_state
@@ -263,8 +264,8 @@ async def test_e2e_dashboard_aggregation(mock_app_state):
         assert len(data["recent_insights"]) >= 3
 
 
-@pytest.mark.e2e
-@pytest.mark.asyncio
+@pytest.mark.e2e()
+@pytest.mark.asyncio()
 async def test_e2e_mcp_health_check(mock_app_state):
     """Teste E2E: Verificar saúde dos servidores MCP."""
     transport = ASGITransport(app=app)
@@ -277,8 +278,8 @@ async def test_e2e_mcp_health_check(mock_app_state):
         assert "optimizer" in data
 
 
-@pytest.mark.e2e
-@pytest.mark.asyncio
+@pytest.mark.e2e()
+@pytest.mark.asyncio()
 async def test_e2e_metrics_endpoint(mock_app_state):
     """Teste E2E: Verificar endpoint de métricas Prometheus."""
     repo = mock_app_state
@@ -314,8 +315,8 @@ async def test_e2e_metrics_endpoint(mock_app_state):
         assert "text/plain" in response.headers["content-type"]
 
 
-@pytest.mark.e2e
-@pytest.mark.asyncio
+@pytest.mark.e2e()
+@pytest.mark.asyncio()
 async def test_e2e_pagination_and_filters(mock_app_state):
     """Teste E2E: Paginação e filtros de insights."""
     repo = mock_app_state

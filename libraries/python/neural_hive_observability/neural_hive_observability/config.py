@@ -8,7 +8,7 @@ conforme arquitetura do Neural Hive-Mind.
 import os
 import uuid
 from dataclasses import dataclass
-from typing import Optional, Dict, Any
+from typing import Any, Optional
 
 
 @dataclass
@@ -119,7 +119,7 @@ class ObservabilityConfig:
                 else:
                     setattr(self, attr_name, env_value)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Converte configuração para dicionário."""
         return {
             "service": {
@@ -141,7 +141,7 @@ class ObservabilityConfig:
         }
 
     @property
-    def resource_attributes(self) -> Dict[str, str]:
+    def resource_attributes(self) -> dict[str, str]:
         """Retorna atributos de resource para OpenTelemetry."""
         return {
             "service.name": self.service_name,
@@ -154,7 +154,7 @@ class ObservabilityConfig:
         }
 
     @property
-    def common_labels(self) -> Dict[str, str]:
+    def common_labels(self) -> dict[str, str]:
         """Retorna labels comuns para métricas."""
         return {
             "neural_hive_component": self.neural_hive_component,

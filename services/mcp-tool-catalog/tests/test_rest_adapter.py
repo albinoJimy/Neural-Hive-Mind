@@ -14,22 +14,20 @@ import asyncio
 
 import pytest
 from aioresponses import aioresponses
-
 from src.adapters.rest_adapter import RESTAdapter
-
 
 # ============================================================================
 # Fixtures
 # ============================================================================
 
 
-@pytest.fixture
+@pytest.fixture()
 def rest_adapter():
     """RESTAdapter com timeout e retry configurados."""
     return RESTAdapter(timeout_seconds=30, max_retries=3)
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_aiohttp():
     """Context manager para mockar requisicoes HTTP."""
     with aioresponses() as m:
@@ -44,7 +42,7 @@ def mock_aiohttp():
 class TestRESTAdapterExecution:
     """Testes de execucao de requisicoes HTTP."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_get_request_success(self, rest_adapter, mock_aiohttp):
         """Testa GET request bem-sucedido."""
         mock_aiohttp.get("http://api.example.com/status", payload={"status": "healthy"}, status=200)
@@ -62,7 +60,7 @@ class TestRESTAdapterExecution:
         assert result.exit_code == 200
         assert result.metadata.get("method") == "GET"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_post_request_with_body(self, rest_adapter, mock_aiohttp):
         """Testa POST request com JSON body."""
         mock_aiohttp.post(
@@ -82,7 +80,7 @@ class TestRESTAdapterExecution:
         assert result.exit_code == 200
         assert result.metadata.get("method") == "POST"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_with_query_params(self, rest_adapter, mock_aiohttp):
         """Testa query parameters construidos corretamente."""
         mock_aiohttp.get(
@@ -100,7 +98,7 @@ class TestRESTAdapterExecution:
         assert result.success is True
         assert result.exit_code == 200
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_with_authentication(self, rest_adapter, mock_aiohttp):
         """Testa Bearer token no header."""
         mock_aiohttp.post(
@@ -118,7 +116,7 @@ class TestRESTAdapterExecution:
         assert result.success is True
         assert "authenticated" in result.output
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_with_custom_headers(self, rest_adapter, mock_aiohttp):
         """Testa headers customizados."""
         mock_aiohttp.post("http://api.example.com/custom", payload={"received": True}, status=200)
@@ -145,7 +143,7 @@ class TestRESTAdapterExecution:
 class TestHTTPStatusHandling:
     """Testes de tratamento de status HTTP."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_2xx_success(self, rest_adapter, mock_aiohttp):
         """Testa status 2xx como sucesso."""
         # 201 Created
@@ -162,7 +160,7 @@ class TestHTTPStatusHandling:
         assert result.success is True
         assert result.exit_code == 201
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_4xx_failure(self, rest_adapter, mock_aiohttp):
         """Testa status 4xx como falha."""
         mock_aiohttp.post(
@@ -181,7 +179,7 @@ class TestHTTPStatusHandling:
         assert result.exit_code == 400
         assert "HTTP 400" in result.error
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_401_unauthorized(self, rest_adapter, mock_aiohttp):
         """Testa status 401 Unauthorized."""
         mock_aiohttp.get(
@@ -199,7 +197,7 @@ class TestHTTPStatusHandling:
         assert result.success is False
         assert result.exit_code == 401
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_404_not_found(self, rest_adapter, mock_aiohttp):
         """Testa status 404 Not Found."""
         mock_aiohttp.get(
@@ -217,7 +215,7 @@ class TestHTTPStatusHandling:
         assert result.success is False
         assert result.exit_code == 404
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_500_server_error(self, rest_adapter, mock_aiohttp):
         """Testa status 500 Server Error."""
         # Com retry, precisa mockar 3 vezes (max_retries=3)
@@ -248,7 +246,7 @@ class TestHTTPStatusHandling:
 class TestTimeoutAndRetry:
     """Testes de timeout e retry."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_timeout(self, mock_aiohttp):
         """Testa timeout de requisicao."""
         adapter = RESTAdapter(timeout_seconds=1, max_retries=1)
@@ -267,7 +265,7 @@ class TestTimeoutAndRetry:
         assert "Timeout" in result.error
         assert result.metadata.get("timeout") is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_retry_on_failure(self, mock_aiohttp):
         """Testa retry com exponential backoff."""
         adapter = RESTAdapter(timeout_seconds=5, max_retries=3)
@@ -288,7 +286,7 @@ class TestTimeoutAndRetry:
         assert result.success is True
         assert result.metadata.get("attempt") == 3
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_all_retries_exhausted(self, mock_aiohttp):
         """Testa quando todas as tentativas falham."""
         adapter = RESTAdapter(timeout_seconds=1, max_retries=2)
@@ -317,7 +315,7 @@ class TestTimeoutAndRetry:
 class TestErrorHandling:
     """Testes de tratamento de erros."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_connection_error(self, mock_aiohttp):
         """Testa erro de conexao."""
         import aiohttp
@@ -340,7 +338,7 @@ class TestErrorHandling:
         assert result.success is False
         assert "ClientConnectionError" in result.metadata.get("exception", "")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_invalid_json_response(self, rest_adapter, mock_aiohttp):
         """Testa resposta com JSON invalido."""
         mock_aiohttp.get("http://api.example.com/invalid", body="not json", status=200)
@@ -366,7 +364,7 @@ class TestErrorHandling:
 class TestToolAvailability:
     """Testes de validacao de disponibilidade."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_validate_tool_availability_success(self, rest_adapter):
         """Testa que validacao sempre retorna True (implementacao atual)."""
         # Nota: implementacao atual sempre retorna True
@@ -374,7 +372,7 @@ class TestToolAvailability:
         result = await rest_adapter.validate_tool_availability("sonarqube")
         assert result is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_validate_tool_availability_any_tool(self, rest_adapter):
         """Testa validacao para qualquer ferramenta."""
         result = await rest_adapter.validate_tool_availability("any-tool")
@@ -389,7 +387,7 @@ class TestToolAvailability:
 class TestDefaultHTTPMethod:
     """Testes de metodo HTTP padrao."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_default_method_is_post(self, rest_adapter, mock_aiohttp):
         """Testa que metodo padrao e POST."""
         mock_aiohttp.post("http://api.example.com/default", payload={"method": "POST"}, status=200)
@@ -405,7 +403,7 @@ class TestDefaultHTTPMethod:
         assert result.success is True
         assert result.metadata.get("method") == "POST"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_method_case_insensitive(self, rest_adapter, mock_aiohttp):
         """Testa que metodo e case-insensitive."""
         mock_aiohttp.get("http://api.example.com/case", payload={"result": "ok"}, status=200)
@@ -430,7 +428,7 @@ class TestDefaultHTTPMethod:
 class TestExecutionTime:
     """Testes de medicao de tempo de execucao."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execution_time_recorded(self, rest_adapter, mock_aiohttp):
         """Testa que tempo de execucao e registrado."""
         mock_aiohttp.get("http://api.example.com/timed", payload={"result": "ok"}, status=200)
@@ -446,7 +444,7 @@ class TestExecutionTime:
         assert result.execution_time_ms > 0
         assert result.execution_time_ms < 10000  # Menos de 10s para teste
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execution_time_includes_retries(self, mock_aiohttp):
         """Testa que tempo de execucao inclui retries."""
         adapter = RESTAdapter(timeout_seconds=1, max_retries=2)
@@ -476,7 +474,7 @@ class TestExecutionTime:
 class TestMetadata:
     """Testes de metadados do resultado."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_metadata_includes_endpoint(self, rest_adapter, mock_aiohttp):
         """Testa que metadata inclui endpoint."""
         mock_aiohttp.get("http://api.example.com/meta", payload={"result": "ok"}, status=200)
@@ -491,7 +489,7 @@ class TestMetadata:
 
         assert result.metadata.get("endpoint") == "http://api.example.com/meta"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_metadata_includes_status_code(self, rest_adapter, mock_aiohttp):
         """Testa que metadata inclui status code."""
         mock_aiohttp.get("http://api.example.com/status", payload={"result": "ok"}, status=201)
@@ -506,7 +504,7 @@ class TestMetadata:
 
         assert result.metadata.get("status_code") == 201
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_metadata_includes_attempt_number(self, rest_adapter, mock_aiohttp):
         """Testa que metadata inclui numero da tentativa."""
         mock_aiohttp.get("http://api.example.com/attempt", payload={"result": "ok"}, status=200)
@@ -530,7 +528,7 @@ class TestMetadata:
 class TestResponseTypes:
     """Testes de diferentes tipos de resposta."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_json_response(self, rest_adapter, mock_aiohttp):
         """Testa resposta JSON."""
         mock_aiohttp.get(
@@ -549,7 +547,7 @@ class TestResponseTypes:
         assert "key" in result.output
         assert "value" in result.output
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_text_response(self, rest_adapter, mock_aiohttp):
         """Testa resposta texto."""
         mock_aiohttp.get(
@@ -570,7 +568,7 @@ class TestResponseTypes:
         assert result.success is True
         assert result.output == "Plain text response"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_empty_response(self, rest_adapter, mock_aiohttp):
         """Testa resposta vazia."""
         mock_aiohttp.delete("http://api.example.com/delete", body="", status=204)

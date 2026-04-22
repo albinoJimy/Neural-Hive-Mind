@@ -18,14 +18,15 @@ import logging
 import os
 import sys
 import time
-from datetime import datetime, timezone
-from typing import Dict, Any, Optional
+from datetime import UTC, datetime
+from typing import Any, Optional
+
 import structlog
 
 logger = structlog.get_logger()
 
 
-def load_config() -> Dict[str, Any]:
+def load_config() -> dict[str, Any]:
     """
     Carrega configuração de variáveis de ambiente.
 
@@ -89,7 +90,7 @@ def load_config() -> Dict[str, Any]:
         sys.exit(1)
 
 
-def initialize_components(config: Dict[str, Any], specialist_type: str):
+def initialize_components(config: dict[str, Any], specialist_type: str):
     """
     Inicializa componentes de feedback e retraining trigger.
 
@@ -136,7 +137,7 @@ def initialize_components(config: Dict[str, Any], specialist_type: str):
 
 def check_and_trigger_retraining(
     specialist_type: str,
-    config: Dict[str, Any],
+    config: dict[str, Any],
     dry_run: bool = False,
     force: bool = False,
 ) -> Optional[str]:
@@ -219,7 +220,7 @@ def check_and_trigger_retraining(
             retraining_trigger.close()
 
 
-def push_metrics_to_pushgateway(config: Dict[str, Any], specialist_types: list):
+def push_metrics_to_pushgateway(config: dict[str, Any], specialist_types: list):
     """
     Envia métricas para Prometheus Pushgateway.
 
@@ -231,8 +232,9 @@ def push_metrics_to_pushgateway(config: Dict[str, Any], specialist_types: list):
         return
 
     try:
-        from prometheus_client import CollectorRegistry, Gauge, push_to_gateway
         import socket
+
+        from prometheus_client import CollectorRegistry, Gauge, push_to_gateway
 
         registry = CollectorRegistry()
 
@@ -298,7 +300,7 @@ def main():
         structlog.configure(wrapper_class=structlog.make_filtering_bound_logger(logging.DEBUG))
 
     print("🔄 Neural Hive - Retraining Trigger Checker")
-    print(f"⏰ Execution time: {datetime.now(timezone.utc).isoformat()}")
+    print(f"⏰ Execution time: {datetime.now(UTC).isoformat()}")
     print()
 
     # Carregar configuração

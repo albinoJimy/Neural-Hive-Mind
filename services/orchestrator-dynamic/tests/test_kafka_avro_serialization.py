@@ -7,15 +7,14 @@ from types import SimpleNamespace
 
 import pytest
 from confluent_kafka import Consumer
-from confluent_kafka.serialization import SerializationContext, MessageField
 from confluent_kafka.schema_registry import SchemaRegistryClient
 from confluent_kafka.schema_registry.avro import AvroDeserializer
+from confluent_kafka.serialization import MessageField, SerializationContext
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.append(str(ROOT / "src"))
 
-from clients.kafka_producer import KafkaProducerClient  # noqa: E402
-
+from clients.kafka_producer import KafkaProducerClient
 
 pytestmark = pytest.mark.skipif(
     not os.getenv("RUN_KAFKA_INTEGRATION_TESTS"),
@@ -47,7 +46,7 @@ def _default_kafka_config():
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_ticket():
     return {
         "ticket_id": "test-ticket-1",
@@ -60,7 +59,7 @@ def sample_ticket():
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 async def producer():
     config = _default_kafka_config()
     client = KafkaProducerClient(config)
@@ -76,14 +75,14 @@ def _build_avro_deserializer(schema_registry_url: str):
     return AvroDeserializer(registry, schema_str)
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_avro_serialization_with_schema_registry(producer, sample_ticket):
     assert producer.avro_serializer is not None
     serialized = producer._serialize_value(sample_ticket, producer.config.kafka_tickets_topic)
     assert isinstance(serialized, (bytes, bytearray))
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_avro_deserialization_roundtrip(producer, sample_ticket):
     await producer.publish_ticket(sample_ticket)
 
@@ -114,7 +113,7 @@ async def test_avro_deserialization_roundtrip(producer, sample_ticket):
     assert decoded["plan_id"] == sample_ticket["plan_id"]
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_json_fallback_when_schema_registry_unavailable(monkeypatch, sample_ticket):
     config = _default_kafka_config()
     config.kafka_schema_registry_url = "http://localhost:0"
@@ -133,7 +132,7 @@ async def test_json_fallback_when_schema_registry_unavailable(monkeypatch, sampl
     assert json.loads(serialized.decode("utf-8"))["ticket_id"] == sample_ticket["ticket_id"]
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_idempotence_with_same_ticket_id(producer, sample_ticket):
     first = await producer.publish_ticket(sample_ticket)
     second = await producer.publish_ticket(sample_ticket)

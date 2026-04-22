@@ -9,7 +9,6 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-
 # ======================================================
 # Testes de Validação de Configuração no Construtor
 # ======================================================
@@ -203,7 +202,7 @@ def test_kafka_producer_init_logs_configuration():
 # ======================================================
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_kafka_producer_initialize_json_only_mode():
     """Valida que initialize() funciona em modo JSON-only sem schema registry."""
     from src.clients.kafka_producer import KafkaProducerClient
@@ -235,7 +234,7 @@ async def test_kafka_producer_initialize_json_only_mode():
                 assert client.avro_serializer is None
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_kafka_producer_json_only_logs_fallback():
     """Valida que modo JSON-only loga corretamente o fallback."""
     from src.clients.kafka_producer import KafkaProducerClient
@@ -265,7 +264,7 @@ async def test_kafka_producer_json_only_logs_fallback():
 # ======================================================
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_kafka_producer_initialize_validates_config():
     """Valida que initialize() re-valida config."""
     from src.clients.kafka_producer import KafkaProducerClient
@@ -297,7 +296,7 @@ async def test_kafka_producer_initialize_validates_config():
 # ======================================================
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_kafka_producer_circuit_breaker_fallback_on_missing_service_name():
     """Valida que inicialização falha se service_name estiver ausente após construção."""
     from src.clients.kafka_producer import KafkaProducerClient
@@ -343,7 +342,7 @@ async def test_kafka_producer_circuit_breaker_fallback_on_missing_service_name()
                     assert len(error_calls) >= 1
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_kafka_producer_circuit_breaker_enabled_with_valid_config():
     """Valida que circuit breaker é habilitado com config válida."""
     from src.clients.kafka_producer import KafkaProducerClient
@@ -391,7 +390,7 @@ async def test_kafka_producer_circuit_breaker_enabled_with_valid_config():
                     assert call_kwargs["service_name"] == "test-service"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_kafka_producer_initialize_records_success_metrics():
     """Valida que métricas de sucesso são registradas na inicialização."""
     from src.clients.kafka_producer import KafkaProducerClient
@@ -435,7 +434,7 @@ async def test_kafka_producer_initialize_records_success_metrics():
                         assert call_kwargs["duration_seconds"] > 0
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_kafka_producer_initialize_records_failure_metrics():
     """Valida que métricas de falha são registradas quando inicialização falha."""
     from src.clients.kafka_producer import KafkaProducerClient

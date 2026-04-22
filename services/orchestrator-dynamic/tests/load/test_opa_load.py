@@ -11,16 +11,15 @@ Valida performance da avaliação de políticas sob alta concorrência:
 
 import asyncio
 import os
-import pytest
 import time
-from datetime import datetime, timedelta
-from typing import Dict, List, Any
-from unittest.mock import Mock
 from dataclasses import dataclass, field
+from datetime import datetime, timedelta
+from typing import Any
+from unittest.mock import Mock
 
-from src.policies.opa_client import OPAClient
+import pytest
 from src.config.settings import OrchestratorSettings
-
+from src.policies.opa_client import OPAClient
 
 # Flag para testes com servidor OPA real
 REAL_OPA_LOAD = os.getenv("RUN_OPA_LOAD_TESTS", "").lower() == "true"
@@ -30,7 +29,7 @@ REAL_OPA_LOAD = os.getenv("RUN_OPA_LOAD_TESTS", "").lower() == "true"
 class OPALoadTestMetrics:
     """Coleta métricas de performance durante testes de carga OPA."""
 
-    latencies_ms: List[float] = field(default_factory=list)
+    latencies_ms: list[float] = field(default_factory=list)
     success_count: int = 0
     cache_hit_count: int = 0
     error_count: int = 0
@@ -103,7 +102,7 @@ class OPALoadTestMetrics:
             return (self.error_count + self.circuit_breaker_rejections) / self.total_count
         return 0
 
-    def summary(self) -> Dict[str, Any]:
+    def summary(self) -> dict[str, Any]:
         return {
             "total_requests": self.total_count,
             "success_count": self.success_count,
@@ -119,7 +118,7 @@ class OPALoadTestMetrics:
         }
 
 
-@pytest.fixture
+@pytest.fixture()
 def load_test_config():
     """Configuração para testes de carga."""
     config = Mock(spec=OrchestratorSettings)
@@ -136,7 +135,7 @@ def load_test_config():
     return config
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_metrics():
     """Mock de métricas para testes."""
     metrics = Mock()
@@ -196,7 +195,7 @@ def generate_sla_enforcement_input(ticket_id: str, deadline_offset_hours: int = 
 class TestOPALoadSinglePolicy:
     """Testes de carga para avaliação de política única."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_sequential_evaluations(self, load_test_config, mock_metrics):
         """Testa avaliações sequenciais para baseline de latência."""
         client = OPAClient(load_test_config, metrics=mock_metrics)
@@ -230,7 +229,7 @@ class TestOPALoadSinglePolicy:
         assert metrics.error_rate < 0.1, "Taxa de erro muito alta"
         assert metrics.p95_latency < 500, "P95 latency muito alta"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_concurrent_evaluations(self, load_test_config, mock_metrics):
         """Testa avaliações concorrentes para throughput."""
         client = OPAClient(load_test_config, metrics=mock_metrics)
@@ -270,7 +269,7 @@ class TestOPALoadSinglePolicy:
         assert metrics.throughput > 10, "Throughput muito baixo"
         assert metrics.error_rate < 0.1, "Taxa de erro muito alta"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_cache_effectiveness(self, load_test_config, mock_metrics):
         """Testa efetividade do cache com inputs repetidos."""
         client = OPAClient(load_test_config, metrics=mock_metrics)
@@ -313,7 +312,7 @@ class TestOPALoadSinglePolicy:
 class TestOPALoadBatchEvaluation:
     """Testes de carga para batch evaluation."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_batch_evaluation_throughput(self, load_test_config, mock_metrics):
         """Testa throughput de batch evaluation."""
         client = OPAClient(load_test_config, metrics=mock_metrics)
@@ -359,7 +358,7 @@ class TestOPALoadBatchEvaluation:
         # Assertions
         assert metrics.error_rate < 0.1, "Taxa de erro muito alta"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_mixed_policy_batch(self, load_test_config, mock_metrics):
         """Testa batch com múltiplas políticas diferentes."""
         client = OPAClient(load_test_config, metrics=mock_metrics)
@@ -418,7 +417,7 @@ class TestOPALoadBatchEvaluation:
 class TestOPALoadCircuitBreaker:
     """Testes de carga para circuit breaker behavior."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_circuit_breaker_under_failures(self, load_test_config, mock_metrics):
         """Testa comportamento do circuit breaker sob falhas."""
         # Configurar para abrir circuit breaker rapidamente
@@ -469,7 +468,7 @@ class TestOPALoadCircuitBreaker:
 class TestOPALoadStress:
     """Testes de stress para limites do sistema."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_high_concurrency_stress(self, load_test_config, mock_metrics):
         """Testa sob alta concorrência para encontrar limites."""
         client = OPAClient(load_test_config, metrics=mock_metrics)
@@ -508,7 +507,7 @@ class TestOPALoadStress:
         # Assertions mais relaxadas para stress test
         assert metrics.error_rate < 0.2, "Taxa de erro muito alta em stress test"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_sustained_load(self, load_test_config, mock_metrics):
         """Testa carga sustentada por período estendido."""
         client = OPAClient(load_test_config, metrics=mock_metrics)
@@ -569,7 +568,7 @@ class TestOPALoadStress:
 class TestOPARealServerLoad:
     """Testes de carga com servidor OPA real."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_real_server_throughput(self, load_test_config, mock_metrics):
         """Testa throughput real contra servidor OPA."""
         client = OPAClient(load_test_config, metrics=mock_metrics)

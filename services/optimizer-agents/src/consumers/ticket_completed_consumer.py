@@ -2,9 +2,9 @@
 
 import asyncio
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
-UTC = timezone.utc  # type: ignore
+UTC = UTC  # type: ignore
 
 from aiokafka import AIOKafkaConsumer
 from aiokafka.errors import KafkaConnectionError

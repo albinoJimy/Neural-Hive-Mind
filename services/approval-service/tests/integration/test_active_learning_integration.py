@@ -7,13 +7,13 @@ Verifica o fluxo E2E:
 3. Feedback é marcado com balanced_dataset=True
 """
 
-import pytest
-from unittest.mock import MagicMock, AsyncMock, patch
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+from unittest.mock import AsyncMock, MagicMock, patch
 
-from src.services.approval_service import ApprovalService
-from src.models.approval import ApprovalRequest, ApprovalStatus, RiskBand
+import pytest
 from src.config.settings import Settings
+from src.models.approval import ApprovalRequest, ApprovalStatus, RiskBand
+from src.services.approval_service import ApprovalService
 
 
 # Helper function para criar ApprovalRequest válido
@@ -28,7 +28,7 @@ def create_test_approval(**kwargs):
         "risk_band": RiskBand.LOW,
         "is_destructive": False,
         "status": ApprovalStatus.PENDING,
-        "requested_at": datetime.now(timezone.utc),
+        "requested_at": datetime.now(UTC),
         "cognitive_plan": {"plan_id": "test-plan", "steps": []},
     }
     defaults.update(kwargs)
@@ -38,7 +38,7 @@ def create_test_approval(**kwargs):
 class TestActiveLearningIntegration:
     """Testes de integração de Active Learning."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_settings(self):
         """Settings mock."""
         settings = MagicMock(spec=Settings)
@@ -48,7 +48,7 @@ class TestActiveLearningIntegration:
         settings.mongodb_database = "test_nh"
         return settings
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_mongodb_client(self):
         """MongoDB client mock."""
         client = AsyncMock()
@@ -56,7 +56,7 @@ class TestActiveLearningIntegration:
         client.get_approval_by_plan_id = AsyncMock(return_value=None)
         return client
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_balance_analyzer(self):
         """BalanceAnalyzer mock."""
         analyzer = AsyncMock()
@@ -72,7 +72,7 @@ class TestActiveLearningIntegration:
         )
         return analyzer
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_learning_strategy(self):
         """ActiveLearningStrategy mock."""
         strategy = AsyncMock()
@@ -80,14 +80,14 @@ class TestActiveLearningIntegration:
         strategy.should_collect_feedback = AsyncMock(return_value=True)
         return strategy
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_priority_queue(self):
         """PriorityFeedbackQueue mock."""
         queue = AsyncMock()
         queue.enqueue_plan_for_review = AsyncMock(return_value="queue-id-123")
         return queue
 
-    @pytest.fixture
+    @pytest.fixture()
     def approval_service_with_al(
         self,
         mock_settings,
@@ -108,7 +108,7 @@ class TestActiveLearningIntegration:
         )
         return service
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_approval_request_enqueued_for_active_learning(
         self, approval_service_with_al, mock_learning_strategy, mock_priority_queue
     ):
@@ -137,7 +137,7 @@ class TestActiveLearningIntegration:
         assert call_args[1]["plan_id"] == "plan-1"
         assert call_args[1]["information_value"] == 0.75
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_feedback_marked_with_balanced_dataset(
         self,
         approval_service_with_al,
@@ -181,7 +181,7 @@ class TestActiveLearningIntegration:
         assert feedback_data["balanced_dataset"] is True
         assert feedback_data["collection_method"] == "active_learning"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_feedback_not_marked_when_not_from_active_learning(
         self, approval_service_with_al
     ):
@@ -218,7 +218,7 @@ class TestActiveLearningIntegration:
 class TestActiveLearningDisabled:
     """Testes quando Active Learning está desabilitado."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_settings(self):
         """Settings com AL desabilitado."""
         settings = MagicMock(spec=Settings)
@@ -226,7 +226,7 @@ class TestActiveLearningDisabled:
         settings.enable_feedback_collection = True
         return settings
 
-    @pytest.fixture
+    @pytest.fixture()
     def approval_service_no_al(self, mock_settings):
         """ApprovalService sem Active Learning."""
         service = ApprovalService(
@@ -237,7 +237,7 @@ class TestActiveLearningDisabled:
         )
         return service
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_case_not_enqueued_when_al_disabled(self, approval_service_no_al, mock_settings):
         """Testa que casos não são enfileirados quando AL está desabilitado."""
         request = create_test_approval()

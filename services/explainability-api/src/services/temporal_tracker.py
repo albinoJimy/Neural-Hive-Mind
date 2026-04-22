@@ -10,8 +10,8 @@ Responsável por:
 Explainability API v3 - Task 5
 """
 
-from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List, Optional
+from datetime import UTC, datetime, timedelta
+from typing import Any, Optional
 
 import structlog
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -42,7 +42,7 @@ class TemporalTracker:
         self.seniority_collection = self.db.seniority_history
         self.logger = logger
 
-    async def get_current_session(self, decision_id: str) -> Dict[str, Any]:
+    async def get_current_session(self, decision_id: str) -> dict[str, Any]:
         """
         Analisa decisões da mesma sessão (mesmo plan_id).
 
@@ -119,7 +119,7 @@ class TemporalTracker:
             "duration_hours": round(duration_hours, 2),
         }
 
-    async def get_window_analysis(self, days: int = 7) -> Dict[str, Any]:
+    async def get_window_analysis(self, days: int = 7) -> dict[str, Any]:
         """
         Analisa decisões dentro de uma janela temporal.
 
@@ -136,7 +136,7 @@ class TemporalTracker:
                 - daily_breakdown: decisões por dia
         """
         # Calcular data de corte
-        since = datetime.now(timezone.utc) - timedelta(days=days)
+        since = datetime.now(UTC) - timedelta(days=days)
 
         # Buscar decisões dentro da janela
         cursor = self.explainability_collection.find(
@@ -148,7 +148,7 @@ class TemporalTracker:
         # Contar decisões por tipo
         approve_count = 0
         reject_count = 0
-        daily_breakdown: Dict[str, int] = {}
+        daily_breakdown: dict[str, int] = {}
 
         for decision in decisions:
             # Contar por tipo
@@ -182,7 +182,7 @@ class TemporalTracker:
             "daily_breakdown": daily_breakdown,
         }
 
-    async def get_seniority_changes(self, specialists: List[str], days: int = 30) -> Dict[str, Any]:
+    async def get_seniority_changes(self, specialists: list[str], days: int = 30) -> dict[str, Any]:
         """
         Busca mudanças de senioridade recentes para os especialistas.
 
@@ -198,7 +198,7 @@ class TemporalTracker:
                 - specialists_with_changes: IDs com mudanças
         """
         # Calcular data de corte
-        since = datetime.now(timezone.utc) - timedelta(days=days)
+        since = datetime.now(UTC) - timedelta(days=days)
 
         # Buscar mudanças recentes
         cursor = self.seniority_collection.find(
@@ -217,7 +217,7 @@ class TemporalTracker:
             "specialists_with_changes": specialists_with_changes,
         }
 
-    async def _get_seniority_distribution(self, since: Optional[datetime] = None) -> Dict[str, Any]:
+    async def _get_seniority_distribution(self, since: Optional[datetime] = None) -> dict[str, Any]:
         """
         Calcula distribuição de senioridade desde uma data.
 
@@ -232,7 +232,7 @@ class TemporalTracker:
                 - percentages: porcentagem por nível
         """
         if since is None:
-            since = datetime.now(timezone.utc) - timedelta(days=30)
+            since = datetime.now(UTC) - timedelta(days=30)
 
         # Buscar mudanças no período, ordenadas por data (mais recente primeiro)
         cursor = self.seniority_collection.find({"changed_at": {"$gte": since}}).sort(
@@ -242,7 +242,7 @@ class TemporalTracker:
         changes = await self._parse_cursor(cursor)
 
         # Para cada especialista, pegar o último nível conhecido
-        latest_levels: Dict[str, str] = {}
+        latest_levels: dict[str, str] = {}
 
         for change in changes:
             specialist_id = change.get("specialist_id")
@@ -255,7 +255,7 @@ class TemporalTracker:
                     latest_levels[specialist_id] = new_level
 
         # Contar por nível
-        by_level: Dict[str, int] = {
+        by_level: dict[str, int] = {
             "trainee": 0,
             "junior": 0,
             "mid_level": 0,
@@ -285,7 +285,7 @@ class TemporalTracker:
             "percentages": percentages,
         }
 
-    async def _parse_cursor(self, cursor) -> List[Dict[str, Any]]:
+    async def _parse_cursor(self, cursor) -> list[dict[str, Any]]:
         """
         Helper para converter cursor MongoDB em lista.
 

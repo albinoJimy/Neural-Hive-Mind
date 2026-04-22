@@ -4,14 +4,14 @@ Testes unitários para o modelo de senioridade.
 
 import pytest
 from src.models.seniority import (
-    SeniorityLevel,
-    SENIORITY_MULTIPLIERS,
     SENIORITY_DESCRIPTIONS,
+    SENIORITY_MULTIPLIERS,
     SENIORITY_ORDER,
-    get_seniority_multiplier,
-    get_seniority_description,
-    parse_seniority_level,
+    SeniorityLevel,
     compare_seniority,
+    get_seniority_description,
+    get_seniority_multiplier,
+    parse_seniority_level,
 )
 
 

@@ -2,12 +2,13 @@
 Testes para warmup de especialistas.
 """
 
-import pytest
 import json
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import MagicMock, Mock, patch
 
-from neural_hive_specialists.config import SpecialistConfig
+import pytest
+
 from neural_hive_specialists.base_specialist import BaseSpecialist
+from neural_hive_specialists.config import SpecialistConfig
 
 
 class MockSpecialist(BaseSpecialist):
@@ -30,7 +31,7 @@ class MockSpecialist(BaseSpecialist):
         }
 
 
-@pytest.fixture
+@pytest.fixture()
 def specialist_config():
     """Configuração mock para testes."""
     return SpecialistConfig(
@@ -53,7 +54,7 @@ def specialist_config():
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def specialist(specialist_config):
     """Especialista mock para testes."""
     # Criar mocks isolados que sobrescrevem patches de outros módulos

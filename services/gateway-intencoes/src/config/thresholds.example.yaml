@@ -1,0 +1,68 @@
+# Configuração de Thresholds NLU Externalizados
+# Autor: Neural Hive Mind
+# Criado: 2026-04-20 (FEAT-A-005)
+#
+# Este arquivo permite configurar thresholds NLU via YAML ao invés de
+# variáveis de ambiente, facilitando ajustes em runtime sem reiniciar o serviço.
+#
+# Copie este arquivo para thresholds.yaml e ajuste conforme necessário.
+
+# Configuração global (aplicada a todos os domínios sem configuração específica)
+global:
+  min_threshold: 0.3          # Threshold mínimo absoluto
+  base_threshold: 0.5         # Threshold base padrão
+  strict_threshold: 0.75      # Threshold para modo estrito
+  adaptive_enabled: true      # Se threshold adaptativo está habilitado
+  min_confidence_for_auto_approve: 0.8  # Confiança mínima para auto-aprovação
+  requires_human_review_below: 0.4     # Abaixo deste valor requer revisão humana
+
+# Configurações por domínio (sobrescrevem global)
+domains:
+  BUSINESS:
+    base_threshold: 0.5
+    strict_threshold: 0.7
+    adaptive_enabled: true
+    min_confidence_for_auto_approve: 0.75
+
+  TECHNICAL:
+    base_threshold: 0.55      # Domínio técnico exige mais confiança
+    strict_threshold: 0.8
+    adaptive_enabled: true
+    min_confidence_for_auto_approve: 0.85
+
+  INFRASTRUCTURE:
+    base_threshold: 0.45      # Domínio de infra pode ser mais permissivo
+    strict_threshold: 0.7
+    adaptive_enabled: false   # Desabilita adaptativo para infra
+    min_confidence_for_auto_approve: 0.7
+
+  SECURITY:
+    base_threshold: 0.6       # Domínio de segurança exige alta confiança
+    strict_threshold: 0.85
+    adaptive_enabled: true
+    min_confidence_for_auto_approve: 0.9
+    requires_human_review_below: 0.5
+
+# Configurações por tenant (sobrescrevem domínio e global)
+# Útil para SaaS com múltiplos clientes que têm requisitos diferentes
+tenants:
+  tenant-enterprise-001:
+    domains:
+      BUSINESS:
+        base_threshold: 0.4  # Cliente enterprise mais permissivo
+        min_confidence_for_auto_approve: 0.7
+
+      SECURITY:
+        base_threshold: 0.7  # Mas exige alta confiança para segurança
+
+  tenant-saas-002:
+    domains:
+      TECHNICAL:
+        base_threshold: 0.5
+        adaptive_enabled: false
+
+# Feature flags globais
+feature_flags:
+  enable_auto_approve_high_value: true
+  enable_strict_mode_for_unknown_users: false
+  enable_context_aware_thresholds: true

@@ -13,12 +13,13 @@ Testa o fluxo completo v3:
 TDD: Testes escritos antes da implementação (Explainability API v3 Task 8).
 """
 
-import pytest
-from typing import List, Dict, Any
-from datetime import datetime, timezone, timedelta
-from unittest.mock import Mock, AsyncMock, MagicMock
 import sys
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from typing import Any
+from unittest.mock import AsyncMock, MagicMock, Mock
+
+import pytest
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
@@ -37,7 +38,7 @@ SENIORITY_MULTIPLIERS = {
 # Helper function para criar votos de teste
 def create_vote(
     level: str, vote: str, confidence: float, specialist_id: str = "test"
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Cria um voto de especialista para testes.
 
@@ -65,8 +66,8 @@ def create_vote(
 class TestV3E2EFullFlow:
     """Testes E2E do fluxo completo v3."""
 
-    @pytest.fixture
-    def hierarchical_votes(self) -> List[Dict[str, Any]]:
+    @pytest.fixture()
+    def hierarchical_votes(self) -> list[dict[str, Any]]:
         """Votos hierárquicos completos para testes E2E."""
         return [
             create_vote("expert", "approve", 0.9, "business"),
@@ -76,11 +77,11 @@ class TestV3E2EFullFlow:
             create_vote("trainee", "reject", 0.5, "behavior"),
         ]
 
-    @pytest.fixture
+    @pytest.fixture()
     def explainer_services(self):
         """Instancia todos os serviços v3."""
-        from services.hierarchical_explainer import HierarchicalExplainer
         from services.counterfactual_analyzer import CounterfactualAnalyzer
+        from services.hierarchical_explainer import HierarchicalExplainer
 
         return {
             "hierarchical": HierarchicalExplainer(),
@@ -222,7 +223,7 @@ class TestV3E2EFullFlow:
         # decision_flips deve ser lista
         assert isinstance(sensitivity["decision_flips"], list)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_full_v3_explanation_flow_temporal_analysis(self, hierarchical_votes):
         """Testa análise temporal no fluxo completo."""
         from services.temporal_tracker import TemporalTracker
@@ -237,19 +238,19 @@ class TestV3E2EFullFlow:
             {
                 "decision_id": "decision-1",
                 "plan_id": "plan-123",
-                "generated_at": (datetime.now(timezone.utc) - timedelta(hours=2)).isoformat(),
+                "generated_at": (datetime.now(UTC) - timedelta(hours=2)).isoformat(),
                 "final_decision": {"decision": "approve"},
             },
             {
                 "decision_id": "decision-2",
                 "plan_id": "plan-123",
-                "generated_at": (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat(),
+                "generated_at": (datetime.now(UTC) - timedelta(hours=1)).isoformat(),
                 "final_decision": {"decision": "approve"},
             },
             {
                 "decision_id": "decision-3",
                 "plan_id": "plan-123",
-                "generated_at": datetime.now(timezone.utc).isoformat(),
+                "generated_at": datetime.now(UTC).isoformat(),
                 "final_decision": {"decision": "reject"},
             },
         ]
@@ -277,7 +278,7 @@ class TestV3E2EFullFlow:
         assert "duration_hours" in session
         assert session["duration_hours"] > 0
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_full_v3_explanation_flow_temporal_window_analysis(self, hierarchical_votes):
         """Testa análise de janela temporal."""
         from services.temporal_tracker import TemporalTracker
@@ -288,7 +289,7 @@ class TestV3E2EFullFlow:
         mock_collection = MagicMock()
 
         # Mock de decisões para janela de 7 dias
-        base_time = datetime.now(timezone.utc)
+        base_time = datetime.now(UTC)
         mock_decisions = [
             {
                 "decision_id": f"decision-{i}",
@@ -359,7 +360,7 @@ class TestV3E2EFullFlow:
             "decision_id": "test-v3-decision",
             "hierarchical_analysis": hierarchical_result,
             "counterfactual_analysis": counterfactual_result,
-            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "generated_at": datetime.now(UTC).isoformat(),
         }
 
         # Validar estrutura integrada
@@ -405,7 +406,7 @@ class TestV3E2EFullFlow:
 class TestV3E2ECounterfactualScenarios:
     """Testes E2E de cenários contrafactuais específicos."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def explainer_services(self):
         """Instancia todos os serviços v3."""
         from services.counterfactual_analyzer import CounterfactualAnalyzer
@@ -502,7 +503,7 @@ class TestV3E2ECounterfactualScenarios:
 class mock_cursor:
     """Mock de cursor MongoDB para testes assíncronos."""
 
-    def __init__(self, documents: List[Dict[str, Any]]):
+    def __init__(self, documents: list[dict[str, Any]]):
         self.documents = documents
         self.current_index = 0
 

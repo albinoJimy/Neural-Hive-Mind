@@ -7,20 +7,19 @@ from pathlib import Path
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-import pytest
 from unittest.mock import AsyncMock, Mock
 from uuid import uuid4
 
+import pytest
 from src.models.hypothesis import (
     Hypothesis,
     HypothesisCreate,
-    HypothesisStatus,
     HypothesisPriority,
+    HypothesisStatus,
 )
-from src.models.workflow import HypothesisWorkflow
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_settings():
     """Mock settings for testing."""
     settings = Mock()
@@ -50,14 +49,14 @@ def mock_settings():
     return settings
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_mongodb_client():
     """Mock MongoDB client for testing."""
     client = AsyncMock()
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_hypothesis_create():
     """Sample hypothesis creation data."""
     return HypothesisCreate(
@@ -74,7 +73,7 @@ def sample_hypothesis_create():
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_hypothesis(sample_hypothesis_create):
     """Sample hypothesis for testing."""
     return Hypothesis(
@@ -84,7 +83,7 @@ def sample_hypothesis(sample_hypothesis_create):
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_hypothesis_proposed(sample_hypothesis_create):
     """Sample hypothesis in PROPOSED status."""
     return Hypothesis(
@@ -95,7 +94,7 @@ def sample_hypothesis_proposed(sample_hypothesis_create):
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_hypothesis_approved(sample_hypothesis_create):
     """Sample hypothesis in APPROVED status."""
     return Hypothesis(

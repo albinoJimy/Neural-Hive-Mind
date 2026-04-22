@@ -4,17 +4,17 @@ Testes de integração para LIMEExplainer com modelos reais.
 Testa LimeTabularExplainer com modelos sklearn treinados.
 """
 
-import pytest
 import numpy as np
 import pandas as pd
+import pytest
+from sklearn.datasets import make_classification
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
-from sklearn.datasets import make_classification
 
 from neural_hive_specialists.explainability.lime_explainer import LIMEExplainer
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_data():
     """Gera dataset sintético para testes."""
     X, y = make_classification(
@@ -24,7 +24,7 @@ def sample_data():
     return pd.DataFrame(X, columns=feature_names), y, feature_names
 
 
-@pytest.mark.integration
+@pytest.mark.integration()
 class TestLIMEExplainerWithRandomForest:
     """Testes com RandomForest."""
 
@@ -149,7 +149,7 @@ class TestLIMEExplainerWithRandomForest:
             assert feature["contribution"] == "positive"
 
 
-@pytest.mark.integration
+@pytest.mark.integration()
 class TestLIMEExplainerWithLinearModel:
     """Testes com modelo linear."""
 
@@ -171,7 +171,7 @@ class TestLIMEExplainerWithLinearModel:
         assert len(result["feature_importances"]) > 0
 
 
-@pytest.mark.integration
+@pytest.mark.integration()
 class TestLIMEExplainerEdgeCases:
     """Testes de casos extremos."""
 

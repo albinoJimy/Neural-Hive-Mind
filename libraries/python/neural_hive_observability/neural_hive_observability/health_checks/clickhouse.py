@@ -7,7 +7,7 @@ Validates ClickHouse schema integrity and connectivity for ML and analytics work
 import asyncio
 import logging
 import time
-from typing import Any, List, Optional
+from typing import Any, Optional
 
 from ..health import HealthCheck, HealthCheckResult, HealthStatus
 
@@ -41,8 +41,8 @@ class ClickHouseSchemaHealthCheck(HealthCheck):
     def __init__(
         self,
         clickhouse_client: Any,
-        expected_tables: Optional[List[str]] = None,
-        expected_views: Optional[List[str]] = None,
+        expected_tables: Optional[list[str]] = None,
+        expected_views: Optional[list[str]] = None,
         database: str = "neural_hive",
         name: str = "clickhouse_schema",
         timeout_seconds: float = 10.0,
@@ -158,7 +158,7 @@ class ClickHouseSchemaHealthCheck(HealthCheck):
         except Exception as e:
             logger.error(f"Error checking ClickHouse schema: {e}")
             return self._create_result(
-                HealthStatus.UNHEALTHY, f"Error checking schema: {str(e)}", start_time=start_time
+                HealthStatus.UNHEALTHY, f"Error checking schema: {e!s}", start_time=start_time
             )
 
     async def _check_connection(self) -> bool:
@@ -201,7 +201,7 @@ class ClickHouseSchemaHealthCheck(HealthCheck):
             logger.error(f"Error checking database existence: {e}")
             return False
 
-    async def _get_existing_tables(self) -> List[str]:
+    async def _get_existing_tables(self) -> list[str]:
         """Get list of existing tables in the database."""
         try:
             query = f"""
@@ -215,7 +215,7 @@ class ClickHouseSchemaHealthCheck(HealthCheck):
             logger.error(f"Error getting existing tables: {e}")
             return []
 
-    async def _get_existing_views(self) -> List[str]:
+    async def _get_existing_views(self) -> list[str]:
         """Get list of existing materialized views in the database."""
         try:
             query = f"""
@@ -229,7 +229,7 @@ class ClickHouseSchemaHealthCheck(HealthCheck):
             logger.error(f"Error getting existing views: {e}")
             return []
 
-    async def _execute_query(self, query: str) -> List[tuple]:
+    async def _execute_query(self, query: str) -> list[tuple]:
         """Execute a query and return results."""
         if hasattr(self.client, "execute"):
             # clickhouse-driver sync client
@@ -296,6 +296,6 @@ class ClickHouseConnectionHealthCheck(HealthCheck):
         except Exception as e:
             return self._create_result(
                 HealthStatus.UNHEALTHY,
-                f"ClickHouse connection error: {str(e)}",
+                f"ClickHouse connection error: {e!s}",
                 start_time=start_time,
             )

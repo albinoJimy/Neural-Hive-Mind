@@ -14,30 +14,31 @@ Ou execute dentro do container test-runner:
         pytest tests/e2e/test_vault_spiffe_e2e.py -v
 """
 
+import asyncio
 import os
 import time
-import asyncio
-from datetime import datetime, timezone, timedelta
-import pytest
+from datetime import UTC, datetime, timedelta
+
 import httpx
+import pytest
 
 from tests.e2e.fixtures.vault_spire_setup import (
+    REAL_E2E,
     require_real_env,
 )
-from tests.e2e.fixtures.vault_spire_setup import REAL_E2E
 
 # Verificar se neural_hive_security está disponível
 try:
     from neural_hive_security import (
-        VaultClient,
-        VaultConfig,
-        SPIFFEManager,
         SPIFFEConfig,
-        VaultConnectionError,
-        VaultAuthenticationError,
-        VaultPermissionError,
         SPIFFEConnectionError,
         SPIFFEFetchError,
+        SPIFFEManager,
+        VaultAuthenticationError,
+        VaultClient,
+        VaultConfig,
+        VaultConnectionError,
+        VaultPermissionError,
     )
 
     SECURITY_LIB_AVAILABLE = True
@@ -61,7 +62,7 @@ pytestmark = pytest.mark.skipif(
 class TestVaultAuthentication:
     """Testes de autenticação Vault."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_01_kubernetes_sa_token_valido(self, vault_client):
         """
         Cenário 1: Kubernetes Auth com SA Token válido.
@@ -75,10 +76,10 @@ class TestVaultAuthentication:
         assert vault_client.token is not None, "Token deve ser obtido"
         assert vault_client.token_expiry is not None, "Expiry deve ser definido"
         assert vault_client.token_expiry > datetime.now(
-            timezone.utc
+            UTC
         ), "Token expiry deve estar no futuro"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_02_kubernetes_sa_token_expirado(self, expired_token_fixture):
         """
         Cenário 2: Kubernetes Auth com SA Token expirado.
@@ -112,7 +113,7 @@ class TestVaultAuthentication:
 
         await client.client.aclose()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_03_jwt_auth_spiiffe_svid_valido(self, settings_e2e, spiffe_manager):
         """
         Cenário 3: JWT Auth com SPIFFE SVID válido.
@@ -134,9 +135,9 @@ class TestVaultAuthentication:
         assert (
             "neural-hive.local" in jwt_svid.spiffe_id
         ), f"SPIFFE ID deve conter trust domain: {jwt_svid.spiffe_id}"
-        assert jwt_svid.expiry > datetime.now(timezone.utc), "SVID expiry deve estar no futuro"
+        assert jwt_svid.expiry > datetime.now(UTC), "SVID expiry deve estar no futuro"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_04_jwt_auth_spiiffe_svid_expirado(self, spiffe_manager):
         """
         Cenário 4: JWT Auth com SPIFFE SVID expirado.
@@ -163,11 +164,11 @@ class TestVaultAuthentication:
             and audience in spiffe_manager._jwt_svid_cache
         ):
             cached = spiffe_manager._jwt_svid_cache[audience]
-            cached.expiry = datetime.now(timezone.utc) - timedelta(hours=1)
+            cached.expiry = datetime.now(UTC) - timedelta(hours=1)
 
         # Buscar novamente - deve obter novo SVID
         new_svid = await spiffe_manager.fetch_jwt_svid(audience)
-        assert new_svid.expiry > datetime.now(timezone.utc), "Novo SVID deve ter expiry no futuro"
+        assert new_svid.expiry > datetime.now(UTC), "Novo SVID deve ter expiry no futuro"
 
 
 # =============================================================================
@@ -178,7 +179,7 @@ class TestVaultAuthentication:
 class TestSecretManagement:
     """Testes de gerenciamento de segredos Vault KV v2."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_05_read_kv_v2_secret_existente(self, vault_client, teardown_secrets):
         """
         Cenário 5: Leitura de segredo KV v2 existente.
@@ -201,7 +202,7 @@ class TestSecretManagement:
         assert secret is not None, "Segredo deve ser retornado"
         assert secret.get("test_key") == "test_value", "Valor do segredo deve corresponder"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_06_read_kv_v2_secret_inexistente_404(self, vault_client):
         """
         Cenário 6: Leitura de segredo KV v2 inexistente (404).
@@ -218,7 +219,7 @@ class TestSecretManagement:
         # VaultClient retorna {} para 404
         assert secret == {}, "Segredo inexistente deve retornar dict vazio"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_07_write_kv_v2_secret_com_permissao(self, vault_client, teardown_secrets):
         """
         Cenário 7: Escrita de segredo KV v2 com permissão.
@@ -248,7 +249,7 @@ class TestSecretManagement:
         assert read_data["password"] == test_data["password"]
         assert read_data["timestamp"] == test_data["timestamp"]
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_08_write_kv_v2_secret_sem_permissao_403(self, vault_client):
         """
         Cenário 8: Escrita de segredo KV v2 sem permissão (403).
@@ -279,7 +280,7 @@ class TestSecretManagement:
 class TestDynamicCredentials:
     """Testes de credenciais dinâmicas Vault Database."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_09_generate_postgres_credentials(self, vault_client):
         """
         Cenário 9: Geração de credenciais PostgreSQL.
@@ -305,7 +306,7 @@ class TestDynamicCredentials:
         ), f"Password deve ter comprimento razoável: {len(creds['password'])}"
         assert creds["ttl"] > 0, "TTL deve ser positivo"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_10_renew_credentials_antes_expiracao(self, vault_client):
         """
         Cenário 10: Renovação de credenciais antes da expiração.
@@ -333,7 +334,7 @@ class TestDynamicCredentials:
         assert username2.startswith("v_"), f"Username2 inválido: {username2}"
         assert creds2["ttl"] > 0, "TTL deve ser positivo"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_11_credential_rotation_lease_expiry(self, vault_client):
         """
         Cenário 11: Rotação de credenciais por lease expiry.
@@ -374,7 +375,7 @@ class TestDynamicCredentials:
 class TestSVIDOperations:
     """Testes de operações com SVIDs SPIFFE."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_12_fetch_jwt_svid_com_audience(self, settings_e2e, spiffe_manager):
         """
         Cenário 12: Fetch JWT-SVID com audience específico.
@@ -397,7 +398,7 @@ class TestSVIDOperations:
         parts = jwt_svid.token.split(".")
         assert len(parts) == 3, f"JWT deve ter 3 partes: tem {len(parts)}"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_13_fetch_x509_svid_com_cert_parsing(self, spiffe_manager):
         """
         Cenário 13: Fetch X.509-SVID com parsing de certificado.
@@ -430,7 +431,7 @@ class TestSVIDOperations:
         except (SPIFFEFetchError, AttributeError):
             pytest.skip("X.509-SVID não está habilitado ou disponível")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_14_background_refresh_antes_expiracao(self, spiffe_manager):
         """
         Cenário 14: Background refresh de SVID antes da expiração.
@@ -464,9 +465,9 @@ class TestSVIDOperations:
             spiffe_manager._jwt_svid_cache.clear()
 
         svid3 = await spiffe_manager.fetch_jwt_svid(audience)
-        assert svid3.expiry > datetime.now(timezone.utc), "Novo SVID deve ser válido"
+        assert svid3.expiry > datetime.now(UTC), "Novo SVID deve ser válido"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_15_cache_hit_miss_jwt_svid(self, spiffe_manager):
         """
         Cenário 15: Cache hit/miss para JWT-SVID.
@@ -491,8 +492,8 @@ class TestSVIDOperations:
         svid2 = await spiffe_manager.fetch_jwt_svid(audience)
 
         # Ambos devem ser válidos
-        assert svid1.expiry > datetime.now(timezone.utc)
-        assert svid2.expiry > datetime.now(timezone.utc)
+        assert svid1.expiry > datetime.now(UTC)
+        assert svid2.expiry > datetime.now(UTC)
 
         # Verificar cache hit
         if (
@@ -503,7 +504,7 @@ class TestSVIDOperations:
             cached = spiffe_manager._jwt_svid_cache[audience]
             assert cached.spiffe_id == svid1.spiffe_id
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_16_trust_bundle_jwks_parsing(self, spiffe_manager):
         """
         Cenário 16: Trust bundle JWKS parsing.
@@ -544,7 +545,7 @@ class TestSVIDOperations:
 class TestPKIOperations:
     """Testes de operações PKI Vault."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_17_issue_certificate_via_pki_engine(self, vault_client):
         """
         Cenário 17: Emissão de certificado via PKI engine.
@@ -573,7 +574,7 @@ class TestPKIOperations:
             common_name in cert_data["certificate"] or cert_data["certificate"]
         ), "Common name deve estar no certificado"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_18_ca_chain_retrieval(self, vault_client):
         """
         Cenário 18: Recuperação de CA chain do PKI engine.
@@ -601,7 +602,7 @@ class TestPKIOperations:
 class TestFailModes:
     """Testes de modos de falha (fail-open/fail-closed)."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_19_fail_open_vault_unavailable(self, vault_unavailable_config_fail_open):
         """
         Cenário 9: Comportamento fail-open quando Vault indisponível.
@@ -630,7 +631,7 @@ class TestFailModes:
             if client.client:
                 await client.client.aclose()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_20_fail_closed_vault_unavailable(self, vault_unavailable_config):
         """
         Cenário 10: Comportamento fail-closed quando Vault indisponível.
@@ -660,7 +661,7 @@ class TestFailModes:
 class TestObservability:
     """Testes de observabilidade (métricas e logging)."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_21_metrics_vault_requests(self, vault_client):
         """
         Cenário 1: Métricas de requests Vault são registradas.
@@ -692,7 +693,7 @@ class TestObservability:
         found = expected & vault_metrics
         assert len(found) > 0, f"Algumas métricas Vault devem existir: {found}"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_22_logging_structured_logs(self, vault_client, caplog):
         """
         Cenário 2: Logs estruturados são emitidos.
@@ -724,7 +725,7 @@ class TestObservability:
 class TestOrchestratorIntegration:
     """Testes de integração com OrchestratorVaultClient."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_23_orchestrator_postgres_credentials(self, orchestrator_vault_client):
         """
         Cenário: Credenciais PostgreSQL via OrchestratorVaultClient.
@@ -743,7 +744,7 @@ class TestOrchestratorIntegration:
         assert creds["username"] is not None
         assert creds["password"] is not None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_24_orchestrator_mongodb_uri(self, orchestrator_vault_client):
         """
         Cenário: URI MongoDB via OrchestratorVaultClient.
@@ -761,7 +762,7 @@ class TestOrchestratorIntegration:
             "mongodb://" in uri or "mongodb+srv://" in uri
         ), f"URI deve ter formato MongoDB: {uri}"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_25_orchestrator_redis_password(self, orchestrator_vault_client):
         """
         Cenário: Senha Redis via OrchestratorVaultClient.

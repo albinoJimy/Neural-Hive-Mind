@@ -6,18 +6,19 @@ from types import SimpleNamespace
 import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
-import sys  # noqa: E402
+import sys
 
-sys.path.append(str(ROOT / "src"))  # noqa: E402
+sys.path.append(str(ROOT / "src"))
 
-from executors.build_executor import BuildExecutor  # noqa: E402
-from executors.deploy_executor import DeployExecutor  # noqa: E402
-from executors.test_executor import TestExecutor  # noqa: E402
-from executors.validate_executor import ValidateExecutor  # noqa: E402
-from neural_hive_integration.clients.code_forge_client import PipelineStatus  # noqa: E402
+from executors.build_executor import BuildExecutor
+from executors.deploy_executor import DeployExecutor
+from executors.test_executor import TestExecutor
+from executors.validate_executor import ValidateExecutor
+
+from neural_hive_integration.clients.code_forge_client import PipelineStatus
 
 
-@pytest.fixture
+@pytest.fixture()
 def config_with_all_integrations():
     return SimpleNamespace(
         allowed_test_commands=["pytest", "npm test", "go test", "mvn test", "jest", "cargo test"],
@@ -32,7 +33,7 @@ def config_with_all_integrations():
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def config_with_fallbacks():
     return SimpleNamespace(
         allowed_test_commands=["pytest"],
@@ -48,7 +49,7 @@ def config_with_fallbacks():
 
 
 # ---------------------- BuildExecutor ---------------------- #
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_build_with_code_forge_integration():
     class StubCF:
         async def trigger_pipeline(self, artifact_id):
@@ -81,7 +82,7 @@ async def test_build_with_code_forge_integration():
     assert result["output"]["pipeline_id"] == "pipe-a1"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_build_fallback_on_code_forge_error():
     class ErrorCF:
         async def trigger_pipeline(self, artifact_id):
@@ -102,7 +103,7 @@ async def test_build_fallback_on_code_forge_error():
     assert result["output"]["artifact_url"].startswith("stub://")
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_build_fallback_on_code_forge_timeout():
     class TimeoutCF:
         async def trigger_pipeline(self, artifact_id):
@@ -166,7 +167,7 @@ class _StubAsyncClient:
         return resp
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_deploy_with_argocd_integration(monkeypatch, config_with_all_integrations):
     healthy_resp = _StubResponse({"status": {"health": {"status": "Healthy"}}})
     monkeypatch.setattr(
@@ -195,7 +196,7 @@ async def test_deploy_with_argocd_integration(monkeypatch, config_with_all_integ
     assert result["output"]["status"] == "healthy"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_deploy_with_argocd_polling(monkeypatch, config_with_all_integrations):
     responses = [
         _StubResponse({"status": {"health": {"status": "Progressing"}}}),
@@ -225,7 +226,7 @@ async def test_deploy_with_argocd_polling(monkeypatch, config_with_all_integrati
     assert result["output"]["status"] == "healthy"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_deploy_fallback_on_argocd_disabled(config_with_fallbacks):
     executor = DeployExecutor(config_with_fallbacks)
     ticket = {"ticket_id": "d-int-3", "task_id": "task", "task_type": "DEPLOY", "parameters": {}}
@@ -235,7 +236,7 @@ async def test_deploy_fallback_on_argocd_disabled(config_with_fallbacks):
     assert result["success"] is True
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_deploy_fallback_on_argocd_error(monkeypatch, config_with_all_integrations):
     monkeypatch.setattr(
         "clients.argocd_client.httpx.AsyncClient",
@@ -250,7 +251,7 @@ async def test_deploy_fallback_on_argocd_error(monkeypatch, config_with_all_inte
 
 
 # ---------------------- ValidateExecutor ---------------------- #
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_validate_with_opa_policy(monkeypatch, config_with_all_integrations):
     payload = {"result": {"allow": True, "violations": []}}
     monkeypatch.setattr(
@@ -272,7 +273,7 @@ async def test_validate_with_opa_policy(monkeypatch, config_with_all_integration
     assert result["output"]["violations"] == []
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_validate_with_opa_violations(monkeypatch, config_with_all_integrations):
     payload = {"result": {"allow": False, "violations": ["deny"]}}
     monkeypatch.setattr(
@@ -294,7 +295,7 @@ async def test_validate_with_opa_violations(monkeypatch, config_with_all_integra
     assert result["output"]["violations"] == ["deny"]
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_validate_with_trivy_sast(monkeypatch, tmp_path, config_with_all_integrations):
     report = {"Results": [{"Vulnerabilities": []}]}
 
@@ -317,7 +318,7 @@ async def test_validate_with_trivy_sast(monkeypatch, tmp_path, config_with_all_i
     assert result["output"]["validation_type"] == "sast"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_validate_fallback_on_opa_disabled(config_with_fallbacks):
     executor = ValidateExecutor(config_with_fallbacks)
     ticket = {
@@ -332,7 +333,7 @@ async def test_validate_fallback_on_opa_disabled(config_with_fallbacks):
     assert result["success"] is True
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_validate_fallback_on_trivy_timeout(monkeypatch, config_with_all_integrations):
     def raise_timeout(*_, **__):
         raise subprocess.TimeoutExpired(cmd="trivy fs", timeout=3)
@@ -354,7 +355,7 @@ async def test_validate_fallback_on_trivy_timeout(monkeypatch, config_with_all_i
 
 
 # ---------------------- TestExecutor ---------------------- #
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_execute_with_allowed_command(monkeypatch, tmp_path, config_with_all_integrations):
     report = {"tests_passed": 3, "tests_failed": 0, "coverage": 0.9}
     report_path = tmp_path / "report.json"
@@ -383,7 +384,7 @@ async def test_execute_with_allowed_command(monkeypatch, tmp_path, config_with_a
     assert result["output"]["tests_passed"] == 3
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_execute_with_disallowed_command(monkeypatch, config_with_all_integrations):
     def fake_run(cmd, cwd=None, capture_output=True, text=True, timeout=None):
         return SimpleNamespace(returncode=0, stdout="{}", stderr="")
@@ -407,7 +408,7 @@ async def test_execute_with_disallowed_command(monkeypatch, config_with_all_inte
     assert result["success"] is True
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_execute_with_report_parsing(monkeypatch, tmp_path, config_with_all_integrations):
     report = {"passed": 2, "failed": 1, "coverage_percent": 75}
     (tmp_path / "report.json").write_text(json.dumps(report))
@@ -436,7 +437,7 @@ async def test_execute_with_report_parsing(monkeypatch, tmp_path, config_with_al
     assert result["output"]["coverage"] == 75
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_execute_fallback_on_command_error(monkeypatch, config_with_all_integrations):
     def raise_error(cmd, cwd=None, capture_output=True, text=True, timeout=None):
         raise RuntimeError("boom")
@@ -491,7 +492,7 @@ def _render_configmap_with_argocd_url(url: str) -> str:
         "templates/configmap.yaml",
         f"--set=config.argocd.url={url}",
     ]
-    proc = subprocess.run(cmd, capture_output=True, text=True)
+    proc = subprocess.run(cmd, capture_output=True, text=True, check=False)
     if proc.returncode != 0:
         raise RuntimeError(proc.stderr)
     return proc.stdout

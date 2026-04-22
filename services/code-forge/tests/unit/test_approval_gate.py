@@ -18,7 +18,7 @@ import pytest
 class TestApprovalGateAutoApproval:
     """Testes de aprovacao automatica."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_auto_approve_high_quality(
         self, mock_git_client, sample_pipeline_context_with_validations
     ):
@@ -43,7 +43,7 @@ class TestApprovalGateAutoApproval:
         assert sample_pipeline_context_with_validations.metadata["approval"] == "auto"
         mock_git_client.create_merge_request.assert_not_called()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_auto_approve_exactly_at_threshold(
         self, mock_git_client, sample_pipeline_context_with_validations
     ):
@@ -71,7 +71,7 @@ class TestApprovalGateAutoApproval:
 class TestApprovalGateAutoRejection:
     """Testes de rejeicao automatica."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_auto_reject_low_quality(
         self, mock_git_client, sample_pipeline_context_with_validations
     ):
@@ -95,7 +95,7 @@ class TestApprovalGateAutoRejection:
 
         assert sample_pipeline_context_with_validations.metadata["approval"] == "rejected"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_auto_reject_critical_issues(
         self, mock_git_client, sample_pipeline_context_with_validations
     ):
@@ -122,7 +122,7 @@ class TestApprovalGateAutoRejection:
 class TestApprovalGateManualReview:
     """Testes de revisao manual."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_manual_review_medium_quality(
         self, mock_git_client, sample_pipeline_context_with_validations
     ):
@@ -154,7 +154,7 @@ class TestApprovalGateManualReview:
         assert sample_pipeline_context_with_validations.metadata["approval"] == "manual"
         mock_git_client.create_merge_request.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_manual_review_creates_merge_request(
         self, mock_git_client, sample_pipeline_context_with_validations
     ):
@@ -191,7 +191,7 @@ class TestApprovalGateManualReview:
 class TestApprovalGateThresholds:
     """Testes de configuracao de thresholds."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_default_thresholds(self, mock_git_client):
         """Deve usar thresholds padrao."""
         from src.services.approval_gate import ApprovalGate
@@ -201,7 +201,7 @@ class TestApprovalGateThresholds:
         assert gate.auto_approval_threshold == 0.9
         assert gate.min_quality_score == 0.5
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_custom_thresholds(self, mock_git_client):
         """Deve aceitar thresholds customizados."""
         from src.services.approval_gate import ApprovalGate
@@ -217,7 +217,7 @@ class TestApprovalGateThresholds:
 class TestApprovalGateMergeRequestContent:
     """Testes de conteudo do Merge Request."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_merge_request_branch_name(
         self, mock_git_client, sample_pipeline_context_with_validations
     ):
@@ -252,7 +252,7 @@ class TestApprovalGateMergeRequestContent:
         assert branch_name.startswith("code-forge-")
         assert sample_pipeline_context_with_validations.pipeline_id[:8] in branch_name
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_merge_request_includes_quality_score(
         self, mock_git_client, sample_pipeline_context_with_validations
     ):
@@ -286,7 +286,7 @@ class TestApprovalGateMergeRequestContent:
         description = call_kwargs["description"]
         assert "Quality Score: 0.75" in description
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_merge_request_includes_artifact_count(
         self, mock_git_client, sample_pipeline_context_with_validations
     ):
@@ -324,7 +324,7 @@ class TestApprovalGateMergeRequestContent:
 class TestApprovalGateCommitAndPush:
     """Testes do metodo _commit_and_push."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_commit_and_push_with_artifact(
         self, mock_git_client, mock_mongodb_client, sample_pipeline_context_with_artifacts
     ):
@@ -352,7 +352,7 @@ class TestApprovalGateCommitAndPush:
         mock_git_client.commit_artifacts.assert_called_once()
         mock_git_client.push_branch.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_commit_and_push_without_mongodb(
         self, mock_git_client, sample_pipeline_context_with_artifacts
     ):
@@ -368,7 +368,7 @@ class TestApprovalGateCommitAndPush:
         assert result is None
         mock_git_client.create_branch.assert_not_called()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_commit_and_push_without_target_repo(
         self, mock_git_client, mock_mongodb_client, sample_pipeline_context_with_artifacts
     ):
@@ -388,7 +388,7 @@ class TestApprovalGateCommitAndPush:
 
         assert result is None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_commit_creates_readme_with_metadata(
         self, mock_git_client, mock_mongodb_client, sample_pipeline_context_with_artifacts
     ):
@@ -420,7 +420,7 @@ class TestApprovalGateCommitAndPush:
         assert sample_pipeline_context_with_artifacts.pipeline_id in readme_content
         assert "**Auto-Approved**: True" in readme_content
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_commit_saves_commit_metadata(
         self, mock_git_client, mock_mongodb_client, sample_pipeline_context_with_artifacts
     ):
@@ -446,7 +446,7 @@ class TestApprovalGateCommitAndPush:
 class TestApprovalGateGetFilename:
     """Testes do metodo _get_filename_for_language."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_filename_python(self):
         """Deve retornar main.py para Python."""
         from src.services.approval_gate import ApprovalGate
@@ -454,7 +454,7 @@ class TestApprovalGateGetFilename:
         gate = ApprovalGate(git_client=MagicMock())
         assert gate._get_filename_for_language("python") == "main.py"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_filename_javascript(self):
         """Deve retornar index.js para JavaScript."""
         from src.services.approval_gate import ApprovalGate
@@ -462,7 +462,7 @@ class TestApprovalGateGetFilename:
         gate = ApprovalGate(git_client=MagicMock())
         assert gate._get_filename_for_language("javascript") == "index.js"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_filename_typescript(self):
         """Deve retornar index.ts para TypeScript."""
         from src.services.approval_gate import ApprovalGate
@@ -470,7 +470,7 @@ class TestApprovalGateGetFilename:
         gate = ApprovalGate(git_client=MagicMock())
         assert gate._get_filename_for_language("typescript") == "index.ts"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_filename_go(self):
         """Deve retornar main.go para Go."""
         from src.services.approval_gate import ApprovalGate
@@ -478,7 +478,7 @@ class TestApprovalGateGetFilename:
         gate = ApprovalGate(git_client=MagicMock())
         assert gate._get_filename_for_language("go") == "main.go"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_filename_unknown(self):
         """Deve retornar main.{lang} para linguagens desconhecidas."""
         from src.services.approval_gate import ApprovalGate
@@ -490,13 +490,13 @@ class TestApprovalGateGetFilename:
 class TestApprovalGateAutoApprovedCommit:
     """Testes de commit quando auto-approved."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_auto_approved_commits_code(
         self, mock_git_client, mock_mongodb_client, sample_pipeline_context_with_validations
     ):
         """Deve commitar codigo mesmo quando auto-approved."""
-        from src.services.approval_gate import ApprovalGate
         from src.models.artifact import CodeForgeArtifact, GenerationMethod
+        from src.services.approval_gate import ApprovalGate
         from src.types.artifact_types import ArtifactCategory
 
         gate = ApprovalGate(

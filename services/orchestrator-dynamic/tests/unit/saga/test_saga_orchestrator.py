@@ -5,9 +5,10 @@ Testa a coordenacao de Sagas incluindo criacao, execucao,
 tratamento de falhas e compensacao automatica.
 """
 
-import pytest
-from unittest.mock import AsyncMock, MagicMock
 import sys
+from unittest.mock import AsyncMock, MagicMock
+
+import pytest
 
 # Mock dos modulos problematicos antes de importar
 sys.modules["neural_hive_resilience"] = MagicMock()
@@ -16,7 +17,7 @@ sys.modules["neural_hive_resilience"] = MagicMock()
 from src.saga.saga_state import SagaStatus, StepStatus
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_repository():
     """Mock do SagaRepository."""
     repo = AsyncMock()
@@ -32,7 +33,7 @@ def mock_repository():
     return repo
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_event_store():
     """Mock do SagaEventStore."""
     store = AsyncMock()
@@ -45,7 +46,7 @@ def mock_event_store():
     return store
 
 
-@pytest.fixture
+@pytest.fixture()
 def orchestrator(mock_repository, mock_event_store):
     """SagaOrchestrator com mocks."""
     from src.saga.saga_orchestrator import SagaOrchestrator
@@ -53,7 +54,7 @@ def orchestrator(mock_repository, mock_event_store):
     return SagaOrchestrator(repository=mock_repository, event_store=mock_event_store)
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_step_definitions():
     """Definicoes de steps para teste."""
     return [
@@ -84,7 +85,7 @@ def sample_step_definitions():
 class TestCreateSaga:
     """Testes para create_saga."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_create_saga_with_steps(
         self, orchestrator, mock_repository, mock_event_store, sample_step_definitions
     ):
@@ -130,7 +131,7 @@ class TestCreateSaga:
         call_args = mock_event_store.record_event_raw.call_args
         assert call_args[1]["saga_id"] == saga.saga_id
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_create_saga_without_metadata(self, orchestrator, mock_repository):
         """Deve criar saga sem metadados opcionais."""
         saga = await orchestrator.create_saga(
@@ -147,7 +148,7 @@ class TestCreateSaga:
 class TestStartSaga:
     """Testes para start_saga."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_start_saga_updates_status(self, orchestrator, mock_repository, mock_event_store):
         """Deve atualizar status para STARTED."""
         from src.saga.saga_state import SagaState, SagaStatus
@@ -172,7 +173,7 @@ class TestStartSaga:
         mock_repository.save.assert_called()
         mock_event_store.record_event_raw.assert_called()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_start_saga_not_found_returns_none(self, orchestrator, mock_repository):
         """Deve retornar None se saga nao existe."""
         mock_repository.find_by_id = AsyncMock(return_value=None)
@@ -182,7 +183,7 @@ class TestStartSaga:
         assert result is None
         mock_repository.save.assert_not_called()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_start_already_started_saga_returns_current(
         self, orchestrator, mock_repository, mock_event_store
     ):
@@ -213,7 +214,7 @@ class TestStartSaga:
 class TestCompleteStep:
     """Testes para complete_step."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_complete_step_updates_status(
         self, orchestrator, mock_repository, mock_event_store
     ):
@@ -255,7 +256,7 @@ class TestCompleteStep:
         mock_repository.save.assert_called()
         mock_event_store.record_event_raw.assert_called()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_complete_step_with_next_pending(self, orchestrator, mock_repository):
         """Deve manter IN_PROGRESS se ha steps pendentes."""
         from src.saga.saga_state import SagaState, SagaStatus, SagaStep, StepStatus
@@ -296,7 +297,7 @@ class TestCompleteStep:
         assert result.current_step_index == 1
         assert step1.status == StepStatus.COMPLETED
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_complete_step_not_found_returns_none(self, orchestrator, mock_repository):
         """Deve retornar None se step nao existe."""
         from src.saga.saga_state import SagaState, SagaStatus
@@ -323,7 +324,7 @@ class TestCompleteStep:
 class TestFailStep:
     """Testes para fail_step."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_fail_step_triggers_compensation(
         self, orchestrator, mock_repository, mock_event_store
     ):
@@ -374,7 +375,7 @@ class TestFailStep:
         # Deve registrar falha do step e inicio de compensacao
         assert mock_event_store.record_event_raw.call_count == 2
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_fail_step_with_no_completed_marks_failed(self, orchestrator, mock_repository):
         """Deve marcar como FAILED se nenhum step completado."""
         from src.saga.saga_state import SagaState, SagaStatus, SagaStep, StepStatus
@@ -408,7 +409,7 @@ class TestFailStep:
         assert result.failed_at is not None
         assert step1.status == StepStatus.FAILED
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_fail_step_without_compensation(self, orchestrator, mock_repository):
         """Deve nao iniciar compensacao se parametro for False."""
         from src.saga.saga_state import SagaState, SagaStatus, SagaStep
@@ -454,7 +455,7 @@ class TestFailStep:
 class TestCompensateStep:
     """Testes para compensate_step."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_compensate_step_marks_compensated(
         self, orchestrator, mock_repository, mock_event_store
     ):
@@ -503,7 +504,7 @@ class TestCompensateStep:
         mock_repository.save.assert_called()
         mock_event_store.record_event_raw.assert_called()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_compensate_all_steps_completes_saga(self, orchestrator, mock_repository):
         """Deve marcar saga como COMPENSATED quando todos steps compensados."""
         from src.saga.saga_state import SagaState, SagaStatus, SagaStep
@@ -539,7 +540,7 @@ class TestCompensateStep:
 class TestGetSagaState:
     """Testes para get_saga_state."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_saga_state_returns_saga(self, orchestrator, mock_repository):
         """Deve retornar estado da saga."""
         from src.saga.saga_state import SagaState, SagaStatus
@@ -563,7 +564,7 @@ class TestGetSagaState:
         assert result.saga_id == "saga-123"
         assert result.status == SagaStatus.IN_PROGRESS
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_saga_state_not_found_returns_none(self, orchestrator, mock_repository):
         """Deve retornar None se saga nao existe."""
         mock_repository.find_by_id = AsyncMock(return_value=None)
@@ -576,7 +577,7 @@ class TestGetSagaState:
 class TestGetCurrentStep:
     """Testes para get_current_step."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_current_step(self, orchestrator, mock_repository):
         """Deve retornar step atual."""
         from src.saga.saga_state import SagaState, SagaStatus, SagaStep
@@ -616,7 +617,7 @@ class TestGetCurrentStep:
         assert result is not None
         assert result.step_id == "step-2"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_current_step_no_saga_returns_none(self, orchestrator, mock_repository):
         """Deve retornar None se saga nao existe."""
         mock_repository.find_by_id = AsyncMock(return_value=None)
@@ -629,7 +630,7 @@ class TestGetCurrentStep:
 class TestGetCompensationOrder:
     """Testes para get_compensation_order."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_compensation_order_returns_reversed_steps(
         self, orchestrator, mock_repository
     ):
@@ -687,7 +688,7 @@ class TestGetCompensationOrder:
 class TestRetrySaga:
     """Testes para retry_saga."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_retry_saga_resets_state(self, orchestrator, mock_repository):
         """Deve resetar estado para nova tentativa."""
         from src.saga.saga_state import SagaState, SagaStatus, SagaStep, StepStatus
@@ -727,7 +728,7 @@ class TestRetrySaga:
 
         mock_repository.save.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_retry_saga_max_retries_returns_none(self, orchestrator, mock_repository):
         """Deve retornar None se maximo de retentativas atingido."""
         from src.saga.saga_state import SagaState, SagaStatus

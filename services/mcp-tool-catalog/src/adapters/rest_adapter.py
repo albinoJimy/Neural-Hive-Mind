@@ -4,7 +4,7 @@ Adapter para ferramentas acessadas via REST API.
 
 import asyncio
 import time
-from typing import Any, Dict
+from typing import Any
 
 import aiohttp
 import structlog
@@ -27,8 +27,8 @@ class RESTAdapter(BaseToolAdapter):
         tool_id: str,
         tool_name: str,
         command: str,  # URL endpoint
-        parameters: Dict[str, Any],
-        context: Dict[str, Any],
+        parameters: dict[str, Any],
+        context: dict[str, Any],
     ) -> ExecutionResult:
         """
         Executa ferramenta REST API.

@@ -19,7 +19,7 @@ import pytest
 class TestRESTAdapterExecution:
     """Testes de execucao de requisicoes REST."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_post_success(self):
         """Deve executar POST com sucesso."""
         from src.adapters.rest_adapter import RESTAdapter
@@ -57,7 +57,7 @@ class TestRESTAdapterExecution:
             assert call_kwargs["method"] == "POST"
             assert call_kwargs["url"] == "https://api.example.com/analyze"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_get_success(self):
         """Deve executar GET com query params."""
         from src.adapters.rest_adapter import RESTAdapter
@@ -97,7 +97,7 @@ class TestRESTAdapterExecution:
 class TestRESTAdapterErrorHandling:
     """Testes de tratamento de erros HTTP."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     @pytest.mark.parametrize(
         "status_code,expected_success",
         [
@@ -152,7 +152,7 @@ class TestRESTAdapterErrorHandling:
 class TestRESTAdapterTimeoutAndRetries:
     """Testes de timeout e retries."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_timeout_after_max_retries(self):
         """Deve retornar erro apos esgotar retries por timeout."""
         from src.adapters.rest_adapter import RESTAdapter
@@ -179,7 +179,7 @@ class TestRESTAdapterTimeoutAndRetries:
             assert "timeout" in result.error.lower()
             assert result.metadata.get("timeout") is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_retry_with_exponential_backoff(self):
         """Deve fazer retry com exponential backoff."""
         from src.adapters.rest_adapter import RESTAdapter
@@ -225,7 +225,7 @@ class TestRESTAdapterTimeoutAndRetries:
             # Exponential backoff: 2^1=2, 2^2=4
             assert sleep_calls == [2, 4]
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_general_exception_handling(self):
         """Deve tratar excecoes gerais apos retries."""
         from src.adapters.rest_adapter import RESTAdapter
@@ -255,7 +255,7 @@ class TestRESTAdapterTimeoutAndRetries:
 class TestRESTAdapterAuthentication:
     """Testes de autenticacao."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_bearer_token_authentication(self):
         """Deve incluir Bearer token no header."""
         from src.adapters.rest_adapter import RESTAdapter
@@ -287,7 +287,7 @@ class TestRESTAdapterAuthentication:
             assert "Authorization" in call_kwargs["headers"]
             assert call_kwargs["headers"]["Authorization"] == "Bearer my-secret-token"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_custom_headers(self):
         """Deve passar headers customizados."""
         from src.adapters.rest_adapter import RESTAdapter
@@ -328,7 +328,7 @@ class TestRESTAdapterAuthentication:
 class TestRESTAdapterParameters:
     """Testes de parametros de requisicao."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_query_params_and_body(self):
         """Deve separar query params do body corretamente."""
         from src.adapters.rest_adapter import RESTAdapter
@@ -363,7 +363,7 @@ class TestRESTAdapterParameters:
             assert call_kwargs["params"] == {"filter": "active", "sort": "name"}
             assert call_kwargs["json"] == {"name": "test", "value": 123}
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_empty_body_sends_none(self):
         """Deve enviar None quando body esta vazio."""
         from src.adapters.rest_adapter import RESTAdapter
@@ -398,7 +398,7 @@ class TestRESTAdapterParameters:
 class TestRESTAdapterMetrics:
     """Testes de metricas."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execution_time_recorded(self):
         """Deve registrar tempo de execucao."""
         from src.adapters.rest_adapter import RESTAdapter
@@ -429,7 +429,7 @@ class TestRESTAdapterMetrics:
             assert result.execution_time_ms > 0
             assert isinstance(result.execution_time_ms, float)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_metadata_includes_request_info(self):
         """Deve incluir informacoes da requisicao no metadata."""
         from src.adapters.rest_adapter import RESTAdapter
@@ -467,7 +467,7 @@ class TestRESTAdapterMetrics:
 class TestRESTAdapterValidation:
     """Testes de validacao."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_validate_tool_availability_returns_true(self):
         """Deve retornar True para validacao (simplificado)."""
         from src.adapters.rest_adapter import RESTAdapter

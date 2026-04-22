@@ -1,4 +1,3 @@
-from typing import Dict, List
 
 import networkx as nx
 import numpy as np
@@ -14,7 +13,7 @@ class CausalAnalyzer:
     def __init__(self, min_confidence: float = 0.7):
         self.min_confidence = min_confidence
 
-    async def analyze_causal_relationship(self, cause: str, effect: str, data: Dict) -> Dict:
+    async def analyze_causal_relationship(self, cause: str, effect: str, data: dict) -> dict:
         """Analisar relação causal entre eventos e métricas"""
         try:
             time_series = data.get("time_series", [])
@@ -63,8 +62,8 @@ class CausalAnalyzer:
             return {"causal": False, "error": str(e)}
 
     def _granger_causality_test(
-        self, cause_series: List[float], effect_series: List[float], max_lag: int = 5
-    ) -> Dict:
+        self, cause_series: list[float], effect_series: list[float], max_lag: int = 5
+    ) -> dict:
         """Teste de Granger Causality"""
         try:
             # Implementação simplificada usando correlação com lag
@@ -97,8 +96,8 @@ class CausalAnalyzer:
             return {"p_value": 1.0, "best_lag": 0}
 
     def _calculate_lag_correlation(
-        self, cause_series: List[float], effect_series: List[float], max_lag: int = 10
-    ) -> Dict:
+        self, cause_series: list[float], effect_series: list[float], max_lag: int = 10
+    ) -> dict:
         """Calcular correlação com lag ótimo"""
         try:
             best_correlation = 0.0
@@ -126,7 +125,7 @@ class CausalAnalyzer:
             logger.error("calculate_lag_correlation_failed", error=str(e))
             return {"correlation": 0.0, "lag": 0}
 
-    async def build_causal_graph(self, events: List[Dict], time_window: Dict) -> Dict:
+    async def build_causal_graph(self, events: list[dict], time_window: dict) -> dict:
         """Construir grafo causal (DAG)"""
         try:
             # Criar grafo direcionado
@@ -186,7 +185,7 @@ class CausalAnalyzer:
             logger.error("build_causal_graph_failed", error=str(e))
             return {"graph": {}, "is_dag": False}
 
-    async def find_root_causes(self, effect: str, graph: Dict) -> List[str]:
+    async def find_root_causes(self, effect: str, graph: dict) -> list[str]:
         """Encontrar causas raiz para um efeito"""
         try:
             # Reconstruir grafo NetworkX
@@ -211,7 +210,7 @@ class CausalAnalyzer:
             logger.error("find_root_causes_failed", error=str(e))
             return []
 
-    async def calculate_causal_effect(self, cause: str, effect: str, data: Dict) -> float:
+    async def calculate_causal_effect(self, cause: str, effect: str, data: dict) -> float:
         """Calcular efeito causal (magnitude)"""
         try:
             time_series = data.get("time_series", [])
@@ -249,7 +248,7 @@ class CausalAnalyzer:
             logger.error("calculate_causal_effect_failed", error=str(e))
             return 0.0
 
-    async def detect_confounders(self, cause: str, effect: str, data: Dict) -> List[str]:
+    async def detect_confounders(self, cause: str, effect: str, data: dict) -> list[str]:
         """Detectar variáveis confundidoras"""
         try:
             time_series = data.get("time_series", [])
@@ -286,7 +285,7 @@ class CausalAnalyzer:
             logger.error("detect_confounders_failed", error=str(e))
             return []
 
-    async def generate_causal_explanation(self, cause: str, effect: str, chain: List[str]) -> str:
+    async def generate_causal_explanation(self, cause: str, effect: str, chain: list[str]) -> str:
         """Gerar explicação causal em linguagem natural"""
         try:
             if not chain:

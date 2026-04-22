@@ -1,8 +1,9 @@
 """Testes de integração para validação de injeção de dependências nas APIs."""
 
 import sys
-import pytest
 from unittest.mock import AsyncMock, MagicMock
+
+import pytest
 
 # Mock neural_hive_integration e outras dependências ausentes antes de qualquer importação
 mock_neural_hive = MagicMock()
@@ -291,7 +292,7 @@ class TestDependencyOverridesConfiguration:
 
     def test_dependency_functions_raise_not_implemented_without_override(self):
         """Validar que funções de dependency lançam NotImplementedError sem override."""
-        from src.api import optimizations, experiments
+        from src.api import experiments, optimizations
 
         with pytest.raises(NotImplementedError):
             optimizations.get_mongodb_client()
@@ -306,8 +307,8 @@ class TestHealthChecksDependencies:
 
     def test_readiness_check_with_all_connected(self):
         """Validar que readiness retorna ready quando todos os clients estão conectados."""
-        from src.api import health
         from src import main as app_main
+        from src.api import health
 
         # Criar app de teste
         app = FastAPI()
@@ -366,8 +367,8 @@ class TestHealthChecksDependencies:
 
     def test_readiness_check_with_disconnected_mongodb(self):
         """Validar que readiness retorna not_ready quando MongoDB está desconectado."""
-        from src.api import health
         from src import main as app_main
+        from src.api import health
 
         app = FastAPI()
         app.include_router(health.router)

@@ -2,8 +2,6 @@
 Testes unitários para métricas de SLA Alerts.
 """
 
-import pytest
-from unittest.mock import AsyncMock
 
 from src.observability.metrics import sla_metrics
 
@@ -55,7 +53,9 @@ class TestSLAAlertsMetrics:
 
         # Assert
         metric = sla_metrics.sla_notifications_sent_total
-        assert metric.labels(channel="slack", severity="warning", status="success")._value.get() == 1
+        assert (
+            metric.labels(channel="slack", severity="warning", status="success")._value.get() == 1
+        )
 
     def test_record_sla_notification_sent_error(self):
         """Testa registro de notificação com erro."""
@@ -68,7 +68,10 @@ class TestSLAAlertsMetrics:
 
         # Assert
         metric = sla_metrics.sla_notifications_sent_total
-        assert metric.labels(channel="pagerduty", severity="critical", status="error")._value.get() == 1
+        assert (
+            metric.labels(channel="pagerduty", severity="critical", status="error")._value.get()
+            == 1
+        )
 
     def test_record_sla_notification_failure(self):
         """Testa registro de falha de notificação."""
@@ -82,7 +85,9 @@ class TestSLAAlertsMetrics:
         # Assert
         metric = sla_metrics.sla_notification_failures_total
         assert (
-            metric.labels(channel="slack", severity="critical", error_type="HTTPStatusError")._value.get()
+            metric.labels(
+                channel="slack", severity="critical", error_type="HTTPStatusError"
+            )._value.get()
             == 1
         )
 
@@ -131,7 +136,10 @@ class TestSLAAlertsMetrics:
         # Verificar todas foram registradas
         metric = sla_metrics.sla_notifications_sent_total
         for channel in channels:
-            assert metric.labels(channel=channel, severity="critical", status="success")._value.get() >= 1
+            assert (
+                metric.labels(channel=channel, severity="critical", status="success")._value.get()
+                >= 1
+            )
 
     def test_record_sla_notification_sent_without_latency(self):
         """Testa registro de notificação sem latência (não deve observar histogram)."""

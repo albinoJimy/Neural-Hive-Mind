@@ -4,8 +4,8 @@ Pod Fault Injector para Chaos Engineering.
 Implementa injeção de falhas em pods como kill, restart, pause e eviction.
 """
 
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from datetime import UTC, datetime
+from typing import Any, Optional
 
 import structlog
 from kubernetes import client
@@ -28,7 +28,7 @@ class PodFaultInjector(BaseFaultInjector):
     """
 
     @property
-    def supported_fault_types(self) -> List[FaultType]:
+    def supported_fault_types(self) -> list[FaultType]:
         return [
             FaultType.POD_KILL,
             FaultType.CONTAINER_KILL,
@@ -38,7 +38,7 @@ class PodFaultInjector(BaseFaultInjector):
 
     async def inject(self, injection: FaultInjection) -> InjectionResult:
         """Injeta falha em pods."""
-        start_time = datetime.now(timezone.utc)
+        start_time = datetime.now(UTC)
 
         if injection.fault_type not in self.supported_fault_types:
             return InjectionResult(
@@ -157,7 +157,7 @@ class PodFaultInjector(BaseFaultInjector):
             fault_type=injection.fault_type,
             affected_resources=killed_pods,
             blast_radius=len(killed_pods),
-            start_time=datetime.now(timezone.utc),
+            start_time=datetime.now(UTC),
             rollback_data={
                 "type": "pod_kill",
                 "pods": original_state,
@@ -227,7 +227,7 @@ class PodFaultInjector(BaseFaultInjector):
             fault_type=injection.fault_type,
             affected_resources=killed_containers,
             blast_radius=len(killed_containers),
-            start_time=datetime.now(timezone.utc),
+            start_time=datetime.now(UTC),
             rollback_data={
                 "type": "container_kill",
                 "containers": killed_containers,
@@ -291,7 +291,7 @@ class PodFaultInjector(BaseFaultInjector):
             fault_type=injection.fault_type,
             affected_resources=paused_containers,
             blast_radius=len(paused_containers),
-            start_time=datetime.now(timezone.utc),
+            start_time=datetime.now(UTC),
             rollback_data={
                 "type": "container_pause",
                 "pods": pods,
@@ -353,7 +353,7 @@ class PodFaultInjector(BaseFaultInjector):
             fault_type=injection.fault_type,
             affected_resources=evicted_pods,
             blast_radius=len(evicted_pods),
-            start_time=datetime.now(timezone.utc),
+            start_time=datetime.now(UTC),
             rollback_data={
                 "type": "pod_eviction",
                 "pods": evicted_pods,
@@ -415,7 +415,7 @@ class PodFaultInjector(BaseFaultInjector):
                     success=True,
                     injection_id=injection_id,
                     fault_type=injection.fault_type,
-                    end_time=datetime.now(timezone.utc),
+                    end_time=datetime.now(UTC),
                     metadata={"note": "Pods recriados automaticamente pelo controller"},
                 )
 
@@ -438,7 +438,7 @@ class PodFaultInjector(BaseFaultInjector):
             )
 
     async def _resume_containers(
-        self, injection_id: str, rollback_data: Dict[str, Any]
+        self, injection_id: str, rollback_data: dict[str, Any]
     ) -> InjectionResult:
         """Resume containers pausados com SIGCONT."""
         pods = rollback_data.get("pods", [])
@@ -472,14 +472,14 @@ class PodFaultInjector(BaseFaultInjector):
                 injection_id=injection_id,
                 fault_type=FaultType.CONTAINER_PAUSE,
                 error_message=f"Rollback falhou em pods: {failed_pods}",
-                end_time=datetime.now(timezone.utc),
+                end_time=datetime.now(UTC),
             )
 
         return InjectionResult(
             success=True,
             injection_id=injection_id,
             fault_type=FaultType.CONTAINER_PAUSE,
-            end_time=datetime.now(timezone.utc),
+            end_time=datetime.now(UTC),
         )
 
     async def get_blast_radius(self, target: TargetSelector) -> int:
@@ -489,7 +489,7 @@ class PodFaultInjector(BaseFaultInjector):
 
     async def _exec_in_pod(
         self, pod_name: str, namespace: str, command: str, container: Optional[str] = None
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Executa comando em um pod via Kubernetes API."""
         if not self.k8s_core_v1:
             return {"success": False, "error": "K8s client não disponível"}

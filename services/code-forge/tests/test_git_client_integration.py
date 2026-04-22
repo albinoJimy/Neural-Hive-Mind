@@ -12,7 +12,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from src.clients.git_client import GitClient
 
 
-@pytest.fixture
+@pytest.fixture()
 def client():
     return GitClient(
         templates_repo="https://github.com/example/templates.git",
@@ -55,7 +55,7 @@ class TestExtractProjectInfo:
 class TestGitLabOperations:
     """Testes para operações GitLab"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_create_branch_gitlab_success(self, client):
         mock_http_client = AsyncMock()
 
@@ -73,7 +73,7 @@ class TestGitLabOperations:
         assert result == "feature-branch"
         mock_http_client.post.assert_awaited_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_create_branch_gitlab_already_exists(self, client):
         mock_http_client = AsyncMock()
 
@@ -93,7 +93,7 @@ class TestGitLabOperations:
 
         assert result == "existing-branch"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_commit_artifacts_gitlab(self, client):
         mock_http_client = AsyncMock()
 
@@ -116,7 +116,7 @@ class TestGitLabOperations:
 
         assert sha == "abc123def456"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_create_merge_request_gitlab(self, client):
         mock_http_client = AsyncMock()
 
@@ -142,7 +142,7 @@ class TestGitLabOperations:
 class TestGitHubOperations:
     """Testes para operações GitHub"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_create_branch_github_success(self, client):
         mock_http_client = AsyncMock()
 
@@ -164,7 +164,7 @@ class TestGitHubOperations:
 
         assert result == "feature-branch"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_create_branch_github_already_exists(self, client):
         mock_http_client = AsyncMock()
 
@@ -189,7 +189,7 @@ class TestGitHubOperations:
 
         assert result == "existing-branch"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_commit_artifacts_github(self, client):
         mock_http_client = AsyncMock()
 
@@ -232,7 +232,7 @@ class TestGitHubOperations:
 
         assert sha == "new-commit-sha"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_create_pull_request_github(self, client):
         mock_http_client = AsyncMock()
 
@@ -256,11 +256,11 @@ class TestGitHubOperations:
 class TestPushBranch:
     """Testes para push_branch"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_push_branch_gitlab(self, client):
         await client.push_branch("https://gitlab.com/myorg/myrepo.git", "feature-branch")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_push_branch_github(self, client):
         await client.push_branch("https://github.com/myuser/myrepo", "feature-branch")
 
@@ -268,7 +268,7 @@ class TestPushBranch:
 class TestCloseClient:
     """Testes para close"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_close_clients(self, client):
         mock_gitlab = AsyncMock()
         mock_github = AsyncMock()

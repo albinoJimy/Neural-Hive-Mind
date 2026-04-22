@@ -17,21 +17,21 @@ Cobertura:
 """
 
 import asyncio
-import pytest
-from datetime import datetime, timezone, timedelta
+from datetime import UTC, datetime, timedelta
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock
-from typing import Dict, Any
 
+import pytest
+from src.clients.service_registry_client import ServiceRegistryClient
+from src.config.settings import OrchestratorSettings
+from src.observability.metrics import OrchestratorMetrics
+from src.policies.policy_validator import PolicyValidator
 from src.scheduler.intelligent_scheduler import IntelligentScheduler
 from src.scheduler.priority_calculator import PriorityCalculator
 from src.scheduler.resource_allocator import ResourceAllocator
-from src.clients.service_registry_client import ServiceRegistryClient
-from src.policies.policy_validator import PolicyValidator
-from src.config.settings import OrchestratorSettings
-from src.observability.metrics import OrchestratorMetrics
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_service_registry_client():
     """Service Registry mock realista."""
     client = AsyncMock(spec=ServiceRegistryClient)
@@ -62,7 +62,7 @@ def mock_service_registry_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_opa_client():
     """OPA client mock."""
     client = AsyncMock()
@@ -70,7 +70,7 @@ def mock_opa_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_policy_validator():
     """PolicyValidator mock."""
     validator = AsyncMock(spec=PolicyValidator)
@@ -85,7 +85,7 @@ def mock_policy_validator():
     return validator
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_ml_predictor():
     """MLPredictor mock."""
     predictor = AsyncMock()
@@ -101,7 +101,7 @@ def mock_ml_predictor():
     return predictor
 
 
-@pytest.fixture
+@pytest.fixture()
 def real_config():
     """Config real com valores de teste."""
     config = MagicMock(spec=OrchestratorSettings)
@@ -114,14 +114,14 @@ def real_config():
     return config
 
 
-@pytest.fixture
+@pytest.fixture()
 def real_metrics():
     """Metrics real para testes de integração."""
     return OrchestratorMetrics()
 
 
-@pytest.fixture
-def sample_cognitive_plan() -> Dict[str, Any]:
+@pytest.fixture()
+def sample_cognitive_plan() -> dict[str, Any]:
     """Plano cognitivo com múltiplas tarefas."""
     return {
         "plan_id": "plan-123",
@@ -144,21 +144,21 @@ def sample_cognitive_plan() -> Dict[str, Any]:
     }
 
 
-@pytest.fixture
-def sample_consolidated_decision() -> Dict[str, Any]:
+@pytest.fixture()
+def sample_consolidated_decision() -> dict[str, Any]:
     """Decisão de consenso."""
     return {
         "decision_id": "decision-123",
         "correlation_id": "corr-123",
         "trace_id": "trace-123",
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
     }
 
 
 class TestSchedulerIntegration:
     """Testes de integração para scheduler."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_full_scheduling_flow_success(
         self, mock_service_registry_client, real_config, real_metrics
     ):
@@ -185,14 +185,14 @@ class TestSchedulerIntegration:
                 "durability": "PERSISTENT",
             },
             "sla": {
-                "deadline": (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat(),
+                "deadline": (datetime.now(UTC) + timedelta(hours=1)).isoformat(),
                 "timeout_ms": 3600000,
             },
             "required_capabilities": ["python", "data-processing"],
             "namespace": "default",
             "security_level": "standard",
             "estimated_duration_ms": 1000,
-            "created_at": datetime.now(timezone.utc).isoformat(),
+            "created_at": datetime.now(UTC).isoformat(),
         }
 
         # Executar
@@ -205,7 +205,7 @@ class TestSchedulerIntegration:
         assert result["allocation_metadata"]["priority_score"] > 0.5
         assert result["allocation_metadata"]["workers_evaluated"] == 2
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_scheduling_with_service_registry_unavailable(self, real_config, real_metrics):
         """Testa fallback quando Service Registry está indisponível."""
         # Criar client que falha
@@ -234,7 +234,7 @@ class TestSchedulerIntegration:
             "namespace": "default",
             "security_level": "standard",
             "estimated_duration_ms": 1000,
-            "created_at": datetime.now(timezone.utc).isoformat(),
+            "created_at": datetime.now(UTC).isoformat(),
         }
 
         # Executar
@@ -244,7 +244,7 @@ class TestSchedulerIntegration:
         assert result["allocation_metadata"]["allocation_method"] == "fallback_stub"
         assert result["allocation_metadata"]["agent_id"] == "worker-agent-pool"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_scheduling_with_ml_predictions_integration(
         self, mock_service_registry_client, real_config, real_metrics
     ):
@@ -271,7 +271,7 @@ class TestSchedulerIntegration:
             "namespace": "default",
             "security_level": "standard",
             "estimated_duration_ms": 1000,
-            "created_at": datetime.now(timezone.utc).isoformat(),
+            "created_at": datetime.now(UTC).isoformat(),
             "predictions": {
                 "duration_ms": 1800,  # 180% do estimado
                 "anomaly": {
@@ -288,7 +288,7 @@ class TestSchedulerIntegration:
         # Verificar boost de prioridade
         assert result["allocation_metadata"]["priority_score"] > 0.5
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_scheduling_cache_behavior_across_tickets(
         self, mock_service_registry_client, real_config, real_metrics
     ):
@@ -317,7 +317,7 @@ class TestSchedulerIntegration:
                 "namespace": "default",
                 "security_level": "standard",
                 "estimated_duration_ms": 1000,
-                "created_at": datetime.now(timezone.utc).isoformat(),
+                "created_at": datetime.now(UTC).isoformat(),
             }
             tickets.append(ticket)
 
@@ -328,7 +328,7 @@ class TestSchedulerIntegration:
         # Verificar: discover_agents chamado apenas uma vez (cache)
         assert mock_service_registry_client.discover_agents.call_count == 1
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_scheduling_concurrent_tickets(
         self, mock_service_registry_client, real_config, real_metrics
     ):
@@ -357,7 +357,7 @@ class TestSchedulerIntegration:
                 "namespace": "default",
                 "security_level": "standard",
                 "estimated_duration_ms": 1000,
-                "created_at": datetime.now(timezone.utc).isoformat(),
+                "created_at": datetime.now(UTC).isoformat(),
             }
             tickets.append(ticket)
 
@@ -369,7 +369,7 @@ class TestSchedulerIntegration:
         for result in results:
             assert "allocation_metadata" in result
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_scheduling_with_different_risk_bands(
         self, mock_service_registry_client, real_config, real_metrics
     ):
@@ -400,7 +400,7 @@ class TestSchedulerIntegration:
                 "namespace": "default",
                 "security_level": "standard",
                 "estimated_duration_ms": 1000,
-                "created_at": datetime.now(timezone.utc).isoformat(),
+                "created_at": datetime.now(UTC).isoformat(),
             }
 
             result = await scheduler.schedule_ticket(ticket)
@@ -411,7 +411,7 @@ class TestSchedulerIntegration:
         assert results["high"] > results["normal"]
         assert results["normal"] > results["low"]
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_scheduling_latency_under_slo(
         self, mock_service_registry_client, real_config, real_metrics
     ):
@@ -438,18 +438,18 @@ class TestSchedulerIntegration:
             "namespace": "default",
             "security_level": "standard",
             "estimated_duration_ms": 1000,
-            "created_at": datetime.now(timezone.utc).isoformat(),
+            "created_at": datetime.now(UTC).isoformat(),
         }
 
         # Medir latência
-        start = datetime.now(timezone.utc)
+        start = datetime.now(UTC)
         await scheduler.schedule_ticket(ticket)
-        duration = (datetime.now(timezone.utc) - start).total_seconds()
+        duration = (datetime.now(UTC) - start).total_seconds()
 
         # Verificar SLO (<200ms = 0.2s)
         assert duration < 0.2
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_allocate_resources_with_opa_rejection(
         self,
         mock_service_registry_client,
@@ -495,7 +495,7 @@ class TestSchedulerIntegration:
             "namespace": "default",
             "security_level": "standard",
             "estimated_duration_ms": 1000,
-            "created_at": datetime.now(timezone.utc).isoformat(),
+            "created_at": datetime.now(UTC).isoformat(),
         }
 
         # Simular activity allocate_resources
@@ -511,7 +511,7 @@ class TestSchedulerIntegration:
         # Verificar que feature flag ainda está disponível mesmo com rejeição
         assert "enable_intelligent_scheduler" in validation_result.feature_flags
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_allocate_resources_with_feature_flag_disabled(
         self, mock_service_registry_client, mock_policy_validator, real_config, real_metrics
     ):
@@ -545,7 +545,7 @@ class TestSchedulerIntegration:
             "namespace": "default",
             "security_level": "standard",
             "estimated_duration_ms": 1000,
-            "created_at": datetime.now(timezone.utc).isoformat(),
+            "created_at": datetime.now(UTC).isoformat(),
         }
 
         # Simular lógica de allocate_resources com feature flag

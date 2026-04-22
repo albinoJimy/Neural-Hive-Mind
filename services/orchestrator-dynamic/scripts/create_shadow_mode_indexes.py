@@ -17,9 +17,8 @@ from pathlib import Path
 # Adicionar path das bibliotecas
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from config.settings import get_settings
 from clients.mongodb_client import MongoDBClient
-
+from config.settings import get_settings
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"

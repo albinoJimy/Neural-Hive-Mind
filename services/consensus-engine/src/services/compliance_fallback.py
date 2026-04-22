@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Tuple
+from typing import Any
 
 import structlog
 
@@ -12,7 +12,7 @@ class ComplianceFallback:
         self.config = config
         self.compliance_rules = self._load_compliance_rules()
 
-    def _load_compliance_rules(self) -> Dict[str, Any]:
+    def _load_compliance_rules(self) -> dict[str, Any]:
         """Carrega regras de compliance
 
         MVP: Regras hardcoded
@@ -26,7 +26,7 @@ class ComplianceFallback:
             "require_unanimous_for_critical": self.config.require_unanimous_for_critical,
         }
 
-    def _detect_degraded_specialists(self, opinions: List[Dict[str, Any]]) -> Dict[str, Any]:
+    def _detect_degraded_specialists(self, opinions: list[dict[str, Any]]) -> dict[str, Any]:
         """
         Detecta specialists usando fallbacks heurísticos ao invés de modelos ML.
 
@@ -104,7 +104,7 @@ class ComplianceFallback:
 
         return result
 
-    def _calculate_adaptive_thresholds(self, degradation_info: Dict[str, Any]) -> Dict[str, float]:
+    def _calculate_adaptive_thresholds(self, degradation_info: dict[str, Any]) -> dict[str, float]:
         """
         Calcula thresholds adaptativos baseado no estado de saúde dos modelos.
 
@@ -160,13 +160,13 @@ class ComplianceFallback:
 
     def check_compliance(
         self,
-        cognitive_plan: Dict[str, Any],
-        opinions: List[Dict[str, Any]],
+        cognitive_plan: dict[str, Any],
+        opinions: list[dict[str, Any]],
         aggregated_confidence: float,
         aggregated_risk: float,
         divergence: float,
         is_unanimous: bool,
-    ) -> Tuple[bool, List[str], Dict[str, Any]]:
+    ) -> tuple[bool, list[str], dict[str, Any]]:
         """
         Verifica compliance com thresholds adaptativos baseados em saúde dos modelos.
 
@@ -240,7 +240,7 @@ class ComplianceFallback:
         return is_compliant, violations, adaptive_thresholds
 
     def apply_fallback_decision(
-        self, cognitive_plan: Dict[str, Any], opinions: List[Dict[str, Any]], violations: List[str]
+        self, cognitive_plan: dict[str, Any], opinions: list[dict[str, Any]], violations: list[str]
     ) -> str:
         """Aplica decisão determinística de fallback
 

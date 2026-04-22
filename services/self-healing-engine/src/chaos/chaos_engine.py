@@ -6,9 +6,9 @@ playbooks e geração de relatórios.
 """
 
 import asyncio
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from time import perf_counter
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 import structlog
 from prometheus_client import REGISTRY, Counter, Gauge, Histogram
@@ -236,7 +236,7 @@ class ChaosEngine:
         self.k8s_custom_objects = None
 
         # Injetores de falha
-        self.injectors: Dict[str, BaseFaultInjector] = {}
+        self.injectors: dict[str, BaseFaultInjector] = {}
 
         # Validadores
         self.playbook_validator: Optional[PlaybookValidator] = None
@@ -246,11 +246,11 @@ class ChaosEngine:
         self.scenario_library = ScenarioLibrary()
 
         # Estado
-        self._active_experiments: Dict[str, ChaosExperiment] = {}
+        self._active_experiments: dict[str, ChaosExperiment] = {}
         self._experiment_semaphore: Optional[asyncio.Semaphore] = None
 
         # Cache em memória para experimentos quando MongoDB não está disponível
-        self._experiment_cache: Dict[str, ChaosExperiment] = {}
+        self._experiment_cache: dict[str, ChaosExperiment] = {}
 
         # Circuit breaker para operações de chaos
         self._circuit_breaker = MonitoredCircuitBreaker(
@@ -438,7 +438,7 @@ class ChaosEngine:
     ) -> ExperimentReport:
         """Execução interna do experimento."""
         start_time = perf_counter()
-        experiment.started_at = datetime.now(timezone.utc)
+        experiment.started_at = datetime.now(UTC)
         experiment.executed_by = executed_by
         experiment.status = ChaosExperimentStatus.INJECTING
 
@@ -574,14 +574,14 @@ class ChaosEngine:
                     if all_validations_passed
                     else ChaosExperimentStatus.FAILED
                 )
-                experiment.completed_at = datetime.now(timezone.utc)
+                experiment.completed_at = datetime.now(UTC)
 
         except Exception as e:
             logger.error(
                 "chaos_engine.experiment_failed", experiment_id=experiment.id, error=str(e)
             )
             experiment.status = ChaosExperimentStatus.FAILED
-            experiment.completed_at = datetime.now(timezone.utc)
+            experiment.completed_at = datetime.now(UTC)
 
             # Rollback de emergência
             await self._rollback_all_injections(experiment)
@@ -652,7 +652,7 @@ class ChaosEngine:
 
         if success:
             experiment.status = ChaosExperimentStatus.ROLLED_BACK
-            experiment.completed_at = datetime.now(timezone.utc)
+            experiment.completed_at = datetime.now(UTC)
             await self._update_experiment_status(experiment)
             self._active_experiments.pop(experiment_id, None)
             ACTIVE_EXPERIMENTS.dec()
@@ -665,11 +665,11 @@ class ChaosEngine:
             return self._active_experiments[experiment_id]
         return await self._get_experiment(experiment_id)
 
-    def list_scenarios(self) -> List[str]:
+    def list_scenarios(self) -> list[str]:
         """Lista cenários disponíveis."""
         return self.scenario_library.list_scenarios()
 
-    def get_scenario_info(self, scenario_name: str) -> Optional[Dict[str, Any]]:
+    def get_scenario_info(self, scenario_name: str) -> Optional[dict[str, Any]]:
         """Retorna informações sobre um cenário."""
         return self.scenario_library.get_scenario_info(scenario_name)
 
@@ -679,7 +679,7 @@ class ChaosEngine:
         config: ScenarioConfig,
         executed_by: Optional[str] = None,
         executor_role: str = "chaos-engineer",
-        executor_groups: Optional[List[str]] = None,
+        executor_groups: Optional[list[str]] = None,
     ) -> ExperimentReport:
         """
         Executa um cenário pré-definido.
@@ -757,7 +757,7 @@ class ChaosEngine:
             observations=["Validação concluída via execução de cenário"],
         )
 
-    def get_active_experiments(self) -> List[ChaosExperiment]:
+    def get_active_experiments(self) -> list[ChaosExperiment]:
         """Retorna lista de experimentos ativos."""
         return list(self._active_experiments.values())
 
@@ -766,8 +766,8 @@ class ChaosEngine:
         experiment: ChaosExperiment,
         executor_name: Optional[str] = None,
         executor_role: str = "unknown",
-        executor_groups: Optional[List[str]] = None,
-    ) -> tuple[bool, List[str]]:
+        executor_groups: Optional[list[str]] = None,
+    ) -> tuple[bool, list[str]]:
         """
         Valida experimento com políticas OPA.
 
@@ -899,8 +899,8 @@ class ChaosEngine:
     def _generate_report(
         self,
         experiment: ChaosExperiment,
-        injection_results: List[Any],
-        validation_results: List[ValidationResult],
+        injection_results: list[Any],
+        validation_results: list[ValidationResult],
         blast_radius: int,
         duration: float,
     ) -> ExperimentReport:
@@ -932,8 +932,8 @@ class ChaosEngine:
             experiment_id=experiment.id,
             experiment_name=experiment.name,
             environment=experiment.environment,
-            start_time=experiment.started_at or datetime.now(timezone.utc),
-            end_time=experiment.completed_at or datetime.now(timezone.utc),
+            start_time=experiment.started_at or datetime.now(UTC),
+            end_time=experiment.completed_at or datetime.now(UTC),
             duration_seconds=duration,
             status=experiment.status,
             fault_injections=experiment.fault_injections,
@@ -954,9 +954,9 @@ class ChaosEngine:
     def _generate_recommendations(
         self,
         experiment: ChaosExperiment,
-        validation_results: List[ValidationResult],
+        validation_results: list[ValidationResult],
         blast_radius: int,
-    ) -> List[str]:
+    ) -> list[str]:
         """Gera recomendações baseadas nos resultados."""
         recommendations = []
 
@@ -1091,7 +1091,7 @@ class ChaosEngine:
                 "experiment_name": experiment.name,
                 "status": experiment.status.value,
                 "environment": experiment.environment,
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
             }
 
             await self.kafka_producer.send(KAFKA_TOPICS["experiments"], event)

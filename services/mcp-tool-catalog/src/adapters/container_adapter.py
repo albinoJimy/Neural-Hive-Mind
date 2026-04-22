@@ -3,7 +3,7 @@ Adapter para ferramentas executadas via containers Docker.
 """
 
 import time
-from typing import Any, Dict
+from typing import Any
 
 import structlog
 
@@ -27,8 +27,8 @@ class ContainerAdapter(BaseToolAdapter):
         tool_id: str,
         tool_name: str,
         command: str,  # Docker image
-        parameters: Dict[str, Any],
-        context: Dict[str, Any],
+        parameters: dict[str, Any],
+        context: dict[str, Any],
     ) -> ExecutionResult:
         """
         Executa ferramenta via Docker container.
@@ -132,7 +132,7 @@ class ContainerAdapter(BaseToolAdapter):
             return False
 
     def _build_docker_command(
-        self, image: str, parameters: Dict[str, Any], context: Dict[str, Any]
+        self, image: str, parameters: dict[str, Any], context: dict[str, Any]
     ) -> str:
         """
         Constrói comando 'docker run' completo.

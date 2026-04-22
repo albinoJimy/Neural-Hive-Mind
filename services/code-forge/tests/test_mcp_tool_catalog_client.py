@@ -12,14 +12,14 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from src.clients.mcp_tool_catalog_client import MCPToolCatalogClient
 
 
-@pytest.fixture
+@pytest.fixture()
 def client():
     c = MCPToolCatalogClient("localhost", 8080)
     c.client = AsyncMock()
     return c
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_request_tool_selection_success(client):
     """Deve retornar dict quando HTTP 200."""
     response = MagicMock()
@@ -36,7 +36,7 @@ async def test_request_tool_selection_success(client):
     client.client.post.assert_awaited_once()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_request_tool_selection_http_error(client):
     """Deve retornar None em erro HTTP."""
     client.client.post = AsyncMock(side_effect=httpx.HTTPError("boom"))
@@ -46,7 +46,7 @@ async def test_request_tool_selection_http_error(client):
     assert result is None
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_send_tool_feedback_success(client):
     """Deve retornar True quando feedback é enviado."""
     response = MagicMock()
@@ -67,7 +67,7 @@ async def test_send_tool_feedback_success(client):
     client.client.post.assert_awaited_once()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_send_tool_feedback_failure(client):
     """Deve retornar False em erro HTTP."""
     client.client.post = AsyncMock(side_effect=httpx.HTTPError("fail"))
@@ -85,7 +85,7 @@ async def test_send_tool_feedback_failure(client):
     assert success is False
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_get_tool_success(client):
     """Deve retornar descriptor quando encontrado."""
     response = MagicMock()
@@ -99,7 +99,7 @@ async def test_get_tool_success(client):
     client.client.get.assert_awaited_once_with("/api/v1/tools/tool-1")
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_list_tools_with_filters(client):
     """Deve passar params para listagem com filtro de categoria."""
     response = MagicMock()

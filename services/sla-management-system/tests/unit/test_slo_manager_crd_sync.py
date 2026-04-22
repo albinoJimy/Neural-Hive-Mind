@@ -1,13 +1,13 @@
 """Testes unitarios para sincronizacao de CRDs no SLOManager."""
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock
 
+import pytest
+from src.models.slo_definition import SLIQuery, SLODefinition, SLOType
 from src.services.slo_manager import SLOManager
-from src.models.slo_definition import SLODefinition, SLOType, SLIQuery
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_crd_spec():
     """Fixture com spec de CRD valido."""
     return {
@@ -28,7 +28,7 @@ def mock_crd_spec():
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_crd(mock_crd_spec):
     """Fixture com CRD completo."""
     return {
@@ -39,7 +39,7 @@ def mock_crd(mock_crd_spec):
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_postgresql_client():
     """Fixture com mock do PostgreSQL client."""
     client = MagicMock()
@@ -50,7 +50,7 @@ def mock_postgresql_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_prometheus_client():
     """Fixture com mock do Prometheus client."""
     client = MagicMock()
@@ -58,7 +58,7 @@ def mock_prometheus_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_kubernetes_client():
     """Fixture com mock do Kubernetes client."""
     client = MagicMock()
@@ -72,7 +72,7 @@ def mock_kubernetes_client():
 class TestSyncFromCrdsCreateNewSlos:
     """Testes para criacao de novos SLOs."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_sync_from_crds_creates_new_slos(
         self, mock_postgresql_client, mock_prometheus_client, mock_kubernetes_client, mock_crd
     ):
@@ -110,7 +110,7 @@ class TestSyncFromCrdsCreateNewSlos:
 class TestSyncFromCrdsUpdateExisting:
     """Testes para atualizacao de SLOs existentes."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_sync_from_crds_updates_existing_slos(
         self, mock_postgresql_client, mock_prometheus_client, mock_kubernetes_client, mock_crd
     ):
@@ -153,7 +153,7 @@ class TestSyncFromCrdsUpdateExisting:
 class TestSyncFromCrdsSkipUnchanged:
     """Testes para skip de SLOs sem mudancas."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_sync_from_crds_skips_unchanged_slos(
         self, mock_postgresql_client, mock_prometheus_client, mock_kubernetes_client, mock_crd
     ):
@@ -197,7 +197,7 @@ class TestSyncFromCrdsSkipUnchanged:
 class TestSyncFromCrdsErrorHandling:
     """Testes para tratamento de erros."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_sync_from_crds_handles_kubernetes_errors(
         self, mock_postgresql_client, mock_prometheus_client, mock_kubernetes_client
     ):
@@ -216,7 +216,7 @@ class TestSyncFromCrdsErrorHandling:
         # Deve retornar lista vazia e nao lancar excecao
         assert synced_ids == []
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_sync_from_crds_without_kubernetes_client(
         self, mock_postgresql_client, mock_prometheus_client
     ):
@@ -232,7 +232,7 @@ class TestSyncFromCrdsErrorHandling:
         # Deve retornar lista vazia
         assert synced_ids == []
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_sync_from_crds_with_unhealthy_client(
         self, mock_postgresql_client, mock_prometheus_client, mock_kubernetes_client
     ):

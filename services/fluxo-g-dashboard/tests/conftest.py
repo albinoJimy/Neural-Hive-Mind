@@ -3,10 +3,11 @@
 import pytest
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_monitor_service():
     """Mock do monitor service."""
     from unittest.mock import AsyncMock
+
     from src.models.dashboard import DashboardMetrics, FluxoGWorkflowDetail
 
     service = AsyncMock()
@@ -23,7 +24,7 @@ def mock_monitor_service():
                 "documentation": True,
                 "knowledge_graph": True,
                 "approval": True,
-            }
+            },
         )
     )
     service.get_recent_workflows = AsyncMock(
@@ -44,9 +45,7 @@ def mock_monitor_service():
         )
     )
     service.get_pending_approvals = AsyncMock(return_value=[])
-    service.get_knowledge_graph_stats = AsyncMock(
-        return_value={"nodes": 100, "relations": 80}
-    )
+    service.get_knowledge_graph_stats = AsyncMock(return_value={"nodes": 100, "relations": 80})
     service._check_services_health = AsyncMock(
         return_value={
             "orchestrator": True,
@@ -60,7 +59,7 @@ def mock_monitor_service():
     return service
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_http_client():
     """Mock do cliente HTTP."""
     from unittest.mock import AsyncMock

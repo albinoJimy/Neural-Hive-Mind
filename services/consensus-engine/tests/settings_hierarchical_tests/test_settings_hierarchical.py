@@ -4,9 +4,10 @@ Testes unitários para configurações de senioridade hierárquica.
 TDD: Testes escritos antes da implementação (RED phase).
 """
 
+import os
+
 import pytest
 from pydantic import ValidationError
-import os
 
 
 class TestHierarchicalConsensusSettings:
@@ -162,11 +163,12 @@ class TestHierarchicalConsensusIntegration:
         os.environ["MONGODB_URI"] = "mongodb://localhost:27017"
         os.environ["REDIS_CLUSTER_NODES"] = "localhost:6379"
 
-        from src.config.settings import Settings
         import importlib.util
+        from enum import Enum
         from pathlib import Path
         from unittest.mock import MagicMock
-        from enum import Enum
+
+        from src.config.settings import Settings
 
         # Mock neural_hive_domain
         class UnifiedDomain(str, Enum):

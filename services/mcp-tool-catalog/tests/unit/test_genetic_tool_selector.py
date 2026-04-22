@@ -23,7 +23,7 @@ import pytest
 class TestGeneticToolSelectorSelection:
     """Testes de selecao de ferramentas."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_select_tools_success(
         self,
         mock_settings,
@@ -46,7 +46,7 @@ class TestGeneticToolSelectorSelection:
         assert len(response.selected_tools) >= 1
         assert response.total_fitness_score > 0
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_select_tools_returns_requested_categories(
         self, mock_settings, mock_tool_registry_with_multiple_tools, sample_tool_selection_request
     ):
@@ -68,7 +68,7 @@ class TestGeneticToolSelectorSelection:
 class TestGeneticToolSelectorCache:
     """Testes de cache Redis."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_select_tools_cache_hit(
         self,
         mock_settings,
@@ -77,8 +77,8 @@ class TestGeneticToolSelectorCache:
         sample_tool_selection_request,
     ):
         """Deve retornar resposta cacheada quando disponivel."""
-        from src.services.genetic_tool_selector import GeneticToolSelector
         from src.models.tool_selection import SelectionMethod
+        from src.services.genetic_tool_selector import GeneticToolSelector
 
         # Configurar cache hit
         cached_response = {
@@ -108,7 +108,7 @@ class TestGeneticToolSelectorCache:
         assert response.cached is True
         mock_metrics.record_selection.assert_called()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_select_tools_cache_miss(
         self, mock_settings, mock_tool_registry_with_multiple_tools, sample_tool_selection_request
     ):
@@ -134,7 +134,7 @@ class TestGeneticToolSelectorCache:
 class TestGeneticToolSelectorGA:
     """Testes do algoritmo genetico."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_ga_converges(
         self, mock_settings, mock_tool_registry_with_multiple_tools, sample_tool_selection_request
     ):
@@ -156,7 +156,7 @@ class TestGeneticToolSelectorGA:
         # Pode convergir antes de max generations
         assert response.generations_evolved <= mock_settings.GA_MAX_GENERATIONS
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_ga_respects_max_generations(
         self, mock_settings, mock_tool_registry_with_multiple_tools, sample_tool_selection_request
     ):
@@ -180,7 +180,7 @@ class TestGeneticToolSelectorGA:
 class TestGeneticToolSelectorTimeout:
     """Testes de timeout."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_ga_timeout_fallback_heuristic(
         self,
         mock_settings,
@@ -189,8 +189,8 @@ class TestGeneticToolSelectorTimeout:
         sample_tool_selection_request,
     ):
         """Deve usar fallback heuristico em caso de timeout."""
-        from src.services.genetic_tool_selector import GeneticToolSelector
         from src.models.tool_selection import SelectionMethod
+        from src.services.genetic_tool_selector import GeneticToolSelector
 
         # Configurar timeout muito curto
         mock_settings.GA_TIMEOUT_SECONDS = 0.0001  # 0.1ms - impossivel completar
@@ -223,13 +223,13 @@ class TestGeneticToolSelectorTimeout:
 class TestGeneticToolSelectorPopulation:
     """Testes de criacao de populacao."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_create_initial_population_size(
         self, mock_settings, mock_tool_registry_with_multiple_tools, sample_tool_selection_request
     ):
         """Deve criar populacao com tamanho correto."""
-        from src.services.genetic_tool_selector import GeneticToolSelector
         from src.models.tool_descriptor import ToolCategory
+        from src.services.genetic_tool_selector import GeneticToolSelector
 
         mock_settings.GA_POPULATION_SIZE = 15
 
@@ -258,13 +258,13 @@ class TestGeneticToolSelectorPopulation:
 class TestGeneticToolSelectorHeuristic:
     """Testes de selecao heuristica."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_heuristic_selects_highest_reputation(
         self, mock_settings, mock_tool_registry_with_multiple_tools, sample_tool_selection_request
     ):
         """Heuristica deve selecionar ferramentas com maior reputacao."""
-        from src.services.genetic_tool_selector import GeneticToolSelector
         from src.models.tool_descriptor import ToolCategory
+        from src.services.genetic_tool_selector import GeneticToolSelector
 
         selector = GeneticToolSelector(
             tool_registry=mock_tool_registry_with_multiple_tools,
@@ -291,13 +291,13 @@ class TestGeneticToolSelectorHeuristic:
 class TestGeneticToolSelectorFallback:
     """Testes de respostas fallback."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_fallback_response_no_tools(
         self, mock_settings, mock_tool_registry_with_multiple_tools, sample_tool_selection_request
     ):
         """Deve retornar fallback quando nao ha ferramentas."""
-        from src.services.genetic_tool_selector import GeneticToolSelector
         from src.models.tool_selection import SelectionMethod
+        from src.services.genetic_tool_selector import GeneticToolSelector
 
         # Configurar registry sem ferramentas
         mock_tool_registry_with_multiple_tools.list_tools_by_category = AsyncMock(return_value=[])
@@ -317,7 +317,7 @@ class TestGeneticToolSelectorFallback:
 class TestGeneticToolSelectorMetrics:
     """Testes de metricas."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_metrics_recorded_on_success(
         self,
         mock_settings,
@@ -339,7 +339,7 @@ class TestGeneticToolSelectorMetrics:
         mock_metrics.record_genetic_algorithm.assert_called()
         mock_metrics.record_selection.assert_called()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_metrics_recorded_on_cache_hit(
         self,
         mock_settings,
@@ -348,8 +348,8 @@ class TestGeneticToolSelectorMetrics:
         sample_tool_selection_request,
     ):
         """Deve registrar metricas em cache hit."""
-        from src.services.genetic_tool_selector import GeneticToolSelector
         from src.models.tool_selection import SelectionMethod
+        from src.services.genetic_tool_selector import GeneticToolSelector
 
         cached_response = {
             "request_id": sample_tool_selection_request.request_id,
@@ -386,7 +386,7 @@ class TestGeneticToolSelectorMetrics:
 class TestGeneticToolSelectorHistory:
     """Testes de historico MongoDB."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_saves_selection_history(
         self, mock_settings, mock_tool_registry_with_multiple_tools, sample_tool_selection_request
     ):

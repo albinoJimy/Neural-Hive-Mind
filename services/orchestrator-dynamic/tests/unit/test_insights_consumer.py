@@ -5,12 +5,13 @@ Testa o consumer que processa insights.analyzed do Analyst Agents,
 enriquecendo Cognitive Plans e armazenando insights para histórico.
 """
 
-import pytest
-import json
 import asyncio
+import json
 import sys
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 
 # Adicionar src ao path
 src_path = str(Path(__file__).parent.parent.parent / "src")
@@ -24,7 +25,7 @@ sys.modules["neural_hive_security.cors"] = MagicMock()
 from src.consumers.insights_consumer import InsightsConsumer
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_config():
     """Config mock para testes."""
     config = MagicMock()
@@ -35,14 +36,14 @@ def mock_config():
     return config
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_mongodb_client():
     """MongoDB client mock."""
     mongodb = AsyncMock()
     return mongodb
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_metrics():
     """Metrics mock."""
     metrics = MagicMock()
@@ -52,7 +53,7 @@ def mock_metrics():
     return metrics
 
 
-@pytest.fixture
+@pytest.fixture()
 def consumer(mock_config, mock_mongodb_client, mock_metrics):
     """Consumer instance para testes."""
     return InsightsConsumer(
@@ -71,7 +72,7 @@ class TestInsightsConsumerInitialization:
         assert consumer.consumer is None  # Não inicializado automaticamente
         assert consumer.running is False
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_consumer_initialize(self, consumer):
         """Consumer deve inicializar corretamente."""
         mock_producer = MagicMock()
@@ -89,7 +90,7 @@ class TestInsightsConsumerInitialization:
 class TestProcessMessage:
     """Testes de processamento de mensagens."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_process_high_priority_insight(self, consumer, mock_mongodb_client):
         """Deve processar insight de alta prioridade."""
         insight_data = {
@@ -131,7 +132,7 @@ class TestProcessMessage:
         # Verificar que insight foi armazenado
         mock_mongodb_client.insert_insight.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_filter_low_priority_insight(self, consumer, mock_mongodb_client):
         """Deve filtrar insight de baixa prioridade."""
         insight_data = {
@@ -156,7 +157,7 @@ class TestProcessMessage:
         mock_mongodb_client.get_cognitive_plan.assert_not_called()
         mock_mongodb_client.insert_insight.assert_not_called()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_process_insight_without_plan(self, consumer, mock_mongodb_client):
         """Deve processar insight sem plan_id (apenas armazenar)."""
         insight_data = {
@@ -180,7 +181,7 @@ class TestProcessMessage:
         # Deve armazenar mesmo sem plan_id
         mock_mongodb_client.insert_insight.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_skip_insight_for_completed_plan(self, consumer, mock_mongodb_client):
         """Deve ignorar insight para plano já completado."""
         insight_data = {
@@ -207,7 +208,7 @@ class TestProcessMessage:
         # Não deve atualizar plano completado
         mock_mongodb_client.update_cognitive_plan.assert_not_called()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_prevent_duplicate_insights(self, consumer, mock_mongodb_client):
         """Deve prevenir duplicação de insights no plano."""
         insight_data = {
@@ -247,7 +248,7 @@ class TestProcessMessage:
 class TestEnrichCognitivePlan:
     """Testes de enriquecimento de Cognitive Plan."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_enrich_plan_with_insight(self, consumer, mock_mongodb_client):
         """Deve enriquecer plano com insight."""
         insight = {
@@ -277,7 +278,7 @@ class TestEnrichCognitivePlan:
         assert updated_insights[0]["insight_id"] == "insight-123"
         assert "received_at" in updated_insights[0]
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_enrich_plan_without_mongodb(self, consumer):
         """Deve lidar gracefully com MongoDB indisponível."""
         consumer.mongodb_client = None
@@ -291,7 +292,7 @@ class TestEnrichCognitivePlan:
 class TestStoreInsight:
     """Testes de armazenamento de insight."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_store_insight_in_mongodb(self, consumer, mock_mongodb_client):
         """Deve armazenar insight no MongoDB."""
         insight = {
@@ -313,7 +314,7 @@ class TestStoreInsight:
         assert "received_at" in stored_insight
         assert stored_insight["consumer"] == "orchestrator-dynamic"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_store_without_mongodb(self, consumer):
         """Deve lidar gracefully com MongoDB indisponível."""
         consumer.mongodb_client = None
@@ -327,7 +328,7 @@ class TestStoreInsight:
 class TestConsumerLifecycle:
     """Testes de ciclo de vida do consumer."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_start_stop_consumer(self, consumer):
         """Deve iniciar e parar consumer corretamente."""
         mock_consumer = AsyncMock()
@@ -337,7 +338,7 @@ class TestConsumerLifecycle:
         # Criar um iterador assíncrono vazio
         async def async_iterator():
             return
-            yield  # noqa: F822 (falso positivo, é usado para gerar iterador vazio)
+            yield  # (falso positivo, é usado para gerar iterador vazio)
 
         mock_consumer.__aiter__ = lambda self: async_iterator()
         mock_consumer.commit = AsyncMock()
@@ -365,7 +366,7 @@ class TestConsumerLifecycle:
 class TestErrorHandling:
     """Testes de tratamento de erros."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_error_handling_invalid_json(self, consumer, mock_mongodb_client):
         """Deve lidar com JSON inválido na mensagem."""
         message = MagicMock()
@@ -378,7 +379,7 @@ class TestErrorHandling:
         mock_mongodb_client.get_cognitive_plan.assert_not_called()
         mock_mongodb_client.insert_insight.assert_not_called()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_error_handling_mongodb_unavailable(self, consumer):
         """Deve lidar com MongoDB indisponível."""
         insight_data = {
@@ -403,7 +404,7 @@ class TestErrorHandling:
 class TestMetricsTracking:
     """Testes de tracking de métricas."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_metrics_tracking_on_process(self, consumer, mock_mongodb_client, mock_metrics):
         """Deve atualizar métricas ao processar insight."""
         insight_data = {

@@ -4,15 +4,15 @@ Testes de API REST para Load Balancer
 Testa endpoints de gerenciamento de workers e atribuição de tarefas.
 """
 
+from datetime import UTC, datetime
+from unittest.mock import AsyncMock, MagicMock
+
 import pytest
 from httpx import AsyncClient
-from unittest.mock import AsyncMock, MagicMock
-from datetime import datetime, timezone
-
 from src.services.load_balancer import BalancingStrategy, TaskAssignment
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_app_state():
     """Mock app state"""
     state = MagicMock()
@@ -47,14 +47,14 @@ def mock_app_state():
         return_value=TaskAssignment(
             worker_id="worker-1",
             strategy=BalancingStrategy.ROUND_ROBIN,
-            assigned_at=datetime.now(timezone.utc),
+            assigned_at=datetime.now(UTC),
         )
     )
     state.load_balancer.complete_task = AsyncMock(return_value=True)
     return state
 
 
-@pytest.fixture
+@pytest.fixture()
 def app(mock_app_state):
     """Fixture FastAPI app"""
     from fastapi import FastAPI
@@ -69,7 +69,7 @@ def app(mock_app_state):
 class TestRegisterWorkerEndpoint:
     """Testes do endpoint POST /api/v1/workers/register"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_register_worker_success(self, async_client: AsyncClient):
         """Testa registro bem-sucedido de worker"""
         payload = {
@@ -85,7 +85,7 @@ class TestRegisterWorkerEndpoint:
         assert data["worker_id"] == "worker-1"
         assert data["message"] == "Worker registered successfully"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_register_worker_default_capacity(self, async_client: AsyncClient):
         """Testa registro com capacidade padrão"""
         payload = {"worker_id": "worker-2"}
@@ -94,7 +94,7 @@ class TestRegisterWorkerEndpoint:
 
         assert response.status_code == 201
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_register_worker_invalid_capacity(self, async_client: AsyncClient):
         """Testa registro com capacidade inválida"""
         payload = {"worker_id": "worker-1", "capacity": 0.0}  # Deve ser >= 0.1
@@ -103,7 +103,7 @@ class TestRegisterWorkerEndpoint:
 
         assert response.status_code == 422  # Validation error
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_register_worker_disabled(self, app, async_client: AsyncClient):
         """Testa resposta quando load balancer está desabilitado"""
         app.state.app_state.load_balancer = None
@@ -118,7 +118,7 @@ class TestRegisterWorkerEndpoint:
 class TestUnregisterWorkerEndpoint:
     """Testes do endpoint DELETE /api/v1/workers/{worker_id}"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_unregister_worker_success(self, async_client: AsyncClient):
         """Testa remoção bem-sucedida de worker"""
         response = await async_client.delete("/api/v1/workers/worker-1")
@@ -132,7 +132,7 @@ class TestUnregisterWorkerEndpoint:
 class TestUpdateWorkerMetricsEndpoint:
     """Testes do endpoint POST /api/v1/workers/{worker_id}/metrics"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_update_metrics_success(self, async_client: AsyncClient):
         """Testa atualização bem-sucedida de métricas"""
         payload = {
@@ -146,7 +146,7 @@ class TestUpdateWorkerMetricsEndpoint:
 
         assert response.status_code == 200
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_update_metrics_partial(self, async_client: AsyncClient):
         """Testa atualização parcial de métricas"""
         payload = {"active_tasks": 10}
@@ -155,7 +155,7 @@ class TestUpdateWorkerMetricsEndpoint:
 
         assert response.status_code == 200
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_update_metrics_invalid_value(self, async_client: AsyncClient):
         """Testa atualização com valor inválido"""
         payload = {"active_tasks": -1}  # Deve ser >= 0
@@ -168,7 +168,7 @@ class TestUpdateWorkerMetricsEndpoint:
 class TestGetWorkersStatusEndpoint:
     """Testes do endpoint GET /api/v1/workers"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_workers_status(self, async_client: AsyncClient):
         """Testa obtenção de status de todos workers"""
         response = await async_client.get("/api/v1/workers")
@@ -183,7 +183,7 @@ class TestGetWorkersStatusEndpoint:
 class TestGetStatisticsEndpoint:
     """Testes do endpoint GET /api/v1/workers/statistics"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_statistics(self, async_client: AsyncClient):
         """Testa obtenção de estatísticas"""
         response = await async_client.get("/api/v1/workers/statistics")
@@ -200,7 +200,7 @@ class TestGetStatisticsEndpoint:
 class TestAssignTaskEndpoint:
     """Testes do endpoint POST /api/v1/workers/assign"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_assign_task_success(self, async_client: AsyncClient):
         """Testa atribuição bem-sucedida de tarefa"""
         payload = {"task_id": "task-123", "task_data": {"type": "query"}}
@@ -213,7 +213,7 @@ class TestAssignTaskEndpoint:
         assert "worker_id" in data
         assert "strategy" in data
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_assign_task_no_workers(self, app, async_client: AsyncClient):
         """Testa atribuição quando não há workers disponíveis"""
         app.state.app_state.load_balancer.assign_task = AsyncMock(return_value=None)
@@ -224,7 +224,7 @@ class TestAssignTaskEndpoint:
 
         assert response.status_code == 503
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_assign_task_with_strategy(self, async_client: AsyncClient):
         """Testa atribuição com estratégia específica"""
         payload = {
@@ -236,7 +236,7 @@ class TestAssignTaskEndpoint:
 
         assert response.status_code == 200
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_assign_task_invalid_strategy(self, async_client: AsyncClient):
         """Testa atribuição com estratégia inválida"""
         payload = {"task_id": "task-123", "strategy": "invalid_strategy"}
@@ -249,7 +249,7 @@ class TestAssignTaskEndpoint:
 class TestCompleteTaskEndpoint:
     """Testes do endpoint POST /api/v1/workers/complete"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_complete_task_success(self, async_client: AsyncClient):
         """Testa conclusão bem-sucedida de tarefa"""
         payload = {
@@ -263,7 +263,7 @@ class TestCompleteTaskEndpoint:
 
         assert response.status_code == 200
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_complete_task_failure(self, async_client: AsyncClient):
         """Testa conclusão com falha"""
         payload = {
@@ -276,7 +276,7 @@ class TestCompleteTaskEndpoint:
 
         assert response.status_code == 200
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_complete_task_invalid_value(self, async_client: AsyncClient):
         """Testa conclusão com valor inválido"""
         payload = {

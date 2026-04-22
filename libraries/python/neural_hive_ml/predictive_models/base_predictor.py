@@ -1,8 +1,9 @@
 """Classe base abstrata para todos os preditores."""
 
-from abc import ABC, abstractmethod
-from typing import Dict, Any, Optional
 import logging
+from abc import ABC, abstractmethod
+from typing import Any, Optional
+
 import mlflow
 import numpy as np
 import pandas as pd
@@ -15,7 +16,7 @@ class BasePredictor(ABC):
 
     def __init__(
         self,
-        config: Dict[str, Any],
+        config: dict[str, Any],
         model_registry: Optional[Any] = None,
         metrics: Optional[Any] = None,
     ):
@@ -39,19 +40,16 @@ class BasePredictor(ABC):
     @abstractmethod
     async def initialize(self) -> None:
         """Carrega o modelo do registry."""
-        pass
 
     @abstractmethod
-    async def train_model(self, training_data: pd.DataFrame) -> Dict[str, Any]:
+    async def train_model(self, training_data: pd.DataFrame) -> dict[str, Any]:
         """Treina o modelo com dados fornecidos."""
-        pass
 
     @abstractmethod
-    def _extract_features(self, data: Dict[str, Any]) -> np.ndarray:
+    def _extract_features(self, data: dict[str, Any]) -> np.ndarray:
         """Extrai features dos dados de entrada."""
-        pass
 
-    def _validate_config(self, config: Dict[str, Any]) -> None:
+    def _validate_config(self, config: dict[str, Any]) -> None:
         """
         Valida parâmetros de configuração.
 
@@ -67,7 +65,7 @@ class BasePredictor(ABC):
                 raise ValueError(f"Configuração faltando chave obrigatória: {key}")
 
     def _log_metrics(
-        self, metrics: Dict[str, float], model_name: str, stage: str = "training"
+        self, metrics: dict[str, float], model_name: str, stage: str = "training"
     ) -> None:
         """
         Registra métricas no Prometheus e MLflow.
@@ -95,9 +93,9 @@ class BasePredictor(ABC):
         self,
         model: Any,
         model_name: str,
-        metrics: Dict[str, float],
-        params: Dict[str, Any],
-        tags: Optional[Dict[str, str]] = None,
+        metrics: dict[str, float],
+        params: dict[str, Any],
+        tags: Optional[dict[str, str]] = None,
     ) -> str:
         """
         Salva modelo no MLflow registry.
@@ -149,7 +147,7 @@ class BasePredictor(ABC):
             logger.error(f"Erro ao carregar modelo: {e}")
             return None
 
-    def _calculate_feature_importance(self, model: Any, feature_names: list) -> Dict[str, float]:
+    def _calculate_feature_importance(self, model: Any, feature_names: list) -> dict[str, float]:
         """
         Calcula importância de features para modelos baseados em árvore.
 

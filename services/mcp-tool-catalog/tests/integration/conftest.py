@@ -8,13 +8,12 @@ import json
 import pytest
 from aiohttp import web
 
-
 # ============================================================================
 # Fixtures de Mock HTTP Server
 # ============================================================================
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_http_server_app():
     """
     Aplicacao aiohttp.web para simular APIs REST.
@@ -63,7 +62,7 @@ def mock_http_server_app():
     return app
 
 
-@pytest.fixture
+@pytest.fixture()
 async def mock_http_server(mock_http_server_app, aiohttp_server):
     """Mock HTTP server rodando em porta aleatoria."""
     server = await aiohttp_server(mock_http_server_app)
@@ -75,7 +74,7 @@ async def mock_http_server(mock_http_server_app, aiohttp_server):
 # ============================================================================
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_mcp_server_app():
     """
     Aplicacao aiohttp.web simulando MCP Server (JSON-RPC 2.0).
@@ -220,7 +219,7 @@ def mock_mcp_server_app():
     return app
 
 
-@pytest.fixture
+@pytest.fixture()
 async def mock_mcp_server(mock_mcp_server_app, aiohttp_server):
     """Mock MCP Server rodando em porta aleatoria."""
     server = await aiohttp_server(mock_mcp_server_app)
@@ -232,7 +231,7 @@ async def mock_mcp_server(mock_mcp_server_app, aiohttp_server):
 # ============================================================================
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_settings_factory():
     """Factory para criar settings com configuracoes customizadas."""
     from unittest.mock import MagicMock
@@ -256,7 +255,7 @@ def mock_settings_factory():
     return create_settings
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_metrics():
     """Mock de MCPToolCatalogMetrics para testes de integracao."""
     from unittest.mock import MagicMock
@@ -270,7 +269,7 @@ def mock_metrics():
     return metrics
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_tool_registry():
     """Mock de ToolRegistry para testes de integracao."""
     from unittest.mock import AsyncMock, MagicMock

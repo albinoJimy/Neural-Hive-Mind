@@ -5,17 +5,18 @@ Testa TreeExplainer e KernelExplainer com modelos sklearn treinados.
 """
 
 import time
-import pytest
-import pandas as pd
 from unittest.mock import patch
-from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
-from sklearn.linear_model import LogisticRegression
+
+import pandas as pd
+import pytest
 from sklearn.datasets import make_classification
+from sklearn.ensemble import GradientBoostingClassifier, RandomForestClassifier
+from sklearn.linear_model import LogisticRegression
 
 from neural_hive_specialists.explainability.shap_explainer import SHAPExplainer
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_data():
     """Gera dataset sintético para testes."""
     X, y = make_classification(
@@ -25,14 +26,14 @@ def sample_data():
     return pd.DataFrame(X, columns=feature_names), y, feature_names
 
 
-@pytest.fixture
+@pytest.fixture()
 def background_dataset(sample_data):
     """Cria background dataset para SHAP."""
     X, _, _ = sample_data
     return X.sample(50, random_state=42)
 
 
-@pytest.mark.integration
+@pytest.mark.integration()
 class TestSHAPExplainerWithRandomForest:
     """Testes com RandomForest (TreeExplainer)."""
 
@@ -139,7 +140,7 @@ class TestSHAPExplainerWithRandomForest:
         assert top_features[1]["importance"] >= top_features[2]["importance"]
 
 
-@pytest.mark.integration
+@pytest.mark.integration()
 class TestSHAPExplainerWithGradientBoosting:
     """Testes com GradientBoosting (TreeExplainer)."""
 
@@ -167,7 +168,7 @@ class TestSHAPExplainerWithGradientBoosting:
         assert len(result["feature_importances"]) > 0
 
 
-@pytest.mark.integration
+@pytest.mark.integration()
 class TestSHAPExplainerWithLinearModel:
     """Testes com modelo linear (KernelExplainer)."""
 
@@ -196,7 +197,7 @@ class TestSHAPExplainerWithLinearModel:
             assert "feature_importances" in result
 
 
-@pytest.mark.integration
+@pytest.mark.integration()
 class TestSHAPExplainerEdgeCases:
     """Testes de casos extremos."""
 

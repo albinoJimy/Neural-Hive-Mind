@@ -1,9 +1,9 @@
 """Testes unitários para EvolutionSpecialist - Métodos de Análise."""
 
-import sys
 import os
+import sys
+
 import pytest
-from typing import Dict, List
 
 # Configurar paths
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "src"))
@@ -13,7 +13,7 @@ class EvolutionAnalysisTestHelper:
     """Helper class para testar métodos de análise de evolução."""
 
     @staticmethod
-    def analyze_maintainability(tasks: List[Dict], cognitive_plan: Dict) -> float:
+    def analyze_maintainability(tasks: list[dict], cognitive_plan: dict) -> float:
         """Implementação do método de análise de manutenibilidade."""
         num_tasks = len(tasks)
 
@@ -50,7 +50,7 @@ class EvolutionAnalysisTestHelper:
         return max(0.0, min(1.0, maintainability_score))
 
     @staticmethod
-    def analyze_scalability(tasks: List[Dict], cognitive_plan: Dict) -> float:
+    def analyze_scalability(tasks: list[dict], cognitive_plan: dict) -> float:
         """Implementação do método de análise de escalabilidade."""
         num_tasks = len(tasks)
 
@@ -85,7 +85,7 @@ class EvolutionAnalysisTestHelper:
         return max(0.0, min(1.0, scalability_score))
 
     @staticmethod
-    def analyze_extensibility(tasks: List[Dict], cognitive_plan: Dict) -> float:
+    def analyze_extensibility(tasks: list[dict], cognitive_plan: dict) -> float:
         """Implementação do método de análise de extensibilidade."""
         num_tasks = len(tasks)
 
@@ -112,7 +112,7 @@ class EvolutionAnalysisTestHelper:
         return max(0.0, min(1.0, extensibility_score))
 
     @staticmethod
-    def analyze_modularity(tasks: List[Dict]) -> float:
+    def analyze_modularity(tasks: list[dict]) -> float:
         """Implementação do método de análise de modularidade."""
         num_tasks = len(tasks)
 
@@ -145,7 +145,7 @@ class EvolutionAnalysisTestHelper:
         return max(0.0, min(1.0, modularity_score))
 
     @staticmethod
-    def analyze_tech_debt_risk(tasks: List[Dict], cognitive_plan: Dict) -> float:
+    def analyze_tech_debt_risk(tasks: list[dict], cognitive_plan: dict) -> float:
         """Implementação do método de análise de risco de tech debt."""
         num_tasks = len(tasks)
 
@@ -198,7 +198,7 @@ class EvolutionAnalysisTestHelper:
             return "conditional"
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_cognitive_plan():
     return {
         "plan_id": "evolution-plan-123",

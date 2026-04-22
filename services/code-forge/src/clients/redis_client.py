@@ -7,7 +7,7 @@ Suporta modo standalone e cluster.
 
 import json
 import time
-from typing import TYPE_CHECKING, Any, Dict, Optional, Union
+from typing import TYPE_CHECKING, Any, Optional, Union
 from urllib.parse import urlparse
 
 import structlog
@@ -219,7 +219,7 @@ class RedisClient:
             logger.warning("invalidate_template_failed", template_id=template_id, error=str(e))
             return False
 
-    async def set_pipeline_state(self, pipeline_id: str, state: Dict[str, Any], ttl: int = 86400):
+    async def set_pipeline_state(self, pipeline_id: str, state: dict[str, Any], ttl: int = 86400):
         """
         Salva estado de pipeline.
 
@@ -262,7 +262,7 @@ class RedisClient:
             logger.error("set_pipeline_state_failed", pipeline_id=pipeline_id, error=str(e))
             raise
 
-    async def get_pipeline_state(self, pipeline_id: str) -> Optional[Dict[str, Any]]:
+    async def get_pipeline_state(self, pipeline_id: str) -> Optional[dict[str, Any]]:
         """
         Recupera estado de pipeline.
 
@@ -298,7 +298,7 @@ class RedisClient:
             logger.warning("get_pipeline_state_failed", pipeline_id=pipeline_id, error=str(e))
             return None
 
-    async def update_pipeline_state(self, pipeline_id: str, updates: Dict[str, Any]):
+    async def update_pipeline_state(self, pipeline_id: str, updates: dict[str, Any]):
         """
         Atualiza campos específicos do estado de pipeline.
 

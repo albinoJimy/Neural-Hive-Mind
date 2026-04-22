@@ -8,14 +8,15 @@ Valida:
 - Ausencia de race conditions em acesso concorrente
 """
 
-import pytest
 import asyncio
-import time
 import statistics
-import structlog
+import time
 from dataclasses import dataclass, field
-from typing import List, Dict, Any, Optional
+from typing import Any, Optional
 from unittest.mock import AsyncMock, MagicMock
+
+import pytest
+import structlog
 
 logger = structlog.get_logger()
 
@@ -30,7 +31,7 @@ class PheromoneClientForPerfTest:
         self.redis_client = redis_client
         self.settings = settings
         self.prefix = settings.REDIS_PHEROMONE_PREFIX
-        self._success_trails_cache: Optional[List[Dict[str, Any]]] = None
+        self._success_trails_cache: Optional[list[dict[str, Any]]] = None
         self._cache_timestamp: float = 0
         self._metrics_mock = None
 
@@ -38,7 +39,7 @@ class PheromoneClientForPerfTest:
         self._success_trails_cache = None
         self._cache_timestamp = 0
 
-    async def get_success_trails(self, limit: int = 10) -> List[Dict[str, Any]]:
+    async def get_success_trails(self, limit: int = 10) -> list[dict[str, Any]]:
         try:
             cache_age = time.time() - self._cache_timestamp
             if self._success_trails_cache is not None and cache_age < CACHE_TTL_SECONDS:
@@ -50,7 +51,7 @@ class PheromoneClientForPerfTest:
                 self._metrics_mock.pheromone_trails_cache_misses_total.inc()
 
             pattern = f"{self.prefix}*:SUCCESS"
-            trails: List[Dict[str, Any]] = []
+            trails: list[dict[str, Any]] = []
             keys_scanned = 0
 
             start_time = time.time()
@@ -101,7 +102,7 @@ class PheromoneClientForPerfTest:
 class PheromoneLoadMetrics:
     """Metricas de carga para testes de performance"""
 
-    latencies_ms: List[float] = field(default_factory=list)
+    latencies_ms: list[float] = field(default_factory=list)
     cache_hits: int = 0
     cache_misses: int = 0
     total_keys_scanned: int = 0
@@ -138,12 +139,12 @@ class PheromoneLoadMetrics:
         return self.cache_hits / total
 
 
-def create_mock_keys(count: int) -> List[str]:
+def create_mock_keys(count: int) -> list[str]:
     """Cria lista de chaves mock"""
     return [f"pheromone:strategic:plan-{i}:SUCCESS" for i in range(count)]
 
 
-def create_mock_pheromone_data(keys: List[str]) -> dict:
+def create_mock_pheromone_data(keys: list[str]) -> dict:
     """Cria dados de feromonio mock"""
     return {
         key: {
@@ -155,7 +156,7 @@ def create_mock_pheromone_data(keys: List[str]) -> dict:
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_redis_client():
     """Mock do RedisClient"""
     client = AsyncMock()
@@ -163,7 +164,7 @@ def mock_redis_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_settings():
     """Mock de configuracoes"""
     settings = MagicMock()
@@ -171,7 +172,7 @@ def mock_settings():
     return settings
 
 
-@pytest.fixture
+@pytest.fixture()
 def pheromone_client(mock_redis_client, mock_settings):
     """Instancia do PheromoneClient com mocks"""
     client = PheromoneClientForPerfTest(redis_client=mock_redis_client, settings=mock_settings)
@@ -179,7 +180,7 @@ def pheromone_client(mock_redis_client, mock_settings):
     return client
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_scan_performance_1000_keys(pheromone_client, mock_redis_client):
     """
     Teste de performance com 1.000 chaves SUCCESS.
@@ -213,7 +214,7 @@ async def test_scan_performance_1000_keys(pheromone_client, mock_redis_client):
     print(f"\n1000 keys - Latency: {elapsed_ms:.2f}ms, P95: {metrics.p95_latency:.2f}ms")
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_scan_performance_10000_keys(pheromone_client, mock_redis_client):
     """
     Teste de performance com 10.000 chaves SUCCESS.
@@ -247,7 +248,7 @@ async def test_scan_performance_10000_keys(pheromone_client, mock_redis_client):
     print(f"\n10000 keys - Latency: {elapsed_ms:.2f}ms, P95: {metrics.p95_latency:.2f}ms")
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_cache_effectiveness(pheromone_client, mock_redis_client):
     """
     Teste de efetividade do cache.
@@ -296,7 +297,7 @@ async def test_cache_effectiveness(pheromone_client, mock_redis_client):
     )
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_concurrent_access(pheromone_client, mock_redis_client):
     """
     Teste de acesso concorrente.
@@ -341,7 +342,7 @@ async def test_concurrent_access(pheromone_client, mock_redis_client):
     )
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_latency_distribution(pheromone_client, mock_redis_client):
     """
     Teste de distribuicao de latencia.

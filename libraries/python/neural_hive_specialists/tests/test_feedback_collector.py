@@ -2,19 +2,21 @@
 Testes unitários para FeedbackCollector.
 """
 
+from datetime import UTC, datetime
+from unittest.mock import MagicMock, Mock, patch
+
 import pytest
-from datetime import datetime, timezone
-from unittest.mock import Mock, MagicMock, patch
+
 from neural_hive_specialists.feedback import FeedbackCollector, FeedbackDocument
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_audit_logger():
     """AuditLogger mock."""
     return Mock()
 
 
-@pytest.fixture
+@pytest.fixture()
 def feedback_collector(mock_config, mock_audit_logger):
     """Instância de FeedbackCollector com mocks."""
     with patch("neural_hive_specialists.feedback.feedback_collector.MongoClient"):
@@ -26,7 +28,7 @@ def feedback_collector(mock_config, mock_audit_logger):
         return collector
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_opinion_document():
     """Documento de opinião completo para enriquecimento de feedback."""
     return {
@@ -56,7 +58,7 @@ def sample_opinion_document():
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_feedback_data():
     """Dados de feedback de teste."""
     return {
@@ -190,7 +192,7 @@ class TestFeedbackCollector:
             "human_recommendation": "approve",
             "feedback_notes": "test",
             "submitted_by": "test",
-            "submitted_at": datetime.now(timezone.utc),
+            "submitted_at": datetime.now(UTC),
             "feedback_source": "human_expert",
             "metadata": {},
             "schema_version": "1.0.0",

@@ -7,9 +7,9 @@ Usa o padrão "Leader Election with Redis" baseado em locks distribuídos.
 
 import asyncio
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
-UTC = timezone.utc  # type: ignore
+UTC = UTC  # type: ignore
 from enum import Enum
 from typing import TYPE_CHECKING
 

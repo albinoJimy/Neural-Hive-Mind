@@ -1,20 +1,17 @@
 """Testes unitários para ArtifactStore."""
 
-import pytest
 from datetime import datetime
-from unittest.mock import Mock, AsyncMock, patch
-from bson import Binary
+from unittest.mock import AsyncMock, Mock, patch
 
-from src.services.artifact_store import (
-    ArtifactStore,
-    get_artifact_store
-)
+import pytest
+from bson import Binary
+from src.services.artifact_store import ArtifactStore, get_artifact_store
 
 
 class TestArtifactStore:
     """Testes para ArtifactStore."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_gridfs(self):
         """Mock para GridFS."""
         gridfs = Mock()
@@ -24,7 +21,7 @@ class TestArtifactStore:
         gridfs.list = Mock(return_value={"length": 5})
         return gridfs
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_collection(self):
         """Mock para coleção MongoDB."""
         collection = Mock()
@@ -39,12 +36,12 @@ class TestArtifactStore:
         collection.aggregate = AsyncMock()
         return collection
 
-    @pytest.fixture
+    @pytest.fixture()
     def artifact_store(self, mock_gridfs, mock_collection):
         """Fixture para ArtifactStore com mocks."""
         # Criar store sem MongoDB client real
-        with patch('src.services.artifact_store.GridFS', return_value=mock_gridfs):
-            with patch('src.services.artifact_store.MongoClient'):
+        with patch("src.services.artifact_store.GridFS", return_value=mock_gridfs):
+            with patch("src.services.artifact_store.MongoClient"):
                 store = ArtifactStore()
                 store._gridfs = mock_gridfs
                 store._collection = mock_collection
@@ -53,8 +50,8 @@ class TestArtifactStore:
     def test_get_artifact_store_singleton(self):
         """Testa se get_artifact_store retorna instância."""
         # Mock tanto MongoClient como GridFS para evitar erro de database
-        with patch('src.services.artifact_store.MongoClient'):
-            with patch('src.services.artifact_store.GridFS'):
+        with patch("src.services.artifact_store.MongoClient"):
+            with patch("src.services.artifact_store.GridFS"):
                 store = get_artifact_store()
                 assert isinstance(store, ArtifactStore)
 
@@ -63,39 +60,41 @@ class TestArtifactStore:
         artifact_store._ensure_indexes()
         assert mock_collection.create_index.call_count == 4
 
-    def test_store_artifact_with_string_content(
-        self, artifact_store, mock_gridfs, mock_collection
-    ):
+    def test_store_artifact_with_string_content(self, artifact_store, mock_gridfs, mock_collection):
         """Testa armazenamento de artefato com conteúdo string."""
         mock_gridfs_file = Mock()
         mock_gridfs_file.read = Mock(return_value=b"test content")
         mock_gridfs.get = Mock(return_value=mock_gridfs_file)
 
         import asyncio
-        result = asyncio.run(artifact_store.store_artifact(
-            approval_id="approval-123",
-            artifact_type="code",
-            content="print('hello world')",
-            filename="test.py",
-            metadata={"language": "python"}
-        ))
+
+        result = asyncio.run(
+            artifact_store.store_artifact(
+                approval_id="approval-123",
+                artifact_type="code",
+                content="print('hello world')",
+                filename="test.py",
+                metadata={"language": "python"},
+            )
+        )
 
         assert result is not None
         assert isinstance(result, str)
         mock_gridfs.put.assert_called_once()
         assert mock_collection.insert_one.call_count >= 1
 
-    def test_store_artifact_with_bytes_content(
-        self, artifact_store, mock_gridfs
-    ):
+    def test_store_artifact_with_bytes_content(self, artifact_store, mock_gridfs):
         """Testa armazenamento de artefato com conteúdo bytes."""
         import asyncio
-        result = asyncio.run(artifact_store.store_artifact(
-            approval_id="approval-123",
-            artifact_type="binary",
-            content=b"\x00\x01\x02\x03",
-            filename="test.bin"
-        ))
+
+        result = asyncio.run(
+            artifact_store.store_artifact(
+                approval_id="approval-123",
+                artifact_type="binary",
+                content=b"\x00\x01\x02\x03",
+                filename="test.bin",
+            )
+        )
 
         assert result is not None
         mock_gridfs.put.assert_called_once()
@@ -107,11 +106,12 @@ class TestArtifactStore:
         mock_gridfs.put = Mock(side_effect=Exception("GridFS error"))
 
         import asyncio
-        result = asyncio.run(artifact_store.store_artifact(
-            approval_id="approval-123",
-            artifact_type="document",
-            content="test content"
-        ))
+
+        result = asyncio.run(
+            artifact_store.store_artifact(
+                approval_id="approval-123", artifact_type="document", content="test content"
+            )
+        )
 
         assert result is not None
         # Verificar que insert_one foi chamado (fallback)
@@ -119,20 +119,23 @@ class TestArtifactStore:
 
     def test_get_artifact_found(self, artifact_store, mock_collection):
         """Testa recuperação de artefato existente."""
-        mock_collection.find_one = Mock(return_value={
-            "artifact_id": "artifact-123",
-            "approval_id": "approval-123",
-            "artifact_type": "code",
-            "storage": "bson_binary",
-            "content_bson": Binary(b"test content"),
-            "filename": "test.py",
-            "size_bytes": 12,
-            "version": "1.0.0",
-            "created_at": datetime.utcnow(),
-            "metadata": {}
-        })
+        mock_collection.find_one = Mock(
+            return_value={
+                "artifact_id": "artifact-123",
+                "approval_id": "approval-123",
+                "artifact_type": "code",
+                "storage": "bson_binary",
+                "content_bson": Binary(b"test content"),
+                "filename": "test.py",
+                "size_bytes": 12,
+                "version": "1.0.0",
+                "created_at": datetime.utcnow(),
+                "metadata": {},
+            }
+        )
 
         import asyncio
+
         result = asyncio.run(artifact_store.get_artifact("artifact-123"))
 
         assert result is not None
@@ -145,30 +148,32 @@ class TestArtifactStore:
         mock_collection.find_one = Mock(return_value=None)
 
         import asyncio
+
         result = asyncio.run(artifact_store.get_artifact("artifact-999"))
 
         assert result is None
 
-    def test_get_artifact_with_gridfs(
-        self, artifact_store, mock_collection, mock_gridfs
-    ):
+    def test_get_artifact_with_gridfs(self, artifact_store, mock_collection, mock_gridfs):
         """Testa recuperação de artefato do GridFS."""
         mock_gridfs_file = Mock()
         mock_gridfs_file.read = Mock(return_value=b"content from gridfs")
         mock_gridfs.get = Mock(return_value=mock_gridfs_file)
 
-        mock_collection.find_one = Mock(return_value={
-            "artifact_id": "artifact-123",
-            "storage": "gridfs",
-            "gridfs_id": "gridfs-id-123",
-            "filename": "test.py",
-            "size_bytes": 18,
-            "version": "1.0.0",
-            "created_at": datetime.utcnow(),
-            "metadata": {}
-        })
+        mock_collection.find_one = Mock(
+            return_value={
+                "artifact_id": "artifact-123",
+                "storage": "gridfs",
+                "gridfs_id": "gridfs-id-123",
+                "filename": "test.py",
+                "size_bytes": 18,
+                "version": "1.0.0",
+                "created_at": datetime.utcnow(),
+                "metadata": {},
+            }
+        )
 
         import asyncio
+
         result = asyncio.run(artifact_store.get_artifact("artifact-123"))
 
         assert result is not None
@@ -190,7 +195,7 @@ class TestArtifactStore:
                 "size_bytes": 100,
                 "version": "1.0.0",
                 "created_at": datetime.utcnow(),
-                "metadata": {}
+                "metadata": {},
             },
             {
                 "artifact_id": "artifact-2",
@@ -200,8 +205,8 @@ class TestArtifactStore:
                 "size_bytes": 250,
                 "version": "1.0.0",
                 "created_at": datetime.utcnow(),
-                "metadata": {}
-            }
+                "metadata": {},
+            },
         ]
 
         async def async_iteration():
@@ -213,43 +218,46 @@ class TestArtifactStore:
 
         # Run async
         import asyncio
+
         result = asyncio.run(artifact_store.get_artifacts_by_approval("approval-123"))
 
         assert len(result) == 2
         assert result[0]["artifact_id"] == "artifact-1"
         assert result[1]["artifact_type"] == "document"
 
-    def test_get_artifact_content_string(
-        self, artifact_store, mock_collection, mock_gridfs
-    ):
+    def test_get_artifact_content_string(self, artifact_store, mock_collection, mock_gridfs):
         """Testa recuperação de conteúdo string."""
         # Mock get_artifact para retornar artifact com conteúdo string
         import asyncio
-        artifact_store.get_artifact = AsyncMock(return_value={
-            "artifact_id": "artifact-123",
-            "storage": "gridfs",
-            "gridfs_id": "gridfs-id-123",
-            "content": "decodable content"
-        })
+
+        artifact_store.get_artifact = AsyncMock(
+            return_value={
+                "artifact_id": "artifact-123",
+                "storage": "gridfs",
+                "gridfs_id": "gridfs-id-123",
+                "content": "decodable content",
+            }
+        )
 
         result = asyncio.run(artifact_store.get_artifact_content("artifact-123"))
 
         assert result == "decodable content"
 
-    def test_get_artifact_content_binary(
-        self, artifact_store, mock_collection, mock_gridfs
-    ):
+    def test_get_artifact_content_binary(self, artifact_store, mock_collection, mock_gridfs):
         """Testa recuperação de conteúdo binário."""
         binary_content = b"\x00\x01\x02\xff"
 
         # Mock get_artifact para retornar artifact com conteúdo binário
         import asyncio
-        artifact_store.get_artifact = AsyncMock(return_value={
-            "artifact_id": "artifact-123",
-            "storage": "gridfs",
-            "gridfs_id": "gridfs-id-123",
-            "content": binary_content
-        })
+
+        artifact_store.get_artifact = AsyncMock(
+            return_value={
+                "artifact_id": "artifact-123",
+                "storage": "gridfs",
+                "gridfs_id": "gridfs-id-123",
+                "content": binary_content,
+            }
+        )
 
         result = asyncio.run(artifact_store.get_artifact_content("artifact-123"))
 
@@ -261,10 +269,12 @@ class TestArtifactStore:
 
         # Run async
         import asyncio
-        result = asyncio.run(artifact_store.update_artifact_metadata(
-            "artifact-123",
-            {"reviewed": True, "reviewer": "user-456"}
-        ))
+
+        result = asyncio.run(
+            artifact_store.update_artifact_metadata(
+                "artifact-123", {"reviewed": True, "reviewer": "user-456"}
+            )
+        )
 
         assert result is True
         mock_collection.update_one.assert_called_once()
@@ -277,14 +287,17 @@ class TestArtifactStore:
         mock_collection.delete_one = Mock(return_value=Mock(deleted_count=1))
 
         # Mock find_one para retornar metadados com gridfs_id
-        mock_collection.find_one = Mock(return_value={
-            "artifact_id": "artifact-123",
-            "storage": "gridfs",
-            "gridfs_id": "gridfs-id-123"
-        })
+        mock_collection.find_one = Mock(
+            return_value={
+                "artifact_id": "artifact-123",
+                "storage": "gridfs",
+                "gridfs_id": "gridfs-id-123",
+            }
+        )
 
         # Run async
         import asyncio
+
         result = asyncio.run(artifact_store.delete_artifact("artifact-123"))
 
         assert result is True
@@ -305,7 +318,7 @@ class TestArtifactStore:
                 "filename": "test.py",
                 "size_bytes": 100,
                 "version": "1.0.0",
-                "created_at": datetime.utcnow()
+                "created_at": datetime.utcnow(),
             }
         ]
 
@@ -316,6 +329,7 @@ class TestArtifactStore:
         mock_collection.find = Mock(return_value=mock_cursor)
 
         import asyncio
+
         result = asyncio.run(artifact_store.list_artifacts(limit=10, offset=0))
 
         assert len(result) == 1
@@ -332,16 +346,19 @@ class TestArtifactStore:
 
         # Segunda chamada: $group por artifact_type
         mock_agg_type = Mock()
-        mock_agg_type.to_list = AsyncMock(return_value=[
-            {"_id": "code", "count": 20},
-            {"_id": "document", "count": 15},
-            {"_id": "diagram", "count": 7}
-        ])
+        mock_agg_type.to_list = AsyncMock(
+            return_value=[
+                {"_id": "code", "count": 20},
+                {"_id": "document", "count": 15},
+                {"_id": "diagram", "count": 7},
+            ]
+        )
 
         # aggregate retorna os cursores em sequência
         mock_collection.aggregate = Mock(side_effect=[mock_agg_size, mock_agg_type])
 
         import asyncio
+
         result = asyncio.run(artifact_store.get_storage_stats())
 
         assert result["total_artifacts"] == 42
@@ -351,9 +368,11 @@ class TestArtifactStore:
     def test_cleanup_old_artifacts(self, artifact_store, mock_collection):
         """Testa limpeza de artefatos antigos."""
         from unittest.mock import AsyncMock
+
         mock_collection.delete_many = AsyncMock(return_value=Mock(deleted_count=5))
 
         import asyncio
+
         result = asyncio.run(artifact_store.cleanup_old_artifacts(days_to_keep=90))
 
         assert result == 5

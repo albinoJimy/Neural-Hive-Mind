@@ -2,19 +2,19 @@
 Testes para AlertDispatcher do SLA Management System.
 """
 
-import pytest
+from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
-from datetime import datetime, timezone
 
+import pytest
 from src.models.alert_rule import (
-    AlertSeverity,
-    AlertChannel,
     Alert,
+    AlertChannel,
+    AlertSeverity,
 )
 from src.services.alert_dispatcher import AlertDispatcher
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_alert():
     """Alerta de exemplo."""
     return Alert(
@@ -27,11 +27,11 @@ def sample_alert():
         details={"budget_remaining": 15.0, "slo_target": 0.99},
         slo_id="slo-123",
         service_name="test-service",
-        triggered_at=datetime.now(timezone.utc),
+        triggered_at=datetime.now(UTC),
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def alert_dispatcher():
     """Instância do AlertDispatcher para testes."""
     return AlertDispatcher(
@@ -81,14 +81,14 @@ class TestAlertDispatcherInit:
 class TestAlertDispatcherConnect:
     """Testes de conexão do AlertDispatcher."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_connect_creates_session(self, alert_dispatcher):
         """Testa que connect cria sessão HTTP."""
         await alert_dispatcher.connect()
 
         assert alert_dispatcher.session is not None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_connect_logs_info(self, alert_dispatcher):
         """Testa que connect loga informação."""
         with patch.object(alert_dispatcher.logger, "info") as mock_log:
@@ -100,7 +100,7 @@ class TestAlertDispatcherConnect:
 class TestAlertDispatcherDisconnect:
     """Testes de desconexão do AlertDispatcher."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_disconnect_closes_session(self, alert_dispatcher):
         """Testa que disconnect fecha sessão HTTP."""
         await alert_dispatcher.connect()
@@ -109,7 +109,7 @@ class TestAlertDispatcherDisconnect:
         # Sessão deve ser fechada (não verificável diretamente, mas não deve dar erro)
         assert True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_disconnect_without_connect(self, alert_dispatcher):
         """Testa disconnect sem connect anterior (não deve dar erro)."""
         await alert_dispatcher.disconnect()  # Não deve levantar exceção
@@ -118,7 +118,7 @@ class TestAlertDispatcherDisconnect:
 class TestDispatchToSlack:
     """Testes de despacho para Slack."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_dispatch_to_slack_success(self, alert_dispatcher, sample_alert):
         """Testa despacho bem-sucedido para Slack."""
         await alert_dispatcher.connect()
@@ -138,7 +138,7 @@ class TestDispatchToSlack:
         assert result.channel == AlertChannel.SLACK
         assert result.error_message is None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_dispatch_to_slack_no_webhook(self, alert_dispatcher, sample_alert):
         """Testa despacho para Slack sem webhook configurado."""
         await alert_dispatcher.connect()
@@ -150,7 +150,7 @@ class TestDispatchToSlack:
         assert result.success is False
         assert "No webhook URL configured" in result.error_message
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_dispatch_to_slack_with_details(self, alert_dispatcher, sample_alert):
         """Testa despacho para Slack com detalhes."""
         await alert_dispatcher.connect()
@@ -172,7 +172,7 @@ class TestDispatchToSlack:
 
         assert result.success is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_dispatch_to_slack_http_error(self, alert_dispatcher, sample_alert):
         """Testa despacho para Slack com erro HTTP."""
         await alert_dispatcher.connect()
@@ -193,7 +193,7 @@ class TestDispatchToSlack:
 class TestDispatchToPagerDuty:
     """Testes de despacho para PagerDuty."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_dispatch_to_pagerduty_success(self, alert_dispatcher, sample_alert):
         """Testa despacho bem-sucedido para PagerDuty."""
         await alert_dispatcher.connect()
@@ -211,7 +211,7 @@ class TestDispatchToPagerDuty:
         assert result.alert_id == sample_alert.alert_id
         assert result.channel == AlertChannel.PAGERDUTY
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_dispatch_to_pagerduty_no_routing_key(self, alert_dispatcher, sample_alert):
         """Testa despacho para PagerDuty sem routing key."""
         await alert_dispatcher.connect()
@@ -223,7 +223,7 @@ class TestDispatchToPagerDuty:
         assert result.success is False
         assert "No routing key configured" in result.error_message
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_dispatch_to_pagerduty_critical_severity(self, alert_dispatcher, sample_alert):
         """Testa despacho para PagerDuty com severidade crítica."""
         await alert_dispatcher.connect()
@@ -250,7 +250,7 @@ class TestDispatchToPagerDuty:
 class TestDispatchToEmail:
     """Testes de despacho por email."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_dispatch_to_email_success(self, alert_dispatcher, sample_alert):
         """Testa despacho bem-sucedido por email."""
         result = await alert_dispatcher._dispatch_to_email(
@@ -261,7 +261,7 @@ class TestDispatchToEmail:
         assert result.success is True
         assert result.channel == AlertChannel.EMAIL
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_dispatch_to_email_no_recipients(self, alert_dispatcher, sample_alert):
         """Testa despacho por email sem destinatários."""
         result = await alert_dispatcher._dispatch_to_email(sample_alert, {"to": []})
@@ -269,7 +269,7 @@ class TestDispatchToEmail:
         assert result.success is False
         assert "No recipients configured" in result.error_message
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_dispatch_to_email_multiple_recipients(self, alert_dispatcher, sample_alert):
         """Testa despacho por email com múltiplos destinatários."""
         result = await alert_dispatcher._dispatch_to_email(
@@ -282,7 +282,7 @@ class TestDispatchToEmail:
 class TestDispatchToWebhook:
     """Testes de despacho para webhook genérico."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_dispatch_to_webhook_post_success(self, alert_dispatcher, sample_alert):
         """Testa despacho bem-sucedido para webhook via POST."""
         await alert_dispatcher.connect()
@@ -299,7 +299,7 @@ class TestDispatchToWebhook:
         assert result.success is True
         assert result.channel == AlertChannel.WEBHOOK
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_dispatch_to_webhook_no_url(self, alert_dispatcher, sample_alert):
         """Testa despacho para webhook sem URL."""
         result = await alert_dispatcher._dispatch_to_webhook(sample_alert, {"url": None})
@@ -307,7 +307,7 @@ class TestDispatchToWebhook:
         assert result.success is False
         assert "No webhook URL configured" in result.error_message
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_dispatch_to_webhook_put_method(self, alert_dispatcher, sample_alert):
         """Testa despacho para webhook via PUT."""
         await alert_dispatcher.connect()
@@ -323,7 +323,7 @@ class TestDispatchToWebhook:
 
         assert result.success is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_dispatch_to_webhook_with_headers(self, alert_dispatcher, sample_alert):
         """Testa despacho para webhook com headers customizados."""
         await alert_dispatcher.connect()
@@ -351,7 +351,7 @@ class TestDispatchToWebhook:
 class TestDispatchToAlertmanager:
     """Testes de despacho para Alertmanager."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_dispatch_to_alertmanager_success(self, alert_dispatcher, sample_alert):
         """Testa despacho bem-sucedido para Alertmanager."""
         await alert_dispatcher.connect()
@@ -368,7 +368,7 @@ class TestDispatchToAlertmanager:
         assert result.success is True
         assert result.channel == AlertChannel.ALERTMANAGER
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_dispatch_to_alertmanager_no_url(self, alert_dispatcher, sample_alert):
         """Testa despacho para Alertmanager sem URL."""
         result = await alert_dispatcher._dispatch_to_alertmanager(sample_alert, {"url": None})
@@ -376,7 +376,7 @@ class TestDispatchToAlertmanager:
         assert result.success is False
         assert "No Alertmanager URL configured" in result.error_message
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_dispatch_to_alertmanager_payload_format(self, alert_dispatcher, sample_alert):
         """Testa formatação do payload para Alertmanager."""
         await alert_dispatcher.connect()
@@ -407,7 +407,7 @@ class TestDispatchToAlertmanager:
 class TestDispatchMultiChannel:
     """Testes de despacho para múltiplos canais."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_dispatch_multiple_channels(self, alert_dispatcher, sample_alert):
         """Testa despacho para múltiplos canais em paralelo."""
         await alert_dispatcher.connect()
@@ -432,7 +432,7 @@ class TestDispatchMultiChannel:
         assert results[0].channel == AlertChannel.SLACK
         assert results[1].channel == AlertChannel.WEBHOOK
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_dispatch_partial_failure(self, alert_dispatcher, sample_alert):
         """Testa despacho com falha parcial em alguns canais."""
         await alert_dispatcher.connect()
@@ -463,7 +463,7 @@ class TestDispatchMultiChannel:
         assert results[1].success is False
         assert "HTTP 500" in results[1].error_message
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_dispatch_all_channels(self, alert_dispatcher, sample_alert):
         """Testa despacho para todos os canais disponíveis."""
         await alert_dispatcher.connect()

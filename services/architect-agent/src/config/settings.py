@@ -180,9 +180,7 @@ class Settings(BaseSettings):
     @property
     def CORS_ORIGINS(self) -> list[str]:
         """CORS origins dinâmicas por ambiente."""
-        return _get_cors_origins(
-            self.service.environment, is_public_api=self.service.is_public_api
-        )
+        return _get_cors_origins(self.service.environment, is_public_api=self.service.is_public_api)
 
 
 @lru_cache

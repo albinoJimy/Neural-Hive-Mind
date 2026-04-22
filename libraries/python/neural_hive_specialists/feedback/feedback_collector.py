@@ -6,16 +6,17 @@ sobre opiniões de especialistas, permitindo re-treinamento contínuo dos modelo
 """
 
 import uuid
-from datetime import datetime, timedelta, timezone
-from typing import Dict, Any, Optional, List
-import structlog
-from pydantic import BaseModel, Field, field_validator, ConfigDict
-from pymongo import MongoClient, ASCENDING, DESCENDING
-from pymongo.errors import PyMongoError
-import pybreaker
+from datetime import UTC, datetime, timedelta
+from typing import Any, Optional
 
-from ..config import SpecialistConfig
+import pybreaker
+import structlog
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pymongo import ASCENDING, DESCENDING, MongoClient
+from pymongo.errors import PyMongoError
+
 from ..compliance import AuditLogger
+from ..config import SpecialistConfig
 
 logger = structlog.get_logger()
 
@@ -30,7 +31,6 @@ class FeedbackStoreUnavailable(Exception):
     - Timeouts
     """
 
-    pass
 
 
 class FeedbackDocument(BaseModel):
@@ -61,7 +61,7 @@ class FeedbackDocument(BaseModel):
         default_factory=datetime.utcnow, description="Timestamp de submissão"
     )
     feedback_source: str = Field(default="human_expert", description="Fonte do feedback")
-    metadata: Dict[str, Any] = Field(default_factory=dict, description="Metadados adicionais")
+    metadata: dict[str, Any] = Field(default_factory=dict, description="Metadados adicionais")
 
     # NOVOS CAMPOS v2.0.0 - Enriquecimento para ML
     intent_raw_text: Optional[str] = Field(
@@ -76,11 +76,11 @@ class FeedbackDocument(BaseModel):
     opinion_risk: Optional[float] = Field(
         None, ge=0.0, le=1.0, description="Risco original do especialista"
     )
-    cognitive_plan_snapshot: Optional[Dict[str, Any]] = Field(
+    cognitive_plan_snapshot: Optional[dict[str, Any]] = Field(
         default_factory=dict,
         description="Snapshot completo do cognitive_plan no momento do feedback",
     )
-    reasoning_factors: Optional[List[Dict[str, Any]]] = Field(
+    reasoning_factors: Optional[list[dict[str, Any]]] = Field(
         default_factory=list,
         description="Fatores de raciocínio do especialista (nome, peso, score)",
     )
@@ -227,7 +227,7 @@ class FeedbackCollector:
             )
             return False
 
-    def get_opinion_metadata(self, opinion_id: str) -> Dict[str, Any]:
+    def get_opinion_metadata(self, opinion_id: str) -> dict[str, Any]:
         """
         Obtém metadados de uma opinião do ledger cognitivo.
 
@@ -258,11 +258,11 @@ class FeedbackCollector:
             raise
         except Exception as e:
             logger.error("Error retrieving opinion metadata", opinion_id=opinion_id, error=str(e))
-            raise ValueError(f"Erro ao buscar metadados da opinião {opinion_id}: {str(e)}")
+            raise ValueError(f"Erro ao buscar metadados da opinião {opinion_id}: {e!s}")
 
     def enrich_feedback_from_opinion(
-        self, opinion_id: str, feedback_data: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, opinion_id: str, feedback_data: dict[str, Any]
+    ) -> dict[str, Any]:
         """
         Enriquece feedback com dados adicionais da opinião.
 
@@ -351,8 +351,8 @@ class FeedbackCollector:
             return feedback_data
 
     def enrich_with_nlp_features(
-        self, feedback_data: Dict[str, Any], intent_text: Optional[str] = None
-    ) -> Dict[str, Any]:
+        self, feedback_data: dict[str, Any], intent_text: Optional[str] = None
+    ) -> dict[str, Any]:
         """
         Enriquece feedback com features NLP extraídas do texto da intenção.
 
@@ -393,7 +393,7 @@ class FeedbackCollector:
 
         return feedback_data
 
-    def submit_feedback(self, feedback_data: Dict[str, Any]) -> str:
+    def submit_feedback(self, feedback_data: dict[str, Any]) -> str:
         """
         Valida, persiste e retorna ID de feedback.
 
@@ -429,7 +429,7 @@ class FeedbackCollector:
             feedback_doc = FeedbackDocument(**feedback_data)
         except Exception as e:
             logger.error("Feedback validation failed", feedback_data=feedback_data, error=str(e))
-            raise ValueError(f"Validação de feedback falhou: {str(e)}")
+            raise ValueError(f"Validação de feedback falhou: {e!s}")
 
         # Validar rating range
         if (
@@ -485,7 +485,7 @@ class FeedbackCollector:
             )
             raise
 
-    def get_feedback_by_opinion(self, opinion_id: str) -> List[FeedbackDocument]:
+    def get_feedback_by_opinion(self, opinion_id: str) -> list[FeedbackDocument]:
         """
         Busca todos os feedbacks para uma opinião.
 
@@ -531,7 +531,7 @@ class FeedbackCollector:
                 error=str(e),
             )
             raise FeedbackStoreUnavailable(
-                f"Erro ao acessar feedback store para opinião {opinion_id}: {str(e)}"
+                f"Erro ao acessar feedback store para opinião {opinion_id}: {e!s}"
             ) from e
         except Exception as e:
             logger.error(
@@ -543,7 +543,7 @@ class FeedbackCollector:
 
     def get_feedback_by_specialist(
         self, specialist_type: str, window_days: int
-    ) -> List[FeedbackDocument]:
+    ) -> list[FeedbackDocument]:
         """
         Busca feedbacks recentes de um especialista.
 
@@ -558,7 +558,7 @@ class FeedbackCollector:
             FeedbackStoreUnavailable: Se store estiver indisponível
         """
         try:
-            cutoff_date = datetime.now(timezone.utc) - timedelta(days=window_days)
+            cutoff_date = datetime.now(UTC) - timedelta(days=window_days)
 
             results = self._with_breaker(
                 lambda: list(
@@ -601,7 +601,7 @@ class FeedbackCollector:
                 error=str(e),
             )
             raise FeedbackStoreUnavailable(
-                f"Erro ao acessar feedback store para {specialist_type}: {str(e)}"
+                f"Erro ao acessar feedback store para {specialist_type}: {e!s}"
             ) from e
         except Exception as e:
             logger.error(
@@ -626,7 +626,7 @@ class FeedbackCollector:
             FeedbackStoreUnavailable: Se store estiver indisponível
         """
         try:
-            cutoff_date = datetime.now(timezone.utc) - timedelta(days=window_days)
+            cutoff_date = datetime.now(UTC) - timedelta(days=window_days)
 
             count = self._with_breaker(
                 lambda: self._collection.count_documents(
@@ -662,7 +662,7 @@ class FeedbackCollector:
                 error=str(e),
             )
             raise FeedbackStoreUnavailable(
-                f"Erro ao acessar feedback store ao contar feedbacks de {specialist_type}: {str(e)}"
+                f"Erro ao acessar feedback store ao contar feedbacks de {specialist_type}: {e!s}"
             ) from e
         except Exception as e:
             logger.error(
@@ -672,7 +672,7 @@ class FeedbackCollector:
             )
             raise
 
-    def get_feedback_statistics(self, specialist_type: str, window_days: int) -> Dict[str, Any]:
+    def get_feedback_statistics(self, specialist_type: str, window_days: int) -> dict[str, Any]:
         """
         Calcula estatísticas de feedback.
 

@@ -4,14 +4,15 @@ Testes adicionais para drift_monitoring.
 Cobertura extra para drift_detector.py, drift_alerts.py, evidently_monitor.py
 """
 
-import pytest
 from unittest.mock import Mock
+
+import pytest
 
 
 class TestDriftDetectorExtended:
     """Testes estendidos para DriftDetector."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def config(self):
         """Configuração de teste."""
         return {
@@ -20,7 +21,7 @@ class TestDriftDetectorExtended:
             "drift_check_interval_minutes": 60,
         }
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_dependencies(self):
         """Mock de dependências."""
         return {
@@ -62,7 +63,7 @@ class TestDriftDetectorExtended:
         assert detector.threshold_psi == 0.2
         assert detector.check_interval_minutes == 60
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_start_monitoring(self, config, mock_dependencies):
         """Testa início de monitoramento."""
         from neural_hive_specialists.drift_monitoring.drift_detector import DriftDetector
@@ -82,7 +83,7 @@ class TestDriftDetectorExtended:
         # Cleanup
         await detector.stop_monitoring()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_start_monitoring_already_running(self, config, mock_dependencies):
         """Testa que iniciar monitoring novamente não causa problemas."""
         from neural_hive_specialists.drift_monitoring.drift_detector import DriftDetector
@@ -105,7 +106,7 @@ class TestDriftDetectorExtended:
         # Cleanup
         await detector.stop_monitoring()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_stop_monitoring_when_not_running(self, config, mock_dependencies):
         """Testa parar monitoramento quando não está rodando."""
         from neural_hive_specialists.drift_monitoring.drift_detector import DriftDetector
@@ -126,7 +127,7 @@ class TestDriftDetectorExtended:
 class TestDriftAlertsExtended:
     """Testes estendidos para DriftAlerter."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def config(self):
         """Configuração de teste."""
         return {
@@ -134,7 +135,7 @@ class TestDriftAlertsExtended:
             "drift_alert_webhook": "https://example.com/webhook",
         }
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_ledger(self):
         """Mock de ledger client."""
         return Mock()
@@ -173,7 +174,7 @@ class TestDriftAlertsExtended:
 class TestEvidentlyMonitorExtended:
     """Testes estendidos para EvidentlyMonitor."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def config(self):
         """Configuração de teste."""
         return {

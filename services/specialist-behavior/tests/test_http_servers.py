@@ -4,20 +4,21 @@ Testes para servidores HTTP do Behavior Specialist.
 Estes testes validam o http_server.py (HTTPServer) e http_server_fastapi.py.
 """
 
-import sys
 import os
-import pytest
-from unittest.mock import MagicMock, patch
+import sys
 from io import BytesIO
+from unittest.mock import MagicMock, patch
+
+import pytest
 
 # Configurar path para importar código real
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
-from src.http_server import HealthHandler, create_http_server
 from src.config import BehaviorSpecialistConfig
+from src.http_server import HealthHandler, create_http_server
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_specialist():
     """Mock do especialista para testes do servidor HTTP."""
     specialist = MagicMock()
@@ -27,7 +28,7 @@ def mock_specialist():
     return specialist
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_config():
     """Mock da configuração para testes."""
     config = MagicMock()
@@ -194,7 +195,7 @@ class TestCreateHttpServer:
         assert call_args[0][1] == HealthHandler
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_specialist_fastapi():
     """Mock do especialista para testes FastAPI."""
     specialist = MagicMock()
@@ -210,7 +211,7 @@ def mock_specialist_fastapi():
     return specialist
 
 
-@pytest.fixture
+@pytest.fixture()
 def config_fastapi():
     """Configuração para testes FastAPI."""
     config = BehaviorSpecialistConfig()
@@ -252,8 +253,8 @@ class TestFastAPIApp:
         self, mock_logger, mock_specialist_fastapi, config_fastapi
     ):
         """Testa que /health retorna 200."""
-        from src.http_server_fastapi import create_fastapi_app
         from fastapi.testclient import TestClient
+        from src.http_server_fastapi import create_fastapi_app
 
         app = create_fastapi_app(mock_specialist_fastapi, config_fastapi)
         client = TestClient(app)
@@ -270,8 +271,8 @@ class TestFastAPIApp:
     @patch("src.http_server_fastapi.structlog.get_logger")
     def test_ready_endpoint_when_ready(self, mock_logger, mock_specialist_fastapi, config_fastapi):
         """Testa /ready quando pronto."""
-        from src.http_server_fastapi import create_fastapi_app
         from fastapi.testclient import TestClient
+        from src.http_server_fastapi import create_fastapi_app
 
         app = create_fastapi_app(mock_specialist_fastapi, config_fastapi)
         client = TestClient(app)
@@ -289,8 +290,8 @@ class TestFastAPIApp:
         self, mock_logger, mock_generate_latest, mock_specialist_fastapi, config_fastapi
     ):
         """Testa endpoint /metrics."""
-        from src.http_server_fastapi import create_fastapi_app
         from fastapi.testclient import TestClient
+        from src.http_server_fastapi import create_fastapi_app
 
         mock_generate_latest.return_value = b"# METRIC data\n"
 
@@ -306,8 +307,8 @@ class TestFastAPIApp:
     @patch("src.http_server_fastapi.structlog.get_logger")
     def test_status_endpoint(self, mock_logger, mock_specialist_fastapi, config_fastapi):
         """Testa endpoint /status."""
-        from src.http_server_fastapi import create_fastapi_app
         from fastapi.testclient import TestClient
+        from src.http_server_fastapi import create_fastapi_app
 
         app = create_fastapi_app(mock_specialist_fastapi, config_fastapi)
         client = TestClient(app)

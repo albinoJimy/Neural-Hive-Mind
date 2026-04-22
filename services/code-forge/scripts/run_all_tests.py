@@ -3,12 +3,11 @@
 Script não-interativo para executar todos os testes manuais do CodeForge.
 """
 
-import sys
-import subprocess
 import shutil
-from pathlib import Path
+import subprocess
+import sys
 from datetime import datetime
-from typing import Dict, List
+from pathlib import Path
 
 # Adicionar diretórios ao path
 script_dir = Path(__file__).parent.parent
@@ -55,7 +54,7 @@ class TestSuite:
     """Suite de testes para CodeForge Builds Reais."""
 
     def __init__(self):
-        self.results: List[TestResult] = []
+        self.results: list[TestResult] = []
         self.test_dir = Path("/tmp/codeforge-test")
         self.start_time = None
 
@@ -167,7 +166,7 @@ require github.com/gin-gonic/gin v1.9.1
 
         return project_dir
 
-    def check_prerequisites(self) -> Dict[str, bool]:
+    def check_prerequisites(self) -> dict[str, bool]:
         """Verifica pré-requisitos."""
         self.print_step("Verificando pré-requisitos...")
 
@@ -217,8 +216,8 @@ require github.com/gin-gonic/gin v1.9.1
 
         try:
             from src.services.dockerfile_generator import (
-                DockerfileGenerator,
                 ArtifactType,
+                DockerfileGenerator,
                 SupportedLanguage,
             )
 
@@ -266,8 +265,8 @@ require github.com/gin-gonic/gin v1.9.1
 
         try:
             from src.services.dockerfile_generator import (
-                DockerfileGenerator,
                 ArtifactType,
+                DockerfileGenerator,
                 SupportedLanguage,
             )
 
@@ -313,8 +312,8 @@ require github.com/gin-gonic/gin v1.9.1
 
         try:
             from src.services.dockerfile_generator import (
-                DockerfileGenerator,
                 ArtifactType,
+                DockerfileGenerator,
                 SupportedLanguage,
             )
 
@@ -360,10 +359,11 @@ require github.com/gin-gonic/gin v1.9.1
 
         try:
             import asyncio
-            from src.services.container_builder import ContainerBuilder, BuilderType
+
+            from src.services.container_builder import BuilderType, ContainerBuilder
             from src.services.dockerfile_generator import (
-                DockerfileGenerator,
                 ArtifactType,
+                DockerfileGenerator,
                 SupportedLanguage,
             )
 
@@ -406,7 +406,7 @@ require github.com/gin-gonic/gin v1.9.1
                 # Limpar imagem
                 try:
                     subprocess.run(
-                        ["docker", "rmi", "-f", "test-python:latest"], capture_output=True
+                        ["docker", "rmi", "-f", "test-python:latest"], capture_output=True, check=False
                     )
                 except:
                     pass
@@ -495,7 +495,7 @@ require github.com/gin-gonic/gin v1.9.1
 
         return result
 
-    def run_all(self, prereqs: Dict[str, bool]):
+    def run_all(self, prereqs: dict[str, bool]):
         """Executa todos os testes aplicáveis."""
         self.start_time = datetime.now()
 
@@ -583,7 +583,7 @@ require github.com/gin-gonic/gin v1.9.1
 
         # Remover imagens de teste
         try:
-            subprocess.run(["docker", "rmi", "-f", "test-python:latest"], capture_output=True)
+            subprocess.run(["docker", "rmi", "-f", "test-python:latest"], capture_output=True, check=False)
         except:
             pass
 

@@ -3,17 +3,17 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC
 from typing import Any
 
 from src.config.settings import get_settings
 from src.models.hypothesis import (
     Hypothesis,
     HypothesisCreate,
-    HypothesisUpdate,
     HypothesisFilter,
-    HypothesisStatus,
     HypothesisResults,
+    HypothesisStatus,
+    HypothesisUpdate,
 )
 from src.models.hypothesis_version import HypothesisVersion
 from src.models.workflow import (
@@ -25,7 +25,7 @@ from src.repositories.hypothesis_repository import HypothesisRepository
 from src.services.versioning_service import VersioningService
 
 logger = logging.getLogger(__name__)
-UTC = timezone.utc
+UTC = UTC
 
 
 class HypothesisService:
@@ -152,7 +152,7 @@ class HypothesisService:
                 {
                     "current_version": updated.current_version,
                     "versions": updated.versions,
-                }
+                },
             )
 
             await self.versioning.create_version(
@@ -196,7 +196,9 @@ class HypothesisService:
                 "author",
             )
         except TransitionError as e:
-            logger.warning(f"invalid_transition: hypothesis_id={hypothesis_id}, from_status={hypothesis.status.value}, to_status={HypothesisStatus.PROPOSED.value}, error={str(e)}")
+            logger.warning(
+                f"invalid_transition: hypothesis_id={hypothesis_id}, from_status={hypothesis.status.value}, to_status={HypothesisStatus.PROPOSED.value}, error={e!s}"
+            )
             raise
 
         # Criar versão antes de mudar status
@@ -209,7 +211,7 @@ class HypothesisService:
                 {
                     "current_version": hypothesis.current_version,
                     "versions": hypothesis.versions,
-                }
+                },
             )
             await self.versioning.create_version(
                 hypothesis=hypothesis,
@@ -227,7 +229,9 @@ class HypothesisService:
             reason=reason,
         )
 
-        logger.info(f"hypothesis_proposed: hypothesis_id={hypothesis_id}, proposed_by={proposed_by}")
+        logger.info(
+            f"hypothesis_proposed: hypothesis_id={hypothesis_id}, proposed_by={proposed_by}"
+        )
 
         return updated, transition
 
@@ -260,7 +264,9 @@ class HypothesisService:
                 "reviewer",
             )
         except TransitionError as e:
-            logger.warning(f"invalid_transition: hypothesis_id={hypothesis_id}, from_status={hypothesis.status.value}, to_status={HypothesisStatus.APPROVED.value}, error={str(e)}")
+            logger.warning(
+                f"invalid_transition: hypothesis_id={hypothesis_id}, from_status={hypothesis.status.value}, to_status={HypothesisStatus.APPROVED.value}, error={e!s}"
+            )
             raise
 
         # Criar versão antes de mudar status
@@ -273,7 +279,7 @@ class HypothesisService:
                 {
                     "current_version": hypothesis.current_version,
                     "versions": hypothesis.versions,
-                }
+                },
             )
             await self.versioning.create_version(
                 hypothesis=hypothesis,
@@ -291,7 +297,9 @@ class HypothesisService:
             reason=reason,
         )
 
-        logger.info(f"hypothesis_approved: hypothesis_id={hypothesis_id}, approved_by={approved_by}")
+        logger.info(
+            f"hypothesis_approved: hypothesis_id={hypothesis_id}, approved_by={approved_by}"
+        )
 
         return updated, transition
 
@@ -325,7 +333,9 @@ class HypothesisService:
                 role,
             )
         except TransitionError as e:
-            logger.warning(f"invalid_transition: hypothesis_id={hypothesis_id}, from_status={hypothesis.status.value}, to_status={HypothesisStatus.REJECTED.value}, error={str(e)}")
+            logger.warning(
+                f"invalid_transition: hypothesis_id={hypothesis_id}, from_status={hypothesis.status.value}, to_status={HypothesisStatus.REJECTED.value}, error={e!s}"
+            )
             raise
 
         # Criar versão antes de mudar status
@@ -338,7 +348,7 @@ class HypothesisService:
                 {
                     "current_version": hypothesis.current_version,
                     "versions": hypothesis.versions,
-                }
+                },
             )
             await self.versioning.create_version(
                 hypothesis=hypothesis,
@@ -356,7 +366,9 @@ class HypothesisService:
             reason=reason,
         )
 
-        logger.info(f"hypothesis_rejected: hypothesis_id={hypothesis_id}, rejected_by={rejected_by}, reason={reason}")
+        logger.info(
+            f"hypothesis_rejected: hypothesis_id={hypothesis_id}, rejected_by={rejected_by}, reason={reason}"
+        )
 
         return updated, transition
 
@@ -389,7 +401,9 @@ class HypothesisService:
                 "system_or_author",
             )
         except TransitionError as e:
-            logger.warning(f"invalid_transition: hypothesis_id={hypothesis_id}, from_status={hypothesis.status.value}, to_status={HypothesisStatus.IN_TESTING.value}, error={str(e)}")
+            logger.warning(
+                f"invalid_transition: hypothesis_id={hypothesis_id}, from_status={hypothesis.status.value}, to_status={HypothesisStatus.IN_TESTING.value}, error={e!s}"
+            )
             raise
 
         # Associar experimento
@@ -403,7 +417,9 @@ class HypothesisService:
             reason=f"Experimento {experiment_id} iniciado",
         )
 
-        logger.info(f"hypothesis_testing_started: hypothesis_id={hypothesis_id}, experiment_id={experiment_id}")
+        logger.info(
+            f"hypothesis_testing_started: hypothesis_id={hypothesis_id}, experiment_id={experiment_id}"
+        )
 
         return updated, transition
 
@@ -439,7 +455,9 @@ class HypothesisService:
             reason=f"Experimento completado: {results.outcome}",
         )
 
-        logger.info(f"hypothesis_completed: hypothesis_id={hypothesis_id}, outcome={results.outcome}")
+        logger.info(
+            f"hypothesis_completed: hypothesis_id={hypothesis_id}, outcome={results.outcome}"
+        )
 
         return updated, transition
 
@@ -472,7 +490,9 @@ class HypothesisService:
                 "reviewer",
             )
         except TransitionError as e:
-            logger.warning(f"invalid_transition: hypothesis_id={hypothesis_id}, from_status={hypothesis.status.value}, to_status={HypothesisStatus.ACCEPTED.value}, error={str(e)}")
+            logger.warning(
+                f"invalid_transition: hypothesis_id={hypothesis_id}, from_status={hypothesis.status.value}, to_status={HypothesisStatus.ACCEPTED.value}, error={e!s}"
+            )
             raise
 
         # Executar transição
@@ -483,7 +503,9 @@ class HypothesisService:
             reason=reason or "Hipótese validada",
         )
 
-        logger.info(f"hypothesis_accepted: hypothesis_id={hypothesis_id}, accepted_by={accepted_by}")
+        logger.info(
+            f"hypothesis_accepted: hypothesis_id={hypothesis_id}, accepted_by={accepted_by}"
+        )
 
         return updated, transition
 
@@ -516,7 +538,9 @@ class HypothesisService:
                 "author_or_reviewer",
             )
         except TransitionError as e:
-            logger.warning(f"invalid_transition: hypothesis_id={hypothesis_id}, from_status={hypothesis.status.value}, to_status={HypothesisStatus.ARCHIVED.value}, error={str(e)}")
+            logger.warning(
+                f"invalid_transition: hypothesis_id={hypothesis_id}, from_status={hypothesis.status.value}, to_status={HypothesisStatus.ARCHIVED.value}, error={e!s}"
+            )
             raise
 
         # Executar transição
@@ -527,7 +551,9 @@ class HypothesisService:
             reason=reason or "Arquivada",
         )
 
-        logger.info(f"hypothesis_archived: hypothesis_id={hypothesis_id}, archived_by={archived_by}")
+        logger.info(
+            f"hypothesis_archived: hypothesis_id={hypothesis_id}, archived_by={archived_by}"
+        )
 
         return updated, transition
 

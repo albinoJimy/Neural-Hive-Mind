@@ -2,27 +2,22 @@
 
 import pytest
 from httpx import ASGITransport, AsyncClient
-
 from main import create_app
-from src.models.impact import ImpactCategory, ImpactDirection, ImpactTimeframe
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 class TestAPIEndpoints:
     """Test suite for API endpoints."""
 
-    @pytest.fixture
+    @pytest.fixture()
     async def app(self):
         """Create FastAPI app."""
         return create_app()
 
-    @pytest.fixture
+    @pytest.fixture()
     async def client(self, app):
         """Create HTTP test client."""
-        async with AsyncClient(
-            transport=ASGITransport(app=app),
-            base_url="http://test"
-        ) as ac:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
             yield ac
 
     async def test_root_endpoint(self, client):
@@ -58,7 +53,7 @@ class TestAPIEndpoints:
                 "experiment_id": "test-exp-001",
                 "timeframes": ["short_term"],
                 "include_correlations": False,
-            }
+            },
         )
 
         # May return 404 if experiment doesn't exist (expected without MongoDB)
@@ -72,8 +67,7 @@ class TestAPIEndpoints:
     async def test_search_impacts(self, client):
         """Test search impacts endpoint."""
         response = await client.get(
-            "/api/v1/impact/search",
-            params={"direction": "positive", "limit": 10}
+            "/api/v1/impact/search", params={"direction": "positive", "limit": 10}
         )
         assert response.status_code in [200, 503]
 
@@ -84,12 +78,12 @@ class TestAPIEndpoints:
             json={
                 "experiment_ids": ["exp-001", "exp-002"],
                 "timeframes": ["short_term"],
-            }
+            },
         )
         assert response.status_code in [200, 503]
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 class TestImpactAnalysisFlow:
     """Test suite for end-to-end impact analysis flow."""
 
@@ -97,17 +91,14 @@ class TestImpactAnalysisFlow:
         """Test complete analysis flow from request to response."""
         # This would require a test database with seeded data
         # For now, we verify the structure is correct
-        async with AsyncClient(
-            transport=ASGITransport(app=app),
-            base_url="http://test"
-        ) as client:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.post(
                 "/api/v1/impact/analyze",
                 json={
                     "experiment_id": "test-exp-001",
                     "timeframes": ["short_term", "long_term"],
                     "include_correlations": True,
-                }
+                },
             )
 
             # Accept 503 (service not available) as valid for test environment
@@ -115,17 +106,14 @@ class TestImpactAnalysisFlow:
 
     async def test_cached_analysis_retrieval(self, app):
         """Test that cached analysis is returned when available."""
-        async with AsyncClient(
-            transport=ASGITransport(app=app),
-            base_url="http://test"
-        ) as client:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             # First request might analyze (or fail without DB)
             response1 = await client.post(
                 "/api/v1/impact/analyze",
                 json={
                     "experiment_id": "test-exp-cached",
                     "force_refresh": False,
-                }
+                },
             )
 
             # Second request should use cache if first succeeded
@@ -134,7 +122,7 @@ class TestImpactAnalysisFlow:
                 json={
                     "experiment_id": "test-exp-cached",
                     "force_refresh": False,
-                }
+                },
             )
 
             # Both should have same status code

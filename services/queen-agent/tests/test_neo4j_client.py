@@ -2,14 +2,14 @@
 Testes para Neo4jClient - foco em list_active_conflicts
 """
 
-import pytest
-import pytest_asyncio
 from unittest.mock import AsyncMock, MagicMock
 
+import pytest
+import pytest_asyncio
 from src.clients.neo4j_client import Neo4jClient
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_settings():
     """Mock de configurações"""
     settings = MagicMock()
@@ -38,7 +38,7 @@ async def neo4j_client(mock_settings):
     return client
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_list_active_conflicts_success(neo4j_client):
     """Testa listagem de conflitos ativos com sucesso"""
     # Configurar mock para retornar dados
@@ -63,7 +63,7 @@ async def test_list_active_conflicts_success(neo4j_client):
     assert conflicts[1]["decision_id"] == "dec-003"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_list_active_conflicts_empty(neo4j_client):
     """Testa listagem quando não há conflitos"""
     mock_result = AsyncMock()
@@ -77,7 +77,7 @@ async def test_list_active_conflicts_empty(neo4j_client):
     assert conflicts == []
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_list_active_conflicts_handles_exception(neo4j_client):
     """Testa tratamento de exceção"""
     mock_session = neo4j_client.driver.session.return_value
@@ -89,7 +89,7 @@ async def test_list_active_conflicts_handles_exception(neo4j_client):
     assert conflicts == []
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_list_active_conflicts_partial_data(neo4j_client):
     """Testa listagem com dados parciais (campos faltando)"""
     mock_result = AsyncMock()

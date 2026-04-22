@@ -20,7 +20,7 @@ import pytest
 class TestCLIAdapterExecution:
     """Testes de execucao de comandos."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_success(self):
         """Deve executar comando com sucesso e validar chamada subprocess."""
         from src.adapters.cli_adapter import CLIAdapter
@@ -54,7 +54,7 @@ class TestCLIAdapterExecution:
             assert call_args.kwargs["stdout"] == asyncio.subprocess.PIPE
             assert call_args.kwargs["stderr"] == asyncio.subprocess.PIPE
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_failure(self):
         """Deve retornar erro quando comando falha."""
         from src.adapters.cli_adapter import CLIAdapter
@@ -79,7 +79,7 @@ class TestCLIAdapterExecution:
             assert result.exit_code == 1
             assert "Error: test failed" in result.error
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_timeout(self):
         """Deve tratar timeout e matar processo."""
         from src.adapters.cli_adapter import CLIAdapter
@@ -104,7 +104,7 @@ class TestCLIAdapterExecution:
             assert "timed out" in result.error.lower()
             mock_process.kill.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_output_parsing(self):
         """Deve fazer parsing correto de stdout/stderr."""
         from src.adapters.cli_adapter import CLIAdapter
@@ -215,7 +215,7 @@ class TestCLIAdapterCommandBuilding:
 class TestCLIAdapterEnvironment:
     """Testes de environment variables."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_with_env_vars(self):
         """Deve passar environment variables para subprocess."""
         from src.adapters.cli_adapter import CLIAdapter
@@ -243,7 +243,7 @@ class TestCLIAdapterEnvironment:
             call_kwargs = mock_proc.call_args.kwargs
             assert call_kwargs["env"] == env_vars
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_without_env_vars(self):
         """Deve usar None quando nao ha env_vars."""
         from src.adapters.cli_adapter import CLIAdapter
@@ -271,7 +271,7 @@ class TestCLIAdapterEnvironment:
 class TestCLIAdapterWorkingDirectory:
     """Testes de working directory."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_with_working_dir(self):
         """Deve usar working directory especificado."""
         from src.adapters.cli_adapter import CLIAdapter
@@ -297,7 +297,7 @@ class TestCLIAdapterWorkingDirectory:
             call_kwargs = mock_proc.call_args.kwargs
             assert call_kwargs["cwd"] == "/tmp/test/project"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_with_default_working_dir(self):
         """Deve usar diretorio padrao quando nao especificado."""
         from src.adapters.cli_adapter import CLIAdapter
@@ -325,7 +325,7 @@ class TestCLIAdapterWorkingDirectory:
 class TestCLIAdapterExitCodes:
     """Testes de tratamento de exit codes."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     @pytest.mark.parametrize(
         "exit_code,expected_success",
         [
@@ -367,7 +367,7 @@ class TestCLIAdapterExitCodes:
 class TestCLIAdapterValidation:
     """Testes de validacao de ferramentas."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_validate_tool_availability_via_which(self):
         """Deve validar disponibilidade via 'which'."""
         from src.adapters.cli_adapter import CLIAdapter
@@ -389,7 +389,7 @@ class TestCLIAdapterValidation:
             assert "which" in call_cmd
             assert "pytest" in call_cmd
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_validate_tool_availability_fallback_to_version(self):
         """Deve tentar --version quando 'which' falha."""
         from src.adapters.cli_adapter import CLIAdapter
@@ -428,7 +428,7 @@ class TestCLIAdapterValidation:
             assert is_available is True
             assert mock_proc.call_count == 2
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_validate_tool_not_available(self):
         """Deve retornar False quando ferramenta nao existe."""
         from src.adapters.cli_adapter import CLIAdapter
@@ -445,7 +445,7 @@ class TestCLIAdapterValidation:
 
             assert is_available is False
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_validate_tool_handles_exception(self):
         """Deve retornar False quando ocorre excecao."""
         from src.adapters.cli_adapter import CLIAdapter
@@ -463,7 +463,7 @@ class TestCLIAdapterValidation:
 class TestCLIAdapterMetrics:
     """Testes de metricas."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execution_time_recorded(self):
         """Deve registrar tempo de execucao positivo."""
         from src.adapters.cli_adapter import CLIAdapter
@@ -487,7 +487,7 @@ class TestCLIAdapterMetrics:
             assert result.execution_time_ms > 0
             assert isinstance(result.execution_time_ms, float)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_metadata_includes_command_info(self):
         """Deve incluir informacoes do comando no metadata."""
         from src.adapters.cli_adapter import CLIAdapter
@@ -517,7 +517,7 @@ class TestCLIAdapterMetrics:
 class TestCLIAdapterIntegration:
     """Testes de integracao entre componentes do adapter."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_full_execution_flow(self):
         """Deve executar fluxo completo: build command -> execute -> parse result."""
         from src.adapters.cli_adapter import CLIAdapter

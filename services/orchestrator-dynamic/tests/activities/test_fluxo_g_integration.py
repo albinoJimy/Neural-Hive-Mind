@@ -1,27 +1,26 @@
 """Tests para Fluxo G integration activities."""
 
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
-from datetime import datetime
+from unittest.mock import AsyncMock, MagicMock
 
+import pytest
 from src.activities.fluxo_g_integration import (
-    generate_requirements,
     generate_documentation,
-    update_knowledge_graph,
-    request_approval,
+    generate_requirements,
     query_knowledge_graph,
+    request_approval,
     set_fluxo_g_dependencies,
+    update_knowledge_graph,
 )
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_http_client():
     """Mock do cliente HTTP."""
     client = AsyncMock()
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_cognitive_plan():
     """Plano cognitivo de exemplo."""
     return {
@@ -36,13 +35,11 @@ def sample_cognitive_plan():
     }
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 class TestGenerateRequirements:
     """Testes para generate_requirements activity."""
 
-    async def test_generate_requirements_success(
-        self, mock_http_client, sample_cognitive_plan
-    ):
+    async def test_generate_requirements_success(self, mock_http_client, sample_cognitive_plan):
         """Testa geração de requisitos com sucesso."""
         from src.activities.fluxo_g_integration import set_fluxo_g_dependencies
 
@@ -67,9 +64,7 @@ class TestGenerateRequirements:
         assert result["plan_id"] == "PLAN-001"
         assert len(result["requirements"]) == 2
 
-    async def test_generate_requirements_http_error(
-        self, mock_http_client, sample_cognitive_plan
-    ):
+    async def test_generate_requirements_http_error(self, mock_http_client, sample_cognitive_plan):
         """Testa tratamento de erro HTTP."""
         set_fluxo_g_dependencies(http_client=mock_http_client)
 
@@ -91,13 +86,11 @@ class TestGenerateRequirements:
         assert result["plan_id"] == "PLAN-001"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 class TestGenerateDocumentation:
     """Testes para generate_documentation activity."""
 
-    async def test_generate_documentation_success(
-        self, mock_http_client, sample_cognitive_plan
-    ):
+    async def test_generate_documentation_success(self, mock_http_client, sample_cognitive_plan):
         """Testa geração de documentação com sucesso."""
         set_fluxo_g_dependencies(http_client=mock_http_client)
 
@@ -117,13 +110,11 @@ class TestGenerateDocumentation:
         assert result["readme"] is not None
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 class TestUpdateKnowledgeGraph:
     """Testes para update_knowledge_graph activity."""
 
-    async def test_update_knowledge_graph_success(
-        self, mock_http_client, sample_cognitive_plan
-    ):
+    async def test_update_knowledge_graph_success(self, mock_http_client, sample_cognitive_plan):
         """Testa atualização do grafo com sucesso."""
         set_fluxo_g_dependencies(http_client=mock_http_client)
 
@@ -173,7 +164,7 @@ class TestUpdateKnowledgeGraph:
         assert result["nodes_created"] == 0
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 class TestRequestApproval:
     """Testes para request_approval activity."""
 
@@ -231,7 +222,7 @@ class TestRequestApproval:
         assert result["requires_human_review"] is True
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 class TestQueryKnowledgeGraph:
     """Testes para query_knowledge_graph activity."""
 

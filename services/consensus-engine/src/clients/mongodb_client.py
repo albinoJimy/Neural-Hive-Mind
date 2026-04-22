@@ -1,4 +1,4 @@
-from typing import Dict, Optional
+from typing import Optional
 
 import structlog
 from pymongo.errors import DuplicateKeyError
@@ -81,11 +81,11 @@ class MongoDBClient:
             logger.warning("Decisão já existe no ledger", decision_id=decision.decision_id)
             raise
 
-    async def get_decision(self, decision_id: str) -> Optional[Dict]:
+    async def get_decision(self, decision_id: str) -> Optional[dict]:
         """Consulta decisão por ID"""
         return await self.consensus_collection.find_one({"decision_id": decision_id})
 
-    async def get_decision_by_plan(self, plan_id: str) -> Optional[Dict]:
+    async def get_decision_by_plan(self, plan_id: str) -> Optional[dict]:
         """Consulta decisão por plan_id"""
         return await self.consensus_collection.find_one({"plan_id": plan_id})
 

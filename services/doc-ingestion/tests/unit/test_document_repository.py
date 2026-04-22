@@ -156,10 +156,13 @@ class TestDocumentRepository:
             class AsyncCursor:
                 def skip(self, n):
                     return self
+
                 def limit(self, n):
                     return self
+
                 def sort(self, *args):
                     return self
+
                 async def to_list(self, length=None):
                     return []
 
@@ -211,10 +214,13 @@ class TestDocumentRepository:
             class AsyncCursor:
                 def skip(self, n):
                     return self
+
                 def limit(self, n):
                     return self
+
                 def sort(self, *args):
                     return self
+
                 async def to_list(self, length=None):
                     return [doc_data]
 

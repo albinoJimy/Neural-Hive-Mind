@@ -1,7 +1,6 @@
 """Configurações do Approval Gateway service."""
 
 from functools import lru_cache
-from typing import Optional
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -25,16 +24,12 @@ class Settings(BaseSettings):
     port: int = 8017
 
     # MongoDB
-    mongodb_url: str = Field(
-        default="mongodb://localhost:27017",
-        validation_alias="MONGODB_URL"
-    )
+    mongodb_url: str = Field(default="mongodb://localhost:27017", validation_alias="MONGODB_URL")
     mongodb_database: str = "nhm_approvals"
 
     # Kafka
     kafka_bootstrap_servers: str = Field(
-        default="localhost:9092",
-        validation_alias="KAFKA_BOOTSTRAP_SERVERS"
+        default="localhost:9092", validation_alias="KAFKA_BOOTSTRAP_SERVERS"
     )
     kafka_consumer_group: str = "approval-gateway-group"
     kafka_input_topic: str = "approval.requests"
@@ -52,8 +47,7 @@ class Settings(BaseSettings):
 
     # JWT Settings
     jwt_secret_key: str = Field(
-        default="change-me-in-production",
-        validation_alias="JWT_SECRET_KEY"
+        default="change-me-in-production", validation_alias="JWT_SECRET_KEY"
     )
     jwt_algorithm: str = "HS256"
     jwt_access_token_expire_minutes: int = 30

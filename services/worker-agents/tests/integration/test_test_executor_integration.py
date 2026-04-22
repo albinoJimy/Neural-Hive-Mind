@@ -13,19 +13,19 @@ Este modulo contem testes de integracao que verificam:
 Todos os testes usam mocks dos clientes externos.
 """
 
-import pytest
-import uuid
 import tempfile
+import uuid
 from pathlib import Path
 from unittest.mock import AsyncMock
 
+import pytest
 
 # ============================================
 # Fixtures Especificas
 # ============================================
 
 
-@pytest.fixture
+@pytest.fixture()
 def test_executor_with_github(worker_config, mock_metrics, mock_github_actions_client):
     """TestExecutor configurado com cliente GitHub Actions mockado."""
     from executors.test_executor import TestExecutor
@@ -44,7 +44,7 @@ def test_executor_with_github(worker_config, mock_metrics, mock_github_actions_c
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def test_executor_with_gitlab(worker_config, mock_metrics, mock_gitlab_ci_client):
     """TestExecutor configurado com cliente GitLab CI mockado."""
     from executors.test_executor import TestExecutor
@@ -62,7 +62,7 @@ def test_executor_with_gitlab(worker_config, mock_metrics, mock_gitlab_ci_client
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def test_executor_with_jenkins(worker_config, mock_metrics, mock_jenkins_client):
     """TestExecutor configurado com cliente Jenkins mockado."""
     from executors.test_executor import TestExecutor
@@ -80,7 +80,7 @@ def test_executor_with_jenkins(worker_config, mock_metrics, mock_jenkins_client)
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def test_executor_local_only(worker_config, mock_metrics):
     """TestExecutor sem clientes CI/CD (apenas execucao local)."""
     from executors.test_executor import TestExecutor
@@ -96,7 +96,7 @@ def test_executor_local_only(worker_config, mock_metrics):
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def test_ticket_github():
     """Ticket de teste para GitHub Actions."""
     ticket_id = str(uuid.uuid4())
@@ -117,7 +117,7 @@ def test_ticket_github():
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def test_ticket_gitlab():
     """Ticket de teste para GitLab CI."""
     ticket_id = str(uuid.uuid4())
@@ -137,7 +137,7 @@ def test_ticket_gitlab():
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def test_ticket_jenkins():
     """Ticket de teste para Jenkins."""
     ticket_id = str(uuid.uuid4())
@@ -156,7 +156,7 @@ def test_ticket_jenkins():
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def test_ticket_local():
     """Ticket de teste para execucao local."""
     ticket_id = str(uuid.uuid4())
@@ -182,9 +182,9 @@ def test_ticket_local():
 class TestTestExecutorGitHubActionsSuccess:
     """Testes de execucao bem-sucedida via GitHub Actions."""
 
-    @pytest.mark.asyncio
-    @pytest.mark.integration
-    @pytest.mark.executor_integration
+    @pytest.mark.asyncio()
+    @pytest.mark.integration()
+    @pytest.mark.executor_integration()
     async def test_test_executor_github_actions_success(
         self, test_executor_with_github, test_ticket_github, mock_github_actions_client
     ):
@@ -201,9 +201,9 @@ class TestTestExecutorGitHubActionsSuccess:
         mock_github_actions_client.trigger_workflow.assert_called_once()
         mock_github_actions_client.wait_for_run.assert_called_once()
 
-    @pytest.mark.asyncio
-    @pytest.mark.integration
-    @pytest.mark.executor_integration
+    @pytest.mark.asyncio()
+    @pytest.mark.integration()
+    @pytest.mark.executor_integration()
     async def test_test_executor_github_actions_with_run_id(
         self, test_executor_with_github, test_ticket_github, mock_github_actions_client
     ):
@@ -222,9 +222,9 @@ class TestTestExecutorGitHubActionsSuccess:
 class TestTestExecutorGitLabCISuccess:
     """Testes de execucao bem-sucedida via GitLab CI."""
 
-    @pytest.mark.asyncio
-    @pytest.mark.integration
-    @pytest.mark.executor_integration
+    @pytest.mark.asyncio()
+    @pytest.mark.integration()
+    @pytest.mark.executor_integration()
     async def test_test_executor_gitlab_ci_success(
         self, test_executor_with_gitlab, test_ticket_gitlab, mock_gitlab_ci_client
     ):
@@ -238,9 +238,9 @@ class TestTestExecutorGitLabCISuccess:
 
         mock_gitlab_ci_client.trigger_pipeline.assert_called_once()
 
-    @pytest.mark.asyncio
-    @pytest.mark.integration
-    @pytest.mark.executor_integration
+    @pytest.mark.asyncio()
+    @pytest.mark.integration()
+    @pytest.mark.executor_integration()
     async def test_test_executor_gitlab_ci_with_failures(
         self, test_executor_with_gitlab, test_ticket_gitlab, mock_gitlab_ci_client
     ):
@@ -281,9 +281,9 @@ class TestTestExecutorGitLabCISuccess:
 class TestTestExecutorJenkinsSuccess:
     """Testes de execucao bem-sucedida via Jenkins."""
 
-    @pytest.mark.asyncio
-    @pytest.mark.integration
-    @pytest.mark.executor_integration
+    @pytest.mark.asyncio()
+    @pytest.mark.integration()
+    @pytest.mark.executor_integration()
     async def test_test_executor_jenkins_success(
         self, test_executor_with_jenkins, test_ticket_jenkins, mock_jenkins_client
     ):
@@ -306,9 +306,9 @@ class TestTestExecutorJenkinsSuccess:
 class TestTestExecutorTimeout:
     """Testes de timeout na execucao de testes."""
 
-    @pytest.mark.asyncio
-    @pytest.mark.integration
-    @pytest.mark.executor_integration
+    @pytest.mark.asyncio()
+    @pytest.mark.integration()
+    @pytest.mark.executor_integration()
     async def test_test_executor_github_timeout(
         self, test_executor_with_github, test_ticket_github, mock_github_actions_client
     ):
@@ -324,9 +324,9 @@ class TestTestExecutorTimeout:
         assert result["success"] is False
         assert "timeout" in result["logs"][0].lower()
 
-    @pytest.mark.asyncio
-    @pytest.mark.integration
-    @pytest.mark.executor_integration
+    @pytest.mark.asyncio()
+    @pytest.mark.integration()
+    @pytest.mark.executor_integration()
     async def test_test_executor_gitlab_timeout(
         self, test_executor_with_gitlab, test_ticket_gitlab, mock_gitlab_ci_client
     ):
@@ -341,9 +341,9 @@ class TestTestExecutorTimeout:
 
         assert result["success"] is False
 
-    @pytest.mark.asyncio
-    @pytest.mark.integration
-    @pytest.mark.executor_integration
+    @pytest.mark.asyncio()
+    @pytest.mark.integration()
+    @pytest.mark.executor_integration()
     async def test_test_executor_jenkins_timeout(
         self, test_executor_with_jenkins, test_ticket_jenkins, mock_jenkins_client
     ):
@@ -365,9 +365,9 @@ class TestTestExecutorTimeout:
 class TestTestExecutorLocalFallback:
     """Testes de fallback para execucao local."""
 
-    @pytest.mark.asyncio
-    @pytest.mark.integration
-    @pytest.mark.executor_integration
+    @pytest.mark.asyncio()
+    @pytest.mark.integration()
+    @pytest.mark.executor_integration()
     async def test_test_executor_local_success(self, test_executor_local_only, test_ticket_local):
         """Deve executar testes localmente com sucesso."""
         result = await test_executor_local_only.execute(test_ticket_local)
@@ -376,9 +376,9 @@ class TestTestExecutorLocalFallback:
         assert result["metadata"]["provider"] == "local"
         assert result["metadata"]["simulated"] is False
 
-    @pytest.mark.asyncio
-    @pytest.mark.integration
-    @pytest.mark.executor_integration
+    @pytest.mark.asyncio()
+    @pytest.mark.integration()
+    @pytest.mark.executor_integration()
     async def test_test_executor_local_with_pytest_command(self, test_executor_local_only):
         """Deve executar pytest localmente."""
         ticket_id = str(uuid.uuid4())
@@ -407,9 +407,9 @@ class TestTestExecutorLocalFallback:
 class TestTestExecutorJUnitXMLParsing:
     """Testes de parsing de JUnit XML."""
 
-    @pytest.mark.asyncio
-    @pytest.mark.integration
-    @pytest.mark.executor_integration
+    @pytest.mark.asyncio()
+    @pytest.mark.integration()
+    @pytest.mark.executor_integration()
     async def test_junit_xml_parsing_success(self, test_executor_local_only):
         """Deve parsear arquivo JUnit XML corretamente."""
         # Criar arquivo JUnit XML temporario
@@ -450,9 +450,9 @@ class TestTestExecutorJUnitXMLParsing:
 class TestTestExecutorCoverageParsing:
     """Testes de parsing de coverage reports."""
 
-    @pytest.mark.asyncio
-    @pytest.mark.integration
-    @pytest.mark.executor_integration
+    @pytest.mark.asyncio()
+    @pytest.mark.integration()
+    @pytest.mark.executor_integration()
     async def test_coverage_parsing_cobertura(self, test_executor_local_only):
         """Deve parsear arquivo Cobertura XML corretamente."""
         cobertura_content = """<?xml version="1.0" ?>
@@ -495,16 +495,17 @@ class TestTestExecutorCoverageParsing:
 class TestTestExecutorRetryLogic:
     """Testes de logica de retry."""
 
-    @pytest.mark.asyncio
-    @pytest.mark.integration
-    @pytest.mark.executor_integration
+    @pytest.mark.asyncio()
+    @pytest.mark.integration()
+    @pytest.mark.executor_integration()
     async def test_test_executor_retry_on_transient_failure(
         self, worker_config, mock_metrics, test_ticket_github
     ):
         """Deve fazer retry em falhas transitorias."""
-        from executors.test_executor import TestExecutor
         from dataclasses import dataclass
+
         import httpx
+        from executors.test_executor import TestExecutor
 
         call_count = 0
 
@@ -564,9 +565,9 @@ class TestTestExecutorRetryLogic:
 class TestTestExecutorSimulation:
     """Testes de fallback para simulacao."""
 
-    @pytest.mark.asyncio
-    @pytest.mark.integration
-    @pytest.mark.executor_integration
+    @pytest.mark.asyncio()
+    @pytest.mark.integration()
+    @pytest.mark.executor_integration()
     async def test_test_executor_simulation_fallback(self, worker_config, mock_metrics):
         """Deve usar simulacao quando nenhum provider disponivel."""
         from executors.test_executor import TestExecutor
@@ -598,9 +599,9 @@ class TestTestExecutorSimulation:
 class TestTestExecutorMetrics:
     """Testes de registro de metricas."""
 
-    @pytest.mark.asyncio
-    @pytest.mark.integration
-    @pytest.mark.executor_integration
+    @pytest.mark.asyncio()
+    @pytest.mark.integration()
+    @pytest.mark.executor_integration()
     async def test_test_executor_metrics_recorded(
         self, test_executor_with_github, test_ticket_github, mock_metrics
     ):
@@ -611,9 +612,9 @@ class TestTestExecutorMetrics:
         mock_metrics.tests_passed_total.labels.assert_called()
         mock_metrics.test_coverage_percent.labels.assert_called()
 
-    @pytest.mark.asyncio
-    @pytest.mark.integration
-    @pytest.mark.executor_integration
+    @pytest.mark.asyncio()
+    @pytest.mark.integration()
+    @pytest.mark.executor_integration()
     async def test_test_executor_duration_metrics(
         self, test_executor_with_github, test_ticket_github, mock_metrics
     ):

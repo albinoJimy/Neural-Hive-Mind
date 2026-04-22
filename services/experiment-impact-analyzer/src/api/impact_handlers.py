@@ -1,5 +1,6 @@
 """API handlers for impact analysis endpoints."""
 
+from datetime import UTC
 from typing import Any
 
 import structlog
@@ -23,10 +24,11 @@ router = APIRouter(prefix="/impact", tags=["impact"])
 def get_analyzer() -> ImpactAnalyzer:
     """Get impact analyzer instance (dependency injection)."""
     from src.main import impact_analyzer
+
     if impact_analyzer is None:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Impact analyzer not initialized"
+            detail="Impact analyzer not initialized",
         )
     return impact_analyzer
 
@@ -74,17 +76,17 @@ async def analyze_impact(request: ImpactAnalysisRequest) -> ImpactAnalysisRespon
             correlations_available=len(impact.correlated_experiments) > 0,
         )
 
-    except ValueError as e:
+    except ValueError:
         logger.warning("experiment_not_found", experiment_id=request.experiment_id)
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Experiment not found: {request.experiment_id}"
+            detail=f"Experiment not found: {request.experiment_id}",
         )
     except Exception as e:
         logger.error("impact_analysis_failed", error=str(e))
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Impact analysis failed: {str(e)}"
+            detail=f"Impact analysis failed: {e!s}",
         )
 
 
@@ -104,7 +106,7 @@ async def get_experiment_impact(experiment_id: str) -> dict[str, Any]:
     if not impact:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"No impact analysis found for experiment: {experiment_id}"
+            detail=f"No impact analysis found for experiment: {experiment_id}",
         )
 
     # Remove MongoDB _id
@@ -129,9 +131,9 @@ async def get_impact_summary(
     Returns:
         Impact summary
     """
-    from datetime import datetime, timedelta, timezone
+    from datetime import datetime, timedelta
 
-    UTC = timezone.utc
+    UTC = UTC
     end_date = datetime.now(UTC)
     start_date = end_date - timedelta(days=days)
 
@@ -262,15 +264,12 @@ async def delete_impact_analysis(experiment_id: str) -> dict[str, Any]:
     if not impact:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"No impact analysis found for experiment: {experiment_id}"
+            detail=f"No impact analysis found for experiment: {experiment_id}",
         )
 
     impact_id = impact.get("impact_id")
     if not impact_id:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Invalid impact document"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invalid impact document")
 
     # Delete from database
     from motor.motor_asyncio import AsyncIOMotorDatabase

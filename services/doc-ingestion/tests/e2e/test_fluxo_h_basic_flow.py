@@ -1,8 +1,10 @@
 """Teste E2E básico para Fluxo H."""
 
-import pytest
 import asyncio
+
+import pytest
 from httpx import AsyncClient
+
 from src.main import app
 
 

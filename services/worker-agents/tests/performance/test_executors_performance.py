@@ -1,6 +1,5 @@
 import pytest
 
-
 pytestmark = pytest.mark.skip(reason="Performance tests not runnable in unit environment")
 
 

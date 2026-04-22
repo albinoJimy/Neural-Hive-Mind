@@ -9,25 +9,26 @@ Este arquivo contém testes unitários e de integração para validar:
 """
 
 import asyncio
-import pytest
 from unittest.mock import Mock, patch
+
+import pytest
 
 from neural_hive_observability.config import ObservabilityConfig
 from neural_hive_observability.tracing import (
-    init_tracing,
-    get_tracer,
+    _is_sensitive_param,
     correlation_context,
+    create_child_span,
+    enrich_span,
+    extract_context_from_headers,
+    get_correlation_context,
+    get_current_span_id,
+    get_current_trace_id,
+    get_tracer,
+    init_tracing,
+    inject_context_to_headers,
+    trace_grpc_method,
     trace_intent,
     trace_plan,
-    trace_grpc_method,
-    enrich_span,
-    get_current_trace_id,
-    get_current_span_id,
-    get_correlation_context,
-    _is_sensitive_param,
-    create_child_span,
-    inject_context_to_headers,
-    extract_context_from_headers,
 )
 
 

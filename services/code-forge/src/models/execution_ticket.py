@@ -1,6 +1,6 @@
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -112,7 +112,7 @@ class ExecutionTicket(BaseModel):
 
     risk_band: RiskBand = Field(..., description="Banda de risco")
 
-    parameters: Dict[str, Any] = Field(default_factory=dict, description="Parâmetros da tarefa")
+    parameters: dict[str, Any] = Field(default_factory=dict, description="Parâmetros da tarefa")
 
     sla: SLA = Field(..., description="Service Level Agreement")
     qos: QoS = Field(..., description="Quality of Service")
@@ -127,7 +127,7 @@ class ExecutionTicket(BaseModel):
     updated_at: Optional[datetime] = Field(None, description="Timestamp de atualização")
     expires_at: Optional[datetime] = Field(None, description="Timestamp de expiração")
 
-    metadata: Dict[str, str] = Field(default_factory=dict, description="Metadados adicionais")
+    metadata: dict[str, str] = Field(default_factory=dict, description="Metadados adicionais")
 
     schema_version: int = Field(default=1, description="Versão do schema")
 
@@ -141,7 +141,7 @@ class ExecutionTicket(BaseModel):
             return datetime.now() > self.expires_at
         return False
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Converte para dicionário"""
         return self.model_dump()
 

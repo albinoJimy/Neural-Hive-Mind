@@ -12,12 +12,12 @@ import asyncio
 import logging
 import os
 import uuid
-from datetime import datetime, timezone
-from typing import Any, Dict, Generator, List
+from collections.abc import Generator
+from datetime import UTC, datetime
+from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
-
 
 # ============================================================================
 # Configuração de ambiente
@@ -79,7 +79,7 @@ def _configure_logging() -> None:
 # ============================================================================
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_settings() -> MagicMock:
     """
     Settings mockado com valores padrão para testes.
@@ -125,14 +125,14 @@ def mock_settings() -> MagicMock:
     return settings
 
 
-@pytest.fixture
+@pytest.fixture()
 def settings_strict_mode(mock_settings) -> MagicMock:
     """Settings com modo estrito de detecção destrutiva habilitado."""
     mock_settings.destructive_detection_strict_mode = True
     return mock_settings
 
 
-@pytest.fixture
+@pytest.fixture()
 def settings_detection_disabled(mock_settings) -> MagicMock:
     """Settings com detecção destrutiva desabilitada."""
     mock_settings.destructive_detection_enabled = False
@@ -144,8 +144,8 @@ def settings_detection_disabled(mock_settings) -> MagicMock:
 # ============================================================================
 
 
-@pytest.fixture
-def sample_task_nodes() -> List[Dict[str, Any]]:
+@pytest.fixture()
+def sample_task_nodes() -> list[dict[str, Any]]:
     """Lista de tasks de exemplo para testes."""
     return [
         {
@@ -163,8 +163,8 @@ def sample_task_nodes() -> List[Dict[str, Any]]:
     ]
 
 
-@pytest.fixture
-def destructive_task_nodes() -> List[Dict[str, Any]]:
+@pytest.fixture()
+def destructive_task_nodes() -> list[dict[str, Any]]:
     """Lista de tasks destrutivas para testes."""
     return [
         {
@@ -182,26 +182,26 @@ def destructive_task_nodes() -> List[Dict[str, Any]]:
     ]
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_intent_id() -> str:
     """ID de intent único para testes."""
     return f"intent-test-{uuid.uuid4().hex[:8]}"
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_plan_id() -> str:
     """ID de plano único para testes."""
     return f"plan-test-{uuid.uuid4().hex[:8]}"
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_correlation_id() -> str:
     """ID de correlação único para testes."""
     return f"corr-test-{uuid.uuid4().hex[:8]}"
 
 
-@pytest.fixture
-def sample_intermediate_repr(sample_intent_id) -> Dict[str, Any]:
+@pytest.fixture()
+def sample_intermediate_repr(sample_intent_id) -> dict[str, Any]:
     """Representação intermediária de intent para testes."""
     return {
         "id": sample_intent_id,
@@ -215,8 +215,8 @@ def sample_intermediate_repr(sample_intent_id) -> Dict[str, Any]:
     }
 
 
-@pytest.fixture
-def high_risk_intermediate_repr(sample_intent_id) -> Dict[str, Any]:
+@pytest.fixture()
+def high_risk_intermediate_repr(sample_intent_id) -> dict[str, Any]:
     """Representação intermediária de alto risco."""
     return {
         "id": sample_intent_id,
@@ -230,8 +230,8 @@ def high_risk_intermediate_repr(sample_intent_id) -> Dict[str, Any]:
     }
 
 
-@pytest.fixture
-def low_risk_intermediate_repr(sample_intent_id) -> Dict[str, Any]:
+@pytest.fixture()
+def low_risk_intermediate_repr(sample_intent_id) -> dict[str, Any]:
     """Representação intermediária de baixo risco."""
     return {
         "id": sample_intent_id,
@@ -245,14 +245,14 @@ def low_risk_intermediate_repr(sample_intent_id) -> Dict[str, Any]:
     }
 
 
-@pytest.fixture
-def sample_ledger_entry(sample_plan_id, sample_intent_id) -> Dict[str, Any]:
+@pytest.fixture()
+def sample_ledger_entry(sample_plan_id, sample_intent_id) -> dict[str, Any]:
     """Entrada de ledger de exemplo para testes."""
     return {
         "plan_id": sample_plan_id,
         "intent_id": sample_intent_id,
         "version": "1.0.0",
-        "timestamp": datetime.now(timezone.utc),
+        "timestamp": datetime.now(UTC),
         "plan_data": {
             "plan_id": sample_plan_id,
             "intent_id": sample_intent_id,
@@ -294,34 +294,34 @@ def sample_ledger_entry(sample_plan_id, sample_intent_id) -> Dict[str, Any]:
     }
 
 
-@pytest.fixture
-def sample_approval_response(sample_plan_id, sample_intent_id) -> Dict[str, Any]:
+@pytest.fixture()
+def sample_approval_response(sample_plan_id, sample_intent_id) -> dict[str, Any]:
     """Resposta de aprovação de exemplo."""
     return {
         "plan_id": sample_plan_id,
         "intent_id": sample_intent_id,
         "decision": "approved",
         "approved_by": "admin@company.com",
-        "approved_at": int(datetime.now(timezone.utc).timestamp() * 1000),
+        "approved_at": int(datetime.now(UTC).timestamp() * 1000),
         "rejection_reason": None,
     }
 
 
-@pytest.fixture
-def sample_rejection_response(sample_plan_id, sample_intent_id) -> Dict[str, Any]:
+@pytest.fixture()
+def sample_rejection_response(sample_plan_id, sample_intent_id) -> dict[str, Any]:
     """Resposta de rejeição de exemplo."""
     return {
         "plan_id": sample_plan_id,
         "intent_id": sample_intent_id,
         "decision": "rejected",
         "approved_by": "admin@company.com",
-        "approved_at": int(datetime.now(timezone.utc).timestamp() * 1000),
+        "approved_at": int(datetime.now(UTC).timestamp() * 1000),
         "rejection_reason": "Operação muito arriscada para produção",
     }
 
 
-@pytest.fixture
-def sample_trace_context(sample_correlation_id) -> Dict[str, str]:
+@pytest.fixture()
+def sample_trace_context(sample_correlation_id) -> dict[str, str]:
     """Contexto de trace para testes."""
     return {
         "correlation_id": sample_correlation_id,

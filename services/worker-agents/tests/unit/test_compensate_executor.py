@@ -3,8 +3,9 @@ Testes unitarios para CompensateExecutor.
 """
 
 import sys
-import pytest
 from unittest.mock import AsyncMock, MagicMock
+
+import pytest
 
 
 # Mock do modulo de observability antes de importar
@@ -27,7 +28,7 @@ sys.modules["neural_hive_observability"] = mock_tracer_module
 from src.executors.compensate_executor import CompensateExecutor
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_config():
     """Configuracao mock para testes."""
     config = MagicMock()
@@ -35,7 +36,7 @@ def mock_config():
     return config
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_metrics():
     """Metricas mock para testes."""
     metrics = MagicMock()
@@ -44,7 +45,7 @@ def mock_metrics():
     return metrics
 
 
-@pytest.fixture
+@pytest.fixture()
 def compensate_executor(mock_config, mock_metrics):
     """Fixture que cria CompensateExecutor para testes."""
     return CompensateExecutor(
@@ -65,7 +66,7 @@ class TestCompensateExecutorBasic:
         """Deve retornar COMPENSATE como task_type."""
         assert compensate_executor.get_task_type() == "COMPENSATE"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_with_unknown_action_returns_error(self, compensate_executor):
         """Deve retornar erro para action desconhecida."""
         ticket = {
@@ -84,7 +85,7 @@ class TestCompensateExecutorBasic:
 class TestCompensateBuild:
     """Testes para compensacao de BUILD."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_compensate_build_deletes_artifacts_simulation(self, compensate_executor):
         """Deve simular delecao de artefatos quando Code Forge nao disponivel."""
         ticket = {
@@ -105,7 +106,7 @@ class TestCompensateBuild:
         assert "deleted_artifacts" in result["output"]
         assert len(result["output"]["deleted_artifacts"]) == 2
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_compensate_build_with_code_forge_client(self, mock_config, mock_metrics):
         """Deve usar Code Forge client para deletar artefatos se disponivel."""
         mock_code_forge = AsyncMock()
@@ -135,7 +136,7 @@ class TestCompensateBuild:
 class TestCompensateDeploy:
     """Testes para compensacao de DEPLOY."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_compensate_deploy_argocd_rollback(self, mock_config, mock_metrics):
         """Deve usar ArgoCD client para rollback."""
         mock_argocd = AsyncMock()
@@ -167,7 +168,7 @@ class TestCompensateDeploy:
             app_name="my-app", revision="v1.0.0", prune=True
         )
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_compensate_deploy_flux_delete_kustomization(self, mock_config, mock_metrics):
         """Deve usar Flux client para deletar Kustomization."""
         mock_flux = AsyncMock()
@@ -196,7 +197,7 @@ class TestCompensateDeploy:
         assert result["success"] is True
         assert result["output"]["provider"] == "flux"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_compensate_deploy_simulation_fallback(self, compensate_executor):
         """Deve simular rollback quando nenhum provider disponivel."""
         ticket = {
@@ -222,7 +223,7 @@ class TestCompensateDeploy:
 class TestCompensateTest:
     """Testes para compensacao de TEST."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_compensate_test_cleanup_simulation(self, compensate_executor):
         """Deve simular cleanup de ambiente de teste."""
         ticket = {
@@ -243,7 +244,7 @@ class TestCompensateTest:
         assert result["success"] is True
         assert "cleaned_resources" in result["output"]
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_compensate_test_with_k8s_client(self, mock_config, mock_metrics):
         """Deve usar K8s client para cleanup de Jobs."""
         mock_k8s = AsyncMock()
@@ -275,7 +276,7 @@ class TestCompensateTest:
 class TestCompensateValidate:
     """Testes para compensacao de VALIDATE."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_compensate_validate_revert_approval(self, compensate_executor):
         """Deve reverter aprovacao para status anterior."""
         ticket = {
@@ -300,7 +301,7 @@ class TestCompensateValidate:
 class TestCompensateExecute:
     """Testes para compensacao de EXECUTE."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_compensate_execute_with_rollback_script(self, compensate_executor):
         """Deve executar script de rollback se fornecido."""
         ticket = {
@@ -321,7 +322,7 @@ class TestCompensateExecute:
         assert result["success"] is True
         assert result["output"]["rollback_executed"] is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_compensate_execute_without_rollback_script(self, compensate_executor):
         """Deve completar mesmo sem script de rollback."""
         ticket = {
@@ -344,7 +345,7 @@ class TestCompensateExecute:
 class TestCompensateMetrics:
     """Testes para metricas de compensacao."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_records_duration_metric_on_success(self, compensate_executor, mock_metrics):
         """Deve registrar metrica de duracao em caso de sucesso."""
         ticket = {
@@ -363,7 +364,7 @@ class TestCompensateMetrics:
         mock_metrics.compensation_duration_seconds.labels.assert_called()
         mock_metrics.compensation_tasks_executed_total.labels.assert_called()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_records_metric_with_correct_labels(self, compensate_executor, mock_metrics):
         """Deve usar labels corretos nas metricas."""
         ticket = {
@@ -393,7 +394,7 @@ class TestCompensateMetrics:
 class TestCompensateIdempotency:
     """Testes de idempotencia para compensacao."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_compensation_is_idempotent(self, compensate_executor):
         """Compensacao deve ser idempotente - executar multiplas vezes sem efeitos colaterais."""
         ticket = {

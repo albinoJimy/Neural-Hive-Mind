@@ -9,13 +9,14 @@ Valida:
 """
 
 import pytest
-from neural_hive_specialists.opinion_cache import OpinionCache
+
+from neural_hive_specialists.config import SpecialistConfig
 from neural_hive_specialists.ledger_client import LedgerClient
 from neural_hive_specialists.metrics import SpecialistMetrics
-from neural_hive_specialists.config import SpecialistConfig
+from neural_hive_specialists.opinion_cache import OpinionCache
 
 
-@pytest.fixture
+@pytest.fixture()
 def config():
     """Configuração base para testes."""
     return SpecialistConfig(

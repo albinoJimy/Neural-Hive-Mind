@@ -1,9 +1,9 @@
 """Remediation coordinator for self-healing playbooks (Fluxo E4)"""
 
 import asyncio
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Optional
 
 import structlog
 
@@ -67,7 +67,7 @@ class RemediationCoordinator:
         self.playbooks = self._load_playbooks()
         self.active_remediations = {}
 
-    def _load_playbooks(self) -> Dict[str, Any]:
+    def _load_playbooks(self) -> dict[str, Any]:
         """Carrega playbooks de autocura (Terraform/Ansible/Argo)"""
         return {
             "RB-SEC-001-CRITICAL": {
@@ -108,8 +108,8 @@ class RemediationCoordinator:
         }
 
     async def coordinate_remediation(
-        self, incident: Dict[str, Any], enforcement_result: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, incident: dict[str, Any], enforcement_result: dict[str, Any]
+    ) -> dict[str, Any]:
         """
         Coordena remediação de incidente (E4: Executar ações)
 
@@ -165,10 +165,10 @@ class RemediationCoordinator:
             # E4: Falha > 2 tentativas → escalar para humano
             raise
 
-    async def _start_remediation(self, incident: Dict[str, Any], playbook: Dict[str, Any]) -> str:
+    async def _start_remediation(self, incident: dict[str, Any], playbook: dict[str, Any]) -> str:
         """Inicia remediação e retorna ID"""
         remediation_id = (
-            f"REM-{incident.get('incident_id')}-{int(datetime.now(timezone.utc).timestamp())}"
+            f"REM-{incident.get('incident_id')}-{int(datetime.now(UTC).timestamp())}"
         )
 
         self.active_remediations[remediation_id] = {
@@ -176,7 +176,7 @@ class RemediationCoordinator:
             "incident_id": incident.get("incident_id"),
             "playbook_name": playbook.get("name"),
             "status": RemediationStatus.IN_PROGRESS,
-            "started_at": datetime.now(timezone.utc).isoformat(),
+            "started_at": datetime.now(UTC).isoformat(),
             "actions_completed": 0,
             "total_actions": len(playbook.get("actions", [])),
         }
@@ -192,10 +192,10 @@ class RemediationCoordinator:
     async def _execute_playbook_actions(
         self,
         remediation_id: str,
-        incident: Dict[str, Any],
-        playbook: Dict[str, Any],
-        enforcement_result: Dict[str, Any],
-    ) -> Dict[str, Any]:
+        incident: dict[str, Any],
+        playbook: dict[str, Any],
+        enforcement_result: dict[str, Any],
+    ) -> dict[str, Any]:
         """E4: Executar ações do playbook atomicamente"""
         # Se usar self-healing engine, delegar execução
         if self.use_self_healing_engine and self.self_healing_client:
@@ -211,10 +211,10 @@ class RemediationCoordinator:
     async def _execute_via_self_healing_engine(
         self,
         remediation_id: str,
-        incident: Dict[str, Any],
-        playbook: Dict[str, Any],
-        enforcement_result: Dict[str, Any],
-    ) -> Dict[str, Any]:
+        incident: dict[str, Any],
+        playbook: dict[str, Any],
+        enforcement_result: dict[str, Any],
+    ) -> dict[str, Any]:
         """Delega execução para Self-Healing Engine"""
         try:
             logger.info(
@@ -265,7 +265,7 @@ class RemediationCoordinator:
                 "status": status,
                 "engine_result": final_result,
                 "playbook": playbook.get("name"),
-                "completed_at": datetime.now(timezone.utc).isoformat(),
+                "completed_at": datetime.now(UTC).isoformat(),
             }
 
         except Exception as e:
@@ -285,10 +285,10 @@ class RemediationCoordinator:
     async def _execute_actions_locally(
         self,
         remediation_id: str,
-        incident: Dict[str, Any],
-        playbook: Dict[str, Any],
-        enforcement_result: Dict[str, Any],
-    ) -> Dict[str, Any]:
+        incident: dict[str, Any],
+        playbook: dict[str, Any],
+        enforcement_result: dict[str, Any],
+    ) -> dict[str, Any]:
         """Executa ações localmente (fallback ou modo direto)"""
         actions = playbook.get("actions", [])
         executed_actions = []
@@ -355,7 +355,7 @@ class RemediationCoordinator:
                     "actions": executed_actions,
                     "errors": errors,
                     "requires_human_intervention": True,
-                    "completed_at": datetime.now(timezone.utc).isoformat(),
+                    "completed_at": datetime.now(UTC).isoformat(),
                 }
 
         # Sucesso
@@ -366,12 +366,12 @@ class RemediationCoordinator:
             "status": RemediationStatus.COMPLETED,
             "actions": executed_actions,
             "playbook": playbook.get("name"),
-            "completed_at": datetime.now(timezone.utc).isoformat(),
+            "completed_at": datetime.now(UTC).isoformat(),
         }
 
     async def _execute_remediation_action(
-        self, action: Dict[str, Any], incident: Dict[str, Any], remediation_id: str
-    ) -> Dict[str, Any]:
+        self, action: dict[str, Any], incident: dict[str, Any], remediation_id: str
+    ) -> dict[str, Any]:
         """Executa ação específica de remediação"""
         action_type = action.get("type")
 
@@ -399,8 +399,8 @@ class RemediationCoordinator:
             return {"success": False, "action_type": action_type, "reason": "Unknown action type"}
 
     async def _restart_pod(
-        self, action: Dict[str, Any], incident: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, action: dict[str, Any], incident: dict[str, Any]
+    ) -> dict[str, Any]:
         """
         Reinicia pod via delete (Kubernetes recria automaticamente)
 
@@ -493,7 +493,7 @@ class RemediationCoordinator:
 
         return {"success": success, "action_type": RemediationType.RESTART_POD, "details": details}
 
-    def _parse_pod_resource(self, resources: List[str]) -> Tuple[Optional[str], Optional[str]]:
+    def _parse_pod_resource(self, resources: list[str]) -> tuple[Optional[str], Optional[str]]:
         """
         Parse namespace and pod name from affected_resources entries.
 
@@ -536,11 +536,11 @@ class RemediationCoordinator:
         self,
         pod_name: str,
         pod_prefix: str,
-        pod_labels: Dict[str, str],
+        pod_labels: dict[str, str],
         namespace: Optional[str],
         timeout: float = 60.0,
         poll_interval: float = 2.0,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Wait for a replacement pod to reach Running status after deletion.
 
@@ -636,8 +636,8 @@ class RemediationCoordinator:
         }
 
     async def _scale_deployment(
-        self, action: Dict[str, Any], incident: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, action: dict[str, Any], incident: dict[str, Any]
+    ) -> dict[str, Any]:
         """Escala deployment"""
         replicas = action.get("replicas", 3)
         resources = incident.get("affected_resources", [])
@@ -692,8 +692,8 @@ class RemediationCoordinator:
         }
 
     async def _rollback_deployment(
-        self, action: Dict[str, Any], incident: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, action: dict[str, Any], incident: dict[str, Any]
+    ) -> dict[str, Any]:
         """Faz rollback de deployment"""
         revision_str = action.get("revision", "previous")
         resources = incident.get("affected_resources", [])
@@ -752,8 +752,8 @@ class RemediationCoordinator:
         }
 
     async def _apply_network_policy(
-        self, action: Dict[str, Any], incident: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, action: dict[str, Any], incident: dict[str, Any]
+    ) -> dict[str, Any]:
         """Aplica NetworkPolicy"""
         target = action.get("target", "isolate")
         resources = incident.get("affected_resources", [])
@@ -808,8 +808,8 @@ class RemediationCoordinator:
         }
 
     async def _clear_cache(
-        self, action: Dict[str, Any], incident: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, action: dict[str, Any], incident: dict[str, Any]
+    ) -> dict[str, Any]:
         """
         Limpa cache Redis ou Memcached baseado no tipo especificado.
 
@@ -902,8 +902,8 @@ class RemediationCoordinator:
         return {"success": success, "action_type": RemediationType.CLEAR_CACHE, "details": details}
 
     async def _trigger_chaos(
-        self, action: Dict[str, Any], incident: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, action: dict[str, Any], incident: dict[str, Any]
+    ) -> dict[str, Any]:
         """
         Trigger experimento de caos via ChaosMesh.
 
@@ -943,7 +943,7 @@ class RemediationCoordinator:
             }
 
         experiment_name = (
-            f"guard-chaos-{incident_id[:8]}-{int(datetime.now(timezone.utc).timestamp())}"
+            f"guard-chaos-{incident_id[:8]}-{int(datetime.now(UTC).timestamp())}"
         )
         details = {
             "chaos_type": chaos_type,
@@ -1030,8 +1030,8 @@ class RemediationCoordinator:
             }
 
     async def _exec_script(
-        self, action: Dict[str, Any], incident: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, action: dict[str, Any], incident: dict[str, Any]
+    ) -> dict[str, Any]:
         """
         Executa script de remediação via Kubernetes Job.
 
@@ -1138,7 +1138,7 @@ class RemediationCoordinator:
                 "details": details,
             }
 
-    def _get_predefined_script(self, script_name: str, incident: Dict[str, Any]) -> str:
+    def _get_predefined_script(self, script_name: str, incident: dict[str, Any]) -> str:
         """
         Retorna conteúdo de scripts pré-definidos.
 
@@ -1193,7 +1193,7 @@ exit 0
         return script_content
 
     async def _rollback_remediation(
-        self, remediation_id: str, playbook: Dict[str, Any], executed_actions: List[Dict[str, Any]]
+        self, remediation_id: str, playbook: dict[str, Any], executed_actions: list[dict[str, Any]]
     ):
         """E4: Rollback automático em caso de falha"""
         logger.warning("remediation_coordinator.rolling_back", remediation_id=remediation_id)
@@ -1213,7 +1213,7 @@ exit 0
 
         self.active_remediations[remediation_id]["status"] = RemediationStatus.ROLLED_BACK
 
-    async def _persist_remediation_result(self, remediation_id: str, result: Dict[str, Any]):
+    async def _persist_remediation_result(self, remediation_id: str, result: dict[str, Any]):
         """Persiste resultado no MongoDB"""
         if self.mongodb and self.mongodb.remediation_collection:
             try:
@@ -1226,7 +1226,7 @@ exit 0
                     error=str(e),
                 )
 
-    async def _publish_remediation_event(self, remediation_id: str, result: Dict[str, Any]):
+    async def _publish_remediation_event(self, remediation_id: str, result: dict[str, Any]):
         """Publica evento de remediação no Kafka"""
         if not self.kafka_producer:
             logger.warning(
@@ -1258,7 +1258,7 @@ exit 0
                 "remediation_coordinator.publish_error", remediation_id=remediation_id, error=str(e)
             )
 
-    async def _create_generic_playbook(self, incident: Dict[str, Any]) -> Dict[str, Any]:
+    async def _create_generic_playbook(self, incident: dict[str, Any]) -> dict[str, Any]:
         """Cria playbook genérico quando específico não existe"""
         severity = incident.get("severity", "medium")
 
@@ -1284,7 +1284,7 @@ exit 0
         else:
             return {"name": "Generic Remediation", "actions": [], "rollback_actions": []}
 
-    def _extract_resource_name(self, resources: List[str], resource_type: str) -> Optional[str]:
+    def _extract_resource_name(self, resources: list[str], resource_type: str) -> Optional[str]:
         """
         Extrai nome do recurso da lista de affected_resources
 

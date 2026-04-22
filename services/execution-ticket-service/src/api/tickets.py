@@ -1,8 +1,8 @@
 """API endpoints para operações de tickets."""
 
 import asyncio
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from datetime import UTC, datetime
+from typing import Any, Optional
 from uuid import uuid4
 
 import structlog
@@ -30,7 +30,7 @@ class CompensationTicketRequest(BaseModel):
     original_ticket_id: str
     reason: str
     compensation_action: str
-    parameters: Dict[str, Any] = {}
+    parameters: dict[str, Any] = {}
 
 
 @router.get("/{ticket_id}", response_model=ExecutionTicket)
@@ -46,7 +46,7 @@ async def get_ticket(ticket_id: str):
 
 
 @router.post("/", response_model=ExecutionTicket, status_code=201)
-async def create_ticket(ticket_data: Dict[str, Any]):
+async def create_ticket(ticket_data: dict[str, Any]):
     """
     Cria novo execution ticket via HTTP REST.
 
@@ -69,7 +69,7 @@ async def create_ticket(ticket_data: Dict[str, Any]):
 
     # Garantir timestamp de criacao se nao fornecido
     if "created_at" not in ticket_data:
-        ticket_data["created_at"] = int(datetime.now(timezone.utc).timestamp() * 1000)
+        ticket_data["created_at"] = int(datetime.now(UTC).timestamp() * 1000)
 
     # Garantir status default
     if "status" not in ticket_data:
@@ -91,7 +91,7 @@ async def create_ticket(ticket_data: Dict[str, Any]):
         ticket_pydantic = ExecutionTicket(**ticket_data)
     except Exception as e:
         logger.error("failed_to_validate_ticket", error=str(e), ticket_data=ticket_data)
-        raise HTTPException(status_code=422, detail=f"Validation error: {str(e)}")
+        raise HTTPException(status_code=422, detail=f"Validation error: {e!s}")
 
     # Persistir no PostgreSQL
     try:
@@ -103,7 +103,7 @@ async def create_ticket(ticket_data: Dict[str, Any]):
         )
     except Exception as e:
         logger.error("failed_to_persist_ticket", error=str(e))
-        raise HTTPException(status_code=500, detail=f"Failed to create ticket: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to create ticket: {e!s}")
 
     # Publicar no Kafka para Worker Agents consumirem
     # NOTA: Publicação é assíncrona e não-bloqueante
@@ -271,7 +271,7 @@ async def create_compensation_ticket(request: CompensationTicketRequest):
         "dependencies": [],  # Compensacao nao tem dependencias
         "compensation_ticket_id": None,  # Este E o ticket de compensacao
         "sla": {"timeout_ms": 120000, "deadline": None},  # 2 minutos para compensacao
-        "created_at": int(datetime.now(timezone.utc).timestamp() * 1000),
+        "created_at": int(datetime.now(UTC).timestamp() * 1000),
         "metadata": {
             "compensation_reason": request.reason,
             "original_task_type": original_ticket.task_type,
@@ -284,7 +284,7 @@ async def create_compensation_ticket(request: CompensationTicketRequest):
         await postgres_client.create_ticket(compensation_ticket_data)
     except Exception as e:
         raise HTTPException(
-            status_code=500, detail=f"Falha ao criar ticket de compensacao: {str(e)}"
+            status_code=500, detail=f"Falha ao criar ticket de compensacao: {e!s}"
         )
 
     # Atualizar ticket original com referencia ao ticket de compensacao
@@ -371,7 +371,7 @@ async def retry_ticket(ticket_id: str):
             metadata={
                 "retry_count": updated_orm.retry_count,
                 "trigger": "manual_retry",
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
             },
         )
     except Exception as e:
@@ -390,10 +390,10 @@ class TicketHistoryEntry(BaseModel):
     old_status: Optional[str]
     new_status: str
     changed_by: str
-    metadata: Dict[str, Any]
+    metadata: dict[str, Any]
 
 
-@router.get("/{ticket_id}/history", response_model=List[TicketHistoryEntry])
+@router.get("/{ticket_id}/history", response_model=list[TicketHistoryEntry])
 async def get_ticket_history(ticket_id: str, limit: int = Query(100, ge=1, le=1000)):
     """
     Retorna histórico de mudanças de status do ticket.
@@ -436,7 +436,7 @@ async def get_ticket_history(ticket_id: str, limit: int = Query(100, ge=1, le=10
             if isinstance(timestamp, datetime):
                 timestamp_str = timestamp.isoformat()
             else:
-                timestamp_str = datetime.now(timezone.utc).isoformat()
+                timestamp_str = datetime.now(UTC).isoformat()
 
             entry = TicketHistoryEntry(
                 ticket_id=doc.get("ticket_id", ticket_id),

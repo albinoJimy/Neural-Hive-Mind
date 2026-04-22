@@ -5,15 +5,16 @@ Implementa backups incrementais, compressão, e sincronização com storage exte
 (S3, Azure Blob, GCS) para disaster recovery.
 """
 
-from typing import Dict, Any, Optional, List
-from datetime import datetime, timedelta, timezone
-from pymongo import MongoClient
-import structlog
-import json
 import gzip
-import os
 import hashlib
+import json
+import os
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from typing import Any, Optional
+
+import structlog
+from pymongo import MongoClient
 
 logger = structlog.get_logger(__name__)
 
@@ -21,7 +22,7 @@ logger = structlog.get_logger(__name__)
 class BackupManager:
     """Gerencia backups automáticos do ledger cognitivo."""
 
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, config: dict[str, Any]):
         """
         Inicializa gerenciador de backups.
 
@@ -67,7 +68,7 @@ class BackupManager:
             Caminho do arquivo de backup ou None se erro
         """
         try:
-            timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+            timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
             backup_name = f"ledger_full_{timestamp}.json"
 
             if self.enable_compression:
@@ -87,7 +88,7 @@ class BackupManager:
             # Serializar para JSON
             backup_data = {
                 "backup_type": "full",
-                "created_at": datetime.now(timezone.utc).isoformat(),
+                "created_at": datetime.now(UTC).isoformat(),
                 "database": self.mongodb_database,
                 "collection": "cognitive_ledger",
                 "documents_count": len(documents),
@@ -134,7 +135,7 @@ class BackupManager:
             Caminho do arquivo de backup ou None se erro
         """
         try:
-            timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+            timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
             backup_name = f"ledger_incremental_{timestamp}.json"
 
             if self.enable_compression:
@@ -142,7 +143,7 @@ class BackupManager:
 
             backup_file_path = os.path.join(self.backup_path, backup_name)
 
-            cutoff_time = datetime.now(timezone.utc) - timedelta(hours=since_hours)
+            cutoff_time = datetime.now(UTC) - timedelta(hours=since_hours)
 
             logger.info(
                 "Starting incremental backup",
@@ -160,7 +161,7 @@ class BackupManager:
             # Serializar
             backup_data = {
                 "backup_type": "incremental",
-                "created_at": datetime.now(timezone.utc).isoformat(),
+                "created_at": datetime.now(UTC).isoformat(),
                 "database": self.mongodb_database,
                 "collection": "cognitive_ledger",
                 "since_timestamp": cutoff_time.isoformat(),
@@ -222,7 +223,7 @@ class BackupManager:
                 with gzip.open(backup_file_path, "rt", encoding="utf-8") as f:
                     backup_data = json.load(f)
             else:
-                with open(backup_file_path, "r", encoding="utf-8") as f:
+                with open(backup_file_path, encoding="utf-8") as f:
                     backup_data = json.load(f)
 
             documents = backup_data.get("documents", [])
@@ -259,7 +260,7 @@ class BackupManager:
             Número de arquivos deletados
         """
         try:
-            cutoff_date = datetime.now(timezone.utc) - timedelta(days=self.backup_retention_days)
+            cutoff_date = datetime.now(UTC) - timedelta(days=self.backup_retention_days)
             deleted_count = 0
 
             backup_dir = Path(self.backup_path)
@@ -281,7 +282,7 @@ class BackupManager:
                     logger.info(
                         "Old backup deleted",
                         backup_file=backup_file.name,
-                        age_days=(datetime.now(timezone.utc) - mtime).days,
+                        age_days=(datetime.now(UTC) - mtime).days,
                     )
 
             logger.info(
@@ -296,7 +297,7 @@ class BackupManager:
             logger.error("Failed to cleanup old backups", error=str(e))
             return 0
 
-    def list_backups(self) -> List[Dict[str, Any]]:
+    def list_backups(self) -> list[dict[str, Any]]:
         """
         Lista todos os backups disponíveis.
 
@@ -311,7 +312,7 @@ class BackupManager:
                 metadata_file = backup_file.with_suffix(".meta")
 
                 if metadata_file.exists():
-                    with open(metadata_file, "r") as f:
+                    with open(metadata_file) as f:
                         metadata = json.load(f)
                 else:
                     # Metadata não encontrado, criar básico
@@ -368,7 +369,7 @@ class BackupManager:
         metadata = {
             "file_name": os.path.basename(backup_file_path),
             "file_path": backup_file_path,
-            "created_at": datetime.now(timezone.utc).isoformat(),
+            "created_at": datetime.now(UTC).isoformat(),
             "checksum": checksum,
             "documents_count": documents_count,
             "file_size_bytes": file_size,
@@ -396,7 +397,7 @@ class BackupManager:
                 logger.warning("Metadata file not found, skipping integrity check")
                 return True
 
-            with open(metadata_file_path, "r") as f:
+            with open(metadata_file_path) as f:
                 metadata = json.load(f)
 
             expected_checksum = metadata.get("checksum")

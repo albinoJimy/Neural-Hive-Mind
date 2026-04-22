@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from bson import ObjectId
@@ -14,14 +14,14 @@ from src.config.settings import Settings, get_settings
 from src.models.hypothesis import (
     Hypothesis,
     HypothesisFilter,
-    HypothesisStatus,
     HypothesisPriority,
+    HypothesisStatus,
     PyObjectId,
 )
-from src.models.workflow import WorkflowTransition, HypothesisWorkflow
+from src.models.workflow import WorkflowTransition
 
 logger = logging.getLogger(__name__)
-UTC = timezone.utc
+UTC = UTC
 
 
 class HypothesisRepository:
@@ -49,56 +49,34 @@ class HypothesisRepository:
         """Cria índices para a coleção de hipóteses."""
         # Índices principais
         await self.collection.create_index(
-            [("hypothesis_id", ASCENDING)],
-            unique=True,
-            name="idx_hypothesis_id"
+            [("hypothesis_id", ASCENDING)], unique=True, name="idx_hypothesis_id"
         )
-        await self.collection.create_index(
-            [("status", ASCENDING)],
-            name="idx_status"
-        )
-        await self.collection.create_index(
-            [("created_at", DESCENDING)],
-            name="idx_created_at"
-        )
-        await self.collection.create_index(
-            [("updated_at", DESCENDING)],
-            name="idx_updated_at"
-        )
-        await self.collection.create_index(
-            [("author", ASCENDING)],
-            name="idx_author"
-        )
-        await self.collection.create_index(
-            [("priority", ASCENDING)],
-            name="idx_priority"
-        )
+        await self.collection.create_index([("status", ASCENDING)], name="idx_status")
+        await self.collection.create_index([("created_at", DESCENDING)], name="idx_created_at")
+        await self.collection.create_index([("updated_at", DESCENDING)], name="idx_updated_at")
+        await self.collection.create_index([("author", ASCENDING)], name="idx_author")
+        await self.collection.create_index([("priority", ASCENDING)], name="idx_priority")
 
         # Índices compostos para queries comuns
         await self.collection.create_index(
-            [("status", ASCENDING), ("created_at", DESCENDING)],
-            name="idx_status_created"
+            [("status", ASCENDING), ("created_at", DESCENDING)], name="idx_status_created"
         )
         await self.collection.create_index(
-            [("author", ASCENDING), ("created_at", DESCENDING)],
-            name="idx_author_created"
+            [("author", ASCENDING), ("created_at", DESCENDING)], name="idx_author_created"
         )
-        await self.collection.create_index(
-            [("tags", ASCENDING)],
-            name="idx_tags"
-        )
+        await self.collection.create_index([("tags", ASCENDING)], name="idx_tags")
 
         # Índice para busca texto
         await self.collection.create_index(
             [("title", "text"), ("description", "text")],
             name="idx_text_search",
-            default_language="english"
+            default_language="english",
         )
 
         # Índices para transições
         await self._transition_history_collection.create_index(
             [("hypothesis_id", ASCENDING), ("transitioned_at", DESCENDING)],
-            name="idx_hypothesis_transitions"
+            name="idx_hypothesis_transitions",
         )
 
         logger.info("hypothesis_indexes_created")
@@ -222,8 +200,7 @@ class HypothesisRepository:
         updates["updated_at"] = datetime.now(UTC)
 
         result = await self.collection.update_one(
-            {"hypothesis_id": hypothesis_id},
-            {"$set": updates}
+            {"hypothesis_id": hypothesis_id}, {"$set": updates}
         )
 
         if result.modified_count == 0:
@@ -316,7 +293,7 @@ class HypothesisRepository:
                     "experiment_id": experiment_id,
                     "updated_at": datetime.now(UTC),
                 }
-            }
+            },
         )
         return result.modified_count > 0
 
@@ -342,7 +319,7 @@ class HypothesisRepository:
                     "results": results,
                     "updated_at": datetime.now(UTC),
                 }
-            }
+            },
         )
         return result.modified_count > 0
 
@@ -363,7 +340,7 @@ class HypothesisRepository:
                     "status": HypothesisStatus.ARCHIVED.value,
                     "updated_at": datetime.now(UTC),
                 }
-            }
+            },
         )
         return result.modified_count > 0
 
@@ -386,14 +363,7 @@ class HypothesisRepository:
         Returns:
             Dict com contagem por status
         """
-        pipeline = [
-            {
-                "$group": {
-                    "_id": "$status",
-                    "count": {"$sum": 1}
-                }
-            }
-        ]
+        pipeline = [{"$group": {"_id": "$status", "count": {"$sum": 1}}}]
 
         result = {}
         async for doc in self.collection.aggregate(pipeline):
@@ -419,27 +389,20 @@ class HypothesisRepository:
         status_counts = await self.count_by_status()
 
         # Contagem por prioridade
-        priority_pipeline = [
-            {
-                "$group": {
-                    "_id": "$priority",
-                    "count": {"$sum": 1}
-                }
-            }
-        ]
+        priority_pipeline = [{"$group": {"_id": "$priority", "count": {"$sum": 1}}}]
         priority_counts = {}
         async for doc in self.collection.aggregate(priority_pipeline):
             priority_counts[doc["_id"]] = doc["count"]
 
         # Hipóteses com experimentos em andamento
-        in_testing = await self.collection.count_documents({
-            "status": HypothesisStatus.IN_TESTING.value
-        })
+        in_testing = await self.collection.count_documents(
+            {"status": HypothesisStatus.IN_TESTING.value}
+        )
 
         # Hipóteses aguardando aprovação
-        pending_approval = await self.collection.count_documents({
-            "status": HypothesisStatus.PROPOSED.value
-        })
+        pending_approval = await self.collection.count_documents(
+            {"status": HypothesisStatus.PROPOSED.value}
+        )
 
         return {
             "total": total,
@@ -553,15 +516,17 @@ class HypothesisRepository:
         transition: WorkflowTransition,
     ) -> None:
         """Registra transição no histórico."""
-        await self._transition_history_collection.insert_one({
-            "hypothesis_id": hypothesis_id,
-            "from_status": transition.from_status.value,
-            "to_status": transition.to_status.value,
-            "transitioned_at": transition.transitioned_at,
-            "transitioned_by": transition.transitioned_by,
-            "reason": transition.reason,
-            "metadata": transition.metadata,
-        })
+        await self._transition_history_collection.insert_one(
+            {
+                "hypothesis_id": hypothesis_id,
+                "from_status": transition.from_status.value,
+                "to_status": transition.to_status.value,
+                "transitioned_at": transition.transitioned_at,
+                "transitioned_by": transition.transitioned_by,
+                "reason": transition.reason,
+                "metadata": transition.metadata,
+            }
+        )
 
 
 # Singleton instance

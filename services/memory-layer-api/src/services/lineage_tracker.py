@@ -3,8 +3,8 @@ Lineage Tracker
 """
 
 import uuid
-from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List
+from datetime import UTC, datetime, timedelta
+from typing import Any
 
 import structlog
 from prometheus_client import Counter, Histogram
@@ -37,9 +37,9 @@ class LineageTracker:
         self,
         entity_id: str,
         entity_type: str,
-        source_ids: List[str],
+        source_ids: list[str],
         transformation_type: str,
-        metadata: Dict[str, Any],
+        metadata: dict[str, Any],
     ) -> str:
         """
         Register data lineage
@@ -64,7 +64,7 @@ class LineageTracker:
                 "entity_type": entity_type,
                 "source_ids": source_ids,
                 "transformation_type": transformation_type,
-                "timestamp": datetime.now(timezone.utc),
+                "timestamp": datetime.now(UTC),
                 "metadata": metadata,
             }
 
@@ -90,7 +90,7 @@ class LineageTracker:
                         "entity_type": entity_type,
                         "transformation_type": transformation_type,
                         "lineage_id": lineage_id,
-                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                        "timestamp": datetime.now(UTC).isoformat(),
                     },
                 )
 
@@ -103,7 +103,7 @@ class LineageTracker:
 
     async def get_lineage_tree(
         self, entity_id: str, direction: str = "upstream", depth: int = 3
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Get lineage tree
 
@@ -123,29 +123,23 @@ class LineageTracker:
 
             # Get graph from Neo4j
             if direction == "upstream":
-                query = """
+                query = f"""
                     MATCH path = (source)-[:DERIVED_FROM*1..{depth}]->(entity {{id: $entity_id}})
                     RETURN source, path
                     LIMIT 100
-                """.format(
-                    depth=depth
-                )
+                """
             elif direction == "downstream":
-                query = """
+                query = f"""
                     MATCH path = (entity {{id: $entity_id}})-[:DERIVED_FROM*1..{depth}]->(derived)
                     RETURN derived, path
                     LIMIT 100
-                """.format(
-                    depth=depth
-                )
+                """
             else:  # both
-                query = """
+                query = f"""
                     MATCH path = (entity {{id: $entity_id}})-[:DERIVED_FROM*1..{depth}]-(related)
                     RETURN related, path
                     LIMIT 100
-                """.format(
-                    depth=depth
-                )
+                """
 
             graph_result = await self.neo4j.run_query(query, {"entity_id": entity_id})
 
@@ -162,7 +156,7 @@ class LineageTracker:
             logger.error("Failed to get lineage tree", error=str(e), entity_id=entity_id)
             return {"entity_id": entity_id, "metadata": {}, "graph": []}
 
-    async def get_lineage_path(self, source_id: str, target_id: str) -> List[Dict]:
+    async def get_lineage_path(self, source_id: str, target_id: str) -> list[dict]:
         """
         Find shortest path between source and target
 
@@ -329,7 +323,7 @@ class LineageTracker:
             duration = time.time() - start_time
             LINEAGE_VALIDATION_DURATION.observe(duration)
 
-    async def get_impact_analysis(self, entity_id: str) -> Dict[str, Any]:
+    async def get_impact_analysis(self, entity_id: str) -> dict[str, Any]:
         """
         Analyze downstream impact
 

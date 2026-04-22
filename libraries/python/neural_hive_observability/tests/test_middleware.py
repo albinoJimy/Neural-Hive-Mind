@@ -9,22 +9,23 @@ Este arquivo contém testes unitários para validar:
 - Propagação de headers customizados Neural Hive
 """
 
+from unittest.mock import AsyncMock, Mock, patch
+
 import pytest
-from unittest.mock import Mock, patch, MagicMock, AsyncMock
 from starlette.applications import Starlette
 from starlette.requests import Request
 from starlette.responses import Response
 
-from neural_hive_observability.middleware import (
-    TraceContextMiddleware,
-    parse_traceparent,
-    extract_traceparent_from_request,
-    extract_tracestate_from_request,
-    validate_trace_context,
-    get_trace_id_from_request,
-)
 from neural_hive_observability.config import ObservabilityConfig
 from neural_hive_observability.metrics import NeuralHiveMetrics
+from neural_hive_observability.middleware import (
+    TraceContextMiddleware,
+    extract_traceparent_from_request,
+    extract_tracestate_from_request,
+    get_trace_id_from_request,
+    parse_traceparent,
+    validate_trace_context,
+)
 
 
 class TestParseTraceparent:
@@ -106,7 +107,7 @@ class TestParseTraceparent:
 class TestExtractFromRequest:
     """Testes para extração de traceparent de requests HTTP"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_request(self):
         """Cria um request HTTP mock"""
         request = Mock(spec=Request)
@@ -115,13 +116,17 @@ class TestExtractFromRequest:
 
     def test_extract_traceparent_from_request_lowercase(self, mock_request):
         """Teste 12: Extrair traceparent com header minúsculo"""
-        mock_request.headers = {"traceparent": "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01"}
+        mock_request.headers = {
+            "traceparent": "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01"
+        }
         result = extract_traceparent_from_request(mock_request)
         assert result == "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01"
 
     def test_extract_traceparent_from_request_uppercase(self, mock_request):
         """Teste 13: Extrair traceparent com header maiúsculo"""
-        mock_request.headers = {"Traceparent": "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01"}
+        mock_request.headers = {
+            "Traceparent": "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01"
+        }
         result = extract_traceparent_from_request(mock_request)
         assert result == "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01"
 
@@ -145,7 +150,7 @@ class TestExtractFromRequest:
 class TestValidateTraceContext:
     """Testes para validação de trace context"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_request(self):
         """Cria um request HTTP mock"""
         request = Mock(spec=Request)
@@ -154,7 +159,9 @@ class TestValidateTraceContext:
 
     def test_validate_valid_trace_context(self, mock_request):
         """Teste 17: Validar trace context válido"""
-        mock_request.headers = {"traceparent": "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01"}
+        mock_request.headers = {
+            "traceparent": "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01"
+        }
         is_valid, error = validate_trace_context(mock_request)
         assert is_valid is True
         assert error is None
@@ -176,7 +183,7 @@ class TestValidateTraceContext:
 class TestGetTraceIdFromRequest:
     """Testes para extração de trace ID"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_request(self):
         """Cria um request HTTP mock"""
         request = Mock(spec=Request)
@@ -185,7 +192,9 @@ class TestGetTraceIdFromRequest:
 
     def test_get_trace_id_from_valid_request(self, mock_request):
         """Teste 20: Extrair trace ID de request válido"""
-        mock_request.headers = {"traceparent": "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01"}
+        mock_request.headers = {
+            "traceparent": "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01"
+        }
         trace_id = get_trace_id_from_request(mock_request)
         assert trace_id == "4bf92f3577b34da6a3ce929d0e0e4736"
 
@@ -204,7 +213,7 @@ class TestGetTraceIdFromRequest:
 class TestTraceContextMiddleware:
     """Testes para TraceContextMiddleware"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def config(self):
         """Cria configuração de observabilidade"""
         return ObservabilityConfig(
@@ -214,22 +223,22 @@ class TestTraceContextMiddleware:
             neural_hive_layer="test",
         )
 
-    @pytest.fixture
+    @pytest.fixture()
     def metrics(self, config):
         """Cria métricas para teste"""
         return NeuralHiveMetrics(config)
 
-    @pytest.fixture
+    @pytest.fixture()
     def app(self):
         """Cria aplicação Starlette para teste"""
         return Starlette()
 
-    @pytest.fixture
+    @pytest.fixture()
     def middleware(self, app, metrics):
         """Cria middleware para teste"""
         return TraceContextMiddleware(app, metrics=metrics)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_middleware_extracts_valid_traceparent(self, middleware):
         """Teste 23: Middleware extrai traceparent válido"""
         request = Mock(spec=Request)
@@ -243,7 +252,7 @@ class TestTraceContextMiddleware:
         assert call_next.called
         assert response.status_code == 200
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_middleware_handles_missing_traceparent(self, middleware):
         """Teste 24: Middleware lida com traceparent ausente"""
         request = Mock(spec=Request)
@@ -257,7 +266,7 @@ class TestTraceContextMiddleware:
         assert call_next.called
         assert response.status_code == 200
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_middleware_sets_baggage_from_headers(self, middleware):
         """Teste 25: Middleware define baggage a partir de headers Neural Hive"""
         request = Mock(spec=Request)
@@ -278,7 +287,7 @@ class TestTraceContextMiddleware:
             assert mock_set_baggage.call_count >= 3
             assert response.status_code == 200
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_middleware_injects_trace_id_in_response(self, middleware):
         """Teste 26: Middleware injeta trace ID na response"""
         request = Mock(spec=Request)
@@ -302,7 +311,7 @@ class TestTraceContextMiddleware:
             # Verificar que x-trace-id foi injetado
             assert "x-trace-id" in result.headers
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_middleware_records_metrics(self, middleware):
         """Teste 27: Middleware registra métricas de correlação"""
         request = Mock(spec=Request)
@@ -327,7 +336,7 @@ class TestTraceContextMiddleware:
         final_value = get_metric_value(middleware.metrics.trace_context_extraction_total)
         assert final_value > initial_value
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_middleware_records_success_metric(self, middleware):
         """Teste 28: Middleware registra métrica de sucesso"""
         request = Mock(spec=Request)
@@ -350,7 +359,7 @@ class TestTraceContextMiddleware:
         else:
             pytest.fail("No sample found with source='http'")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_middleware_records_missing_parent_metric(self, middleware):
         """Teste 29: Middleware registra métrica de traceparent ausente"""
         request = Mock(spec=Request)
@@ -370,7 +379,7 @@ class TestTraceContextMiddleware:
         final_value = samples_after[0].value if samples_after else 0
         assert final_value > initial_value
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_middleware_records_failure_metric_invalid_format(self, middleware):
         """Teste 30: Middleware registra métrica de falha para formato inválido"""
         request = Mock(spec=Request)
@@ -391,7 +400,7 @@ class TestTraceContextMiddleware:
         else:
             pytest.fail("No sample found with reason='invalid_format'")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_middleware_without_metrics(self, app):
         """Teste 31: Middleware funciona sem métricas (modo degradado)"""
         middleware = TraceContextMiddleware(app, metrics=None)
@@ -407,7 +416,7 @@ class TestTraceContextMiddleware:
         assert call_next.called
         assert response.status_code == 200
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_middleware_with_extract_custom_headers_disabled(self, app, metrics):
         """Teste 32: Middleware com extract_custom_headers=False"""
         middleware = TraceContextMiddleware(app, metrics=metrics, extract_custom_headers=False)

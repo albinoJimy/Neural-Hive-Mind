@@ -5,32 +5,31 @@ Cobre FeedbackConsumer, OnlineLearningService e RetrainingScheduler.
 Meta: 20+ testes
 """
 
-import pytest
 import asyncio
 import json
-from datetime import datetime, timezone
-from unittest.mock import MagicMock, AsyncMock, patch
+from datetime import UTC, datetime
+from unittest.mock import AsyncMock, MagicMock, patch
 
-from src.consumers.feedback_consumer import FeedbackConsumer, FeedbackBuffer
-from src.services.online_learning_service import (
-    OnlineLearningService,
-    OnlineLearningNotEnabledError,
-)
+import pytest
+from src.consumers.feedback_consumer import FeedbackBuffer, FeedbackConsumer
 from src.schedulers.retraining_scheduler import (
     RetrainingScheduler,
-    SchedulerStatus,
     RetrainingTrigger,
+    SchedulerStatus,
     ValidationStatus,
     create_retraining_scheduler,
 )
-
+from src.services.online_learning_service import (
+    OnlineLearningNotEnabledError,
+    OnlineLearningService,
+)
 
 # ============================================================================
 # Fixtures
 # ============================================================================
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_settings_with_online_learning(mock_settings):
     """Settings com online learning habilitado"""
     mock_settings.enable_online_learning = True
@@ -44,7 +43,7 @@ def mock_settings_with_online_learning(mock_settings):
     return mock_settings
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_feedback_message():
     """Mensagem de feedback de exemplo"""
     return {
@@ -55,7 +54,7 @@ def sample_feedback_message():
         "human_rating": 1.0,
         "human_recommendation": "approve",
         "feedback_notes": "Recomendação correta",
-        "submitted_at": int(datetime.now(timezone.utc).timestamp() * 1000),
+        "submitted_at": int(datetime.now(UTC).timestamp() * 1000),
         "submitted_by": "admin@example.com",
         "intent_raw_text": "List all users from the database",
         "specialist_recommendation": "approve",
@@ -63,7 +62,7 @@ def sample_feedback_message():
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_feedback_message_with_nlp():
     """Feedback com features NLP"""
     feedback = sample_feedback_message()
@@ -76,7 +75,7 @@ def sample_feedback_message_with_nlp():
     return feedback
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_feedback_batch(sample_feedback_message):
     """Lote de feedbacks para teste"""
     return [
@@ -104,7 +103,7 @@ class TestFeedbackBuffer:
         assert buffer.is_full is False
         assert buffer._max_size == 100
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_buffer_add_single_item(self, sample_feedback_message):
         """D001-T02: Buffer deve adicionar item corretamente"""
         buffer = FeedbackBuffer(max_size=10)
@@ -112,7 +111,7 @@ class TestFeedbackBuffer:
         assert added is True
         assert buffer.size == 1
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_buffer_add_when_full(self, sample_feedback_message):
         """D001-T03: Buffer deve rejeitar itens quando cheio"""
         buffer = FeedbackBuffer(max_size=2)
@@ -125,7 +124,7 @@ class TestFeedbackBuffer:
         assert added is False
         assert buffer.is_full is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_buffer_get_batch_all(self, sample_feedback_message):
         """D001-T04: Buffer deve retornar todos os itens quando batch_size=None"""
         buffer = FeedbackBuffer(max_size=10)
@@ -137,7 +136,7 @@ class TestFeedbackBuffer:
         assert len(batch) == 5
         assert buffer.size == 0
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_buffer_get_batch_partial(self, sample_feedback_message):
         """D001-T05: Buffer deve retornar lote parcial quando batch_size especificado"""
         buffer = FeedbackBuffer(max_size=10)
@@ -149,7 +148,7 @@ class TestFeedbackBuffer:
         assert len(batch) == 3
         assert buffer.size == 2
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_buffer_peek(self, sample_feedback_message):
         """D001-T06: Buffer deve espiar itens sem remove-los"""
         buffer = FeedbackBuffer(max_size=10)
@@ -180,7 +179,7 @@ class TestFeedbackBuffer:
 class TestFeedbackConsumer:
     """Testes para FeedbackConsumer"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_consumer_initialization(self, mock_settings_with_online_learning):
         """D001-T08: Consumer deve inicializar com configuracoes corretas"""
         consumer = FeedbackConsumer(settings=mock_settings_with_online_learning, buffer_size=100)
@@ -189,7 +188,7 @@ class TestFeedbackConsumer:
         assert consumer.running is False
         assert consumer._buffer.size == 0
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_consumer_initialize_without_kafka(self, mock_settings_with_online_learning):
         """D001-T09: Consumer deve falhar graceful ao inicializar sem Kafka"""
         consumer = FeedbackConsumer(settings=mock_settings_with_online_learning)
@@ -205,7 +204,7 @@ class TestFeedbackConsumer:
                 [mock_settings_with_online_learning.kafka_specialist_feedback_topic]
             )
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_deserialize_feedback_message(
         self, mock_settings_with_online_learning, sample_feedback_message
     ):
@@ -218,7 +217,7 @@ class TestFeedbackConsumer:
         mock_msg.topic.return_value = "specialist-feedback"
         mock_msg.partition.return_value = 0
         mock_msg.offset.return_value = 100
-        mock_msg.timestamp.return_value = (0, int(datetime.now(timezone.utc).timestamp() * 1000))
+        mock_msg.timestamp.return_value = (0, int(datetime.now(UTC).timestamp() * 1000))
         mock_msg.headers.return_value = None
 
         feedback = await consumer._deserialize_message(mock_msg)
@@ -228,7 +227,7 @@ class TestFeedbackConsumer:
         assert feedback["specialist_type"] == "technical"
         assert "_kafka_metadata" in feedback
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_buffer_stats(self, mock_settings_with_online_learning):
         """D001-T11: Consumer deve retornar estatisticas do buffer"""
         consumer = FeedbackConsumer(settings=mock_settings_with_online_learning, buffer_size=100)
@@ -240,7 +239,7 @@ class TestFeedbackConsumer:
         assert stats["buffer_utilization"] == 0.0
         assert stats["is_full"] is False
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_consumer_health_check(self, mock_settings_with_online_learning):
         """D001-T12: Consumer health check deve funcionar corretamente"""
         consumer = FeedbackConsumer(settings=mock_settings_with_online_learning)
@@ -253,7 +252,7 @@ class TestFeedbackConsumer:
         # Consumer rodando (mock)
         consumer.running = True
         consumer.consumer = MagicMock()
-        consumer._last_poll_time = datetime.now(timezone.utc)
+        consumer._last_poll_time = datetime.now(UTC)
 
         is_healthy, reason = consumer.is_healthy()
         assert is_healthy is True
@@ -274,7 +273,7 @@ class TestOnlineLearningService:
         service = OnlineLearningService(settings=mock_settings)
         assert service.is_enabled is False
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_service_initialization_when_disabled(self, mock_settings):
         """D002-T02: Servico deve inicializar graceful quando desabilitado"""
         mock_settings.enable_online_learning = False
@@ -354,7 +353,7 @@ class TestOnlineLearningService:
         assert features[4] == 0.5
         assert features[5] == 0.3
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_model_state_when_disabled(self, mock_settings):
         """D002-T07: get_model_state deve retornar None quando desabilitado"""
         mock_settings.enable_online_learning = False
@@ -363,7 +362,7 @@ class TestOnlineLearningService:
         state = await service.get_model_state("technical")
         assert state is None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_all_learner_states_when_disabled(self, mock_settings):
         """D002-T08: get_all_learner_states deve retornar disabled quando desabilitado"""
         mock_settings.enable_online_learning = False
@@ -382,7 +381,7 @@ class TestOnlineLearningService:
         with pytest.raises(OnlineLearningNotEnabledError):
             asyncio.run(service.process_feedback_batch(sample_feedback_batch))
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_group_feedbacks_by_specialist(
         self, mock_settings_with_online_learning, sample_feedback_batch
     ):
@@ -420,7 +419,7 @@ class TestRetrainingScheduler:
         assert scheduler.is_running is False
         assert scheduler._retrain_interval_hours == 12
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_scheduler_start_stop(self, mock_settings_with_online_learning):
         """D003-T02: Scheduler deve iniciar e parar corretamente"""
         scheduler = RetrainingScheduler(settings=mock_settings_with_online_learning)
@@ -431,7 +430,7 @@ class TestRetrainingScheduler:
         await scheduler.stop()
         assert scheduler.status == SchedulerStatus.STOPPED
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_scheduler_pause_resume(self, mock_settings_with_online_learning):
         """D003-T03: Scheduler deve pausar e retomar corretamente"""
         scheduler = RetrainingScheduler(settings=mock_settings_with_online_learning)
@@ -445,7 +444,7 @@ class TestRetrainingScheduler:
 
         await scheduler.stop()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_manual_retraining_trigger(self, mock_settings_with_online_learning):
         """D003-T04: Trigger manual de retreino deve funcionar"""
         scheduler = RetrainingScheduler(settings=mock_settings_with_online_learning)
@@ -458,7 +457,7 @@ class TestRetrainingScheduler:
         assert result["trigger_type"] == RetrainingTrigger.MANUAL
         assert result["requested_by"] == "test@example.com"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_shadow_validation(self, mock_settings_with_online_learning):
         """D003-T05: Shadow validation deve executar com sucesso"""
         scheduler = RetrainingScheduler(settings=mock_settings_with_online_learning)
@@ -473,7 +472,7 @@ class TestRetrainingScheduler:
         ]
         assert result["sample_size"] == 100
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_ab_test_creation(self, mock_settings_with_online_learning):
         """D003-T06: Criar teste A/B deve retornar configuracao correta"""
         scheduler = RetrainingScheduler(settings=mock_settings_with_online_learning)
@@ -488,7 +487,7 @@ class TestRetrainingScheduler:
         assert result["traffic_split"] == 0.3
         assert result["status"] == "running"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_scheduler_status(self, mock_settings_with_online_learning):
         """D003-T07: Status do scheduler deve ser retornado corretamente"""
         scheduler = RetrainingScheduler(settings=mock_settings_with_online_learning)
@@ -500,7 +499,7 @@ class TestRetrainingScheduler:
         assert "retrain_interval_hours" in status
         assert status["retrain_interval_hours"] == 12
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_clear_validation_history(self, mock_settings_with_online_learning):
         """D003-T08: Limpar historico de validacoes deve funcionar"""
         scheduler = RetrainingScheduler(settings=mock_settings_with_online_learning)
@@ -514,7 +513,7 @@ class TestRetrainingScheduler:
         scheduler._validation_results["new_validation"] = {
             "validation_id": "new_validation",
             "status": ValidationStatus.PENDING,
-            "started_at": datetime.now(timezone.utc).isoformat(),
+            "started_at": datetime.now(UTC).isoformat(),
         }
 
         scheduler.clear_validation_history(older_than_hours=1)
@@ -565,7 +564,7 @@ class TestFactoryFunction:
 class TestOnlineLearningIntegration:
     """Testes de integracao entre componentes"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_feedback_consumer_to_service_flow(
         self, mock_settings_with_online_learning, sample_feedback_batch
     ):
@@ -588,7 +587,7 @@ class TestOnlineLearningIntegration:
         assert len(batch) == 10
         assert consumer._buffer.size == 0
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_scheduler_with_online_learning_service(self, mock_settings_with_online_learning):
         """D004-T02: Scheduler deve interagir com OnlineLearningService"""
         mock_ol_service = AsyncMock()
@@ -607,7 +606,7 @@ class TestOnlineLearningIntegration:
         # Verificar que checkpoints foram salvos
         mock_ol_service.save_all_checkpoints.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_buffer_utilization_tracking(self, mock_settings_with_online_learning):
         """D004-T03: Utilizacao do buffer deve ser calculada corretamente"""
         consumer = FeedbackConsumer(settings=mock_settings_with_online_learning, buffer_size=100)
@@ -619,7 +618,7 @@ class TestOnlineLearningIntegration:
         stats = await consumer.get_buffer_stats()
         assert stats["buffer_utilization"] == 0.25
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_concurrent_buffer_access(
         self, mock_settings_with_online_learning, sample_feedback_message
     ):

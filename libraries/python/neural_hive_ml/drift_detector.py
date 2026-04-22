@@ -2,8 +2,9 @@
 
 import json
 import logging
-from datetime import datetime, timedelta, timezone
-from typing import Any, Dict
+from datetime import UTC, datetime, timedelta
+from typing import Any
+
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 logger = logging.getLogger(__name__)
@@ -47,7 +48,7 @@ class DriftDetector:
         """Propriedade para compatibilidade com código existente."""
         return self.mongo_client
 
-    async def calculate_baseline(self, window_hours: int = 168) -> Dict[str, Any]:
+    async def calculate_baseline(self, window_hours: int = 168) -> dict[str, Any]:
         """
         Calcula baseline de métricas (últimos N dias).
 
@@ -78,7 +79,7 @@ class DriftDetector:
             logger.error(f"Erro ao calcular baseline: {e}")
             raise
 
-    async def calculate_current(self, window_hours: int = 24) -> Dict[str, Any]:
+    async def calculate_current(self, window_hours: int = 24) -> dict[str, Any]:
         """
         Calcula métricas atuais (últimas N horas).
 
@@ -109,7 +110,7 @@ class DriftDetector:
 
     def _build_aggregation_pipeline(self, window_hours: int) -> list:
         """Constrói pipeline de agregação MongoDB."""
-        since = datetime.now(timezone.utc) - timedelta(hours=window_hours)
+        since = datetime.now(UTC) - timedelta(hours=window_hours)
 
         return [
             {"$match": {"created_at": {"$gte": since}}},
@@ -125,7 +126,7 @@ class DriftDetector:
             },
         ]
 
-    async def detect_drift(self, window_hours: int = 168) -> Dict[str, Any]:
+    async def detect_drift(self, window_hours: int = 168) -> dict[str, Any]:
         """
         Detecta drift comparando baseline com current.
 
@@ -183,7 +184,7 @@ class DriftDetector:
                 "current": current,
                 "drift_detected": drift_detected,
                 "alerts": alerts,
-                "last_updated": datetime.now(timezone.utc).isoformat(),
+                "last_updated": datetime.now(UTC).isoformat(),
             }
 
             # Publica alerta se drift detectado
@@ -197,7 +198,7 @@ class DriftDetector:
             return {
                 "drift_detected": False,
                 "error": str(e),
-                "last_updated": datetime.now(timezone.utc).isoformat(),
+                "last_updated": datetime.now(UTC).isoformat(),
             }
 
     async def _get_active_model_version(self) -> str:
@@ -223,7 +224,7 @@ class DriftDetector:
             logger.error(f"Erro ao buscar versão do modelo ativo: {e}")
             return "unknown"
 
-    async def publish_drift_alert(self, drift_data: Dict[str, Any]) -> bool:
+    async def publish_drift_alert(self, drift_data: dict[str, Any]) -> bool:
         """
         Publica alerta de drift no Kafka.
 
@@ -239,7 +240,7 @@ class DriftDetector:
 
             event = {
                 "event_type": "model_drift_detected",
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
                 "model_version": drift_data.get("model_version"),
                 "drift_detected": drift_data.get("drift_detected"),
                 "alerts": drift_data.get("alerts", []),
@@ -260,7 +261,7 @@ class DriftDetector:
             logger.error(f"Erro ao publicar alerta: {e}")
             return False
 
-    async def get_drift_metrics(self, window_hours: int = 168) -> Dict[str, Any]:
+    async def get_drift_metrics(self, window_hours: int = 168) -> dict[str, Any]:
         """
         Obtém métricas de drift para API endpoint.
 
@@ -288,7 +289,7 @@ class CanaryDeployer:
 
     # Armazenamento em memória para canaries ativos
     # Em produção, usar Redis ou similar
-    _active_canaries: Dict[str, Dict[str, Any]] = {}
+    _active_canaries: dict[str, dict[str, Any]] = {}
 
     def __init__(
         self,
@@ -311,7 +312,7 @@ class CanaryDeployer:
         self.canary_duration_minutes = canary_duration_minutes
         self.canary_traffic_percentage = canary_traffic_percentage
 
-    async def start_canary(self, version: str, target_version: str) -> Dict[str, Any]:
+    async def start_canary(self, version: str, target_version: str) -> dict[str, Any]:
         """
         Inicia deploy canary.
 
@@ -328,7 +329,7 @@ class CanaryDeployer:
             return {"status": "failed", "error": f"Version {version} not found"}
 
         canary_id = f"canary-{version}-{target_version}"
-        started_at = datetime.now(timezone.utc)
+        started_at = datetime.now(UTC)
 
         # Armazena estado do canary
         self._active_canaries[canary_id] = {
@@ -353,7 +354,7 @@ class CanaryDeployer:
             "duration_minutes": self.canary_duration_minutes,
         }
 
-    async def collect_canary_metrics(self, canary_id: str) -> Dict[str, Any]:
+    async def collect_canary_metrics(self, canary_id: str) -> dict[str, Any]:
         """
         Coleta métricas durante o período canary.
 
@@ -391,10 +392,10 @@ class CanaryDeployer:
         return {
             "canary_id": canary_id,
             "metrics": metrics,
-            "collected_at": datetime.now(timezone.utc).isoformat(),
+            "collected_at": datetime.now(UTC).isoformat(),
         }
 
-    async def validate_canary(self, canary_id: str) -> Dict[str, Any]:
+    async def validate_canary(self, canary_id: str) -> dict[str, Any]:
         """
         Valida se canary deve ser promovido.
 
@@ -439,7 +440,7 @@ class CanaryDeployer:
             "metrics_summary": {"f1_delta": f1_delta, "sample_count": canary_samples},
         }
 
-    async def promote_or_rollback(self, canary_id: str, should_promote: bool) -> Dict[str, Any]:
+    async def promote_or_rollback(self, canary_id: str, should_promote: bool) -> dict[str, Any]:
         """
         Promove ou faz rollback baseado em validação.
 
@@ -455,7 +456,7 @@ class CanaryDeployer:
         else:
             return await self._rollback(canary_id)
 
-    async def _promote(self, canary_id: str) -> Dict[str, Any]:
+    async def _promote(self, canary_id: str) -> dict[str, Any]:
         """Promove novo modelo para 100% do tráfego."""
         canary = self._active_canaries.get(canary_id)
         if not canary:
@@ -473,7 +474,7 @@ class CanaryDeployer:
 
         # Atualiza estado
         canary["status"] = "promoted"
-        canary["completed_at"] = datetime.now(timezone.utc).isoformat()
+        canary["completed_at"] = datetime.now(UTC).isoformat()
 
         # Publica evento
         await self._publish_canary_event(
@@ -487,7 +488,7 @@ class CanaryDeployer:
             "previous_version": canary["target_version"],
         }
 
-    async def _rollback(self, canary_id: str) -> Dict[str, Any]:
+    async def _rollback(self, canary_id: str) -> dict[str, Any]:
         """Rollback para modelo anterior."""
         canary = self._active_canaries.get(canary_id)
         if not canary:
@@ -495,7 +496,7 @@ class CanaryDeployer:
 
         # Atualiza estado
         canary["status"] = "rolled_back"
-        canary["completed_at"] = datetime.now(timezone.utc).isoformat()
+        canary["completed_at"] = datetime.now(UTC).isoformat()
 
         # Publica evento
         await self._publish_canary_event(
@@ -510,7 +511,7 @@ class CanaryDeployer:
 
     async def _calculate_traffic_split(
         self, canary_version: str, baseline_version: str
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Calcula split de tráfego para canary.
 
@@ -540,7 +541,7 @@ class CanaryDeployer:
 
         event = {
             "event_type": f"ml.{event_type}",
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "canary_id": canary_id,
             "version": version,
             "target_version": target_version,

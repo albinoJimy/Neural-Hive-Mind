@@ -1,20 +1,21 @@
 """Testes para ModelRegistry - Gerenciador de modelos MLflow."""
 
-import pytest
 from unittest.mock import Mock, patch
+
+import pytest
 from mlflow.tracking import MlflowClient
 
 from neural_hive_ml.predictive_models.model_registry import ModelRegistry
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_mlflow_client():
     """Mock do MLflow client."""
     client = Mock(spec=MlflowClient)
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def model_registry(mock_mlflow_client):
     """Fixture para ModelRegistry."""
     with (
@@ -29,11 +30,11 @@ def model_registry(mock_mlflow_client):
         return registry
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_model():
     """Modelo sklearn de exemplo."""
-    from sklearn.ensemble import RandomForestClassifier
     import numpy as np
+    from sklearn.ensemble import RandomForestClassifier
 
     model = RandomForestClassifier(n_estimators=10, random_state=42)
     # Treina com dados dummy

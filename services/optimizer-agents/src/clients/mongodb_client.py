@@ -1,6 +1,6 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
-UTC = timezone.utc  # type: ignore, timedelta
+UTC = UTC  # type: ignore, timedelta
 from typing import Any
 
 import structlog
@@ -222,18 +222,25 @@ class MongoDBClient:
             logger.error("experiment_get_failed", experiment_id=experiment_id, error=str(e))
             return None
 
-    async def set_hypothesis_library_id(self, experiment_id: str, hypothesis_library_id: str) -> bool:
+    async def set_hypothesis_library_id(
+        self, experiment_id: str, hypothesis_library_id: str
+    ) -> bool:
         """Associar hypothesis_library_id ao experimento."""
         try:
             result = await self.experiments_collection.update_one(
                 {"experiment_id": experiment_id},
-                {"$set": {"hypothesis_library_id": hypothesis_library_id, "_updated_at": datetime.now(UTC)}}
+                {
+                    "$set": {
+                        "hypothesis_library_id": hypothesis_library_id,
+                        "_updated_at": datetime.now(UTC),
+                    }
+                },
             )
             if result.modified_count > 0:
                 logger.info(
                     "hypothesis_library_id_set",
                     experiment_id=experiment_id,
-                    hypothesis_library_id=hypothesis_library_id
+                    hypothesis_library_id=hypothesis_library_id,
                 )
                 return True
             return False
@@ -242,7 +249,7 @@ class MongoDBClient:
                 "set_hypothesis_library_id_failed",
                 experiment_id=experiment_id,
                 hypothesis_library_id=hypothesis_library_id,
-                error=str(e)
+                error=str(e),
             )
             return False
 

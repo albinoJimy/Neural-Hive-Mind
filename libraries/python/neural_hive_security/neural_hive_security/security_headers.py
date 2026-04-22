@@ -17,12 +17,11 @@ Autor: Neural Hive Mind
 Criado: 2026-04-19 (SEC-001)
 """
 
+from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Mapping
 
-from fastapi import FastAPI, Request, Response
-from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.middleware.base import Request as StarletteRequest
+from fastapi import FastAPI, Response
+from starlette.middleware.base import BaseHTTPMiddleware, Request as StarletteRequest
 from starlette.types import ASGIApp
 
 

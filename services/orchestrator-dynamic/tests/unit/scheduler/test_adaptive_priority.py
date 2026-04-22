@@ -4,16 +4,16 @@ Testes unitários para AdaptivePriorityCalculator.
 Testa cálculo de prioridade adaptativa baseado em histórico.
 """
 
-import pytest
-from datetime import datetime, timezone, timedelta
+from datetime import UTC, datetime, timedelta
 
+import pytest
 from src.scheduler.adaptive_priority import AdaptivePriorityCalculator
 
 
 class TestAdaptivePriorityCalculator:
     """Testes para AdaptivePriorityCalculator."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def calculator(self):
         """Retorna instância do calculador."""
         config = Mock()
@@ -24,7 +24,7 @@ class TestAdaptivePriorityCalculator:
 
         return AdaptivePriorityCalculator(config)
 
-    @pytest.fixture
+    @pytest.fixture()
     def sample_ticket(self):
         """Retorna ticket de exemplo."""
         return {
@@ -140,7 +140,7 @@ class TestAdaptivePriorityCalculator:
         ticket_type = calculator._get_ticket_type(sample_ticket)
 
         # Adicionar entrada antiga (fora da janela)
-        old_timestamp = int((datetime.now(timezone.utc) - timedelta(days=10)).timestamp() * 1000)
+        old_timestamp = int((datetime.now(UTC) - timedelta(days=10)).timestamp() * 1000)
         calculator.execution_history[ticket_type].append(
             {
                 "ticket_id": "old-ticket",
@@ -189,7 +189,7 @@ class TestAdaptivePriorityCalculator:
         # Adicionar entradas antigas e recentes
         ticket_type = calculator._get_ticket_type(sample_ticket)
 
-        old_timestamp = int((datetime.now(timezone.utc) - timedelta(days=10)).timestamp() * 1000)
+        old_timestamp = int((datetime.now(UTC) - timedelta(days=10)).timestamp() * 1000)
         calculator.execution_history[ticket_type].append(
             {
                 "ticket_id": "old-1",

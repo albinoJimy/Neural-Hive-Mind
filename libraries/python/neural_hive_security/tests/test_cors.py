@@ -215,7 +215,7 @@ class TestSecurityCompliance:
 
     def test_internal_services_empty(self):
         """Serviços internos devem ter lista vazia."""
-        assert CORSConfig.INTERNAL_SERVICES == []
+        assert [] == CORSConfig.INTERNAL_SERVICES
 
     def test_all_prod_origins_are_https(self):
         """Todas as origens de produção devem ser HTTPS."""

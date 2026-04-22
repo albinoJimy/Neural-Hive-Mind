@@ -15,16 +15,14 @@ from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-
-from src.types.artifact_types import ArtifactCategory
 from src.models.artifact import (
     CodeForgeArtifact,
     GenerationMethod,
     ValidationResult,
-    ValidationType,
     ValidationStatus,
+    ValidationType,
 )
-
+from src.types.artifact_types import ArtifactCategory
 
 pytest_plugins = ["tests.unit.conftest", "tests.fixtures.d3_fixtures"]
 
@@ -37,7 +35,7 @@ pytest_plugins = ["tests.unit.conftest", "tests.fixtures.d3_fixtures"]
 class TestD3ContainerGeneration:
     """Testes de geração de artefatos CONTAINER."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_d3_container_artifact_structure(
         self, d3_build_ticket_with_container, mock_d3_packager, d3_pipeline_context
     ):
@@ -76,7 +74,7 @@ class TestD3ContainerGeneration:
             ":" in container.content_uri or "@sha256:" in container.content_uri
         ), f"URI sem tag ou digest: {container.content_uri}"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_d3_container_metadata(self, d3_pipeline_context, mock_d3_packager):
         """
         D3: Metadados do artefato CONTAINER
@@ -99,7 +97,7 @@ class TestD3ContainerGeneration:
             size = int(container.metadata["image_size_bytes"])
             assert size > 0, "Tamanho da imagem deve ser > 0"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_d3_container_with_multiple_platforms(self, d3_pipeline_context):
         """
         D3: Container multi-platform (multi-arch)
@@ -154,7 +152,7 @@ class TestD3ContainerGeneration:
 class TestD3SBOMGeneration:
     """Testes de geração de SBOM."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_d3_sbom_format_spdx(self, d3_pipeline_context, mock_d3_packager):
         """
         D3: SBOM no formato SPDX 2.3
@@ -177,7 +175,7 @@ class TestD3SBOMGeneration:
             ".spdx"
         ), f"Extensão inválida: {container.sbom_uri}"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_d3_sbom_storage_location(self, d3_pipeline_context, mock_d3_packager):
         """
         D3: Local de armazenamento do SBOM
@@ -196,7 +194,7 @@ class TestD3SBOMGeneration:
             container.sbom_uri.startswith(p) for p in valid_prefixes
         ), f"URI inválida: {container.sbom_uri}"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_d3_sbom_content_verification(self, d3_pipeline_context, mock_d3_packager):
         """
         D3: Verificação de conteúdo do SBOM
@@ -248,7 +246,7 @@ class TestD3SBOMGeneration:
         components = int(container.metadata["sbom_components_count"])
         assert components > 0, "SBOM deve ter componentes"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_d3_sbom_vulnerability_scan(self, d3_pipeline_context):
         """
         D3: Scan de vulnerabilidade no SBOM
@@ -294,7 +292,7 @@ class TestD3SBOMGeneration:
 class TestD3ArtifactSigning:
     """Testes de assinatura de artefatos."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_d3_signature_present(self, d3_pipeline_context, mock_d3_packager):
         """
         D3: Assinatura presente no artefato
@@ -322,7 +320,7 @@ class TestD3ArtifactSigning:
             # Em testes, assinatura pode ser mais curta
             assert len(container.signature) > 5
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_d3_signature_verification(self, d3_pipeline_context, mock_sigstore_client):
         """
         D3: Verificação de assinatura
@@ -363,7 +361,7 @@ class TestD3ArtifactSigning:
 
         assert verified is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_d3_signature_algorithm(self, d3_pipeline_context):
         """
         D3: Algoritmo de assinatura
@@ -408,7 +406,7 @@ class TestD3ArtifactSigning:
 class TestD3KubernetesManifests:
     """Testes de geração de manifests Kubernetes."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_d3_kubernetes_deployment_manifest(self, d3_pipeline_context):
         """
         D3: Manifesto Kubernetes Deployment
@@ -448,7 +446,7 @@ class TestD3KubernetesManifests:
         assert ".yaml" in manifest.content_uri or ".yml" in manifest.content_uri
         assert "kind" in manifest.metadata
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_d3_kubernetes_helm_chart(self, d3_pipeline_context):
         """
         D3: Chart Helm
@@ -497,7 +495,7 @@ class TestD3KubernetesManifests:
 class TestD3ArtifactValidation:
     """Testes de validação de artefatos gerados."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_d3_container_image_scan(self, d3_pipeline_context, mock_trivy_client):
         """
         D3: Scan de imagem de container
@@ -531,7 +529,7 @@ class TestD3ArtifactValidation:
         assert result.status == ValidationStatus.PASSED
         assert result.critical_issues == 0
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_d3_sbom_compliance_check(self, d3_pipeline_context):
         """
         D3: Verificação de compliance do SBOM
@@ -561,7 +559,7 @@ class TestD3ArtifactValidation:
         assert validation.validation_type == ValidationType.COMPLIANCE_CHECK
         assert validation.status == ValidationStatus.PASSED
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_d3_artifact_integrity_verification(self, d3_pipeline_context):
         """
         D3: Verificação de integridade do artefato
@@ -608,7 +606,7 @@ class TestD3ArtifactValidation:
 class TestD3MultipleArtifacts:
     """Testes de geração de múltiplos artefatos."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_d3_container_plus_manifest_generation(
         self, d3_pipeline_context, mock_d3_packager
     ):
@@ -656,7 +654,7 @@ class TestD3MultipleArtifacts:
         assert container.trace_id == manifest_artifact.trace_id
         assert container.span_id == manifest_artifact.span_id
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_d3_artifact_relationships(self, d3_pipeline_context):
         """
         D3: Relacionamentos entre artefatos

@@ -5,15 +5,17 @@ Cobertura: inicialização, save_opinion (com/sem fallback), buffer/flush,
 retrieval, verificação de integridade, circuit breaker transitions.
 """
 
+from datetime import UTC
+from unittest.mock import MagicMock, Mock, patch
+
 import pytest
-from unittest.mock import Mock, MagicMock, patch
-from pymongo.errors import PyMongoError
 from circuitbreaker import CircuitBreakerError
+from pymongo.errors import PyMongoError
 
 from neural_hive_specialists.ledger_client import LedgerClient
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestLedgerClientInitialization:
     """Testes de inicialização do LedgerClient."""
 
@@ -61,11 +63,11 @@ class TestLedgerClientInitialization:
             assert mock_collection.create_index.call_count >= 5
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestSaveOpinion:
     """Testes do método save_opinion."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def ledger_client(self, mock_config):
         """Cria cliente com MongoDB mockado."""
         with patch("neural_hive_specialists.ledger_client.MongoClient") as mock_mongo:
@@ -140,11 +142,11 @@ class TestSaveOpinion:
             )
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestSaveOpinionWithFallback:
     """Testes do método save_opinion_with_fallback."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def ledger_client(self, mock_config, mock_metrics):
         """Cria cliente com circuit breaker habilitado."""
         mock_config.enable_circuit_breaker = True
@@ -220,11 +222,11 @@ class TestSaveOpinionWithFallback:
         assert ledger_client.was_last_save_buffered() is True
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestBuffer:
     """Testes de buffer de pareceres."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def ledger_client(self, mock_config):
         """Cria cliente com buffer configurado."""
         mock_config.ledger_buffer_size = 3
@@ -271,7 +273,7 @@ class TestBuffer:
         ledger_client._collection.insert_one = MagicMock(return_value=MagicMock(acknowledged=True))
 
         # Adicionar pareceres ao buffer com estrutura correta para flush
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         for i in range(2):
             opinion_data = {
@@ -281,7 +283,7 @@ class TestBuffer:
                 "specialist_type": "business",
                 "correlation_id": f"corr-{i}",
                 "opinion_data": sample_opinion,  # nome correto: opinion_data
-                "timestamp": datetime.now(timezone.utc),  # campo obrigatório para hash
+                "timestamp": datetime.now(UTC),  # campo obrigatório para hash
                 "buffered": True,
             }
             ledger_client._buffer_opinion(opinion_data)
@@ -293,11 +295,11 @@ class TestBuffer:
         assert ledger_client._collection.insert_one.call_count == 2
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestRetrieval:
     """Testes de recuperação de pareceres."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def ledger_client(self, mock_config):
         """Cria cliente com MongoDB mockado."""
         with patch("neural_hive_specialists.ledger_client.MongoClient") as mock_mongo:
@@ -361,11 +363,11 @@ class TestRetrieval:
         assert len(results) == 1
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestIntegrityVerification:
     """Testes de verificação de integridade."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def ledger_client(self, mock_config):
         """Cria cliente com MongoDB mockado."""
         with patch("neural_hive_specialists.ledger_client.MongoClient") as mock_mongo:
@@ -421,11 +423,11 @@ class TestIntegrityVerification:
         assert result is False
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestCircuitBreaker:
     """Testes de transições do circuit breaker."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def ledger_client(self, mock_config, mock_metrics):
         """Cria cliente com circuit breaker habilitado."""
         mock_config.enable_circuit_breaker = True
@@ -520,11 +522,11 @@ class TestCircuitBreaker:
         mock_metrics.set_circuit_breaker_state.assert_called_with("ledger", "closed")
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestConnectionStatus:
     """Testes de verificação de conexão."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def ledger_client(self, mock_config):
         """Cria cliente com MongoDB mockado."""
         with patch("neural_hive_specialists.ledger_client.MongoClient") as mock_mongo:

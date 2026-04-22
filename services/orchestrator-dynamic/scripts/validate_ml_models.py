@@ -10,14 +10,14 @@ import logging
 import sys
 import time
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 from mlflow.tracking import MlflowClient
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from config.settings import get_settings
 from clients.mongodb_client import MongoDBClient
+from config.settings import get_settings
 from ml.anomaly_detector import AnomalyDetector
 from ml.drift_detector import DriftDetector
 from ml.duration_predictor import DurationPredictor
@@ -65,7 +65,7 @@ class MLModelValidator:
             self.duration_predictor.initialize(), self.anomaly_detector.initialize()
         )
 
-    async def check_mlflow_connection(self) -> Dict[str, Any]:
+    async def check_mlflow_connection(self) -> dict[str, Any]:
         """Valida conectividade com o MLflow."""
         try:
             client = MlflowClient(tracking_uri=self.config.mlflow_tracking_uri)
@@ -74,7 +74,7 @@ class MLModelValidator:
         except Exception as exc:
             return {"status": "error", "error": str(exc)}
 
-    async def check_models_in_production(self) -> Dict[str, Any]:
+    async def check_models_in_production(self) -> dict[str, Any]:
         """Lista modelos em stage Production."""
         if not self.model_registry:
             return {"status": "error", "error": "model_registry_not_initialized"}
@@ -94,7 +94,7 @@ class MLModelValidator:
         except Exception as exc:
             return {"status": "error", "error": str(exc)}
 
-    async def validate_duration_predictor(self) -> Dict[str, Any]:
+    async def validate_duration_predictor(self) -> dict[str, Any]:
         """Executa predição de teste e mede latência do DurationPredictor."""
         if not self.duration_predictor:
             return {"status": "error", "error": "duration_predictor_not_initialized"}
@@ -123,7 +123,7 @@ class MLModelValidator:
         except Exception as exc:
             return {"status": "error", "error": str(exc)}
 
-    async def validate_anomaly_detector(self) -> Dict[str, Any]:
+    async def validate_anomaly_detector(self) -> dict[str, Any]:
         """Executa detecção de anomalia de teste."""
         if not self.anomaly_detector:
             return {"status": "error", "error": "anomaly_detector_not_initialized"}
@@ -150,7 +150,7 @@ class MLModelValidator:
         except Exception as exc:
             return {"status": "error", "error": str(exc)}
 
-    async def validate_load_predictor(self) -> Dict[str, Any]:
+    async def validate_load_predictor(self) -> dict[str, Any]:
         """Executa predições de carga e fila para validar funcionamento básico."""
         if not self.load_predictor:
             return {"status": "error", "error": "load_predictor_not_initialized"}
@@ -169,7 +169,7 @@ class MLModelValidator:
         except Exception as exc:
             return {"status": "error", "error": str(exc)}
 
-    async def check_feature_baseline(self) -> Dict[str, Any]:
+    async def check_feature_baseline(self) -> dict[str, Any]:
         """Verifica existência do baseline de features no MongoDB."""
         if not self.mongo_client:
             return {"status": "error", "error": "mongo_not_initialized"}
@@ -189,7 +189,7 @@ class MLModelValidator:
         except Exception as exc:
             return {"status": "error", "error": str(exc)}
 
-    def run_drift_check(self) -> Dict[str, Any]:
+    def run_drift_check(self) -> dict[str, Any]:
         """Executa drift detection usando baseline existente."""
         if not self.drift_detector:
             return {"status": "error", "error": "drift_detector_not_initialized"}
@@ -200,7 +200,7 @@ class MLModelValidator:
         except Exception as exc:
             return {"status": "error", "error": str(exc)}
 
-    def generate_report(self, results: Dict[str, Any]) -> Path:
+    def generate_report(self, results: dict[str, Any]) -> Path:
         """Salva relatório JSON consolidado no /tmp."""
         report_path = Path("/tmp") / f"ml_validation_report_{int(time.time())}.json"
         report_path.write_text(json.dumps(results, indent=2, default=str))

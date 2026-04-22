@@ -4,10 +4,10 @@ Testes unitários para ParallelBuilder.
 Testes para construções multi-arch de containers em paralelo.
 """
 
-import pytest
 import asyncio
-from unittest.mock import MagicMock, AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
 from src.services.kaniko.parallel_builder import (
     ParallelBuilder,
     ParallelBuildResult,
@@ -117,7 +117,7 @@ class TestParallelBuilderInitialization:
 class TestBuildSinglePlatform:
     """Testes para _build_single_platform."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_build_success(self):
         """Testa build bem-sucedido para uma plataforma."""
         builder = ParallelBuilder()
@@ -158,7 +158,7 @@ class TestBuildSinglePlatform:
             assert result.platform == "linux/amd64"
             assert result.image_digest == "sha256:test123"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_build_failure(self):
         """Testa build falhado para uma plataforma."""
         builder = ParallelBuilder()
@@ -198,7 +198,7 @@ class TestBuildSinglePlatform:
 class TestRunWithConcurrencyLimit:
     """Testes para _run_with_concurrency_limit."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_concurrency_limit(self):
         """Testa que limite de concorrência é respeitado."""
         builder = ParallelBuilder(max_concurrent_builds=2)
@@ -231,7 +231,7 @@ class TestRunWithConcurrencyLimit:
 class TestCreateManifest:
     """Testes para create_manifest."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_create_manifest_docker_success(self):
         """Testa criação de manifest via Docker."""
         builder = ParallelBuilder()
@@ -259,7 +259,7 @@ class TestCreateManifest:
 
             assert digest is not None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_create_manifest_kaniko(self):
         """Testa criação de manifest via Kaniko (limitada)."""
         builder = ParallelBuilder()
@@ -360,7 +360,7 @@ class TestEstimateSequentialDuration:
 class TestBuildParallelIntegration:
     """Testes de integração para build_parallel."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_build_parallel_all_success(self):
         """Testa build paralelo onde todas as plataformas sucedem."""
         builder = ParallelBuilder(max_concurrent_builds=2)
@@ -394,7 +394,7 @@ class TestBuildParallelIntegration:
         assert len(summary.platforms_failed) == 0
         assert summary.manifest_digest == "sha256:manifest123"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_build_parallel_partial_failure(self):
         """Testa build paralelo com algumas falhas."""
         builder = ParallelBuilder()

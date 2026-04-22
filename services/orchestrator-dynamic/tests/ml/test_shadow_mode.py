@@ -9,17 +9,17 @@ Valida:
 - Métricas Prometheus
 """
 
-import pytest
 import asyncio
 from unittest.mock import AsyncMock, MagicMock
 
-from src.ml.shadow_mode import ShadowModeRunner, ShadowCircuitBreakerListener
+import pytest
+from src.ml.shadow_mode import ShadowCircuitBreakerListener, ShadowModeRunner
 
 
 class TestShadowModeRunner:
     """Testes para ShadowModeRunner."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_config(self):
         """Configuração mock para shadow mode."""
         config = MagicMock()
@@ -29,7 +29,7 @@ class TestShadowModeRunner:
         config.ml_shadow_mode_circuit_breaker_enabled = True
         return config
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_mongodb(self):
         """Cliente MongoDB mock."""
         mongodb = MagicMock()
@@ -39,7 +39,7 @@ class TestShadowModeRunner:
         mongodb.db.__getitem__ = MagicMock(return_value=collection)
         return mongodb
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_metrics(self):
         """Métricas mock."""
         metrics = MagicMock()
@@ -49,7 +49,7 @@ class TestShadowModeRunner:
         metrics.set_shadow_circuit_breaker_state = MagicMock()
         return metrics
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_prod_model(self):
         """Modelo de produção mock."""
         model = MagicMock()
@@ -57,20 +57,20 @@ class TestShadowModeRunner:
         model.predict = MagicMock(return_value=[5000])
         return model
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_shadow_model(self):
         """Modelo shadow mock."""
         model = MagicMock()
         model.predict = MagicMock(return_value=[5200])
         return model
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_model_registry(self):
         """Model registry mock."""
         registry = MagicMock()
         return registry
 
-    @pytest.fixture
+    @pytest.fixture()
     def shadow_runner(
         self,
         mock_config,
@@ -93,7 +93,7 @@ class TestShadowModeRunner:
         )
         return runner
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_predict_with_shadow_returns_production_result(
         self, shadow_runner, mock_prod_model
     ):
@@ -111,7 +111,7 @@ class TestShadowModeRunner:
         # Quando prod_result é fornecido, ele é retornado diretamente
         assert result == prod_result
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_shadow_prediction_runs_async(self, shadow_runner, mock_shadow_model):
         """Verifica que predição shadow executa em background."""
         features = {"task_type": "INFERENCE", "payload_size": 1024}
@@ -202,7 +202,7 @@ class TestShadowModeRunner:
 
         assert agreement["anomaly"] is False
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_persistence_called_when_enabled(self, shadow_runner, mock_mongodb):
         """Verifica que comparação é persistida quando habilitado."""
         features = {"task_type": "INFERENCE", "payload_size": 1024}
@@ -219,7 +219,7 @@ class TestShadowModeRunner:
         # Verificar que insert foi chamado
         mock_mongodb.db["shadow_mode_comparisons"].insert_one.assert_called()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_metrics_recorded(self, shadow_runner, mock_metrics):
         """Verifica que métricas são registradas."""
         features = {"task_type": "INFERENCE", "payload_size": 1024}
@@ -235,7 +235,7 @@ class TestShadowModeRunner:
 
         mock_metrics.record_shadow_prediction.assert_called()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_sample_rate_respected(
         self,
         mock_config,
@@ -288,7 +288,7 @@ class TestShadowModeRunner:
         assert stats["disagreement_count"] == 8
         assert stats["avg_latency_ms"] == 50.0
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_circuit_breaker_opens_on_failures(
         self, mock_config, mock_mongodb, mock_metrics, mock_prod_model, mock_model_registry
     ):

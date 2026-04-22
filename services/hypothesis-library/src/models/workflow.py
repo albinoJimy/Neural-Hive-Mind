@@ -2,8 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from enum import Enum
+from datetime import datetime
 from typing import Any
 
 from pydantic import BaseModel, Field
@@ -14,7 +13,9 @@ from src.models.hypothesis import HypothesisStatus, utcnow
 class TransitionError(Exception):
     """Erro em transição de estado inválida."""
 
-    def __init__(self, from_status: HypothesisStatus, to_status: HypothesisStatus, reason: str = ""):
+    def __init__(
+        self, from_status: HypothesisStatus, to_status: HypothesisStatus, reason: str = ""
+    ):
         self.from_status = from_status
         self.to_status = to_status
         self.reason = reason
@@ -29,16 +30,10 @@ class WorkflowTransition(BaseModel):
 
     from_status: HypothesisStatus = Field(..., description="Estado anterior")
     to_status: HypothesisStatus = Field(..., description="Novo estado")
-    transitioned_at: datetime = Field(
-        default_factory=utcnow,
-        description="Timestamp da transição"
-    )
+    transitioned_at: datetime = Field(default_factory=utcnow, description="Timestamp da transição")
     transitioned_by: str = Field(..., description="Quem fez a transição")
     reason: str = Field(default="", description="Razão da transição")
-    metadata: dict[str, Any] = Field(
-        default_factory=dict,
-        description="Metadados adicionais"
-    )
+    metadata: dict[str, Any] = Field(default_factory=dict, description="Metadados adicionais")
 
 
 class HypothesisWorkflow:
@@ -140,16 +135,14 @@ class HypothesisWorkflow:
             raise TransitionError(
                 from_status,
                 to_status,
-                f"Valid transitions from {from_status.value}: {[s.value for s in valid_targets]}"
+                f"Valid transitions from {from_status.value}: {[s.value for s in valid_targets]}",
             )
 
         # Verificar permissão
         required_role = cls.ROLE_REQUIREMENTS.get((from_status, to_status))
         if required_role and not cls._has_role_permission(role, required_role):
             raise TransitionError(
-                from_status,
-                to_status,
-                f"Requires role '{required_role}', got '{role}'"
+                from_status, to_status, f"Requires role '{required_role}', got '{role}'"
             )
 
     @classmethod

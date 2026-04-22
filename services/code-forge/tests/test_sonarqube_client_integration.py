@@ -13,7 +13,7 @@ from src.clients.sonarqube_client import SonarQubeClient
 from src.models.artifact import ValidationStatus
 
 
-@pytest.fixture
+@pytest.fixture()
 def client():
     return SonarQubeClient(
         url="http://sonarqube:9000",
@@ -25,12 +25,12 @@ def client():
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def disabled_client():
     return SonarQubeClient(url="http://sonarqube:9000", token="test-token", enabled=False)
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_sonarqube_analysis_disabled(disabled_client):
     """Testa que análise retorna SKIPPED quando disabled"""
     result = await disabled_client.analyze_code("project-key", "/tmp/src")
@@ -40,7 +40,7 @@ async def test_sonarqube_analysis_disabled(disabled_client):
     assert result.duration_ms == 0
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_sonarqube_analysis_scanner_failed(client):
     """Testa quando scanner falha"""
     mock_result = MagicMock()
@@ -55,7 +55,7 @@ async def test_sonarqube_analysis_scanner_failed(client):
     assert result.report_uri == "http://sonarqube:9000/dashboard?id=project-key"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_sonarqube_analysis_success_quality_gate_ok(client):
     """Testa análise completa com quality gate OK"""
     mock_scanner_result = MagicMock()
@@ -92,7 +92,7 @@ async def test_sonarqube_analysis_success_quality_gate_ok(client):
     assert result.low_issues == 1
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_sonarqube_analysis_quality_gate_error(client):
     """Testa análise com quality gate ERROR"""
     mock_scanner_result = MagicMock()
@@ -127,7 +127,7 @@ async def test_sonarqube_analysis_quality_gate_error(client):
     assert result.critical_issues == 2
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_sonarqube_analysis_quality_gate_warn(client):
     """Testa análise com quality gate WARN"""
     mock_scanner_result = MagicMock()
@@ -159,7 +159,7 @@ async def test_sonarqube_analysis_quality_gate_warn(client):
     assert result.score == 0.7
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_sonarqube_scanner_timeout(client):
     """Testa timeout do scanner"""
     with patch("subprocess.run", side_effect=subprocess.TimeoutExpired("sonar-scanner", 900)):
@@ -169,7 +169,7 @@ async def test_sonarqube_scanner_timeout(client):
     assert result.score == 0.0
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_sonarqube_get_quality_gate_status(client):
     """Testa get_quality_gate_status"""
     mock_http_client = AsyncMock()
@@ -186,7 +186,7 @@ async def test_sonarqube_get_quality_gate_status(client):
     assert status is True
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_sonarqube_get_issues(client):
     """Testa get_issues"""
     mock_http_client = AsyncMock()
@@ -206,7 +206,7 @@ async def test_sonarqube_get_issues(client):
     assert issues[0]["key"] == "issue-1"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_sonarqube_get_metrics(client):
     """Testa get_metrics"""
     mock_http_client = AsyncMock()
@@ -228,7 +228,7 @@ async def test_sonarqube_get_metrics(client):
     assert metrics["coverage"] == "85.0"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_sonarqube_task_analysis_failed(client):
     """Testa quando task do SonarQube falha"""
     mock_scanner_result = MagicMock()
@@ -251,7 +251,7 @@ async def test_sonarqube_task_analysis_failed(client):
     assert result.status == ValidationStatus.FAILED
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_sonarqube_severity_mapping(client):
     """Testa mapeamento correto de severidades"""
     counts = {"blocker": 2, "critical": 3, "major": 5, "minor": 8, "info": 10}

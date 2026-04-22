@@ -5,9 +5,9 @@ Usa Isolation Forest para detectar tickets com características anômalas
 que podem indicar problemas de configuração ou comportamento inesperado.
 """
 
-from datetime import timezone
+from datetime import UTC
 
-UTC = timezone.utc  # type: ignore
+UTC = UTC  # type: ignore
 from typing import Any
 
 import numpy as np

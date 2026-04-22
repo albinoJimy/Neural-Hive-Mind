@@ -11,7 +11,7 @@ Cobre:
 """
 
 import asyncio
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -30,10 +30,10 @@ from src.services.rollback_trigger import (
     RollbackTriggerType,
 )
 
-UTC = timezone.utc
+UTC = UTC
 
 
-@pytest.fixture
+@pytest.fixture()
 def rollback_thresholds():
     """Fixture para thresholds de rollback."""
     return RollbackThresholds(
@@ -45,7 +45,7 @@ def rollback_thresholds():
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def rollback_config(rollback_thresholds):
     """Fixture para configuração do RollbackTrigger."""
     return RollbackTriggerConfig(
@@ -58,7 +58,7 @@ def rollback_config(rollback_thresholds):
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_health_monitor():
     """Fixture para HealthMonitor mockado."""
     monitor = MagicMock()
@@ -66,7 +66,7 @@ def mock_health_monitor():
     return monitor
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_traffic_switcher():
     """Fixture para TrafficSwitcher mockado."""
     switcher = MagicMock()
@@ -74,7 +74,7 @@ def mock_traffic_switcher():
     return switcher
 
 
-@pytest.fixture
+@pytest.fixture()
 def rollback_trigger(rollback_config, mock_health_monitor, mock_traffic_switcher):
     """Fixture para RollbackTrigger."""
     return RollbackTrigger(
@@ -87,7 +87,7 @@ def rollback_trigger(rollback_config, mock_health_monitor, mock_traffic_switcher
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def healthy_comparison():
     """Fixture para comparação de saúde saudável."""
     return HealthComparison(
@@ -109,7 +109,7 @@ def healthy_comparison():
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def critical_error_comparison():
     """Fixture para comparação com error rate crítico."""
     return HealthComparison(
@@ -132,7 +132,7 @@ def critical_error_comparison():
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def system_down_comparison():
     """Fixture para comparação com sistema DOWN."""
     return HealthComparison(
@@ -155,7 +155,7 @@ def system_down_comparison():
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def high_latency_comparison():
     """Fixture para comparação com latência alta."""
     return HealthComparison(
@@ -262,7 +262,7 @@ class TestRollbackTriggerInit:
 class TestEvaluateRollbackConditions:
     """Testes para avaliação de condições de rollback."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_healthy_system_no_rollback(self, rollback_trigger, healthy_comparison):
         """Testa que sistema saudável não triggera rollback."""
         should_rollback, reason = await rollback_trigger.evaluate_rollback_conditions(
@@ -272,7 +272,7 @@ class TestEvaluateRollbackConditions:
         assert should_rollback is False
         assert reason is None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_error_rate_critical_first_minute(self, rollback_trigger, rollback_thresholds):
         """Testa que error rate crítico não triggera no primeiro minuto."""
         # Criar comparação com error rate crítico
@@ -300,7 +300,7 @@ class TestEvaluateRollbackConditions:
         assert should_rollback is False
         assert rollback_trigger._consecutive_critical_minutes == 1
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_error_rate_critical_after_threshold(
         self, rollback_trigger, rollback_thresholds, critical_error_comparison
     ):
@@ -317,7 +317,7 @@ class TestEvaluateRollbackConditions:
         assert should_rollback is True
         assert reason == RollbackReason.ERROR_RATE_CRITICAL
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_system_down_triggers_immediate(self, rollback_trigger, system_down_comparison):
         """Testa que sistema DOWN triggera imediatamente."""
         should_rollback, reason = await rollback_trigger.evaluate_rollback_conditions(
@@ -327,7 +327,7 @@ class TestEvaluateRollbackConditions:
         assert should_rollback is True
         assert reason == RollbackReason.SYSTEM_DOWN
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_high_latency_triggers_rollback(self, rollback_trigger, high_latency_comparison):
         """Testa que latência alta triggera rollback."""
         should_rollback, reason = await rollback_trigger.evaluate_rollback_conditions(
@@ -337,7 +337,7 @@ class TestEvaluateRollbackConditions:
         assert should_rollback is True
         assert reason == RollbackReason.LATENCY_CRITICAL
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_data_corruption_triggers_rollback(self, rollback_trigger):
         """Testa que data corruption triggera rollback."""
         comparison = HealthComparison(
@@ -364,7 +364,7 @@ class TestEvaluateRollbackConditions:
         assert should_rollback is True
         assert reason == RollbackReason.DATA_CORRUPTION
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_security_breach_triggers_rollback(self, rollback_trigger):
         """Testa que security breach triggera rollback."""
         comparison = HealthComparison(
@@ -391,7 +391,7 @@ class TestEvaluateRollbackConditions:
         assert should_rollback is True
         assert reason == RollbackReason.SECURITY_BREACH
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_consecutive_counter_resets_on_recovery(
         self, rollback_trigger, critical_error_comparison, healthy_comparison
     ):
@@ -411,7 +411,7 @@ class TestEvaluateRollbackConditions:
 class TestManualRollback:
     """Testes para rollback manual."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_manual_rollback_success(self, rollback_trigger):
         """Testa rollback manual bem-sucedido."""
         success, message = await rollback_trigger.trigger_manual_rollback(
@@ -425,7 +425,7 @@ class TestManualRollback:
         assert rollback_trigger._status.rollback_count == 1
         assert rollback_trigger._status.last_rollback_reason == RollbackReason.BUSINESS_CRITICAL_BUG
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_manual_rollback_disabled(self, rollback_config):
         """Testa que rollback manual desabilitado não executa."""
         config = rollback_config.model_copy(update={"enable_manual_rollback": False})
@@ -439,7 +439,7 @@ class TestManualRollback:
         assert success is False
         assert "disabled" in message.lower()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_manual_rollback_when_in_progress(self, rollback_trigger):
         """Testa que não executa rollback quando já há um em progresso."""
         rollback_trigger._rollback_in_progress = True
@@ -456,7 +456,7 @@ class TestManualRollback:
 class TestAutomaticRollback:
     """Testes para rollback automático."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_automatic_rollback_disabled(self, rollback_config, mock_health_monitor):
         """Testa que rollback automático desabilitado não executa."""
         config = rollback_config.model_copy(update={"enable_automatic_rollback": False})
@@ -499,7 +499,7 @@ class TestAutomaticRollback:
         # Verificar que rollback não foi executado
         assert trigger._status.rollback_count == 0
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_automatic_rollback_on_system_down(self, rollback_trigger, mock_health_monitor):
         """Testa rollback automático quando sistema target está DOWN."""
         # Setup health monitor para retornar sistema DOWN
@@ -541,7 +541,7 @@ class TestAutomaticRollback:
 class TestRollbackStatus:
     """Testes para status de rollback."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_rollback_status(self, rollback_trigger):
         """Testa obter status de rollback."""
         status = await rollback_trigger.get_rollback_status()
@@ -550,7 +550,7 @@ class TestRollbackStatus:
         assert status.is_active is False
         assert status.rollback_count == 0
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_status_after_rollback(self, rollback_trigger):
         """Testa status após rollback executado."""
         await rollback_trigger.trigger_manual_rollback(
@@ -565,7 +565,7 @@ class TestRollbackStatus:
         assert status.last_rollback_reason == RollbackReason.OPERATOR_DECISION
         assert status.last_rollback_timestamp is not None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_rollback_history(self, rollback_trigger):
         """Testa histórico de rollbacks."""
         # Executar 3 rollbacks
@@ -608,14 +608,14 @@ class TestConfigureThresholds:
 class TestGetRollbackEvents:
     """Testes para obter eventos de rollback."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_rollback_events_empty(self, rollback_trigger):
         """Testa obter eventos quando não há rollbacks."""
         events = rollback_trigger.get_rollback_events()
 
         assert events == []
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_rollback_events_with_data(self, rollback_trigger):
         """Testa obter eventos com rollbacks registrados."""
         await rollback_trigger.trigger_manual_rollback(
@@ -630,7 +630,7 @@ class TestGetRollbackEvents:
         assert events[0]["reason"] == RollbackReason.OPERATOR_DECISION.value
         assert events[0]["triggered_by"] == "admin@example.com"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_rollback_events_limit(self, rollback_trigger):
         """Testa limite de eventos retornados."""
         # Executar 5 rollbacks
@@ -650,7 +650,7 @@ class TestGetRollbackEvents:
 class TestGetEvaluationMetrics:
     """Testes para métricas de avaliação."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_evaluation_metrics_empty(self, rollback_trigger):
         """Testa métricas quando não há avaliações."""
         metrics = rollback_trigger.get_evaluation_metrics()
@@ -658,7 +658,7 @@ class TestGetEvaluationMetrics:
         assert metrics["total_evaluations"] == 0
         assert metrics["consecutive_critical_minutes"] == 0
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_evaluation_metrics_with_data(self, rollback_trigger, mock_health_monitor):
         """Testa métricas com avaliações registradas."""
         # Setup health monitor para retornar status misto
@@ -716,7 +716,7 @@ class TestGetEvaluationMetrics:
 class TestResetRollbackStatus:
     """Testes para reset de status de rollback."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_reset_rollback_status(self, rollback_trigger):
         """Testa reset de status ativo."""
         # Executar rollback
@@ -737,7 +737,7 @@ class TestResetRollbackStatus:
 class TestStartStopMonitoring:
     """Testes para iniciar/parar monitoramento."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_start_monitoring(self, rollback_trigger):
         """Testa iniciar monitoramento."""
         await rollback_trigger.start_monitoring()
@@ -747,7 +747,7 @@ class TestStartStopMonitoring:
 
         await rollback_trigger.stop_monitoring()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_stop_monitoring(self, rollback_trigger):
         """Testa parar monitoramento."""
         await rollback_trigger.start_monitoring()
@@ -755,7 +755,7 @@ class TestStartStopMonitoring:
 
         assert rollback_trigger._running is False
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_start_when_already_running(self, rollback_trigger):
         """Testa iniciar quando já está rodando."""
         await rollback_trigger.start_monitoring()
@@ -806,7 +806,7 @@ class TestRollbackEvent:
 class TestClose:
     """Testes para método close."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_close_stops_monitoring(self, rollback_trigger):
         """Testa que close para monitoramento."""
         await rollback_trigger.start_monitoring()
@@ -815,7 +815,7 @@ class TestClose:
 
         assert rollback_trigger._running is False
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_close_without_monitoring(self, rollback_trigger):
         """Testa close sem monitoramento ativo."""
         # Não deve lançar exceção
@@ -827,7 +827,7 @@ class TestClose:
 class TestIntegrationWithTrafficSwitcher:
     """Testes de integração com TrafficSwitcher."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_rollback_calls_traffic_switcher(self, rollback_trigger, mock_traffic_switcher):
         """Testa que rollback chama TrafficSwitcher."""
         await rollback_trigger.trigger_manual_rollback(
@@ -837,7 +837,7 @@ class TestIntegrationWithTrafficSwitcher:
 
         mock_traffic_switcher.emergency_switch_to_legacy.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_rollback_with_traffic_switcher_failure(
         self, rollback_trigger, mock_traffic_switcher
     ):
@@ -856,7 +856,7 @@ class TestIntegrationWithTrafficSwitcher:
 class TestLatencyRatioWarning:
     """Testes para warning de ratio de latência."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_latency_ratio_warning_logged(self, rollback_trigger):
         """Testa que warning de ratio de latência é logado."""
         comparison = HealthComparison(

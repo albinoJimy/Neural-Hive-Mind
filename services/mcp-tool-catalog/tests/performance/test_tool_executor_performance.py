@@ -13,18 +13,16 @@ import time
 from unittest.mock import MagicMock, patch
 
 import pytest
-
-from src.services.tool_executor import ToolExecutor
-from src.models.tool_descriptor import ToolDescriptor, ToolCategory, IntegrationType
 from src.adapters.base_adapter import ExecutionResult
-
+from src.models.tool_descriptor import IntegrationType, ToolCategory, ToolDescriptor
+from src.services.tool_executor import ToolExecutor
 
 # ============================================================================
 # Fixtures
 # ============================================================================
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_settings():
     """Mock de configuracoes para testes de performance."""
     settings = MagicMock()
@@ -39,14 +37,14 @@ def mock_settings():
     return settings
 
 
-@pytest.fixture
+@pytest.fixture()
 def tool_executor(mock_settings):
     """ToolExecutor para testes de performance."""
     with patch("src.services.tool_executor.get_settings", return_value=mock_settings):
         return ToolExecutor(settings=mock_settings)
 
 
-@pytest.fixture
+@pytest.fixture()
 def benchmark_tools():
     """Lista de 10 ferramentas para benchmark."""
     tools = []
@@ -69,7 +67,7 @@ def benchmark_tools():
     return tools
 
 
-@pytest.fixture
+@pytest.fixture()
 def cli_tool():
     """Ferramenta CLI para testes."""
     return ToolDescriptor(
@@ -87,7 +85,7 @@ def cli_tool():
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def fast_execution_result():
     """ExecutionResult rapido para benchmark."""
     return ExecutionResult(
@@ -103,7 +101,7 @@ def fast_execution_result():
 class TestLatency:
     """Testes de latencia de execucao."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_single_tool_execution_latency(
         self, tool_executor, cli_tool, fast_execution_result
     ):
@@ -123,7 +121,7 @@ class TestLatency:
                 assert result.success is True
                 assert elapsed_ms < 100, f"Latencia {elapsed_ms:.2f}ms excede 100ms"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_batch_execution_latency(
         self, tool_executor, benchmark_tools, fast_execution_result
     ):
@@ -144,7 +142,7 @@ class TestLatency:
                 assert all(r.success for r in results.values())
                 assert elapsed_ms < 500, f"Latencia batch {elapsed_ms:.2f}ms excede 500ms"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_batch_execution_parallel_faster_than_sequential(
         self, tool_executor, benchmark_tools
     ):
@@ -185,7 +183,7 @@ class TestLatency:
 class TestThroughput:
     """Testes de throughput."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_concurrent_executions_throughput(
         self, tool_executor, cli_tool, fast_execution_result
     ):
@@ -215,7 +213,7 @@ class TestThroughput:
                     throughput > 100
                 ), f"Throughput {throughput:.1f} exec/s abaixo do minimo 100 exec/s"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_batch_execution_parallelism(self, mock_settings):
         """Verifica execucao paralela com semaforo."""
         mock_settings.MAX_CONCURRENT_TOOL_EXECUTIONS = 5  # Limite de 5
@@ -276,7 +274,7 @@ class TestThroughput:
 class TestLoad:
     """Testes de carga."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_sustained_load_100_requests(
         self, tool_executor, cli_tool, fast_execution_result
     ):
@@ -309,7 +307,7 @@ class TestLoad:
             f"ultimas 10 avg={last_10_avg:.2f}ms"
         )
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_memory_usage_under_load(
         self, tool_executor, benchmark_tools, fast_execution_result
     ):
@@ -346,7 +344,7 @@ class TestLoad:
 class TestTimeoutUnderLoad:
     """Testes de timeout sob carga."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_timeout_does_not_block_other_executions(self, tool_executor, benchmark_tools):
         """Verifica que timeout de uma execucao nao bloqueia outras."""
         call_count = 0
@@ -396,7 +394,7 @@ class TestTimeoutUnderLoad:
 class TestBenchmarks:
     """Benchmarks com pytest-benchmark (opcional)."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_single_execution_benchmark(self, tool_executor, cli_tool, fast_execution_result):
         """Benchmark de execucao individual."""
         with patch.object(tool_executor.cli_adapter, "execute", return_value=fast_execution_result):
@@ -425,7 +423,7 @@ class TestBenchmarks:
                 # Assertions basicas
                 assert avg_latency < 10, f"Latencia media {avg_latency:.3f}ms excede 10ms"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_batch_execution_benchmark(
         self, tool_executor, benchmark_tools, fast_execution_result
     ):

@@ -7,9 +7,9 @@ Aplicação principal FastAPI para captura e processamento de intenções
 import asyncio
 import uuid
 from contextlib import asynccontextmanager
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
-UTC = timezone.utc  # type: ignore
+UTC = UTC  # type: ignore
 from typing import Any
 
 import structlog
@@ -28,10 +28,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse, Response
 from fastapi.security import HTTPBearer
-
-# SEC-001: Security Headers (centralizado)
-from neural_hive_security import SecurityHeadersMiddleware
-
 from kafka.producer import KafkaIntentProducer
 from middleware.auth_middleware import (
     create_auth_middleware,
@@ -41,6 +37,9 @@ from middleware.rate_limiter import RateLimiter
 from models.intent_envelope import IntentEnvelope, IntentRequest
 from pipelines.asr_pipeline import ASRPipeline
 from pipelines.nlu_pipeline import NLUPipeline
+
+# SEC-001: Security Headers (centralizado)
+from neural_hive_security import SecurityHeadersMiddleware
 
 # Tentar importar observabilidade - usar stubs se não disponível
 try:
@@ -272,12 +271,13 @@ redis_client = None
 oauth2_validator = None
 health_manager: HealthManager | None = None
 rate_limiter: RateLimiter | None = None
+threshold_service = None
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Gerenciamento do ciclo de vida da aplicação usando ApplicationBootstrapper."""
-    global asr_pipeline, nlu_pipeline, kafka_producer, redis_client, oauth2_validator, health_manager, rate_limiter
+    global asr_pipeline, nlu_pipeline, kafka_producer, redis_client, oauth2_validator, health_manager, rate_limiter, threshold_service
 
     from bootstrap import ApplicationBootstrapper
 
@@ -301,6 +301,14 @@ async def lifespan(app: FastAPI):
         nlu_pipeline = app_context.nlu_pipeline
         kafka_producer = app_context.kafka_producer
         health_manager = app_context.health_manager
+        threshold_service = app_context.threshold_service
+
+        # Configurar threshold service no router se disponível
+        if threshold_service:
+            from api.routers.threshold_router import set_threshold_service
+
+            set_threshold_service(threshold_service)
+            logger.info("threshold_service_configured")
 
         logger.info("gateway_startup_completed")
 
@@ -370,6 +378,11 @@ if settings.otel_enabled and OBSERVABILITY_AVAILABLE:
     from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 
     FastAPIInstrumentor.instrument_app(app)
+
+# FEAT-A-005: Router para gerenciamento de thresholds
+from api.routers.threshold_router import router as threshold_router
+
+app.include_router(threshold_router)
 
 
 # Dependências

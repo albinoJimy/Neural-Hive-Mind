@@ -1,20 +1,19 @@
 """Testes de integração para endpoints de políticas de freeze."""
 
+from datetime import UTC, datetime, timedelta
+
 import pytest
-from datetime import datetime, timezone, timedelta
 from httpx import AsyncClient
-
 from src.main import app
-from src.models.freeze_policy import FreezePolicy, FreezeAction, PolicyScope
-from src.models.freeze_policy import FreezeEvent
-from src.models.slo_definition import SLODefinition, SLOType, SLIQuery
+from src.models.freeze_policy import FreezeAction, FreezeEvent, FreezePolicy, PolicyScope
+from src.models.slo_definition import SLIQuery, SLODefinition, SLOType
 
 
-@pytest.mark.integration
+@pytest.mark.integration()
 class TestPolicyLifecycleIntegration:
     """Testes de ciclo de vida completo de políticas."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_create_update_delete_policy(
         self, async_client: AsyncClient, test_postgresql_client
     ):
@@ -77,11 +76,11 @@ class TestPolicyLifecycleIntegration:
         assert fetched_policy.enabled is False
 
 
-@pytest.mark.integration
+@pytest.mark.integration()
 class TestFreezeHistoryIntegration:
     """Testes de integração para histórico de freezes."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_freeze_history_with_resolved_events(
         self, async_client: AsyncClient, test_postgresql_client
     ):
@@ -117,7 +116,7 @@ class TestFreezeHistoryIntegration:
         policy_id = await test_postgresql_client.create_policy(policy)
 
         # Criar freeze events (ativos e resolvidos)
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         # Evento ativo
         active_event = FreezeEvent(
@@ -166,11 +165,11 @@ class TestFreezeHistoryIntegration:
         assert "resolved-event-001" in event_ids
 
 
-@pytest.mark.integration
+@pytest.mark.integration()
 class TestViolationsCountUpdateIntegration:
     """Testes de integração para atualização de contador de violações."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_update_violations_count_flow(
         self, async_client: AsyncClient, test_postgresql_client
     ):
@@ -192,14 +191,14 @@ class TestViolationsCountUpdateIntegration:
         slo_id = await test_postgresql_client.create_slo(slo)
 
         # Criar budget inicial
-        from src.models.error_budget import ErrorBudget, BudgetStatus, BurnRate, BurnRateLevel
+        from src.models.error_budget import BudgetStatus, BurnRate, BurnRateLevel, ErrorBudget
 
         budget = ErrorBudget(
             slo_id=slo_id,
             service_name="test-service-violations",
-            calculated_at=datetime.now(timezone.utc),
-            window_start=datetime.now(timezone.utc) - timedelta(days=30),
-            window_end=datetime.now(timezone.utc),
+            calculated_at=datetime.now(UTC),
+            window_start=datetime.now(UTC) - timedelta(days=30),
+            window_end=datetime.now(UTC),
             sli_value=0.998,
             slo_target=0.999,
             error_budget_total=0.1,
@@ -222,7 +221,7 @@ class TestViolationsCountUpdateIntegration:
         assert updated_budget.last_violation_at is not None
 
 
-@pytest.fixture
+@pytest.fixture()
 async def async_client(test_postgresql_client):
     """Fixture para cliente HTTP assíncrono."""
     # Sobrescrever clientes no main
@@ -234,7 +233,7 @@ async def async_client(test_postgresql_client):
         yield client
 
 
-@pytest.fixture
+@pytest.fixture()
 async def test_postgresql_client(postgresql_url):
     """Fixture para cliente PostgreSQL de teste."""
     from src.clients.postgresql_client import PostgreSQLClient

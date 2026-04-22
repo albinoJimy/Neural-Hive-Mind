@@ -1,6 +1,6 @@
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 from pydantic.functional_serializers import field_serializer
@@ -56,7 +56,7 @@ class ValidationResult(BaseModel):
     report_uri: Optional[str] = Field(None, description="URI do relatório completo")
     executed_at: datetime = Field(..., description="Timestamp de execução")
     duration_ms: int = Field(..., description="Duração em milissegundos", ge=0)
-    metadata: Dict[str, Any] = Field(
+    metadata: dict[str, Any] = Field(
         default_factory=dict, description="Metadados adicionais da validação"
     )
 
@@ -99,10 +99,10 @@ class CodeForgeArtifact(BaseModel):
     registry_reference: Optional[str] = Field(None, description="Referência no Artifact Registry")
     signature: Optional[str] = Field(None, description="Assinatura Sigstore")
 
-    validation_results: List[ValidationResult] = Field(
+    validation_results: list[ValidationResult] = Field(
         default_factory=list, description="Resultados de validações"
     )
-    metadata: Dict[str, str] = Field(default_factory=dict, description="Metadados adicionais")
+    metadata: dict[str, str] = Field(default_factory=dict, description="Metadados adicionais")
 
     created_at: datetime = Field(..., description="Timestamp de criação")
     schema_version: int = Field(default=1, description="Versão do schema")
@@ -172,10 +172,10 @@ class PipelineResult(BaseModel):
     span_id: Optional[str] = Field(None, description="Span ID OpenTelemetry")
 
     status: PipelineStatus = Field(..., description="Status do pipeline")
-    artifacts: List[CodeForgeArtifact] = Field(
+    artifacts: list[CodeForgeArtifact] = Field(
         default_factory=list, description="Artefatos gerados"
     )
-    pipeline_stages: List[PipelineStage] = Field(
+    pipeline_stages: list[PipelineStage] = Field(
         default_factory=list, description="Status dos stages"
     )
 
@@ -188,7 +188,7 @@ class PipelineResult(BaseModel):
 
     created_at: datetime = Field(..., description="Timestamp de criação")
     completed_at: Optional[datetime] = Field(None, description="Timestamp de conclusão")
-    metadata: Dict[str, str] = Field(default_factory=dict, description="Metadados adicionais")
+    metadata: dict[str, str] = Field(default_factory=dict, description="Metadados adicionais")
 
     schema_version: int = Field(default=1, description="Versão do schema")
 

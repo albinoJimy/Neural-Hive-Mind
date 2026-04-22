@@ -13,11 +13,11 @@ from prometheus_client import make_asgi_app
 from .api import alerts, budgets, policies, slos, webhooks
 from .clients.alertmanager_client import AlertmanagerClient
 from .clients.kafka_producer import KafkaProducerClient
+from .clients.pagerduty_client import PagerDutyClient
 from .clients.postgresql_client import PostgreSQLClient
 from .clients.prometheus_client import PrometheusClient
 from .clients.redis_client import RedisClient
 from .clients.slack_client import SlackClient
-from .clients.pagerduty_client import PagerDutyClient
 from .config.settings import get_settings
 from .consumers.sla_alert_consumer import SLAAlertConsumer
 from .services.alert_dispatcher import AlertDispatcher
@@ -164,9 +164,7 @@ async def lifespan(app: FastAPI):
                     auto_offset_reset=settings.sla_alert_consumer.auto_offset_reset,
                 )
                 await sla_alert_consumer.start()
-                sla_alert_consumer_task = asyncio.create_task(
-                    sla_alert_consumer.consume()
-                )
+                sla_alert_consumer_task = asyncio.create_task(sla_alert_consumer.consume())
                 logger.info("sla_alert_consumer_started")
             else:
                 logger.warning(
@@ -329,21 +327,21 @@ async def ready():
         await postgresql_client.list_slos()
         checks["postgresql"] = "ok"
     except Exception as e:
-        checks["postgresql"] = f"error: {str(e)}"
+        checks["postgresql"] = f"error: {e!s}"
 
     # Verificar Redis
     try:
         redis_ok = await redis_client.health_check()
         checks["redis"] = "ok" if redis_ok else "error"
     except Exception as e:
-        checks["redis"] = f"error: {str(e)}"
+        checks["redis"] = f"error: {e!s}"
 
     # Verificar Prometheus
     try:
         prom_ok = await prometheus_client.health_check()
         checks["prometheus"] = "ok" if prom_ok else "error"
     except Exception as e:
-        checks["prometheus"] = f"error: {str(e)}"
+        checks["prometheus"] = f"error: {e!s}"
 
     # Verificar Kafka (opcional)
     if kafka_producer:
@@ -351,7 +349,7 @@ async def ready():
             kafka_ok = await kafka_producer.health_check()
             checks["kafka"] = "ok" if kafka_ok else "error"
         except Exception as e:
-            checks["kafka"] = f"error: {str(e)}"
+            checks["kafka"] = f"error: {e!s}"
     else:
         checks["kafka"] = "disabled"
 

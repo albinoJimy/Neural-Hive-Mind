@@ -7,7 +7,7 @@ permitindo aprendizado incremental contínuo a partir de feedbacks.
 
 import asyncio
 import os
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Optional
 
 import numpy as np
 import structlog
@@ -39,19 +39,16 @@ except ImportError:
 class OnlineLearningServiceError(Exception):
     """Exceção base para erros do OnlineLearningService."""
 
-    pass
 
 
 class OnlineLearningNotEnabledError(OnlineLearningServiceError):
     """Exceção quando online learning não está habilitado."""
 
-    pass
 
 
 class FeatureExtractionError(OnlineLearningServiceError):
     """Exceção para erros na extração de features."""
 
-    pass
 
 
 class OnlineLearningService:
@@ -114,7 +111,7 @@ class OnlineLearningService:
         )
 
         # Criar learner para cada specialist type
-        self._learners: Dict[str, IncrementalLearner] = {}
+        self._learners: dict[str, IncrementalLearner] = {}
         self._learner_lock = asyncio.Lock()
 
         # Tentar carregar checkpoint existente
@@ -201,7 +198,7 @@ class OnlineLearningService:
         except Exception as e:
             logger.error("erro_ao_carregar_checkpoints", error=str(e))
 
-    async def process_feedback_batch(self, feedbacks: List[Dict[str, Any]]) -> Dict[str, Any]:
+    async def process_feedback_batch(self, feedbacks: list[dict[str, Any]]) -> dict[str, Any]:
         """
         Processa lote de feedbacks para aprendizado incremental.
 
@@ -250,8 +247,8 @@ class OnlineLearningService:
         return results
 
     def _group_feedbacks_by_specialist(
-        self, feedbacks: List[Dict[str, Any]]
-    ) -> Dict[str, List[Dict[str, Any]]]:
+        self, feedbacks: list[dict[str, Any]]
+    ) -> dict[str, list[dict[str, Any]]]:
         """
         Agrupa feedbacks por specialist_type.
 
@@ -270,8 +267,8 @@ class OnlineLearningService:
         return grouped
 
     async def _process_specialist_feedbacks(
-        self, specialist_type: str, feedbacks: List[Dict[str, Any]]
-    ) -> Dict[str, Any]:
+        self, specialist_type: str, feedbacks: list[dict[str, Any]]
+    ) -> dict[str, Any]:
         """
         Processa feedbacks de um specialist específico.
 
@@ -353,8 +350,8 @@ class OnlineLearningService:
             return self._learners[specialist_type]
 
     def _extract_features_and_label(
-        self, feedback: Dict[str, Any]
-    ) -> Tuple[Optional[np.ndarray], Optional[str]]:
+        self, feedback: dict[str, Any]
+    ) -> tuple[Optional[np.ndarray], Optional[str]]:
         """
         Extrai features e label de um feedback.
 
@@ -378,9 +375,9 @@ class OnlineLearningService:
             return features, label
 
         except Exception as e:
-            raise FeatureExtractionError(f"Falha na extração: {str(e)}") from e
+            raise FeatureExtractionError(f"Falha na extração: {e!s}") from e
 
-    def _extract_label(self, feedback: Dict[str, Any]) -> Optional[str]:
+    def _extract_label(self, feedback: dict[str, Any]) -> Optional[str]:
         """
         Extrai label de decisão do feedback.
 
@@ -418,7 +415,7 @@ class OnlineLearningService:
 
         return None
 
-    def _extract_features(self, feedback: Dict[str, Any]) -> Optional[np.ndarray]:
+    def _extract_features(self, feedback: dict[str, Any]) -> Optional[np.ndarray]:
         """
         Extrai vetor de features do feedback.
 
@@ -468,7 +465,7 @@ class OnlineLearningService:
 
         return np.array(features)
 
-    async def get_model_state(self, specialist_type: str) -> Optional[Dict[str, Any]]:
+    async def get_model_state(self, specialist_type: str) -> Optional[dict[str, Any]]:
         """
         Retorna estado atual do modelo para um specialist.
 
@@ -487,7 +484,7 @@ class OnlineLearningService:
 
         return learner.get_model_state()
 
-    async def get_convergence_metrics(self, specialist_type: str) -> Optional[Dict[str, Any]]:
+    async def get_convergence_metrics(self, specialist_type: str) -> Optional[dict[str, Any]]:
         """
         Retorna métricas de convergência do modelo.
 
@@ -506,7 +503,7 @@ class OnlineLearningService:
 
         return learner.get_convergence_metrics()
 
-    async def get_all_learner_states(self) -> Dict[str, Any]:
+    async def get_all_learner_states(self) -> dict[str, Any]:
         """
         Retorna estado de todos os learners.
 
@@ -528,7 +525,7 @@ class OnlineLearningService:
 
         return {"enabled": True, "total_learners": len(self._learners), "learners": states}
 
-    async def save_all_checkpoints(self) -> Dict[str, Any]:
+    async def save_all_checkpoints(self) -> dict[str, Any]:
         """
         Salva checkpoints de todos os learners.
 
@@ -551,7 +548,7 @@ class OnlineLearningService:
 
         return {"enabled": True, "results": results}
 
-    def _get_supported_specialist_types(self) -> List[str]:
+    def _get_supported_specialist_types(self) -> list[str]:
         """Retorna lista de specialist types suportados."""
         return [
             "text_analysis",

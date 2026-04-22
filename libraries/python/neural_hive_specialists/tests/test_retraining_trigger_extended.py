@@ -4,9 +4,10 @@ Testes para RetrainingTrigger.
 Cobertura para feedback/retraining_trigger.py com base na API implementada.
 """
 
-import pytest
-from unittest.mock import Mock
 from datetime import datetime
+from unittest.mock import Mock
+
+import pytest
 
 
 class TestRetrainingTriggerRecord:
@@ -56,7 +57,7 @@ class TestRetrainingTriggerRecord:
 class TestRetrainingTrigger:
     """Testes para RetrainingTrigger."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def config(self):
         """Configuração de teste."""
         from neural_hive_specialists.config import SpecialistConfig
@@ -83,7 +84,7 @@ class TestRetrainingTrigger:
             retraining_min_feedback_quality=0.5,
         )
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_dependencies(self):
         """Mock de dependências."""
         return {

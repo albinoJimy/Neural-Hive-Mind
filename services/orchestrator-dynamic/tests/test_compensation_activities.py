@@ -8,30 +8,31 @@ Cobre:
 - _get_compensation_action: Mapeamento de ações de compensação
 """
 
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
-from datetime import datetime, timezone
-from uuid import uuid4
+from datetime import UTC
+from unittest.mock import AsyncMock, MagicMock
 
-UTC = timezone.utc
+import pytest
+
+UTC = UTC
 
 # Configure path
 import sys
 from pathlib import Path
+
 src_path = Path(__file__).parent.parent / "src"
 if str(src_path) not in sys.path:
     sys.path.insert(0, str(src_path))
 
 from src.activities.compensation import (
-    compensate_ticket,
-    build_compensation_order,
-    update_ticket_compensation_status,
-    set_compensation_dependencies,
     _get_compensation_action,
+    build_compensation_order,
+    compensate_ticket,
+    set_compensation_dependencies,
+    update_ticket_compensation_status,
 )
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_config():
     """Config mock para testes."""
     config = MagicMock()
@@ -41,7 +42,7 @@ def mock_config():
     return config
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_kafka_producer():
     """Mock do Kafka producer."""
     producer = AsyncMock()
@@ -49,7 +50,7 @@ def mock_kafka_producer():
     return producer
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_mongodb_client():
     """Mock do MongoDB client."""
     client = AsyncMock()
@@ -58,7 +59,7 @@ def mock_mongodb_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_metrics():
     """Mock das métricas."""
     metrics = MagicMock()
@@ -66,7 +67,7 @@ def mock_metrics():
     return metrics
 
 
-@pytest.fixture
+@pytest.fixture()
 def setup_dependencies(mock_config, mock_kafka_producer, mock_mongodb_client, mock_metrics):
     """Setup das dependências globais."""
     set_compensation_dependencies(
@@ -180,7 +181,7 @@ class TestGetCompensationAction:
 class TestCompensateTicket:
     """Testes para compensate_ticket activity."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_compensate_ticket_build_success(
         self, setup_dependencies, mock_kafka_producer, mock_mongodb_client
     ):
@@ -211,7 +212,7 @@ class TestCompensateTicket:
         assert call_args["original_ticket_id"] == "ticket-123"
         assert call_args["parameters"]["action"] == "delete_artifacts"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_compensate_ticket_deploy_success(
         self, setup_dependencies, mock_kafka_producer, mock_mongodb_client
     ):
@@ -237,7 +238,7 @@ class TestCompensateTicket:
         assert call_args["parameters"]["action"] == "rollback_deployment"
         assert call_args["parameters"]["deployment_name"] == "my-app"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_compensate_ticket_with_retry_config(
         self, setup_dependencies, mock_kafka_producer, mock_mongodb_client
     ):
@@ -263,7 +264,7 @@ class TestCompensateTicket:
         assert result is not None
         mock_kafka_producer.publish_ticket.assert_called()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_compensate_ticket_records_metrics(
         self, setup_dependencies, mock_kafka_producer, mock_mongodb_client, mock_metrics
     ):
@@ -282,10 +283,8 @@ class TestCompensateTicket:
 
         mock_metrics.record_compensation.assert_called_once_with(reason="task_failed")
 
-    @pytest.mark.asyncio
-    async def test_compensate_ticket_without_mongodb(
-        self, setup_dependencies, mock_kafka_producer
-    ):
+    @pytest.mark.asyncio()
+    async def test_compensate_ticket_without_mongodb(self, setup_dependencies, mock_kafka_producer):
         """Testa compensação quando MongoDB não está disponível."""
         # Remove MongoDB
         set_compensation_dependencies(
@@ -311,10 +310,8 @@ class TestCompensateTicket:
         assert result is not None
         mock_kafka_producer.publish_ticket.assert_called_once()
 
-    @pytest.mark.asyncio
-    async def test_compensate_ticket_without_kafka(
-        self, setup_dependencies, mock_mongodb_client
-    ):
+    @pytest.mark.asyncio()
+    async def test_compensate_ticket_without_kafka(self, setup_dependencies, mock_mongodb_client):
         """Testa compensação quando Kafka não está disponível."""
         # Remove Kafka
         set_compensation_dependencies(
@@ -340,7 +337,7 @@ class TestCompensateTicket:
         assert result is not None
         mock_mongodb_client.save_ticket.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_compensate_ticket_metadata(self, setup_dependencies):
         """Testa que metadados são incluídos corretamente."""
         ticket = {
@@ -367,7 +364,7 @@ class TestCompensateTicket:
 class TestBuildCompensationOrder:
     """Testes para build_compensation_order activity."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_build_order_simple_chain(self):
         """Testa ordenação de compensação para cadeia simples A -> B -> C."""
         failed_tickets = [{"ticket_id": "C"}]
@@ -385,7 +382,7 @@ class TestBuildCompensationOrder:
         assert result[1]["ticket_id"] == "B"
         assert result[2]["ticket_id"] == "A"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_build_order_with_multiple_failures(self):
         """Testa ordenação com múltiplas falhas."""
         failed_tickets = [
@@ -408,7 +405,7 @@ class TestBuildCompensationOrder:
         assert "B" in ticket_ids
         assert "D" in ticket_ids
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_build_order_only_compensates_executed(self):
         """Testa que apenas tickets executados são compensados."""
         failed_tickets = [{"ticket_id": "B"}]
@@ -426,7 +423,7 @@ class TestBuildCompensationOrder:
         assert "B" in ticket_ids
         assert "C" not in ticket_ids
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_build_order_compensating_status(self):
         """Testa que tickets em compensação também são incluídos."""
         failed_tickets = [{"ticket_id": "B"}]
@@ -442,7 +439,7 @@ class TestBuildCompensationOrder:
         assert "A" in ticket_ids
         assert "B" in ticket_ids
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_build_order_with_ticket_dict(self):
         """Testa quando tickets estão aninhados em dict."""
         failed_tickets = [{"ticket": {"ticket_id": "B"}}]
@@ -457,7 +454,7 @@ class TestBuildCompensationOrder:
         assert result[0]["ticket_id"] == "B"
         assert result[1]["ticket_id"] == "A"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_build_order_diamond_dependency(self):
         """Testa grafo de dependências em diamante."""
         # A -> B -> D
@@ -477,13 +474,13 @@ class TestBuildCompensationOrder:
         assert result[0]["ticket_id"] == "D"
         assert result[-1]["ticket_id"] == "A"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_build_order_empty_failed(self):
         """Testa com lista vazia de falhas."""
         result = await build_compensation_order([], [])
         assert result == []
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_build_order_complex_dag(self):
         """Testa DAG mais complexo."""
         # A -> B -> E
@@ -508,10 +505,8 @@ class TestBuildCompensationOrder:
 class TestUpdateTicketCompensationStatus:
     """Testes para update_ticket_compensation_status activity."""
 
-    @pytest.mark.asyncio
-    async def test_update_status_success(
-        self, setup_dependencies, mock_mongodb_client
-    ):
+    @pytest.mark.asyncio()
+    async def test_update_status_success(self, setup_dependencies, mock_mongodb_client):
         """Testa atualização de status com sucesso."""
         await update_ticket_compensation_status("ticket-123", "comp-456")
 
@@ -521,7 +516,7 @@ class TestUpdateTicketCompensationStatus:
             status="COMPENSATING",
         )
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_update_status_without_mongodb(self, setup_dependencies):
         """Testa atualização quando MongoDB não está disponível."""
         set_compensation_dependencies(
@@ -536,10 +531,8 @@ class TestUpdateTicketCompensationStatus:
         # Deve retornar False sem erro
         assert result is False
 
-    @pytest.mark.asyncio
-    async def test_update_status_exception_handling(
-        self, setup_dependencies, mock_mongodb_client
-    ):
+    @pytest.mark.asyncio()
+    async def test_update_status_exception_handling(self, setup_dependencies, mock_mongodb_client):
         """Testa que exceções são tratadas corretamente."""
         mock_mongodb_client.update_ticket_compensation.side_effect = Exception("DB error")
 

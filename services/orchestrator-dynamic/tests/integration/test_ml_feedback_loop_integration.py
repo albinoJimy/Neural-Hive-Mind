@@ -2,16 +2,16 @@
 Testes de integração para feedback loop ML (error tracking + allocation outcomes).
 """
 
-import pytest
 from unittest.mock import AsyncMock, Mock, patch
 
+import pytest
 from src.activities import result_consolidation
+from src.config.settings import OrchestratorSettings
 from src.ml.scheduling_optimizer import SchedulingOptimizer
 from src.observability.metrics import OrchestratorMetrics
-from src.config.settings import OrchestratorSettings
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_config():
     config = Mock(spec=OrchestratorSettings)
     config.sla_management_enabled = True
@@ -20,7 +20,7 @@ def mock_config():
     return config
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_metrics():
     metrics = Mock(spec=OrchestratorMetrics)
     metrics.record_ml_prediction_error_with_logging = Mock()
@@ -32,14 +32,14 @@ def mock_metrics():
     return metrics
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_scheduling_optimizer():
     optimizer = Mock(spec=SchedulingOptimizer)
     optimizer.record_allocation_outcome = AsyncMock()
     return optimizer
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_ticket_completed():
     return {
         "ticket_id": "ticket-123",
@@ -56,7 +56,7 @@ def sample_ticket_completed():
     }
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_record_allocation_outcome_for_ticket_success(
     mock_scheduling_optimizer, sample_ticket_completed
 ):
@@ -74,7 +74,7 @@ async def test_record_allocation_outcome_for_ticket_success(
     assert kwargs["actual_duration_ms"] == 45000
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_record_allocation_outcome_missing_data(mock_scheduling_optimizer):
     ticket_without_metadata = {
         "ticket_id": "ticket-456",
@@ -89,7 +89,7 @@ async def test_record_allocation_outcome_missing_data(mock_scheduling_optimizer)
     mock_scheduling_optimizer.record_allocation_outcome.assert_not_awaited()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_consolidate_results_calls_feedback_loop(
     mock_config, mock_metrics, mock_scheduling_optimizer, sample_ticket_completed
 ):
@@ -144,7 +144,7 @@ async def test_consolidate_results_calls_feedback_loop(
     assert result["status"] in ["SUCCESS", "PARTIAL"]
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_feedback_loop_disabled_by_config(
     mock_config, mock_metrics, mock_scheduling_optimizer, sample_ticket_completed
 ):
@@ -193,7 +193,7 @@ async def test_feedback_loop_disabled_by_config(
     mock_scheduling_optimizer.record_allocation_outcome.assert_not_awaited()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_feedback_loop_fail_open_on_error(
     mock_config, mock_metrics, mock_scheduling_optimizer, sample_ticket_completed
 ):
@@ -244,7 +244,7 @@ async def test_feedback_loop_fail_open_on_error(
     mock_scheduling_optimizer.record_allocation_outcome.assert_awaited()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_ml_feedback_runs_without_sla(
     mock_config, mock_metrics, mock_scheduling_optimizer, sample_ticket_completed
 ):

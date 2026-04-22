@@ -190,7 +190,7 @@ async def refresh(
     return RefreshResponse(
         access_token=new_token,
         token_type="bearer",
-        expires_in=int((payload.exp - payload.iat)) if payload else 1800
+        expires_in=int(payload.exp - payload.iat) if payload else 1800
     )
 
 

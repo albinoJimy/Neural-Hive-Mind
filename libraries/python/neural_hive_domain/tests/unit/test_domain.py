@@ -83,5 +83,5 @@ class TestUnifiedDomain:
 
     def test_getattr_access(self):
         """Pode acessar domínios via getattr."""
-        domain = getattr(UnifiedDomain, "SECURITY")
+        domain = UnifiedDomain.SECURITY
         assert domain == UnifiedDomain.SECURITY

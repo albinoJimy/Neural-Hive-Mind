@@ -1,20 +1,21 @@
 """Testes para biblioteca neural_hive_observability."""
 
-import pytest
 from unittest.mock import Mock, patch
 
+import pytest
+
 from neural_hive_observability import (
-    init_observability,
     get_config,
-    get_metrics,
     get_health_checker,
+    get_metrics,
+    init_observability,
     trace_intent,
     trace_plan,
 )
 from neural_hive_observability.config import ObservabilityConfig
-from neural_hive_observability.metrics import NeuralHiveMetrics
-from neural_hive_observability.health import HealthChecker, HealthStatus
 from neural_hive_observability.context import ContextManager
+from neural_hive_observability.health import HealthChecker, HealthStatus
+from neural_hive_observability.metrics import NeuralHiveMetrics
 
 
 class TestObservabilityConfig:
@@ -215,7 +216,7 @@ class TestMetrics:
 class TestHealthChecker:
     """Testes para health checks."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_memory_health_check(self):
         """Testa health check de memória."""
         config = ObservabilityConfig(
@@ -237,7 +238,7 @@ class TestHealthChecker:
             HealthStatus.UNHEALTHY,
         ]
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_custom_health_check(self):
         """Testa health check customizado."""
         from neural_hive_observability.health import HealthCheck, HealthCheckResult, HealthStatus
@@ -410,11 +411,11 @@ class TestIntegration:
     def test_initialization_order_prevents_attribute_error(self):
         """Teste 18: Verificar que inicialização correta previne AttributeError."""
         from neural_hive_observability import (
-            init_observability,
             get_config,
+            init_observability,
         )
-        from neural_hive_observability.kafka_instrumentation import instrument_kafka_producer
         from neural_hive_observability.context import ContextManager
+        from neural_hive_observability.kafka_instrumentation import instrument_kafka_producer
 
         # Inicializar observabilidade primeiro
         init_observability(
@@ -465,8 +466,8 @@ class TestIntegration:
     def test_context_manager_available_after_init_observability(self):
         """Teste 19: Verificar que context_manager está disponível após init_observability."""
         from neural_hive_observability import (
-            init_observability,
             get_config,
+            init_observability,
         )
         from neural_hive_observability.context import ContextManager
 

@@ -9,19 +9,20 @@ Cobertura:
 - Idempotência
 """
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
-from httpx import AsyncClient, ASGITransport
+
+import pytest
+from httpx import ASGITransport, AsyncClient
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_app_state():
     """Mock do app_state para testes."""
     with patch("src.main.app_state") as mock_state:
         yield mock_state
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_settings():
     """Mock das configurações."""
     with patch("src.main.get_settings") as mock_get_settings:
@@ -35,7 +36,7 @@ def mock_settings():
 class TestWorkflowStartIntegration:
     """Testes de integração do endpoint /api/v1/workflows/start."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_workflow_start_full_flow(self, mock_app_state, mock_settings):
         """Testa fluxo completo de início de workflow."""
         from src.main import app
@@ -85,7 +86,7 @@ class TestWorkflowStartIntegration:
         assert input_data["consolidated_decision"]["priority"] == 8
         assert input_data["consolidated_decision"]["sla_deadline_seconds"] == 7200
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_workflow_start_with_query_followup(self, mock_app_state, mock_settings):
         """Testa início de workflow seguido de query para validar estado."""
         from src.main import app
@@ -133,7 +134,7 @@ class TestWorkflowStartIntegration:
 class TestWorkflowStartIdempotency:
     """Testes de idempotência do endpoint."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_workflow_start_duplicate_workflow_id_error(self, mock_app_state, mock_settings):
         """Testa erro ao tentar iniciar workflow com ID duplicado."""
         from src.main import app
@@ -157,13 +158,14 @@ class TestWorkflowStartIdempotency:
         assert response.status_code == 500
         assert "Workflow execution already started" in response.json()["detail"]
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_workflow_start_concurrent_requests_same_correlation(
         self, mock_app_state, mock_settings
     ):
         """Testa requests concorrentes com mesmo correlation_id."""
-        from src.main import app
         import asyncio
+
+        from src.main import app
 
         call_count = 0
 
@@ -199,11 +201,12 @@ class TestWorkflowStartIdempotency:
 class TestWorkflowStartErrorHandling:
     """Testes de tratamento de erros."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_workflow_start_temporal_connection_timeout(self, mock_app_state, mock_settings):
         """Testa timeout de conexão com Temporal."""
-        from src.main import app
         import asyncio
+
+        from src.main import app
 
         async def mock_timeout(*args, **kwargs):
             raise asyncio.TimeoutError("Connection timed out")
@@ -224,7 +227,7 @@ class TestWorkflowStartErrorHandling:
         assert response.status_code == 500
         assert "Failed to start workflow" in response.json()["detail"]
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_workflow_start_temporal_namespace_not_found(self, mock_app_state, mock_settings):
         """Testa erro quando namespace Temporal não existe."""
         from src.main import app
@@ -251,7 +254,7 @@ class TestWorkflowStartErrorHandling:
 class TestWorkflowStartWithMockWorkflow:
     """Testes com mock do OrchestrationWorkflow."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_workflow_start_passes_correct_workflow_class(
         self, mock_app_state, mock_settings
     ):
@@ -276,7 +279,7 @@ class TestWorkflowStartWithMockWorkflow:
         # O nome do método deve ser 'run' do OrchestrationWorkflow
         assert hasattr(workflow_run, "__name__") or callable(workflow_run)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_workflow_start_uses_correct_task_queue(self, mock_app_state, mock_settings):
         """Testa que task queue correta é usada."""
         from src.main import app
@@ -300,7 +303,7 @@ class TestWorkflowStartWithMockWorkflow:
 class TestWorkflowStartLogging:
     """Testes de logging do endpoint."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_workflow_start_logs_attempt(self, mock_app_state, mock_settings):
         """Testa que tentativa de início é logada."""
         from src.main import app
@@ -323,7 +326,7 @@ class TestWorkflowStartLogging:
         assert "workflow_start_attempt" in log_calls
         assert "workflow_started" in log_calls
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_workflow_start_logs_rejection_when_temporal_unavailable(self, mock_app_state):
         """Testa que rejeição é logada quando Temporal indisponível."""
         from src.main import app
@@ -347,7 +350,7 @@ class TestWorkflowStartLogging:
         warning_calls = [call[0][0] for call in mock_logger.warning.call_args_list]
         assert "workflow_start_rejected" in warning_calls
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_workflow_start_logs_failure_on_error(self, mock_app_state, mock_settings):
         """Testa que falha é logada quando ocorre erro."""
         from src.main import app
@@ -377,7 +380,7 @@ class TestWorkflowStartLogging:
 class TestWorkflowStartEdgeCases:
     """Testes de casos de borda."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_workflow_start_with_large_cognitive_plan(self, mock_app_state, mock_settings):
         """Testa início de workflow com plano cognitivo grande."""
         from src.main import app
@@ -406,7 +409,7 @@ class TestWorkflowStartEdgeCases:
         data = response.json()
         assert data["status"] == "started"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_workflow_start_with_special_characters_in_correlation_id(
         self, mock_app_state, mock_settings
     ):
@@ -433,7 +436,7 @@ class TestWorkflowStartEdgeCases:
         data = response.json()
         assert data["correlation_id"] == special_correlation
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_workflow_start_with_minimum_valid_request(self, mock_app_state, mock_settings):
         """Testa request mínimo válido (apenas campos obrigatórios)."""
         from src.main import app
@@ -452,7 +455,7 @@ class TestWorkflowStartEdgeCases:
         assert data["status"] == "started"
         assert data["correlation_id"] == "corr-min"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_workflow_start_preserves_extra_cognitive_plan_fields(
         self, mock_app_state, mock_settings
     ):

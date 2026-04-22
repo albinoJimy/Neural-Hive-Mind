@@ -7,7 +7,6 @@ Validates OTEL Collector connectivity and trace pipeline functionality.
 import asyncio
 import logging
 import time
-from typing import Dict
 
 import aiohttp
 
@@ -126,7 +125,7 @@ class OTELPipelineHealthCheck(HealthCheck):
             logger.error(f"Error checking OTEL pipeline: {e}")
             return self._create_result(
                 HealthStatus.UNHEALTHY,
-                f"Error checking OTEL pipeline: {str(e)}",
+                f"Error checking OTEL pipeline: {e!s}",
                 start_time=start_time,
             )
 
@@ -189,7 +188,7 @@ class OTELPipelineHealthCheck(HealthCheck):
             logger.debug(f"Trace export verification error: {e}")
             return False
 
-    def _build_test_trace(self) -> Dict:
+    def _build_test_trace(self) -> dict:
         """Build a minimal test trace payload in OTLP format."""
         import random
 
@@ -323,11 +322,11 @@ class OTELCollectorMetricsHealthCheck(HealthCheck):
         except Exception as e:
             return self._create_result(
                 HealthStatus.UNHEALTHY,
-                f"Error checking OTEL Collector metrics: {str(e)}",
+                f"Error checking OTEL Collector metrics: {e!s}",
                 start_time=start_time,
             )
 
-    def _parse_metrics(self, metrics_text: str) -> Dict[str, float]:
+    def _parse_metrics(self, metrics_text: str) -> dict[str, float]:
         """Parse Prometheus metrics text format."""
         metrics = {}
 
@@ -427,5 +426,5 @@ class JaegerHealthCheck(HealthCheck):
             )
         except Exception as e:
             return self._create_result(
-                HealthStatus.UNHEALTHY, f"Error checking Jaeger: {str(e)}", start_time=start_time
+                HealthStatus.UNHEALTHY, f"Error checking Jaeger: {e!s}", start_time=start_time
             )

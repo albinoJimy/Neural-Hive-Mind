@@ -5,11 +5,12 @@ Configuração específica para testes de ponta a ponta do explainability-api.
 """
 
 import sys
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Dict, Any, List
+from typing import Any
+from unittest.mock import AsyncMock
+
 import pytest
-from unittest.mock import AsyncMock, MagicMock
-from datetime import datetime, timezone
 
 # Add project root to path for imports
 project_root = Path(__file__).parent.parent.parent
@@ -19,7 +20,7 @@ sys.path.insert(0, str(project_root / "src"))
 # ========== E2E FIXTURES ==========
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_decision_votes() -> list:
     """Votos de decisão de exemplo para testes E2E."""
     return [
@@ -71,19 +72,19 @@ def sample_decision_votes() -> list:
     ]
 
 
-@pytest.fixture
-def sample_consensus_decision(sample_decision_votes) -> Dict[str, Any]:
+@pytest.fixture()
+def sample_consensus_decision(sample_decision_votes) -> dict[str, Any]:
     """Decisão de consenso de exemplo para testes E2E."""
     return {
         "decision_id": "e2e_test_decision_001",
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
         "final_decision": "approve",
         "final_confidence": 0.77,
         "specialist_votes": sample_decision_votes,
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_mongodb():
     """Mock client MongoDB para testes E2E."""
     client = AsyncMock()
@@ -157,8 +158,9 @@ def mock_mongodb():
     return client
 
 
-@pytest.fixture
-def v3_service(mock_mongodb) -> 'V3ExplanationService':
+@pytest.fixture()
+def v3_service(mock_mongodb) -> "V3ExplanationService":
     """Serviço v3 configurado para testes E2E."""
     from api.routes.v3.hierarchical import V3ExplanationService
+
     return V3ExplanationService(mock_mongodb)

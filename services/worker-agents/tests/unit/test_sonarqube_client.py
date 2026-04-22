@@ -12,14 +12,13 @@ Cobertura:
 from unittest.mock import MagicMock, patch
 
 import pytest
-
 from src.clients.sonarqube_client import (
-    SonarQubeClient,
     SonarQubeAnalysis,
+    SonarQubeClient,
     SonarQubeIssue,
     SonarQubeQualityGate,
-    SonarQubeStatus,
     SonarQubeSeverity,
+    SonarQubeStatus,
     SonarQubeTimeoutError,
 )
 
@@ -80,7 +79,7 @@ class TestSonarQubeClientInitialization:
 class TestSonarQubeClientAnalysis:
     """Testes de analise via API."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_trigger_analysis_success(self):
         """Deve disparar analise com sucesso."""
         client = SonarQubeClient(base_url="http://sonar.local", token="test-token")
@@ -125,7 +124,7 @@ class TestSonarQubeClientAnalysis:
         assert analysis.status == SonarQubeStatus.SUCCESS
         assert analysis.passed is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_trigger_analysis_missing_project_key(self):
         """Deve levantar erro quando project_key ausente."""
         client = SonarQubeClient(base_url="http://sonar.local", token="test-token")
@@ -133,7 +132,7 @@ class TestSonarQubeClientAnalysis:
         with pytest.raises(ValueError, match="project_key required"):
             await client.trigger_analysis(project_key="", sources_path="/tmp/src")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_trigger_analysis_project_not_found(self):
         """Deve retornar erro quando projecto nao existe."""
         client = SonarQubeClient(base_url="http://sonar.local", token="test-token")
@@ -151,7 +150,7 @@ class TestSonarQubeClientAnalysis:
         assert analysis.passed is False
         assert "Project not found" in analysis.error
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_poll_task_timeout(self):
         """Deve timeout quando polling demora demais."""
         client = SonarQubeClient(
@@ -169,7 +168,7 @@ class TestSonarQubeClientAnalysis:
             with pytest.raises(SonarQubeTimeoutError):
                 await client._poll_ce_task("task-123", max_wait=2)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_organization_health(self):
         """Deve obter metricas de saude."""
         client = SonarQubeClient(base_url="http://sonar.local", token="test-token")

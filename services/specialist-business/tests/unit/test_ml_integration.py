@@ -1,9 +1,10 @@
 """Testes de integração ML para BusinessSpecialist."""
 
-import sys
 import os
+import sys
+from typing import Any
+
 import pytest
-from typing import Dict, Any
 
 # Configurar paths
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "src"))
@@ -30,7 +31,7 @@ class MockMLflowClient:
             return None
         return MockBusinessModel()
 
-    def get_model_metadata(self, model_name: str, stage: str) -> Dict:
+    def get_model_metadata(self, model_name: str, stage: str) -> dict:
         if not self._model_available:
             return {}
         return self._model_metadata.copy()
@@ -83,19 +84,19 @@ class MockBusinessModel:
         return np.array([0.25, 0.20, 0.18, 0.15, 0.12, 0.10])
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_mlflow_client():
     """Fixture para cliente MLflow mock."""
     return MockMLflowClient(model_available=True)
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_mlflow_client_unavailable():
     """Fixture para cliente MLflow indisponível."""
     return MockMLflowClient(model_available=False)
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_business_features():
     """Features de exemplo para predição de negócio."""
     return {
@@ -283,6 +284,7 @@ class TestModelPerformanceTracking:
     def test_business_model_latency(self, mock_mlflow_client):
         """Testa medição de latência de predição de negócio."""
         import time
+
         import numpy as np
 
         model = mock_mlflow_client.load_model_with_fallback(

@@ -5,7 +5,7 @@ Suporta parsing de código Go com fallback regex.
 """
 
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -42,11 +42,11 @@ class GoParser:
             self._ts_parser.set_language(self._ts_language)
             logger.debug("go_parser_tree_sitter_loaded")
         except Exception as e:
-            logger.warning(f"go_parser_init_failed: {str(e)}")
+            logger.warning(f"go_parser_init_failed: {e!s}")
             self._ts_language = None
             self._ts_parser = None
 
-    def parse(self, code: str, filename: str) -> Optional[Dict[str, Any]]:
+    def parse(self, code: str, filename: str) -> Optional[dict[str, Any]]:
         """
         Parse código Go e extrair informações.
 
@@ -65,12 +65,12 @@ class GoParser:
             try:
                 return self._parse_with_tree_sitter(code, filename)
             except Exception as e:
-                logger.warning(f"tree_sitter_parse_failed: {filename} - {str(e)}")
+                logger.warning(f"tree_sitter_parse_failed: {filename} - {e!s}")
 
         # Fallback para regex
         return self._parse_with_regex(code, filename)
 
-    def _empty_result(self) -> Dict[str, Any]:
+    def _empty_result(self) -> dict[str, Any]:
         """Retorna estrutura vazia de resultado."""
         return {
             "packages": "",
@@ -85,7 +85,7 @@ class GoParser:
             "complexity": 0,
         }
 
-    def _parse_with_tree_sitter(self, code: str, filename: str) -> Dict[str, Any]:
+    def _parse_with_tree_sitter(self, code: str, filename: str) -> dict[str, Any]:
         """Parse usando tree-sitter."""
         tree = self._ts_parser.parse(bytes(code, "utf8"))
         result = self._empty_result()
@@ -118,7 +118,7 @@ class GoParser:
 
         return result
 
-    def _extract_package(self, root_node, code: str, result: Dict):
+    def _extract_package(self, root_node, code: str, result: dict):
         """Extrai package."""
         for node in root_node.children:
             if node.type == "package_clause":
@@ -126,7 +126,7 @@ class GoParser:
                     if child.type == "package_identifier":
                         result["packages"] = code[child.start_byte : child.end_byte]
 
-    def _extract_imports(self, root_node, code: str, result: Dict):
+    def _extract_imports(self, root_node, code: str, result: dict):
         """Extrai imports."""
         for node in root_node.children:
             if node.type == "import_declaration":
@@ -145,7 +145,7 @@ class GoParser:
                         {"name": path, "lineno": code[: import_path.start_byte].count("\n") + 1}
                     )
 
-    def _extract_type_spec(self, node, code: str, result: Dict):
+    def _extract_type_spec(self, node, code: str, result: dict):
         """Extrai type_spec (struct ou interface)."""
         name_node = node.child_by_field_name("name")
         if not name_node:
@@ -198,7 +198,7 @@ class GoParser:
                         )
             result["interfaces"].append(interface_info)
 
-    def _extract_function_declaration(self, node, code: str) -> Optional[Dict]:
+    def _extract_function_declaration(self, node, code: str) -> Optional[dict]:
         """Extrai informações de uma função."""
         info = {
             "name": "",
@@ -255,7 +255,7 @@ class GoParser:
 
         return info
 
-    def _detect_concurrency_patterns(self, root_node, code: str, result: Dict):
+    def _detect_concurrency_patterns(self, root_node, code: str, result: dict):
         """Detecta padrões de concorrência Go."""
         for node in root_node.descendants_of_type(
             {
@@ -294,7 +294,7 @@ class GoParser:
 
         return complexity
 
-    def _parse_with_regex(self, code: str, filename: str) -> Dict[str, Any]:
+    def _parse_with_regex(self, code: str, filename: str) -> dict[str, Any]:
         """Parse baseado em regex (fallback)."""
         import re
 
@@ -430,7 +430,7 @@ class GoParser:
 
         return result
 
-    def _parse_go_params(self, params_str: str) -> List[Dict]:
+    def _parse_go_params(self, params_str: str) -> list[dict]:
         """Parse parâmetros Go."""
         params = []
         if not params_str or params_str.strip() == "":
@@ -449,7 +449,7 @@ class GoParser:
 
         return params
 
-    def _parse_go_receiver(self, receiver_str: str) -> Dict:
+    def _parse_go_receiver(self, receiver_str: str) -> dict:
         """Parse receiver Go."""
         receiver_str = receiver_str.strip()
         # Formato: nome tipo ou *nome tipo

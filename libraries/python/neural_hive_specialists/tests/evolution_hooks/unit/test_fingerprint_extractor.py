@@ -1,15 +1,16 @@
 """Testes para FingerprintExtractor."""
 
 import pytest
+
 from neural_hive_specialists.evolution_hooks.fingerprint_extractor import FingerprintExtractor
 from neural_hive_specialists.evolution_hooks.models import (
+    DurationRange,
     Fingerprint,
     TaskCountRange,
-    DurationRange,
 )
 
 
-@pytest.fixture
+@pytest.fixture()
 def extractor():
     """Retorna instancia do FingerprintExtractor."""
     return FingerprintExtractor()

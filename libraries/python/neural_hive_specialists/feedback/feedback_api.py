@@ -5,25 +5,26 @@ Este módulo expõe endpoints REST para revisores humanos submeterem feedback
 sobre opiniões de especialistas.
 """
 
-from datetime import datetime, timezone
-from typing import Dict, Any, Optional, List, TYPE_CHECKING
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING, Any, Optional
+
 import structlog
 
 if TYPE_CHECKING:
-    from ..metrics import SpecialistMetrics
     from ..compliance.pii_detector import PIIDetector
-from fastapi import APIRouter, HTTPException, Header
-from pydantic import BaseModel, Field, field_validator
+    from ..metrics import SpecialistMetrics
 import jwt
 import pybreaker
+from fastapi import APIRouter, Header, HTTPException
+from pydantic import BaseModel, Field, field_validator
 
+from ..compliance import AuditLogger
 from ..config import SpecialistConfig
 from .feedback_collector import (
     FeedbackCollector,
     FeedbackDocument,
     FeedbackStoreUnavailable,
 )
-from ..compliance import AuditLogger
 
 logger = structlog.get_logger()
 
@@ -64,9 +65,9 @@ class SubmitFeedbackResponse(BaseModel):
 class GetFeedbackResponse(BaseModel):
     """Response para consulta de feedbacks."""
 
-    feedbacks: List[FeedbackDocument] = Field(..., description="Lista de feedbacks")
+    feedbacks: list[FeedbackDocument] = Field(..., description="Lista de feedbacks")
     count: int = Field(..., description="Quantidade de feedbacks")
-    statistics: Optional[Dict[str, Any]] = Field(None, description="Estatísticas agregadas")
+    statistics: Optional[dict[str, Any]] = Field(None, description="Estatísticas agregadas")
 
 
 def verify_jwt_token(
@@ -74,7 +75,7 @@ def verify_jwt_token(
     config: SpecialistConfig = None,
     audit_logger: Optional[AuditLogger] = None,
     request_path: str = "/api/v1/feedback",
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Verifica token JWT e extrai payload.
 
@@ -173,7 +174,7 @@ def verify_jwt_token(
                     "status_code": 401,
                 },
             )
-        raise HTTPException(status_code=401, detail=f"Token JWT inválido: {str(e)}")
+        raise HTTPException(status_code=401, detail=f"Token JWT inválido: {e!s}")
 
 
 def create_feedback_router(
@@ -313,7 +314,7 @@ def create_feedback_router(
             return SubmitFeedbackResponse(
                 feedback_id=feedback_id,
                 opinion_id=request.opinion_id,
-                submitted_at=datetime.now(timezone.utc).isoformat(),
+                submitted_at=datetime.now(UTC).isoformat(),
                 status="success",
             )
 
@@ -346,7 +347,7 @@ def create_feedback_router(
             logger.error("Error submitting feedback", error=str(e), opinion_id=request.opinion_id)
             if metrics:
                 metrics.increment_feedback_api_error("internal_error")
-            raise HTTPException(status_code=503, detail=f"Erro ao submeter feedback: {str(e)}")
+            raise HTTPException(status_code=503, detail=f"Erro ao submeter feedback: {e!s}")
 
     @router.get(
         "/feedback/opinion/{opinion_id}",
@@ -401,7 +402,7 @@ def create_feedback_router(
             )
             if metrics:
                 metrics.increment_feedback_api_error("internal_error")
-            raise HTTPException(status_code=503, detail=f"Erro ao buscar feedbacks: {str(e)}")
+            raise HTTPException(status_code=503, detail=f"Erro ao buscar feedbacks: {e!s}")
 
     @router.get(
         "/feedback/stats",
@@ -462,7 +463,7 @@ def create_feedback_router(
             )
             if metrics:
                 metrics.increment_feedback_api_error("internal_error")
-            raise HTTPException(status_code=503, detail=f"Erro ao calcular estatísticas: {str(e)}")
+            raise HTTPException(status_code=503, detail=f"Erro ao calcular estatísticas: {e!s}")
 
     @router.post(
         "/feedback/trigger-online-update",
@@ -506,11 +507,12 @@ def create_feedback_router(
 
             # Tentar importar e executar o orchestrator
             try:
+                import asyncio
+
                 from ml_pipelines.online_learning import (
                     OnlineDeploymentOrchestrator,
                     OnlineLearningConfig,
                 )
-                import asyncio
 
                 ol_config = OnlineLearningConfig()
 
@@ -577,7 +579,7 @@ def create_feedback_router(
                     )
                     raise HTTPException(
                         status_code=500,
-                        detail=f"Falha ao executar atualização online: {str(e)}",
+                        detail=f"Falha ao executar atualização online: {e!s}",
                     )
 
             except ImportError:
@@ -602,7 +604,7 @@ def create_feedback_router(
             if metrics:
                 metrics.increment_feedback_api_error("online_update_failed")
             raise HTTPException(
-                status_code=503, detail=f"Erro ao disparar atualização online: {str(e)}"
+                status_code=503, detail=f"Erro ao disparar atualização online: {e!s}"
             )
 
     @router.get(

@@ -20,8 +20,7 @@ async def test_find_similar_architectures(client):
         ]
 
         results = await client.find_similar_architectures(
-            requirements=["API REST", "Database"],
-            limit=5
+            requirements=["API REST", "Database"], limit=5
         )
 
         assert len(results) > 0
@@ -33,7 +32,12 @@ async def test_get_connections_context(client):
     """Testa obtenção de contexto de conexões."""
     with patch.object(client, "execute_query", new_callable=AsyncMock) as mock_query:
         mock_query.return_value = [
-            {"from_id": "service-123", "to_id": "service-456", "connection_type": "HTTP", "description": "REST calls"}
+            {
+                "from_id": "service-123",
+                "to_id": "service-456",
+                "connection_type": "HTTP",
+                "description": "REST calls",
+            }
         ]
 
         context = await client.get_connections_context(node_id="service-123")
@@ -90,7 +94,12 @@ async def test_get_component_templates(client):
     """Testa obtenção de templates de componentes."""
     with patch.object(client, "execute_query", new_callable=AsyncMock) as mock_query:
         mock_query.return_value = [
-            {"template_id": "TPL-001", "template_name": "REST API", "description": "API template", "stack": "FastAPI"}
+            {
+                "template_id": "TPL-001",
+                "template_name": "REST API",
+                "description": "API template",
+                "stack": "FastAPI",
+            }
         ]
 
         results = await client.get_component_templates("API")
@@ -108,7 +117,7 @@ async def test_create_architecture_node(client):
         result = await client.create_architecture_node(
             plan_id="PLAN-001",
             architecture_type="microservices",
-            components=[{"id": "comp-1", "name": "API", "stack": "FastAPI"}]
+            components=[{"id": "comp-1", "name": "API", "stack": "FastAPI"}],
         )
 
         assert result == "PLAN-001"

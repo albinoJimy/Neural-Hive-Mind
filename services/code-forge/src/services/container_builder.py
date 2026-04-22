@@ -12,7 +12,7 @@ Suporta:
 import asyncio
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Dict, List, Optional
+from typing import Optional
 
 import structlog
 
@@ -38,7 +38,7 @@ class Platform(str, Enum):
 
 
 # Alias comuns
-PLATFORM_ALIASES: Dict[str, str] = {
+PLATFORM_ALIASES: dict[str, str] = {
     "amd64": Platform.LINUX_AMD64,
     "arm64": Platform.LINUX_ARM64,
     "arm": Platform.LINUX_ARM_V7,
@@ -48,7 +48,7 @@ PLATFORM_ALIASES: Dict[str, str] = {
 
 # Mapeamento de plataformas para binários QEMU necessários
 # Usado para builds multi-arch no Kubernetes
-PLATFORM_QEMU_MAP: Dict[str, str] = {
+PLATFORM_QEMU_MAP: dict[str, str] = {
     Platform.LINUX_ARM64: "qemu-aarch64",
     Platform.LINUX_ARM_V7: "qemu-arm",
     Platform.LINUX_PPC64LE: "qemu-ppc64le",
@@ -58,7 +58,7 @@ PLATFORM_QEMU_MAP: Dict[str, str] = {
 }
 
 
-def _get_qemu_binaries(platforms: Optional[List[str]]) -> List[str]:
+def _get_qemu_binaries(platforms: Optional[list[str]]) -> list[str]:
     """
     Retorna lista de binários QEMU necessários para as plataformas.
 
@@ -89,8 +89,8 @@ class BuildResult:
     size_bytes: Optional[int] = None
     duration_seconds: float = 0.0
     error_message: Optional[str] = None
-    build_logs: List[str] = field(default_factory=list)
-    platforms: Optional[List[str]] = None  # Plataformas buildadas (multi-arch)
+    build_logs: list[str] = field(default_factory=list)
+    platforms: Optional[list[str]] = None  # Plataformas buildadas (multi-arch)
     cache_hit: bool = False  # Se o build usou cache
 
 
@@ -138,7 +138,7 @@ class ContainerBuilder:
         # Lazy import do coletor de métricas
         self._metrics_collector = None
 
-    def _normalize_platforms(self, platforms: Optional[List[str]]) -> Optional[List[str]]:
+    def _normalize_platforms(self, platforms: Optional[list[str]]) -> Optional[list[str]]:
         """
         Normaliza e valida lista de plataformas.
 
@@ -179,8 +179,8 @@ class ContainerBuilder:
         return normalized
 
     def _build_init_containers(
-        self, needs_qemu: bool = False, qemu_binaries: Optional[List[str]] = None
-    ) -> List[dict]:
+        self, needs_qemu: bool = False, qemu_binaries: Optional[list[str]] = None
+    ) -> list[dict]:
         """
         Constrói a lista de initContainers para o pod Kaniko.
 
@@ -262,7 +262,7 @@ class ContainerBuilder:
 
         return init_containers
 
-    def _build_container_volume_mounts(self, needs_qemu: bool = False) -> List[dict]:
+    def _build_container_volume_mounts(self, needs_qemu: bool = False) -> list[dict]:
         """
         Constrói a lista de volumeMounts para o container Kaniko.
 
@@ -289,7 +289,7 @@ class ContainerBuilder:
 
         return mounts
 
-    def _build_pod_volumes(self, configmap_name: str, needs_qemu: bool = False) -> List[dict]:
+    def _build_pod_volumes(self, configmap_name: str, needs_qemu: bool = False) -> list[dict]:
         """
         Constrói a lista de volumes para o pod.
 
@@ -339,7 +339,7 @@ class ContainerBuilder:
 
         return self._metrics_collector
 
-    def _extract_metadata_from_dockerfile(self, dockerfile_path: str) -> Dict[str, Optional[str]]:
+    def _extract_metadata_from_dockerfile(self, dockerfile_path: str) -> dict[str, Optional[str]]:
         """
         Extrai metadados do Dockerfile para coleta de métricas.
 
@@ -356,7 +356,7 @@ class ContainerBuilder:
         }
 
         try:
-            with open(dockerfile_path, "r") as f:
+            with open(dockerfile_path) as f:
                 content = f.read().lower()
 
             # Detectar linguagem base
@@ -401,7 +401,7 @@ class ContainerBuilder:
         image_tag: str,
         build_args: Optional[dict] = None,
         target_stage: Optional[str] = None,
-        platforms: Optional[List[str]] = None,
+        platforms: Optional[list[str]] = None,
         enable_cache: Optional[bool] = None,
         cache_repo: Optional[str] = None,
         no_push: bool = False,
@@ -537,7 +537,7 @@ class ContainerBuilder:
         image_tag: str,
         build_args: Optional[dict] = None,
         target_stage: Optional[str] = None,
-        platforms: Optional[List[str]] = None,
+        platforms: Optional[list[str]] = None,
         enable_cache: bool = False,
         cache_repo: Optional[str] = None,
         no_push: bool = False,
@@ -762,7 +762,7 @@ class ContainerBuilder:
         return 0
 
     def _create_context_tarball(
-        self, build_context: str, exclude_patterns: Optional[List[str]] = None
+        self, build_context: str, exclude_patterns: Optional[list[str]] = None
     ) -> bytes:
         """
         Cria um tarball do contexto de build.
@@ -822,7 +822,7 @@ class ContainerBuilder:
         image_tag: str,
         build_args: Optional[dict] = None,
         target_stage: Optional[str] = None,
-        platforms: Optional[List[str]] = None,
+        platforms: Optional[list[str]] = None,
         enable_cache: bool = False,
         cache_repo: Optional[str] = None,
         no_push: bool = False,
@@ -871,7 +871,7 @@ class ContainerBuilder:
             namespace = "docker-build"
 
             # Ler Dockerfile
-            with open(dockerfile_path, "r") as f:
+            with open(dockerfile_path) as f:
                 dockerfile_content = f.read()
 
             # Converter build_args para formato Kaniko
@@ -928,7 +928,7 @@ class ContainerBuilder:
             configmap_name = f"kaniko-context-{uuid.uuid4().hex[:8]}"
 
             # Ler o Dockerfile
-            with open(dockerfile_path, "r") as f:
+            with open(dockerfile_path) as f:
                 dockerfile_content = f.read()
 
             # Criar tarball do contexto de build
@@ -984,7 +984,7 @@ class ContainerBuilder:
                 logger.warning("configmap_create_failed", error=str(e))
                 return BuildResult(
                     success=False,
-                    error_message=f"Falha ao criar ConfigMap: {str(e)}",
+                    error_message=f"Falha ao criar ConfigMap: {e!s}",
                     duration_seconds=0,
                 )
 
@@ -1194,7 +1194,7 @@ class ContainerBuilder:
             logger.error("kaniko_build_exception", error=str(e))
             return BuildResult(
                 success=False,
-                error_message=f"Kaniko exception: {str(e)}",
+                error_message=f"Kaniko exception: {e!s}",
             )
 
     def _parse_kaniko_digest(self, logs: str) -> Optional[str]:

@@ -6,10 +6,11 @@ probabilidades via interface pyfunc padrão (predict), alinhando o contrato
 da signature com o comportamento real de inferência.
 """
 
+from typing import Any
+
 import mlflow
 import numpy as np
 import pandas as pd
-from typing import Any
 
 
 class ProbabilisticModelWrapper(mlflow.pyfunc.PythonModel):

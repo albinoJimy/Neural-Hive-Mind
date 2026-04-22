@@ -4,7 +4,7 @@ MongoDB Client para contexto operacional e dados de médio prazo
 Fornece interface assíncrona ao MongoDB para armazenamento de contexto e ledger.
 """
 
-from typing import Dict, List, Optional
+from typing import Optional
 
 import structlog
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -49,7 +49,7 @@ class MongoDBClient:
 
         logger.info("MongoDB client inicializado", uri=self.uri, database=self.database_name)
 
-    async def find_one(self, collection: str, filter: Dict) -> Optional[Dict]:
+    async def find_one(self, collection: str, filter: dict) -> Optional[dict]:
         """
         Busca um documento
 
@@ -69,11 +69,11 @@ class MongoDBClient:
     async def find(
         self,
         collection: str,
-        filter: Dict,
+        filter: dict,
         limit: int = 100,
         skip: int = 0,
-        sort: Optional[List[tuple]] = None,
-    ) -> List[Dict]:
+        sort: Optional[list[tuple]] = None,
+    ) -> list[dict]:
         """
         Busca múltiplos documentos
 
@@ -96,7 +96,7 @@ class MongoDBClient:
             logger.error("Erro ao buscar documentos", collection=collection, error=str(e))
             return []
 
-    async def insert_one(self, collection: str, document: Dict) -> Optional[str]:
+    async def insert_one(self, collection: str, document: dict) -> Optional[str]:
         """
         Insere um documento
 
@@ -115,7 +115,7 @@ class MongoDBClient:
             logger.error("Erro ao inserir documento", collection=collection, error=str(e))
             return None
 
-    async def insert_many(self, collection: str, documents: List[Dict]) -> int:
+    async def insert_many(self, collection: str, documents: list[dict]) -> int:
         """
         Insere múltiplos documentos
 
@@ -136,7 +136,7 @@ class MongoDBClient:
             return 0
 
     async def update_one(
-        self, collection: str, filter: Dict, update: Dict, upsert: bool = False
+        self, collection: str, filter: dict, update: dict, upsert: bool = False
     ) -> bool:
         """
         Atualiza um documento
@@ -163,7 +163,7 @@ class MongoDBClient:
             logger.error("Erro ao atualizar documento", collection=collection, error=str(e))
             return False
 
-    async def update_many(self, collection: str, filter: Dict, update: Dict) -> int:
+    async def update_many(self, collection: str, filter: dict, update: dict) -> int:
         """
         Atualiza múltiplos documentos
 
@@ -185,7 +185,7 @@ class MongoDBClient:
             logger.error("Erro ao atualizar documentos", collection=collection, error=str(e))
             return 0
 
-    async def delete_one(self, collection: str, filter: Dict) -> bool:
+    async def delete_one(self, collection: str, filter: dict) -> bool:
         """
         Remove um documento
 
@@ -204,7 +204,7 @@ class MongoDBClient:
             logger.error("Erro ao remover documento", collection=collection, error=str(e))
             return False
 
-    async def delete_many(self, collection: str, filter: Dict) -> int:
+    async def delete_many(self, collection: str, filter: dict) -> int:
         """
         Remove múltiplos documentos
 
@@ -223,7 +223,7 @@ class MongoDBClient:
             logger.error("Erro ao remover documentos", collection=collection, error=str(e))
             return 0
 
-    async def count_documents(self, collection: str, filter: Dict) -> int:
+    async def count_documents(self, collection: str, filter: dict) -> int:
         """
         Conta documentos que correspondem ao filtro
 
@@ -240,7 +240,7 @@ class MongoDBClient:
             logger.error("Erro ao contar documentos", collection=collection, error=str(e))
             return 0
 
-    async def aggregate(self, collection: str, pipeline: List[Dict]) -> List[Dict]:
+    async def aggregate(self, collection: str, pipeline: list[dict]) -> list[dict]:
         """
         Executa pipeline de agregação
 
@@ -258,7 +258,7 @@ class MongoDBClient:
             logger.error("Erro na agregação", collection=collection, error=str(e))
             return []
 
-    async def create_index(self, collection: str, keys: List[tuple], unique: bool = False):
+    async def create_index(self, collection: str, keys: list[tuple], unique: bool = False):
         """
         Cria índice na coleção
 

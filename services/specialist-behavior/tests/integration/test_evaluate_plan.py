@@ -5,19 +5,20 @@ Estes testes validam o fluxo completo de avaliação de planos,
 usando o código real (não mocks).
 """
 
-import sys
 import os
-import pytest
+import sys
 from unittest.mock import MagicMock, patch
+
+import pytest
 
 # Configurar path para importar código real
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
-from src.specialist import BehaviorSpecialist
 from src.config import BehaviorSpecialistConfig
+from src.specialist import BehaviorSpecialist
 
 
-@pytest.fixture
+@pytest.fixture()
 def config():
     """Configuração para testes de integração."""
     config = BehaviorSpecialistConfig()
@@ -27,7 +28,7 @@ def config():
     return config
 
 
-@pytest.fixture
+@pytest.fixture()
 def specialist(config):
     """Instância do especialista para integração."""
     with patch("neural_hive_specialists.BaseSpecialist.__init__", return_value=None):
@@ -44,7 +45,7 @@ def specialist(config):
             return spec
 
 
-@pytest.fixture
+@pytest.fixture()
 def complete_ux_plan():
     """Plano UX completo para testes."""
     return {
@@ -81,7 +82,7 @@ def complete_ux_plan():
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def poor_ux_plan():
     """Plano UX ruim para testes."""
     return {

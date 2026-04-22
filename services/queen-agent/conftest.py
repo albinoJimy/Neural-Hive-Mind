@@ -6,7 +6,7 @@ Este arquivo é carregado pelo pytest antes de começar a coletar testes.
 import sys
 from enum import Enum
 from types import ModuleType
-from unittest.mock import Mock, MagicMock
+from unittest.mock import MagicMock, Mock
 
 
 # Mock de dependências externas - criar Enum compatível com Pydantic e Conflict model

@@ -1,8 +1,9 @@
 """Unit tests for Settings security validation"""
 
-import pytest
 import os
 from unittest.mock import patch
+
+import pytest
 from src.config.settings import Settings
 
 

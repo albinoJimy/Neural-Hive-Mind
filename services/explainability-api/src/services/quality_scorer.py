@@ -10,8 +10,8 @@ GAPS-04 Task 4
 """
 
 import re
-from datetime import datetime, timezone
-from typing import Any, Dict, Optional
+from datetime import UTC, datetime
+from typing import Any, Optional
 
 import structlog
 
@@ -63,7 +63,7 @@ class ExplanationQualityScorer:
         """
         self.mongodb = mongodb_client
 
-    def score_completeness(self, explanation: Dict[str, Any]) -> float:
+    def score_completeness(self, explanation: dict[str, Any]) -> float:
         """
         Calcula score de completude da explicação.
 
@@ -112,7 +112,7 @@ class ExplanationQualityScorer:
 
         return present_fields / total_required
 
-    def score_clarity(self, explanation: Dict[str, Any]) -> float:
+    def score_clarity(self, explanation: dict[str, Any]) -> float:
         """
         Calcula score de clareza da explicação.
 
@@ -168,7 +168,7 @@ class ExplanationQualityScorer:
             return min(1.0, total_score / len(texts))
         return 0.0
 
-    def score_specificity(self, explanation: Dict[str, Any]) -> float:
+    def score_specificity(self, explanation: dict[str, Any]) -> float:
         """
         Calcula score de especificidade da explicação.
 
@@ -222,7 +222,7 @@ class ExplanationQualityScorer:
 
         return min(1.0, total_specificity / total_texts) if total_texts > 0 else 0.0
 
-    def _collect_reasoning_texts(self, explanation: Dict[str, Any]) -> list:
+    def _collect_reasoning_texts(self, explanation: dict[str, Any]) -> list:
         """Coleta todos os textos de reasoning da explicação."""
         texts = []
 
@@ -247,7 +247,7 @@ class ExplanationQualityScorer:
         return texts
 
     def calculate_overall_score(
-        self, scores: Dict[str, float], weights: Optional[Dict[str, float]] = None
+        self, scores: dict[str, float], weights: Optional[dict[str, float]] = None
     ) -> float:
         """
         Calcula score agregado a partir dos scores individuais.
@@ -276,8 +276,8 @@ class ExplanationQualityScorer:
         return min(1.0, weighted_sum / total_weight)
 
     def score_explanation(
-        self, explanation: Dict[str, Any], weights: Optional[Dict[str, float]] = None
-    ) -> Dict[str, float]:
+        self, explanation: dict[str, Any], weights: Optional[dict[str, float]] = None
+    ) -> dict[str, float]:
         """
         Calcula todas as métricas de qualidade para uma explicação.
 
@@ -298,7 +298,7 @@ class ExplanationQualityScorer:
 
         return scores
 
-    def save_scores(self, explanation_id: str, scores: Dict[str, float]) -> bool:
+    def save_scores(self, explanation_id: str, scores: dict[str, float]) -> bool:
         """
         Salva scores no MongoDB.
 
@@ -322,7 +322,7 @@ class ExplanationQualityScorer:
                 "clarity": scores.get("clarity", 0.0),
                 "specificity": scores.get("specificity", 0.0),
                 "overall": scores.get("overall", 0.0),
-                "timestamp": datetime.now(timezone.utc),
+                "timestamp": datetime.now(UTC),
             }
 
             collection.update_one(
@@ -340,7 +340,7 @@ class ExplanationQualityScorer:
             logger.error("Error saving quality scores", explanation_id=explanation_id, error=str(e))
             return False
 
-    async def get_overall_score(self, explanation: Dict[str, Any]) -> float:
+    async def get_overall_score(self, explanation: dict[str, Any]) -> float:
         """
         Calcula score geral de uma explicação (async wrapper).
 
@@ -354,7 +354,7 @@ class ExplanationQualityScorer:
         return scores.get("overall", 0.0)
 
     def batch_score_explanations(
-        self, explanations: list, weights: Optional[Dict[str, float]] = None
+        self, explanations: list, weights: Optional[dict[str, float]] = None
     ) -> list:
         """
         Calcula scores para múltiplas explicações.

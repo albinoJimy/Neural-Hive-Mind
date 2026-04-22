@@ -1,5 +1,5 @@
-from datetime import datetime, timezone
-from typing import Dict, List, Optional
+from datetime import UTC, datetime
+from typing import Optional
 from uuid import UUID, uuid4
 
 import structlog
@@ -59,8 +59,8 @@ class RegistryService:
     async def register_agent(
         self,
         agent_type: AgentType,
-        capabilities: List[str],
-        metadata: Dict[str, str],
+        capabilities: list[str],
+        metadata: dict[str, str],
         namespace: str = "default",
         cluster: str = "local",
         version: str = "1.0.0",
@@ -89,8 +89,8 @@ class RegistryService:
                 cluster=cluster,
                 version=version,
                 status=AgentStatus.HEALTHY,
-                registered_at=int(datetime.now(timezone.utc).timestamp()),
-                last_seen=int(datetime.now(timezone.utc).timestamp()),
+                registered_at=int(datetime.now(UTC).timestamp()),
+                last_seen=int(datetime.now(UTC).timestamp()),
             )
 
             # Salvar no Redis
@@ -135,7 +135,7 @@ class RegistryService:
                 raise ValueError(f"Agente {agent_id} não encontrado")
 
             # Atualizar last_seen
-            agent_info.last_seen = int(datetime.now(timezone.utc).timestamp())
+            agent_info.last_seen = int(datetime.now(UTC).timestamp())
 
             # Atualizar telemetria se fornecida
             if telemetry:
@@ -232,8 +232,8 @@ class RegistryService:
             raise
 
     async def list_agents(
-        self, agent_type: Optional[AgentType] = None, filters: Optional[Dict[str, str]] = None
-    ) -> List[AgentInfo]:
+        self, agent_type: Optional[AgentType] = None, filters: Optional[dict[str, str]] = None
+    ) -> list[AgentInfo]:
         """Lista agentes com filtros opcionais"""
         try:
             agents = await self.redis_client.list_agents(agent_type, filters)

@@ -1,9 +1,9 @@
 """Weight adaptation based on historical patterns."""
 
-from typing import Dict, List
+
 import structlog
 
-from .models import Fingerprint, PatternRecord, DEFAULT_WEIGHTS
+from .models import DEFAULT_WEIGHTS, Fingerprint, PatternRecord
 from .pattern_matcher import PatternMatcher
 
 logger = structlog.get_logger()
@@ -28,7 +28,7 @@ class WeightAdapter:
         # Expor registry para acesso nos testes
         self.registry = self.matcher.registry
 
-    async def adapt_weights(self, fingerprint: Fingerprint) -> Dict[str, float]:
+    async def adapt_weights(self, fingerprint: Fingerprint) -> dict[str, float]:
         """
         Adapta pesos baseado em histórico.
 
@@ -68,7 +68,7 @@ class WeightAdapter:
 
         return adapted
 
-    def _calculate_weight_adjustments(self, similar: List[PatternRecord]) -> Dict[str, float]:
+    def _calculate_weight_adjustments(self, similar: list[PatternRecord]) -> dict[str, float]:
         """
         Calcula ajustes baseado em histórico.
 
@@ -133,8 +133,8 @@ class WeightAdapter:
         return adjustments
 
     def _apply_adjustments_and_normalize(
-        self, base: Dict[str, float], adjustments: Dict[str, float]
-    ) -> Dict[str, float]:
+        self, base: dict[str, float], adjustments: dict[str, float]
+    ) -> dict[str, float]:
         """
         Aplica ajustes aos pesos base e normaliza.
 

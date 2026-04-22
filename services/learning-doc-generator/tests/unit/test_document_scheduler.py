@@ -1,16 +1,14 @@
 """Testes unitários para DocumentScheduler"""
 
-import asyncio
 from datetime import datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-
 from src.models import DocumentType, InsightConfidence
 from src.scheduler.document_scheduler import DocumentScheduler
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_repository():
     """Mock do DocumentRepository"""
     repo = AsyncMock()
@@ -18,7 +16,7 @@ def mock_repository():
     return repo
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_insight_extractor():
     """Mock do ExperimentInsightExtractor"""
     extractor = AsyncMock()
@@ -27,7 +25,7 @@ def mock_insight_extractor():
     return extractor
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_report_generator():
     """Mock do MarkdownReportGenerator"""
     generator = AsyncMock()
@@ -35,7 +33,7 @@ def mock_report_generator():
     return generator
 
 
-@pytest.fixture
+@pytest.fixture()
 def scheduler(mock_repository, mock_insight_extractor, mock_report_generator):
     """Fixture do DocumentScheduler"""
     return DocumentScheduler(
@@ -48,7 +46,7 @@ def scheduler(mock_repository, mock_insight_extractor, mock_report_generator):
 class TestDocumentScheduler:
     """Testes para DocumentScheduler"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_start_scheduler(self, scheduler):
         """Testa inicialização do scheduler"""
         await scheduler.start()
@@ -59,7 +57,7 @@ class TestDocumentScheduler:
 
         await scheduler.stop()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_start_scheduler_disabled(self, scheduler):
         """Testa que scheduler não inicia quando desabilitado"""
         with patch("src.scheduler.document_scheduler.get_settings") as mock_settings:
@@ -75,7 +73,7 @@ class TestDocumentScheduler:
 
             assert not scheduler_disabled.is_running()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_generate_daily_report_no_experiments(self, scheduler):
         """Testa geração de relatório diário sem experimentos"""
         await scheduler._generate_daily_report()
@@ -83,7 +81,7 @@ class TestDocumentScheduler:
         # Não deve chamar save se não há experimentos
         scheduler.repository.save.assert_not_called()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_generate_daily_report_with_experiments(
         self, scheduler, mock_insight_extractor, mock_repository
     ):
@@ -123,7 +121,7 @@ class TestDocumentScheduler:
         assert call_args.type == DocumentType.DAILY_SUMMARY
         assert "Relatório de Aprendizado Diário" in call_args.title
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_generate_weekly_report(self, scheduler):
         """Testa geração de relatório semanal"""
         await scheduler._generate_weekly_report()
@@ -131,7 +129,7 @@ class TestDocumentScheduler:
         # Sem experimentos mockados, não deve salvar
         scheduler.repository.save.assert_not_called()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_generate_monthly_report(self, scheduler):
         """Testa geração de relatório mensal"""
         await scheduler._generate_monthly_report()
@@ -139,10 +137,8 @@ class TestDocumentScheduler:
         # Sem experimentos mockados, não deve salvar
         scheduler.repository.save.assert_not_called()
 
-    @pytest.mark.asyncio
-    async def test_trigger_manual_report(
-        self, scheduler, mock_insight_extractor, mock_repository
-    ):
+    @pytest.mark.asyncio()
+    async def test_trigger_manual_report(self, scheduler, mock_insight_extractor, mock_repository):
         """Testa trigger manual de relatório"""
         from src.models import ExperimentRun
 
@@ -171,10 +167,8 @@ class TestDocumentScheduler:
         assert doc_id == "test_doc_id"
         mock_repository.save.assert_called_once()
 
-    @pytest.mark.asyncio
-    async def test_trigger_manual_report_no_experiments(
-        self, scheduler, mock_insight_extractor
-    ):
+    @pytest.mark.asyncio()
+    async def test_trigger_manual_report_no_experiments(self, scheduler, mock_insight_extractor):
         """Testa trigger manual sem experimentos"""
         mock_insight_extractor.get_runs_by_period = AsyncMock(return_value=[])
 
@@ -262,7 +256,7 @@ class TestDocumentScheduler:
         assert any("performance" in r.lower() for r in recommendations)
         assert any("promover" in r.lower() for r in recommendations)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_next_run_times(self, scheduler):
         """Testa obtenção dos próximos horários de execução"""
         await scheduler.start()
@@ -276,7 +270,7 @@ class TestDocumentScheduler:
 
         await scheduler.stop()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_stop_scheduler(self, scheduler):
         """Testa parada do scheduler"""
         await scheduler.start()

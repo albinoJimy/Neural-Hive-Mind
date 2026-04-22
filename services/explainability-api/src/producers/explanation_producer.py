@@ -11,7 +11,7 @@ GAPS-04 Task 6
 
 import asyncio
 import json
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 import structlog
 from aiokafka import AIOKafkaProducer
@@ -83,7 +83,7 @@ class ExplanationProducer:
         logger.info("explanation_producer.disconnected")
 
     async def publish_explanation(
-        self, explanation: Dict[str, Any], key: Optional[str] = None
+        self, explanation: dict[str, Any], key: Optional[str] = None
     ) -> None:
         """
         Publica explicação no tópico do Kafka.
@@ -133,7 +133,7 @@ class ExplanationProducer:
             )
             raise
 
-    def _extract_headers(self, explanation: Dict[str, Any]) -> list:
+    def _extract_headers(self, explanation: dict[str, Any]) -> list:
         """
         Extrai headers de tracing da explicação.
 
@@ -165,7 +165,7 @@ class ExplanationProducer:
 
         return headers
 
-    async def publish_batch(self, explanations: list, timeout_ms: int = 5000) -> Dict[str, Any]:
+    async def publish_batch(self, explanations: list, timeout_ms: int = 5000) -> dict[str, Any]:
         """
         Publica lote de explicações de forma eficiente.
 
@@ -211,7 +211,7 @@ class ExplanationProducer:
             stats["errors"].append(str(e))
             return stats
 
-    async def _publish_with_timeout(self, explanation: Dict[str, Any], timeout_ms: int) -> None:
+    async def _publish_with_timeout(self, explanation: dict[str, Any], timeout_ms: int) -> None:
         """
         Publica explicação com timeout.
 

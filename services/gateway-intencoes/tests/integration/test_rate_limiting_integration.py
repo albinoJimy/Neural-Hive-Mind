@@ -2,10 +2,11 @@
 Testes de integracao para Rate Limiting com Sliding Window e Redis real
 """
 
-import pytest
 import asyncio
 import os
 import time
+
+import pytest
 
 # Marca todos os testes deste arquivo como integracao
 pytestmark = pytest.mark.integration
@@ -14,7 +15,7 @@ pytestmark = pytest.mark.integration
 class TestRateLimitingIntegration:
     """Testes de integracao para Rate Limiting com Sliding Window"""
 
-    @pytest.fixture
+    @pytest.fixture()
     async def redis_client(self):
         """Fixture para Redis client real"""
         from cache.redis_client import RedisClient
@@ -29,7 +30,7 @@ class TestRateLimitingIntegration:
         finally:
             await client.close()
 
-    @pytest.fixture
+    @pytest.fixture()
     def rate_limiter(self, redis_client):
         """Fixture do rate limiter com Redis real"""
         from middleware.rate_limiter import RateLimiter
@@ -42,7 +43,7 @@ class TestRateLimitingIntegration:
             fail_open=True,
         )
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_sliding_window_basic(self, rate_limiter):
         """Testar sliding window basico com Redis real"""
         # Usar ID unico para evitar conflito com outros testes
@@ -64,7 +65,7 @@ class TestRateLimitingIntegration:
         assert result.allowed is False
         assert result.retry_after is not None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_sliding_window_burst_behavior(self, rate_limiter):
         """Testar que burst permite requisicoes extras"""
         user_id = f"test_user_burst_{int(time.time() * 1000)}"
@@ -87,7 +88,7 @@ class TestRateLimitingIntegration:
         result = await rate_limiter.check_rate_limit(user_id=user_id)
         assert result.allowed is False
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_sliding_window_concurrent_requests(self, rate_limiter):
         """Testar sliding window com requisicoes concorrentes"""
         user_id = f"test_user_concurrent_{int(time.time() * 1000)}"
@@ -101,7 +102,7 @@ class TestRateLimitingIntegration:
         allowed_count = sum(1 for r in results if r.allowed)
         assert allowed_count == 12
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_sliding_window_different_users(self, rate_limiter):
         """Testar que usuarios diferentes tem janelas independentes"""
         timestamp = int(time.time() * 1000)
@@ -120,7 +121,7 @@ class TestRateLimitingIntegration:
         result2 = await rate_limiter.check_rate_limit(user_id=user2)
         assert result2.allowed is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_sliding_window_tenant_override(self, rate_limiter):
         """Testar limite por tenant com sliding window"""
         tenant_id = f"premium_tenant_{int(time.time() * 1000)}"
@@ -140,7 +141,7 @@ class TestRateLimitingIntegration:
             result = await rate_limiter.check_rate_limit(user_id=user_id, tenant_id=tenant_id)
             assert result.allowed is True, f"Burst request {i+1} should be allowed"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_sliding_window_remaining_decreases(self, rate_limiter):
         """Testar que remaining diminui corretamente"""
         user_id = f"test_user_remaining_{int(time.time() * 1000)}"
@@ -153,7 +154,7 @@ class TestRateLimitingIntegration:
         # Remaining deve diminuir a cada requisicao (baseado no limite base de 10)
         assert results == [9, 8, 7, 6, 5]
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_sliding_window_headers_present(self, rate_limiter):
         """Testar que resultado contem informacoes para headers"""
         user_id = f"test_user_headers_{int(time.time() * 1000)}"
@@ -165,7 +166,7 @@ class TestRateLimitingIntegration:
         assert result.reset_at > 0
         assert result.allowed is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_sliding_window_reset_at_format(self, rate_limiter):
         """Testar que reset_at e um timestamp Unix valido"""
         user_id = f"test_user_reset_{int(time.time() * 1000)}"
@@ -177,7 +178,7 @@ class TestRateLimitingIntegration:
         assert result.reset_at >= current_time + 59
         assert result.reset_at <= current_time + 61
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_sliding_window_no_burst(self):
         """Testar sliding window sem burst"""
         from cache.redis_client import RedisClient
@@ -215,7 +216,7 @@ class TestRateLimitingIntegration:
 class TestRateLimitingSlidingWindowBehavior:
     """Testes especificos para comportamento de sliding window"""
 
-    @pytest.fixture
+    @pytest.fixture()
     async def redis_client(self):
         """Fixture para Redis client real"""
         from cache.redis_client import RedisClient
@@ -229,7 +230,7 @@ class TestRateLimitingSlidingWindowBehavior:
         finally:
             await client.close()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_sliding_window_continuous_nature(self, redis_client):
         """
         Testar natureza continua do sliding window
@@ -258,7 +259,7 @@ class TestRateLimitingSlidingWindowBehavior:
         # na mesma janela de 60 segundos
         # (Este teste valida que nao resetamos no limite do minuto)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_retry_after_value(self, redis_client):
         """Testar que retry_after e calculado corretamente"""
         from middleware.rate_limiter import RateLimiter
@@ -284,7 +285,7 @@ class TestRateLimitingSlidingWindowBehavior:
 class TestRateLimitingIntegrationSkipIfNoRedis:
     """Testes que sao pulados se Redis nao estiver disponivel"""
 
-    @pytest.fixture
+    @pytest.fixture()
     async def redis_available(self):
         """Verificar se Redis esta disponivel"""
         from cache.redis_client import RedisClient
@@ -299,7 +300,7 @@ class TestRateLimitingIntegrationSkipIfNoRedis:
         except Exception:
             return False
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_sliding_window_expiration(self, redis_available):
         """
         Testar que requisicoes antigas expiram da janela

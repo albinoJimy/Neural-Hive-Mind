@@ -2,8 +2,8 @@
 API REST para gestão de incidentes de segurança.
 """
 
-from datetime import datetime, timezone
-from typing import List, Optional
+from datetime import UTC, datetime
+from typing import Optional
 
 import structlog
 from fastapi import APIRouter, HTTPException, Query, Request
@@ -22,15 +22,15 @@ class IncidentResponse(BaseModel):
     severity: str
     status: str
     created_at: str
-    affected_resources: List[str]
-    enforcement_actions: List[str]
-    remediation_actions: List[str]
+    affected_resources: list[str]
+    enforcement_actions: list[str]
+    remediation_actions: list[str]
 
 
 class IncidentListResponse(BaseModel):
     """Response paginado de incidentes."""
 
-    incidents: List[IncidentResponse]
+    incidents: list[IncidentResponse]
     total_count: int
     page: int
     page_size: int
@@ -110,7 +110,7 @@ async def list_incidents(
                     threat_type=doc.get("threat_type", "unknown"),
                     severity=doc.get("severity", "unknown"),
                     status=doc.get("status", "open"),
-                    created_at=doc.get("created_at", datetime.now(timezone.utc).isoformat()),
+                    created_at=doc.get("created_at", datetime.now(UTC).isoformat()),
                     affected_resources=doc.get("affected_resources", []),
                     enforcement_actions=doc.get("enforcement_actions", []),
                     remediation_actions=doc.get("remediation_actions", []),
@@ -155,7 +155,7 @@ async def get_incident(incident_id: str, fastapi_request: Request):
             threat_type=doc.get("threat_type", "unknown"),
             severity=doc.get("severity", "unknown"),
             status=doc.get("status", "open"),
-            created_at=doc.get("created_at", datetime.now(timezone.utc).isoformat()),
+            created_at=doc.get("created_at", datetime.now(UTC).isoformat()),
             affected_resources=doc.get("affected_resources", []),
             enforcement_actions=doc.get("enforcement_actions", []),
             remediation_actions=doc.get("remediation_actions", []),

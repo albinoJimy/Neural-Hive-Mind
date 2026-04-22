@@ -4,8 +4,9 @@ gRPC server interceptor para verificação de tokens SPIFFE JWT-SVID
 
 import base64
 import json
-from datetime import datetime, timezone
-from typing import Any, Callable, Dict, Optional
+from collections.abc import Callable
+from datetime import UTC, datetime
+from typing import Any, Optional
 
 import grpc
 import structlog
@@ -298,7 +299,7 @@ class SPIFFEAuthInterceptor(aio.ServerInterceptor):
 
                 # Check expiry
                 exp = payload.get("exp")
-                if exp and datetime.utcfromtimestamp(exp) < datetime.now(timezone.utc):
+                if exp and datetime.utcfromtimestamp(exp) < datetime.now(UTC):
                     self.logger.warning("token_expired", method=method, exp=exp)
                     return None
 
@@ -317,7 +318,7 @@ class SPIFFEAuthInterceptor(aio.ServerInterceptor):
             self.logger.error("jwt_validation_error", method=method, error=str(e))
             return None
 
-    def _jwk_to_pem(self, jwk: Dict) -> Optional[str]:
+    def _jwk_to_pem(self, jwk: dict) -> Optional[str]:
         """
         Convert JWK to PEM format for JWT verification
 

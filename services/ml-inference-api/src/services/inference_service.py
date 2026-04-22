@@ -2,7 +2,7 @@
 
 import asyncio
 import time
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 import structlog
 
@@ -23,8 +23,8 @@ class MLModelRegistry:
 
     def __init__(self) -> None:
         """Inicializa registro de modelos."""
-        self._models: Dict[str, Any] = {}
-        self._metadata: Dict[str, ModelMetadata] = {}
+        self._models: dict[str, Any] = {}
+        self._metadata: dict[str, ModelMetadata] = {}
         self._logger = logger
 
     async def load_model(self, name: str, version: str = "latest") -> ModelMetadata:
@@ -145,8 +145,8 @@ class InferenceService:
         )
         self._cache_ttl = cache_ttl_seconds
         # Fallback para cache em memória se Redis não disponível
-        self._memory_cache: Dict[str, InferenceResponse] = {}
-        self._memory_cache_timestamps: Dict[str, float] = {}
+        self._memory_cache: dict[str, InferenceResponse] = {}
+        self._memory_cache_timestamps: dict[str, float] = {}
         self._logger = logger
 
     async def predict(
@@ -187,16 +187,10 @@ class InferenceService:
 
         # Carregar modelo se necessário
         model_key = f"{request.model_name}:{request.model_version}"
-        model = self._model_registry.get_model(
-            request.model_name, request.model_version
-        )
+        model = self._model_registry.get_model(request.model_name, request.model_version)
         if not model:
-            await self._model_registry.load_model(
-                request.model_name, request.model_version
-            )
-            model = self._model_registry.get_model(
-                request.model_name, request.model_version
-            )
+            await self._model_registry.load_model(request.model_name, request.model_version)
+            model = self._model_registry.get_model(request.model_name, request.model_version)
 
         # Executar predição
         try:
@@ -254,8 +248,8 @@ class InferenceService:
             )
 
     async def _execute_prediction(
-        self, model: Dict[str, Any], request: InferenceRequest
-    ) -> tuple[Dict[str, Any], Optional[float]]:
+        self, model: dict[str, Any], request: InferenceRequest
+    ) -> tuple[dict[str, Any], Optional[float]]:
         """Executa predição do modelo.
 
         Args:
@@ -360,7 +354,7 @@ class InferenceService:
         self._memory_cache_timestamps.clear()
         self._logger.info("memory_cache_cleared")
 
-    async def get_cache_stats(self) -> Dict[str, Any]:
+    async def get_cache_stats(self) -> dict[str, Any]:
         """Retorna estatísticas do cache.
 
         Returns:

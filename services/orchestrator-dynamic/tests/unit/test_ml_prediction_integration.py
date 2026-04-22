@@ -3,17 +3,17 @@ Testes unitários para integração de predições ML no IntelligentScheduler.
 """
 
 import asyncio
-import pytest
 from unittest.mock import AsyncMock, Mock
 
-from src.scheduler.intelligent_scheduler import IntelligentScheduler
+import pytest
 from src.config.settings import OrchestratorSettings
+from src.observability.metrics import OrchestratorMetrics
+from src.scheduler.intelligent_scheduler import IntelligentScheduler
 from src.scheduler.priority_calculator import PriorityCalculator
 from src.scheduler.resource_allocator import ResourceAllocator
-from src.observability.metrics import OrchestratorMetrics
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_config():
     config = Mock(spec=OrchestratorSettings)
     config.service_registry_cache_ttl_seconds = 60
@@ -21,7 +21,7 @@ def mock_config():
     return config
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_metrics():
     metrics = Mock(spec=OrchestratorMetrics)
     metrics.record_priority_score = Mock()
@@ -34,14 +34,14 @@ def mock_metrics():
     return metrics
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_priority_calculator():
     calculator = Mock(spec=PriorityCalculator)
     calculator.calculate_priority_score = Mock(return_value=0.5)
     return calculator
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_resource_allocator():
     allocator = AsyncMock(spec=ResourceAllocator)
     allocator.discover_workers = AsyncMock(
@@ -69,7 +69,7 @@ def mock_resource_allocator():
     return allocator
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_scheduling_predictor():
     predictor = AsyncMock()
     predictor.predict_duration = AsyncMock(
@@ -85,7 +85,7 @@ def mock_scheduling_predictor():
     return predictor
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_anomaly_detector():
     detector = AsyncMock()
     detector.detect_anomaly = AsyncMock(
@@ -99,7 +99,7 @@ def mock_anomaly_detector():
     return detector
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_ticket():
     return {
         "ticket_id": "ticket-ml-1",
@@ -109,7 +109,7 @@ def sample_ticket():
     }
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_enrich_ticket_with_predictions_success(
     mock_config,
     mock_metrics,
@@ -139,7 +139,7 @@ async def test_enrich_ticket_with_predictions_success(
     assert predictions["anomaly"]["score"] == 0.75
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_priority_boost_by_duration_ratio(
     mock_config,
     mock_metrics,
@@ -173,7 +173,7 @@ async def test_priority_boost_by_duration_ratio(
     assert mock_metrics.record_priority_score.call_args.kwargs["boosted"] is True
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_priority_boost_by_anomaly(
     mock_config,
     mock_metrics,
@@ -200,7 +200,7 @@ async def test_priority_boost_by_anomaly(
     mock_metrics.record_anomaly_detection.assert_awaited()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_no_boost_when_duration_ratio_low(
     mock_config,
     mock_metrics,
@@ -234,7 +234,7 @@ async def test_no_boost_when_duration_ratio_low(
     assert mock_metrics.record_priority_score.call_args.kwargs["boosted"] is False
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_allocation_metadata_includes_predictions(
     mock_config,
     mock_metrics,
@@ -263,7 +263,7 @@ async def test_allocation_metadata_includes_predictions(
     assert metadata.get("ml_scheduling_enriched") is True
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_predictions_fail_gracefully(
     mock_config,
     mock_metrics,

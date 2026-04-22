@@ -270,8 +270,8 @@ def _wait_for_http(
     Returns:
         True se endpoint respondeu, False se timeout
     """
-    import urllib.request
     import urllib.error
+    import urllib.request
 
     exposed_port = container.get_exposed_port(port)
     host = container.get_container_host_ip()

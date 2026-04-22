@@ -2,16 +2,16 @@
 Testes unitários para SchedulingOptimizer (orquestrador ML de scheduling).
 """
 
-import pytest
-from unittest.mock import Mock, AsyncMock
+from unittest.mock import AsyncMock, Mock
 
-from src.ml.scheduling_optimizer import SchedulingOptimizer
-from src.ml.load_predictor import LoadPredictor
+import pytest
 from src.config.settings import OrchestratorSettings
+from src.ml.load_predictor import LoadPredictor
+from src.ml.scheduling_optimizer import SchedulingOptimizer
 from src.observability.metrics import OrchestratorMetrics
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_config():
     """Configuração mockada."""
     config = Mock(spec=OrchestratorSettings)
@@ -24,7 +24,7 @@ def mock_config():
     return config
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_optimizer_client():
     """Cliente Optimizer gRPC mockado."""
     mock = AsyncMock()
@@ -37,7 +37,7 @@ def mock_optimizer_client():
     return mock
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_local_predictor():
     """LoadPredictor mockado."""
     mock = AsyncMock(spec=LoadPredictor)
@@ -47,7 +47,7 @@ def mock_local_predictor():
     return mock
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_kafka_producer():
     """Kafka producer mockado."""
     mock = AsyncMock()
@@ -55,13 +55,13 @@ def mock_kafka_producer():
     return mock
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_metrics():
     """Métricas mockadas."""
     return Mock(spec=OrchestratorMetrics)
 
 
-@pytest.fixture
+@pytest.fixture()
 def scheduler_optimizer(
     mock_config, mock_optimizer_client, mock_local_predictor, mock_kafka_producer, mock_metrics
 ):
@@ -78,7 +78,7 @@ def scheduler_optimizer(
 class TestGetLoadForecast:
     """Testes de obtenção de load forecast."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_load_forecast_from_remote(
         self, scheduler_optimizer, mock_optimizer_client, mock_metrics
     ):
@@ -91,7 +91,7 @@ class TestGetLoadForecast:
         mock_metrics.update_optimizer_availability.assert_called_with(available=True)
         mock_metrics.record_ml_optimization.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_load_forecast_when_optimizer_disabled(
         self, mock_config, mock_local_predictor, mock_kafka_producer, mock_metrics
     ):
@@ -109,7 +109,7 @@ class TestGetLoadForecast:
 
         assert forecast is None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_load_forecast_when_optimizer_unavailable(
         self, scheduler_optimizer, mock_optimizer_client, mock_metrics
     ):
@@ -125,7 +125,7 @@ class TestGetLoadForecast:
 class TestOptimizeAllocation:
     """Testes de otimização de alocação."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_optimize_allocation_enriches_workers(
         self, scheduler_optimizer, mock_local_predictor
     ):
@@ -144,7 +144,7 @@ class TestOptimizeAllocation:
         assert all("ml_enriched" in w for w in enriched)
         assert all(w["ml_enriched"] is True for w in enriched)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_optimize_allocation_applies_rl_boost(
         self, scheduler_optimizer, mock_optimizer_client
     ):
@@ -161,7 +161,7 @@ class TestOptimizeAllocation:
         assert enriched[0]["rl_boost"] == 1.2  # worker-1 tem boost
         assert enriched[1]["rl_boost"] == 1.0  # worker-2 sem boost
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_optimize_allocation_no_rl_boost_low_confidence(
         self, scheduler_optimizer, mock_optimizer_client
     ):
@@ -180,7 +180,7 @@ class TestOptimizeAllocation:
         # Não deve ter boost se confiança é baixa
         assert enriched[0]["rl_boost"] == 1.0
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_optimize_allocation_fallback_on_error(
         self, scheduler_optimizer, mock_local_predictor
     ):
@@ -241,7 +241,7 @@ class TestRLRecommendationApplication:
 class TestAllocationOutcomeRecording:
     """Testes de registro de allocation outcomes."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_record_allocation_outcome_publishes_to_kafka(
         self, scheduler_optimizer, mock_kafka_producer, mock_metrics
     ):
@@ -268,7 +268,7 @@ class TestAllocationOutcomeRecording:
         mock_metrics.record_allocation_quality.assert_called_once()
         mock_metrics.record_queue_prediction_error.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_record_allocation_outcome_when_disabled(
         self,
         mock_config,
@@ -301,7 +301,7 @@ class TestAllocationOutcomeRecording:
 class TestMetricsRecording:
     """Testes de registro de métricas."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_records_optimization_metrics(self, scheduler_optimizer, mock_metrics):
         """Testa registro de métricas de otimização."""
         ticket = {"ticket_id": "ticket-1"}

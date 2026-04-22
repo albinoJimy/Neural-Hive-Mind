@@ -5,19 +5,18 @@ Testa conexão gRPC, forecasts, recomendações, fallback, cache, timeout,
 e integração com intelligent scheduler.
 """
 
-import pytest
-from unittest.mock import Mock, AsyncMock, patch
+from unittest.mock import AsyncMock, Mock, patch
+
 import grpc
-
+import pytest
 from src.clients.optimizer_grpc_client import OptimizerGrpcClient
-from src.scheduler.intelligent_scheduler import IntelligentScheduler
 from src.config.settings import OrchestratorSettings
-
+from src.scheduler.intelligent_scheduler import IntelligentScheduler
 
 # Fixtures
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_config():
     """Mock de configuração."""
     config = Mock(spec=OrchestratorSettings)
@@ -26,7 +25,7 @@ def mock_config():
     return config
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_metrics():
     """Mock de métricas."""
     metrics = Mock()
@@ -39,7 +38,7 @@ def mock_metrics():
     return metrics
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_priority_calculator():
     """Mock de PriorityCalculator."""
     calculator = Mock()
@@ -47,7 +46,7 @@ def mock_priority_calculator():
     return calculator
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_resource_allocator():
     """Mock de ResourceAllocator."""
     allocator = AsyncMock()
@@ -67,7 +66,7 @@ def mock_resource_allocator():
     return allocator
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_ticket():
     """Ticket de exemplo."""
     return {
@@ -86,7 +85,7 @@ def sample_ticket():
 # Tests - OptimizerGrpcClient
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 class TestOptimizerGrpcClient:
     """Testes de integração do OptimizerGrpcClient."""
 
@@ -246,7 +245,7 @@ class TestOptimizerGrpcClient:
 # Tests - IntelligentScheduler com Optimizer Integration
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 class TestIntelligentSchedulerOptimizerIntegration:
     """Testes de integração do scheduler com optimizer."""
 
@@ -431,7 +430,7 @@ class TestIntelligentSchedulerOptimizerIntegration:
 # Tests End-to-End
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 class TestOptimizerEndToEnd:
     """Testes end-to-end do fluxo completo."""
 

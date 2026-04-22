@@ -1,14 +1,15 @@
 """Playbook executor service for Self-Healing Engine"""
 
 import asyncio
+from collections.abc import Callable
 from pathlib import Path
 from time import perf_counter
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Optional
 
 import structlog
 import yaml
 from kubernetes import client, config
-from prometheus_client import Counter, Histogram, REGISTRY
+from prometheus_client import REGISTRY, Counter, Histogram
 
 from neural_hive_observability import get_tracer
 from src.services.circuit_breaker import CircuitBreaker, CircuitBreakerOpenError
@@ -123,7 +124,7 @@ class PlaybookExecutor:
         self.apps_v1: Optional[client.AppsV1Api] = None
 
         # Circuit Breakers para serviços externos
-        self._circuit_breakers: Dict[str, CircuitBreaker] = {}
+        self._circuit_breakers: dict[str, CircuitBreaker] = {}
         if circuit_breaker_enabled:
             self._circuit_breakers = {
                 "execution_ticket_service": CircuitBreaker(
@@ -167,11 +168,11 @@ class PlaybookExecutor:
             self.apps_v1 = client.AppsV1Api()
 
             logger.info("playbook_executor.initialized", in_cluster=self.k8s_in_cluster)
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error("playbook_executor.initialization_failed", error=str(e))
             raise
 
-    def list_playbooks(self) -> List[str]:
+    def list_playbooks(self) -> list[str]:
         """Lista playbooks disponíveis no diretório configurado."""
         return sorted([p.stem for p in self.playbooks_dir.glob("*.yaml")])
 
@@ -179,7 +180,7 @@ class PlaybookExecutor:
         """Verifica se o playbook existe no diretório."""
         return (self.playbooks_dir / f"{playbook_name}.yaml").exists()
 
-    def get_playbook_metadata(self, playbook_name: str) -> Dict[str, Any]:
+    def get_playbook_metadata(self, playbook_name: str) -> dict[str, Any]:
         """Retorna metadados básicos de um playbook (fail-open)."""
         try:
             playbook_path = self.playbooks_dir / f"{playbook_name}.yaml"
@@ -193,8 +194,8 @@ class PlaybookExecutor:
             return {"actions": []}
 
     def validate_playbook_structure(
-        self, playbook_name: str, playbook_data: Optional[Dict] = None
-    ) -> Dict[str, Any]:
+        self, playbook_name: str, playbook_data: Optional[dict] = None
+    ) -> dict[str, Any]:
         """
         Valida estrutura de playbook usando Pydantic.
 
@@ -360,7 +361,7 @@ class PlaybookExecutor:
 
             start_time = perf_counter()
             status_label = "success"
-            result: Dict[str, Any] = {}
+            result: dict[str, Any] = {}
 
             try:
                 execution_result = await asyncio.wait_for(
@@ -375,7 +376,7 @@ class PlaybookExecutor:
                     "status": "TIMEOUT",
                     "total_actions": total_actions,
                 }
-            except Exception as e:  # noqa: BLE001
+            except Exception as e:
                 status_label = "error"
                 result = {
                     "success": False,
@@ -612,7 +613,7 @@ class PlaybookExecutor:
             logger.info("playbook_executor.pod_restarted", pod=pod_name, namespace=namespace)
 
             return {"success": True, "action": "restart_pod", "pod": pod_name}
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error("playbook_executor.restart_pod_failed", error=str(e))
             return {"success": False, "action": "restart_pod", "error": str(e)}
 
@@ -637,7 +638,7 @@ class PlaybookExecutor:
                 "deployment": deployment_name,
                 "replicas": replicas,
             }
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error("playbook_executor.scale_deployment_failed", error=str(e))
             return {"success": False, "action": "scale_deployment", "error": str(e)}
 
@@ -862,6 +863,7 @@ class PlaybookExecutor:
 
             # Usar a API diretamente para obter métricas do pod
             import json
+
             from kubernetes import client
 
             path = f"/api/v1/namespaces/{namespace}/pods/{pod_name}/metrics"
@@ -1814,7 +1816,7 @@ class PlaybookExecutor:
                 await callback(payload)
             else:
                 callback(payload)
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.warning("playbook_executor.callback_failed", error=str(e))
 
     def _record_metrics(self, playbook_name: str, status: str, duration_seconds: float):
@@ -1824,5 +1826,5 @@ class PlaybookExecutor:
             self.playbook_execution_duration_seconds.labels(playbook=playbook_name).observe(
                 duration_seconds
             )
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.warning("playbook_executor.metrics_failed", error=str(e))

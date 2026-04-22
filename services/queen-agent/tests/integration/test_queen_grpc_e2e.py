@@ -9,16 +9,15 @@ Valida fluxo completo dos métodos gRPC com servidor real:
 - MakeStrategicDecision: cria nova decisão estratégica
 """
 
-import pytest
-import pytest_asyncio
-import uuid
 import socket
+import uuid
 from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock
 
 import grpc
+import pytest
+import pytest_asyncio
 from grpc import aio
-
 from src.grpc_server.queen_servicer import QueenAgentServicer
 from src.proto import queen_agent_pb2, queen_agent_pb2_grpc
 
@@ -30,7 +29,7 @@ def get_free_port() -> int:
         return s.getsockname()[1]
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_mongodb_client():
     """Mock do cliente MongoDB com comportamento realista"""
     client = AsyncMock()
@@ -43,7 +42,7 @@ def mock_mongodb_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_neo4j_client():
     """Mock do cliente Neo4j com comportamento realista"""
     client = AsyncMock()
@@ -52,7 +51,7 @@ def mock_neo4j_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_redis_client():
     """Mock do cliente Redis com comportamento realista"""
     client = AsyncMock()
@@ -61,25 +60,25 @@ def mock_redis_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_telemetry_aggregator():
     """Mock do TelemetryAggregator com comportamento realista"""
     return AsyncMock()
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_exception_service():
     """Mock do ExceptionApprovalService"""
     return AsyncMock()
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_decision_engine():
     """Mock do StrategicDecisionEngine"""
     return AsyncMock()
 
 
-@pytest.fixture
+@pytest.fixture()
 def servicer(
     mock_mongodb_client,
     mock_neo4j_client,
@@ -142,7 +141,7 @@ async def grpc_server_and_stub(
     await server.stop(grace=0)
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_context():
     """Mock do contexto gRPC com metadata"""
     context = MagicMock()
@@ -159,8 +158,8 @@ def mock_context():
 # =============================================================================
 
 
-@pytest.mark.e2e
-@pytest.mark.asyncio
+@pytest.mark.e2e()
+@pytest.mark.asyncio()
 async def test_get_strategic_decision_e2e_success(servicer, mock_mongodb_client, mock_context):
     """
     Teste E2E: busca decisão estratégica completa
@@ -204,8 +203,8 @@ async def test_get_strategic_decision_e2e_success(servicer, mock_mongodb_client,
     mock_context.set_code.assert_not_called()
 
 
-@pytest.mark.e2e
-@pytest.mark.asyncio
+@pytest.mark.e2e()
+@pytest.mark.asyncio()
 async def test_get_strategic_decision_e2e_not_found(servicer, mock_mongodb_client, mock_context):
     """
     Teste E2E: decisão não encontrada
@@ -221,8 +220,8 @@ async def test_get_strategic_decision_e2e_not_found(servicer, mock_mongodb_clien
     assert response.decision_id == ""
 
 
-@pytest.mark.e2e
-@pytest.mark.asyncio
+@pytest.mark.e2e()
+@pytest.mark.asyncio()
 async def test_get_strategic_decision_e2e_mongodb_error(
     servicer, mock_mongodb_client, mock_context
 ):
@@ -245,8 +244,8 @@ async def test_get_strategic_decision_e2e_mongodb_error(
 # =============================================================================
 
 
-@pytest.mark.e2e
-@pytest.mark.asyncio
+@pytest.mark.e2e()
+@pytest.mark.asyncio()
 async def test_list_strategic_decisions_e2e_with_filters(
     servicer, mock_mongodb_client, mock_context
 ):
@@ -302,8 +301,8 @@ async def test_list_strategic_decisions_e2e_with_filters(
     assert call_args.kwargs["skip"] == 0
 
 
-@pytest.mark.e2e
-@pytest.mark.asyncio
+@pytest.mark.e2e()
+@pytest.mark.asyncio()
 async def test_list_strategic_decisions_e2e_pagination(servicer, mock_mongodb_client, mock_context):
     """
     Teste E2E: paginação correta
@@ -338,8 +337,8 @@ async def test_list_strategic_decisions_e2e_pagination(servicer, mock_mongodb_cl
     assert call_args.kwargs["skip"] == 20
 
 
-@pytest.mark.e2e
-@pytest.mark.asyncio
+@pytest.mark.e2e()
+@pytest.mark.asyncio()
 async def test_list_strategic_decisions_e2e_empty_result(
     servicer, mock_mongodb_client, mock_context
 ):
@@ -365,8 +364,8 @@ async def test_list_strategic_decisions_e2e_empty_result(
 # =============================================================================
 
 
-@pytest.mark.e2e
-@pytest.mark.asyncio
+@pytest.mark.e2e()
+@pytest.mark.asyncio()
 async def test_get_system_status_e2e_healthy_system(
     servicer, mock_telemetry_aggregator, mock_context
 ):
@@ -398,8 +397,8 @@ async def test_get_system_status_e2e_healthy_system(
     mock_context.set_code.assert_not_called()
 
 
-@pytest.mark.e2e
-@pytest.mark.asyncio
+@pytest.mark.e2e()
+@pytest.mark.asyncio()
 async def test_get_system_status_e2e_degraded_system(
     servicer, mock_telemetry_aggregator, mock_context
 ):
@@ -428,8 +427,8 @@ async def test_get_system_status_e2e_degraded_system(
     assert response.active_incidents == 8
 
 
-@pytest.mark.e2e
-@pytest.mark.asyncio
+@pytest.mark.e2e()
+@pytest.mark.asyncio()
 async def test_get_system_status_e2e_prometheus_unavailable(
     servicer, mock_telemetry_aggregator, mock_context
 ):
@@ -452,8 +451,8 @@ async def test_get_system_status_e2e_prometheus_unavailable(
 # =============================================================================
 
 
-@pytest.mark.e2e
-@pytest.mark.asyncio
+@pytest.mark.e2e()
+@pytest.mark.asyncio()
 async def test_get_active_conflicts_e2e_with_conflicts(servicer, mock_neo4j_client, mock_context):
     """
     Teste E2E: conflitos ativos encontrados
@@ -479,8 +478,8 @@ async def test_get_active_conflicts_e2e_with_conflicts(servicer, mock_neo4j_clie
     mock_context.set_code.assert_not_called()
 
 
-@pytest.mark.e2e
-@pytest.mark.asyncio
+@pytest.mark.e2e()
+@pytest.mark.asyncio()
 async def test_get_active_conflicts_e2e_no_conflicts(servicer, mock_neo4j_client, mock_context):
     """
     Teste E2E: nenhum conflito ativo
@@ -494,8 +493,8 @@ async def test_get_active_conflicts_e2e_no_conflicts(servicer, mock_neo4j_client
     mock_context.set_code.assert_not_called()
 
 
-@pytest.mark.e2e
-@pytest.mark.asyncio
+@pytest.mark.e2e()
+@pytest.mark.asyncio()
 async def test_get_active_conflicts_e2e_neo4j_error(servicer, mock_neo4j_client, mock_context):
     """
     Teste E2E: erro de conexão com Neo4j
@@ -514,8 +513,8 @@ async def test_get_active_conflicts_e2e_neo4j_error(servicer, mock_neo4j_client,
 # =============================================================================
 
 
-@pytest.mark.e2e
-@pytest.mark.asyncio
+@pytest.mark.e2e()
+@pytest.mark.asyncio()
 async def test_full_decision_flow_e2e(
     servicer, mock_mongodb_client, mock_neo4j_client, mock_telemetry_aggregator, mock_context
 ):
@@ -604,8 +603,8 @@ async def test_full_decision_flow_e2e(
 # =============================================================================
 
 
-@pytest.mark.e2e
-@pytest.mark.asyncio
+@pytest.mark.e2e()
+@pytest.mark.asyncio()
 async def test_submit_insight_e2e_success(servicer, mock_mongodb_client, mock_context):
     """
     Teste E2E: submissão de insight aceita
@@ -642,8 +641,8 @@ async def test_submit_insight_e2e_success(servicer, mock_mongodb_client, mock_co
     mock_mongodb_client.db.analyst_insights.insert_one.assert_called_once()
 
 
-@pytest.mark.e2e
-@pytest.mark.asyncio
+@pytest.mark.e2e()
+@pytest.mark.asyncio()
 async def test_submit_insight_e2e_mongodb_error(servicer, mock_mongodb_client, mock_context):
     """
     Teste E2E: erro ao salvar insight
@@ -676,8 +675,8 @@ async def test_submit_insight_e2e_mongodb_error(servicer, mock_mongodb_client, m
 # =============================================================================
 
 
-@pytest.mark.e2e
-@pytest.mark.asyncio
+@pytest.mark.e2e()
+@pytest.mark.asyncio()
 async def test_grpc_server_get_strategic_decision_via_stub(grpc_server_and_stub):
     """
     Teste E2E com servidor gRPC real: GetStrategicDecision via stub
@@ -707,8 +706,8 @@ async def test_grpc_server_get_strategic_decision_via_stub(grpc_server_and_stub)
     mongodb_client.get_strategic_decision.assert_called_once_with(decision_id)
 
 
-@pytest.mark.e2e
-@pytest.mark.asyncio
+@pytest.mark.e2e()
+@pytest.mark.asyncio()
 async def test_grpc_server_list_strategic_decisions_via_stub(grpc_server_and_stub):
     """
     Teste E2E com servidor gRPC real: ListStrategicDecisions via stub
@@ -741,8 +740,8 @@ async def test_grpc_server_list_strategic_decisions_via_stub(grpc_server_and_stu
     assert response.decisions[0].decision_id == "dec-001"
 
 
-@pytest.mark.e2e
-@pytest.mark.asyncio
+@pytest.mark.e2e()
+@pytest.mark.asyncio()
 async def test_grpc_server_get_system_status_via_stub(grpc_server_and_stub):
     """
     Teste E2E com servidor gRPC real: GetSystemStatus via stub
@@ -769,8 +768,8 @@ async def test_grpc_server_get_system_status_via_stub(grpc_server_and_stub):
     assert response.active_incidents == 0
 
 
-@pytest.mark.e2e
-@pytest.mark.asyncio
+@pytest.mark.e2e()
+@pytest.mark.asyncio()
 async def test_grpc_server_get_active_conflicts_via_stub(grpc_server_and_stub):
     """
     Teste E2E com servidor gRPC real: GetActiveConflicts via stub
@@ -791,8 +790,8 @@ async def test_grpc_server_get_active_conflicts_via_stub(grpc_server_and_stub):
     assert response.conflicts[0].conflicts_with == "dec-002"
 
 
-@pytest.mark.e2e
-@pytest.mark.asyncio
+@pytest.mark.e2e()
+@pytest.mark.asyncio()
 async def test_grpc_server_make_strategic_decision_via_stub(grpc_server_and_stub):
     """
     Teste E2E com servidor gRPC real: MakeStrategicDecision via stub
@@ -823,8 +822,8 @@ async def test_grpc_server_make_strategic_decision_via_stub(grpc_server_and_stub
     decision_engine.make_strategic_decision.assert_called_once()
 
 
-@pytest.mark.e2e
-@pytest.mark.asyncio
+@pytest.mark.e2e()
+@pytest.mark.asyncio()
 async def test_grpc_server_full_flow_via_stub(grpc_server_and_stub):
     """
     Teste E2E com servidor gRPC real: fluxo completo via stub

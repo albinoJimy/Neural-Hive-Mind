@@ -1,12 +1,12 @@
 """Testes de integração para trace IDs nas respostas da API"""
 
-import pytest
-import re
-from unittest.mock import patch, AsyncMock
-from fastapi.testclient import TestClient
-
-import sys
 import os
+import re
+import sys
+from unittest.mock import AsyncMock, patch
+
+import pytest
+from fastapi.testclient import TestClient
 
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", "..", "src"))
 
@@ -16,10 +16,10 @@ TRACE_ID_PATTERN = re.compile(r"^[0-9a-f]{32}$")
 SPAN_ID_PATTERN = re.compile(r"^[0-9a-f]{16}$")
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_pipelines_and_producer():
     """Mock dos pipelines e producer para testes de endpoint"""
-    from pipelines.nlu_pipeline import NLUResult, Entity
+    from pipelines.nlu_pipeline import Entity, NLUResult
 
     nlu_result = NLUResult(
         domain="business",
@@ -53,7 +53,7 @@ def mock_pipelines_and_producer():
         yield {"nlu": mock_nlu, "kafka": mock_kafka, "redis": mock_redis, "health": mock_health}
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_voice_pipelines(mock_pipelines_and_producer):
     """Mock adicional para pipeline ASR (voz)"""
     from pipelines.asr_pipeline import ASRResult
@@ -73,7 +73,7 @@ def mock_voice_pipelines(mock_pipelines_and_producer):
         yield {**mock_pipelines_and_producer, "asr": mock_asr}
 
 
-@pytest.fixture
+@pytest.fixture()
 def test_client():
     """Cliente de teste FastAPI"""
     # Patch settings antes de importar app
@@ -93,7 +93,7 @@ def test_client():
         yield client
 
 
-@pytest.mark.integration
+@pytest.mark.integration()
 class TestTracingIntegration:
     """Testes de integração para trace IDs nas respostas"""
 

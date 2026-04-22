@@ -1,11 +1,13 @@
 """Testes para CanaryDeployer - Deploy Canary de Modelos ML."""
 
-import pytest
 from unittest.mock import AsyncMock
+
+import pytest
+
 from neural_hive_ml.drift_detector import CanaryDeployer
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_model_repo():
     """Mock ModelVersionRepository."""
     repo = AsyncMock()
@@ -20,7 +22,7 @@ def mock_model_repo():
     return repo
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_kafka_producer():
     """Mock Kafka producer."""
     producer = AsyncMock()
@@ -28,7 +30,7 @@ def mock_kafka_producer():
     return producer
 
 
-@pytest.fixture
+@pytest.fixture()
 def canary_deployer(mock_model_repo, mock_kafka_producer):
     """Fixture para CanaryDeployer."""
     return CanaryDeployer(
@@ -63,7 +65,7 @@ class TestCanaryDeployerInit:
 class TestStartCanary:
     """Testes de start_canary."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_start_canary_success(
         self, canary_deployer, mock_model_repo, mock_kafka_producer
     ):
@@ -76,7 +78,7 @@ class TestStartCanary:
         assert result["canary_traffic_percentage"] == 10
         assert result["duration_minutes"] == 60
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_start_canary_publishes_event(self, canary_deployer, mock_kafka_producer):
         """Testa que início de canary publica evento Kafka."""
         await canary_deployer.start_canary(version="v9", target_version="v8")
@@ -85,7 +87,7 @@ class TestStartCanary:
         call_args = mock_kafka_producer.produce_and_wait.call_args
         assert "ml.canary_started" in call_args[1]["topic"]
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_start_canary_validates_versions(self, canary_deployer, mock_model_repo):
         """Testa que start_canary valida existência das versões."""
         # Mock para retornar None para versão inexistente
@@ -100,7 +102,7 @@ class TestStartCanary:
 class TestCollectCanaryMetrics:
     """Testes de collect_canary_metrics."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_collect_metrics_success(self, canary_deployer):
         """Testa coleta de métricas canary com sucesso."""
         # Simular métricas coletadas
@@ -111,7 +113,7 @@ class TestCollectCanaryMetrics:
         assert "metrics" in result
         assert "collected_at" in result
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_collect_metrics_with_comparison(self, canary_deployer):
         """Testa coleta com comparação entre baseline e canary."""
         canary_id = "canary-v9-v8"
@@ -125,7 +127,7 @@ class TestCollectCanaryMetrics:
 class TestValidateCanary:
     """Testes de validate_canary."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_validate_canary_success(self, canary_deployer):
         """Testa validação de canary com sucesso."""
         canary_id = "canary-v9-v8"
@@ -135,7 +137,7 @@ class TestValidateCanary:
         assert "should_promote" in result
         assert "reasons" in result
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_validate_canary_with_better_metrics(self, canary_deployer):
         """Testa validação quando canary tem métricas melhores."""
         canary_id = "canary-v9-v8"
@@ -144,7 +146,7 @@ class TestValidateCanary:
         # Deve recomendar promoção se métricas são melhores
         assert result["should_promote"] is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_validate_canary_with_worse_metrics(self, canary_deployer):
         """Testa validação quando canary tem métricas piores."""
         # Simular métricas piores
@@ -154,7 +156,7 @@ class TestValidateCanary:
         # Verifica que avaliação foi feita
         assert "should_promote" in result
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_validate_canary_insufficient_samples(self, canary_deployer):
         """Testa validação com samples insuficientes."""
         canary_id = "canary-v9-v8"
@@ -167,7 +169,7 @@ class TestValidateCanary:
 class TestPromoteOrRollback:
     """Testes de promote_or_rollback."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_promote_canary(self, canary_deployer, mock_model_repo, mock_kafka_producer):
         """Testa promoção de canary."""
         canary_id = "canary-v9-v8"
@@ -177,7 +179,7 @@ class TestPromoteOrRollback:
         mock_model_repo.promote_model.assert_called_once()
         mock_kafka_producer.produce_and_wait.assert_called()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_rollback_canary(self, canary_deployer, mock_kafka_producer):
         """Testa rollback de canary."""
         canary_id = "canary-v9-v8"
@@ -186,7 +188,7 @@ class TestPromoteOrRollback:
         assert result["status"] == "rolled_back"
         mock_kafka_producer.produce_and_wait.assert_called()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_promote_publishes_event(self, canary_deployer, mock_kafka_producer):
         """Testa que promoção publica evento."""
         canary_id = "canary-v9-v8"
@@ -199,7 +201,7 @@ class TestPromoteOrRollback:
 class TestCanaryLifecycle:
     """Testes do ciclo de vida completo do canary."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_full_canary_lifecycle_success(self, canary_deployer, mock_model_repo):
         """Testa ciclo completo: start -> collect -> validate -> promote."""
         # Start
@@ -219,7 +221,7 @@ class TestCanaryLifecycle:
 
         assert final_result["status"] in ["promoted", "rolled_back"]
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_full_canary_lifecycle_rollback(self, canary_deployer):
         """Testa ciclo completo com rollback."""
         start_result = await canary_deployer.start_canary(version="v9", target_version="v8")
@@ -237,7 +239,7 @@ class TestCanaryLifecycle:
 class TestCanaryMetricsCalculation:
     """Testes de cálculo de métricas canary."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_calculate_traffic_split(self, canary_deployer):
         """Testa cálculo de split de tráfego."""
         result = await canary_deployer._calculate_traffic_split("v9", "v8")
@@ -245,7 +247,7 @@ class TestCanaryMetricsCalculation:
         assert result["canary_percentage"] == 10
         assert result["baseline_percentage"] == 90
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_calculate_traffic_split_custom(self, mock_model_repo, mock_kafka_producer):
         """Testa split com percentual customizado."""
         deployer = CanaryDeployer(

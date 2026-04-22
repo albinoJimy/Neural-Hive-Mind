@@ -5,8 +5,8 @@ Fornece interface assíncrona ao MongoDB via Motor para armazenamento de artefat
 """
 
 import time
-from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING, Any, Optional
 
 import structlog
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -101,7 +101,7 @@ class MongoDBClient:
             logger.info("mongodb_client_stopped")
 
     async def save_artifact_content(
-        self, artifact_id: str, content: str, metadata: Optional[Dict[str, Any]] = None
+        self, artifact_id: str, content: str, metadata: Optional[dict[str, Any]] = None
     ):
         """
         Salva conteúdo de artefato.
@@ -119,7 +119,7 @@ class MongoDBClient:
             document = {
                 "artifact_id": artifact_id,
                 "content": content,
-                "created_at": datetime.now(timezone.utc),
+                "created_at": datetime.now(UTC),
             }
 
             if metadata:
@@ -145,7 +145,7 @@ class MongoDBClient:
             # Fallback para update se houver race condition
             await self.db.artifacts.update_one(
                 {"artifact_id": artifact_id},
-                {"$set": {"content": content, "updated_at": datetime.now(timezone.utc)}},
+                {"$set": {"content": content, "updated_at": datetime.now(UTC)}},
             )
             logger.info("artifact_content_updated", artifact_id=artifact_id)
 
@@ -230,7 +230,7 @@ class MongoDBClient:
             logger.error("delete_artifact_failed", artifact_id=artifact_id, error=str(e))
             return False
 
-    async def get_artifact_sbom(self, artifact_id: str) -> Optional[Dict[str, Any]]:
+    async def get_artifact_sbom(self, artifact_id: str) -> Optional[dict[str, Any]]:
         """
         Recupera SBOM de um artefato.
 
@@ -299,7 +299,7 @@ class MongoDBClient:
             logger.error("get_artifact_sbom_failed", artifact_id=artifact_id, error=str(e))
             return None
 
-    def _is_sbom_document(self, data: Dict[str, Any]) -> bool:
+    def _is_sbom_document(self, data: dict[str, Any]) -> bool:
         """
         Verifica se um documento é um SBOM válido.
 
@@ -326,7 +326,7 @@ class MongoDBClient:
 
         return False
 
-    async def save_pipeline_logs(self, pipeline_id: str, logs: List[Dict[str, Any]]):
+    async def save_pipeline_logs(self, pipeline_id: str, logs: list[dict[str, Any]]):
         """
         Salva logs detalhados de pipeline.
 
@@ -342,7 +342,7 @@ class MongoDBClient:
             document = {
                 "pipeline_id": pipeline_id,
                 "logs": logs,
-                "created_at": datetime.now(timezone.utc),
+                "created_at": datetime.now(UTC),
             }
 
             await self.db.pipeline_logs.insert_one(document)
@@ -365,7 +365,7 @@ class MongoDBClient:
             logger.error("save_pipeline_logs_failed", pipeline_id=pipeline_id, error=str(e))
             raise
 
-    async def get_pipeline_logs(self, pipeline_id: str, limit: int = 100) -> List[Dict[str, Any]]:
+    async def get_pipeline_logs(self, pipeline_id: str, limit: int = 100) -> list[dict[str, Any]]:
         """
         Recupera logs de pipeline.
 
@@ -394,7 +394,7 @@ class MongoDBClient:
             logger.error("get_pipeline_logs_failed", pipeline_id=pipeline_id, error=str(e))
             return []
 
-    async def append_pipeline_log(self, pipeline_id: str, log_entry: Dict[str, Any]):
+    async def append_pipeline_log(self, pipeline_id: str, log_entry: dict[str, Any]):
         """
         Adiciona entrada de log a um pipeline existente ou cria novo.
 
@@ -406,13 +406,13 @@ class MongoDBClient:
             raise RuntimeError("MongoDB client not started")
 
         try:
-            log_entry["timestamp"] = datetime.now(timezone.utc)
+            log_entry["timestamp"] = datetime.now(UTC)
 
             await self.db.pipeline_logs.update_one(
                 {"pipeline_id": pipeline_id},
                 {
                     "$push": {"logs": log_entry},
-                    "$setOnInsert": {"created_at": datetime.now(timezone.utc)},
+                    "$setOnInsert": {"created_at": datetime.now(UTC)},
                 },
                 upsert=True,
             )

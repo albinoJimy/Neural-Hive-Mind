@@ -1,6 +1,6 @@
 """Modelos Pydantic para mensagens JSON-RPC 2.0 e protocolo MCP."""
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -11,7 +11,7 @@ class JSONRPCRequest(BaseModel):
     jsonrpc: str = Field(default="2.0", description="Versão do protocolo JSON-RPC")
     id: int = Field(..., description="Identificador único da requisição", ge=1)
     method: str = Field(..., description="Nome do método a ser invocado")
-    params: Dict[str, Any] = Field(default_factory=dict, description="Parâmetros do método")
+    params: dict[str, Any] = Field(default_factory=dict, description="Parâmetros do método")
 
     @field_validator("jsonrpc")
     @classmethod
@@ -35,7 +35,7 @@ class JSONRPCResponse(BaseModel):
 
     jsonrpc: str = Field(default="2.0", description="Versão do protocolo JSON-RPC")
     id: int = Field(..., description="Identificador da requisição correspondente")
-    result: Optional[Dict[str, Any]] = Field(default=None, description="Resultado da chamada")
+    result: Optional[dict[str, Any]] = Field(default=None, description="Resultado da chamada")
     error: Optional[JSONRPCError] = Field(default=None, description="Erro da chamada")
 
     @field_validator("jsonrpc")
@@ -53,17 +53,17 @@ class MCPToolDescriptor(BaseModel):
     name: str = Field(..., description="Nome único da ferramenta")
     title: Optional[str] = Field(default=None, description="Título legível da ferramenta")
     description: str = Field(..., description="Descrição da funcionalidade")
-    inputSchema: Dict[str, Any] = Field(..., description="Schema JSON para parâmetros de entrada")
-    outputSchema: Optional[Dict[str, Any]] = Field(
+    inputSchema: dict[str, Any] = Field(..., description="Schema JSON para parâmetros de entrada")
+    outputSchema: Optional[dict[str, Any]] = Field(
         default=None, description="Schema JSON para saída"
     )
-    annotations: Optional[Dict[str, Any]] = Field(default=None, description="Metadados adicionais")
+    annotations: Optional[dict[str, Any]] = Field(default=None, description="Metadados adicionais")
 
 
 class MCPToolsListResponse(BaseModel):
     """Modelo para resposta de tools/list."""
 
-    tools: List[MCPToolDescriptor] = Field(
+    tools: list[MCPToolDescriptor] = Field(
         default_factory=list, description="Lista de ferramentas disponíveis"
     )
 
@@ -72,7 +72,7 @@ class MCPToolCallRequest(BaseModel):
     """Modelo para requisição de tools/call."""
 
     name: str = Field(..., description="Nome da ferramenta a executar", min_length=1)
-    arguments: Dict[str, Any] = Field(
+    arguments: dict[str, Any] = Field(
         default_factory=dict, description="Argumentos para a ferramenta"
     )
 
@@ -88,10 +88,10 @@ class MCPContentItem(BaseModel):
 class MCPToolCallResponse(BaseModel):
     """Modelo para resposta de tools/call."""
 
-    content: List[MCPContentItem] = Field(
+    content: list[MCPContentItem] = Field(
         default_factory=list, description="Lista de items de conteúdo"
     )
-    structuredContent: Optional[Dict[str, Any]] = Field(
+    structuredContent: Optional[dict[str, Any]] = Field(
         default=None, description="Conteúdo estruturado"
     )
     isError: bool = Field(default=False, description="Indica se a execução resultou em erro")
@@ -128,6 +128,6 @@ class MCPPrompt(BaseModel):
 
     name: str = Field(..., description="Nome do prompt")
     description: Optional[str] = Field(default=None, description="Descrição do prompt")
-    arguments: Optional[List[MCPPromptArgument]] = Field(
+    arguments: Optional[list[MCPPromptArgument]] = Field(
         default=None, description="Argumentos do prompt"
     )

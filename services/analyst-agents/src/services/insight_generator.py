@@ -1,5 +1,4 @@
 import uuid
-from typing import Dict, List
 
 import structlog
 
@@ -22,7 +21,7 @@ class InsightGenerator:
         self.min_confidence = min_confidence
 
     async def generate_insight(
-        self, data: Dict, insight_type: InsightType, trace_id: str = "", span_id: str = ""
+        self, data: dict, insight_type: InsightType, trace_id: str = "", span_id: str = ""
     ) -> AnalystInsight:
         """Gerar insight a partir de dados"""
         tracer = get_tracer()
@@ -87,7 +86,7 @@ class InsightGenerator:
                 logger.error("generate_insight_failed", error=str(e))
                 raise
 
-    async def generate_anomaly_insight(self, anomaly: Dict) -> AnalystInsight:
+    async def generate_anomaly_insight(self, anomaly: dict) -> AnalystInsight:
         """Gerar insight de anomalia"""
         data = {
             "title": f'Anomalia detectada em {anomaly.get("metric_name")}',
@@ -106,7 +105,7 @@ class InsightGenerator:
 
         return await self.generate_insight(data, InsightType.ANOMALY)
 
-    def calculate_confidence_score(self, data: Dict) -> float:
+    def calculate_confidence_score(self, data: dict) -> float:
         """Calcular score de confiança"""
         try:
             # Baseado em: qualidade dos dados, tamanho da amostra, consistência entre fontes
@@ -121,7 +120,7 @@ class InsightGenerator:
             logger.error("calculate_confidence_failed", error=str(e))
             return 0.5
 
-    def calculate_impact_score(self, data: Dict) -> float:
+    def calculate_impact_score(self, data: dict) -> float:
         """Calcular score de impacto"""
         try:
             # Baseado em: entidades afetadas, severidade, urgência
@@ -137,8 +136,8 @@ class InsightGenerator:
             return 0.5
 
     def generate_recommendations(
-        self, data: Dict, insight_type: InsightType
-    ) -> List[Recommendation]:
+        self, data: dict, insight_type: InsightType
+    ) -> list[Recommendation]:
         """Gerar recomendações acionáveis"""
         recommendations = []
 
@@ -178,7 +177,7 @@ class InsightGenerator:
         else:
             return Priority.LOW
 
-    def _find_related_entities(self, data: Dict) -> List[RelatedEntity]:
+    def _find_related_entities(self, data: dict) -> list[RelatedEntity]:
         """Encontrar entidades relacionadas"""
         entities = []
 

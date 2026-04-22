@@ -5,7 +5,8 @@ Erros relacionados a configuração de ambiente, variáveis de ambiente,
 e inicialização de serviços.
 """
 
-from typing import Dict, Any, Optional
+from typing import Any, Optional
+
 from .base import NeuralHiveError, error_code
 
 
@@ -42,7 +43,7 @@ class ConfigurationError(NeuralHiveError):
         config_key: Optional[str] = None,
         reason: Optional[str] = None,
         code: Optional[str] = None,
-        details: Optional[Dict[str, Any]] = None,
+        details: Optional[dict[str, Any]] = None,
     ):
         code = code or ConfigErrorCode.MISSING_REQUIRED_CONFIG
 

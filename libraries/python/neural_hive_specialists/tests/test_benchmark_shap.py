@@ -4,12 +4,12 @@ Benchmarks de performance para SHAP Explainer.
 Mede tempo de execução de explicações SHAP em diferentes cenários.
 """
 
-import pytest
 import numpy as np
+import pytest
 from sklearn.ensemble import RandomForestClassifier
 
 
-@pytest.fixture
+@pytest.fixture()
 def small_model():
     """Modelo pequeno para benchmark."""
     X = np.random.rand(50, 4)
@@ -19,7 +19,7 @@ def small_model():
     return model
 
 
-@pytest.fixture
+@pytest.fixture()
 def shap_config():
     """Configuração para SHAPExplainer."""
     return {
@@ -29,7 +29,7 @@ def shap_config():
     }
 
 
-@pytest.mark.benchmark
+@pytest.mark.benchmark()
 class TestSHAPBenchmarks:
     """Benchmarks de SHAP."""
 
@@ -64,8 +64,9 @@ class TestSHAPBenchmarks:
 
         Expectativa: < 5 segundos
         """
-        from neural_hive_specialists.explainability.shap_explainer import SHAPExplainer
         import pandas as pd
+
+        from neural_hive_specialists.explainability.shap_explainer import SHAPExplainer
 
         # Criar background dataset pequeno
         background_data = pd.DataFrame(np.random.rand(30, 4), columns=["f1", "f2", "f3", "f4"])

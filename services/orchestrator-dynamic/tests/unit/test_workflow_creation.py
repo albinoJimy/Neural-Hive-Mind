@@ -5,11 +5,12 @@ Testa a criação e configuração de workflows de orquestração,
 incluindo configuração de timeouts, retry policies e tasks.
 """
 
-import pytest
 import sys
+from datetime import timedelta
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
-from datetime import timedelta
+
+import pytest
 
 # Adicionar src ao path
 src_path = str(Path(__file__).parent.parent.parent / "src")
@@ -21,7 +22,7 @@ sys.modules["neural_hive_security"] = MagicMock()
 sys.modules["neural_hive_security.cors"] = MagicMock()
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_temporal_client():
     """Temporal client mock."""
     client = AsyncMock()
@@ -30,7 +31,7 @@ def mock_temporal_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_cognitive_plan():
     """Cognitive plan sample para testes."""
     return {
@@ -45,7 +46,7 @@ def sample_cognitive_plan():
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_consolidated_decision():
     """Consolidated decision sample para testes."""
     return {
@@ -56,7 +57,7 @@ def sample_consolidated_decision():
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_config():
     """Config mock para testes."""
     config = MagicMock()
@@ -72,7 +73,7 @@ def mock_config():
 class TestCreateTemporalWorkflow:
     """Testes de criação de workflow Temporal."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_create_temporal_workflow(
         self, mock_temporal_client, sample_cognitive_plan, sample_consolidated_decision
     ):
@@ -102,7 +103,7 @@ class TestCreateTemporalWorkflow:
         assert result is not None
         mock_temporal_client.start_workflow.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_initialize_workflow_with_plan(
         self, mock_temporal_client, sample_cognitive_plan, sample_consolidated_decision
     ):

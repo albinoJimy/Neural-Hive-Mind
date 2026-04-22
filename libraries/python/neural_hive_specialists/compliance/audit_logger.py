@@ -2,11 +2,12 @@
 Audit logger para registrar eventos de compliance em MongoDB.
 """
 
-import structlog
 import uuid
-from datetime import datetime, timezone
-from typing import Dict, Any, Optional, List
-from pymongo import MongoClient, ASCENDING, DESCENDING
+from datetime import UTC, datetime
+from typing import Any, Optional
+
+import structlog
+from pymongo import ASCENDING, DESCENDING, MongoClient
 from pymongo.errors import PyMongoError
 
 logger = structlog.get_logger(__name__)
@@ -90,7 +91,7 @@ class AuditLogger:
 
         logger.info("Índices de audit log criados/verificados")
 
-    def log_config_change(self, changed_by: str, old_config: Dict, new_config: Dict, reason: str):
+    def log_config_change(self, changed_by: str, old_config: dict, new_config: dict, reason: str):
         """
         Registra mudança de configuração.
 
@@ -126,7 +127,7 @@ class AuditLogger:
         resource_type: str,
         resource_id: str,
         action: str,
-        metadata: Optional[Dict] = None,
+        metadata: Optional[dict] = None,
     ):
         """
         Registra acesso a dados sensíveis.
@@ -163,7 +164,7 @@ class AuditLogger:
         action_type: str,
         affected_documents: int,
         policy_name: str,
-        metadata: Optional[Dict] = None,
+        metadata: Optional[dict] = None,
     ):
         """
         Registra ação de política de retenção.
@@ -196,7 +197,7 @@ class AuditLogger:
         )
 
     def log_pii_detection(
-        self, plan_id: str, entities_detected: List[Dict], anonymization_applied: bool
+        self, plan_id: str, entities_detected: list[dict], anonymization_applied: bool
     ):
         """
         Registra detecção de PII.
@@ -273,7 +274,7 @@ class AuditLogger:
             severity=severity,
         )
 
-    def query_audit_logs(self, filters: Optional[Dict] = None, limit: int = 100) -> List[Dict]:
+    def query_audit_logs(self, filters: Optional[dict] = None, limit: int = 100) -> list[dict]:
         """
         Consulta audit logs com filtros.
 
@@ -315,7 +316,7 @@ class AuditLogger:
             logger.error("Erro ao consultar audit logs", error=str(e))
             return []
 
-    def get_audit_summary(self, start_date: datetime, end_date: datetime) -> Dict[str, Any]:
+    def get_audit_summary(self, start_date: datetime, end_date: datetime) -> dict[str, Any]:
         """
         Retorna resumo de auditoria para período.
 
@@ -355,7 +356,7 @@ class AuditLogger:
     def _log_event(
         self,
         event_type: str,
-        event_data: Dict,
+        event_data: dict,
         actor: str,
         severity: str = "info",
         correlation_id: Optional[str] = None,
@@ -376,7 +377,7 @@ class AuditLogger:
         try:
             document = {
                 "audit_id": str(uuid.uuid4()),
-                "timestamp": datetime.now(timezone.utc),
+                "timestamp": datetime.now(UTC),
                 "specialist_type": self.specialist_type,
                 "event_type": event_type,
                 "event_data": event_data,
@@ -406,7 +407,7 @@ class AuditLogger:
             )
 
     @staticmethod
-    def _calculate_config_diff(old: Dict, new: Dict) -> List[Dict]:
+    def _calculate_config_diff(old: dict, new: dict) -> list[dict]:
         """
         Calcula diferenças entre configurações.
 

@@ -10,8 +10,8 @@ Responsável por:
 
 import asyncio
 import uuid
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from datetime import UTC, datetime
+from typing import Any, Optional
 
 import structlog
 
@@ -43,11 +43,11 @@ class ScoutOrchestrator:
         self.default_timeout_ms = default_timeout_ms
 
         # Scouts disponíveis (registrados dinamicamente)
-        self.available_scouts: Dict[str, Any] = {}
+        self.available_scouts: dict[str, Any] = {}
 
         # Explorações ativas e completadas
-        self.active_explorations: Dict[str, Dict] = {}
-        self.completed_explorations: Dict[str, Dict] = {}
+        self.active_explorations: dict[str, dict] = {}
+        self.completed_explorations: dict[str, dict] = {}
 
         # Stats
         self.stats = {
@@ -61,10 +61,10 @@ class ScoutOrchestrator:
         self,
         plan_id: str,
         intent_text: str,
-        scouts: Optional[List[str]] = None,
+        scouts: Optional[list[str]] = None,
         timeout_ms: Optional[int] = None,
         exploration_type: str = "codebase",
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Coordena exploração paralela com múltiplos scouts.
 
@@ -100,7 +100,7 @@ class ScoutOrchestrator:
             "exploration_type": exploration_type,
             "scouts_deployed": scouts_to_deploy,
             "status": "running",
-            "started_at": datetime.now(timezone.utc),
+            "started_at": datetime.now(UTC),
             "timeout_ms": timeout,
         }
 
@@ -130,7 +130,7 @@ class ScoutOrchestrator:
     async def _run_exploration(
         self,
         exploration_id: str,
-        scouts: List[str],
+        scouts: list[str],
         timeout_ms: int,
         plan_id: str,
         intent_text: str,
@@ -233,7 +233,7 @@ class ScoutOrchestrator:
         except Exception as e:
             return (scout_name, None, str(e))
 
-    async def _gather_scout_results(self, scout_tasks: List[tuple]) -> Dict[str, Any]:
+    async def _gather_scout_results(self, scout_tasks: list[tuple]) -> dict[str, Any]:
         """Coleta resultados de todos os scouts."""
         results = {}
 
@@ -249,7 +249,7 @@ class ScoutOrchestrator:
 
         return results
 
-    async def _collect_partial_results(self, scout_tasks: List[tuple]) -> Dict[str, Any]:
+    async def _collect_partial_results(self, scout_tasks: list[tuple]) -> dict[str, Any]:
         """Coleta resultados parciais de scouts que completaram."""
         partial = {}
 
@@ -264,7 +264,7 @@ class ScoutOrchestrator:
 
         return partial
 
-    def aggregate_results(self, scout_results: Dict[str, Any]) -> Dict[str, Any]:
+    def aggregate_results(self, scout_results: dict[str, Any]) -> dict[str, Any]:
         """
         Agrega resultados de múltiplos scouts com deduplicação.
 
@@ -353,7 +353,7 @@ class ScoutOrchestrator:
             "exploration_id": exploration_id,
             "plan_id": plan_id,
             "scout_agent_id": self.scout_agent_id,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             **kwargs,
         }
 
@@ -370,7 +370,7 @@ class ScoutOrchestrator:
                 error=str(e),
             )
 
-    async def get_exploration_status(self, exploration_id: str) -> Optional[Dict[str, Any]]:
+    async def get_exploration_status(self, exploration_id: str) -> Optional[dict[str, Any]]:
         """
         Consulta status de uma exploração.
 
@@ -399,24 +399,24 @@ class ScoutOrchestrator:
 
         return None
 
-    async def _mark_exploration_completed(self, exploration_id: str, results: Dict[str, Any]):
+    async def _mark_exploration_completed(self, exploration_id: str, results: dict[str, Any]):
         """Marca exploração como completada."""
         if exploration_id in self.active_explorations:
             exploration = self.active_explorations.pop(exploration_id)
             exploration["status"] = "completed"
-            exploration["completed_at"] = datetime.now(timezone.utc)
+            exploration["completed_at"] = datetime.now(UTC)
             exploration["duration_ms"] = int(
                 (exploration["completed_at"] - exploration["started_at"]).total_seconds() * 1000
             )
             exploration["results"] = results
             self.completed_explorations[exploration_id] = exploration
 
-    async def _mark_exploration_timeout(self, exploration_id: str, partial_results: Dict[str, Any]):
+    async def _mark_exploration_timeout(self, exploration_id: str, partial_results: dict[str, Any]):
         """Marca exploração como timeout."""
         if exploration_id in self.active_explorations:
             exploration = self.active_explorations.pop(exploration_id)
             exploration["status"] = "timeout"
-            exploration["completed_at"] = datetime.now(timezone.utc)
+            exploration["completed_at"] = datetime.now(UTC)
             exploration["partial_results"] = partial_results
             self.completed_explorations[exploration_id] = exploration
 
@@ -425,7 +425,7 @@ class ScoutOrchestrator:
         if exploration_id in self.active_explorations:
             exploration = self.active_explorations.pop(exploration_id)
             exploration["status"] = "failed"
-            exploration["completed_at"] = datetime.now(timezone.utc)
+            exploration["completed_at"] = datetime.now(UTC)
             exploration["error"] = error
             self.completed_explorations[exploration_id] = exploration
 
@@ -446,7 +446,7 @@ class ScoutOrchestrator:
             del self.available_scouts[name]
             logger.info("scout_unregistered", scout_name=name)
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """Retorna estatísticas do orchestrator."""
         return {
             **self.stats,

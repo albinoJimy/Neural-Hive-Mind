@@ -1,8 +1,8 @@
 import asyncio
 import json
-from datetime import datetime
+from datetime import UTC, datetime
 from time import time
-from typing import Any, Dict, List, Tuple
+from typing import Any
 
 import grpc
 import structlog
@@ -142,7 +142,7 @@ class SpecialistsGrpcClient:
                 "gRPC channel initialized", specialist_type=specialist_type, endpoint=endpoint
             )
 
-    async def _get_grpc_metadata(self, specialist_type: str) -> List[Tuple[str, str]]:
+    async def _get_grpc_metadata(self, specialist_type: str) -> list[tuple[str, str]]:
         """Obter metadata gRPC com JWT-SVID para autenticação."""
         spiffe_enabled = getattr(self.config, "spiffe_enabled", False)
         spiffe_manager = self.spiffe_managers.get(specialist_type)
@@ -164,8 +164,8 @@ class SpecialistsGrpcClient:
             return []
 
     async def evaluate_plan(
-        self, specialist_type: str, cognitive_plan: Dict[str, Any], trace_context: Dict[str, str]
-    ) -> Dict[str, Any]:
+        self, specialist_type: str, cognitive_plan: dict[str, Any], trace_context: dict[str, str]
+    ) -> dict[str, Any]:
         """Invocar especialista individual para avaliar plano com retry"""
 
         # Obter timeout específico para o specialist (fallback para timeout global)
@@ -219,7 +219,7 @@ class SpecialistsGrpcClient:
 
                     # Converter response para dict
                     # Converter Timestamp protobuf para ISO string
-                    from datetime import datetime, timezone
+                    from datetime import datetime
 
                     expected_response_type = specialist_pb2.EvaluatePlanResponse
                     if response is None:
@@ -298,7 +298,7 @@ class SpecialistsGrpcClient:
                     # Converter timestamp para datetime
                     try:
                         evaluated_datetime = datetime.fromtimestamp(
-                            evaluated_at.seconds + evaluated_at.nanos / 1e9, tz=timezone.utc
+                            evaluated_at.seconds + evaluated_at.nanos / 1e9, tz=UTC
                         )
 
                         logger.debug(
@@ -415,8 +415,8 @@ class SpecialistsGrpcClient:
                     raise
 
     async def evaluate_plan_parallel(
-        self, cognitive_plan: Dict[str, Any], trace_context: Dict[str, str]
-    ) -> List[Dict[str, Any]]:
+        self, cognitive_plan: dict[str, Any], trace_context: dict[str, str]
+    ) -> list[dict[str, Any]]:
         """Invocar todos os especialistas em paralelo"""
         specialist_types = ["business", "technical", "behavior", "evolution", "architecture"]
 
@@ -464,7 +464,7 @@ class SpecialistsGrpcClient:
 
         return opinions
 
-    def _opinion_to_dict(self, opinion) -> Dict[str, Any]:
+    def _opinion_to_dict(self, opinion) -> dict[str, Any]:
         """Converte SpecialistOpinion protobuf para dict"""
         return {
             "confidence_score": opinion.confidence_score,
@@ -499,7 +499,7 @@ class SpecialistsGrpcClient:
             "metadata": dict(opinion.metadata),
         }
 
-    async def health_check_all(self) -> Dict[str, Dict[str, Any]]:
+    async def health_check_all(self) -> dict[str, dict[str, Any]]:
         """
         Verificar saúde de todos os especialistas via gRPC.
 
@@ -520,7 +520,7 @@ class SpecialistsGrpcClient:
                 if not channel:
                     health_results[specialist_type] = {
                         "status": "NOT_SERVING",
-                        "error": "no_channel"
+                        "error": "no_channel",
                     }
                     continue
 
@@ -532,7 +532,7 @@ class SpecialistsGrpcClient:
 
                 response = await asyncio.wait_for(
                     health_stub.Check(request, timeout=timeout_per_check),
-                    timeout=timeout_per_check + 1.0  # Buffer adicional
+                    timeout=timeout_per_check + 1.0,  # Buffer adicional
                 )
 
                 # Converter status gRPC para formato interno
@@ -571,17 +571,17 @@ class SpecialistsGrpcClient:
                 if e.code() == grpc.StatusCode.DEADLINE_EXCEEDED:
                     health_results[specialist_type] = {
                         "status": "NOT_SERVING",
-                        "error": "deadline_exceeded"
+                        "error": "deadline_exceeded",
                     }
                 elif e.code() == grpc.StatusCode.UNAVAILABLE:
                     health_results[specialist_type] = {
                         "status": "NOT_SERVING",
-                        "error": "unavailable"
+                        "error": "unavailable",
                     }
                 else:
                     health_results[specialist_type] = {
                         "status": "NOT_SERVING",
-                        "error": f"{e.code().name}"
+                        "error": f"{e.code().name}",
                     }
             except Exception as e:
                 logger.error(

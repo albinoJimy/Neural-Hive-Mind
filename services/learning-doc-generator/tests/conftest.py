@@ -1,18 +1,23 @@
 """Configuração de testes"""
 
-import os
 from datetime import datetime
-from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from motor.motor_asyncio import AsyncIOMotorClient
+from src.config import Settings
+from src.models import (
+    DocumentFormat,
+    DocumentStatus,
+    DocumentType,
+    ExperimentRun,
+    Insight,
+    InsightConfidence,
+    LearningDocument,
+)
 
-from src.config import Settings, get_settings
-from src.models import DocumentFormat, DocumentStatus, DocumentType, ExperimentRun, Insight, InsightConfidence, LearningDocument
 
-
-@pytest.fixture
+@pytest.fixture()
 def test_settings() -> Settings:
     """Configurações para teste"""
     return Settings(
@@ -46,7 +51,7 @@ def set_env_vars(monkeypatch, tmp_path):
     monkeypatch.setenv("DOCS_TEMPLATE_DIR", str(template_dir))
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_experiment_runs() -> list[ExperimentRun]:
     """Runs de experimento mockados"""
     return [
@@ -102,7 +107,7 @@ def mock_experiment_runs() -> list[ExperimentRun]:
     ]
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_insights() -> list[Insight]:
     """Insights mockados"""
     return [
@@ -125,7 +130,7 @@ def mock_insights() -> list[Insight]:
     ]
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_document() -> LearningDocument:
     """Documento mockado"""
     return LearningDocument(
@@ -145,21 +150,21 @@ def mock_document() -> LearningDocument:
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 async def mock_mongodb_client():
     """Cliente MongoDB mockado"""
     client = AsyncMock(spec=AsyncIOMotorClient)
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_mlflow_client():
     """Cliente MLflow mockado"""
     client = MagicMock()
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_mlflow_runs(mock_experiment_runs):
     """Runs MLflow mockados"""
     runs = []
@@ -189,14 +194,16 @@ def reset_settings():
     """Reseta settings para cada teste"""
     # Reset singleton
     import src.config.settings
+
     src.config.settings._settings_instance = None
 
     # Reset API state
     import src.api.v1.docs
+
     src.api.v1.docs._state = None
 
 
-@pytest.fixture
+@pytest.fixture()
 def output_dir(tmp_path):
     """Diretório de saída para testes"""
     output = tmp_path / "output"

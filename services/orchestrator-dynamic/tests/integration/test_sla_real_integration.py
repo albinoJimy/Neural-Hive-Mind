@@ -24,27 +24,25 @@ Uso:
 import asyncio
 import os
 import uuid
-from datetime import datetime, timezone, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Optional
 
 import httpx
 import pytest
 import redis.asyncio as aioredis
 from kafka import KafkaConsumer
-
 from src.clients.kafka_producer import KafkaProducerClient
 from src.config.settings import OrchestratorSettings
 from src.observability.metrics import OrchestratorMetrics
 from src.sla.alert_manager import AlertManager
 from src.sla.sla_monitor import SLAMonitor
 
-
 # ============================================================================
 # FIXTURES
 # ============================================================================
 
 
-@pytest.fixture
+@pytest.fixture()
 def real_config() -> OrchestratorSettings:
     """
     Criar configuração com endpoints reais do SLA Management System.
@@ -84,7 +82,7 @@ async def sla_management_health_check(real_config: OrchestratorSettings):
         pytest.skip(f"SLA Management System não disponível em {url}: {e}")
 
 
-@pytest.fixture
+@pytest.fixture()
 async def real_redis(real_config: OrchestratorSettings) -> Optional[aioredis.Redis]:
     """
     Conectar a instância real de Redis.
@@ -105,7 +103,7 @@ async def real_redis(real_config: OrchestratorSettings) -> Optional[aioredis.Red
         pytest.skip(f"Redis não disponível: {e}")
 
 
-@pytest.fixture
+@pytest.fixture()
 async def real_kafka_producer(real_config: OrchestratorSettings):
     """
     Criar producer Kafka real.
@@ -125,7 +123,7 @@ async def real_kafka_producer(real_config: OrchestratorSettings):
         pytest.skip(f"Kafka não disponível: {e}")
 
 
-@pytest.fixture
+@pytest.fixture()
 def real_metrics() -> OrchestratorMetrics:
     """Criar instância real de métricas (sem mocking)."""
     return OrchestratorMetrics()
@@ -136,9 +134,9 @@ def real_metrics() -> OrchestratorMetrics:
 # ============================================================================
 
 
-@pytest.mark.real_integration
-@pytest.mark.asyncio
-@pytest.mark.slow
+@pytest.mark.real_integration()
+@pytest.mark.asyncio()
+@pytest.mark.slow()
 async def test_fetch_real_budget_from_api(
     real_config: OrchestratorSettings, real_redis, real_metrics
 ):
@@ -181,9 +179,9 @@ async def test_fetch_real_budget_from_api(
         await sla_monitor.close()
 
 
-@pytest.mark.real_integration
-@pytest.mark.asyncio
-@pytest.mark.slow
+@pytest.mark.real_integration()
+@pytest.mark.asyncio()
+@pytest.mark.slow()
 async def test_check_budget_threshold_real(
     real_config: OrchestratorSettings, real_redis, real_metrics
 ):
@@ -226,9 +224,9 @@ async def test_check_budget_threshold_real(
         await sla_monitor.close()
 
 
-@pytest.mark.real_integration
-@pytest.mark.asyncio
-@pytest.mark.slow
+@pytest.mark.real_integration()
+@pytest.mark.asyncio()
+@pytest.mark.slow()
 async def test_deadline_check_with_real_tickets(
     real_config: OrchestratorSettings, real_redis, real_metrics
 ):
@@ -247,7 +245,7 @@ async def test_deadline_check_with_real_tickets(
     try:
         # Criar tickets de teste com deadlines realistas
         # Timestamps em milissegundos (epoch ms) conforme esperado pelo SLAMonitor
-        now_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
+        now_ms = int(datetime.now(UTC).timestamp() * 1000)
 
         # Ticket normal: criado agora, deadline em 5 min (~20% consumido considerando timeout)
         # Ticket crítico: criado há 2 min, deadline em 30s (~80%+ consumido)
@@ -300,9 +298,9 @@ async def test_deadline_check_with_real_tickets(
         await sla_monitor.close()
 
 
-@pytest.mark.real_integration
-@pytest.mark.asyncio
-@pytest.mark.slow
+@pytest.mark.real_integration()
+@pytest.mark.asyncio()
+@pytest.mark.slow()
 async def test_send_real_alert_to_kafka(
     real_config: OrchestratorSettings, real_redis, real_kafka_producer, real_metrics
 ):
@@ -360,9 +358,9 @@ async def test_send_real_alert_to_kafka(
         pass
 
 
-@pytest.mark.real_integration
-@pytest.mark.asyncio
-@pytest.mark.slow
+@pytest.mark.real_integration()
+@pytest.mark.asyncio()
+@pytest.mark.slow()
 async def test_publish_real_violation_to_kafka(
     real_config: OrchestratorSettings, real_redis, real_kafka_producer, real_metrics
 ):
@@ -384,7 +382,7 @@ async def test_publish_real_violation_to_kafka(
             "violation_id": str(uuid.uuid4()),
             "violation_type": "DEADLINE_EXCEEDED",
             "severity": "CRITICAL",
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "ticket_id": f"test-ticket-{uuid.uuid4().hex[:8]}",
             "workflow_id": f"test-workflow-{uuid.uuid4().hex[:8]}",
             "delay_ms": 5000,
@@ -421,9 +419,9 @@ async def test_publish_real_violation_to_kafka(
         pass
 
 
-@pytest.mark.real_integration
-@pytest.mark.asyncio
-@pytest.mark.slow
+@pytest.mark.real_integration()
+@pytest.mark.asyncio()
+@pytest.mark.slow()
 async def test_redis_caching_real(real_config: OrchestratorSettings, real_redis, real_metrics):
     """
     Teste 6: Verificar que caching Redis funciona end-to-end.
@@ -484,9 +482,9 @@ async def test_redis_caching_real(real_config: OrchestratorSettings, real_redis,
         await sla_monitor.close()
 
 
-@pytest.mark.real_integration
-@pytest.mark.asyncio
-@pytest.mark.slow
+@pytest.mark.real_integration()
+@pytest.mark.asyncio()
+@pytest.mark.slow()
 async def test_alert_deduplication_real(
     real_config: OrchestratorSettings, real_redis, real_kafka_producer, real_metrics
 ):
@@ -547,9 +545,9 @@ async def test_alert_deduplication_real(
         pass
 
 
-@pytest.mark.real_integration
-@pytest.mark.asyncio
-@pytest.mark.slow
+@pytest.mark.real_integration()
+@pytest.mark.asyncio()
+@pytest.mark.slow()
 async def test_end_to_end_sla_monitoring_flow(
     real_config: OrchestratorSettings, real_redis, real_kafka_producer, real_metrics
 ):
@@ -576,7 +574,7 @@ async def test_end_to_end_sla_monitoring_flow(
     try:
         workflow_id = f"test-e2e-{uuid.uuid4().hex[:8]}"
         # Timestamps em milissegundos (epoch ms) conforme esperado pelo SLAMonitor
-        now_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
+        now_ms = int(datetime.now(UTC).timestamp() * 1000)
 
         # Criar tickets realistas com estrutura wrapper correta
         ticket_id_1 = f"ticket-e2e-1-{uuid.uuid4().hex[:8]}"
@@ -658,7 +656,7 @@ async def test_end_to_end_sla_monitoring_flow(
                     "violation_id": str(uuid.uuid4()),
                     "violation_type": "DEADLINE_EXCEEDED",
                     "severity": "CRITICAL",
-                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "timestamp": datetime.now(UTC).isoformat(),
                     "ticket_id": ticket.get("ticket_id"),
                     "workflow_id": workflow_id,
                     "delay_ms": abs(deadline_check.get("remaining_seconds", 0) * 1000),
@@ -694,9 +692,9 @@ async def test_end_to_end_sla_monitoring_flow(
 # ============================================================================
 
 
-@pytest.mark.real_integration
-@pytest.mark.asyncio
-@pytest.mark.slow
+@pytest.mark.real_integration()
+@pytest.mark.asyncio()
+@pytest.mark.slow()
 async def test_sla_monitoring_under_load(
     real_config: OrchestratorSettings, real_redis, real_metrics
 ):
@@ -716,7 +714,7 @@ async def test_sla_monitoring_under_load(
     try:
         num_workflows = 100
         tickets_per_workflow = 5
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         # Criar workflows de teste
         workflows = []
@@ -762,8 +760,8 @@ async def test_sla_monitoring_under_load(
         await sla_monitor.close()
 
 
-@pytest.mark.real_integration
-@pytest.mark.asyncio
+@pytest.mark.real_integration()
+@pytest.mark.asyncio()
 async def test_threshold_validation_accuracy(
     real_config: OrchestratorSettings, real_redis, real_metrics
 ):
@@ -778,7 +776,7 @@ async def test_threshold_validation_accuracy(
     await sla_monitor.initialize()
 
     try:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         # Teste 1: Deadline exatamente em ~80% consumido
         # Criado há 80s, deadline em 100s total => 80% consumido

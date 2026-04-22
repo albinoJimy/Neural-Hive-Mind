@@ -3,13 +3,12 @@
 import pytest
 from src.discovery.multilanguage import MultiLanguagePatternDiscovery, PatternLanguage
 
-
 # ========================================================================
 # Fixtures
 # ========================================================================
 
 
-@pytest.fixture
+@pytest.fixture()
 def multilang_discovery():
     """Instância do detector multi-linguagem."""
     return MultiLanguagePatternDiscovery()

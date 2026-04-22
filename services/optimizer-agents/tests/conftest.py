@@ -12,10 +12,11 @@ from pathlib import Path
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-import pytest
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, Mock
-from datetime import datetime, timezone
 from uuid import uuid4
+
+import pytest
 
 
 @pytest.fixture
@@ -228,7 +229,7 @@ def sample_experiment_request():
         randomization_strategy=RandomizationStrategy.RANDOM,
         ethical_approval_required=False,
         rollback_on_failure=True,
-        created_at=int(datetime.now(timezone.utc).timestamp() * 1000),
+        created_at=int(datetime.now(UTC).timestamp() * 1000),
         created_by="optimizer-agents",
     )
 

@@ -4,11 +4,10 @@ Parsing de Rust para análise estática.
 """
 
 import pytest
-
 from src.exploration.parsers.multilanguage.rust_parser import RustParser
 
 
-@pytest.fixture
+@pytest.fixture()
 def rust_parser():
     return RustParser()
 

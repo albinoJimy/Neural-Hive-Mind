@@ -1,6 +1,6 @@
 """Clientes HTTP do AI CodeGen MCP Server."""
 
-from .openai_client import OpenAIClient
 from .copilot_client import CopilotClient
+from .openai_client import OpenAIClient
 
 __all__ = ["OpenAIClient", "CopilotClient"]

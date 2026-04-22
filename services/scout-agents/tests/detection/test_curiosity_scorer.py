@@ -4,41 +4,41 @@ Testes unitários abrangentes para CuriosityScorer.
 Cobertura: cálculo de curiosidade, novidade, relevância, ganho de informação.
 """
 
-import pytest
-import numpy as np
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import patch
 
+import numpy as np
+import pytest
 from src.detection.curiosity_scorer import CuriosityScorer
 from src.models.raw_event import RawEvent
-from neural_hive_domain import UnifiedDomain
 
+from neural_hive_domain import UnifiedDomain
 
 # ============================================================================
 # Fixtures
 # ============================================================================
 
 
-@pytest.fixture
+@pytest.fixture()
 def curiosity_scorer():
     """Instância de CuriosityScorer para testes."""
     return CuriosityScorer()
 
 
-@pytest.fixture
+@pytest.fixture()
 def event_with_numeric_features():
     """Evento com features numéricas."""
     return RawEvent(
         event_id="numeric-event-001",
         source="analytics",
         event_type="metric",
-        timestamp=datetime.now(timezone.utc),
+        timestamp=datetime.now(UTC),
         payload={"cpu": 75.5, "memory": 60.2, "disk": 45.8, "network": 100.0, "requests": 1000},
         metadata={"trace_id": "trace-001"},
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def event_with_high_variance():
     """Evento com features de alta variância."""
     values = [i * 10 + np.random.random() * 100 for i in range(20)]
@@ -46,20 +46,20 @@ def event_with_high_variance():
         event_id="variance-event-001",
         source="sensor",
         event_type="reading",
-        timestamp=datetime.now(timezone.utc),
+        timestamp=datetime.now(UTC),
         payload={"values": values, "mean": np.mean(values)},
         metadata={"trace_id": "trace-variance"},
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def novel_event():
     """Evento potencialmente novo."""
     return RawEvent(
         event_id="novel-event-001",
         source="new-source",
         event_type="new-event-type",
-        timestamp=datetime.now(timezone.utc),
+        timestamp=datetime.now(UTC),
         payload={"novel_metric": 999.99},
         metadata={"trace_id": "trace-novel"},
     )
@@ -144,7 +144,7 @@ class TestCuriosityScoreCalculation:
             event_id="test",
             source="test",
             event_type="test",
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
             payload={"value": 1},
             metadata={},
         )
@@ -253,7 +253,7 @@ class TestRelevanceCalculation:
             event_id="user-act",
             source="app",
             event_type="user_action",
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
             payload={"action": "click"},
             metadata={},
         )
@@ -267,7 +267,7 @@ class TestRelevanceCalculation:
             event_id="metric",
             source="prometheus",
             event_type="metric",
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
             payload={"value": 100},
             metadata={},
         )
@@ -287,7 +287,7 @@ class TestRelevanceCalculation:
             event_id="high-rel",
             source="app",
             event_type="user_action",
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
             payload={"action": "purchase"},
             metadata={},
         )
@@ -537,7 +537,7 @@ class TestEdgeCases:
             event_id="extreme",
             source="test",
             event_type="test",
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
             payload={"value": 1e308, "another": -1e308},
             metadata={},
         )

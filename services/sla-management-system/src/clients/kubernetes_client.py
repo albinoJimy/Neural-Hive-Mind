@@ -1,7 +1,7 @@
 """Cliente Kubernetes para SLA Management System."""
 
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from datetime import UTC, datetime
+from typing import Any, Optional
 
 import structlog
 from kubernetes import client, config
@@ -68,7 +68,7 @@ class KubernetesClient:
         """Verifica se cliente esta saudavel."""
         return self._connected and self.custom_api is not None
 
-    async def list_slo_definitions(self, namespace: Optional[str] = None) -> List[Dict[str, Any]]:
+    async def list_slo_definitions(self, namespace: Optional[str] = None) -> list[dict[str, Any]]:
         """
         Lista CRDs SLODefinition no cluster.
 
@@ -118,7 +118,7 @@ class KubernetesClient:
                 )
                 raise
 
-    async def get_slo_definition(self, name: str, namespace: str) -> Optional[Dict[str, Any]]:
+    async def get_slo_definition(self, name: str, namespace: str) -> Optional[dict[str, Any]]:
         """
         Busca CRD SLODefinition especifico.
 
@@ -167,7 +167,7 @@ class KubernetesClient:
                 )
                 return None
 
-    async def update_slo_status(self, name: str, namespace: str, status: Dict[str, Any]) -> bool:
+    async def update_slo_status(self, name: str, namespace: str, status: dict[str, Any]) -> bool:
         """
         Atualiza status do CRD SLODefinition.
 
@@ -198,7 +198,7 @@ class KubernetesClient:
                 # Preparar patch de status
                 current_status = current.get("status", {})
                 current_status.update(status)
-                current_status["lastSyncTime"] = datetime.now(timezone.utc).isoformat()
+                current_status["lastSyncTime"] = datetime.now(UTC).isoformat()
 
                 patch = {"status": current_status}
 

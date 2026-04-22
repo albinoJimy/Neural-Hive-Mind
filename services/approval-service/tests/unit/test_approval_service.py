@@ -6,15 +6,14 @@ Testa logica de negocio para aprovacao/rejeicao de planos cognitivos.
 
 import pytest
 from pymongo.errors import DuplicateKeyError
-
-from src.models.approval import ApprovalRequest, ApprovalDecision, ApprovalStatus, RiskBand
+from src.models.approval import ApprovalDecision, ApprovalRequest, ApprovalStatus, RiskBand
 from src.services.approval_service import ApprovalService
 
 
 class TestApprovalServiceProcessRequest:
     """Testes para processamento de requests de aprovacao"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def approval_service(
         self, mock_settings, mock_mongodb_client, mock_response_producer, mock_metrics
     ):
@@ -26,7 +25,7 @@ class TestApprovalServiceProcessRequest:
             metrics=mock_metrics,
         )
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_process_approval_request_success(
         self, approval_service, sample_approval_request, mock_mongodb_client, mock_metrics
     ):
@@ -43,7 +42,7 @@ class TestApprovalServiceProcessRequest:
         mock_metrics.increment_approval_requests_received.assert_called_once()
         mock_metrics.update_pending_gauge.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_process_approval_request_missing_plan_id(self, approval_service):
         """Teste com plan_id ausente"""
         invalid_request = ApprovalRequest(
@@ -59,7 +58,7 @@ class TestApprovalServiceProcessRequest:
 
         assert "plan_id" in str(exc_info.value)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_process_approval_request_missing_intent_id(self, approval_service):
         """Teste com intent_id ausente"""
         invalid_request = ApprovalRequest(
@@ -75,7 +74,7 @@ class TestApprovalServiceProcessRequest:
 
         assert "intent_id" in str(exc_info.value)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_process_approval_request_duplicate_plan(
         self, approval_service, sample_approval_request, mock_mongodb_client
     ):
@@ -87,7 +86,7 @@ class TestApprovalServiceProcessRequest:
         with pytest.raises(DuplicateKeyError):
             await approval_service.process_approval_request(sample_approval_request)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_process_approval_request_with_defaults(
         self, approval_service, mock_mongodb_client
     ):
@@ -111,7 +110,7 @@ class TestApprovalServiceProcessRequest:
 class TestApprovalServiceApprovePlan:
     """Testes para aprovacao de planos"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def approval_service(
         self, mock_settings, mock_mongodb_client, mock_response_producer, mock_metrics
     ):
@@ -123,7 +122,7 @@ class TestApprovalServiceApprovePlan:
             metrics=mock_metrics,
         )
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_approve_plan_success(
         self,
         approval_service,
@@ -151,7 +150,7 @@ class TestApprovalServiceApprovePlan:
             "approved", sample_approval_request.risk_band
         )
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_approve_plan_not_found(self, approval_service, mock_mongodb_client):
         """Teste com plano nao encontrado"""
         mock_mongodb_client.get_approval_by_plan_id.return_value = None
@@ -161,7 +160,7 @@ class TestApprovalServiceApprovePlan:
 
         assert "nao encontrado" in str(exc_info.value)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_approve_plan_already_approved(
         self, approval_service, sample_approval_request, mock_mongodb_client
     ):
@@ -174,7 +173,7 @@ class TestApprovalServiceApprovePlan:
 
         assert "nao esta pendente" in str(exc_info.value)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_approve_plan_update_fails(
         self, approval_service, sample_approval_request, mock_mongodb_client
     ):
@@ -191,7 +190,7 @@ class TestApprovalServiceApprovePlan:
 class TestApprovalServiceRejectPlan:
     """Testes para rejeicao de planos"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def approval_service(
         self, mock_settings, mock_mongodb_client, mock_response_producer, mock_metrics
     ):
@@ -203,7 +202,7 @@ class TestApprovalServiceRejectPlan:
             metrics=mock_metrics,
         )
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_reject_plan_success(
         self,
         approval_service,
@@ -234,7 +233,7 @@ class TestApprovalServiceRejectPlan:
             "rejected", sample_approval_request.risk_band
         )
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_reject_plan_empty_reason(self, approval_service):
         """Teste com motivo da rejeicao vazio"""
         with pytest.raises(ValueError) as exc_info:
@@ -244,7 +243,7 @@ class TestApprovalServiceRejectPlan:
 
         assert "obrigatorio" in str(exc_info.value)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_reject_plan_whitespace_reason(self, approval_service):
         """Teste com motivo contendo apenas espacos"""
         with pytest.raises(ValueError) as exc_info:
@@ -254,7 +253,7 @@ class TestApprovalServiceRejectPlan:
 
         assert "obrigatorio" in str(exc_info.value)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_reject_plan_not_found(self, approval_service, mock_mongodb_client):
         """Teste com plano nao encontrado"""
         mock_mongodb_client.get_approval_by_plan_id.return_value = None
@@ -266,7 +265,7 @@ class TestApprovalServiceRejectPlan:
 
         assert "nao encontrado" in str(exc_info.value)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_reject_plan_already_rejected(
         self, approval_service, sample_approval_request, mock_mongodb_client
     ):
@@ -285,7 +284,7 @@ class TestApprovalServiceRejectPlan:
 class TestApprovalServiceQueries:
     """Testes para consultas de aprovacoes"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def approval_service(
         self, mock_settings, mock_mongodb_client, mock_response_producer, mock_metrics
     ):
@@ -297,7 +296,7 @@ class TestApprovalServiceQueries:
             metrics=mock_metrics,
         )
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_pending_approvals_default(self, approval_service, mock_mongodb_client):
         """Teste de listagem de pendentes com parametros padrao"""
         await approval_service.get_pending_approvals()
@@ -306,7 +305,7 @@ class TestApprovalServiceQueries:
             limit=50, offset=0, filters=None
         )
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_pending_approvals_with_filters(self, approval_service, mock_mongodb_client):
         """Teste de listagem com filtros"""
         await approval_service.get_pending_approvals(
@@ -317,7 +316,7 @@ class TestApprovalServiceQueries:
             limit=10, offset=20, filters={"risk_band": "high", "is_destructive": True}
         )
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_approval_by_plan_id(
         self, approval_service, sample_approval_request, mock_mongodb_client
     ):
@@ -329,7 +328,7 @@ class TestApprovalServiceQueries:
         assert result == sample_approval_request
         mock_mongodb_client.get_approval_by_plan_id.assert_called_once_with("plan-001")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_approval_stats(self, approval_service, mock_mongodb_client):
         """Teste de estatisticas"""
         result = await approval_service.get_approval_stats()

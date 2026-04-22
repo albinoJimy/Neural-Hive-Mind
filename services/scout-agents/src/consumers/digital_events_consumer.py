@@ -9,8 +9,8 @@ Created: 2026-03-31 (CR-02)
 """
 
 import json
-from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Any, Dict, Optional
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING, Any, Optional
 
 if TYPE_CHECKING:
     from ..config.settings import Settings
@@ -220,7 +220,7 @@ class DigitalEventsConsumer:
             ).inc()
 
         self.stats["events_processed"] += 1
-        self.stats["last_event_at"] = datetime.now(timezone.utc)
+        self.stats["last_event_at"] = datetime.now(UTC)
 
         logger.debug("evento_digital_processado", event_id=event.event_id)
 
@@ -269,7 +269,7 @@ class DigitalEventsConsumer:
             logger.error("erro_encaminhar_para_engine", event_id=event.event_id, error=str(e))
             raise
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """
         Retorna estatísticas de consumo.
 

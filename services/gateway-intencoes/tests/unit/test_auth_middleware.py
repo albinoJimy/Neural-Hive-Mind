@@ -3,13 +3,14 @@ Testes unitários para Auth Middleware
 Testa autenticação OAuth2, validação de tokens e mTLS
 """
 
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
-from fastapi import Request, HTTPException
-from starlette.responses import Response
-from starlette.datastructure import Headers
-import sys
 import os
+import sys
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
+from fastapi import HTTPException, Request
+from starlette.datastructure import Headers
+from starlette.responses import Response
 
 # Add src to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
@@ -18,14 +19,14 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 class TestAuthMiddleware:
     """Testes para middleware de autenticação"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_app(self):
         """Mock do app FastAPI"""
         app = MagicMock()
         app.state = MagicMock()
         return app
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_settings(self):
         """Mock das configurações"""
         settings = MagicMock()
@@ -37,7 +38,7 @@ class TestAuthMiddleware:
         settings.jwks_uri = "http://keycloak:8080/realms/neural-hive/protocol/openid-connect/certs"
         return settings
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_rate_limiter(self):
         """Mock do rate limiter"""
         rl = AsyncMock()
@@ -50,7 +51,7 @@ class TestAuthMiddleware:
         rl.check_rate_limit = AsyncMock(return_value=result)
         return rl
 
-    @pytest.fixture
+    @pytest.fixture()
     def auth_middleware(self, mock_app, mock_settings, mock_rate_limiter):
         """Fixture do middleware de autenticação"""
         with (
@@ -87,7 +88,7 @@ class TestAuthMiddleware:
             )
             yield middleware
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_valid_token_passes(self, auth_middleware, mock_settings):
         """Testar que token válido passa na autenticação"""
         # Criar request mockado
@@ -112,7 +113,7 @@ class TestAuthMiddleware:
         assert hasattr(request.state, "authenticated")
         assert request.state.authenticated is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_invalid_token_blocked(self, auth_middleware, mock_settings):
         """Testar que token inválido é bloqueado"""
 
@@ -137,7 +138,7 @@ class TestAuthMiddleware:
             # Verificar resposta de erro
             assert response.status_code == 401
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_missing_token_blocked(self, auth_middleware, mock_settings):
         """Testar que ausência de token é bloqueada"""
         request = MagicMock(spec=Request)
@@ -155,7 +156,7 @@ class TestAuthMiddleware:
         # Verificar que retorna erro
         assert response.status_code == 401
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_excluded_paths_skip_auth(self, auth_middleware, mock_settings):
         """Testar que paths excluídos pulam autenticação"""
         request = MagicMock(spec=Request)
@@ -175,7 +176,7 @@ class TestAuthMiddleware:
         # Não deve ter usuário autenticado
         assert not hasattr(request.state, "user") or not getattr(request.state, "user", None)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_disabled_validation_allows_request(
         self, mock_app, mock_settings, mock_rate_limiter
     ):
@@ -204,7 +205,7 @@ class TestAuthMiddleware:
             # Deve retornar resposta normal
             assert response is not None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_admin_endpoint_requires_admin_role(self, auth_middleware, mock_settings):
         """Testar que endpoint admin requer role admin"""
         # Mock com role admin
@@ -256,7 +257,7 @@ class TestAuthMiddleware:
             # Admin com role correta deve passar
             assert response is not None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_non_admin_blocked_from_admin_endpoint(self, auth_middleware, mock_settings):
         """Testar que usuário sem role admin é bloqueado de endpoints admin"""
         # Mock sem role admin
@@ -305,7 +306,7 @@ class TestAuthMiddleware:
             # Deve retornar erro 403
             assert response.status_code == 403
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_rate_limit_checked_for_authenticated_user(
         self, auth_middleware, mock_settings, mock_rate_limiter
     ):
@@ -327,7 +328,7 @@ class TestAuthMiddleware:
         # Verificar que rate limit foi verificado
         mock_rate_limiter.check_rate_limit.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_rate_limit_exceeded_returns_429(self, mock_app, mock_settings):
         """Testar que rate limit excedido retorna 429"""
         # Mock rate limiter que bloqueia
@@ -385,7 +386,7 @@ class TestAuthMiddleware:
 
             assert response.status_code == 429
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_context_headers_added_to_request(self, auth_middleware, mock_settings):
         """Testar que headers de contexto são adicionados ao request"""
         request = MagicMock(spec=Request)
@@ -414,12 +415,12 @@ class TestAuthMiddleware:
 class TestOptionalAuthMiddleware:
     """Testes para middleware de autenticação opcional"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_app(self):
         """Mock do app FastAPI"""
         return MagicMock()
 
-    @pytest.fixture
+    @pytest.fixture()
     def optional_auth_middleware(self, mock_app):
         """Fixture do middleware de autenticação opcional"""
         with patch("middleware.auth_middleware.get_settings") as mock_settings:
@@ -432,7 +433,7 @@ class TestOptionalAuthMiddleware:
             middleware = OptionalAuthMiddleware(mock_app)
             yield middleware
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_valid_token_sets_user_context(self, optional_auth_middleware):
         """Testar que token válido define contexto do usuário"""
         with patch("middleware.auth_middleware.get_oauth2_validator") as mock_validator:
@@ -458,7 +459,7 @@ class TestOptionalAuthMiddleware:
             assert request.state.user is not None
             assert request.state.user["username"] == "testuser"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_no_token_still_passes(self, optional_auth_middleware):
         """Testar que ausência de token ainda permite request"""
         request = MagicMock(spec=Request)
@@ -475,7 +476,7 @@ class TestOptionalAuthMiddleware:
         assert request.state.authenticated is False
         assert request.state.user is None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_invalid_token_ignored(self, optional_auth_middleware):
         """Testar que token inválido é ignorado (não bloqueia)"""
         with patch("middleware.auth_middleware.get_oauth2_validator") as mock_validator:
@@ -499,7 +500,7 @@ class TestOptionalAuthMiddleware:
 class TestGetCurrentUser:
     """Testes para dependência get_current_user"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_current_user_authenticated(self):
         """Testar obter usuário atual autenticado"""
         from middleware.auth_middleware import get_current_user
@@ -514,7 +515,7 @@ class TestGetCurrentUser:
         assert user["username"] == "testuser"
         assert user["user_id"] == "user-123"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_current_user_not_authenticated_raises_exception(self):
         """Testar que usuário não autenticado lança exceção"""
         from middleware.auth_middleware import get_current_user
@@ -532,7 +533,7 @@ class TestGetCurrentUser:
 class TestMTLSValidation:
     """Testes para validação mTLS"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def auth_middleware_with_mtls(self):
         """Fixture com middleware configurado para mTLS"""
         mock_app = MagicMock()
@@ -559,7 +560,7 @@ class TestMTLSValidation:
             middleware = AuthMiddleware(mock_app, exclude_paths=[])
             yield middleware
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_valid_mtls_certificate_enriches_context(self, auth_middleware_with_mtls):
         """Testar que certificado mTLS válido enriquece contexto"""
         request = MagicMock(spec=Request)
@@ -590,7 +591,7 @@ class TestMTLSValidation:
         assert mtls_context is not None
         assert mtls_context.get("verified") is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_missing_mtls_certificate_skips_validation(self, auth_middleware_with_mtls):
         """Testar que ausência de certificado mTLS não bloqueia"""
         request = MagicMock(spec=Request)
@@ -615,7 +616,7 @@ class TestMTLSValidation:
         assert response is not None
         assert request.state.mtls is None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_failed_mtls_verification_skips_mtls_context(self, auth_middleware_with_mtls):
         """Testar que certificado mTLS não verificado não adiciona contexto mTLS"""
         request = MagicMock(spec=Request)

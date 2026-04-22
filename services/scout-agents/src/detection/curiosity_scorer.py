@@ -1,6 +1,5 @@
 """Adaptive curiosity scorer for signal prioritization"""
 
-from typing import Dict, List
 
 import numpy as np
 import structlog
@@ -17,7 +16,7 @@ class CuriosityScorer:
 
     def __init__(self):
         # Adaptive weights per domain
-        self.weights: Dict[str, Dict[str, float]] = {
+        self.weights: dict[str, dict[str, float]] = {
             domain.value: {
                 "novelty": 0.4,
                 "relevance": 0.3,
@@ -28,17 +27,17 @@ class CuriosityScorer:
         }
 
         # Historical feature vectors for novelty calculation
-        self.historical_features: Dict[str, List[np.ndarray]] = {
+        self.historical_features: dict[str, list[np.ndarray]] = {
             domain.value: [] for domain in UnifiedDomain
         }
 
         # Validation feedback tracking
-        self.validation_stats: Dict[str, Dict[str, int]] = {
+        self.validation_stats: dict[str, dict[str, int]] = {
             domain.value: {"validated": 0, "rejected": 0} for domain in UnifiedDomain
         }
 
     def calculate_score(
-        self, event: RawEvent, domain: UnifiedDomain, context: Dict = None
+        self, event: RawEvent, domain: UnifiedDomain, context: dict = None
     ) -> float:
         """
         Calculate adaptive curiosity score
@@ -134,7 +133,7 @@ class CuriosityScorer:
         return float(novelty)
 
     def calculate_relevance(
-        self, event: RawEvent, domain: UnifiedDomain, context: Dict = None
+        self, event: RawEvent, domain: UnifiedDomain, context: dict = None
     ) -> float:
         """
         Calculate relevance score based on domain and context
@@ -274,7 +273,7 @@ class CuriosityScorer:
                 new_weights=self.weights[domain.value],
             )
 
-    def get_score_distribution(self, domain: UnifiedDomain) -> Dict[str, float]:
+    def get_score_distribution(self, domain: UnifiedDomain) -> dict[str, float]:
         """
         Get statistical distribution of scores for domain
 

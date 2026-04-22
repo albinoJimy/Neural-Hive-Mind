@@ -1,7 +1,7 @@
 """Cliente HTTP para consultas ao Prometheus"""
 
-from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, Optional
+from datetime import UTC, datetime, timedelta
+from typing import Any, Optional
 
 import httpx
 import structlog
@@ -43,7 +43,7 @@ class PrometheusClient:
             await self._client.aclose()
             logger.info("prometheus_client.closed")
 
-    async def query(self, query: str, time: Optional[datetime] = None) -> Dict[str, Any]:
+    async def query(self, query: str, time: Optional[datetime] = None) -> dict[str, Any]:
         """
         Executa query instantânea no Prometheus.
 
@@ -81,7 +81,7 @@ class PrometheusClient:
 
     async def query_range(
         self, query: str, start: datetime, end: datetime, step: str = "15s"
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Executa range query no Prometheus.
 
@@ -124,7 +124,7 @@ class PrometheusClient:
 
     async def get_availability_metrics(
         self, service: str, lookback_minutes: int = 5
-    ) -> Dict[str, float]:
+    ) -> dict[str, float]:
         """
         Obtém métricas de disponibilidade de um serviço.
 
@@ -135,7 +135,7 @@ class PrometheusClient:
         Returns:
             Dict com success_rate, latency_p99, error_rate
         """
-        end = datetime.now(timezone.utc)
+        end = datetime.now(UTC)
         end - timedelta(minutes=lookback_minutes)
 
         metrics = {}
@@ -182,8 +182,8 @@ class PrometheusClient:
             return {"success_rate": 0.0, "latency_p99": 0.0, "error_rate": 100.0}
 
     async def validate_sla_restoration(
-        self, service: str, sla_targets: Optional[Dict[str, float]] = None
-    ) -> Dict[str, Any]:
+        self, service: str, sla_targets: Optional[dict[str, float]] = None
+    ) -> dict[str, Any]:
         """
         Valida se SLA foi restaurado após remediação.
 
@@ -239,7 +239,7 @@ class PrometheusClient:
             "metrics": metrics,
             "targets": sla_targets,
             "violations": violations,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
         }
 
         logger.info(
@@ -251,7 +251,7 @@ class PrometheusClient:
 
         return result
 
-    def _extract_value(self, query_result: Dict[str, Any]) -> float:
+    def _extract_value(self, query_result: dict[str, Any]) -> float:
         """Extrai valor numérico de resultado de query Prometheus"""
         try:
             data = query_result.get("data", {})

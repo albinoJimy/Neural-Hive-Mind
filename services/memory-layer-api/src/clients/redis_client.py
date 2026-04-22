@@ -5,7 +5,7 @@ Fornece interface assíncrona ao Redis Cluster para cache de alta performance.
 """
 
 import json
-from typing import Dict, Optional, Union
+from typing import Optional, Union
 
 import structlog
 from redis.asyncio import Redis, RedisCluster
@@ -129,7 +129,7 @@ class RedisClient:
         except RedisError as e:
             logger.warning("Redis set error", key=key, error=str(e))
 
-    async def get_json(self, key: str) -> Optional[Dict]:
+    async def get_json(self, key: str) -> Optional[dict]:
         """
         Obtém valor JSON do cache
 
@@ -148,7 +148,7 @@ class RedisClient:
                 return None
         return None
 
-    async def set_json(self, key: str, value: Dict, ttl: Optional[int] = None):
+    async def set_json(self, key: str, value: dict, ttl: Optional[int] = None):
         """
         Armazena valor JSON no cache
 

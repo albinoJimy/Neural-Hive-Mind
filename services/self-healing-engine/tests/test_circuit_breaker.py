@@ -11,11 +11,10 @@ Estados:
 """
 
 import pytest
-
 from src.services.circuit_breaker import (
     CircuitBreaker,
-    CircuitBreakerState,
     CircuitBreakerOpenError,
+    CircuitBreakerState,
 )
 
 

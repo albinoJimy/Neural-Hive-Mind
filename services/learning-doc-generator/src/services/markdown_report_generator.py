@@ -2,7 +2,7 @@
 
 import os
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 import structlog
 from jinja2 import (
@@ -13,9 +13,8 @@ from jinja2 import (
     Template,
     select_autoescape,
 )
-
 from src.config import get_settings
-from src.models import DocumentFormat, DocumentType, Insight, LearningDocument
+from src.models import DocumentType, Insight, LearningDocument
 
 logger = structlog.get_logger()
 
@@ -97,7 +96,7 @@ class MarkdownReportGenerator:
             logger.error("Erro ao gerar Markdown", error=str(e), exc_info=True)
             raise
 
-    def _build_context(self, document: LearningDocument) -> Dict[str, Any]:
+    def _build_context(self, document: LearningDocument) -> dict[str, Any]:
         """Constrói contexto para renderização do template"""
         return {
             "document": document,
@@ -147,9 +146,7 @@ class MarkdownReportGenerator:
             hours = seconds / 3600
             return f"{hours:.1f}h"
 
-    def _calculate_improvement(
-        self, current: float, baseline: float, decimals: int = 1
-    ) -> float:
+    def _calculate_improvement(self, current: float, baseline: float, decimals: int = 1) -> float:
         """Calcula percentual de melhoria"""
         if baseline == 0:
             return 0.0

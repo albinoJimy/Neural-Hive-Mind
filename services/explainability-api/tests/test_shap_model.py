@@ -4,22 +4,22 @@ Testes unitários para DecisionWrapperModel e classes relacionadas.
 EPIC-204-01: Modelo ML para SHAP
 """
 
-import pytest
-import numpy as np
 from unittest.mock import Mock, patch
 
+import numpy as np
+import pytest
 from src.models.shap_model import DecisionWrapperModel, FeatureExtractor, ModelTrainer
 
 
 class TestDecisionWrapperModel:
     """Testes para DecisionWrapperModel."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def model(self):
         """Fixture para modelo não treinado."""
         return DecisionWrapperModel()
 
-    @pytest.fixture
+    @pytest.fixture()
     def sample_decision(self):
         """Fixture para decisão de exemplo."""
         return {
@@ -230,12 +230,12 @@ class TestDecisionWrapperModel:
 class TestFeatureExtractor:
     """Testes para FeatureExtractor."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def extractor(self):
         """Fixture para FeatureExtractor."""
         return FeatureExtractor()
 
-    @pytest.fixture
+    @pytest.fixture()
     def sample_decisions(self):
         """Fixture para decisões de exemplo."""
         return [
@@ -301,12 +301,12 @@ class TestFeatureExtractor:
 class TestModelTrainer:
     """Testes para ModelTrainer."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def trainer(self):
         """Fixture para ModelTrainer."""
         return ModelTrainer(model_type="random_forest", min_samples=10, target_accuracy=0.6)
 
-    @pytest.fixture
+    @pytest.fixture()
     def sample_decisions(self):
         """Fixture para decisões de exemplo."""
         decisions = []

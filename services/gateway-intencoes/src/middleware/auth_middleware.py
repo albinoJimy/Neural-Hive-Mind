@@ -10,9 +10,10 @@ from config.settings import get_settings
 from fastapi import HTTPException, Request, status
 from fastapi.security import HTTPBearer
 from opentelemetry import trace
-from security.oauth2_validator import TokenValidationError, get_oauth2_validator
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response
+
+from security.oauth2_validator import TokenValidationError, get_oauth2_validator
 
 logger = logging.getLogger(__name__)
 tracer = trace.get_tracer(__name__)

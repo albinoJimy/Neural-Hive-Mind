@@ -8,7 +8,6 @@ Estes testes garantem que:
 """
 
 import pytest
-
 from src.config.settings import Settings
 
 

@@ -5,11 +5,13 @@ Testa carregamento de modelos, agregação de predições,
 e funcionalidades específicas de ensemble.
 """
 
-import pytest
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import MagicMock, Mock, patch
+
 import numpy as np
-from neural_hive_specialists.ensemble_specialist import EnsembleSpecialist
+import pytest
+
 from neural_hive_specialists.config import SpecialistConfig
+from neural_hive_specialists.ensemble_specialist import EnsembleSpecialist
 
 
 # Classe concreta para testes (implementa métodos abstratos)
@@ -31,7 +33,7 @@ class ConcreteEnsembleSpecialist(EnsembleSpecialist):
         }
 
 
-@pytest.fixture
+@pytest.fixture()
 def ensemble_config():
     """Configuração para ensemble specialist."""
     return SpecialistConfig(
@@ -56,7 +58,7 @@ def ensemble_config():
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_mlflow_client():
     """Mock do MLflowClient."""
     with patch("neural_hive_specialists.base_specialist.MLflowClient") as mock_client:
@@ -79,7 +81,7 @@ def mock_mlflow_client():
         yield client_instance
 
 
-@pytest.fixture
+@pytest.fixture()
 def ensemble_specialist(ensemble_config, mock_mlflow_client):
     """Instância de EnsembleSpecialist configurada."""
     with (
@@ -360,8 +362,8 @@ class TestEnsembleMLflowIntegration:
     def test_load_weights_from_mlflow_artifact(self, ensemble_specialist, mock_mlflow_client):
         """Testa carregamento de pesos do MLflow artifact."""
         import json
-        import tempfile
         import os
+        import tempfile
 
         # Criar artifact temporário
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -384,7 +386,7 @@ class TestEnsembleMLflowIntegration:
             assert sum(weights.values()) == pytest.approx(1.0, abs=0.01)
 
 
-@pytest.mark.integration
+@pytest.mark.integration()
 class TestEnsembleIntegration:
     """Testes de integração end-to-end."""
 

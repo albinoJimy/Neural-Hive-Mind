@@ -8,19 +8,19 @@ Valida comportamento em cenários de falha real:
 - Config corrompido
 """
 
-import pytest
-from unittest.mock import patch, MagicMock
-from time import perf_counter
 import types
+from time import perf_counter
+from unittest.mock import MagicMock, patch
 
+import pytest
 from src.clients.kafka_producer import KafkaProducerClient
 
 
-@pytest.mark.integration
+@pytest.mark.integration()
 class TestKafkaProducerInitializationResilience:
     """Testes de resiliência na inicialização do Kafka Producer."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def valid_config(self):
         """Config válida para testes."""
         return types.SimpleNamespace(
@@ -39,7 +39,7 @@ class TestKafkaProducerInitializationResilience:
             KAFKA_CIRCUIT_BREAKER_RECOVERY_TIMEOUT=30,
         )
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_initialization_with_kafka_unavailable(self, valid_config):
         """
         Testa inicialização quando Kafka está indisponível.
@@ -73,7 +73,7 @@ class TestKafkaProducerInitializationResilience:
                     # Inicialização deve ser rápida (< 5s)
                     assert duration < 5.0
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_initialization_with_schema_registry_offline(self, valid_config):
         """
         Testa inicialização quando Schema Registry está offline.
@@ -99,7 +99,7 @@ class TestKafkaProducerInitializationResilience:
                     assert client.avro_serializer is None
                     assert client.producer is not None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_initialization_with_invalid_credentials(self, valid_config):
         """
         Testa inicialização com credenciais SASL inválidas.
@@ -133,7 +133,7 @@ class TestKafkaProducerInitializationResilience:
                     assert client.sasl_username == "invalid_user"
                     assert client.sasl_password == "invalid_pass"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_initialization_circuit_breaker_fallback(self, valid_config):
         """
         Testa fallback do circuit breaker quando inicialização falha.
@@ -148,7 +148,7 @@ class TestKafkaProducerInitializationResilience:
         with pytest.raises(ValueError, match="service_name"):
             KafkaProducerClient(valid_config)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_initialization_metrics_recorded(self, valid_config):
         """
         Testa que métricas de inicialização são registradas corretamente.
@@ -181,7 +181,7 @@ class TestKafkaProducerInitializationResilience:
                         assert call_args[1]["status"] == "success"
                         assert call_args[1]["duration_seconds"] > 0
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_initialization_config_corruption_after_construction(self, valid_config):
         """
         Testa detecção de config corrompido após construção.
@@ -198,7 +198,7 @@ class TestKafkaProducerInitializationResilience:
         with pytest.raises(RuntimeError, match="self.config é None"):
             await client.initialize()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_initialization_order_validation(self, valid_config):
         """
         Testa que ordem de inicialização é respeitada.
@@ -252,11 +252,11 @@ class TestKafkaProducerInitializationResilience:
                         ]
 
 
-@pytest.mark.integration
+@pytest.mark.integration()
 class TestKafkaProducerInitializationPerformance:
     """Testes de performance de inicialização."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_initialization_performance_baseline(self):
         """
         Testa que inicialização completa em tempo aceitável.

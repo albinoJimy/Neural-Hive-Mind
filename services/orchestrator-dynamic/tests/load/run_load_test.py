@@ -41,11 +41,16 @@ def run_locust(
     """
     cmd = [
         "locust",
-        "-f", "tests/load/locustfile.py",
-        "--host", host,
-        "--users", str(users),
-        "--spawn-rate", str(spawn_rate),
-        "--run-time", run_time,
+        "-f",
+        "tests/load/locustfile.py",
+        "--host",
+        host,
+        "--users",
+        str(users),
+        "--spawn-rate",
+        str(spawn_rate),
+        "--run-time",
+        run_time,
     ]
 
     if headless:
@@ -64,10 +69,14 @@ def run_locust(
             cmd.extend(["--master-host", master_host])
 
     # Output configs
-    cmd.extend([
-        "--logfile", "locust.log",
-        "--loglevel", "INFO",
-    ])
+    cmd.extend(
+        [
+            "--logfile",
+            "locust.log",
+            "--loglevel",
+            "INFO",
+        ]
+    )
 
     print(f"Running: {' '.join(cmd)}")
 
@@ -102,68 +111,41 @@ Examples:
   python run_load_test.py --master --users 2000
   # Terminal 2+:
   python run_load_test.py --worker --master-host localhost
-        """
+        """,
     )
 
     # Target configuration
     parser.add_argument(
         "--host",
         default="http://localhost:8003",
-        help="Target host URL (default: http://localhost:8003)"
+        help="Target host URL (default: http://localhost:8003)",
     )
 
     # Load test configuration
     parser.add_argument(
-        "--users", "-u",
-        type=int,
-        default=100,
-        help="Number of users to spawn (default: 100)"
+        "--users", "-u", type=int, default=100, help="Number of users to spawn (default: 100)"
     )
     parser.add_argument(
-        "--spawn-rate", "-r",
-        type=float,
-        default=10,
-        help="Users spawned per second (default: 10)"
+        "--spawn-rate", "-r", type=float, default=10, help="Users spawned per second (default: 10)"
     )
     parser.add_argument(
-        "--run-time", "-t",
-        default="5m",
-        help="Test duration (default: 5m). Examples: 30s, 5m, 1h"
+        "--run-time", "-t", default="5m", help="Test duration (default: 5m). Examples: 30s, 5m, 1h"
     )
 
     # Output options
-    parser.add_argument(
-        "--gui",
-        action="store_true",
-        help="Run with web UI (default: headless)"
-    )
-    parser.add_argument(
-        "--html",
-        metavar="FILE",
-        help="Generate HTML report at specified path"
-    )
+    parser.add_argument("--gui", action="store_true", help="Run with web UI (default: headless)")
+    parser.add_argument("--html", metavar="FILE", help="Generate HTML report at specified path")
 
     # Distributed mode
-    parser.add_argument(
-        "--master",
-        action="store_true",
-        help="Run as master in distributed mode"
-    )
-    parser.add_argument(
-        "--worker",
-        action="store_true",
-        help="Run as worker in distributed mode"
-    )
-    parser.add_argument(
-        "--master-host",
-        help="Master host for workers (default: localhost)"
-    )
+    parser.add_argument("--master", action="store_true", help="Run as master in distributed mode")
+    parser.add_argument("--worker", action="store_true", help="Run as worker in distributed mode")
+    parser.add_argument("--master-host", help="Master host for workers (default: localhost)")
 
     # Presets
     parser.add_argument(
         "--preset",
         choices=["smoke", "baseline", "stress", "soak"],
-        help="Use preset configuration (overrides other options)"
+        help="Use preset configuration (overrides other options)",
     )
 
     args = parser.parse_args()

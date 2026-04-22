@@ -4,14 +4,14 @@ Testes para Redis Cache Service
 Testa operações CRUD, hit/miss, expiração e statistics.
 """
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from src.services.cache_service import RedisCacheService
+import pytest
 from src.config.settings import Settings
+from src.services.cache_service import RedisCacheService
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_settings():
     """Mock das configurações"""
     settings = MagicMock(spec=Settings)
@@ -23,13 +23,13 @@ def mock_settings():
     return settings
 
 
-@pytest.fixture
+@pytest.fixture()
 def cache_service(mock_settings):
     """Instância do serviço de cache"""
     return RedisCacheService(mock_settings)
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_features():
     """Features de exemplo para cache"""
     return {
@@ -56,7 +56,7 @@ class TestRedisCacheServiceInit:
 class TestInitialize:
     """Testes para inicialização da conexão Redis"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_initialize_success(self, cache_service):
         """Testa inicialização bem-sucedida"""
         with patch("src.services.cache_service.HAS_AIOREDIS", True):
@@ -74,7 +74,7 @@ class TestInitialize:
                     assert cache_service._is_connected is True
                     assert cache_service._redis == mock_redis
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_initialize_without_aioredis(self, cache_service):
         """Testa inicialização sem aioredis instalado"""
         with patch("src.services.cache_service.HAS_AIOREDIS", False):
@@ -86,7 +86,7 @@ class TestInitialize:
 class TestGet:
     """Testes para get (cache hit/miss)"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_cache_hit(self, cache_service, sample_features):
         """Testa cache hit"""
         mock_redis = MagicMock()
@@ -100,7 +100,7 @@ class TestGet:
             assert result == sample_features
             mock_redis.get.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_cache_miss(self, cache_service):
         """Testa cache miss"""
         mock_redis = MagicMock()
@@ -112,7 +112,7 @@ class TestGet:
 
         assert result is None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_when_not_available(self, cache_service):
         """Testa get quando cache não disponível"""
         cache_service._is_connected = False
@@ -121,7 +121,7 @@ class TestGet:
 
         assert result is None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_with_exception(self, cache_service):
         """Testa get com exceção"""
         mock_redis = MagicMock()
@@ -137,7 +137,7 @@ class TestGet:
 class TestSet:
     """Testes para set (salvar no cache)"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_set_success(self, cache_service, sample_features):
         """Testa salvar no cache com sucesso"""
         mock_redis = MagicMock()
@@ -150,7 +150,7 @@ class TestSet:
         assert result is True
         mock_redis.setex.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_set_with_custom_ttl(self, cache_service, sample_features):
         """Testa salvar com TTL customizado"""
         mock_redis = MagicMock()
@@ -168,7 +168,7 @@ class TestSet:
         ttl_arg = call_args[0][1] if len(call_args[0]) > 1 else call_args[1].get("ttl")
         assert ttl_arg == custom_ttl
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_set_when_not_available(self, cache_service, sample_features):
         """Testa set quando cache não disponível"""
         cache_service._is_connected = False
@@ -177,7 +177,7 @@ class TestSet:
 
         assert result is False
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_set_adds_cached_at(self, cache_service, sample_features):
         """Testa que set adiciona timestamp _cached_at"""
         mock_redis = MagicMock()
@@ -196,7 +196,7 @@ class TestSet:
 class TestDelete:
     """Testes para delete (remover do cache)"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_delete_success(self, cache_service):
         """Testa deletar do cache com sucesso"""
         mock_redis = MagicMock()
@@ -208,7 +208,7 @@ class TestDelete:
 
         assert result is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_delete_not_found(self, cache_service):
         """Testa deletar chave inexistente"""
         mock_redis = MagicMock()
@@ -220,7 +220,7 @@ class TestDelete:
 
         assert result is False
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_delete_when_not_available(self, cache_service):
         """Testa delete quando cache não disponível"""
         cache_service._is_connected = False
@@ -233,7 +233,7 @@ class TestDelete:
 class TestClearAll:
     """Testes para clear_all (limpar todo o cache)"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_clear_all_success(self, cache_service):
         """Testa limpar todo o cache"""
         mock_redis = MagicMock()
@@ -253,7 +253,7 @@ class TestClearAll:
         assert result == 3
         mock_redis.delete.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_clear_all_empty(self, cache_service):
         """Testa limpar cache vazio"""
         mock_redis = MagicMock()
@@ -274,7 +274,7 @@ class TestClearAll:
 class TestGetStats:
     """Testes para get_stats (estatísticas do cache)"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_stats_when_available(self, cache_service):
         """Testa obter estatísticas quando disponível"""
         mock_redis = MagicMock()
@@ -293,7 +293,7 @@ class TestGetStats:
         assert stats["keys_count"] == 2
         assert stats["ttl_seconds"] == 3600
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_stats_when_not_available(self, cache_service):
         """Testa obter estatísticas quando não disponível"""
         cache_service._is_connected = False
@@ -323,7 +323,7 @@ class TestMakeKey:
 class TestClose:
     """Testes para close (fechar conexão)"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_close_with_connection(self, cache_service):
         """Testa fechar conexão ativa"""
         mock_redis = MagicMock()
@@ -340,7 +340,7 @@ class TestClose:
         assert cache_service._is_connected is False
         mock_redis.close.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_close_without_connection(self, cache_service):
         """Testa fechar quando não há conexão"""
         cache_service._redis = None

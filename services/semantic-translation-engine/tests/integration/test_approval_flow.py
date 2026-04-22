@@ -4,18 +4,18 @@ Testes de integração para fluxo de aprovação end-to-end
 Valida o fluxo completo de detecção destrutiva -> avaliação de risco -> roteamento condicional.
 """
 
-import pytest
-from unittest.mock import MagicMock, AsyncMock, patch
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+from unittest.mock import AsyncMock, MagicMock, patch
 
-from src.models.cognitive_plan import TaskNode, RiskBand, ApprovalStatus
+import pytest
+from src.models.cognitive_plan import ApprovalStatus, RiskBand, TaskNode
 from src.services.risk_scorer import RiskScorer
 
 
 class TestDestructiveIntentTriggersApprovalFlow:
     """Testes para intents destrutivos que triggeraram fluxo de aprovação"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def settings(self):
         """Settings completo para testes de integração"""
         settings = MagicMock()
@@ -28,12 +28,12 @@ class TestDestructiveIntentTriggersApprovalFlow:
         settings.risk_threshold_critical = 0.9
         return settings
 
-    @pytest.fixture
+    @pytest.fixture()
     def risk_scorer(self, settings):
         """RiskScorer real com DestructiveDetector integrado"""
         return RiskScorer(settings)
 
-    @pytest.fixture
+    @pytest.fixture()
     def intermediate_repr_destructive(self):
         """Representação intermediária com operação destrutiva"""
         return {
@@ -42,7 +42,7 @@ class TestDestructiveIntentTriggersApprovalFlow:
             "historical_context": {"similar_intents": []},
         }
 
-    @pytest.fixture
+    @pytest.fixture()
     def tasks_with_delete(self):
         """Tasks com operação de delete"""
         return [
@@ -104,7 +104,7 @@ class TestDestructiveIntentTriggersApprovalFlow:
 class TestHighRiskIntentTriggersApprovalFlow:
     """Testes para intents de alto risco que triggeraram fluxo de aprovação"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def settings(self):
         """Settings para testes de alto risco"""
         settings = MagicMock()
@@ -117,12 +117,12 @@ class TestHighRiskIntentTriggersApprovalFlow:
         settings.risk_threshold_critical = 0.9
         return settings
 
-    @pytest.fixture
+    @pytest.fixture()
     def risk_scorer(self, settings):
         """RiskScorer real"""
         return RiskScorer(settings)
 
-    @pytest.fixture
+    @pytest.fixture()
     def intermediate_repr_high_risk(self):
         """Representação intermediária de alto risco"""
         return {
@@ -131,7 +131,7 @@ class TestHighRiskIntentTriggersApprovalFlow:
             "historical_context": {"similar_intents": []},
         }
 
-    @pytest.fixture
+    @pytest.fixture()
     def tasks_complex_non_destructive(self):
         """Tasks complexas mas não destrutivas"""
         return [
@@ -168,7 +168,7 @@ class TestHighRiskIntentTriggersApprovalFlow:
 class TestLowRiskIntentBypassesApproval:
     """Testes para intents de baixo risco que bypassam aprovação"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def settings(self):
         """Settings para testes de baixo risco"""
         settings = MagicMock()
@@ -181,12 +181,12 @@ class TestLowRiskIntentBypassesApproval:
         settings.risk_threshold_critical = 0.9
         return settings
 
-    @pytest.fixture
+    @pytest.fixture()
     def risk_scorer(self, settings):
         """RiskScorer real"""
         return RiskScorer(settings)
 
-    @pytest.fixture
+    @pytest.fixture()
     def intermediate_repr_low_risk(self):
         """Representação intermediária de baixo risco"""
         return {
@@ -195,7 +195,7 @@ class TestLowRiskIntentBypassesApproval:
             "historical_context": {"similar_intents": []},
         }
 
-    @pytest.fixture
+    @pytest.fixture()
     def tasks_simple_safe(self):
         """Tasks simples e seguras"""
         return [
@@ -241,7 +241,7 @@ class TestLowRiskIntentBypassesApproval:
 class TestRiskMatrixContainsDestructiveAnalysis:
     """Testes para verificar que risk_matrix contém análise destrutiva completa"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def settings(self):
         """Settings para testes"""
         settings = MagicMock()
@@ -254,12 +254,12 @@ class TestRiskMatrixContainsDestructiveAnalysis:
         settings.risk_threshold_critical = 0.9
         return settings
 
-    @pytest.fixture
+    @pytest.fixture()
     def risk_scorer(self, settings):
         """RiskScorer real"""
         return RiskScorer(settings)
 
-    @pytest.fixture
+    @pytest.fixture()
     def intermediate_repr(self):
         """Representação intermediária básica"""
         return {
@@ -267,7 +267,7 @@ class TestRiskMatrixContainsDestructiveAnalysis:
             "metadata": {"priority": "normal", "security_level": "internal"},
         }
 
-    @pytest.fixture
+    @pytest.fixture()
     def tasks_with_multiple_destructive(self):
         """Tasks com múltiplas operações destrutivas"""
         return [
@@ -328,7 +328,7 @@ class TestRiskMatrixContainsDestructiveAnalysis:
 class TestApprovalProducerIntegration:
     """Testes de integração para KafkaApprovalProducer"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_settings(self):
         """Settings mockado para producer"""
         settings = MagicMock()
@@ -340,7 +340,7 @@ class TestApprovalProducerIntegration:
         settings.environment = "test"
         return settings
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_cognitive_plan(self):
         """CognitivePlan mockado para teste"""
         plan = MagicMock()
@@ -408,7 +408,7 @@ class TestApprovalProducerIntegration:
 class TestApprovalResponseFlowIntegration:
     """Testes de integração para fluxo de resposta de aprovação"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_settings(self):
         """Settings mockado para testes"""
         settings = MagicMock()
@@ -424,14 +424,14 @@ class TestApprovalResponseFlowIntegration:
         settings.environment = "test"
         return settings
 
-    @pytest.fixture
+    @pytest.fixture()
     def sample_ledger_entry(self):
         """Entrada de ledger com plano pendente de aprovação"""
         return {
             "plan_id": "plan-e2e-001",
             "intent_id": "intent-e2e-001",
             "version": "1.0.0",
-            "timestamp": datetime.now(timezone.utc),
+            "timestamp": datetime.now(UTC),
             "plan_data": {
                 "plan_id": "plan-e2e-001",
                 "intent_id": "intent-e2e-001",
@@ -466,7 +466,7 @@ class TestApprovalResponseFlowIntegration:
             },
         }
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_end_to_end_approval_flow(self, mock_settings, sample_ledger_entry):
         """Fluxo E2E: resposta de aprovação -> atualização ledger -> publicação"""
         from src.services.approval_processor import ApprovalProcessor
@@ -493,7 +493,7 @@ class TestApprovalResponseFlowIntegration:
             "intent_id": "intent-e2e-001",
             "decision": "approved",
             "approved_by": "security-admin@company.com",
-            "approved_at": int(datetime.now(timezone.utc).timestamp() * 1000),
+            "approved_at": int(datetime.now(UTC).timestamp() * 1000),
             "rejection_reason": None,
         }
 
@@ -524,7 +524,7 @@ class TestApprovalResponseFlowIntegration:
             decision="approved", risk_band="high", is_destructive=True
         )
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_end_to_end_rejection_flow(self, mock_settings, sample_ledger_entry):
         """Fluxo E2E: resposta de rejeição -> atualização ledger -> sem publicação"""
         from src.services.approval_processor import ApprovalProcessor
@@ -551,7 +551,7 @@ class TestApprovalResponseFlowIntegration:
             "intent_id": "intent-e2e-001",
             "decision": "rejected",
             "approved_by": "security-admin@company.com",
-            "approved_at": int(datetime.now(timezone.utc).timestamp() * 1000),
+            "approved_at": int(datetime.now(UTC).timestamp() * 1000),
             "rejection_reason": "Operação de delete em produção requer análise adicional do DBA",
         }
 
@@ -574,12 +574,13 @@ class TestApprovalResponseFlowIntegration:
             decision="rejected", risk_band="high", is_destructive=True
         )
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_consumer_processor_integration(self, mock_settings, sample_ledger_entry):
         """Integração entre consumer e processor"""
+        import json
+
         from src.consumers.approval_response_consumer import ApprovalResponseConsumer
         from src.services.approval_processor import ApprovalProcessor
-        import json
 
         # Criar consumer
         consumer = ApprovalResponseConsumer(mock_settings)
@@ -606,7 +607,7 @@ class TestApprovalResponseFlowIntegration:
             "intent_id": "intent-e2e-001",
             "decision": "approved",
             "approved_by": "admin",
-            "approved_at": int(datetime.now(timezone.utc).timestamp() * 1000),
+            "approved_at": int(datetime.now(UTC).timestamp() * 1000),
         }
 
         mock_msg = MagicMock()
@@ -632,7 +633,7 @@ class TestApprovalResponseFlowIntegration:
 class TestApprovalResponseConsumerResilience:
     """Testes de resiliência do consumer de respostas de aprovação"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_settings(self):
         """Settings mockado"""
         settings = MagicMock()
@@ -645,7 +646,7 @@ class TestApprovalResponseConsumerResilience:
         settings.schema_registry_url = None
         return settings
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_processor_handles_mongodb_failure_gracefully(self, mock_settings):
         """Processor deve tratar falha do MongoDB sem crash"""
         from src.services.approval_processor import ApprovalProcessor
@@ -666,7 +667,7 @@ class TestApprovalResponseConsumerResilience:
             "intent_id": "intent-fail",
             "decision": "approved",
             "approved_by": "admin",
-            "approved_at": int(datetime.now(timezone.utc).timestamp() * 1000),
+            "approved_at": int(datetime.now(UTC).timestamp() * 1000),
         }
 
         # Deve propagar exceção para retry do consumer
@@ -676,7 +677,7 @@ class TestApprovalResponseConsumerResilience:
         # Plano não deve ser publicado
         plan_producer.send_plan.assert_not_called()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_processor_handles_invalid_plan_data_gracefully(self, mock_settings):
         """Processor deve tratar dados de plano inválidos sem crash"""
         from src.services.approval_processor import ApprovalProcessor
@@ -684,7 +685,7 @@ class TestApprovalResponseConsumerResilience:
         # Ledger entry com plan_data malformado
         malformed_entry = {
             "plan_id": "plan-malformed",
-            "timestamp": datetime.now(timezone.utc),
+            "timestamp": datetime.now(UTC),
             "plan_data": {
                 "approval_status": "pending",
                 "risk_band": "high",
@@ -713,7 +714,7 @@ class TestApprovalResponseConsumerResilience:
             "intent_id": "intent-x",
             "decision": "approved",
             "approved_by": "admin",
-            "approved_at": int(datetime.now(timezone.utc).timestamp() * 1000),
+            "approved_at": int(datetime.now(UTC).timestamp() * 1000),
         }
 
         # Deve propagar erro de reconstrução do plano

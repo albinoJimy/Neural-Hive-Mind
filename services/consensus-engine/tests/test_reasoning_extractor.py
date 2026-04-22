@@ -4,9 +4,10 @@ Testes unitários para ReasoningExtractor.
 TDD: Testes escritos antes da implementação (GAPS-04 Task 3).
 """
 
-import pytest
 import sys
 from pathlib import Path
+
+import pytest
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
@@ -26,7 +27,7 @@ class TestReasoningExtractorInitialization:
 class TestExtractKeyFactors:
     """Testes de extração de factores-chave do texto."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def sample_reasoning_texts(self):
         """Textos de reasoning para extração."""
         return {
@@ -231,7 +232,7 @@ class TestEdgeCases:
 class TestBatchExtraction:
     """Testes de extração em lote."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def sample_reasonings(self):
         """Múltiplos textos de reasoning."""
         return [

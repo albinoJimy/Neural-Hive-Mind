@@ -1,7 +1,7 @@
 """Service Registry gRPC client for Code Forge com suporte a mTLS via SPIFFE."""
 
 import time
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Optional
 
 import grpc
 import structlog
@@ -95,7 +95,7 @@ class ServiceRegistryClient:
             logger.error("service_registry_client_init_failed", error=str(e))
             raise
 
-    async def _get_grpc_metadata(self) -> List[Tuple[str, str]]:
+    async def _get_grpc_metadata(self) -> list[tuple[str, str]]:
         """Obter metadata gRPC com JWT-SVID para autenticação."""
         if not self.spiffe_enabled or not self.spiffe_manager:
             return []
@@ -130,7 +130,7 @@ class ServiceRegistryClient:
         logger.info("service_registry_client_closed")
 
     async def register(
-        self, service_name: str, capabilities: List[str], metadata: Dict[str, Any]
+        self, service_name: str, capabilities: list[str], metadata: dict[str, Any]
     ) -> Optional[str]:
         """
         Registra Code Forge no Service Registry
@@ -178,7 +178,7 @@ class ServiceRegistryClient:
             self._registered = False
             return None
 
-    async def send_heartbeat(self, metrics: Dict[str, Any]) -> bool:
+    async def send_heartbeat(self, metrics: dict[str, Any]) -> bool:
         """
         Envia heartbeat para Service Registry
 
@@ -241,7 +241,7 @@ class ServiceRegistryClient:
             return False
 
     async def update_capabilities(
-        self, capabilities: List[str], metadata: Optional[Dict[str, Any]] = None
+        self, capabilities: list[str], metadata: Optional[dict[str, Any]] = None
     ) -> bool:
         """
         Atualiza capabilities do serviço via deregister + register.

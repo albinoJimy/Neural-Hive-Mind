@@ -1,19 +1,18 @@
 import base64
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import structlog
 from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.responses import PlainTextResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
+from pydantic import BaseModel, Field
+
+from neural_hive_observability import get_metrics
 
 # SEC-001: Security Headers
 from neural_hive_security import SecurityHeadersMiddleware
-from neural_hive_observability import get_metrics
-from neural_hive_observability.middleware import TraceContextMiddleware
-
-from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
-from pydantic import BaseModel, Field
 
 
 class TaskCancellationRequest(BaseModel):
@@ -176,15 +175,20 @@ def create_http_server(config, app_state):
     # W3C Trace Context middleware para propagação de contexto distribuído
     try:
         from neural_hive_observability.middleware import TraceContextMiddleware
+
         metrics = get_metrics()
         if metrics:
             app.add_middleware(TraceContextMiddleware, metrics=metrics)
             logger.info("W3C Trace Context middleware adicionado ao worker-agents")
         else:
-            logger.warning("Métricas não disponíveis - W3C Trace Context middleware adicionado sem métricas")
+            logger.warning(
+                "Métricas não disponíveis - W3C Trace Context middleware adicionado sem métricas"
+            )
             app.add_middleware(TraceContextMiddleware)
     except ImportError:
-        logger.warning("Observabilidade não disponível - W3C Trace Context middleware não adicionado")
+        logger.warning(
+            "Observabilidade não disponível - W3C Trace Context middleware não adicionado"
+        )
 
     # SPIFFE JWT validator instance
     jwt_validator = SPIFFEJWTValidator(config, app_state)
@@ -320,8 +324,8 @@ def create_http_server(config, app_state):
         return {
             "status": "started",
             "agent_id": config.agent_id,
-            "timestamp": int(datetime.now(timezone.utc).timestamp() * 1000),
-            "started_at": datetime.now(timezone.utc).isoformat(),
+            "timestamp": int(datetime.now(UTC).timestamp() * 1000),
+            "started_at": datetime.now(UTC).isoformat(),
         }
 
     @app.get("/metrics")

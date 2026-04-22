@@ -1,20 +1,20 @@
 """Serviço de monitoramento do Fluxo G."""
 
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
+
 import httpx
 import structlog
-
+from src.config.settings import get_settings
 from src.models.dashboard import (
-    WorkflowStatus,
+    ApprovalItem,
+    DashboardMetrics,
+    FluxoGStage,
+    FluxoGWorkflowDetail,
     StageProgress,
     StageStatus,
-    FluxoGWorkflowDetail,
-    DashboardMetrics,
-    ApprovalItem,
-    FluxoGStage,
+    WorkflowStatus,
 )
-from src.config.settings import get_settings
 
 logger = structlog.get_logger(__name__)
 
@@ -69,7 +69,7 @@ class FluxoGMonitorService:
 
         return metrics
 
-    async def _check_services_health(self) -> Dict[str, bool]:
+    async def _check_services_health(self) -> dict[str, bool]:
         """Verifica saúde dos serviços."""
         health = {}
 
@@ -88,12 +88,12 @@ class FluxoGMonitorService:
                 response = await client.get(f"{url}/health", timeout=5.0)
                 health[name] = response.status_code == 200
             except Exception as e:
-                self._logger.warning(f"health_check_failed", service=name, error=str(e))
+                self._logger.warning("health_check_failed", service=name, error=str(e))
                 health[name] = False
 
         return health
 
-    async def get_recent_workflows(self, limit: int = 50) -> List[Dict[str, Any]]:
+    async def get_recent_workflows(self, limit: int = 50) -> list[dict[str, Any]]:
         """
         Retorna workflows recentes.
 
@@ -163,7 +163,7 @@ class FluxoGMonitorService:
             stages_completed=5,
         )
 
-    async def get_pending_approvals(self, limit: int = 20) -> List[ApprovalItem]:
+    async def get_pending_approvals(self, limit: int = 20) -> list[ApprovalItem]:
         """
         Retorna aprovações pendentes.
 
@@ -190,9 +190,7 @@ class FluxoGMonitorService:
                             title=item.get("title", ""),
                             status=item.get("status", "pending"),
                             confidence_score=item.get("confidence_score", 0.0),
-                            requires_human_review=item.get(
-                                "requires_human_review", False
-                            ),
+                            requires_human_review=item.get("requires_human_review", False),
                             created_at=datetime.fromisoformat(
                                 item.get("created_at", datetime.utcnow().isoformat())
                             ),
@@ -204,7 +202,7 @@ class FluxoGMonitorService:
 
         return approvals
 
-    async def get_knowledge_graph_stats(self) -> Dict[str, int]:
+    async def get_knowledge_graph_stats(self) -> dict[str, int]:
         """
         Retorna estatísticas do grafo de conhecimento.
 

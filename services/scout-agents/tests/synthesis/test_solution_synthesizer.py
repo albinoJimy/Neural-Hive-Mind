@@ -32,7 +32,7 @@ class TestSolutionSynthesizerInitialization:
 class TestSynthesizeSingleSource:
     """Testes de síntese de fonte única."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def synthesizer(self):
         return SolutionSynthesizer()
 
@@ -74,7 +74,7 @@ class TestSynthesizeSingleSource:
 class TestSynthesizeMultipleSources:
     """Testes de síntese de múltiplas fontes."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def synthesizer(self):
         return SolutionSynthesizer()
 
@@ -144,7 +144,7 @@ class TestSynthesizeMultipleSources:
 class TestGenerateRecommendations:
     """Testes de geração de recomendações."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def synthesizer(self):
         return SolutionSynthesizer()
 
@@ -196,7 +196,7 @@ class TestGenerateRecommendations:
 class TestSynthesisConflictResolution:
     """Testes de resolução de conflitos em síntese."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def synthesizer(self):
         return SolutionSynthesizer()
 
@@ -233,7 +233,7 @@ class TestSynthesisConflictResolution:
 class TestGenerateActionableInsights:
     """Testes de geração de insights acionáveis."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def synthesizer(self):
         return SolutionSynthesizer()
 
@@ -277,7 +277,7 @@ class TestGenerateActionableInsights:
 class TestSynthesisOutputFormats:
     """Testes de formatos de saída da síntese."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def synthesizer(self):
         return SolutionSynthesizer()
 
@@ -318,7 +318,7 @@ class TestSynthesisOutputFormats:
 class TestSynthesisQualityMetrics:
     """Testes de métricas de qualidade da síntese."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def synthesizer(self):
         return SolutionSynthesizer()
 

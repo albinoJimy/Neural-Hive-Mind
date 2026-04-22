@@ -7,7 +7,7 @@ baseadas no modelo ML treinado com features NLP.
 
 import asyncio
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 import structlog
 
@@ -107,7 +107,7 @@ class MLPredictorService:
 
     async def predict_from_text(
         self, intent_text: str, specialist_confidence: float = 0.5
-    ) -> Optional[Dict[str, Any]]:
+    ) -> Optional[dict[str, Any]]:
         """
         Faz predição a partir do texto da intenção.
 
@@ -151,7 +151,7 @@ class MLPredictorService:
 
     async def get_auto_decision(
         self, intent_text: str, risk_band: str, specialist_confidence: float = 0.5
-    ) -> Optional[Dict[str, Any]]:
+    ) -> Optional[dict[str, Any]]:
         """
         Tenta obter uma decisão automática baseada em predição ML.
 
@@ -220,7 +220,7 @@ class MLPredictorService:
             )
             return None
 
-    def get_model_info(self) -> Optional[Dict[str, Any]]:
+    def get_model_info(self) -> Optional[dict[str, Any]]:
         """Retorna informações sobre o modelo carregado."""
         if not self.is_enabled():
             return None

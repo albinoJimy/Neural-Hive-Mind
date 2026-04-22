@@ -2,11 +2,11 @@
 Testes unitários para o modelo de senioridade.
 """
 
-import pytest
-from pathlib import Path
-
 # Importar módulo diretamente para evitar __init__.py issues
 import importlib.util
+from pathlib import Path
+
+import pytest
 
 spec = importlib.util.spec_from_file_location(
     "seniority", Path(__file__).parent.parent / "src" / "models" / "seniority.py"

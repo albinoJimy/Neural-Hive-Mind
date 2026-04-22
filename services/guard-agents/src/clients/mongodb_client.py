@@ -1,6 +1,6 @@
 """MongoDB client for Guard Agents"""
 
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 import structlog
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorCollection, AsyncIOMotorDatabase
@@ -78,7 +78,7 @@ class MongoDBClient:
         """Verifica se cliente esta saudavel"""
         return self.client is not None and self.db is not None
 
-    async def insert_postmortem(self, postmortem: Dict[str, Any]) -> bool:
+    async def insert_postmortem(self, postmortem: dict[str, Any]) -> bool:
         """
         Insere post-mortem no MongoDB
 
@@ -104,7 +104,7 @@ class MongoDBClient:
             )
             return False
 
-    async def get_postmortem(self, incident_id: str) -> Optional[Dict[str, Any]]:
+    async def get_postmortem(self, incident_id: str) -> Optional[dict[str, Any]]:
         """
         Busca post-mortem por incident_id
 

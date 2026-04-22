@@ -11,9 +11,9 @@ As regras de qualidade são carregadas do arquivo YAML montado em /etc/memory-la
 import asyncio
 import os
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 import structlog
 import yaml
@@ -31,7 +31,7 @@ logger = structlog.get_logger(__name__)
 DEFAULT_QUALITY_RULES_PATH = "/etc/memory-layer/policies/quality-rules.yaml"
 
 
-def load_quality_rules(rules_path: Optional[str] = None) -> Dict[str, Any]:
+def load_quality_rules(rules_path: Optional[str] = None) -> dict[str, Any]:
     """
     Carrega regras de qualidade do arquivo YAML
 
@@ -53,7 +53,7 @@ def load_quality_rules(rules_path: Optional[str] = None) -> Dict[str, Any]:
         return get_default_quality_rules()
 
     try:
-        with open(rules_file, "r") as f:
+        with open(rules_file) as f:
             rules = yaml.safe_load(f)
             logger.info("Regras de qualidade carregadas do arquivo", path=rules_path)
             return rules
@@ -66,7 +66,7 @@ def load_quality_rules(rules_path: Optional[str] = None) -> Dict[str, Any]:
         return get_default_quality_rules()
 
 
-def get_default_quality_rules() -> Dict[str, Any]:
+def get_default_quality_rules() -> dict[str, Any]:
     """Retorna regras de qualidade padrão como fallback"""
     return {
         "version": "1.0",
@@ -85,7 +85,7 @@ def get_default_quality_rules() -> Dict[str, Any]:
 class DataQualityChecker:
     """Verificador de qualidade de dados"""
 
-    def __init__(self, settings: Settings, rules: Optional[Dict[str, Any]] = None):
+    def __init__(self, settings: Settings, rules: Optional[dict[str, Any]] = None):
         self.settings = settings
         self.mongodb_client = None
         self.clickhouse_client = None
@@ -140,7 +140,7 @@ class DataQualityChecker:
 
         logger.info("Cliente MongoDB inicializado com sucesso")
 
-    async def check_completeness(self, collection: str, required_fields: List[str]) -> Dict:
+    async def check_completeness(self, collection: str, required_fields: list[str]) -> dict:
         """
         Verifica completude dos dados
 
@@ -194,7 +194,7 @@ class DataQualityChecker:
 
         return result
 
-    async def check_freshness(self, collection: str) -> Dict:
+    async def check_freshness(self, collection: str) -> dict:
         """
         Verifica frescor dos dados
 
@@ -207,7 +207,7 @@ class DataQualityChecker:
         logger.info(f"Verificando frescor em {collection}...")
 
         # Calcula threshold de frescor usando valor carregado das regras
-        freshness_cutoff = datetime.now(timezone.utc) - timedelta(
+        freshness_cutoff = datetime.now(UTC) - timedelta(
             hours=self.freshness_threshold_hours
         )
 
@@ -235,7 +235,7 @@ class DataQualityChecker:
 
         return result
 
-    async def check_consistency(self, collection: str) -> Dict:
+    async def check_consistency(self, collection: str) -> dict:
         """
         Verifica consistência dos dados
 
@@ -263,7 +263,7 @@ class DataQualityChecker:
             # Verifica timestamp válido
             if "timestamp" in doc:
                 if isinstance(doc["timestamp"], datetime):
-                    if doc["timestamp"] > datetime.now(timezone.utc):
+                    if doc["timestamp"] > datetime.now(UTC):
                         inconsistent_count += 1
                         issues.append({"type": "future_timestamp", "field": "timestamp"})
 
@@ -287,7 +287,7 @@ class DataQualityChecker:
         return result
 
     async def save_quality_metrics(
-        self, collection: str, metrics: Dict, anomalies: List[Dict] = None
+        self, collection: str, metrics: dict, anomalies: list[dict] = None
     ):
         """
         Salva métricas de qualidade no MongoDB e publica para Prometheus
@@ -309,7 +309,7 @@ class DataQualityChecker:
 
         quality_doc = {
             "collection": collection,
-            "timestamp": datetime.now(timezone.utc),
+            "timestamp": datetime.now(UTC),
             "metrics": metrics,
             "overall_score": overall_score,
             "anomalies": anomalies or [],
@@ -329,7 +329,7 @@ class DataQualityChecker:
             anomalies_count=len(anomalies) if anomalies else 0,
         )
 
-    async def check_collection(self, collection: str, required_fields: List[str]) -> Dict:
+    async def check_collection(self, collection: str, required_fields: list[str]) -> dict:
         """
         Verifica qualidade de uma coleção
 

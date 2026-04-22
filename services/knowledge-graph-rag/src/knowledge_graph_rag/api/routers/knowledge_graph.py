@@ -1,17 +1,14 @@
 """Router REST para Knowledge Graph RAG."""
 
-from typing import List, Optional
+from typing import Optional
 from fastapi import APIRouter, HTTPException, status
 from structlog import get_logger
 
 from knowledge_graph_rag.models.knowledge import (
     KnowledgeNode,
     KnowledgeRelation,
-    NodeType,
-    RelationType,
     GraphQuery,
     GraphSearchResult,
-    RAGContext,
 )
 from knowledge_graph_rag.services.knowledge_graph_rag import KnowledgeGraphRAG
 from knowledge_graph_rag.api.schemas.knowledge_graph_requests import (
@@ -41,7 +38,7 @@ def get_rag_service() -> KnowledgeGraphRAG:
     "/nodes",
     response_model=KnowledgeNode,
     status_code=status.HTTP_201_CREATED,
-    summary="Criar nó no grafo"
+    summary="Criar nó no grafo",
 )
 async def create_node(request: CreateNodeRequest) -> KnowledgeNode:
     """
@@ -57,29 +54,23 @@ async def create_node(request: CreateNodeRequest) -> KnowledgeNode:
             node_type=request.node_type,
             name=request.name,
             description=request.description,
-            properties=request.properties or {}
+            properties=request.properties or {},
         )
         return node
 
     except Exception as e:
         logger.error("create_node_failed", error=str(e))
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Falha ao criar nó: {str(e)}"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Falha ao criar nó: {str(e)}"
         )
 
 
-@router.get(
-    "/nodes/{node_id}",
-    response_model=KnowledgeNode,
-    summary="Buscar nó por ID"
-)
+@router.get("/nodes/{node_id}", response_model=KnowledgeNode, summary="Buscar nó por ID")
 async def get_node(node_id: str) -> KnowledgeNode:
     """Retorna um nó específico pelo seu ID."""
     # TODO: Implementar busca no repositório
     raise HTTPException(
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        detail="Busca por ID ainda não implementada"
+        status_code=status.HTTP_501_NOT_IMPLEMENTED, detail="Busca por ID ainda não implementada"
     )
 
 
@@ -87,7 +78,7 @@ async def get_node(node_id: str) -> KnowledgeNode:
     "/relations",
     response_model=KnowledgeRelation,
     status_code=status.HTTP_201_CREATED,
-    summary="Criar relação entre nós"
+    summary="Criar relação entre nós",
 )
 async def create_relation(request: CreateRelationRequest) -> KnowledgeRelation:
     """
@@ -102,28 +93,21 @@ async def create_relation(request: CreateRelationRequest) -> KnowledgeRelation:
             source_id=request.source_id,
             target_id=request.target_id,
             relation_type=request.relation_type,
-            properties=request.properties or {}
+            properties=request.properties or {},
         )
         return relation
 
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
-        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except Exception as e:
         logger.error("create_relation_failed", error=str(e))
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Falha ao criar relação: {str(e)}"
+            detail=f"Falha ao criar relação: {str(e)}",
         )
 
 
-@router.post(
-    "/search",
-    response_model=GraphSearchResult,
-    summary="Busca semântica no grafo"
-)
+@router.post("/search", response_model=GraphSearchResult, summary="Busca semântica no grafo")
 async def search_graph(request: SearchRequest) -> GraphSearchResult:
     """
     Realiza busca semântica no grafo de conhecimento.
@@ -138,7 +122,7 @@ async def search_graph(request: SearchRequest) -> GraphSearchResult:
             query_text=request.query_text,
             node_types=request.node_types,
             limit=request.limit,
-            include_relations=request.include_relations
+            include_relations=request.include_relations,
         )
 
         result = await service.search(query)
@@ -147,16 +131,11 @@ async def search_graph(request: SearchRequest) -> GraphSearchResult:
     except Exception as e:
         logger.error("search_failed", query=request.query_text, error=str(e))
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Falha na busca: {str(e)}"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Falha na busca: {str(e)}"
         )
 
 
-@router.post(
-    "/rag/query",
-    response_model=dict,
-    summary="Query com RAG"
-)
+@router.post("/rag/query", response_model=dict, summary="Query com RAG")
 async def query_with_rag(request: RAGQueryRequest) -> dict:
     """
     Realiza uma query usando RAG (Retrieval Augmented Generation).
@@ -170,32 +149,20 @@ async def query_with_rag(request: RAGQueryRequest) -> dict:
 
     try:
         response = await service.query_with_rag(
-            query_text=request.query_text,
-            context=request.context
+            query_text=request.query_text, context=request.context
         )
 
-        return {
-            "query": request.query_text,
-            "response": response,
-            "context_used": True
-        }
+        return {"query": request.query_text, "response": response, "context_used": True}
 
     except Exception as e:
         logger.error("rag_query_failed", query=request.query_text, error=str(e))
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Falha na query RAG: {str(e)}"
+            detail=f"Falha na query RAG: {str(e)}",
         )
 
 
-@router.get(
-    "/health",
-    summary="Health check do serviço"
-)
+@router.get("/health", summary="Health check do serviço")
 async def health_check() -> dict:
     """Verifica saúde do serviço."""
-    return {
-        "status": "healthy",
-        "service": "knowledge-graph-rag",
-        "version": "0.1.0"
-    }
+    return {"status": "healthy", "service": "knowledge-graph-rag", "version": "0.1.0"}

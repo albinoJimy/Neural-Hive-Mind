@@ -1,9 +1,10 @@
 """Testes para o playbook de detecção de memory leak - TDD Approach."""
 
-import pytest
-import yaml
 from pathlib import Path
 from unittest.mock import MagicMock, patch
+
+import pytest
+import yaml
 
 
 class TestMemoryLeakDetectionPlaybook:
@@ -49,7 +50,7 @@ class TestMemoryLeakDetectionPlaybook:
 class TestPodMetricsAction:
     """Testes para a ação get_pod_metrics no PlaybookExecutor."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_clients(self):
         """Mock clients para Kubernetes."""
         return {
@@ -57,7 +58,7 @@ class TestPodMetricsAction:
             "custom_api": MagicMock(),
         }
 
-    @pytest.fixture
+    @pytest.fixture()
     def executor(self, mock_clients):
         """Cria executor com mocks."""
         from src.services.playbook_executor import PlaybookExecutor
@@ -70,7 +71,7 @@ class TestPodMetricsAction:
         executor.core_v1 = mock_clients["core_v1"]
         return executor
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_pod_metrics_success(self, executor):
         """Testa sucesso ao obter métricas do pod."""
         # Arrange
@@ -105,7 +106,7 @@ class TestPodMetricsAction:
             assert result["containers"][0]["name"] == "app"
             assert result["containers"][0]["usage"]["memory"] == "128Mi"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_pod_metrics_pod_not_found(self, executor):
         """Testa erro quando pod não existe."""
         # Arrange
@@ -124,7 +125,7 @@ class TestPodMetricsAction:
             assert "error" in result
             assert "404" in result["error"]
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_pod_metrics_memory_threshold_check(self, executor):
         """Testa detecção de memory leak baseado em threshold."""
         # Arrange
@@ -156,7 +157,7 @@ class TestPodMetricsAction:
 class TestAnalyzeMemoryUsageAction:
     """Testes para a ação analyze_memory_usage no PlaybookExecutor."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def executor(self):
         """Cria executor."""
         from src.services.playbook_executor import PlaybookExecutor
@@ -167,7 +168,7 @@ class TestAnalyzeMemoryUsageAction:
             opa_enabled=False,
         )
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_analyze_memory_usage_increasing_trend(self, executor):
         """Testa detecção de tendência crescente de uso de memória."""
         # Arrange
@@ -189,7 +190,7 @@ class TestAnalyzeMemoryUsageAction:
         assert result["memory_leak_detected"] is True
         assert result["trend"] == "increasing"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_analyze_memory_usage_stable(self, executor):
         """Testa detecção de uso de memória estável."""
         # Arrange

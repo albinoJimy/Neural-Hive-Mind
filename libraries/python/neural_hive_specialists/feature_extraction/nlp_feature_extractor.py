@@ -14,8 +14,9 @@ Features extraídas:
 """
 
 import re
-from typing import Dict, List, Any, Optional
 from collections import Counter
+from typing import Any, Optional
+
 import structlog
 
 logger = structlog.get_logger()
@@ -207,7 +208,7 @@ class NLPFeatureExtractor:
             domains_count=len(self.DOMAIN_KEYWORDS),
         )
 
-    def extract_features(self, text: str) -> Dict[str, Any]:
+    def extract_features(self, text: str) -> dict[str, Any]:
         """
         Extrai todas as features do texto.
 
@@ -243,7 +244,7 @@ class NLPFeatureExtractor:
         """Normaliza texto para análise."""
         return text.lower().strip()
 
-    def _empty_features(self) -> Dict[str, Any]:
+    def _empty_features(self) -> dict[str, Any]:
         """Retorna features vazias com defaults."""
         return {
             # Texto básico
@@ -282,7 +283,7 @@ class NLPFeatureExtractor:
             "urgency_high": 0.0,
         }
 
-    def _extract_basic_features(self, text: str, text_normalized: str) -> Dict[str, Any]:
+    def _extract_basic_features(self, text: str, text_normalized: str) -> dict[str, Any]:
         """Extrai features básicas do texto."""
         chars = len(text)
         words = len(text_normalized.split()) if text_normalized else 0
@@ -299,7 +300,7 @@ class NLPFeatureExtractor:
             "avg_word_length": round(avg_word_len, 2),
         }
 
-    def _extract_domain_features(self, text: str) -> Dict[str, Any]:
+    def _extract_domain_features(self, text: str) -> dict[str, Any]:
         """Extrai features de domínio do texto."""
         domain_scores = {}
         word_counts = Counter(text.split())
@@ -321,7 +322,7 @@ class NLPFeatureExtractor:
 
         return domain_scores
 
-    def _extract_technical_patterns(self, text: str) -> Dict[str, Any]:
+    def _extract_technical_patterns(self, text: str) -> dict[str, Any]:
         """Extrai contagem de padrões técnicos."""
         features = {}
         total_count = 0
@@ -335,7 +336,7 @@ class NLPFeatureExtractor:
         features["technical_patterns_count"] = total_count
         return features
 
-    def _extract_action_features(self, text: str) -> Dict[str, Any]:
+    def _extract_action_features(self, text: str) -> dict[str, Any]:
         """Extrai features de ação/comando."""
         words = set(text.split())
         features = {}
@@ -354,7 +355,7 @@ class NLPFeatureExtractor:
 
         return features
 
-    def _extract_sentiment_features(self, text: str) -> Dict[str, Any]:
+    def _extract_sentiment_features(self, text: str) -> dict[str, Any]:
         """Extrai features de sentimento básicas."""
         # Palavras positivas e negativas simples
         positive_words = [
@@ -421,7 +422,7 @@ class NLPFeatureExtractor:
             "urgency_high": 1.0 if urgency_count > 0 else 0.0,
         }
 
-    def get_feature_names(self) -> List[str]:
+    def get_feature_names(self) -> list[str]:
         """Retorna lista de nomes de features extraídas."""
         return list(self._empty_features().keys())
 

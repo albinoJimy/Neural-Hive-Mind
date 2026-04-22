@@ -1,17 +1,14 @@
 """Repositório MongoDB para documentos de aprendizado"""
 
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 import structlog
 from motor.motor_asyncio import AsyncIOMotorClient
 from pymongo import ASCENDING, DESCENDING
 from pymongo.errors import DuplicateKeyError
-
 from src.config import get_settings
 from src.models import (
-    DocumentFormat,
-    DocumentGenerationRequest,
     DocumentStatus,
     DocumentType,
     LearningDocument,
@@ -56,7 +53,10 @@ class DocumentRepository:
             {"keys": [("created_at", DESCENDING)], "name": "created_at_idx"},
             {"keys": [("type", ASCENDING), ("created_at", DESCENDING)], "name": "type_created_idx"},
             {"keys": [("status", ASCENDING)], "name": "status_idx"},
-            {"keys": [("period_start", ASCENDING), ("period_end", ASCENDING)], "name": "period_idx"},
+            {
+                "keys": [("period_start", ASCENDING), ("period_end", ASCENDING)],
+                "name": "period_idx",
+            },
             {"keys": [("metadata.experiment_ids", ASCENDING)], "name": "experiment_ids_idx"},
             {"keys": [("title", "text"), ("summary", "text")], "name": "text_search_idx"},
         ]
@@ -112,9 +112,7 @@ class DocumentRepository:
             doc_dict = document.model_dump(exclude={"id"}, exclude_none=True)
             doc_dict["updated_at"] = datetime.utcnow()
 
-            result = await self._collection.update_one(
-                {"_id": doc_id}, {"$set": doc_dict}
-            )
+            result = await self._collection.update_one({"_id": doc_id}, {"$set": doc_dict})
 
             if result.modified_count > 0:
                 logger.info("Documento atualizado", doc_id=doc_id)
@@ -157,7 +155,7 @@ class DocumentRepository:
         page_size: int = 20,
         sort_by: str = "created_at",
         sort_order: int = -1,
-    ) -> tuple[List[LearningDocument], int]:
+    ) -> tuple[list[LearningDocument], int]:
         """Lista documentos com filtros e paginação
 
         Args:
@@ -175,7 +173,7 @@ class DocumentRepository:
         """
         try:
             # Construir filtro
-            filter_dict: Dict[str, Any] = {}
+            filter_dict: dict[str, Any] = {}
 
             if doc_type:
                 filter_dict["type"] = doc_type.value
@@ -237,7 +235,7 @@ class DocumentRepository:
             True se atualizado
         """
         try:
-            update_dict: Dict[str, Any] = {"status": status.value, "updated_at": datetime.utcnow()}
+            update_dict: dict[str, Any] = {"status": status.value, "updated_at": datetime.utcnow()}
 
             if status == DocumentStatus.COMPLETED:
                 update_dict["generated_at"] = datetime.utcnow()
@@ -254,7 +252,7 @@ class DocumentRepository:
 
     async def get_by_period(
         self, period_start: datetime, period_end: datetime, doc_type: Optional[DocumentType] = None
-    ) -> List[LearningDocument]:
+    ) -> list[LearningDocument]:
         """Busca documentos por período
 
         Args:
@@ -266,7 +264,7 @@ class DocumentRepository:
             Lista de documentos
         """
         try:
-            filter_dict: Dict[str, Any] = {
+            filter_dict: dict[str, Any] = {
                 "$or": [
                     {
                         "period_start": {"$lte": period_end},
@@ -292,7 +290,9 @@ class DocumentRepository:
             logger.error("Erro ao buscar por período", error=str(e))
             return []
 
-    async def get_latest_by_type(self, doc_type: DocumentType, limit: int = 10) -> List[LearningDocument]:
+    async def get_latest_by_type(
+        self, doc_type: DocumentType, limit: int = 10
+    ) -> list[LearningDocument]:
         """Busca documentos mais recentes por tipo
 
         Args:
@@ -320,7 +320,7 @@ class DocumentRepository:
             logger.error("Erro ao buscar mais recentes", doc_type=doc_type, error=str(e))
             return []
 
-    async def search_by_experiment_ids(self, experiment_ids: List[str]) -> List[LearningDocument]:
+    async def search_by_experiment_ids(self, experiment_ids: list[str]) -> list[LearningDocument]:
         """Busca documentos que contêm certos experimentos
 
         Args:

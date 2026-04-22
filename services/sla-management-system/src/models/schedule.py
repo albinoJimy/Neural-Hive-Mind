@@ -7,7 +7,7 @@ Suporta schedules baseados em cron, eventos e triggers manuais.
 
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 from uuid import uuid4
 
 from pydantic import BaseModel, Field
@@ -49,13 +49,13 @@ class ScheduleTrigger(BaseModel):
     event_type: Optional[str] = Field(
         None, description="Tipo de evento (ex: 'slo.violation', 'sla.budgets')"
     )
-    event_filter: Optional[Dict[str, Any]] = Field(
+    event_filter: Optional[dict[str, Any]] = Field(
         None, description="Filtro para evento (ex: {'slo_id': 'slo-123'})"
     )
-    resource_threshold: Optional[Dict[str, float]] = Field(
+    resource_threshold: Optional[dict[str, float]] = Field(
         None, description="Threshold de recurso (ex: {'cpu_percent': 80.0})"
     )
-    parameters: Optional[Dict[str, Any]] = Field(
+    parameters: Optional[dict[str, Any]] = Field(
         None, description="Parâmetros passados para o workflow"
     )
 
@@ -77,7 +77,7 @@ class Schedule(BaseModel):
     next_run_at: Optional[datetime] = Field(None, description="Próxima execução programada")
     total_runs: int = Field(default=0, description="Número total de execuções")
     failure_count: int = Field(default=0, description="Número de falhas consecutivas")
-    metadata: Dict[str, Any] = Field(default_factory=dict, description="Metadados adicionais")
+    metadata: dict[str, Any] = Field(default_factory=dict, description="Metadados adicionais")
 
 
 class ScheduleExecution(BaseModel):
@@ -90,7 +90,7 @@ class ScheduleExecution(BaseModel):
     completed_at: Optional[datetime] = Field(None)
     status: str = Field(default="running")  # running, completed, failed
     error_message: Optional[str] = Field(None)
-    output: Optional[Dict[str, Any]] = Field(None)
+    output: Optional[dict[str, Any]] = Field(None)
 
 
 class ScheduleCreateRequest(BaseModel):
@@ -102,7 +102,7 @@ class ScheduleCreateRequest(BaseModel):
     priority: SchedulePriority = Field(
         default=SchedulePriority.MEDIUM, description="Prioridade do schedule"
     )
-    metadata: Dict[str, Any] = Field(default_factory=dict, description="Metadados adicionais")
+    metadata: dict[str, Any] = Field(default_factory=dict, description="Metadados adicionais")
 
 
 class ScheduleUpdateRequest(BaseModel):
@@ -111,7 +111,7 @@ class ScheduleUpdateRequest(BaseModel):
     status: Optional[ScheduleStatus] = Field(None)
     priority: Optional[SchedulePriority] = Field(None)
     trigger: Optional[ScheduleTrigger] = Field(None)
-    metadata: Optional[Dict[str, Any]] = Field(None)
+    metadata: Optional[dict[str, Any]] = Field(None)
 
 
 class ScheduleListResponse(BaseModel):

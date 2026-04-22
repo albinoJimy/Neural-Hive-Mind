@@ -2,7 +2,7 @@ import asyncio
 import json
 import os
 import time
-from typing import Optional, Set
+from typing import Optional
 
 import structlog
 from confluent_kafka import Producer
@@ -35,7 +35,7 @@ class DecisionProducer:
         self.context_manager = context_manager
 
         # Deduplicação: cache de plan_id já processados
-        self._processed_plan_ids: Set[str] = set()
+        self._processed_plan_ids: set[str] = set()
         self._processed_plan_timestamps: dict = {}
         self._deduplication_ttl = 24 * 60 * 60  # 24 horas em segundos
 
@@ -79,7 +79,7 @@ class DecisionProducer:
             if os.path.exists(schema_path):
                 self.schema_registry_client = SchemaRegistryClient({"url": schema_registry_url})
 
-                with open(schema_path, "r") as f:
+                with open(schema_path) as f:
                     schema_str = f.read()
 
                 self.avro_serializer = AvroSerializer(self.schema_registry_client, schema_str)

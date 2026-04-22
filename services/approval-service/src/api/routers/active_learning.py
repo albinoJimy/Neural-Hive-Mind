@@ -5,8 +5,8 @@ Fornece endpoints para consultar métricas de balanceamento,
 gerenciar fila de casos prioritários e submeter feedbacks.
 """
 
-from datetime import datetime, timezone
-from typing import Any, Dict, Optional
+from datetime import UTC, datetime
+from typing import Any, Optional
 
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -50,12 +50,12 @@ class MetricsResponse(BaseModel):
     """Resposta com métricas de balanceamento."""
 
     total_feedbacks: int
-    balance: Dict[str, Dict[str, Any]]
-    confidence_distribution: Dict[str, Dict[str, Any]]
-    domain_distribution: Dict[str, Dict[str, Any]]
+    balance: dict[str, dict[str, Any]]
+    confidence_distribution: dict[str, dict[str, Any]]
+    domain_distribution: dict[str, dict[str, Any]]
     semantic_features_count: int
     semantic_features_percentage: float
-    priority_recommendations: list[Dict[str, Any]]
+    priority_recommendations: list[dict[str, Any]]
     last_updated: str
 
 
@@ -63,8 +63,8 @@ class QueueResponse(BaseModel):
     """Resposta com casos da fila."""
 
     queue_size: int
-    cases: list[Dict[str, Any]]
-    filters_applied: Dict[str, Any]
+    cases: list[dict[str, Any]]
+    filters_applied: dict[str, Any]
 
 
 class ClaimResponse(BaseModel):
@@ -127,7 +127,7 @@ async def get_metrics(http_request: Request, analyzer=Depends(get_balance_analyz
         metrics = await analyzer.calculate_balance_metrics()
 
         # Adicionar timestamp
-        metrics.last_updated = datetime.now(timezone.utc).isoformat()
+        metrics.last_updated = datetime.now(UTC).isoformat()
 
         return MetricsResponse(**metrics.model_dump())
 
@@ -135,7 +135,7 @@ async def get_metrics(http_request: Request, analyzer=Depends(get_balance_analyz
         logger.error("Failed to get balance metrics", error=str(e))
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to calculate metrics: {str(e)}",
+            detail=f"Failed to calculate metrics: {e!s}",
         )
 
 
@@ -170,7 +170,7 @@ async def get_queue(
         logger.error("Failed to get queue", error=str(e))
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get queue: {str(e)}",
+            detail=f"Failed to get queue: {e!s}",
         )
 
 
@@ -202,7 +202,7 @@ async def claim_case(queue_id: str, request: ClaimRequest, queue=Depends(get_fee
         logger.error("Failed to claim case", error=str(e))
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to claim case: {str(e)}",
+            detail=f"Failed to claim case: {e!s}",
         )
 
 
@@ -256,7 +256,7 @@ async def submit_feedback(
             queue_id=queue_id,
             feedback_id=feedback_id or "",
             status=result["status"],
-            submitted_at=datetime.now(timezone.utc).isoformat(),
+            submitted_at=datetime.now(UTC).isoformat(),
         )
 
     except HTTPException:
@@ -265,7 +265,7 @@ async def submit_feedback(
         logger.error("Failed to submit feedback", error=str(e))
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to submit feedback: {str(e)}",
+            detail=f"Failed to submit feedback: {e!s}",
         )
 
 
@@ -292,5 +292,5 @@ async def release_case(queue_id: str, queue=Depends(get_feedback_queue)):
         logger.error("Failed to release case", error=str(e))
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to release case: {str(e)}",
+            detail=f"Failed to release case: {e!s}",
         )

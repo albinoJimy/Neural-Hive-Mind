@@ -11,37 +11,37 @@ Tests:
 """
 
 import json
-import pytest
 from unittest.mock import AsyncMock, MagicMock
 
-from src.consumers.execution_result_consumer import ExecutionResultConsumer
+import pytest
 from src.activities.ticket_generation import cache_workflow_mapping
+from src.consumers.execution_result_consumer import ExecutionResultConsumer
 
 pytestmark = pytest.mark.e2e
 
 
-@pytest.mark.e2e
+@pytest.mark.e2e()
 async def test_gap_01_orchestrator_settings_module_exists():
     """GAP-01: Verify Orchestrator settings module exists."""
     from src.config import settings
 
     # Verify settings module has the right structure
-    assert hasattr(settings, 'OrchestratorSettings')
-    assert hasattr(settings, 'get_settings')
+    assert hasattr(settings, "OrchestratorSettings")
+    assert hasattr(settings, "get_settings")
 
 
-@pytest.mark.e2e
+@pytest.mark.e2e()
 async def test_gap_02_consumer_exists():
     """GAP-02: Verify ExecutionResultConsumer class exists."""
     from src.consumers.execution_result_consumer import ExecutionResultConsumer
 
     # Verify class has required attributes
-    assert hasattr(ExecutionResultConsumer, 'TOPIC')
+    assert hasattr(ExecutionResultConsumer, "TOPIC")
     assert ExecutionResultConsumer.TOPIC == "execution.results"
-    assert hasattr(ExecutionResultConsumer, 'WORKFLOW_CACHE_PREFIX')
+    assert hasattr(ExecutionResultConsumer, "WORKFLOW_CACHE_PREFIX")
 
 
-@pytest.mark.e2e
+@pytest.mark.e2e()
 async def test_gap_02_workflow_cache_mapping():
     """GAP-02: Verify workflow_id cache mapping works."""
 
@@ -65,7 +65,7 @@ async def test_gap_02_workflow_cache_mapping():
     assert call_args[0][2] == workflow_id
 
 
-@pytest.mark.e2e
+@pytest.mark.e2e()
 async def test_gap_02_consumer_processes_result():
     """GAP-02: Verify consumer processes execution result and sends signal."""
 
@@ -93,7 +93,7 @@ async def test_gap_02_consumer_processes_result():
         config=mock_config,
         temporal_client=mock_temporal,
         redis_client=mock_redis,
-        metrics=mock_metrics
+        metrics=mock_metrics,
     )
 
     # Mock message
@@ -101,13 +101,15 @@ async def test_gap_02_consumer_processes_result():
     mock_message.topic = "execution.results"
     mock_message.partition = 0
     mock_message.offset = 100
-    mock_message.value = json.dumps({
-        "ticket_id": "ticket-123",
-        "plan_id": "plan-456",
-        "workflow_id": "workflow-789",
-        "status": "COMPLETED",
-        "result": {"success": True}
-    }).encode("utf-8")
+    mock_message.value = json.dumps(
+        {
+            "ticket_id": "ticket-123",
+            "plan_id": "plan-456",
+            "workflow_id": "workflow-789",
+            "status": "COMPLETED",
+            "result": {"success": True},
+        }
+    ).encode("utf-8")
 
     # Mock consumer for commit
     async_mock_consumer = AsyncMock()
@@ -127,7 +129,7 @@ async def test_gap_02_consumer_processes_result():
     assert signal_call[1]["ticket_id"] == "ticket-123"
 
 
-@pytest.mark.e2e
+@pytest.mark.e2e()
 async def test_gap_02_consumer_uses_cache_when_no_workflow_id():
     """GAP-02: Verify consumer falls back to cache when workflow_id not in message."""
 
@@ -154,7 +156,7 @@ async def test_gap_02_consumer_uses_cache_when_no_workflow_id():
         config=mock_config,
         temporal_client=mock_temporal,
         redis_client=mock_redis,
-        metrics=mock_metrics
+        metrics=mock_metrics,
     )
 
     # Mock message WITHOUT workflow_id
@@ -162,13 +164,15 @@ async def test_gap_02_consumer_uses_cache_when_no_workflow_id():
     mock_message.topic = "execution.results"
     mock_message.partition = 0
     mock_message.offset = 100
-    mock_message.value = json.dumps({
-        "ticket_id": "ticket-123",
-        "plan_id": "plan-456",
-        "workflow_id": None,  # Not in message
-        "status": "COMPLETED",
-        "result": {"success": True}
-    }).encode("utf-8")
+    mock_message.value = json.dumps(
+        {
+            "ticket_id": "ticket-123",
+            "plan_id": "plan-456",
+            "workflow_id": None,  # Not in message
+            "status": "COMPLETED",
+            "result": {"success": True},
+        }
+    ).encode("utf-8")
 
     # Mock consumer for commit
     async_mock_consumer = AsyncMock()
@@ -186,7 +190,7 @@ async def test_gap_02_consumer_uses_cache_when_no_workflow_id():
     mock_handle.signal.assert_called_once()
 
 
-@pytest.mark.e2e
+@pytest.mark.e2e()
 async def test_full_feedback_loop_integration():
     """
     Full E2E test: GAP-01 + GAP-02 integrated feedback loop.
@@ -201,7 +205,7 @@ async def test_full_feedback_loop_integration():
     from src.config import settings
 
     # Verify GAP-01: Orchestrator settings module exists
-    assert hasattr(settings, 'OrchestratorSettings')
+    assert hasattr(settings, "OrchestratorSettings")
 
     # Verify GAP-02: Consumer exists
     assert ExecutionResultConsumer is not None

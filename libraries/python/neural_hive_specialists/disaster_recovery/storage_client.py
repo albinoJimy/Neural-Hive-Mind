@@ -7,12 +7,13 @@ Implementações:
 - LocalStorageClient: Filesystem local (desenvolvimento/testes)
 """
 
-import os
 import hashlib
+import os
 import shutil
 from abc import ABC, abstractmethod
-from typing import List, Dict, Optional
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+from typing import Optional
+
 import structlog
 
 logger = structlog.get_logger()
@@ -43,7 +44,6 @@ class StorageClient(ABC):
         Returns:
             True se sucesso, False se falha
         """
-        pass
 
     @abstractmethod
     def download_backup(self, remote_key: str, local_path: str) -> bool:
@@ -57,10 +57,9 @@ class StorageClient(ABC):
         Returns:
             True se sucesso, False se falha
         """
-        pass
 
     @abstractmethod
-    def list_backups(self, prefix: str = "") -> List[Dict]:
+    def list_backups(self, prefix: str = "") -> list[dict]:
         """
         Lista backups disponíveis.
 
@@ -70,7 +69,6 @@ class StorageClient(ABC):
         Returns:
             Lista de dicts com: key, size, timestamp
         """
-        pass
 
     @abstractmethod
     def delete_backup(self, remote_key: str) -> bool:
@@ -83,10 +81,9 @@ class StorageClient(ABC):
         Returns:
             True se sucesso, False se falha
         """
-        pass
 
     @abstractmethod
-    def get_backup_metadata(self, remote_key: str) -> Dict:
+    def get_backup_metadata(self, remote_key: str) -> dict:
         """
         Obtém metadados de backup.
 
@@ -96,7 +93,6 @@ class StorageClient(ABC):
         Returns:
             Dict com: size, etag, last_modified
         """
-        pass
 
     def verify_checksum(self, remote_key: str, expected_checksum: str) -> bool:
         """
@@ -223,7 +219,7 @@ class S3StorageClient(StorageClient):
                 ExtraArgs={
                     "ServerSideEncryption": "AES256",
                     "Metadata": {
-                        "uploaded_at": datetime.now(timezone.utc).isoformat(),
+                        "uploaded_at": datetime.now(UTC).isoformat(),
                         "source": "neural-hive-disaster-recovery",
                     },
                 },
@@ -286,7 +282,7 @@ class S3StorageClient(StorageClient):
             )
             return False
 
-    def list_backups(self, prefix: str = "") -> List[Dict]:
+    def list_backups(self, prefix: str = "") -> list[dict]:
         """Lista backups no S3."""
         full_prefix = self._get_full_key(prefix) if prefix else self.prefix
 
@@ -342,7 +338,7 @@ class S3StorageClient(StorageClient):
             )
             return False
 
-    def get_backup_metadata(self, remote_key: str) -> Dict:
+    def get_backup_metadata(self, remote_key: str) -> dict:
         """Obtém metadados de backup do S3."""
         full_key = self._get_full_key(remote_key)
 
@@ -454,7 +450,7 @@ class GCSStorageClient(StorageClient):
 
             blob = self.bucket.blob(full_key)
             blob.metadata = {
-                "uploaded_at": datetime.now(timezone.utc).isoformat(),
+                "uploaded_at": datetime.now(UTC).isoformat(),
                 "source": "neural-hive-disaster-recovery",
             }
 
@@ -518,7 +514,7 @@ class GCSStorageClient(StorageClient):
             )
             return False
 
-    def list_backups(self, prefix: str = "") -> List[Dict]:
+    def list_backups(self, prefix: str = "") -> list[dict]:
         """Lista backups no GCS."""
         full_prefix = self._get_full_key(prefix) if prefix else self.prefix
 
@@ -572,7 +568,7 @@ class GCSStorageClient(StorageClient):
             )
             return False
 
-    def get_backup_metadata(self, remote_key: str) -> Dict:
+    def get_backup_metadata(self, remote_key: str) -> dict:
         """Obtém metadados de backup do GCS."""
         full_key = self._get_full_key(remote_key)
 
@@ -696,7 +692,7 @@ class LocalStorageClient(StorageClient):
             )
             return False
 
-    def list_backups(self, prefix: str = "") -> List[Dict]:
+    def list_backups(self, prefix: str = "") -> list[dict]:
         """Lista backups no storage local."""
         try:
             search_path = self._get_full_path(prefix) if prefix else self.base_path
@@ -762,7 +758,7 @@ class LocalStorageClient(StorageClient):
             )
             return False
 
-    def get_backup_metadata(self, remote_key: str) -> Dict:
+    def get_backup_metadata(self, remote_key: str) -> dict:
         """Obtém metadados de backup local."""
         full_path = self._get_full_path(remote_key)
 

@@ -9,14 +9,14 @@ import pytest
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 
-@pytest.fixture
+@pytest.fixture()
 def mcp():
     """Fixture para servidor MCP."""
     # Será criado após implementação
-    return None
+    return
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_ticket():
     """Fixture de ticket para testes."""
     return {
@@ -31,7 +31,7 @@ def mock_ticket():
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_event():
     """Fixture de evento de segurança para testes."""
     return {
@@ -44,7 +44,7 @@ def mock_event():
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_vulnerability_report():
     """Fixture de relatório de vulnerabilidades."""
     return {

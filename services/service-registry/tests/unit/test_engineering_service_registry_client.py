@@ -1,18 +1,17 @@
 """Testes para EngineeringServiceRegistryClient."""
 
-import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import pytest
 import grpc
+import pytest
 from src.clients.engineering_service_registry_client import (
     EngineeringServiceRegistryClient,
     register_engineering_service,
 )
-from src.proto import service_registry_pb2, service_registry_pb2_grpc
+from src.proto import service_registry_pb2
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_grpc_channel():
     """Fixture para canal gRPC mock."""
     channel = AsyncMock(spec=grpc.aio.Channel)
@@ -20,7 +19,7 @@ def mock_grpc_channel():
     return channel
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_stub():
     """Fixture para stub ServiceRegistry mock."""
     stub = MagicMock()
@@ -30,7 +29,7 @@ def mock_stub():
     return stub
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_settings(monkeypatch):
     """Fixture para configurações mock."""
     monkeypatch.setenv("SERVICE_REGISTRY_HOST", "localhost")
@@ -91,7 +90,7 @@ class TestEngineeringServiceRegistryClient:
         assert client.service_name == "architect-agent"
         assert client.agent_type == service_registry_pb2.ARCHITECT_AGENT
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_initialize_success(self, mock_settings):
         """Testa inicialização bem-sucedida."""
         client = EngineeringServiceRegistryClient(
@@ -110,7 +109,7 @@ class TestEngineeringServiceRegistryClient:
             assert client.channel is not None
             assert client.stub is not None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_register_success(self, mock_settings):
         """Testa registro bem-sucedido."""
         client = EngineeringServiceRegistryClient(
@@ -136,7 +135,7 @@ class TestEngineeringServiceRegistryClient:
         assert client._registered is True
         mock_stub.Register.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_register_without_metadata(self, mock_settings):
         """Testa registro sem metadados adicionais."""
         client = EngineeringServiceRegistryClient(
@@ -166,7 +165,7 @@ class TestEngineeringServiceRegistryClient:
         assert request.metadata["service_name"] == "documentation-generation"
         assert request.metadata["service_type"] == "engineering"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_deregister_success(self, mock_settings):
         """Testa deregistro bem-sucedido."""
         client = EngineeringServiceRegistryClient(
@@ -188,7 +187,7 @@ class TestEngineeringServiceRegistryClient:
         assert result is True
         assert client._registered is False
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_deregister_not_registered(self, mock_settings):
         """Testa deregistro quando não está registrado."""
         client = EngineeringServiceRegistryClient(
@@ -201,7 +200,7 @@ class TestEngineeringServiceRegistryClient:
 
         assert result is True  # Retorna True se não estava registrado
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_send_heartbeat_success(self, mock_settings):
         """Testa envio de heartbeat bem-sucedido."""
         client = EngineeringServiceRegistryClient(
@@ -236,7 +235,7 @@ class TestEngineeringServiceRegistryClient:
         assert request.telemetry.total_executions == 100
         assert request.telemetry.failed_executions == 5
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_send_heartbeat_without_metrics(self, mock_settings):
         """Testa envio de heartbeat sem métricas."""
         client = EngineeringServiceRegistryClient(
@@ -263,7 +262,7 @@ class TestEngineeringServiceRegistryClient:
         assert request.telemetry.success_rate == 1.0
         assert request.telemetry.avg_duration_ms == 0
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_heartbeat_not_registered(self, mock_settings):
         """Testa heartbeat quando não está registrado."""
         client = EngineeringServiceRegistryClient(
@@ -276,7 +275,7 @@ class TestEngineeringServiceRegistryClient:
 
         assert result is False
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_close(self, mock_settings):
         """Testa fechamento do cliente."""
         client = EngineeringServiceRegistryClient(
@@ -305,7 +304,7 @@ class TestEngineeringServiceRegistryClient:
 class TestRegisterEngineeringService:
     """Testes para função register_engineering_service."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_register_success(self, monkeypatch):
         """Testa registro bem-sucedido."""
         # Mock settings
@@ -339,7 +338,7 @@ class TestRegisterEngineeringService:
                 assert client is not None
                 assert client.agent_id == "registered-agent-123"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_register_init_fails(self, monkeypatch):
         """Testa falha na inicialização do cliente."""
         # Mock settings
@@ -359,7 +358,7 @@ class TestRegisterEngineeringService:
 
             assert client is None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_register_registration_fails(self, monkeypatch):
         """Testa falha no registro."""
         # Mock settings

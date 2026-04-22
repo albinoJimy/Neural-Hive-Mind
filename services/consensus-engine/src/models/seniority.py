@@ -6,7 +6,6 @@ de peso no processo de consenso.
 """
 
 from enum import Enum
-from typing import Dict
 
 
 class SeniorityLevel(str, Enum):
@@ -32,7 +31,7 @@ class SeniorityLevel(str, Enum):
 
 
 # Multiplicadores de peso por nível de senioridade
-SENIORITY_MULTIPLIERS: Dict[SeniorityLevel, float] = {
+SENIORITY_MULTIPLIERS: dict[SeniorityLevel, float] = {
     SeniorityLevel.TRAINEE: 0.5,
     SeniorityLevel.JUNIOR: 0.75,
     SeniorityLevel.MID_LEVEL: 1.0,
@@ -42,7 +41,7 @@ SENIORITY_MULTIPLIERS: Dict[SeniorityLevel, float] = {
 
 
 # Descrições humanas dos níveis
-SENIORITY_DESCRIPTIONS: Dict[SeniorityLevel, str] = {
+SENIORITY_DESCRIPTIONS: dict[SeniorityLevel, str] = {
     SeniorityLevel.TRAINEE: "Aprendiz em treinamento",
     SeniorityLevel.JUNIOR: "Especialista júnior com experiência básica",
     SeniorityLevel.MID_LEVEL: "Especialista pleno com experiência consolidada",

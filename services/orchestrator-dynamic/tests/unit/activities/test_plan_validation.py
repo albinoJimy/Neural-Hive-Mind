@@ -9,19 +9,19 @@ Tests cover:
 - optimize_dag cycle detection
 """
 
-import pytest
 from datetime import datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
 from src.activities.plan_validation import (
-    validate_cognitive_plan,
     audit_validation,
     optimize_dag,
     set_activity_dependencies,
+    validate_cognitive_plan,
 )
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_activity_info():
     """Mock activity.info() for workflow context."""
     with patch("src.activities.plan_validation.activity") as mock_activity:
@@ -32,7 +32,7 @@ def mock_activity_info():
         yield mock_activity
 
 
-@pytest.fixture
+@pytest.fixture()
 def valid_plan():
     """Create a valid cognitive plan."""
     return {
@@ -49,7 +49,7 @@ def valid_plan():
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_policy_validator():
     """Create mock policy validator."""
     validator = AsyncMock()
@@ -62,7 +62,7 @@ def mock_policy_validator():
     return validator
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_config():
     """Create mock config."""
     config = MagicMock()
@@ -71,7 +71,7 @@ def mock_config():
     return config
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_mongodb_client():
     """Create mock MongoDB client."""
     client = AsyncMock()
@@ -82,7 +82,7 @@ def mock_mongodb_client():
 class TestValidateCognitivePlan:
     """Tests for validate_cognitive_plan activity."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_valid_plan_returns_valid_true(self, mock_activity_info, valid_plan):
         """Valid plan should return valid=True with no errors."""
         set_activity_dependencies(policy_validator=None, config=None, mongodb_client=None)
@@ -93,7 +93,7 @@ class TestValidateCognitivePlan:
         assert len(result["errors"]) == 0
         assert "validated_at" in result
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_missing_required_fields_returns_errors(self, mock_activity_info):
         """Plan missing required fields should return errors."""
         incomplete_plan = {
@@ -111,7 +111,7 @@ class TestValidateCognitivePlan:
         assert any("risk_score" in e for e in result["errors"])
         assert any("risk_band" in e for e in result["errors"])
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_expired_plan_returns_error(self, mock_activity_info, valid_plan):
         """Plan with expired valid_until should return error."""
         # Set valid_until to 1 hour ago (in milliseconds)
@@ -124,7 +124,7 @@ class TestValidateCognitivePlan:
         assert result["valid"] is False
         assert any("expirado" in e or "expired" in e.lower() for e in result["errors"])
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_invalid_dag_task_not_in_execution_order(self, mock_activity_info):
         """Task referenced in execution_order but not defined should error."""
         invalid_dag_plan = {
@@ -141,7 +141,7 @@ class TestValidateCognitivePlan:
         assert result["valid"] is False
         assert any("task-nonexistent" in e for e in result["errors"])
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_invalid_dependency_reference(self, mock_activity_info):
         """Task with non-existent dependency should error."""
         invalid_dep_plan = {
@@ -161,7 +161,7 @@ class TestValidateCognitivePlan:
         assert result["valid"] is False
         assert any("task-nonexistent" in e for e in result["errors"])
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_opa_validation_with_violations(
         self, mock_activity_info, valid_plan, mock_config
     ):
@@ -187,7 +187,7 @@ class TestValidateCognitivePlan:
         assert result["valid"] is False
         assert any("security-policy" in e for e in result["errors"])
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_opa_validation_with_warnings(
         self, mock_activity_info, valid_plan, mock_policy_validator, mock_config
     ):
@@ -207,7 +207,7 @@ class TestValidateCognitivePlan:
         assert result["valid"] is True
         assert any("cost-policy" in w for w in result["warnings"])
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_opa_failure_fail_open(self, mock_activity_info, valid_plan, mock_config):
         """OPA failure with fail_open=True should not add error."""
         mock_validator = AsyncMock()
@@ -227,7 +227,7 @@ class TestValidateCognitivePlan:
 class TestAuditValidation:
     """Tests for audit_validation activity."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_audit_saves_to_mongodb(self, mock_activity_info, mock_mongodb_client):
         """Audit should persist to MongoDB when client is available."""
         set_activity_dependencies(
@@ -240,7 +240,7 @@ class TestAuditValidation:
 
         mock_mongodb_client.save_validation_audit.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_audit_fail_open_when_mongodb_unavailable(self, mock_activity_info):
         """Audit should not raise when MongoDB is unavailable (fail-open)."""
         set_activity_dependencies(
@@ -252,7 +252,7 @@ class TestAuditValidation:
         # Should not raise
         await audit_validation("test-plan-001", validation_result)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_audit_fail_open_on_mongodb_error(self, mock_activity_info, mock_mongodb_client):
         """Audit should not raise on MongoDB error (fail-open)."""
         mock_mongodb_client.save_validation_audit.side_effect = Exception("MongoDB error")
@@ -270,7 +270,7 @@ class TestAuditValidation:
 class TestOptimizeDag:
     """Tests for optimize_dag activity."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_dag_without_cycles_returns_not_optimized(self, mock_activity_info):
         """DAG without cycles should return optimized=False."""
         tasks = [
@@ -286,7 +286,7 @@ class TestOptimizeDag:
         assert result["new_execution_order"] == execution_order
         assert result["removed_dependencies"] == []
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_dag_with_cycle_returns_optimized(self, mock_activity_info):
         """DAG with cycle should be detected and return optimized=True."""
         tasks = [
@@ -300,7 +300,7 @@ class TestOptimizeDag:
 
         assert result["optimized"] is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_dag_self_reference_cycle(self, mock_activity_info):
         """Task referencing itself should be detected as cycle."""
         tasks = [{"task_id": "task-1", "dependencies": ["task-1"]}]  # Self-reference
@@ -310,7 +310,7 @@ class TestOptimizeDag:
 
         assert result["optimized"] is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_empty_dag(self, mock_activity_info):
         """Empty DAG should return not optimized."""
         tasks = []

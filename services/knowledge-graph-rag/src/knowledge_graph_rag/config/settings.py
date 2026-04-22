@@ -25,19 +25,13 @@ class Settings(BaseSettings):
     port: int = 8016
 
     # Neo4j
-    neo4j_uri: str = Field(
-        default="bolt://localhost:7687",
-        validation_alias="NEO4J_URI"
-    )
+    neo4j_uri: str = Field(default="bolt://localhost:7687", validation_alias="NEO4J_URI")
     neo4j_user: str = Field(default="neo4j", validation_alias="NEO4J_USER")
     neo4j_password: str = Field(default="password", validation_alias="NEO4J_PASSWORD")
     neo4j_database: str = Field(default="neo4j", validation_alias="NEO4J_DATABASE")
 
     # Qdrant Vector DB
-    qdrant_url: str = Field(
-        default="http://localhost:6333",
-        validation_alias="QDRANT_URL"
-    )
+    qdrant_url: str = Field(default="http://localhost:6333", validation_alias="QDRANT_URL")
     qdrant_host: str = Field(default="localhost", validation_alias="QDRANT_HOST")
     qdrant_port: int = Field(default=6333, validation_alias="QDRANT_PORT")
     qdrant_collection: str = "nhm_knowledge"

@@ -2,20 +2,20 @@
 Testes unitários para GuardrailEnforcer.
 """
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock
 
-from src.services.guardrail_enforcer import GuardrailEnforcer
+import pytest
 from src.models.security_validation import ViolationType
+from src.services.guardrail_enforcer import GuardrailEnforcer
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_opa_client():
     """Mock OPA client."""
     return AsyncMock()
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_mongodb_client():
     """Mock MongoDB client."""
     client = MagicMock()
@@ -25,13 +25,13 @@ def mock_mongodb_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_redis_client():
     """Mock Redis client."""
     return AsyncMock()
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_ticket():
     """ExecutionTicket de exemplo."""
     return {
@@ -49,7 +49,7 @@ def sample_ticket():
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_ticket_ml():
     """ExecutionTicket com modelo ML."""
     return {
@@ -60,7 +60,7 @@ def sample_ticket_ml():
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_ticket_deploy():
     """ExecutionTicket de deploy em produção."""
     return {
@@ -75,7 +75,7 @@ def sample_ticket_deploy():
     }
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_enforce_guardrails_no_violations(
     mock_opa_client, mock_mongodb_client, mock_redis_client, sample_ticket
 ):
@@ -89,7 +89,7 @@ async def test_enforce_guardrails_no_violations(
     assert len(violations) == 0
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_check_bias_risk(
     mock_opa_client, mock_mongodb_client, mock_redis_client, sample_ticket_ml
 ):
@@ -103,7 +103,7 @@ async def test_check_bias_risk(
     assert "bias testing" in violations[0].description.lower()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_check_privacy_compliance(mock_opa_client, mock_mongodb_client, mock_redis_client):
     """Testa detecção de violação GDPR."""
     ticket = {
@@ -120,7 +120,7 @@ async def test_check_privacy_compliance(mock_opa_client, mock_mongodb_client, mo
     assert any(v.violation_type == ViolationType.COMPLIANCE_BREACH for v in violations)
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_check_blast_radius(
     mock_opa_client, mock_mongodb_client, mock_redis_client, sample_ticket_deploy
 ):
@@ -133,7 +133,7 @@ async def test_check_blast_radius(
     assert "blast radius" in violations[0].description.lower()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_check_rollback_plan(
     mock_opa_client, mock_mongodb_client, mock_redis_client, sample_ticket_deploy
 ):
@@ -146,7 +146,7 @@ async def test_check_rollback_plan(
     assert "rollback plan" in violations[0].description.lower()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_check_cost_threshold(mock_opa_client, mock_mongodb_client, mock_redis_client):
     """Testa bloqueio de mudanças que excedem budget."""
     ticket = {
@@ -163,7 +163,7 @@ async def test_check_cost_threshold(mock_opa_client, mock_mongodb_client, mock_r
     assert "custo" in violations[0].description.lower()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_guardrails_advisory_mode(
     mock_opa_client, mock_mongodb_client, mock_redis_client, sample_ticket_deploy
 ):
@@ -178,7 +178,7 @@ async def test_guardrails_advisory_mode(
     assert enforcer.mode == "ADVISORY"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_guardrails_blocking_mode(
     mock_opa_client, mock_mongodb_client, mock_redis_client, sample_ticket_deploy
 ):

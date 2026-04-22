@@ -6,18 +6,17 @@ Fixtures especificas para testes E2E com mock MCP server real.
 
 import asyncio
 import json
-from typing import Dict, Any
+from typing import Any
 
 import pytest
 from aiohttp import web
-
 
 # ============================================================================
 # MCP Server Mock Fixtures
 # ============================================================================
 
 
-@pytest.fixture
+@pytest.fixture()
 def mcp_server_state():
     """Estado compartilhado do MCP Server mock."""
     return {
@@ -69,7 +68,7 @@ def mcp_server_state():
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def mcp_server_app(mcp_server_state):
     """Aplicacao aiohttp simulando MCP Server."""
     app = web.Application()
@@ -199,7 +198,7 @@ def mcp_server_app(mcp_server_state):
     return app
 
 
-@pytest.fixture
+@pytest.fixture()
 async def mcp_server(mcp_server_app, aiohttp_server):
     """Mock MCP Server rodando."""
     return await aiohttp_server(mcp_server_app)
@@ -210,7 +209,7 @@ async def mcp_server(mcp_server_app, aiohttp_server):
 # ============================================================================
 
 
-@pytest.fixture
+@pytest.fixture()
 def failing_mcp_server_app():
     """MCP Server que sempre falha."""
     app = web.Application()
@@ -231,7 +230,7 @@ def failing_mcp_server_app():
     return app
 
 
-@pytest.fixture
+@pytest.fixture()
 async def failing_mcp_server(failing_mcp_server_app, aiohttp_server):
     """Mock MCP Server que sempre falha."""
     return await aiohttp_server(failing_mcp_server_app)
@@ -242,7 +241,7 @@ async def failing_mcp_server(failing_mcp_server_app, aiohttp_server):
 # ============================================================================
 
 
-@pytest.fixture
+@pytest.fixture()
 def flaky_mcp_server_app():
     """MCP Server que falha intermitentemente."""
     app = web.Application()
@@ -279,7 +278,7 @@ def flaky_mcp_server_app():
     return app
 
 
-@pytest.fixture
+@pytest.fixture()
 async def flaky_mcp_server(flaky_mcp_server_app, aiohttp_server):
     """Mock MCP Server flaky."""
     return await aiohttp_server(flaky_mcp_server_app)
@@ -290,23 +289,23 @@ async def flaky_mcp_server(flaky_mcp_server_app, aiohttp_server):
 # ============================================================================
 
 
-@pytest.fixture
+@pytest.fixture()
 def mcp_jsonrpc_request():
     """Helper para criar requisicoes JSON-RPC."""
     request_id = [0]
 
-    def make_request(method: str, params: Dict[str, Any] = None) -> Dict[str, Any]:
+    def make_request(method: str, params: dict[str, Any] = None) -> dict[str, Any]:
         request_id[0] += 1
         return {"jsonrpc": "2.0", "method": method, "params": params or {}, "id": request_id[0]}
 
     return make_request
 
 
-@pytest.fixture
+@pytest.fixture()
 def assert_mcp_response():
     """Helper para validar respostas JSON-RPC."""
 
-    def validate(response: Dict[str, Any], expected_id: int = None):
+    def validate(response: dict[str, Any], expected_id: int = None):
         assert response.get("jsonrpc") == "2.0"
         assert "result" in response or "error" in response
         if expected_id is not None:

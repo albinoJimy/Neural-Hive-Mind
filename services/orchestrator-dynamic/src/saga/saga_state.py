@@ -6,22 +6,25 @@ Saga distribuida com compensacao automatica.
 """
 
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 from uuid import uuid4
 
-UTC = timezone.utc  # type: ignore
+UTC = UTC  # type: ignore
 
 # Python 3.10 compatibility: StrEnum was added in Python 3.11
 if sys.version_info >= (3, 11):
     from enum import StrEnum as _StrEnum
 else:
+
     class _StrEnum(str, Enum):
         """Polyfill for StrEnum on Python 3.10"""
+
         @staticmethod
         def _generate_next_value_(name, start, count, last_values):
             return name
+
 
 from pydantic import BaseModel, ConfigDict, Field
 

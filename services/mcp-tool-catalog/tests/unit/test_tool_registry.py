@@ -18,13 +18,13 @@ import pytest
 class TestToolRegistryList:
     """Testes de listagem de ferramentas."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_list_tools_by_category(
         self, mock_mongodb_client, mock_redis_client, cli_tool, rest_tool
     ):
         """Deve listar ferramentas por categoria."""
-        from src.services.tool_registry import ToolRegistry
         from src.models.tool_descriptor import ToolCategory
+        from src.services.tool_registry import ToolRegistry
 
         # Mock list_tools retornando ferramentas
         mock_mongodb_client.list_tools = AsyncMock(return_value=[cli_tool, rest_tool])
@@ -36,13 +36,13 @@ class TestToolRegistryList:
         assert len(tools) >= 1
         mock_mongodb_client.list_tools.assert_called_once_with(category=ToolCategory.VALIDATION)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_list_tools_filters_inactive(
         self, mock_mongodb_client, mock_redis_client, cli_tool, unhealthy_tool
     ):
         """Deve filtrar ferramentas inativas."""
-        from src.services.tool_registry import ToolRegistry
         from src.models.tool_descriptor import ToolCategory
+        from src.services.tool_registry import ToolRegistry
 
         # Mock list_tools retornando ferramentas (filtragem feita pelo MongoDBClient)
         mock_mongodb_client.list_tools = AsyncMock(return_value=[cli_tool])
@@ -58,7 +58,7 @@ class TestToolRegistryList:
 class TestToolRegistryGet:
     """Testes de busca de ferramenta."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_tool_by_id(self, mock_mongodb_client, mock_redis_client, cli_tool):
         """Deve retornar ferramenta por ID."""
         from src.services.tool_registry import ToolRegistry
@@ -73,7 +73,7 @@ class TestToolRegistryGet:
         assert tool.tool_id == "pytest-001"
         mock_mongodb_client.get_tool.assert_called_once_with("pytest-001")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_tool_not_found(self, mock_mongodb_client, mock_redis_client):
         """Deve retornar None quando ferramenta nao encontrada."""
         from src.services.tool_registry import ToolRegistry
@@ -86,7 +86,7 @@ class TestToolRegistryGet:
 
         assert tool is None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_tool_uses_cache(self, mock_mongodb_client, mock_redis_client, cli_tool):
         """Deve usar cache para busca de ferramenta."""
         from src.services.tool_registry import ToolRegistry
@@ -106,7 +106,7 @@ class TestToolRegistryGet:
 class TestToolRegistryUpdate:
     """Testes de atualizacao de ferramentas."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_update_tool(self, mock_mongodb_client, mock_redis_client, cli_tool):
         """Deve atualizar ferramenta."""
         from src.services.tool_registry import ToolRegistry
@@ -126,7 +126,7 @@ class TestToolRegistryUpdate:
 class TestToolRegistryReputation:
     """Testes de atualizacao de reputacao."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_update_tool_reputation_increase(
         self, mock_mongodb_client, mock_redis_client, cli_tool
     ):
@@ -142,7 +142,7 @@ class TestToolRegistryReputation:
         # Verificar que update_tool_reputation foi chamado (API correta)
         mock_mongodb_client.update_tool_reputation.assert_called_once_with("pytest-001", 1.0)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_update_tool_reputation_decrease(
         self, mock_mongodb_client, mock_redis_client, cli_tool
     ):
@@ -160,7 +160,7 @@ class TestToolRegistryReputation:
 class TestToolRegistryHealth:
     """Testes de atualizacao de saude."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_update_tool_health_healthy(self, mock_mongodb_client, mock_redis_client):
         """Deve marcar ferramenta como saudavel."""
         from src.services.tool_registry import ToolRegistry
@@ -181,7 +181,7 @@ class TestToolRegistryHealth:
         mock_redis_client.increment_tool_feedback.assert_called_once_with("pytest-001", True)
         mock_mongodb_client.update_tool_reputation.assert_called_once_with("pytest-001", True)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_update_tool_health_unhealthy(self, mock_mongodb_client, mock_redis_client):
         """Deve marcar ferramenta como nao saudavel."""
         from src.services.tool_registry import ToolRegistry

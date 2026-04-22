@@ -4,7 +4,7 @@ MongoDB Client para Approval Service
 Fornece interface async para MongoDB para persistencia de aprovacoes.
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 import structlog
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -135,8 +135,8 @@ class MongoDBClient:
         return None
 
     async def get_pending_approvals(
-        self, limit: int = 50, offset: int = 0, filters: Optional[Dict[str, Any]] = None
-    ) -> List[ApprovalRequest]:
+        self, limit: int = 50, offset: int = 0, filters: Optional[dict[str, Any]] = None
+    ) -> list[ApprovalRequest]:
         """
         Busca aprovacoes pendentes com filtros
 

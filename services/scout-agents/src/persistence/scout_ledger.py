@@ -9,8 +9,8 @@ Responsável por:
 - Estatísticas agregadas
 """
 
-from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List, Optional
+from datetime import UTC, datetime, timedelta
+from typing import Any, Optional
 
 import structlog
 
@@ -46,7 +46,7 @@ class ScoutLedger:
             return self._test_collection
         return self.mongo_client[self.database_name][self.collection_name]
 
-    async def save_exploration(self, exploration_data: Dict[str, Any]) -> Dict[str, Any]:
+    async def save_exploration(self, exploration_data: dict[str, Any]) -> dict[str, Any]:
         """
         Salva ou atualiza uma exploração.
 
@@ -60,7 +60,7 @@ class ScoutLedger:
         exploration_id = exploration_data.get("exploration_id")
 
         # Adicionar timestamps
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         if "created_at" not in exploration_data:
             exploration_data["created_at"] = now
         exploration_data["updated_at"] = now
@@ -87,7 +87,7 @@ class ScoutLedger:
 
         return exploration_data
 
-    async def get_exploration(self, exploration_id: str) -> Optional[Dict[str, Any]]:
+    async def get_exploration(self, exploration_id: str) -> Optional[dict[str, Any]]:
         """
         Recupera uma exploração por ID.
 
@@ -114,7 +114,7 @@ class ScoutLedger:
         status: Optional[str] = None,
         limit: int = 100,
         skip: int = 0,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Lista explorações com filtros opcionais.
 
@@ -160,7 +160,7 @@ class ScoutLedger:
         self,
         exploration_id: str,
         status: str,
-        results: Optional[Dict[str, Any]] = None,
+        results: Optional[dict[str, Any]] = None,
         error: Optional[str] = None,
     ) -> bool:
         """
@@ -177,12 +177,12 @@ class ScoutLedger:
         """
         collection = self._get_collection()
 
-        update_data = {"status": status, "updated_at": datetime.now(timezone.utc)}
+        update_data = {"status": status, "updated_at": datetime.now(UTC)}
 
         if status == "completed":
-            update_data["completed_at"] = datetime.now(timezone.utc)
+            update_data["completed_at"] = datetime.now(UTC)
         elif status in ["failed", "error"]:
-            update_data["failed_at"] = datetime.now(timezone.utc)
+            update_data["failed_at"] = datetime.now(UTC)
 
         if results:
             update_data["results"] = results
@@ -222,7 +222,7 @@ class ScoutLedger:
 
         return deleted
 
-    async def get_exploration_stats(self, plan_id: Optional[str] = None) -> Dict[str, Any]:
+    async def get_exploration_stats(self, plan_id: Optional[str] = None) -> dict[str, Any]:
         """
         Retorna estatísticas de explorações.
 
@@ -278,7 +278,7 @@ class ScoutLedger:
         """
         collection = self._get_collection()
 
-        cutoff_date = datetime.now(timezone.utc) - timedelta(days=days_older_than)
+        cutoff_date = datetime.now(UTC) - timedelta(days=days_older_than)
 
         filter_query = {"created_at": {"$lt": cutoff_date}}
 
@@ -301,9 +301,9 @@ class ScoutLedger:
         self,
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
-        scouts_deployed: Optional[List[str]] = None,
+        scouts_deployed: Optional[list[str]] = None,
         limit: int = 100,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Consulta explorações com filtros complexos.
 

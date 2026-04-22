@@ -5,7 +5,7 @@ Modelos Pydantic para definições de SLO.
 import uuid
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 from pydantic import BaseModel, Field
 
@@ -35,7 +35,7 @@ class SLIQuery(BaseModel):
     metric_name: str = Field(..., description="Nome da métrica Prometheus")
     query: str = Field(..., description="Query PromQL completa")
     aggregation: str = Field(default="avg", description="Tipo de agregação")
-    labels: Dict[str, str] = Field(default_factory=dict, description="Labels para filtrar")
+    labels: dict[str, str] = Field(default_factory=dict, description="Labels para filtrar")
 
 
 class SLODefinition(BaseModel):
@@ -55,7 +55,7 @@ class SLODefinition(BaseModel):
     enabled: bool = Field(default=True, description="SLO ativo")
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+    metadata: dict[str, Any] = Field(default_factory=dict)
 
     def model_post_init(self, __context):
         """Calcula error budget após inicialização."""

@@ -1,7 +1,7 @@
 import asyncio
 import hashlib
 import json
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 import structlog
 
@@ -29,7 +29,7 @@ class QueryEngine:
         self.postgresql = postgresql_client
         self.data_fusion = data_fusion_engine or DataFusionEngine()
 
-    async def query_multi_source(self, query_spec: Dict) -> Dict:
+    async def query_multi_source(self, query_spec: dict) -> dict:
         """Consultar múltiplas fontes em paralelo"""
         try:
             sources = query_spec.get("sources", [])
@@ -83,7 +83,7 @@ class QueryEngine:
             logger.error("query_multi_source_failed", error=str(e))
             return {"results": {}, "error": str(e)}
 
-    def _create_query_request(self, query_spec: Dict):
+    def _create_query_request(self, query_spec: dict):
         """Cria QueryRequest a partir do query_spec."""
 
         from ..models.query_request import QueryRequest
@@ -96,7 +96,7 @@ class QueryEngine:
             filters=query_spec.get("filters", {}),
         )
 
-    async def _query_clickhouse(self, query_spec: Dict) -> Dict:
+    async def _query_clickhouse(self, query_spec: dict) -> dict:
         """Consultar ClickHouse"""
         try:
             time_window = query_spec.get("time_window", {})
@@ -110,7 +110,7 @@ class QueryEngine:
             logger.error("clickhouse_query_failed", error=str(e))
             return {"source": "clickhouse", "error": str(e)}
 
-    async def _query_neo4j(self, query_spec: Dict) -> Dict:
+    async def _query_neo4j(self, query_spec: dict) -> dict:
         """Consultar Neo4j"""
         try:
             filters = query_spec.get("filters", {})
@@ -124,7 +124,7 @@ class QueryEngine:
             logger.error("neo4j_query_failed", error=str(e))
             return {"source": "neo4j", "error": str(e)}
 
-    async def _query_elasticsearch(self, query_spec: Dict) -> Dict:
+    async def _query_elasticsearch(self, query_spec: dict) -> dict:
         """Consultar Elasticsearch"""
         try:
             time_window = query_spec.get("time_window", {})
@@ -138,7 +138,7 @@ class QueryEngine:
             logger.error("elasticsearch_query_failed", error=str(e))
             return {"source": "elasticsearch", "error": str(e)}
 
-    async def _query_prometheus(self, query_spec: Dict) -> Dict:
+    async def _query_prometheus(self, query_spec: dict) -> dict:
         """Consultar Prometheus"""
         try:
             time_window = query_spec.get("time_window", {})
@@ -156,7 +156,7 @@ class QueryEngine:
             logger.error("prometheus_query_failed", error=str(e))
             return {"source": "prometheus", "error": str(e)}
 
-    async def _query_postgresql(self, query_spec: Dict) -> Dict:
+    async def _query_postgresql(self, query_spec: dict) -> dict:
         """Consultar PostgreSQL"""
         if not self.postgresql:
             return {"source": "postgresql", "error": "PostgreSQL client not configured"}
@@ -205,9 +205,9 @@ class QueryEngine:
 
     async def join_sources(
         self,
-        sources: List[str],
-        query_spec: Dict,
-    ) -> Dict[str, Any]:
+        sources: list[str],
+        query_spec: dict,
+    ) -> dict[str, Any]:
         """
         Junta dados de múltiplas fontes com correlação.
 
@@ -267,10 +267,10 @@ class QueryEngine:
 
     async def correlate_metrics(
         self,
-        sources: List[str],
+        sources: list[str],
         metric_x: str,
         metric_y: str,
-        time_window: Optional[Dict] = None,
+        time_window: Optional[dict] = None,
     ) -> Optional[float]:
         """
         Calcula correlação entre duas métricas.
@@ -299,7 +299,7 @@ class QueryEngine:
         source_results = results["results"]
         return await self.data_fusion.get_correlation(source_results, metric_x, metric_y)
 
-    def consolidate_results(self, results: Dict) -> Dict:
+    def consolidate_results(self, results: dict) -> dict:
         """Consolidar resultados de múltiplas fontes"""
         consolidated = {}
 
@@ -313,7 +313,7 @@ class QueryEngine:
 
         return consolidated
 
-    def _generate_query_key(self, query_spec: Dict) -> str:
+    def _generate_query_key(self, query_spec: dict) -> str:
         """Gerar chave de cache para consulta"""
         query_str = json.dumps(query_spec, sort_keys=True)
         return hashlib.md5(query_str.encode()).hexdigest()

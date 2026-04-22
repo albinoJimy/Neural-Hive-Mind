@@ -13,7 +13,7 @@ def _base_config(tmp_path):
     }
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 def test_detect_anomalies_disabled(tmp_path):
     detector = AnomalyDetector({**_base_config(tmp_path), "enable_anomaly_detection": False})
 
@@ -23,7 +23,7 @@ def test_detect_anomalies_disabled(tmp_path):
     assert result["severity"] == "info"
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 def test_detect_anomalies_untrained_model(tmp_path):
     detector = AnomalyDetector(_base_config(tmp_path))
 

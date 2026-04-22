@@ -9,12 +9,13 @@ Cobertura:
 - Metricas Prometheus
 """
 
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
 import uuid
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 
 
-@pytest.fixture
+@pytest.fixture()
 def worker_config():
     """Configuracao do worker para testes."""
     config = MagicMock()
@@ -26,7 +27,7 @@ def worker_config():
     return config
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_metrics():
     """Mock para metricas Prometheus."""
     metrics = MagicMock()
@@ -41,7 +42,7 @@ def mock_metrics():
     return metrics
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_argocd_client():
     """Mock para ArgoCDClient."""
     from clients.argocd_client import ApplicationStatus, HealthStatus, SyncStatus
@@ -59,10 +60,10 @@ def mock_argocd_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_flux_client():
     """Mock para FluxClient."""
-    from clients.flux_client import KustomizationStatus, Condition
+    from clients.flux_client import Condition, KustomizationStatus
 
     client = AsyncMock()
     client.initialize = AsyncMock()
@@ -80,7 +81,7 @@ def mock_flux_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def deploy_executor_with_argocd(worker_config, mock_metrics, mock_argocd_client):
     """DeployExecutor com ArgoCD client."""
     from executors.deploy_executor import DeployExecutor
@@ -95,7 +96,7 @@ def deploy_executor_with_argocd(worker_config, mock_metrics, mock_argocd_client)
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def deploy_executor_with_flux(worker_config, mock_metrics, mock_flux_client):
     """DeployExecutor com Flux client."""
     from executors.deploy_executor import DeployExecutor
@@ -111,7 +112,7 @@ def deploy_executor_with_flux(worker_config, mock_metrics, mock_flux_client):
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def deploy_executor_simulation(worker_config, mock_metrics):
     """DeployExecutor sem clients (modo simulacao)."""
     from executors.deploy_executor import DeployExecutor
@@ -128,7 +129,7 @@ def deploy_executor_simulation(worker_config, mock_metrics):
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def deploy_ticket():
     """Ticket de deploy para testes."""
     ticket_id = str(uuid.uuid4())
@@ -149,7 +150,7 @@ def deploy_ticket():
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def flux_deploy_ticket():
     """Ticket de deploy Flux para testes."""
     ticket_id = str(uuid.uuid4())
@@ -171,7 +172,7 @@ def flux_deploy_ticket():
 class TestDeployExecutorWithArgoCD:
     """Testes do DeployExecutor com cliente ArgoCD."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_argocd_success(
         self, deploy_executor_with_argocd, deploy_ticket, mock_argocd_client
     ):
@@ -187,7 +188,7 @@ class TestDeployExecutorWithArgoCD:
         mock_argocd_client.create_application.assert_called_once()
         mock_argocd_client.wait_for_health.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_argocd_timeout(
         self, deploy_executor_with_argocd, deploy_ticket, mock_argocd_client
     ):
@@ -202,7 +203,7 @@ class TestDeployExecutorWithArgoCD:
         assert result["output"]["status"] == "timeout"
         assert result["metadata"]["provider"] == "argocd"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_argocd_api_error(
         self, deploy_executor_with_argocd, deploy_ticket, mock_argocd_client
     ):
@@ -219,7 +220,7 @@ class TestDeployExecutorWithArgoCD:
         assert result["output"]["status"] == "error"
         assert result["metadata"]["error_code"] == 409
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_argocd_metrics_recorded(
         self, deploy_executor_with_argocd, deploy_ticket, mock_metrics
     ):
@@ -234,7 +235,7 @@ class TestDeployExecutorWithArgoCD:
 class TestDeployExecutorWithFlux:
     """Testes do DeployExecutor com cliente Flux."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_flux_success(
         self, deploy_executor_with_flux, flux_deploy_ticket, mock_flux_client
     ):
@@ -250,7 +251,7 @@ class TestDeployExecutorWithFlux:
         mock_flux_client.create_kustomization.assert_called_once()
         mock_flux_client.wait_for_ready.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_flux_timeout(
         self, deploy_executor_with_flux, flux_deploy_ticket, mock_flux_client
     ):
@@ -265,7 +266,7 @@ class TestDeployExecutorWithFlux:
         assert result["output"]["status"] == "timeout"
         assert result["metadata"]["provider"] == "flux"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_flux_api_error(
         self, deploy_executor_with_flux, flux_deploy_ticket, mock_flux_client
     ):
@@ -286,7 +287,7 @@ class TestDeployExecutorWithFlux:
 class TestDeployExecutorSimulation:
     """Testes do DeployExecutor em modo simulacao."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_simulation_no_clients(self, deploy_executor_simulation, deploy_ticket):
         """Deve executar simulacao quando sem clients."""
         with patch("asyncio.sleep", new_callable=AsyncMock):
@@ -297,7 +298,7 @@ class TestDeployExecutorSimulation:
         assert result["metadata"]["provider"] == "simulation"
         assert "stub-deploy" in result["output"]["deployment_id"]
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_simulation_metrics(
         self, deploy_executor_simulation, deploy_ticket, mock_metrics
     ):
@@ -314,7 +315,7 @@ class TestDeployExecutorSimulation:
 class TestDeployExecutorProviderSelection:
     """Testes de selecao de provider."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_provider_argocd_selected(self, deploy_executor_with_argocd, deploy_ticket):
         """Deve usar ArgoCD quando provider=argocd."""
         deploy_ticket["parameters"]["provider"] = "argocd"
@@ -323,14 +324,14 @@ class TestDeployExecutorProviderSelection:
 
         assert result["metadata"]["provider"] == "argocd"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_provider_flux_selected(self, deploy_executor_with_flux, flux_deploy_ticket):
         """Deve usar Flux quando provider=flux."""
         result = await deploy_executor_with_flux.execute(flux_deploy_ticket)
 
         assert result["metadata"]["provider"] == "flux"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_fallback_to_legacy_argocd(self, worker_config, mock_metrics, deploy_ticket):
         """Deve usar ArgoCD legado quando sem client mas URL configurada."""
         from executors.deploy_executor import DeployExecutor
@@ -367,7 +368,7 @@ class TestDeployExecutorProviderSelection:
 class TestDeployExecutorValidation:
     """Testes de validacao de tickets."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_validate_ticket_missing_ticket_id(self, deploy_executor_with_argocd):
         """Deve validar ticket sem ticket_id."""
         invalid_ticket = {"parameters": {}}

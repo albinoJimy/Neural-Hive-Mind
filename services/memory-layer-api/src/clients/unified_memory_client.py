@@ -4,8 +4,8 @@ Unified Memory Client - Orchestrates access to 4 memory layers
 
 import json
 import uuid
-from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List, Optional, Tuple
+from datetime import UTC, datetime, timedelta
+from typing import Any, Optional
 
 import structlog
 
@@ -35,9 +35,9 @@ class UnifiedMemoryClient:
         self,
         query_type: str,
         entity_id: str,
-        time_range: Optional[Tuple[datetime, datetime]] = None,
+        time_range: Optional[tuple[datetime, datetime]] = None,
         use_cache: bool = True,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Intelligent query routing based on query_type and time_range
 
@@ -49,7 +49,7 @@ class UnifiedMemoryClient:
         - query_type == 'lineage' → MongoDB + Neo4j
         """
         query_id = str(uuid.uuid4())
-        start_time = datetime.now(timezone.utc)
+        start_time = datetime.now(UTC)
 
         try:
             # Route based on query type
@@ -64,8 +64,8 @@ class UnifiedMemoryClient:
             elif query_type == "historical":
                 if not time_range:
                     time_range = (
-                        datetime.now(timezone.utc) - timedelta(days=30),
-                        datetime.now(timezone.utc),
+                        datetime.now(UTC) - timedelta(days=30),
+                        datetime.now(UTC),
                     )
                 result = await self._query_cold_data(entity_id, time_range)
                 source_layer = "clickhouse"
@@ -77,7 +77,7 @@ class UnifiedMemoryClient:
                 )
 
             # Calculate latency
-            latency_ms = int((datetime.now(timezone.utc) - start_time).total_seconds() * 1000)
+            latency_ms = int((datetime.now(UTC) - start_time).total_seconds() * 1000)
 
             return {
                 "query_id": query_id,
@@ -89,7 +89,7 @@ class UnifiedMemoryClient:
                 "metadata": {
                     "query_type": query_type,
                     "time_range": str(time_range) if time_range else None,
-                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "timestamp": datetime.now(UTC).isoformat(),
                 },
             }
         except Exception as e:
@@ -97,8 +97,8 @@ class UnifiedMemoryClient:
             raise
 
     async def _query_with_cascade(
-        self, entity_id: str, time_range: Optional[Tuple[datetime, datetime]], use_cache: bool
-    ) -> Tuple[Dict, str, bool]:
+        self, entity_id: str, time_range: Optional[tuple[datetime, datetime]], use_cache: bool
+    ) -> tuple[dict, str, bool]:
         """Query with hot -> warm -> cold cascade"""
         # Determine if data is hot (recent)
         is_hot = self._is_hot_data(time_range)
@@ -131,21 +131,21 @@ class UnifiedMemoryClient:
         logger.warning("Entity not found in any layer", entity_id=entity_id)
         return {}, "none", False
 
-    def _is_hot_data(self, time_range: Optional[Tuple[datetime, datetime]]) -> bool:
+    def _is_hot_data(self, time_range: Optional[tuple[datetime, datetime]]) -> bool:
         """Check if data qualifies as hot (< 5 min)"""
         if not time_range:
             return True
         start, end = time_range
-        age = datetime.now(timezone.utc) - end
+        age = datetime.now(UTC) - end
         return age.total_seconds() < self.settings.hot_data_threshold_seconds
 
-    def _is_warm_data(self, time_range: Tuple[datetime, datetime]) -> bool:
+    def _is_warm_data(self, time_range: tuple[datetime, datetime]) -> bool:
         """Check if data qualifies as warm (< 30 days)"""
         start, end = time_range
-        age = datetime.now(timezone.utc) - end
+        age = datetime.now(UTC) - end
         return age.days < self.settings.warm_data_threshold_days
 
-    async def _query_hot_data(self, entity_id: str) -> Optional[Dict]:
+    async def _query_hot_data(self, entity_id: str) -> Optional[dict]:
         """Query Redis (hot cache)"""
         try:
             cache_key = f"context:{entity_id}"
@@ -156,8 +156,8 @@ class UnifiedMemoryClient:
             return None
 
     async def _query_warm_data(
-        self, entity_id: str, time_range: Optional[Tuple[datetime, datetime]]
-    ) -> Optional[Dict]:
+        self, entity_id: str, time_range: Optional[tuple[datetime, datetime]]
+    ) -> Optional[dict]:
         """Query MongoDB (operational context)"""
         try:
             query_filter = {"entity_id": entity_id}
@@ -174,8 +174,8 @@ class UnifiedMemoryClient:
             return None
 
     async def _query_cold_data(
-        self, entity_id: str, time_range: Tuple[datetime, datetime]
-    ) -> List[Dict]:
+        self, entity_id: str, time_range: tuple[datetime, datetime]
+    ) -> list[dict]:
         """Query ClickHouse (historical analytics)"""
         try:
             start, end = time_range
@@ -191,7 +191,7 @@ class UnifiedMemoryClient:
 
     async def _query_semantic_data(
         self, entity_id: str, relationship_type: Optional[str] = None
-    ) -> List[Dict]:
+    ) -> list[dict]:
         """Query Neo4j (Knowledge Graph)"""
         try:
             query = """
@@ -205,7 +205,7 @@ class UnifiedMemoryClient:
             logger.warning("Neo4j query failed", error=str(e), entity_id=entity_id)
             return []
 
-    async def _query_lineage_data(self, entity_id: str) -> Dict:
+    async def _query_lineage_data(self, entity_id: str) -> dict:
         """Query lineage combining MongoDB + Neo4j"""
         try:
             # Get metadata from MongoDB
@@ -225,7 +225,7 @@ class UnifiedMemoryClient:
             logger.error("Lineage query failed", error=str(e), entity_id=entity_id)
             return {}
 
-    async def _cache_in_redis(self, entity_id: str, data: Dict):
+    async def _cache_in_redis(self, entity_id: str, data: dict):
         """Cache data in Redis with TTL"""
         try:
             cache_key = f"context:{entity_id}"
@@ -235,7 +235,7 @@ class UnifiedMemoryClient:
             logger.warning("Redis caching failed", error=str(e))
 
     async def save(
-        self, data: Dict[str, Any], data_type: str, ttl_override: Optional[int] = None
+        self, data: dict[str, Any], data_type: str, ttl_override: Optional[int] = None
     ) -> str:
         """
         Save data to multiple layers
@@ -248,7 +248,7 @@ class UnifiedMemoryClient:
         """
         entity_id = data.get("entity_id") or str(uuid.uuid4())
         data["entity_id"] = entity_id
-        data["created_at"] = datetime.now(timezone.utc)
+        data["created_at"] = datetime.now(UTC)
 
         try:
             # 1. Cache in Redis
@@ -278,7 +278,7 @@ class UnifiedMemoryClient:
             logger.error("Save failed", error=str(e), entity_id=entity_id)
             raise
 
-    async def _update_semantic_graph(self, entity_id: str, relationships: List[Dict]):
+    async def _update_semantic_graph(self, entity_id: str, relationships: list[dict]):
         """Update Neo4j semantic graph"""
         try:
             for rel in relationships:
@@ -300,7 +300,7 @@ class UnifiedMemoryClient:
         except Exception as e:
             logger.warning("Semantic graph update failed", error=str(e))
 
-    async def _publish_sync_event(self, entity_id: str, data_type: str, data: Dict):
+    async def _publish_sync_event(self, entity_id: str, data_type: str, data: dict):
         """
         Publica evento de sincronização no Kafka para ingestão assíncrona no ClickHouse.
 
@@ -316,7 +316,7 @@ class UnifiedMemoryClient:
                 "data_type": data_type,
                 "operation": "INSERT",
                 "collection": self.settings.mongodb_context_collection,
-                "timestamp": int(datetime.now(timezone.utc).timestamp() * 1000),
+                "timestamp": int(datetime.now(UTC).timestamp() * 1000),
                 "data": json.dumps(data, default=str),
                 "metadata": json.dumps({"source": "unified_memory_client"}),
             }
@@ -333,15 +333,15 @@ class UnifiedMemoryClient:
                 data_type=data_type,
             )
 
-    async def get_lineage(self, entity_id: str, depth: int = 3) -> Dict[str, Any]:
+    async def get_lineage(self, entity_id: str, depth: int = 3) -> dict[str, Any]:
         """Get data lineage tree"""
         return await self._query_lineage_data(entity_id)
 
     async def get_quality_stats(
         self,
         data_type: Optional[str] = None,
-        time_range: Optional[Tuple[datetime, datetime]] = None,
-    ) -> Dict[str, Any]:
+        time_range: Optional[tuple[datetime, datetime]] = None,
+    ) -> dict[str, Any]:
         """Get quality statistics from MongoDB"""
         try:
             query_filter = {}
@@ -371,7 +371,7 @@ class UnifiedMemoryClient:
                 await self.mongodb.update_many(
                     collection=self.settings.mongodb_context_collection,
                     filter={"entity_id": {"$regex": pattern.replace("*", ".*")}},
-                    update={"$set": {"stale": True, "stale_at": datetime.now(timezone.utc)}},
+                    update={"$set": {"stale": True, "stale_at": datetime.now(UTC)}},
                 )
                 logger.info("Cascade invalidation completed", pattern=pattern)
 

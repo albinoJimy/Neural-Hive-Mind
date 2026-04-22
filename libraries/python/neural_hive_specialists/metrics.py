@@ -2,9 +2,10 @@
 Métricas customizadas Prometheus para especialistas neurais.
 """
 
-from prometheus_client import Counter, Histogram, Gauge
-from typing import Dict, Any
+from typing import Any
+
 import structlog
+from prometheus_client import Counter, Gauge, Histogram
 
 from .config import SpecialistConfig
 
@@ -1622,7 +1623,7 @@ class SpecialistMetrics:
         """Incrementa erros de download."""
         self.dr_storage_download_errors_total.labels(self.specialist_type, storage_provider).inc()
 
-    def get_summary(self) -> Dict[str, Any]:
+    def get_summary(self) -> dict[str, Any]:
         """
         Retorna resumo de métricas.
 

@@ -1,10 +1,10 @@
 """Testes de métricas para EvolutionSpecialist."""
 
-import sys
 import os
-import pytest
-from typing import Dict
+import sys
 from unittest.mock import MagicMock
+
+import pytest
 
 # Configurar paths
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "src"))
@@ -35,7 +35,7 @@ class MockEvolutionMetrics:
         """Emite métrica de risco."""
         self.risk_score.labels(specialist_type="evolution").set(score)
 
-    def emit_adaptive_weights(self, weights: Dict[str, float]):
+    def emit_adaptive_weights(self, weights: dict[str, float]):
         """Emite métrica de pesos adaptativos."""
         for weight_name, value in weights.items():
             self.adaptive_weights.labels(specialist_type="evolution", weight_name=weight_name).set(
@@ -43,12 +43,12 @@ class MockEvolutionMetrics:
             )
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_metrics():
     return MockEvolutionMetrics()
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_evolution_evaluation():
     return {
         "confidence_score": 0.75,

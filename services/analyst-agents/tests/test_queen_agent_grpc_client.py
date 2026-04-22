@@ -1,13 +1,14 @@
 """Testes para o cliente gRPC do Queen Agent"""
 
-import sys
 import os
+import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
+
 import grpc
+import pytest
 
 # Import direto sem passar por __init__.py
 from src.clients.queen_agent_grpc_client import QueenAgentGrpcClient
@@ -22,7 +23,7 @@ from src.models.insight import (
 from src.proto import queen_agent_pb2
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_insight():
     """Criar insight de exemplo para testes"""
     return AnalystInsight(
@@ -67,7 +68,7 @@ def _setup_mock_channel(mock_channel):
     mock_channel.close = _close
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_channel():
     """Mock do canal gRPC"""
     channel = MagicMock()
@@ -75,7 +76,7 @@ def mock_channel():
     return channel
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_stub():
     """Mock do stub gRPC"""
     stub = MagicMock()
@@ -83,7 +84,7 @@ def mock_stub():
     return stub
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_initialize_success(mock_channel, mock_stub):
     """Testar inicialização bem-sucedida do cliente"""
     _setup_mock_channel(mock_channel)
@@ -103,7 +104,7 @@ async def test_initialize_success(mock_channel, mock_stub):
                 assert client.stub is not None
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_send_strategic_insight_success(sample_insight, mock_channel, mock_stub):
     """Testar envio bem-sucedido de insight estratégico"""
     _setup_mock_channel(mock_channel)
@@ -142,7 +143,7 @@ async def test_send_strategic_insight_success(sample_insight, mock_channel, mock
                 assert request.impact_score == sample_insight.impact_score
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_send_strategic_insight_rejected(sample_insight, mock_channel, mock_stub):
     """Testar envio de insight que é rejeitado"""
     _setup_mock_channel(mock_channel)
@@ -171,7 +172,7 @@ async def test_send_strategic_insight_rejected(sample_insight, mock_channel, moc
                 assert result is False
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_send_strategic_insight_with_retry(sample_insight, mock_channel, mock_stub):
     """Testar retry em caso de erro transitório"""
     _setup_mock_channel(mock_channel)
@@ -203,7 +204,7 @@ async def test_send_strategic_insight_with_retry(sample_insight, mock_channel, m
                 assert mock_stub.SubmitInsight.call_count == 2
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_send_strategic_insight_max_retries_exceeded(sample_insight, mock_channel, mock_stub):
     """Testar que retries param após MAX_RETRIES"""
     _setup_mock_channel(mock_channel)
@@ -230,7 +231,7 @@ async def test_send_strategic_insight_max_retries_exceeded(sample_insight, mock_
                 assert mock_stub.SubmitInsight.call_count == 3
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_send_operational_insight(sample_insight, mock_channel, mock_stub):
     """Testar envio de insight operacional (deve usar mesma implementação)"""
     _setup_mock_channel(mock_channel)
@@ -257,7 +258,7 @@ async def test_send_operational_insight(sample_insight, mock_channel, mock_stub)
                 mock_stub.SubmitInsight.assert_called_once()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_close_connection(mock_channel, mock_stub):
     """Testar fechamento da conexão"""
     _setup_mock_channel(mock_channel)
@@ -278,7 +279,7 @@ async def test_close_connection(mock_channel, mock_stub):
                 # O importante é que não levanta exceção
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_send_without_initialization(sample_insight):
     """Testar que envio sem inicialização retorna False"""
     client = QueenAgentGrpcClient(host="localhost", port=50051)

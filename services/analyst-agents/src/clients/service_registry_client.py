@@ -1,7 +1,7 @@
 """Service Registry client for Analyst Agents - uses canonical client from neural_hive_integration"""
 
-from datetime import datetime, timezone
-from typing import Dict, List, Optional
+from datetime import UTC, datetime
+from typing import Optional
 
 import structlog
 
@@ -45,7 +45,7 @@ class ServiceRegistryClient:
             await self._client.close()
         logger.info("service_registry_client_closed")
 
-    async def register_agent(self, agent_info: Dict) -> Optional[str]:
+    async def register_agent(self, agent_info: dict) -> Optional[str]:
         """Registrar Analyst Agent com capacidades"""
         try:
             if not self._client:
@@ -92,7 +92,7 @@ class ServiceRegistryClient:
 
             health = HealthStatus(
                 status=status,
-                last_heartbeat=datetime.now(timezone.utc).isoformat(),
+                last_heartbeat=datetime.now(UTC).isoformat(),
                 metrics={
                     "success_rate": 0.95,
                     "avg_duration_ms": 150.0,
@@ -124,7 +124,7 @@ class ServiceRegistryClient:
             logger.error("deregister_agent_failed", error=str(e))
             return False
 
-    async def get_available_agents(self, agent_type: str) -> List[Dict]:
+    async def get_available_agents(self, agent_type: str) -> list[dict]:
         """Obter lista de agentes disponiveis"""
         try:
             if not self._client:

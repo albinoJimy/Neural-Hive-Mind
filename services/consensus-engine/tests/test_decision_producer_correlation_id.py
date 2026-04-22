@@ -5,22 +5,22 @@ Verifica que o DecisionProducer rejeita decisões com correlation_id None ou vaz
 garantindo que apenas decisões válidas sejam publicadas no Kafka.
 """
 
-import pytest
-import uuid
 import logging
-from unittest.mock import patch, MagicMock
+import uuid
+from unittest.mock import MagicMock, patch
 
-from src.producers.decision_producer import DecisionProducer
+import pytest
 from src.models.consolidated_decision import (
+    ConsensusMethod,
+    ConsensusMetrics,
     ConsolidatedDecision,
     DecisionType,
-    ConsensusMethod,
     SpecialistVote,
-    ConsensusMetrics,
 )
+from src.producers.decision_producer import DecisionProducer
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_producer_config():
     """Configuração mock para o DecisionProducer."""
     config = MagicMock()
@@ -30,7 +30,7 @@ def mock_producer_config():
     return config
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_specialist_votes():
     """Votos de especialistas para testes."""
     return [
@@ -55,7 +55,7 @@ def sample_specialist_votes():
     ]
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_consensus_metrics():
     """Métricas de consenso para testes."""
     return ConsensusMetrics(
@@ -69,7 +69,7 @@ def sample_consensus_metrics():
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def valid_consolidated_decision(sample_specialist_votes, sample_consensus_metrics):
     """Decisão consolidada válida com correlation_id."""
     return ConsolidatedDecision(
@@ -87,7 +87,7 @@ def valid_consolidated_decision(sample_specialist_votes, sample_consensus_metric
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def decision_with_none_correlation_id(sample_specialist_votes, sample_consensus_metrics):
     """Decisão consolidada com correlation_id=None."""
     return ConsolidatedDecision(
@@ -105,7 +105,7 @@ def decision_with_none_correlation_id(sample_specialist_votes, sample_consensus_
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def decision_with_empty_correlation_id(sample_specialist_votes, sample_consensus_metrics):
     """Decisão consolidada com correlation_id vazio."""
     return ConsolidatedDecision(
@@ -123,7 +123,7 @@ def decision_with_empty_correlation_id(sample_specialist_votes, sample_consensus
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def decision_with_whitespace_correlation_id(sample_specialist_votes, sample_consensus_metrics):
     """Decisão consolidada com correlation_id apenas espaços."""
     return ConsolidatedDecision(
@@ -141,8 +141,8 @@ def decision_with_whitespace_correlation_id(sample_specialist_votes, sample_cons
     )
 
 
-@pytest.mark.unit
-@pytest.mark.asyncio
+@pytest.mark.unit()
+@pytest.mark.asyncio()
 class TestDecisionProducerCorrelationIdValidation:
     """Testes para validação de correlation_id no DecisionProducer."""
 

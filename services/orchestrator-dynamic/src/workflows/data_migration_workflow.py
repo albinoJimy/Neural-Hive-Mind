@@ -65,9 +65,7 @@ class DataMigrationWorkflow:
         """
         config_data = input_data.get("migration_config", {})
         self._job_id = input_data.get("job_id")
-        initial_phase = input_data.get(
-            "initial_phase", MigrationStatus.PENDING.value
-        )
+        initial_phase = input_data.get("initial_phase", MigrationStatus.PENDING.value)
 
         workflow_id = workflow.info().workflow_id
 
@@ -99,9 +97,7 @@ class DataMigrationWorkflow:
             )
 
             if not mapping_result["success"]:
-                return self._build_error_result(
-                    workflow_id, "mapping", mapping_result.get("error")
-                )
+                return self._build_error_result(workflow_id, "mapping", mapping_result.get("error"))
 
             workflow.logger.info("Mapeamento de schema gerado com sucesso")
 
@@ -114,9 +110,7 @@ class DataMigrationWorkflow:
 
             if not auto_approve:
                 # Aguardar aprovação humana
-                workflow.logger.info(
-                    "Aguardando aprovação humana do mapeamento"
-                )
+                workflow.logger.info("Aguardando aprovação humana do mapeamento")
 
                 # Esperar sinal de aprovação (com timeout de 24h)
                 await workflow.wait_condition(
@@ -148,9 +142,7 @@ class DataMigrationWorkflow:
                 )
 
             self._snapshot_id = snapshot_result["snapshot_id"]
-            workflow.logger.info(
-                f"Snapshot criado: snapshot_id={self._snapshot_id}"
-            )
+            workflow.logger.info(f"Snapshot criado: snapshot_id={self._snapshot_id}")
 
             # === Fase 5: Batch Migration ===
             self._status = "batch_migrating"
@@ -169,27 +161,20 @@ class DataMigrationWorkflow:
             # Atualizar progresso
             self._progress["rows_migrated"] = batch_result.get("rows_migrated", 0)
             self._progress["total_rows"] = batch_result.get("total_rows", 0)
-            self._progress["progress_percentage"] = batch_result.get(
-                "progress_percentage", 0.0
-            )
+            self._progress["progress_percentage"] = batch_result.get("progress_percentage", 0.0)
 
             workflow.logger.info(
-                f"Migração batch concluída: "
-                f"{self._progress['rows_migrated']} linhas migradas"
+                f"Migração batch concluída: " f"{self._progress['rows_migrated']} linhas migradas"
             )
 
             # === Fase 6: Start CDC ===
             self._status = "starting_cdc"
             self._current_phase = MigrationStatus.CDC_RUNNING
 
-            cdc_result = await self._start_cdc(
-                mapping_result["schema_mapping"], config_data
-            )
+            cdc_result = await self._start_cdc(mapping_result["schema_mapping"], config_data)
 
             if not cdc_result["success"]:
-                return await self._handle_rollback(
-                    workflow_id, "cdc", cdc_result.get("error")
-                )
+                return await self._handle_rollback(workflow_id, "cdc", cdc_result.get("error"))
 
             workflow.logger.info("CDC iniciado com sucesso")
 
@@ -238,9 +223,7 @@ class DataMigrationWorkflow:
             workflow.logger.error(f"Erro no workflow de migração: {e}", exc_info=True)
             raise
 
-    async def _analyze_legacy_schema(
-        self, config: dict
-    ) -> dict[str, Any]:
+    async def _analyze_legacy_schema(self, config: dict) -> dict[str, Any]:
         """
         Executa análise de schema legado.
 
@@ -257,8 +240,7 @@ class DataMigrationWorkflow:
         tables = config.get("tables")  # None = todas as tabelas
 
         workflow.logger.info(
-            f"Analisando schema legado: connection={legacy_connection_id}, "
-            f"schema={schema}"
+            f"Analisando schema legado: connection={legacy_connection_id}, " f"schema={schema}"
         )
 
         result = await workflow.execute_activity(
@@ -270,9 +252,7 @@ class DataMigrationWorkflow:
 
         return result
 
-    async def _generate_schema_mapping(
-        self, schema_analysis: dict, config: dict
-    ) -> dict[str, Any]:
+    async def _generate_schema_mapping(self, schema_analysis: dict, config: dict) -> dict[str, Any]:
         """
         Gera mapeamento de schema.
 
@@ -298,9 +278,7 @@ class DataMigrationWorkflow:
 
         return result
 
-    async def _create_snapshot(
-        self, schema_mapping: dict, config: dict
-    ) -> dict[str, Any]:
+    async def _create_snapshot(self, schema_mapping: dict, config: dict) -> dict[str, Any]:
         """
         Cria snapshot para rollback.
 
@@ -329,9 +307,7 @@ class DataMigrationWorkflow:
 
         return result
 
-    async def _run_batch_migration(
-        self, schema_mapping: dict, config: dict
-    ) -> dict[str, Any]:
+    async def _run_batch_migration(self, schema_mapping: dict, config: dict) -> dict[str, Any]:
         """
         Executa migração batch.
 
@@ -348,8 +324,7 @@ class DataMigrationWorkflow:
         max_parallel = config.get("max_parallel_migrations", 5)
 
         workflow.logger.info(
-            f"Iniciando migração batch: batch_size={batch_size}, "
-            f"max_parallel={max_parallel}"
+            f"Iniciando migração batch: batch_size={batch_size}, " f"max_parallel={max_parallel}"
         )
 
         # Calcular timeout baseado no tamanho estimado
@@ -390,9 +365,7 @@ class DataMigrationWorkflow:
 
         return result
 
-    async def _validate_data(
-        self, schema_mapping: dict, config: dict
-    ) -> dict[str, Any]:
+    async def _validate_data(self, schema_mapping: dict, config: dict) -> dict[str, Any]:
         """
         Valida dados migrados.
 
@@ -425,9 +398,7 @@ class DataMigrationWorkflow:
         """
         from src.activities.data_migration import cleanup_snapshot
 
-        workflow.logger.info(
-            f"Limpando snapshot: snapshot_id={self._snapshot_id}"
-        )
+        workflow.logger.info(f"Limpando snapshot: snapshot_id={self._snapshot_id}")
 
         try:
             result = await workflow.execute_activity(
@@ -539,12 +510,8 @@ class DataMigrationWorkflow:
         self._progress["rows_migrated"] = rows_migrated
         self._progress["total_rows"] = total_rows
         if total_rows > 0:
-            self._progress["progress_percentage"] = (
-                rows_migrated / total_rows
-            ) * 100.0
-        workflow.logger.info(
-            f"Progresso atualizado: {self._progress['progress_percentage']:.1f}%"
-        )
+            self._progress["progress_percentage"] = (rows_migrated / total_rows) * 100.0
+        workflow.logger.info(f"Progresso atualizado: {self._progress['progress_percentage']:.1f}%")
 
     # ========== Queries ==========
 
@@ -553,9 +520,11 @@ class DataMigrationWorkflow:
         """Query para consultar status atual."""
         return {
             "status": self._status,
-            "current_phase": self._current_phase.value
-            if isinstance(self._current_phase, MigrationStatus)
-            else self._current_phase,
+            "current_phase": (
+                self._current_phase.value
+                if isinstance(self._current_phase, MigrationStatus)
+                else self._current_phase
+            ),
             "job_id": self._job_id,
             "snapshot_id": self._snapshot_id,
             "mapping_approved": self._mapping_approved,
@@ -570,9 +539,7 @@ class DataMigrationWorkflow:
         return self._progress
 
 
-def validate_migration_workflow_input(
-    input_data: dict[str, Any]
-) -> dict[str, Any]:
+def validate_migration_workflow_input(input_data: dict[str, Any]) -> dict[str, Any]:
     """
     Valida entrada do workflow de migração.
 

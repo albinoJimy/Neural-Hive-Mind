@@ -9,20 +9,20 @@ Valida o fluxo end-to-end do sistema de Active Learning:
 5. Métricas de balanceamento são atualizadas
 """
 
-import pytest
-from unittest.mock import MagicMock, AsyncMock, patch
-from datetime import datetime, timezone, timedelta
+from datetime import UTC, datetime, timedelta
+from unittest.mock import AsyncMock, MagicMock, patch
 
-from src.services.approval_service import ApprovalService
+import pytest
 from src.api.routers import active_learning
 from src.models.approval import ApprovalRequest, ApprovalStatus, RiskBand
+from src.services.approval_service import ApprovalService
 
 
-@pytest.mark.e2e
+@pytest.mark.e2e()
 class TestActiveLearningE2E:
     """Testes E2E do fluxo de Active Learning."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def e2e_components(self):
         """Configura todos os componentes para teste E2E."""
         # MongoDB mock com dados de teste
@@ -64,7 +64,7 @@ class TestActiveLearningE2E:
                 semantic_features_count=46,
                 semantic_features_percentage=9.5,
                 priority_recommendations=[{"type": "class", "value": "reject", "gap": 26.0}],
-                last_updated=datetime.now(timezone.utc).isoformat(),
+                last_updated=datetime.now(UTC).isoformat(),
                 model_dump=lambda: {
                     "total_feedbacks": 484,
                     "balance": {"approve": {"count": 450, "percentage": 93.0}},
@@ -73,7 +73,7 @@ class TestActiveLearningE2E:
                     "semantic_features_count": 46,
                     "semantic_features_percentage": 9.5,
                     "priority_recommendations": [],
-                    "last_updated": datetime.now(timezone.utc).isoformat(),
+                    "last_updated": datetime.now(UTC).isoformat(),
                 },
             )
         )
@@ -103,8 +103,8 @@ class TestActiveLearningE2E:
                 "queue_id": "queue-1",
                 "status": "in_review",
                 "assigned_to": "user@example.com",
-                "claimed_at": datetime.now(timezone.utc),
-                "expires_at": datetime.now(timezone.utc) + timedelta(hours=1),
+                "claimed_at": datetime.now(UTC),
+                "expires_at": datetime.now(UTC) + timedelta(hours=1),
             }
         )
         priority_queue.release_case = MagicMock(
@@ -149,7 +149,7 @@ class TestActiveLearningE2E:
             "settings": settings,
         }
 
-    @pytest.fixture
+    @pytest.fixture()
     def approval_service(self, e2e_components):
         """ApprovalService configurado para E2E."""
         service = ApprovalService(
@@ -165,7 +165,7 @@ class TestActiveLearningE2E:
         )
         return service
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_e2e_full_active_learning_flow(self, approval_service, e2e_components):
         """
         Teste E2E completo: Request -> Enqueue -> Claim -> Feedback -> Metrics.
@@ -185,7 +185,7 @@ class TestActiveLearningE2E:
                 risk_band=RiskBand.MEDIUM,
                 is_destructive=False,
                 status=ApprovalStatus.PENDING,
-                requested_at=datetime.now(timezone.utc),
+                requested_at=datetime.now(UTC),
                 cognitive_plan={"plan_id": "plan-1", "steps": []},
             )
 
@@ -237,7 +237,7 @@ class TestActiveLearningE2E:
             )
             assert complete_result["status"] == "completed"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_e2e_claim_and_release_flow(self, e2e_components):
         """Teste E2E de claim e release de caso."""
         priority_queue = e2e_components["priority_queue"]
@@ -251,7 +251,7 @@ class TestActiveLearningE2E:
         release_result = priority_queue.release_case(queue_id="queue-1")
         assert release_result["status"] == "pending"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_e2e_balance_metrics_inform_priority(self, e2e_components):
         """Teste E2E que métricas de balanceamento informam prioridade."""
         balance_analyzer = e2e_components["balance_analyzer"]
@@ -269,11 +269,11 @@ class TestActiveLearningE2E:
         assert any(r["value"] == "reject" for r in recommendations)
 
 
-@pytest.mark.e2e
+@pytest.mark.e2e()
 class TestActiveLearningAPIE2E:
     """Testes E2E da API de Active Learning."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def fastapi_app(self):
         """Cria app FastAPI com mocks."""
         from fastapi import FastAPI
@@ -292,7 +292,7 @@ class TestActiveLearningAPIE2E:
                 semantic_features_count=10,
                 semantic_features_percentage=10.0,
                 priority_recommendations=[],
-                last_updated=datetime.now(timezone.utc).isoformat(),
+                last_updated=datetime.now(UTC).isoformat(),
                 model_dump=lambda: {
                     "total_feedbacks": 100,
                     "balance": {},
@@ -301,7 +301,7 @@ class TestActiveLearningAPIE2E:
                     "semantic_features_count": 10,
                     "semantic_features_percentage": 10.0,
                     "priority_recommendations": [],
-                    "last_updated": datetime.now(timezone.utc).isoformat(),
+                    "last_updated": datetime.now(UTC).isoformat(),
                 },
             )
         )
@@ -314,8 +314,8 @@ class TestActiveLearningAPIE2E:
                 "queue_id": "q1",
                 "status": "in_review",
                 "assigned_to": "user@example.com",
-                "claimed_at": datetime.now(timezone.utc),
-                "expires_at": datetime.now(timezone.utc) + timedelta(hours=1),
+                "claimed_at": datetime.now(UTC),
+                "expires_at": datetime.now(UTC) + timedelta(hours=1),
             }
         )
         priority_queue.release_case = MagicMock(

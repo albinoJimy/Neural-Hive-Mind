@@ -3,16 +3,17 @@ Testes de integração com MongoDB usando Testcontainers.
 Valida persistência, indexação e integridade para LedgerClient e ExplainabilityGenerator.
 """
 
-import pytest
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+
+import pytest
 
 from neural_hive_specialists.config import SpecialistConfig
-from neural_hive_specialists.ledger_client import LedgerClient
 from neural_hive_specialists.explainability_generator import ExplainabilityGenerator
+from neural_hive_specialists.ledger_client import LedgerClient
 
 
-@pytest.mark.integration
+@pytest.mark.integration()
 def test_ledger_save_and_retrieve_opinion(mongodb_uri, sample_opinion):
     """Valida persistência e recuperação de parecer no MongoDB."""
     config = SpecialistConfig(
@@ -42,7 +43,7 @@ def test_ledger_save_and_retrieve_opinion(mongodb_uri, sample_opinion):
     assert retrieved["confidence_score"] == sample_opinion["confidence_score"]
 
 
-@pytest.mark.integration
+@pytest.mark.integration()
 def test_ledger_get_opinions_by_plan(mongodb_uri):
     """Valida recuperação de múltiplos pareceres por plan_id."""
     config = SpecialistConfig(
@@ -77,7 +78,7 @@ def test_ledger_get_opinions_by_plan(mongodb_uri):
             "suggested_mitigations": [],
             "explainability_token": f"token-{i}",
             "processing_time_ms": 100.0,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "metadata": {},
         }
         ledger.save_opinion_with_fallback(opinion)
@@ -88,7 +89,7 @@ def test_ledger_get_opinions_by_plan(mongodb_uri):
     assert all(op["plan_id"] == plan_id for op in opinions)
 
 
-@pytest.mark.integration
+@pytest.mark.integration()
 def test_ledger_verify_integrity(mongodb_uri):
     """Valida integridade de hash em parecer persistido."""
     config = SpecialistConfig(
@@ -119,7 +120,7 @@ def test_ledger_verify_integrity(mongodb_uri):
         "suggested_mitigations": [],
         "explainability_token": "token-123",
         "processing_time_ms": 100.0,
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
         "metadata": {},
     }
 
@@ -130,7 +131,7 @@ def test_ledger_verify_integrity(mongodb_uri):
     assert is_valid is True
 
 
-@pytest.mark.integration
+@pytest.mark.integration()
 def test_ledger_index_creation(mongodb_uri):
     """Valida criação de índices MongoDB."""
     config = SpecialistConfig(
@@ -157,7 +158,7 @@ def test_ledger_index_creation(mongodb_uri):
     assert "timestamp_-1" in index_names
 
 
-@pytest.mark.integration
+@pytest.mark.integration()
 def test_explainability_save_and_retrieve(mongodb_uri):
     """Valida persistência e recuperação de explicabilidade no MongoDB."""
     config = SpecialistConfig(
@@ -208,7 +209,7 @@ def test_explainability_save_and_retrieve(mongodb_uri):
     assert retrieved["specialist_type"] == "test"
 
 
-@pytest.mark.integration
+@pytest.mark.integration()
 def test_ledger_buffer_flush_on_reconnect(mongodb_uri):
     """Valida flush de buffer quando reconectar ao MongoDB."""
     config = SpecialistConfig(
@@ -245,7 +246,7 @@ def test_ledger_buffer_flush_on_reconnect(mongodb_uri):
             "suggested_mitigations": [],
             "explainability_token": f"token-{i}",
             "processing_time_ms": 100.0,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "metadata": {},
         }
         opinions.append(opinion)
@@ -262,7 +263,7 @@ def test_ledger_buffer_flush_on_reconnect(mongodb_uri):
         assert retrieved["opinion_id"] == opinion["opinion_id"]
 
 
-@pytest.mark.integration
+@pytest.mark.integration()
 def test_ledger_get_opinions_by_intent(mongodb_uri):
     """Valida recuperação de pareceres por intent_id."""
     config = SpecialistConfig(
@@ -297,7 +298,7 @@ def test_ledger_get_opinions_by_intent(mongodb_uri):
             "suggested_mitigations": [],
             "explainability_token": f"token-{i}",
             "processing_time_ms": 100.0,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "metadata": {},
         }
         ledger.save_opinion_with_fallback(opinion)

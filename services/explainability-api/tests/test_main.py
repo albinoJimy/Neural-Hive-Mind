@@ -5,17 +5,16 @@ Testa endpoints health, legacy, GAPS-04 e stats.
 """
 
 import os
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
-from datetime import datetime, timezone, timedelta
-from unittest.mock import AsyncMock, MagicMock, patch, PropertyMock
 from fastapi import status
 from fastapi.testclient import TestClient
-
 
 # ========== Fixtures ==========
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_db():
     """Mock MongoDB database."""
     db = MagicMock()
@@ -36,7 +35,7 @@ def mock_db():
     return db
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_mongo_client(mock_db):
     """Mock MongoDB client."""
     client = MagicMock()
@@ -52,12 +51,13 @@ def mock_mongo_client(mock_db):
     # Mock close method
     async def mock_close():
         pass
+
     client.close = mock_close
 
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_api_extensions():
     """Mock para ExplainabilityAPIExtensions."""
     extensions = AsyncMock()
@@ -84,7 +84,7 @@ def mock_api_extensions():
     return extensions
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_explanation_producer():
     """Mock para ExplanationProducer."""
     producer = MagicMock()
@@ -105,10 +105,13 @@ def mock_explanation_producer():
 def setup_main_app(mock_mongo_client, mock_db, mock_api_extensions, mock_explanation_producer):
     """Configura mocks para o app FastAPI antes de cada teste."""
     # Patch environment variables
-    with patch.dict(os.environ, {
-        "ENABLE_V3_API": "false",
-        "ENABLE_KAFKA_CONSUMER": "false",
-    }):
+    with patch.dict(
+        os.environ,
+        {
+            "ENABLE_V3_API": "false",
+            "ENABLE_KAFKA_CONSUMER": "false",
+        },
+    ):
         # Import and patch main module
         import src.main as main_module
 
@@ -121,7 +124,7 @@ def setup_main_app(mock_mongo_client, mock_db, mock_api_extensions, mock_explana
         yield main_module
 
 
-@pytest.fixture
+@pytest.fixture()
 def client(setup_main_app):
     """Test client para FastAPI."""
     app = setup_main_app.app
@@ -156,9 +159,11 @@ class TestHealthEndpoints:
 
     def test_readiness_check_without_mongodb(self, client, mock_mongo_client):
         """Testa readiness check sem MongoDB conectado."""
+
         # Make ping fail
         async def mock_command_fail(command, **kwargs):
             raise Exception("Connection failed")
+
         mock_mongo_client.admin.command = mock_command_fail
 
         response = client.get("/ready")
@@ -184,6 +189,7 @@ class TestLegacyEndpoints:
 
     def test_get_explainability_by_token_found(self, client, mock_db):
         """Testa busca de explicação por token quando encontrada."""
+
         # Override find_one for this test
         async def mock_find_one_found(query):
             return {
@@ -191,6 +197,7 @@ class TestLegacyEndpoints:
                 "decision_id": "test_001",
                 "_id": "ignored",
             }
+
         mock_db.explainability_ledger.find_one = mock_find_one_found
 
         response = client.get("/api/v1/explainability/abc123")
@@ -202,9 +209,11 @@ class TestLegacyEndpoints:
 
     def test_get_explainability_by_token_not_found(self, client, mock_db):
         """Testa busca de explicação por token quando não encontrada."""
+
         # Override find_one for this test
         async def mock_find_one_not_found(query):
             return None
+
         mock_db.explainability_ledger.find_one = mock_find_one_not_found
 
         response = client.get("/api/v1/explainability/nonexistent")
@@ -289,10 +298,12 @@ class TestStatsEndpoint:
         """Testa busca de estatísticas sem filtro de data."""
         # Create proper cursor mock
         mock_cursor = AsyncMock()
-        mock_cursor.to_list = AsyncMock(return_value=[
-            {"_id": "method1", "count": 10},
-            {"_id": "method2", "count": 5},
-        ])
+        mock_cursor.to_list = AsyncMock(
+            return_value=[
+                {"_id": "method1", "count": 10},
+                {"_id": "method2", "count": 5},
+            ]
+        )
 
         # Create async function that returns the cursor
         async def mock_aggregate_return():
@@ -379,8 +390,10 @@ class TestPrometheusMetrics:
 
     def test_explainability_queries_counter(self, client, mock_db):
         """Testa contador de consultas de explicabilidade."""
+
         async def mock_find_one_none(query):
             return None
+
         mock_db.explainability_ledger.find_one = mock_find_one_none
 
         # Fazer várias requisições para incrementar contador
@@ -408,10 +421,7 @@ class TestEdgeCases:
         import concurrent.futures
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
-            futures = [
-                executor.submit(client.get, "/health")
-                for _ in range(10)
-            ]
+            futures = [executor.submit(client.get, "/health") for _ in range(10)]
 
             results = [f.result() for f in concurrent.futures.as_completed(futures)]
 

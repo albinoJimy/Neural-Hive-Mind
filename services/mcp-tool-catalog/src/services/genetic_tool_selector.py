@@ -3,7 +3,7 @@
 import asyncio
 import random
 import time
-from typing import Dict, List, Optional, Tuple
+from typing import Optional
 
 import structlog
 from deap import base, creator, tools
@@ -153,7 +153,7 @@ class GeneticToolSelector:
 
     async def _get_available_tools(
         self, request: ToolSelectionRequest
-    ) -> Dict[str, List[ToolDescriptor]]:
+    ) -> dict[str, list[ToolDescriptor]]:
         """Get available tools grouped by required categories."""
         tools_by_category = {}
 
@@ -178,8 +178,8 @@ class GeneticToolSelector:
         return tools_by_category
 
     async def _run_genetic_algorithm(
-        self, available_tools: Dict[str, List[ToolDescriptor]], request: ToolSelectionRequest
-    ) -> Tuple[ToolCombination, int, bool]:
+        self, available_tools: dict[str, list[ToolDescriptor]], request: ToolSelectionRequest
+    ) -> tuple[ToolCombination, int, bool]:
         """Run genetic algorithm to find optimal tool combination."""
         # Initialize population
         population = self._create_initial_population(available_tools, request)
@@ -242,8 +242,8 @@ class GeneticToolSelector:
         return best_combination, generation + 1, converged
 
     def _create_initial_population(
-        self, available_tools: Dict[str, List[ToolDescriptor]], request: ToolSelectionRequest
-    ) -> List[ToolCombination]:
+        self, available_tools: dict[str, list[ToolDescriptor]], request: ToolSelectionRequest
+    ) -> list[ToolCombination]:
         """Create initial random population."""
         population = []
         population_size = self.settings.GA_POPULATION_SIZE
@@ -311,7 +311,7 @@ class GeneticToolSelector:
         )
 
     async def _heuristic_selection(
-        self, request: ToolSelectionRequest, available_tools: Dict[str, List[ToolDescriptor]]
+        self, request: ToolSelectionRequest, available_tools: dict[str, list[ToolDescriptor]]
     ) -> ToolSelectionResponse:
         """Fallback heuristic selection (highest reputation)."""
         selected_tools = []

@@ -1,7 +1,7 @@
 """Cliente gRPC para Service Registry com suporte a mTLS via SPIFFE."""
 
 import time
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Optional
 
 import grpc
 import structlog
@@ -109,7 +109,7 @@ class ServiceRegistryClient:
             logger.error("service_registry_client_start_failed", error=str(e))
             raise
 
-    async def _get_grpc_metadata(self) -> List[Tuple[str, str]]:
+    async def _get_grpc_metadata(self) -> list[tuple[str, str]]:
         """Obter metadata gRPC com JWT-SVID para autenticação."""
         spiffe_enabled = getattr(self.settings, "spiffe_enabled", False)
         if not spiffe_enabled or not self.spiffe_manager:
@@ -185,7 +185,7 @@ class ServiceRegistryClient:
             logger.error("agent_registration_failed", agent_id=self.scout_agent_id, error=str(e))
             return False
 
-    async def heartbeat(self, telemetry: Optional[Dict[str, Any]] = None) -> bool:
+    async def heartbeat(self, telemetry: Optional[dict[str, Any]] = None) -> bool:
         """
         Envia heartbeat para o Service Registry
 
@@ -279,7 +279,7 @@ class ServiceRegistryClient:
             logger.error("deregister_failed", agent_id=self.agent_id, error=str(e))
             return False
 
-    def _build_capabilities(self) -> List[str]:
+    def _build_capabilities(self) -> list[str]:
         """Constrói lista de capabilities do Scout Agent"""
         capabilities = []
 
@@ -298,7 +298,7 @@ class ServiceRegistryClient:
 
         return capabilities
 
-    def _build_metadata(self) -> Dict[str, str]:
+    def _build_metadata(self) -> dict[str, str]:
         """Constrói metadata do Scout Agent"""
         return {
             "service_name": self.settings.service.service_name,

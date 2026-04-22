@@ -19,7 +19,7 @@ import pytest
 class TestJenkinsClientTrigger:
     """Testes de trigger de job."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_trigger_job_success(self):
         """Deve disparar job com sucesso."""
         from src.clients.jenkins_client import JenkinsClient
@@ -38,7 +38,7 @@ class TestJenkinsClientTrigger:
             assert queue_id == 123
             mock_http.post.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_trigger_job_with_parameters(self):
         """Deve disparar job com parametros."""
         from src.clients.jenkins_client import JenkinsClient
@@ -58,11 +58,11 @@ class TestJenkinsClientTrigger:
 
             assert queue_id == 456
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_trigger_job_api_error(self):
         """Deve propagar erro da API."""
-        from src.clients.jenkins_client import JenkinsClient, JenkinsAPIError
         import httpx
+        from src.clients.jenkins_client import JenkinsAPIError, JenkinsClient
 
         client = JenkinsClient(base_url="http://jenkins.local", token="test-token", user="admin")
 
@@ -86,7 +86,7 @@ class TestJenkinsClientTrigger:
 class TestJenkinsClientQueue:
     """Testes de queue management."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_queue_item_pending(self):
         """Deve obter item na fila."""
         from src.clients.jenkins_client import JenkinsClient
@@ -113,7 +113,7 @@ class TestJenkinsClientQueue:
             assert item.blocked is True
             assert item.build_number is None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_queue_item_started(self):
         """Deve obter item quando build iniciou."""
         from src.clients.jenkins_client import JenkinsClient
@@ -138,7 +138,7 @@ class TestJenkinsClientQueue:
 
             assert item.build_number == 42
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_wait_for_build_number_success(self):
         """Deve aguardar e retornar build number."""
         from src.clients.jenkins_client import JenkinsClient, JenkinsQueueItem
@@ -160,7 +160,7 @@ class TestJenkinsClientQueue:
 class TestJenkinsClientBuildStatus:
     """Testes de obtencao de status de build."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_build_status_success(self):
         """Deve obter status de build SUCCESS."""
         from src.clients.jenkins_client import JenkinsClient
@@ -190,7 +190,7 @@ class TestJenkinsClientBuildStatus:
             assert status.completed is True
             assert status.duration_seconds == 120.0
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_build_status_building(self):
         """Deve obter status de build em execucao."""
         from src.clients.jenkins_client import JenkinsClient
@@ -211,7 +211,7 @@ class TestJenkinsClientBuildStatus:
             assert status.status == "BUILDING"
             assert status.completed is False
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_build_status_failure(self):
         """Deve obter status de build FAILURE."""
         from src.clients.jenkins_client import JenkinsClient
@@ -241,10 +241,10 @@ class TestJenkinsClientBuildStatus:
 class TestJenkinsClientWait:
     """Testes de wait for build."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_wait_for_build_success(self):
         """Deve aguardar build completar."""
-        from src.clients.jenkins_client import JenkinsClient, JenkinsBuildStatus
+        from src.clients.jenkins_client import JenkinsBuildStatus, JenkinsClient
 
         client = JenkinsClient(base_url="http://jenkins.local", token="test-token")
 
@@ -271,12 +271,12 @@ class TestJenkinsClientWait:
                     assert status.tests_passed == 50
                     assert status.coverage == 85.5
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_wait_for_build_timeout(self):
         """Deve levantar timeout."""
         from src.clients.jenkins_client import (
-            JenkinsClient,
             JenkinsBuildStatus,
+            JenkinsClient,
             JenkinsTimeoutError,
         )
 
@@ -296,7 +296,7 @@ class TestJenkinsClientWait:
 class TestJenkinsClientReports:
     """Testes de obtencao de reports."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_test_report_success(self):
         """Deve obter test report."""
         from src.clients.jenkins_client import JenkinsClient
@@ -323,11 +323,11 @@ class TestJenkinsClientReports:
             assert report["passCount"] == 100
             assert report["failCount"] == 5
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_test_report_not_found(self):
         """Deve retornar report vazio quando nao encontrado."""
-        from src.clients.jenkins_client import JenkinsClient
         import httpx
+        from src.clients.jenkins_client import JenkinsClient
 
         client = JenkinsClient(base_url="http://jenkins.local", token="test-token")
 
@@ -346,7 +346,7 @@ class TestJenkinsClientReports:
             assert report["passCount"] == 0
             assert report["totalCount"] == 0
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_coverage_report_jacoco(self):
         """Deve obter coverage do Jacoco."""
         from src.clients.jenkins_client import JenkinsClient
@@ -363,7 +363,7 @@ class TestJenkinsClientReports:
 
             assert coverage == 82.5
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_console_output(self):
         """Deve obter console output."""
         from src.clients.jenkins_client import JenkinsClient
@@ -385,7 +385,7 @@ class TestJenkinsClientReports:
 class TestJenkinsClientOperations:
     """Testes de operacoes diversas."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_stop_build(self):
         """Deve parar build em execucao."""
         from src.clients.jenkins_client import JenkinsClient
@@ -402,10 +402,10 @@ class TestJenkinsClientOperations:
 
             assert result is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_last_build(self):
         """Deve obter ultimo build."""
-        from src.clients.jenkins_client import JenkinsClient, JenkinsBuildStatus
+        from src.clients.jenkins_client import JenkinsBuildStatus, JenkinsClient
 
         client = JenkinsClient(base_url="http://jenkins.local", token="test-token")
 

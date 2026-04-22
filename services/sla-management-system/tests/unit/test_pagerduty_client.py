@@ -2,19 +2,19 @@
 Testes unitários para PagerDutyClient.
 """
 
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
+import pytest
 from src.clients.pagerduty_client import PagerDutyClient, PagerDutyEvent
 
 
-@pytest.fixture
+@pytest.fixture()
 def routing_key():
     """Routing key para testes."""
     return "ROUTING_KEY_123"
 
 
-@pytest.fixture
+@pytest.fixture()
 def pagerduty_client(routing_key):
     """Cliente PagerDuty para testes."""
     return PagerDutyClient(routing_key=routing_key)
@@ -23,7 +23,7 @@ def pagerduty_client(routing_key):
 class TestPagerDutyClient:
     """Testes para PagerDutyClient."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_trigger_alert(self, pagerduty_client):
         """Testa trigger de alerta."""
         # Setup
@@ -51,7 +51,7 @@ class TestPagerDutyClient:
         assert payload["event_action"] == "trigger"
         assert payload["dedup_key"] == "alert-123"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_acknowledge_alert(self, pagerduty_client):
         """Testa acknowledge de alerta."""
         # Setup
@@ -72,7 +72,7 @@ class TestPagerDutyClient:
         payload = call_args.kwargs["json"]
         assert payload["event_action"] == "acknowledge"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_resolve_alert(self, pagerduty_client):
         """Testa resolve de alerta."""
         # Setup
@@ -93,7 +93,7 @@ class TestPagerDutyClient:
         payload = call_args.kwargs["json"]
         assert payload["event_action"] == "resolve"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_trigger_alert_with_custom_details(self, pagerduty_client):
         """Testa trigger com detalhes customizados."""
         # Setup
@@ -120,7 +120,7 @@ class TestPagerDutyClient:
         payload = call_args.kwargs["json"]
         assert payload["payload"]["custom_details"] == custom_details
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_no_routing_key(self):
         """Testa erro quando não há routing key."""
         # Setup
@@ -135,7 +135,7 @@ class TestPagerDutyClient:
                 source="test-service",
             )
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_connect_and_disconnect(self, pagerduty_client):
         """Testa conexão e desconexão."""
         # Act - Connect
@@ -146,7 +146,7 @@ class TestPagerDutyClient:
         await pagerduty_client.disconnect()
         assert pagerduty_client.session is None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_send_sla_alert(self, pagerduty_client):
         """Testa envio de alerta SLA formatado."""
         # Setup

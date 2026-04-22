@@ -4,11 +4,10 @@ Parsing de C/C++ para análise estática.
 """
 
 import pytest
-
 from src.exploration.parsers.multilanguage.cpp_parser import CppParser
 
 
-@pytest.fixture
+@pytest.fixture()
 def cpp_parser():
     """Instância de CppParser para testes."""
     return CppParser()

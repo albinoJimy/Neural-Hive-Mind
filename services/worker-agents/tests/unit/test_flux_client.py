@@ -19,7 +19,7 @@ import pytest
 class TestFluxClientInitialization:
     """Testes de inicializacao."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_initialize_success(self):
         """Deve inicializar cliente com sucesso."""
         from src.clients.flux_client import FluxClient
@@ -37,7 +37,7 @@ class TestFluxClientInitialization:
 
                 assert client._initialized is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_initialize_kubernetes_not_installed(self):
         """Deve levantar erro quando kubernetes-asyncio nao instalado."""
         from src.clients.flux_client import FluxClient
@@ -53,13 +53,13 @@ class TestFluxClientInitialization:
 class TestFluxClientCreateKustomization:
     """Testes de criacao de Kustomization."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_create_kustomization_success(self):
         """Deve criar Kustomization com sucesso."""
         from src.clients.flux_client import (
             FluxClient,
-            KustomizationRequest,
             KustomizationMetadata,
+            KustomizationRequest,
             KustomizationSpec,
             SourceReference,
         )
@@ -83,14 +83,14 @@ class TestFluxClientCreateKustomization:
         assert name == "test-app"
         client._api.create_namespaced_custom_object.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_create_kustomization_not_initialized(self):
         """Deve levantar erro quando nao inicializado."""
         from src.clients.flux_client import (
-            FluxClient,
             FluxAPIError,
-            KustomizationRequest,
+            FluxClient,
             KustomizationMetadata,
+            KustomizationRequest,
             KustomizationSpec,
             SourceReference,
         )
@@ -109,7 +109,7 @@ class TestFluxClientCreateKustomization:
 class TestFluxClientStatus:
     """Testes de obtencao de status."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_kustomization_status_ready(self):
         """Deve obter status ready."""
         from src.clients.flux_client import FluxClient
@@ -141,7 +141,7 @@ class TestFluxClientStatus:
         assert status.ready is True
         assert status.lastAppliedRevision == "main@sha1:abc123"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_kustomization_status_not_ready(self):
         """Deve obter status nao ready."""
         from src.clients.flux_client import FluxClient
@@ -173,10 +173,10 @@ class TestFluxClientStatus:
 class TestFluxClientWaitForReady:
     """Testes de wait for ready."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_wait_for_ready_success(self):
         """Deve aguardar Kustomization ficar ready."""
-        from src.clients.flux_client import FluxClient, KustomizationStatus, Condition
+        from src.clients.flux_client import Condition, FluxClient, KustomizationStatus
 
         client = FluxClient(namespace="flux-system")
         client._initialized = True
@@ -194,14 +194,14 @@ class TestFluxClientWaitForReady:
 
             assert status.ready is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_wait_for_ready_timeout(self):
         """Deve levantar timeout."""
         from src.clients.flux_client import (
+            Condition,
             FluxClient,
             FluxTimeoutError,
             KustomizationStatus,
-            Condition,
         )
 
         client = FluxClient(namespace="flux-system")
@@ -218,10 +218,10 @@ class TestFluxClientWaitForReady:
             with pytest.raises(FluxTimeoutError):
                 await client.wait_for_ready(name="test-app", poll_interval=0.1, timeout=0.3)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_wait_for_ready_failed(self):
         """Deve levantar erro quando Kustomization falha."""
-        from src.clients.flux_client import FluxClient, FluxAPIError, KustomizationStatus, Condition
+        from src.clients.flux_client import Condition, FluxAPIError, FluxClient, KustomizationStatus
 
         client = FluxClient(namespace="flux-system")
         client._initialized = True
@@ -248,7 +248,7 @@ class TestFluxClientWaitForReady:
 class TestFluxClientReconcile:
     """Testes de reconciliation."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_reconcile_kustomization_success(self):
         """Deve forcar reconciliacao."""
         from src.clients.flux_client import FluxClient
@@ -268,7 +268,7 @@ class TestFluxClientReconcile:
 class TestFluxClientDelete:
     """Testes de delete."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_delete_kustomization_success(self):
         """Deve deletar Kustomization."""
         from src.clients.flux_client import FluxClient
@@ -283,7 +283,7 @@ class TestFluxClientDelete:
         assert result is True
         client._api.delete_namespaced_custom_object.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_delete_kustomization_not_found(self):
         """Deve retornar True quando nao encontrado."""
         from src.clients.flux_client import FluxClient
@@ -305,7 +305,7 @@ class TestFluxClientDelete:
 class TestFluxClientList:
     """Testes de listagem."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_list_kustomizations_success(self):
         """Deve listar Kustomizations."""
         from src.clients.flux_client import FluxClient
@@ -341,7 +341,7 @@ class TestFluxClientList:
         assert kustomizations[0].ready is True
         assert kustomizations[1].ready is False
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_list_kustomizations_with_label_selector(self):
         """Deve listar Kustomizations com label selector."""
         from src.clients.flux_client import FluxClient

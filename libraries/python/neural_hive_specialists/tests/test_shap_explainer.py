@@ -1,13 +1,14 @@
 """Testes para SHAPExplainer."""
 
-import pytest
 from unittest.mock import Mock, patch
+
 import pandas as pd
+import pytest
 
 from neural_hive_specialists.explainability.shap_explainer import SHAPExplainer
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_config():
     """Configuração mock para SHAPExplainer."""
     return {
@@ -16,7 +17,7 @@ def mock_config():
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_features():
     """Features de exemplo."""
     return {
@@ -28,7 +29,7 @@ def sample_features():
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_feature_names():
     """Nomes de features de exemplo."""
     return [

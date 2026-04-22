@@ -2,17 +2,16 @@
 Testes de validação das métricas OPA em runtime.
 """
 
-import pytest
 from datetime import datetime, timedelta
 from unittest.mock import AsyncMock
 
+import pytest
+from src.observability.metrics import get_metrics
 from src.policies import OPAClient, PolicyValidator
 from src.policies.opa_client import OPAConnectionError
-from src.observability.metrics import get_metrics
 
 
-
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_records_opa_validation_metrics(real_opa_client, real_opa_config):
     """Testa registro de opa_validations_total e duração."""
     metrics = get_metrics()
@@ -55,7 +54,7 @@ async def test_records_opa_validation_metrics(real_opa_client, real_opa_config):
     assert after_sum > before_sum
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_records_policy_rejections(real_opa_client, real_opa_config):
     """Testa registro de opa_policy_rejections_total."""
     metrics = get_metrics()
@@ -89,7 +88,7 @@ async def test_records_policy_rejections(real_opa_client, real_opa_config):
     assert after == before + 1
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_records_policy_warnings(real_opa_client, real_opa_config):
     """Testa registro de opa_policy_warnings_total."""
     metrics = get_metrics()
@@ -124,7 +123,7 @@ async def test_records_policy_warnings(real_opa_client, real_opa_config):
     assert after == before + 1
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_records_evaluation_errors(real_opa_config, monkeypatch):
     """Testa registro de opa_evaluation_errors_total em erro de conexão."""
     metrics = get_metrics()
@@ -163,7 +162,7 @@ async def test_records_evaluation_errors(real_opa_config, monkeypatch):
     await client.close()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_circuit_breaker_state_opens_after_failures(real_opa_config, monkeypatch):
     """Testa mudança de estado do circuit breaker após falhas."""
     metrics = get_metrics()
@@ -193,7 +192,7 @@ async def test_circuit_breaker_state_opens_after_failures(real_opa_config, monke
     await client.close()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_cache_hits_increment(real_opa_client):
     """Testa incremento de opa_cache_hits_total em cache hit."""
     metrics = get_metrics()
@@ -223,7 +222,7 @@ async def test_cache_hits_increment(real_opa_client):
     assert after == before + 1
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_security_metrics_increment_on_violation(real_opa_client, real_opa_config):
     """Testa incremento de métricas de segurança."""
     metrics = get_metrics()
@@ -285,7 +284,7 @@ async def test_security_metrics_increment_on_violation(real_opa_client, real_opa
     assert auth_after == auth_before + 1
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_tenant_rate_limit_violation_with_redis(real_opa_client, real_opa_config):
     """Garante que violation de rate limit usa contagem real do Redis."""
 

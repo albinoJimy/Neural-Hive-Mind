@@ -1,10 +1,11 @@
 """Gerenciador unificado de modelos com MLflow."""
 
-from typing import Any, Dict, List, Optional
 import logging
+from datetime import datetime
+from typing import Any, Optional
+
 import mlflow
 from mlflow.tracking import MlflowClient
-from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
@@ -32,9 +33,9 @@ class ModelRegistry:
         self,
         model: Any,
         model_name: str,
-        metrics: Dict[str, float],
-        params: Dict[str, Any],
-        tags: Optional[Dict[str, str]] = None,
+        metrics: dict[str, float],
+        params: dict[str, Any],
+        tags: Optional[dict[str, str]] = None,
     ) -> str:
         """
         Salva modelo no MLflow registry.
@@ -141,7 +142,7 @@ class ModelRegistry:
             logger.error(f"Erro ao promover modelo {model_name}: {e}")
             raise
 
-    def get_model_metadata(self, model_name: str, stage: str = "Production") -> Dict[str, Any]:
+    def get_model_metadata(self, model_name: str, stage: str = "Production") -> dict[str, Any]:
         """
         Obtém metadados do modelo.
 
@@ -175,7 +176,7 @@ class ModelRegistry:
             logger.error(f"Erro ao obter metadados de {model_name}: {e}")
             return {}
 
-    def list_models(self, filter_string: Optional[str] = None) -> List[Dict[str, Any]]:
+    def list_models(self, filter_string: Optional[str] = None) -> list[dict[str, Any]]:
         """
         Lista modelos registrados.
 

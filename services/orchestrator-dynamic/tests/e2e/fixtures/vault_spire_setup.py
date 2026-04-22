@@ -10,27 +10,29 @@ Para rodar testes E2E:
 2. RUN_VAULT_SPIFFE_E2E=true pytest tests/e2e/test_vault_spiffe_e2e.py
 """
 
-import os
 import asyncio
+import os
 import time
-from datetime import datetime, timezone, timedelta
-from typing import Generator, Any
+from collections.abc import Generator
+from datetime import UTC, datetime, timedelta
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock
-import pytest
+
 import httpx
+import pytest
 
 # Import condicional para evitar erros quando neural_hive_security não disponível
 try:
     from neural_hive_security import (
-        VaultClient,
-        VaultConfig,
-        SPIFFEManager,
-        SPIFFEConfig,
-        VaultConnectionError,
-        VaultAuthenticationError,
-        SPIFFEConnectionError,
         JWTSVID,
         X509SVID,
+        SPIFFEConfig,
+        SPIFFEConnectionError,
+        SPIFFEManager,
+        VaultAuthenticationError,
+        VaultClient,
+        VaultConfig,
+        VaultConnectionError,
     )
 
     SECURITY_LIB_AVAILABLE = True
@@ -46,8 +48,8 @@ except ImportError:
     JWTSVID = None
     X509SVID = None
 
-from src.config.settings import OrchestratorSettings
 from src.clients.vault_integration import OrchestratorVaultClient
+from src.config.settings import OrchestratorSettings
 
 # Verificar se devemos rodar testes E2E reais
 REAL_E2E = os.getenv("RUN_VAULT_SPIFFE_E2E", "").lower() == "true"
@@ -95,7 +97,7 @@ async def wait_for_vault(timeout: int = 30) -> bool:
     return False
 
 
-@pytest.fixture
+@pytest.fixture()
 async def settings_e2e() -> OrchestratorSettings:
     """Configurações para testes E2E."""
     settings = OrchestratorSettings()
@@ -137,7 +139,7 @@ async def settings_e2e() -> OrchestratorSettings:
     return settings
 
 
-@pytest.fixture
+@pytest.fixture()
 async def vault_client_real(settings_e2e: OrchestratorSettings) -> AsyncMock:
     """
     Cliente Vault real para testes E2E.
@@ -173,7 +175,7 @@ async def vault_client_real(settings_e2e: OrchestratorSettings) -> AsyncMock:
     client.client = httpx.AsyncClient(
         base_url=VAULT_ADDR, timeout=10.0, headers={"X-Vault-Token": VAULT_TOKEN}
     )
-    client.token_expiry = datetime.now(timezone.utc) + timedelta(hours=1)
+    client.token_expiry = datetime.now(UTC) + timedelta(hours=1)
 
     yield client
 
@@ -187,12 +189,12 @@ async def vault_client_real(settings_e2e: OrchestratorSettings) -> AsyncMock:
         pass
 
 
-@pytest.fixture
+@pytest.fixture()
 def vault_client_mock() -> AsyncMock:
     """Mock Vault client para testes unitários."""
     client = AsyncMock()
     client.token = "mock_token"
-    client.token_expiry = datetime.now(timezone.utc) + timedelta(hours=1)
+    client.token_expiry = datetime.now(UTC) + timedelta(hours=1)
     client.read_secret = AsyncMock(
         return_value={
             "uri": "mongodb://mock:mock@localhost:27017/test",
@@ -218,7 +220,7 @@ def vault_client_mock() -> AsyncMock:
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 async def vault_client(
     settings_e2e: OrchestratorSettings, vault_client_real: AsyncMock, vault_client_mock: AsyncMock
 ) -> Any:
@@ -231,7 +233,7 @@ async def vault_client(
         yield vault_client_mock
 
 
-@pytest.fixture
+@pytest.fixture()
 async def spiffe_manager_real(settings_e2e: OrchestratorSettings) -> AsyncMock:
     """
     SPIFFE Manager real para testes E2E.
@@ -264,7 +266,7 @@ async def spiffe_manager_real(settings_e2e: OrchestratorSettings) -> AsyncMock:
         pass
 
 
-@pytest.fixture
+@pytest.fixture()
 def spiffe_manager_mock() -> AsyncMock:
     """Mock SPIFFE manager para testes unitários."""
     manager = MagicMock()
@@ -273,7 +275,7 @@ def spiffe_manager_mock() -> AsyncMock:
     mock_jwt_svid = MagicMock(spec=JWTSVID) if JWTSVID else MagicMock()
     mock_jwt_svid.token = "mock_jwt_token_ey...mock"
     mock_jwt_svid.spiffe_id = "spiffe://neural-hive.local/test/orchestrator"
-    mock_jwt_svid.expiry = datetime.now(timezone.utc) + timedelta(hours=1)
+    mock_jwt_svid.expiry = datetime.now(UTC) + timedelta(hours=1)
     mock_jwt_svid.is_placeholder = False
 
     # Mock X509SVID
@@ -282,7 +284,7 @@ def spiffe_manager_mock() -> AsyncMock:
     mock_x509_svid.private_key = "-----BEGIN PRIVATE KEY-----\nmock_key\n-----END PRIVATE KEY-----"
     mock_x509_svid.spiffe_id = "spiffe://neural-hive.local/test/orchestrator"
     mock_x509_svid.ca_bundle = "-----BEGIN CERTIFICATE-----\nmock_ca\n-----END CERTIFICATE-----"
-    mock_x509_svid.expires_at = datetime.now(timezone.utc) + timedelta(hours=24)
+    mock_x509_svid.expires_at = datetime.now(UTC) + timedelta(hours=24)
 
     manager.initialize = AsyncMock()
     manager.close = AsyncMock()
@@ -296,7 +298,7 @@ def spiffe_manager_mock() -> AsyncMock:
     return manager
 
 
-@pytest.fixture
+@pytest.fixture()
 async def spiffe_manager(
     settings_e2e: OrchestratorSettings,
     spiffe_manager_real: AsyncMock,
@@ -311,7 +313,7 @@ async def spiffe_manager(
         yield spiffe_manager_mock
 
 
-@pytest.fixture
+@pytest.fixture()
 async def orchestrator_vault_client_real(
     settings_e2e: OrchestratorSettings,
 ) -> OrchestratorVaultClient:
@@ -341,7 +343,7 @@ async def orchestrator_vault_client_real(
         pass
 
 
-@pytest.fixture
+@pytest.fixture()
 def orchestrator_vault_client_mock() -> OrchestratorVaultClient:
     """Mock OrchestratorVaultClient para testes unitários."""
     settings = OrchestratorSettings()
@@ -360,7 +362,7 @@ def orchestrator_vault_client_mock() -> OrchestratorVaultClient:
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 async def orchestrator_vault_client(
     settings_e2e: OrchestratorSettings,
     orchestrator_vault_client_real: OrchestratorVaultClient,
@@ -375,7 +377,7 @@ async def orchestrator_vault_client(
         yield orchestrator_vault_client_mock
 
 
-@pytest.fixture
+@pytest.fixture()
 def build_test_settings() -> OrchestratorSettings:
     """
     Constrói configurações de teste para Orchestrator.
@@ -410,7 +412,7 @@ def build_test_settings() -> OrchestratorSettings:
     return settings
 
 
-@pytest.fixture
+@pytest.fixture()
 def teardown_secrets(vault_client) -> Generator[None, None, None]:
     """
     Fixture para limpar segredos criados durante testes.
@@ -442,17 +444,17 @@ def teardown_secrets(vault_client) -> Generator[None, None, None]:
     cleanup()
 
 
-@pytest.fixture
+@pytest.fixture()
 async def expired_token_fixture() -> tuple[str, datetime]:
     """
     Fixture que fornece um token expirado e data de expiração.
     """
     expired_token = "s.expired_token_12345"
-    expired_time = datetime.now(timezone.utc) - timedelta(hours=1)
+    expired_time = datetime.now(UTC) - timedelta(hours=1)
     return expired_token, expired_time
 
 
-@pytest.fixture
+@pytest.fixture()
 def vault_unavailable_config() -> VaultConfig:
     """
     Config Vault com endereço indisponível para testar fail modes.
@@ -464,7 +466,7 @@ def vault_unavailable_config() -> VaultConfig:
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def vault_unavailable_config_fail_open() -> VaultConfig:
     """
     Config Vault com fail_open para testar fallback.

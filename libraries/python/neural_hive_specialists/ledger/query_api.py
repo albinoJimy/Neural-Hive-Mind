@@ -5,11 +5,12 @@ Fornece métodos de alto nível para evitar queries manuais direto no MongoDB,
 com suporte a filtros semânticos, agregações e cache.
 """
 
-from typing import Dict, List, Any, Optional
-from datetime import datetime, timedelta, timezone
-from pymongo import MongoClient, DESCENDING, ASCENDING
-from pymongo.errors import PyMongoError
+from datetime import UTC, datetime, timedelta
+from typing import Any, Optional
+
 import structlog
+from pymongo import ASCENDING, DESCENDING, MongoClient
+from pymongo.errors import PyMongoError
 
 logger = structlog.get_logger(__name__)
 
@@ -17,7 +18,7 @@ logger = structlog.get_logger(__name__)
 class LedgerQueryAPI:
     """API de alto nível para consultas semânticas no ledger."""
 
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, config: dict[str, Any]):
         """
         Inicializa query API.
 
@@ -57,7 +58,7 @@ class LedgerQueryAPI:
 
     def get_opinions_by_specialist(
         self, specialist_type: str, limit: int = 100, skip: int = 0
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Busca opiniões por tipo de especialista.
 
@@ -99,7 +100,7 @@ class LedgerQueryAPI:
             )
             return []
 
-    def get_opinions_by_plan(self, plan_id: str) -> List[Dict[str, Any]]:
+    def get_opinions_by_plan(self, plan_id: str) -> list[dict[str, Any]]:
         """
         Busca todas as opiniões relacionadas a um plano cognitivo.
 
@@ -127,7 +128,7 @@ class LedgerQueryAPI:
 
     def get_opinions_by_recommendation(
         self, recommendation: str, time_range_hours: Optional[int] = None
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Busca opiniões por tipo de recomendação.
 
@@ -139,11 +140,11 @@ class LedgerQueryAPI:
             Lista de opiniões
         """
         try:
-            query: Dict[str, Any] = {"opinion.recommendation": recommendation}
+            query: dict[str, Any] = {"opinion.recommendation": recommendation}
 
             # Filtro temporal se especificado
             if time_range_hours:
-                cutoff_time = datetime.now(timezone.utc) - timedelta(hours=time_range_hours)
+                cutoff_time = datetime.now(UTC) - timedelta(hours=time_range_hours)
                 query["evaluated_at"] = {"$gte": cutoff_time}
 
             cursor = self.collection.find(query).sort("evaluated_at", DESCENDING)
@@ -172,7 +173,7 @@ class LedgerQueryAPI:
 
     def get_high_risk_opinions(
         self, risk_threshold: float = 0.7, limit: int = 50
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Busca opiniões com alto risco.
 
@@ -207,7 +208,7 @@ class LedgerQueryAPI:
             logger.error("Failed to query high-risk opinions", error=str(e))
             return []
 
-    def get_opinions_by_correlation_id(self, correlation_id: str) -> List[Dict[str, Any]]:
+    def get_opinions_by_correlation_id(self, correlation_id: str) -> list[dict[str, Any]]:
         """
         Busca todas as opiniões de uma transação (correlation_id).
 
@@ -243,7 +244,7 @@ class LedgerQueryAPI:
             )
             return []
 
-    def aggregate_consensus_metrics(self, plan_id: str) -> Optional[Dict[str, Any]]:
+    def aggregate_consensus_metrics(self, plan_id: str) -> Optional[dict[str, Any]]:
         """
         Calcula métricas de consenso para um plano.
 
@@ -313,7 +314,7 @@ class LedgerQueryAPI:
 
     def get_specialist_performance_stats(
         self, specialist_type: str, time_range_hours: int = 168  # 7 dias padrão
-    ) -> Optional[Dict[str, Any]]:
+    ) -> Optional[dict[str, Any]]:
         """
         Calcula estatísticas de performance de um especialista.
 
@@ -325,7 +326,7 @@ class LedgerQueryAPI:
             Estatísticas de performance
         """
         try:
-            cutoff_time = datetime.now(timezone.utc) - timedelta(hours=time_range_hours)
+            cutoff_time = datetime.now(UTC) - timedelta(hours=time_range_hours)
 
             pipeline = [
                 {
@@ -380,7 +381,7 @@ class LedgerQueryAPI:
 
     def search_opinions_by_reasoning(
         self, search_term: str, limit: int = 50
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Busca opiniões por termo no raciocínio.
 
@@ -468,7 +469,7 @@ class LedgerQueryAPI:
 
     def get_opinions_by_domain(
         self, domain: str, limit: int = 100, skip: int = 0
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Busca opiniões por domínio original do plano cognitivo.
 
@@ -502,7 +503,7 @@ class LedgerQueryAPI:
 
     def get_opinions_by_feature(
         self, feature_name: str, min_score: Optional[float] = None, limit: int = 100
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Busca opiniões por fator de raciocínio (reasoning_factor).
 
@@ -515,7 +516,7 @@ class LedgerQueryAPI:
             Lista de opiniões que contêm o fator especificado
         """
         try:
-            query: Dict[str, Any] = {
+            query: dict[str, Any] = {
                 "opinion.reasoning_factors": {"$elemMatch": {"factor_name": feature_name}}
             }
 
@@ -548,7 +549,7 @@ class LedgerQueryAPI:
 
     def get_opinions_by_metadata_field(
         self, field_path: str, field_value: Any, limit: int = 100
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Busca opiniões por campo customizado no metadata.
 
@@ -592,7 +593,7 @@ class LedgerQueryAPI:
         mitigation_type: Optional[str] = None,
         priority: Optional[str] = None,
         limit: int = 50,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Busca opiniões que contêm mitigações recomendadas.
 
@@ -605,11 +606,11 @@ class LedgerQueryAPI:
             Lista de opiniões com mitigações
         """
         try:
-            query: Dict[str, Any] = {"opinion.mitigations": {"$exists": True, "$ne": []}}
+            query: dict[str, Any] = {"opinion.mitigations": {"$exists": True, "$ne": []}}
 
             # Filtros opcionais
             if mitigation_type or priority:
-                elem_match: Dict[str, Any] = {}
+                elem_match: dict[str, Any] = {}
                 if mitigation_type:
                     elem_match["mitigation_type"] = mitigation_type
                 if priority:

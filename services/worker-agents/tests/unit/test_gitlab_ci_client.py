@@ -1,18 +1,18 @@
 """Unit tests for GitLab CI client."""
 
-import pytest
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
-from datetime import datetime, timezone
 
+import pytest
 from src.clients.gitlab_ci_client import (
-    GitLabCIClient,
-    PipelineStatus,
     GitLabCIAPIError,
+    GitLabCIClient,
     GitLabCITimeoutError,
+    PipelineStatus,
 )
 
 
-@pytest.fixture
+@pytest.fixture()
 def gitlab_client():
     """Create GitLab CI client for testing."""
     return GitLabCIClient(
@@ -20,7 +20,7 @@ def gitlab_client():
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_response():
     """Create mock response factory."""
 
@@ -57,7 +57,7 @@ class TestGitLabCIClient:
         assert client.base_url == "https://gitlab.com"
         assert client.timeout == 600
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_trigger_pipeline_success(self, gitlab_client, mock_response):
         """Test successful pipeline trigger."""
         pipeline_data = {
@@ -82,7 +82,7 @@ class TestGitLabCIClient:
             assert result["id"] == 12345
             assert result["status"] == "pending"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_trigger_pipeline_api_error(self, gitlab_client, mock_response):
         """Test pipeline trigger with API error."""
         with patch.object(gitlab_client, "_client") as mock_client:
@@ -91,7 +91,7 @@ class TestGitLabCIClient:
             with pytest.raises(GitLabCIAPIError):
                 await gitlab_client.trigger_pipeline(project_id=999, ref="main")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_pipeline_status_success(self, gitlab_client, mock_response):
         """Test getting pipeline status."""
         pipeline_data = {
@@ -118,7 +118,7 @@ class TestGitLabCIClient:
             assert result.status == "success"
             assert result.duration == 1800
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_wait_for_pipeline_success(self, gitlab_client, mock_response):
         """Test waiting for pipeline completion."""
         running_data = {
@@ -158,7 +158,7 @@ class TestGitLabCIClient:
 
             assert result.status == "success"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_wait_for_pipeline_timeout(self, gitlab_client, mock_response):
         """Test pipeline wait timeout."""
         running_data = {
@@ -181,7 +181,7 @@ class TestGitLabCIClient:
                     project_id=999, pipeline_id=12345, timeout_seconds=0.2, poll_interval=0.1
                 )
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_test_report_success(self, gitlab_client, mock_response):
         """Test getting test report."""
         test_report = {
@@ -213,7 +213,7 @@ class TestGitLabCIClient:
             assert result["success_count"] == 48
             assert result["failed_count"] == 2
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_test_report_summary(self, gitlab_client, mock_response):
         """Test getting test report summary."""
         summary = {
@@ -231,7 +231,7 @@ class TestGitLabCIClient:
             assert result["total"]["count"] == 100
             assert result["success"]["count"] == 95
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_pipeline_jobs(self, gitlab_client, mock_response):
         """Test getting pipeline jobs."""
         jobs = [
@@ -248,7 +248,7 @@ class TestGitLabCIClient:
             assert len(result) == 3
             assert result[0]["name"] == "build"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_cancel_pipeline(self, gitlab_client, mock_response):
         """Test canceling a pipeline."""
         cancelled_data = {
@@ -263,7 +263,7 @@ class TestGitLabCIClient:
 
             assert result["status"] == "canceled"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_retry_pipeline(self, gitlab_client, mock_response):
         """Test retrying a pipeline."""
         retried_data = {
@@ -292,8 +292,8 @@ class TestPipelineStatus:
             ref="main",
             sha="abc123",
             web_url="https://gitlab.com",
-            created_at=datetime.now(timezone.utc),
-            updated_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
+            updated_at=datetime.now(UTC),
         )
         assert status.is_terminal is True
 
@@ -306,8 +306,8 @@ class TestPipelineStatus:
             ref="main",
             sha="abc123",
             web_url="https://gitlab.com",
-            created_at=datetime.now(timezone.utc),
-            updated_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
+            updated_at=datetime.now(UTC),
         )
         assert status.is_terminal is False
 
@@ -320,8 +320,8 @@ class TestPipelineStatus:
             ref="main",
             sha="abc123",
             web_url="https://gitlab.com",
-            created_at=datetime.now(timezone.utc),
-            updated_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
+            updated_at=datetime.now(UTC),
         )
         assert status.is_success is True
 
@@ -334,7 +334,7 @@ class TestPipelineStatus:
             ref="main",
             sha="abc123",
             web_url="https://gitlab.com",
-            created_at=datetime.now(timezone.utc),
-            updated_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
+            updated_at=datetime.now(UTC),
         )
         assert status.is_failed is True

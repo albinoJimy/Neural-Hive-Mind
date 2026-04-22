@@ -1,11 +1,11 @@
 """Configuração pytest para Approval Gateway."""
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
-from openai import AsyncOpenAI
+
+import pytest
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_openai_client():
     """Mock do cliente OpenAI."""
     # Mock simples da resposta
@@ -25,7 +25,7 @@ def mock_openai_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_mongodb():
     """Mock do cliente MongoDB."""
     mock_db = MagicMock()
@@ -59,7 +59,7 @@ def mock_mongodb():
         yield mock_client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_settings():
     """Mock das configurações."""
     from src.config.settings import Settings
@@ -72,9 +72,8 @@ def mock_settings():
         auto_rejection_threshold=0.3,
         require_human_threshold=0.5,
         mongodb_url="mongodb://localhost:27017",
-        kafka_bootstrap_servers="localhost:9092"
+        kafka_bootstrap_servers="localhost:9092",
     )
 
     with patch("src.config.settings.get_settings", return_value=settings):
         yield settings
-

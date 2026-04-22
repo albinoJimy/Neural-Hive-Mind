@@ -2,19 +2,19 @@
 Testes unitários para SecurityValidator.
 """
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock
 
-from src.services.security_validator import SecurityValidator
+import pytest
 from src.models.security_validation import (
     GuardrailViolation,
+    Severity,
     ValidationStatus,
     ViolationType,
-    Severity,
 )
+from src.services.security_validator import SecurityValidator
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_settings():
     """Mock settings."""
     settings = MagicMock()
@@ -25,7 +25,7 @@ def mock_settings():
     return settings
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_opa_client():
     """Mock OPA client."""
     client = AsyncMock()
@@ -33,19 +33,19 @@ def mock_opa_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_k8s_client():
     """Mock Kubernetes client."""
     return AsyncMock()
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_vault_client():
     """Mock Vault client."""
     return AsyncMock()
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_trivy_client():
     """Mock Trivy client."""
     client = AsyncMock()
@@ -53,7 +53,7 @@ def mock_trivy_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_redis_client():
     """Mock Redis client."""
     client = AsyncMock()
@@ -62,7 +62,7 @@ def mock_redis_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_mongodb_client():
     """Mock MongoDB client."""
     client = MagicMock()
@@ -72,7 +72,7 @@ def mock_mongodb_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_clients(
     mock_opa_client,
     mock_k8s_client,
@@ -94,7 +94,7 @@ def mock_clients(
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_ticket():
     """ExecutionTicket de exemplo."""
     return {
@@ -111,7 +111,7 @@ def sample_ticket():
     }
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_validate_ticket_approved(mock_clients, sample_ticket):
     """Testa validação de ticket sem violações -> APPROVED."""
     validator = SecurityValidator(**mock_clients)
@@ -124,7 +124,7 @@ async def test_validate_ticket_approved(mock_clients, sample_ticket):
     assert validation.ticket_id == sample_ticket["ticket_id"]
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_validate_ticket_rejected_secrets(mock_clients, sample_ticket):
     """Testa validação de ticket com secrets expostos -> REJECTED."""
     # Configurar Trivy para detectar secrets
@@ -141,7 +141,7 @@ async def test_validate_ticket_rejected_secrets(mock_clients, sample_ticket):
     assert validation.violations[0].severity == Severity.CRITICAL
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_validate_ticket_rejected_rbac(mock_clients, sample_ticket):
     """Testa validação de ticket sem permissões RBAC -> REJECTED."""
     # Configurar ticket com required_capabilities
@@ -154,7 +154,7 @@ async def test_validate_ticket_rejected_rbac(mock_clients, sample_ticket):
     assert any(v.violation_type == ViolationType.RBAC_VIOLATION for v in validation.violations)
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_validate_ticket_requires_approval(mock_clients, sample_ticket):
     """Testa validação de ticket com risk_score > 0.8 -> REQUIRES_APPROVAL."""
     # Configurar OPA para negar
@@ -169,7 +169,7 @@ async def test_validate_ticket_requires_approval(mock_clients, sample_ticket):
     assert any(v.violation_type == ViolationType.POLICY_VIOLATION for v in validation.violations)
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_validate_opa_policies(mock_clients, sample_ticket):
     """Testa validação OPA com policy negada."""
     mock_clients["opa_client"].evaluate_policy = AsyncMock(
@@ -188,7 +188,7 @@ async def test_validate_opa_policies(mock_clients, sample_ticket):
     assert "Política violada" in violations[0].description
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_scan_secrets_detected(mock_clients, sample_ticket):
     """Testa detecção de AWS credentials pelo Trivy."""
     mock_clients["trivy_client"].scan_parameters = AsyncMock(
@@ -210,7 +210,7 @@ async def test_scan_secrets_detected(mock_clients, sample_ticket):
     assert all(v.severity == Severity.CRITICAL for v in violations)
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_validate_rbac_privilege_escalation(mock_clients, sample_ticket):
     """Testa detecção de tentativa de privilege escalation."""
     sample_ticket["required_capabilities"] = ["SYS_ADMIN", "NET_ADMIN"]
@@ -222,7 +222,7 @@ async def test_validate_rbac_privilege_escalation(mock_clients, sample_ticket):
     assert any("escalação de privilégios" in v.description.lower() for v in violations)
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_calculate_risk_assessment(mock_clients):
     """Testa cálculo correto de risk_score."""
     validator = SecurityValidator(**mock_clients)
@@ -248,7 +248,7 @@ async def test_calculate_risk_assessment(mock_clients):
     assert risk.severity == Severity.CRITICAL
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_cache_validation(mock_clients, sample_ticket):
     """Testa que validação é cacheada no Redis."""
     validator = SecurityValidator(**mock_clients)
@@ -259,7 +259,7 @@ async def test_cache_validation(mock_clients, sample_ticket):
     mock_clients["redis_client"].setex.assert_called_once()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_graceful_degradation_trivy_down(mock_clients, sample_ticket):
     """Testa que continua se Trivy falhar."""
     # Trivy indisponível

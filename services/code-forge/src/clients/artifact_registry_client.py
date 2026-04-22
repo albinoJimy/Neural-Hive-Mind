@@ -4,7 +4,7 @@ Cliente para Artifact Registry (OCI).
 Registra referências de SBOMs no registry para rastreabilidade.
 """
 
-from typing import TYPE_CHECKING, Dict, Optional
+from typing import TYPE_CHECKING, Optional
 
 import httpx
 import structlog
@@ -52,7 +52,7 @@ class ArtifactRegistryClient:
             self._client = None
         logger.info("artifact_registry_client_stopped")
 
-    async def register_sbom(self, sbom_uri: str, artifact_id: str, metadata: Dict) -> Optional[str]:
+    async def register_sbom(self, sbom_uri: str, artifact_id: str, metadata: dict) -> Optional[str]:
         """
         Registra referência de SBOM no registry.
 
@@ -125,8 +125,8 @@ class ArtifactRegistryClient:
             return None
 
     async def register_artifact(
-        self, artifact_uri: str, artifact_type: str, metadata: Dict
-    ) -> Optional[Dict]:
+        self, artifact_uri: str, artifact_type: str, metadata: dict
+    ) -> Optional[dict]:
         """
         Registra artefato de container no registry.
 
@@ -181,7 +181,7 @@ class ArtifactRegistryClient:
             )
             return None
 
-    async def get_artifact_metadata(self, artifact_id: str) -> Optional[Dict]:
+    async def get_artifact_metadata(self, artifact_id: str) -> Optional[dict]:
         """
         Obtém metadados de um artefato registrado.
 

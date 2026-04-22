@@ -4,7 +4,6 @@ Configuração específica do Behavior Specialist.
 
 import os
 import sys
-from typing import List
 
 # Adicionar biblioteca ao path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../..", "libraries/python"))
@@ -22,7 +21,7 @@ class BehaviorSpecialistConfig(SpecialistConfig):
     mlflow_model_name: str = "behavior-evaluator"
 
     # Domínios suportados
-    supported_domains: List[str] = [
+    supported_domains: list[str] = [
         "ux-analysis",
         "accessibility-evaluation",
         "usability-testing",

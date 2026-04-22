@@ -8,26 +8,27 @@ Cobre:
 - publish_saga_failed: Publicação de evento de falha
 """
 
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
-
 # Configure path
 import sys
 from pathlib import Path
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
+
 src_path = Path(__file__).parent.parent / "src"
 if str(src_path) not in sys.path:
     sys.path.insert(0, str(src_path))
 
 from src.activities.saga_events import (
-    publish_saga_created,
-    publish_saga_started,
-    publish_saga_completed,
-    publish_saga_failed,
     get_saga_producer,
+    publish_saga_completed,
+    publish_saga_created,
+    publish_saga_failed,
+    publish_saga_started,
 )
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_saga_producer():
     """Mock do SagaProducer."""
     producer = AsyncMock()
@@ -38,14 +39,14 @@ def mock_saga_producer():
     return producer
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_settings():
     """Mock das settings."""
     settings = MagicMock()
     return settings
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_saga_metrics():
     """Mock das métricas Saga."""
     metrics = MagicMock()
@@ -55,7 +56,7 @@ def mock_saga_metrics():
 class TestPublishSagaCreated:
     """Testes para publish_saga_created."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_publish_created_success(
         self, mock_saga_producer, mock_settings, mock_saga_metrics
     ):
@@ -68,9 +69,7 @@ class TestPublishSagaCreated:
                     "src.activities.saga_events.get_saga_producer",
                     return_value=mock_saga_producer,
                 ):
-                    with patch(
-                        "src.activities.saga_events._producer", None
-                    ):  # Reset singleton
+                    with patch("src.activities.saga_events._producer", None):  # Reset singleton
                         result = await publish_saga_created(
                             saga_id="saga-123",
                             workflow_id="workflow-456",
@@ -85,7 +84,7 @@ class TestPublishSagaCreated:
                         assert result["workflow_id"] == "workflow-456"
                         mock_saga_producer.publish_saga_created.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_publish_created_without_metadata(
         self, mock_saga_producer, mock_settings, mock_saga_metrics
     ):
@@ -109,7 +108,7 @@ class TestPublishSagaCreated:
 
                         assert result["success"] is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_publish_created_producer_error(
         self, mock_saga_producer, mock_settings, mock_saga_metrics
     ):
@@ -137,17 +136,13 @@ class TestPublishSagaCreated:
                         assert result["success"] is False
                         assert "error" in result
 
-    @pytest.mark.asyncio
-    async def test_publish_created_initialization_error(
-        self, mock_settings, mock_saga_metrics
-    ):
+    @pytest.mark.asyncio()
+    async def test_publish_created_initialization_error(self, mock_settings, mock_saga_metrics):
         """Testa publicação quando inicialização falha."""
         mock_settings_instance = MagicMock()
         mock_settings_instance.initialize = AsyncMock(side_effect=Exception("Init error"))
 
-        with patch(
-            "src.activities.saga_events.get_settings", return_value=mock_settings_instance
-        ):
+        with patch("src.activities.saga_events.get_settings", return_value=mock_settings_instance):
             with patch(
                 "src.activities.saga_events.get_saga_metrics", return_value=mock_saga_metrics
             ):
@@ -166,7 +161,7 @@ class TestPublishSagaCreated:
 class TestPublishSagaStarted:
     """Testes para publish_saga_started."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_publish_started_success(
         self, mock_saga_producer, mock_settings, mock_saga_metrics
     ):
@@ -191,7 +186,7 @@ class TestPublishSagaStarted:
                         assert result["saga_id"] == "saga-123"
                         mock_saga_producer.publish_saga_started.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_publish_started_producer_error(
         self, mock_saga_producer, mock_settings, mock_saga_metrics
     ):
@@ -221,7 +216,7 @@ class TestPublishSagaStarted:
 class TestPublishSagaCompleted:
     """Testes para publish_saga_completed."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_publish_completed_success(
         self, mock_saga_producer, mock_settings, mock_saga_metrics
     ):
@@ -246,7 +241,7 @@ class TestPublishSagaCompleted:
                         assert result["saga_id"] == "saga-123"
                         mock_saga_producer.publish_saga_completed.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_publish_completed_partial_steps(
         self, mock_saga_producer, mock_settings, mock_saga_metrics
     ):
@@ -269,7 +264,7 @@ class TestPublishSagaCompleted:
 
                         assert result["success"] is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_publish_completed_producer_error(
         self, mock_saga_producer, mock_settings, mock_saga_metrics
     ):
@@ -298,7 +293,7 @@ class TestPublishSagaCompleted:
 class TestPublishSagaFailed:
     """Testes para publish_saga_failed."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_publish_failed_success(
         self, mock_saga_producer, mock_settings, mock_saga_metrics
     ):
@@ -325,7 +320,7 @@ class TestPublishSagaFailed:
                         assert result["saga_id"] == "saga-123"
                         mock_saga_producer.publish_saga_failed.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_publish_failed_without_retry_info(
         self, mock_saga_producer, mock_settings, mock_saga_metrics
     ):
@@ -348,7 +343,7 @@ class TestPublishSagaFailed:
 
                         assert result["success"] is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_publish_failed_with_max_retries(
         self, mock_saga_producer, mock_settings, mock_saga_metrics
     ):
@@ -373,7 +368,7 @@ class TestPublishSagaFailed:
 
                         assert result["success"] is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_publish_failed_producer_error(
         self, mock_saga_producer, mock_settings, mock_saga_metrics
     ):
@@ -402,7 +397,7 @@ class TestPublishSagaFailed:
 class TestGetSagaProducer:
     """Testes para get_saga_producer."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_producer_singleton(
         self, mock_saga_producer, mock_settings, mock_saga_metrics
     ):
@@ -420,10 +415,8 @@ class TestGetSagaProducer:
 
                         assert producer1 is producer2
 
-    @pytest.mark.asyncio
-    async def test_get_producer_initializes_once(
-        self, mock_settings, mock_saga_metrics
-    ):
+    @pytest.mark.asyncio()
+    async def test_get_producer_initializes_once(self, mock_settings, mock_saga_metrics):
         """Testa que producer é inicializado apenas uma vez."""
         producer_mock = MagicMock()
         producer_mock.initialize = AsyncMock()

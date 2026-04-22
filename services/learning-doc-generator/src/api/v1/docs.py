@@ -1,15 +1,13 @@
 """API REST para documentos de aprendizado"""
 
-import asyncio
 import os
 import time
 from datetime import datetime
-from typing import List, Optional
+from typing import Optional
 
 import structlog
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Query, Response
 from fastapi.responses import FileResponse
-
 from src.config import get_settings
 from src.models import (
     DocumentFormat,
@@ -20,6 +18,7 @@ from src.models import (
     DocumentType,
     LearningDocument,
 )
+from src.observability.metrics import learning_doc_metrics
 from src.services import (
     DocumentRepository,
     ExperimentInsightExtractor,
@@ -27,12 +26,12 @@ from src.services import (
     PDFGenerator,
     PlotGenerator,
 )
-from src.observability.metrics import learning_doc_metrics
 
 logger = structlog.get_logger()
 settings = get_settings()
 
 router = APIRouter()
+
 
 # Estado global (será inicializado no main.py)
 class AppState:
@@ -75,7 +74,7 @@ async def generate_document_task(
         state: Estado global
     """
     start_time = time.time()
-    doc_type = request.type.value if hasattr(request.type, 'value') else str(request.type)
+    doc_type = request.type.value if hasattr(request.type, "value") else str(request.type)
 
     try:
         logger.info("Iniciando geração de documento", doc_id=doc_id, type=request.type)
@@ -119,7 +118,11 @@ async def generate_document_task(
 
         # Registrar insights extraídos
         for insight in insights:
-            confidence_value = insight.confidence.value if hasattr(insight.confidence, 'value') else str(insight.confidence)
+            confidence_value = (
+                insight.confidence.value
+                if hasattr(insight.confidence, "value")
+                else str(insight.confidence)
+            )
             learning_doc_metrics.record_insight_extracted(
                 category=insight.category or "unknown",
                 confidence=confidence_value,
@@ -177,7 +180,7 @@ async def generate_document_task(
         await state.repository.update_status(doc_id, DocumentStatus.COMPLETED)
 
         duration = time.time() - start_time
-        doc_size = len(markdown_content.encode('utf-8'))
+        doc_size = len(markdown_content.encode("utf-8"))
 
         # Registrar métricas de sucesso
         learning_doc_metrics.record_doc_generated(
@@ -226,7 +229,9 @@ async def generate_document(
     state = get_state()
 
     if not state.repository:
-        raise HTTPException(status_code=503, detail="Serviço indisponível - repositório não inicializado")
+        raise HTTPException(
+            status_code=503, detail="Serviço indisponível - repositório não inicializado"
+        )
 
     try:
         # Criar documento inicial
@@ -354,9 +359,7 @@ async def download_document(
         raise HTTPException(status_code=404, detail="Documento não encontrado")
 
     if document.status != DocumentStatus.COMPLETED:
-        raise HTTPException(
-            status_code=400, detail="Documento ainda não foi gerado completamente"
-        )
+        raise HTTPException(status_code=400, detail="Documento ainda não foi gerado completamente")
 
     if format == DocumentFormat.MARKDOWN:
         if not document.markdown_content:
@@ -422,7 +425,7 @@ async def download_document(
             raise HTTPException(status_code=503, detail=str(e))
         except Exception as e:
             logger.error("Erro ao gerar PDF", doc_id=doc_id, error=str(e), exc_info=True)
-            raise HTTPException(status_code=500, detail=f"Erro ao gerar PDF: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Erro ao gerar PDF: {e!s}")
 
     else:
         raise HTTPException(

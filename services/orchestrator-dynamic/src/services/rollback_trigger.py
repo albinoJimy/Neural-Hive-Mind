@@ -23,7 +23,7 @@ Manual (decisão humana):
 import asyncio
 from contextlib import suppress
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 
@@ -32,7 +32,7 @@ from pydantic import BaseModel, Field
 
 from src.services.health_monitor import HealthComparison, HealthStatus
 
-UTC = timezone.utc
+UTC = UTC
 logger = structlog.get_logger(__name__)
 
 

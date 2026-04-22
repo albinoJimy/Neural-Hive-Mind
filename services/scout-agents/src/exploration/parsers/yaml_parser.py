@@ -5,7 +5,7 @@ Suporta detecção de recursos Kubernetes, docker-compose, CI/CD configs.
 """
 
 import re
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 import structlog
 
@@ -37,10 +37,10 @@ class YAMLParser:
 
     def __init__(self):
         """Inicializa o YAMLParser."""
-        self._parsed_cache: Dict[str, Dict] = {}
+        self._parsed_cache: dict[str, dict] = {}
         self._parse_errors: set = set()
 
-    def parse(self, code: str, filename: str) -> Optional[Dict[str, Any]]:
+    def parse(self, code: str, filename: str) -> Optional[dict[str, Any]]:
         """
         Faz parsing de arquivo YAML.
 
@@ -80,7 +80,7 @@ class YAMLParser:
             self._parse_errors.add(filename)
             return None
 
-    def _parse_with_yaml_lib(self, code: str, filename: str) -> Dict[str, Any]:
+    def _parse_with_yaml_lib(self, code: str, filename: str) -> dict[str, Any]:
         """Parse usando biblioteca yaml."""
         try:
             # Tentar parsear múltiplos documentos
@@ -142,7 +142,7 @@ class YAMLParser:
                 result["has_errors"] = True
             return result
 
-    def _parse_with_regex(self, code: str, filename: str) -> Dict[str, Any]:
+    def _parse_with_regex(self, code: str, filename: str) -> dict[str, Any]:
         """Parse baseado em regex (fallback)."""
         result = {
             "keys": [],
@@ -252,7 +252,7 @@ class YAMLParser:
             return "docker-compose"
         return None
 
-    def _detect_secrets(self, code: str) -> tuple[bool, List[str]]:
+    def _detect_secrets(self, code: str) -> tuple[bool, list[str]]:
         """Detecta possíveis segredos no código."""
         secret_keys = []
 
@@ -352,7 +352,7 @@ class YAMLParser:
         """Verifica se arquivo tem erros de parsing."""
         return filename in self._parse_errors
 
-    def get_stats(self) -> Dict[str, int]:
+    def get_stats(self) -> dict[str, int]:
         """Retorna estatísticas do parser."""
         return {
             "parsed_files": len(self._parsed_cache),

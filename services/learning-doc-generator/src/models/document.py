@@ -2,7 +2,7 @@
 
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from pydantic import BaseModel, Field
 
@@ -68,9 +68,9 @@ class ExperimentRun(BaseModel):
     status: str = Field(..., description="Status do run")
     start_time: Optional[datetime] = Field(default=None, description="Data de início")
     end_time: Optional[datetime] = Field(default=None, description="Data de fim")
-    metrics: Dict[str, float] = Field(default_factory=dict, description="Métricas")
-    params: Dict[str, Any] = Field(default_factory=dict, description="Parâmetros")
-    tags: Dict[str, str] = Field(default_factory=dict, description="Tags")
+    metrics: dict[str, float] = Field(default_factory=dict, description="Métricas")
+    params: dict[str, Any] = Field(default_factory=dict, description="Parâmetros")
+    tags: dict[str, str] = Field(default_factory=dict, description="Tags")
     artifact_uri: Optional[str] = Field(default=None, description="URI dos artefatos")
 
 
@@ -79,9 +79,9 @@ class Insight(BaseModel):
 
     title: str = Field(..., description="Título do insight")
     description: str = Field(..., description="Descrição detalhada")
-    evidence: Dict[str, Any] = Field(..., description="Evidências/métricas")
+    evidence: dict[str, Any] = Field(..., description="Evidências/métricas")
     confidence: InsightConfidence = Field(..., description="Nível de confiança")
-    experiment_ids: List[str] = Field(
+    experiment_ids: list[str] = Field(
         default_factory=list, description="IDs dos experimentos relacionados"
     )
     category: Optional[str] = Field(default=None, description="Categoria do insight")
@@ -97,12 +97,8 @@ class LearningDocument(BaseModel):
     format: DocumentFormat = Field(default=DocumentFormat.MARKDOWN, description="Formato")
 
     # Metadados
-    created_at: datetime = Field(
-        default_factory=datetime.utcnow, description="Data de criação"
-    )
-    updated_at: datetime = Field(
-        default_factory=datetime.utcnow, description="Data de atualização"
-    )
+    created_at: datetime = Field(default_factory=datetime.utcnow, description="Data de criação")
+    updated_at: datetime = Field(default_factory=datetime.utcnow, description="Data de atualização")
     generated_at: Optional[datetime] = Field(default=None, description="Data de geração")
 
     # Período coberto
@@ -111,25 +107,21 @@ class LearningDocument(BaseModel):
 
     # Conteúdo
     summary: str = Field(default="", description="Resumo executivo")
-    insights: List[Insight] = Field(default_factory=list, description="Insights extraídos")
-    experiment_runs: List[ExperimentRun] = Field(
+    insights: list[Insight] = Field(default_factory=list, description="Insights extraídos")
+    experiment_runs: list[ExperimentRun] = Field(
         default_factory=list, description="Experimentos analisados"
     )
 
     # Recomendações
-    recommendations: List[str] = Field(
-        default_factory=list, description="Recomendações geradas"
-    )
+    recommendations: list[str] = Field(default_factory=list, description="Recomendações geradas")
 
     # Arquivos
     markdown_content: Optional[str] = Field(default=None, description="Conteúdo Markdown")
     pdf_path: Optional[str] = Field(default=None, description="Caminho do PDF")
-    plots: List[str] = Field(default_factory=list, description="Caminhos dos gráficos")
+    plots: list[str] = Field(default_factory=list, description="Caminhos dos gráficos")
 
     # Metadados adicionais
-    metadata: Dict[str, Any] = Field(
-        default_factory=dict, description="Metadados adicionais"
-    )
+    metadata: dict[str, Any] = Field(default_factory=dict, description="Metadados adicionais")
 
     # Template
     template_version: str = Field(default="1.0.0", description="Versão do template")
@@ -145,7 +137,7 @@ class DocumentGenerationRequest(BaseModel):
     title: Optional[str] = Field(default=None, description="Título personalizado")
 
     # Filtros de experimentos
-    experiment_ids: Optional[List[str]] = Field(
+    experiment_ids: Optional[list[str]] = Field(
         default=None, description="IDs específicos de experimentos"
     )
     experiment_name_pattern: Optional[str] = Field(
@@ -164,7 +156,7 @@ class DocumentGenerationRequest(BaseModel):
     plot_format: str = Field(default="png", description="Formato dos gráficos")
 
     # Metadados
-    metadata: Dict[str, Any] = Field(default_factory=dict, description="Metadados adicionais")
+    metadata: dict[str, Any] = Field(default_factory=dict, description="Metadados adicionais")
 
 
 class DocumentGenerationResponse(BaseModel):
@@ -182,4 +174,4 @@ class DocumentListResponse(BaseModel):
     total: int = Field(..., description="Total de documentos")
     page: int = Field(..., description="Página atual")
     page_size: int = Field(..., description="Tamanho da página")
-    documents: List[LearningDocument] = Field(..., description="Documentos")
+    documents: list[LearningDocument] = Field(..., description="Documentos")

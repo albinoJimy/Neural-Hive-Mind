@@ -1,16 +1,16 @@
 """Unit tests for refactored TEST Executor with multiple providers."""
 
-import pytest
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
-from datetime import datetime, timezone
 
-from src.executors.test_executor import TestExecutor
+import pytest
 from src.clients.github_actions_client import WorkflowRunStatus
 from src.clients.gitlab_ci_client import PipelineStatus
 from src.clients.jenkins_client import JenkinsBuildStatus
+from src.executors.test_executor import TestExecutor
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_config():
     """Create mock configuration."""
     config = MagicMock()
@@ -25,7 +25,7 @@ def mock_config():
     return config
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_metrics():
     """Create mock metrics."""
     metrics = MagicMock()
@@ -56,7 +56,7 @@ def mock_metrics():
     return metrics
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_github_actions_client():
     """Create mock GitHub Actions client."""
     client = AsyncMock()
@@ -67,7 +67,7 @@ def mock_github_actions_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_gitlab_ci_client():
     """Create mock GitLab CI client."""
     client = AsyncMock()
@@ -77,7 +77,7 @@ def mock_gitlab_ci_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_jenkins_client():
     """Create mock Jenkins client."""
     client = AsyncMock()
@@ -88,7 +88,7 @@ def mock_jenkins_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def test_executor(
     mock_config,
     mock_metrics,
@@ -149,7 +149,7 @@ class TestTestExecutorInit:
 class TestProviderSelection:
     """Tests for provider selection."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_select_github_actions_provider(self, test_executor, mock_config):
         """Test GitHub Actions provider selection."""
         mock_config.github_actions_enabled = True
@@ -170,7 +170,7 @@ class TestProviderSelection:
 
             mock_execute.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_select_gitlab_ci_provider(self, test_executor, mock_config):
         """Test GitLab CI provider selection."""
         mock_config.gitlab_ci_enabled = True
@@ -191,7 +191,7 @@ class TestProviderSelection:
 
             mock_execute.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_select_jenkins_provider(self, test_executor, mock_config):
         """Test Jenkins provider selection."""
         mock_config.jenkins_enabled = True
@@ -211,7 +211,7 @@ class TestProviderSelection:
 
             mock_execute.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_select_local_provider(self, test_executor):
         """Test local provider selection."""
         ticket = MagicMock()
@@ -227,7 +227,7 @@ class TestProviderSelection:
 
             mock_execute.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_fallback_to_simulation(self, test_executor):
         """Test fallback to simulation when no provider available."""
         ticket = MagicMock()
@@ -247,7 +247,7 @@ class TestProviderSelection:
 class TestGitHubActionsExecution:
     """Tests for GitHub Actions execution."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_github_actions_success(
         self, test_executor, mock_github_actions_client, mock_metrics
     ):
@@ -258,8 +258,8 @@ class TestGitHubActionsExecution:
             status="completed",
             conclusion="success",
             html_url="https://github.com/owner/repo/actions/runs/12345",
-            created_at=datetime.now(timezone.utc),
-            updated_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
+            updated_at=datetime.now(UTC),
             tests_passed=10,
             tests_failed=0,
             tests_skipped=0,
@@ -280,7 +280,7 @@ class TestGitHubActionsExecution:
         mock_github_actions_client.trigger_workflow.assert_called_once()
         mock_github_actions_client.wait_for_workflow.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_github_actions_failure(self, test_executor, mock_github_actions_client):
         """Test GitHub Actions execution with test failures."""
         mock_github_actions_client.trigger_workflow.return_value = {"id": 12345}
@@ -289,8 +289,8 @@ class TestGitHubActionsExecution:
             status="completed",
             conclusion="failure",
             html_url="https://github.com/owner/repo/actions/runs/12345",
-            created_at=datetime.now(timezone.utc),
-            updated_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
+            updated_at=datetime.now(UTC),
             tests_passed=8,
             tests_failed=2,
             tests_skipped=0,
@@ -311,7 +311,7 @@ class TestGitHubActionsExecution:
 class TestGitLabCIExecution:
     """Tests for GitLab CI execution."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_gitlab_ci_success(self, test_executor, mock_gitlab_ci_client):
         """Test successful GitLab CI execution."""
         mock_gitlab_ci_client.trigger_pipeline.return_value = {"id": 12345}
@@ -322,8 +322,8 @@ class TestGitLabCIExecution:
             ref="main",
             sha="abc123",
             web_url="https://gitlab.com/project/-/pipelines/12345",
-            created_at=datetime.now(timezone.utc),
-            updated_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
+            updated_at=datetime.now(UTC),
             duration=300,
         )
         mock_gitlab_ci_client.get_test_report.return_value = {
@@ -344,7 +344,7 @@ class TestGitLabCIExecution:
         mock_gitlab_ci_client.trigger_pipeline.assert_called_once()
         mock_gitlab_ci_client.wait_for_pipeline.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_gitlab_ci_with_variables(self, test_executor, mock_gitlab_ci_client):
         """Test GitLab CI execution with variables."""
         mock_gitlab_ci_client.trigger_pipeline.return_value = {"id": 12345}
@@ -355,8 +355,8 @@ class TestGitLabCIExecution:
             ref="main",
             sha="abc123",
             web_url="https://gitlab.com",
-            created_at=datetime.now(timezone.utc),
-            updated_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
+            updated_at=datetime.now(UTC),
         )
         mock_gitlab_ci_client.get_test_report.return_value = {}
 
@@ -376,7 +376,7 @@ class TestGitLabCIExecution:
 class TestJenkinsExecution:
     """Tests for Jenkins execution."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_jenkins_success(self, test_executor, mock_jenkins_client):
         """Test successful Jenkins execution."""
         mock_jenkins_client.trigger_build.return_value = {"queue_id": 100}
@@ -386,7 +386,7 @@ class TestJenkinsExecution:
             building=False,
             url="https://jenkins.example.com/job/test/50/",
             duration=120000,
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
             tests_passed=20,
             tests_failed=0,
             tests_skipped=1,
@@ -407,7 +407,7 @@ class TestJenkinsExecution:
         mock_jenkins_client.trigger_build.assert_called_once()
         mock_jenkins_client.wait_for_build.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_jenkins_with_parameters(self, test_executor, mock_jenkins_client):
         """Test Jenkins execution with build parameters."""
         mock_jenkins_client.trigger_build.return_value = {"queue_id": 100}
@@ -417,7 +417,7 @@ class TestJenkinsExecution:
             building=False,
             url="https://jenkins.example.com/job/test/50/",
             duration=60000,
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
         )
         mock_jenkins_client.get_coverage_report.return_value = {}
 
@@ -436,7 +436,7 @@ class TestJenkinsExecution:
 class TestLocalExecution:
     """Tests for local test execution."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_local_pytest_success(self, test_executor):
         """Test successful local pytest execution."""
         payload = {
@@ -456,7 +456,7 @@ class TestLocalExecution:
             assert result["status"] == "success"
             assert result["return_code"] == 0
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_local_command_not_allowed(self, test_executor):
         """Test local execution with disallowed command."""
         payload = {
@@ -473,7 +473,7 @@ class TestLocalExecution:
 class TestSimulationExecution:
     """Tests for simulation mode."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_simulation(self, test_executor):
         """Test simulation execution."""
         payload = {
@@ -491,7 +491,7 @@ class TestSimulationExecution:
 class TestMetricsRecording:
     """Tests for metrics recording."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_record_test_metrics_success(self, test_executor, mock_metrics):
         """Test metrics recording for successful tests."""
         result = {
@@ -511,7 +511,7 @@ class TestMetricsRecording:
         mock_metrics.tests_passed_total.labels.assert_called_with(suite="unit")
         mock_metrics.test_coverage_percent.labels.assert_called_with(suite="unit")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_record_test_metrics_failure(self, test_executor, mock_metrics):
         """Test metrics recording for failed tests."""
         result = {
@@ -532,7 +532,7 @@ class TestMetricsRecording:
 class TestRetryLogic:
     """Tests for retry logic."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_retry_on_transient_failure(self, test_executor, mock_github_actions_client):
         """Test retry on transient failure."""
         call_count = 0
@@ -550,8 +550,8 @@ class TestRetryLogic:
             status="completed",
             conclusion="success",
             html_url="https://github.com",
-            created_at=datetime.now(timezone.utc),
-            updated_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
+            updated_at=datetime.now(UTC),
         )
 
         payload = {
@@ -564,7 +564,7 @@ class TestRetryLogic:
         assert call_count == 3
         assert result["status"] == "success"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_max_retries_exceeded(self, test_executor, mock_github_actions_client):
         """Test behavior when max retries exceeded."""
         mock_github_actions_client.trigger_workflow = AsyncMock(

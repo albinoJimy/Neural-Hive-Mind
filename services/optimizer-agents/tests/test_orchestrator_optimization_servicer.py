@@ -4,11 +4,12 @@ Testes de integração para OrchestratorOptimizationServicer.
 Testa os métodos gRPC para otimização de SLOs.
 """
 
-import pytest
 from unittest.mock import AsyncMock, Mock
 
-from src.grpc_service.orchestrator_optimization_servicer import OrchestratorOptimizationServicer
+import pytest
+
 from src.config.settings import Settings
+from src.grpc_service.orchestrator_optimization_servicer import OrchestratorOptimizationServicer
 
 
 @pytest.fixture

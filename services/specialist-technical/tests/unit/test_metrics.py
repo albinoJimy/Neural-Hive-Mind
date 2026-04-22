@@ -1,9 +1,10 @@
 """Testes de métricas para TechnicalSpecialist."""
 
-import sys
 import os
-import pytest
+import sys
 from unittest.mock import MagicMock
+
+import pytest
 
 # Configurar paths
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "src"))
@@ -53,13 +54,13 @@ class MockSpecialistMetrics:
         ).inc()
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_metrics():
     """Fixture para métricas mock."""
     return MockSpecialistMetrics()
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_evaluation_result():
     """Resultado de avaliação de exemplo."""
     return {

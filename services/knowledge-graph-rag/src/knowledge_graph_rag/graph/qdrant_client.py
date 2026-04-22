@@ -4,7 +4,14 @@ from typing import Any, Dict, List, Optional
 
 import structlog
 from qdrant_client import AsyncQdrantClient as QdrantClient
-from qdrant_client.models import Distance, VectorParams, PointStruct, Filter, FieldCondition, MatchValue
+from qdrant_client.models import (
+    Distance,
+    VectorParams,
+    PointStruct,
+    Filter,
+    FieldCondition,
+    MatchValue,
+)
 
 from knowledge_graph_rag.config.settings import get_settings
 
@@ -15,11 +22,7 @@ settings = get_settings()
 class QdrantClient:
     """Cliente para Qdrant Vector Database."""
 
-    def __init__(
-        self,
-        host: Optional[str] = None,
-        port: Optional[int] = None
-    ):
+    def __init__(self, host: Optional[str] = None, port: Optional[int] = None):
         """Inicializa o cliente Qdrant.
 
         Args:
@@ -48,7 +51,7 @@ class QdrantClient:
         """Garante que as coleções existem."""
         collections = [
             (self.collection_templates, "Templates de código"),
-            (self.collection_code, "Código indexado")
+            (self.collection_code, "Código indexado"),
         ]
 
         for collection_name, description in collections:
@@ -56,9 +59,8 @@ class QdrantClient:
                 await self.client.create_collection(
                     collection_name=collection_name,
                     vectors_config=VectorParams(
-                        size=settings.embedding_dimensions,
-                        distance=Distance.COSINE
-                    )
+                        size=settings.embedding_dimensions, distance=Distance.COSINE
+                    ),
                 )
                 logger.info("qdrant_collection_created", collection=collection_name)
             except Exception:
@@ -66,10 +68,7 @@ class QdrantClient:
                 logger.debug("qdrant_collection_exists", collection=collection_name)
 
     async def search_templates(
-        self,
-        query_vector: List[float],
-        limit: int = 10,
-        score_threshold: float = 0.7
+        self, query_vector: List[float], limit: int = 10, score_threshold: float = 0.7
     ) -> List[Dict[str, Any]]:
         """Busca templates similares.
 
@@ -86,24 +85,17 @@ class QdrantClient:
             query_vector=query_vector,
             query_filter=None,
             limit=limit,
-            score_threshold=score_threshold
+            score_threshold=score_threshold,
         )
 
-        return [
-            {
-                "id": r.id,
-                "score": r.score,
-                "payload": r.payload
-            }
-            for r in results
-        ]
+        return [{"id": r.id, "score": r.score, "payload": r.payload} for r in results]
 
     async def search_code(
         self,
         query_vector: List[float],
         limit: int = 10,
         score_threshold: float = 0.7,
-        language_filter: Optional[str] = None
+        language_filter: Optional[str] = None,
     ) -> List[Dict[str, Any]]:
         """Busca código similar.
 
@@ -127,24 +119,12 @@ class QdrantClient:
             query_vector=query_vector,
             query_filter=query_filter,
             limit=limit,
-            score_threshold=score_threshold
+            score_threshold=score_threshold,
         )
 
-        return [
-            {
-                "id": r.id,
-                "score": r.score,
-                "payload": r.payload
-            }
-            for r in results
-        ]
+        return [{"id": r.id, "score": r.score, "payload": r.payload} for r in results]
 
-    async def index_template(
-        self,
-        template_id: str,
-        vector: List[float],
-        payload: Dict[str, Any]
-    ):
+    async def index_template(self, template_id: str, vector: List[float], payload: Dict[str, Any]):
         """Indexa um template.
 
         Args:
@@ -152,25 +132,13 @@ class QdrantClient:
             vector: Vetor de embeddings
             payload: Metadados do template
         """
-        point = PointStruct(
-            id=template_id,
-            vector=vector,
-            payload=payload
-        )
+        point = PointStruct(id=template_id, vector=vector, payload=payload)
 
-        await self.client.upsert(
-            collection_name=self.collection_templates,
-            points=[point]
-        )
+        await self.client.upsert(collection_name=self.collection_templates, points=[point])
 
         logger.info("template_indexed", template_id=template_id)
 
-    async def index_code(
-        self,
-        code_id: str,
-        vector: List[float],
-        payload: Dict[str, Any]
-    ):
+    async def index_code(self, code_id: str, vector: List[float], payload: Dict[str, Any]):
         """Indexa código.
 
         Args:
@@ -178,16 +146,9 @@ class QdrantClient:
             vector: Vetor de embeddings
             payload: Metadados do código
         """
-        point = PointStruct(
-            id=code_id,
-            vector=vector,
-            payload=payload
-        )
+        point = PointStruct(id=code_id, vector=vector, payload=payload)
 
-        await self.client.upsert(
-            collection_name=self.collection_code,
-            points=[point]
-        )
+        await self.client.upsert(collection_name=self.collection_code, points=[point])
 
         logger.info("code_indexed", code_id=code_id)
 
@@ -198,9 +159,6 @@ class QdrantClient:
             collection_name: Nome da coleção
             ids: IDs dos pontos a remover
         """
-        await self.client.delete(
-            collection_name=collection_name,
-            points_selector=ids
-        )
+        await self.client.delete(collection_name=collection_name, points_selector=ids)
 
         logger.info("points_deleted", count=len(ids))

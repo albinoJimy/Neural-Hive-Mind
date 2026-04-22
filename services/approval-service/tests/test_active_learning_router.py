@@ -5,9 +5,10 @@ TDD: Testes escritos antes da implementação.
 Espec: @.agent-os/specs/2026-03-17-active-learning-feedback/
 """
 
-import pytest
+from datetime import UTC, datetime
 from unittest.mock import MagicMock
-from datetime import datetime, timezone
+
+import pytest
 from fastapi import FastAPI, testclient
 
 # Import com skip automático se módulo não disponível
@@ -17,7 +18,7 @@ router = pytest.importorskip("src.api.routers.active_learning").router
 class TestMetricsEndpoint:
     """Testes do endpoint GET /api/v1/active-learning/metrics."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_balance_analyzer(self):
         """Mock do DatasetBalanceAnalyzer."""
         # Criar um mock com model_dump() funcional
@@ -39,7 +40,7 @@ class TestMetricsEndpoint:
             "semantic_features_count": 46,
             "semantic_features_percentage": 9.5,
             "priority_recommendations": [{"type": "class", "value": "reject", "gap": 26.0}],
-            "last_updated": datetime.now(timezone.utc).isoformat(),
+            "last_updated": datetime.now(UTC).isoformat(),
         }
 
         analyzer = MagicMock()
@@ -53,7 +54,7 @@ class TestMetricsEndpoint:
         analyzer.calculate_balance_metrics = mock_calculate
         return analyzer
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_metrics_returns_balance_metrics(self, mock_balance_analyzer):
         """Testa que retorna métricas de balanceamento."""
 
@@ -75,7 +76,7 @@ class TestMetricsEndpoint:
         assert "domain_distribution" in data
         assert data["semantic_features_count"] == 46
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_metrics_includes_priority_recommendations(self, mock_balance_analyzer):
         """Testa que inclui recomendações de prioridade."""
 
@@ -96,7 +97,7 @@ class TestMetricsEndpoint:
 class TestQueueEndpoint:
     """Testes do endpoint GET /api/v1/active-learning/queue."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_feedback_queue(self):
         """Mock do PriorityFeedbackQueue."""
         queue = MagicMock()
@@ -121,7 +122,7 @@ class TestQueueEndpoint:
         ]
         return queue
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_queue_returns_pending_cases(self, mock_feedback_queue):
         """Testa que retorna casos pendentes da fila."""
 
@@ -140,7 +141,7 @@ class TestQueueEndpoint:
         assert len(data["cases"]) == 2
         assert data["cases"][0]["queue_id"] == "queue-1"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_queue_respects_limit_parameter(self, mock_feedback_queue):
         """Testa que respeita parâmetro limit."""
 
@@ -154,7 +155,7 @@ class TestQueueEndpoint:
         assert response.status_code == 200
         mock_feedback_queue.get_pending_cases.assert_called_once_with(limit=5)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_queue_filters_by_status(self, mock_feedback_queue):
         """Testa filtro por status."""
 
@@ -171,7 +172,7 @@ class TestQueueEndpoint:
 class TestClaimEndpoint:
     """Testes do endpoint POST /api/v1/active-learning/{queue_id}/claim."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_feedback_queue(self):
         """Mock do PriorityFeedbackQueue."""
         queue = MagicMock()
@@ -179,12 +180,12 @@ class TestClaimEndpoint:
             "queue_id": "queue-1",
             "status": "in_review",
             "assigned_to": "user@example.com",
-            "claimed_at": datetime.now(timezone.utc),
-            "expires_at": datetime.now(timezone.utc),
+            "claimed_at": datetime.now(UTC),
+            "expires_at": datetime.now(UTC),
         }
         return queue
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_claim_case_success(self, mock_feedback_queue):
         """Testa claim bem-sucedido."""
 
@@ -203,11 +204,10 @@ class TestClaimEndpoint:
         assert data["queue_id"] == "queue-1"
         assert data["status"] == "in_review"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_claim_case_not_found(self, mock_feedback_queue):
         """Testa claim de caso inexistente."""
         mock_feedback_queue.claim_case.return_value = None
-
 
         app = FastAPI()
         app.include_router(router)
@@ -224,7 +224,7 @@ class TestClaimEndpoint:
 class TestFeedbackEndpoint:
     """Testes do endpoint POST /api/v1/active-learning/{queue_id}/feedback."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_feedback_queue(self):
         """Mock do PriorityFeedbackQueue."""
         queue = MagicMock()
@@ -239,7 +239,7 @@ class TestFeedbackEndpoint:
         queue.collection = mock_collection
         return queue
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_submit_feedback_success(self, mock_feedback_queue):
         """Testa submissão de feedback bem-sucedida."""
 
@@ -268,7 +268,7 @@ class TestFeedbackEndpoint:
         assert data["queue_id"] == "queue-1"
         assert data["feedback_id"] == "feedback-1"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_submit_feedback_validates_rating_range(self, mock_feedback_queue):
         """Testa validação do rating (0-1)."""
 
@@ -292,12 +292,11 @@ class TestFeedbackEndpoint:
 class TestReleaseEndpoint:
     """Testes do endpoint POST /api/v1/active-learning/{queue_id}/release."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_release_case_success(self):
         """Testa liberação bem-sucedida."""
         mock_queue = MagicMock()
         mock_queue.release_case.return_value = {"queue_id": "queue-1", "status": "pending"}
-
 
         app = FastAPI()
         app.include_router(router)

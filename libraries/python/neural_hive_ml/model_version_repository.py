@@ -1,8 +1,9 @@
 """ModelVersionRepository - MongoDB Model Versions History."""
 
-from typing import Any, Dict, List, Optional
-from datetime import datetime, timezone
 import logging
+from datetime import UTC, datetime
+from typing import Any, Optional
+
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 logger = logging.getLogger(__name__)
@@ -37,13 +38,13 @@ class ModelVersionRepository:
         precision: float,
         recall: float,
         n_samples: int,
-        feature_importance: Optional[Dict[str, float]] = None,
-        drift_metrics: Optional[Dict[str, Any]] = None,
+        feature_importance: Optional[dict[str, float]] = None,
+        drift_metrics: Optional[dict[str, Any]] = None,
         created_at: Optional[datetime] = None,
         promoted_at: Optional[datetime] = None,
         promoted_by: Optional[str] = None,
         is_active: bool = False,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Cria novo registro de versão de modelo.
 
@@ -78,7 +79,7 @@ class ModelVersionRepository:
             "n_samples": n_samples,
             "feature_importance": feature_importance or {},
             "drift_metrics": drift_metrics or {},
-            "created_at": created_at or datetime.now(timezone.utc),
+            "created_at": created_at or datetime.now(UTC),
             "promoted_at": promoted_at,
             "promoted_by": promoted_by,
         }
@@ -88,7 +89,7 @@ class ModelVersionRepository:
         logger.info(f"ModelVersion criado: {version}")
         return doc
 
-    async def get_by_id(self, model_id: str) -> Optional[Dict[str, Any]]:
+    async def get_by_id(self, model_id: str) -> Optional[dict[str, Any]]:
         """
         Busca versão por ID.
 
@@ -101,7 +102,7 @@ class ModelVersionRepository:
         doc = await self.collection.find_one({"_id": model_id})
         return doc
 
-    async def get_by_version(self, version: str) -> Optional[Dict[str, Any]]:
+    async def get_by_version(self, version: str) -> Optional[dict[str, Any]]:
         """
         Busca versão por número da versão.
 
@@ -114,7 +115,7 @@ class ModelVersionRepository:
         doc = await self.collection.find_one({"version": version})
         return doc
 
-    async def get_active_model(self) -> Optional[Dict[str, Any]]:
+    async def get_active_model(self) -> Optional[dict[str, Any]]:
         """
         Busca modelo ativo em produção.
 
@@ -132,7 +133,7 @@ class ModelVersionRepository:
         is_active: Optional[bool] = None,
         limit: int = 20,
         offset: int = 0,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Lista versões de modelos com filtros.
 
@@ -173,7 +174,7 @@ class ModelVersionRepository:
         result = await self.collection.update_one({"version": version}, {"$set": kwargs})
         return result.modified_count > 0
 
-    async def update_drift_metrics(self, version: str, drift_metrics: Dict[str, Any]) -> bool:
+    async def update_drift_metrics(self, version: str, drift_metrics: dict[str, Any]) -> bool:
         """
         Atualiza métricas de drift de um modelo.
 
@@ -229,7 +230,7 @@ class ModelVersionRepository:
                 "$set": {
                     "stage": stage,
                     "is_active": (stage == "production"),
-                    "promoted_at": promoted_at or datetime.now(timezone.utc),
+                    "promoted_at": promoted_at or datetime.now(UTC),
                     "promoted_by": promoted_by,
                 }
             },
@@ -269,7 +270,7 @@ class ModelVersionRepository:
             logger.info(f"ModelVersion {version} deletado")
         return result.deleted_count > 0
 
-    async def get_model_history(self, limit: int = 10, offset: int = 0) -> List[Dict[str, Any]]:
+    async def get_model_history(self, limit: int = 10, offset: int = 0) -> list[dict[str, Any]]:
         """
         Busca histórico de versões de modelos.
 
@@ -288,7 +289,7 @@ class ModelVersionRepository:
         docs = await cursor.to_list(length=limit)
         return docs
 
-    async def count_models_by_stage(self) -> Dict[str, int]:
+    async def count_models_by_stage(self) -> dict[str, int]:
         """
         Conta modelos por estágio.
 
@@ -301,7 +302,7 @@ class ModelVersionRepository:
 
         return {doc["_id"]: doc["count"] for doc in docs}
 
-    async def get_latest_by_stage(self, stage: str) -> Optional[Dict[str, Any]]:
+    async def get_latest_by_stage(self, stage: str) -> Optional[dict[str, Any]]:
         """
         Busca versão mais recente de um estágio.
 

@@ -4,8 +4,8 @@ Autenticacao JWT com Keycloak
 Fornece validacao de tokens JWT e verificacao de roles para admin.
 """
 
-from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, Optional
+from datetime import UTC, datetime, timedelta
+from typing import Any, Optional
 
 import jwt
 import structlog
@@ -37,7 +37,7 @@ def get_jwks_client(settings: Settings) -> PyJWKClient:
     """
     global _jwks_client, _jwks_cache_time
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     # Verifica se cache ainda e valido
     if _jwks_client and _jwks_cache_time:
@@ -57,7 +57,7 @@ def get_jwks_client(settings: Settings) -> PyJWKClient:
     return _jwks_client
 
 
-async def verify_token(token: str, settings: Settings) -> Dict[str, Any]:
+async def verify_token(token: str, settings: Settings) -> dict[str, Any]:
     """
     Verifica e decodifica token JWT do Keycloak
 
@@ -123,7 +123,7 @@ async def verify_token(token: str, settings: Settings) -> Dict[str, Any]:
         )
 
 
-def extract_user_info(payload: Dict[str, Any]) -> Dict[str, Any]:
+def extract_user_info(payload: dict[str, Any]) -> dict[str, Any]:
     """
     Extrai informacoes do usuario do payload do token
 
@@ -142,7 +142,7 @@ def extract_user_info(payload: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-def extract_roles(payload: Dict[str, Any]) -> list:
+def extract_roles(payload: dict[str, Any]) -> list:
     """
     Extrai roles do payload do token
 
@@ -168,7 +168,7 @@ def extract_roles(payload: Dict[str, Any]) -> list:
 
 async def get_current_user(
     token: Optional[str] = Depends(oauth2_scheme), settings: Settings = Depends(get_settings)
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Dependencia FastAPI para obter usuario atual
 
@@ -208,8 +208,8 @@ async def get_current_user(
 
 
 async def get_current_admin_user(
-    user: Dict[str, Any] = Depends(get_current_user), settings: Settings = Depends(get_settings)
-) -> Dict[str, Any]:
+    user: dict[str, Any] = Depends(get_current_user), settings: Settings = Depends(get_settings)
+) -> dict[str, Any]:
     """
     Dependencia FastAPI para obter usuario admin atual
 

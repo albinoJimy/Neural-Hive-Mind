@@ -1,18 +1,17 @@
 """Testes unitários para endpoints de políticas de freeze."""
 
-import pytest
-from datetime import datetime, timezone, timedelta
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock
-from fastapi.testclient import TestClient
+
+import pytest
 from fastapi import FastAPI
-
-from src.models.freeze_policy import FreezePolicy, FreezeAction, PolicyScope
-from src.models.freeze_policy import FreezeEvent
+from fastapi.testclient import TestClient
+from src.api.policies import get_postgresql_client, router
 from src.clients.postgresql_client import PostgreSQLClient
-from src.api.policies import router, get_postgresql_client
+from src.models.freeze_policy import FreezeAction, FreezeEvent, FreezePolicy, PolicyScope
 
 
-@pytest.fixture
+@pytest.fixture()
 def app():
     """Fixture com app FastAPI."""
     app = FastAPI()
@@ -20,14 +19,14 @@ def app():
     return app
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_pg_client():
     """Mock do PostgreSQLClient."""
     client = AsyncMock(spec=PostgreSQLClient)
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def client(app, mock_pg_client):
     """Fixture com TestClient e dependency override."""
     app.dependency_overrides[get_postgresql_client] = lambda: mock_pg_client
@@ -41,7 +40,7 @@ def client(app, mock_pg_client):
     app.dependency_overrides.clear()
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_freeze_policy():
     """Fixture com FreezePolicy válido."""
     return FreezePolicy(
@@ -55,12 +54,12 @@ def mock_freeze_policy():
         auto_unfreeze=True,
         unfreeze_threshold_percent=50.0,
         enabled=True,
-        created_at=datetime.now(timezone.utc),
+        created_at=datetime.now(UTC),
         metadata={"namespace": "test"},
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_freeze_event():
     """Fixture com FreezeEvent válido."""
     return FreezeEvent(
@@ -69,7 +68,7 @@ def mock_freeze_event():
         slo_id="slo-test-001",
         service_name="test-service",
         action=FreezeAction.BLOCK_DEPLOY,
-        triggered_at=datetime.now(timezone.utc),
+        triggered_at=datetime.now(UTC),
         trigger_reason="Budget below 10%",
         budget_remaining_percent=5.0,
         burn_rate=2.5,
@@ -139,7 +138,7 @@ class TestGetFreezeHistoryEndpoint:
                 slo_id="slo-test-001",
                 service_name="test-service",
                 action=FreezeAction.BLOCK_DEPLOY,
-                triggered_at=datetime.now(timezone.utc) - timedelta(hours=i),
+                triggered_at=datetime.now(UTC) - timedelta(hours=i),
                 trigger_reason="Test",
                 budget_remaining_percent=50.0,
                 burn_rate=1.0,
@@ -170,11 +169,12 @@ class TestGetFreezeHistoryEndpoint:
 class TestUpdateViolationsCount:
     """Testes para o método update_violations_count."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_update_violations_count_success(self):
         """Verifica que update_violations_count atualiza contador."""
-        from src.clients.postgresql_client import PostgreSQLClient
         from unittest.mock import patch
+
+        from src.clients.postgresql_client import PostgreSQLClient
 
         with patch.object(
             PostgreSQLClient, "update_violations_count", return_value=True
@@ -183,11 +183,12 @@ class TestUpdateViolationsCount:
             success = await client.update_violations_count("slo-test-001", 5)
             assert success is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_update_violations_count_no_rows(self):
         """Verifica comportamento quando SLO não existe."""
-        from src.clients.postgresql_client import PostgreSQLClient
         from unittest.mock import patch
+
+        from src.clients.postgresql_client import PostgreSQLClient
 
         with patch.object(
             PostgreSQLClient, "update_violations_count", return_value=False
@@ -200,7 +201,7 @@ class TestUpdateViolationsCount:
 class TestCountSloViolations:
     """Testes para o método count_slo_violations do PrometheusClient."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_count_violations_from_alerts(self):
         """Verifica contagem de violações via ALERTS."""
         from src.clients.prometheus_client import PrometheusClient
@@ -226,7 +227,7 @@ class TestCountSloViolations:
 
         assert count == 3
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_count_violations_no_alerts(self):
         """Verifica retorno 0 quando não há alertas."""
         from src.clients.prometheus_client import PrometheusClient

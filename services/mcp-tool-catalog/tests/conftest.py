@@ -11,14 +11,12 @@ Fixtures compartilhadas para:
 """
 
 import asyncio
-from typing import Dict, Any, List
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-
-from src.models.tool_descriptor import ToolDescriptor, ToolCategory, IntegrationType
 from src.adapters.base_adapter import ExecutionResult
-
+from src.models.tool_descriptor import IntegrationType, ToolCategory, ToolDescriptor
 
 # ============================================================================
 # Event Loop
@@ -38,7 +36,7 @@ def event_loop():
 # ============================================================================
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_settings():
     """Mock de configuracoes basicas."""
     settings = MagicMock()
@@ -71,7 +69,7 @@ def mock_settings():
     return settings
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_settings_with_mcp(mock_settings):
     """Mock de configuracoes com MCP servers habilitados."""
     mock_settings.MCP_SERVERS = {
@@ -95,7 +93,7 @@ def mock_settings_with_mcp(mock_settings):
 # ============================================================================
 
 
-@pytest.fixture
+@pytest.fixture()
 def cli_tool():
     """Ferramenta CLI para testes."""
     return ToolDescriptor(
@@ -113,7 +111,7 @@ def cli_tool():
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def rest_tool():
     """Ferramenta REST para testes."""
     return ToolDescriptor(
@@ -132,7 +130,7 @@ def rest_tool():
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def container_tool():
     """Ferramenta Container para testes."""
     return ToolDescriptor(
@@ -151,7 +149,7 @@ def container_tool():
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def mcp_enabled_tool():
     """Ferramenta com MCP Server habilitado."""
     return ToolDescriptor(
@@ -173,7 +171,7 @@ def mcp_enabled_tool():
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def unhealthy_tool():
     """Ferramenta nao saudavel para testes."""
     return ToolDescriptor(
@@ -192,8 +190,8 @@ def unhealthy_tool():
     )
 
 
-@pytest.fixture
-def benchmark_tools() -> List[ToolDescriptor]:
+@pytest.fixture()
+def benchmark_tools() -> list[ToolDescriptor]:
     """Lista de 10 ferramentas para benchmark."""
     tools = []
     for i in range(10):
@@ -220,7 +218,7 @@ def benchmark_tools() -> List[ToolDescriptor]:
 # ============================================================================
 
 
-@pytest.fixture
+@pytest.fixture()
 def success_result():
     """ExecutionResult de sucesso."""
     return ExecutionResult(
@@ -232,7 +230,7 @@ def success_result():
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def failure_result():
     """ExecutionResult de falha."""
     return ExecutionResult(
@@ -245,7 +243,7 @@ def failure_result():
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def timeout_result():
     """ExecutionResult de timeout."""
     return ExecutionResult(
@@ -258,7 +256,7 @@ def timeout_result():
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def fast_result():
     """ExecutionResult rapido para testes de performance."""
     return ExecutionResult(
@@ -271,7 +269,7 @@ def fast_result():
 # ============================================================================
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_cli_adapter(success_result):
     """Mock de CLIAdapter."""
     adapter = AsyncMock()
@@ -282,7 +280,7 @@ def mock_cli_adapter(success_result):
     return adapter
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_rest_adapter(success_result):
     """Mock de RESTAdapter."""
     adapter = AsyncMock()
@@ -293,7 +291,7 @@ def mock_rest_adapter(success_result):
     return adapter
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_container_adapter(success_result):
     """Mock de ContainerAdapter."""
     adapter = AsyncMock()
@@ -309,7 +307,7 @@ def mock_container_adapter(success_result):
 # ============================================================================
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_mcp_client():
     """Mock de MCPServerClient."""
     client = AsyncMock()
@@ -346,7 +344,7 @@ def mock_mcp_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_mcp_client_failing():
     """Mock de MCPServerClient que falha."""
     client = AsyncMock()
@@ -363,7 +361,7 @@ def mock_mcp_client_failing():
 # ============================================================================
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_metrics():
     """Mock de MCPToolCatalogMetrics."""
     metrics = MagicMock()
@@ -388,7 +386,7 @@ def mock_metrics():
 # ============================================================================
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_tool_registry(cli_tool, rest_tool, container_tool):
     """Mock de ToolRegistry com ferramentas pre-carregadas."""
     registry = AsyncMock()
@@ -412,7 +410,7 @@ def mock_tool_registry(cli_tool, rest_tool, container_tool):
 # ============================================================================
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_mongodb_client():
     """Mock de cliente MongoDB."""
     client = MagicMock()
@@ -442,7 +440,7 @@ def mock_mongodb_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_redis_client():
     """Mock de cliente Redis."""
     client = AsyncMock()
@@ -462,7 +460,7 @@ def mock_redis_client():
 # ============================================================================
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_kafka_producer():
     """Mock de produtor Kafka."""
     producer = AsyncMock()
@@ -472,7 +470,7 @@ def mock_kafka_producer():
     return producer
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_kafka_consumer():
     """Mock de consumidor Kafka."""
     consumer = AsyncMock()
@@ -487,7 +485,7 @@ def mock_kafka_consumer():
 # ============================================================================
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_aiohttp_session():
     """Mock de sessao aiohttp."""
     session = AsyncMock()
@@ -516,7 +514,7 @@ def mock_aiohttp_session():
 # ============================================================================
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_cache():
     """Mock de cache em memoria."""
     cache = {}
@@ -545,8 +543,8 @@ def mock_cache():
 # ============================================================================
 
 
-@pytest.fixture
-def execution_context() -> Dict[str, Any]:
+@pytest.fixture()
+def execution_context() -> dict[str, Any]:
     """Contexto de execucao padrao."""
     return {
         "request_id": "test-request-001",
@@ -557,7 +555,7 @@ def execution_context() -> Dict[str, Any]:
     }
 
 
-@pytest.fixture
-def execution_params() -> Dict[str, Any]:
+@pytest.fixture()
+def execution_params() -> dict[str, Any]:
     """Parametros de execucao padrao."""
     return {"target": ".", "output_format": "json", "verbose": True, "timeout": 300}

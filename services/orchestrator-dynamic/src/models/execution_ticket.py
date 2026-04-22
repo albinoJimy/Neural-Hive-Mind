@@ -9,17 +9,20 @@ NOTA: Este módulo usa Pydantic v2.
 
 import hashlib
 import json
+import sys
 from datetime import datetime
 from enum import Enum
-import sys
 
 # Python 3.10 compatibility: _StrEnum was added in Python 3.11
 if sys.version_info >= (3, 11):
     from enum import _StrEnum as __StrEnum
 else:
+
     class __StrEnum(str, Enum):
         """Polyfill for _StrEnum on Python 3.10"""
-        pass
+
+
+
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator

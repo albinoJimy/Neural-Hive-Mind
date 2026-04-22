@@ -2,7 +2,7 @@
 
 import asyncio
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 from uuid import uuid4
 
@@ -37,7 +37,9 @@ class HypothesisCreatedConsumer:
             producer: HypothesisValidatedProducer opcional para publicar eventos
         """
         settings = get_settings()
-        self._bootstrap_servers = bootstrap_servers or getattr(settings, "kafka_bootstrap_servers", "localhost:9092")
+        self._bootstrap_servers = bootstrap_servers or getattr(
+            settings, "kafka_bootstrap_servers", "localhost:9092"
+        )
         self._topic = topic
         self._group_id = group_id
         self._consumer: AIOKafkaConsumer | None = None
@@ -130,7 +132,7 @@ class HypothesisCreatedConsumer:
 
         # Persistir hipótese
         try:
-            from src.models.hypothesis import Hypothesis, HypothesisStatus, HypothesisPriority
+            from src.models.hypothesis import Hypothesis, HypothesisStatus
 
             # Criar modelo de hipótese
             hypothesis = Hypothesis(
@@ -141,8 +143,8 @@ class HypothesisCreatedConsumer:
                 experiment_id=experiment_id,
                 status=HypothesisStatus.PENDING,
                 priority=self._extract_priority(context),
-                created_at=datetime.now(timezone.utc),
-                updated_at=datetime.now(timezone.utc),
+                created_at=datetime.now(UTC),
+                updated_at=datetime.now(UTC),
             )
 
             # Salvar via serviço
@@ -186,9 +188,11 @@ class HypothesisCreatedConsumer:
         statement = str(context.get("statement", "")).lower()
         if any(word in statement for word in ["improve", "optimize", "reduce", "increase"]):
             from src.models.hypothesis import HypothesisPriority
+
             return HypothesisPriority.HIGH
 
         from src.models.hypothesis import HypothesisPriority
+
         return HypothesisPriority.MEDIUM
 
     async def _validate_and_publish(self, hypothesis: Any) -> None:

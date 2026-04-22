@@ -5,16 +5,17 @@ TDD: Testes escritos antes da implementação.
 Espec: @.agent-os/specs/2026-03-18-gaps-06-mcp-integration/
 """
 
-import pytest
-from pathlib import Path
-import tempfile
 import shutil
+import tempfile
+from pathlib import Path
+
+import pytest
 
 
 class TestSuggestRefactorsTool:
     """Testes da ferramenta suggest_refactors."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def code_dir(self):
         """Diretório com código para análise."""
         temp = tempfile.mkdtemp()
@@ -124,7 +125,7 @@ def calculate_fee(price):
 class TestAnalyzePerformanceTool:
     """Testes da ferramenta analyze_performance."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def service_dir(self):
         """Diretório com métricas de serviço."""
         temp = tempfile.mkdtemp()
@@ -283,9 +284,9 @@ class TestOptimizerMCPServerIntegration:
     def test_tools_have_metadata(self):
         """Testa que ferramentas têm metadata descritiva."""
         from src.tools.optimizer_tools import (
-            suggest_refactors,
             analyze_performance,
             optimize_queries,
+            suggest_refactors,
         )
 
         # Verificar que funções de tools existem e têm docstrings

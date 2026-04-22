@@ -9,9 +9,9 @@ Suporta:
 """
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
-UTC = timezone.utc  # type: ignore, timedelta
+UTC = UTC  # type: ignore, timedelta
 
 logger = logging.getLogger(__name__)
 

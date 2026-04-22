@@ -8,24 +8,25 @@ Testa:
 - LedgerQueryAPI (get_opinions_by_domain, get_opinions_by_feature)
 """
 
-import pytest
 import uuid
-from datetime import datetime, timezone
-from unittest.mock import patch, MagicMock
+from datetime import UTC, datetime
+from unittest.mock import MagicMock, patch
+
+import pytest
 
 from neural_hive_specialists.config import SpecialistConfig
 from neural_hive_specialists.ledger import (
     DigitalSigner,
     SchemaVersionManager,
 )
-from neural_hive_specialists.ledger_client import LedgerClient
 from neural_hive_specialists.ledger.query_api import LedgerQueryAPI
+from neural_hive_specialists.ledger_client import LedgerClient
 
 
 class TestDigitalSigner:
     """Testes unitários para DigitalSigner."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def signer_config(self, tmp_path):
         """Configuração para signer com chaves temporárias."""
         private_key_path = tmp_path / "test_private_key.pem"
@@ -170,7 +171,7 @@ class TestSchemaVersionManager:
             "correlation_id": str(uuid.uuid4()),
             "trace_id": None,
             "span_id": None,
-            "evaluated_at": datetime.now(timezone.utc).isoformat(),
+            "evaluated_at": datetime.now(UTC).isoformat(),
             "processing_time_ms": 100,
             "buffered": False,
             "content_hash": "abc123",
@@ -202,7 +203,7 @@ class TestSchemaVersionManager:
 class TestLedgerClientV2Integration:
     """Testes de integração para LedgerClient com features V2."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def config(self, tmp_path):
         """Configuração de teste para LedgerClient."""
         private_key_path = tmp_path / "test_private_key.pem"
@@ -359,7 +360,7 @@ class TestLedgerClientV2Integration:
             "specialist_type": "technical",
             "correlation_id": str(uuid.uuid4()),
             "opinion_data": {"test": "data"},
-            "timestamp": datetime.now(timezone.utc),
+            "timestamp": datetime.now(UTC),
             "hash": "legacy_hash_placeholder",
         }
 
@@ -379,7 +380,7 @@ class TestLedgerClientV2Integration:
 class TestLedgerQueryAPI:
     """Testes para LedgerQueryAPI."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def query_config(self):
         """Configuração para query API."""
         return {

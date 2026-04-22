@@ -5,14 +5,14 @@ Testa comparação de modelos ML com análises estatísticas,
 fairness e geração de relatórios.
 """
 
-import pytest
-import numpy as np
 from unittest.mock import AsyncMock, MagicMock
 
-from ml.model_comparator import ModelComparator, ComparisonResult
+import numpy as np
+import pytest
+from ml.model_comparator import ComparisonResult, ModelComparator
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_config():
     """Config mock."""
     config = MagicMock()
@@ -21,7 +21,7 @@ def mock_config():
     return config
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_model_registry():
     """ModelRegistry mock."""
     registry = MagicMock()
@@ -30,7 +30,7 @@ def mock_model_registry():
     return registry
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_mongodb_client():
     """MongoDB client mock."""
     client = MagicMock()
@@ -38,7 +38,7 @@ def mock_mongodb_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_metrics():
     """Metrics mock."""
     metrics = MagicMock()
@@ -48,7 +48,7 @@ def mock_metrics():
     return metrics
 
 
-@pytest.fixture
+@pytest.fixture()
 def comparator(mock_config, mock_model_registry, mock_mongodb_client, mock_metrics):
     """ModelComparator instance."""
     return ModelComparator(
@@ -101,7 +101,7 @@ class TestComparisonResult:
 class TestModelComparator:
     """Testes para ModelComparator."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_compare_classification_models(self, comparator, mock_model_registry):
         """Testa comparação de modelos de classificação."""
         # Setup
@@ -139,7 +139,7 @@ class TestModelComparator:
         assert "accuracy" in result.metrics_comparison
         assert "mcnemar_test" in result.statistical_tests
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_compare_regression_models(self, comparator, mock_model_registry):
         """Testa comparação de modelos de regressão."""
         # Setup
@@ -180,7 +180,7 @@ class TestModelComparator:
         )
         assert "paired_ttest" in result.statistical_tests
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_model_load_failure(self, comparator, mock_model_registry):
         """Testa comportamento quando modelo não carrega."""
         mock_model_registry.load_model.return_value = None

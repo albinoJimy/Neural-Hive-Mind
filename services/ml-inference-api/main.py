@@ -7,7 +7,6 @@ import structlog
 import uvicorn
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-
 from src.api.inference_handlers import (
     batch_predict_handler,
     cache_clear_handler,

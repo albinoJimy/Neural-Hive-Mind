@@ -5,9 +5,9 @@ Valida que valores booleanos no campo metadata são corretamente
 armazenados e recuperados via Motor/BSON sem conversão para strings.
 """
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock
 
+import pytest
 from src.models.tool_descriptor import (
     AuthenticationMethod,
     IntegrationType,
@@ -19,7 +19,7 @@ from src.models.tool_descriptor import (
 class TestMongoDBMetadataTypePreservation:
     """Testes de integração para preservação de tipos no MongoDB."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def sample_tool_with_boolean_metadata(self) -> ToolDescriptor:
         """Ferramenta de teste com metadata contendo boolean."""
         return ToolDescriptor(
@@ -42,7 +42,7 @@ class TestMongoDBMetadataTypePreservation:
             },
         )
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_save_and_retrieve_preserves_boolean_metadata(
         self, sample_tool_with_boolean_metadata
     ):
@@ -82,7 +82,7 @@ class TestMongoDBMetadataTypePreservation:
         assert not isinstance(restored_tool.metadata["active"], str)
         assert restored_tool.metadata["homepage"] == "https://test.dev"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_deactivate_tool_sets_boolean_false(self):
         """Testa que deactivate_tool define metadata.active como boolean False."""
         # Simula documento após $set {"metadata.active": False}
@@ -116,7 +116,7 @@ class TestMongoDBMetadataTypePreservation:
         assert restored_tool.metadata["active"] != "false"
         assert restored_tool.metadata["active"] != "False"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_mongodb_document_roundtrip_preserves_types(
         self, sample_tool_with_boolean_metadata
     ):
@@ -141,7 +141,7 @@ class TestMongoDBMetadataTypePreservation:
 class TestMongoDBClientIntegration:
     """Testes de integração com mock do MongoDBClient."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_mongodb_client(self):
         """Mock do MongoDBClient para testes."""
         from src.clients.mongodb_client import MongoDBClient
@@ -150,7 +150,7 @@ class TestMongoDBClientIntegration:
         client.db = MagicMock()
         return client
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_tool_deserializes_boolean_metadata(self, mock_mongodb_client):
         """Testa que get_tool deserializa corretamente metadata com boolean."""
         # Configura mock para retornar documento com boolean
@@ -188,7 +188,7 @@ class TestMongoDBClientIntegration:
         assert isinstance(tool.metadata["deprecated"], bool)
         assert tool.metadata["priority"] == 5
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_list_tools_deserializes_multiple_tools_with_boolean_metadata(
         self, mock_mongodb_client
     ):
@@ -261,7 +261,7 @@ class TestMongoDBClientIntegration:
 class TestToolRegistryDeactivateIntegration:
     """Testes para operação de deactivate_tool."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_deactivate_tool_uses_boolean_false(self):
         """Testa que deactivate_tool usa boolean False no $set."""
         # Este teste valida a operação MongoDB em tool_registry.py:79-82

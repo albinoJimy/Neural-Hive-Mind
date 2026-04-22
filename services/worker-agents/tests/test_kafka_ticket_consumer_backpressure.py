@@ -19,7 +19,7 @@ if str(ROOT / "src") not in sys.path:
     sys.path.insert(0, str(ROOT / "src"))
 
 
-@pytest.fixture
+@pytest.fixture()
 def backpressure_config():
     """Configuração específica para testes de backpressure."""
     return SimpleNamespace(
@@ -38,7 +38,7 @@ def backpressure_config():
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_backpressure_engine():
     """Mock do execution engine para testes de backpressure."""
     engine = AsyncMock()
@@ -51,7 +51,7 @@ def mock_backpressure_engine():
     return engine
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_backpressure_metrics():
     """Mock de métricas para testes de backpressure."""
     metrics = MagicMock()
@@ -67,7 +67,7 @@ def mock_backpressure_metrics():
     return metrics
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_backpressure_semaphore_initialized(backpressure_config, mock_backpressure_engine):
     """Verificar que semaphore é inicializado com valor correto."""
     from clients.kafka_ticket_consumer import KafkaTicketConsumer
@@ -81,7 +81,7 @@ async def test_backpressure_semaphore_initialized(backpressure_config, mock_back
     assert consumer.tickets_semaphore._value == 3  # max_concurrent_tickets
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_backpressure_limits_concurrent_tickets(
     backpressure_config, mock_backpressure_engine, mock_backpressure_metrics
 ):
@@ -135,7 +135,7 @@ async def test_backpressure_limits_concurrent_tickets(
     assert len(consumer.in_flight_tickets) == 0
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_consumer_pauses_at_threshold(
     backpressure_config, mock_backpressure_engine, mock_backpressure_metrics
 ):
@@ -174,7 +174,7 @@ async def test_consumer_pauses_at_threshold(
             consumer.tickets_semaphore.release()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_consumer_resumes_at_threshold(
     backpressure_config, mock_backpressure_engine, mock_backpressure_metrics
 ):
@@ -212,7 +212,7 @@ async def test_consumer_resumes_at_threshold(
         consumer.tickets_semaphore.release()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_in_flight_tickets_cleaned_up_on_success(
     backpressure_config, mock_backpressure_engine, mock_backpressure_metrics
 ):
@@ -251,7 +251,7 @@ async def test_in_flight_tickets_cleaned_up_on_success(
         )  # Semaphore liberado
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_in_flight_tickets_cleaned_up_on_failure(
     backpressure_config, mock_backpressure_metrics
 ):
@@ -294,7 +294,7 @@ async def test_in_flight_tickets_cleaned_up_on_failure(
         )  # Semaphore liberado
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_metrics_updated_correctly(
     backpressure_config, mock_backpressure_engine, mock_backpressure_metrics
 ):
@@ -321,7 +321,7 @@ async def test_metrics_updated_correctly(
     mock_backpressure_metrics.tickets_in_flight.set.assert_called_with(2)
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_backpressure_with_high_load(
     backpressure_config, mock_backpressure_engine, mock_backpressure_metrics
 ):

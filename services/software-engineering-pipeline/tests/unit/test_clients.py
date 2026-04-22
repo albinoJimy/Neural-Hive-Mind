@@ -1,8 +1,13 @@
 """Testes unitários para clientes de integração externa."""
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock
 
+import pytest
+from src.clients.argocd_client import (
+    ApplicationRollbackRequest,
+    ApplicationSyncRequest,
+    ArgoCDClient,
+)
 from src.clients.github_client import (
     GitHubClient,
     WorkflowDispatchRequest,
@@ -11,14 +16,9 @@ from src.clients.gitlab_client import (
     GitLabClient,
     PipelineTriggerRequest,
 )
-from src.clients.argocd_client import (
-    ArgoCDClient,
-    ApplicationSyncRequest,
-    ApplicationRollbackRequest,
-)
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_github_trigger_workflow_success():
     """Teste de disparo bem-sucedido de workflow GitHub."""
     client = GitHubClient(token="test-token")
@@ -58,7 +58,7 @@ async def test_github_trigger_workflow_success():
     assert result.status_url == "https://github.com/org/repo/actions/runs/12345"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_github_trigger_workflow_failure():
     """Teste de falha ao disparar workflow GitHub."""
     client = GitHubClient(token="test-token")
@@ -85,7 +85,7 @@ async def test_github_trigger_workflow_failure():
     assert "not found" in result.message.lower()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_github_get_file_success():
     """Teste de obtenção bem-sucedida de arquivo."""
     client = GitHubClient(token="test-token")
@@ -110,7 +110,7 @@ async def test_github_get_file_success():
     assert result.sha == "abc123"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_github_get_file_not_found():
     """Teste de arquivo não encontrado."""
     client = GitHubClient(token="test-token")
@@ -128,7 +128,7 @@ async def test_github_get_file_not_found():
     assert result is None
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_github_create_file():
     """Teste de criação de arquivo."""
     client = GitHubClient(token="test-token")
@@ -152,7 +152,7 @@ async def test_github_create_file():
     assert result is True
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_github_get_workflow_run_status():
     """Teste de obtenção de status de workflow run."""
     client = GitHubClient(token="test-token")
@@ -179,7 +179,7 @@ async def test_github_get_workflow_run_status():
     assert result["conclusion"] == "success"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_github_list_workflows():
     """Teste de listagem de workflows."""
     client = GitHubClient(token="test-token")
@@ -215,7 +215,7 @@ async def test_github_list_workflows():
     assert result[1]["name"] == "CD"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_gitlab_trigger_pipeline_success():
     """Teste de disparo bem-sucedido de pipeline GitLab."""
     client = GitLabClient(token="test-token")
@@ -246,7 +246,7 @@ async def test_gitlab_trigger_pipeline_success():
     assert result.status == "pending"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_gitlab_get_pipeline_status():
     """Teste de obtenção de status de pipeline."""
     client = GitLabClient(token="test-token")
@@ -275,7 +275,7 @@ async def test_gitlab_get_pipeline_status():
     assert result["stage"] == "deploy"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_gitlab_list_pipelines():
     """Teste de listagem de pipelines."""
     client = GitLabClient(token="test-token")
@@ -298,7 +298,7 @@ async def test_gitlab_list_pipelines():
     assert result[0]["id"] == 1
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_gitlab_get_file():
     """Teste de obtenção de arquivo GitLab."""
     client = GitLabClient(token="test-token")
@@ -326,7 +326,7 @@ async def test_gitlab_get_file():
     assert result["content"] == "Hello"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_gitlab_create_file():
     """Teste de criação de arquivo GitLab."""
     client = GitLabClient(token="test-token")
@@ -349,7 +349,7 @@ async def test_gitlab_create_file():
     assert result is True
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_gitlab_list_branches():
     """Teste de listagem de branches GitLab."""
     client = GitLabClient(token="test-token")
@@ -373,7 +373,7 @@ async def test_gitlab_list_branches():
     assert result[0]["protected"] is True
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_argocd_sync_application():
     """Teste de sync de aplicação ArgoCD."""
     client = ArgoCDClient(token="test-token")
@@ -398,7 +398,7 @@ async def test_argocd_sync_application():
     assert result.operation_id == "op-123"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_argocd_rollback_application():
     """Teste de rollback de aplicação ArgoCD."""
     client = ArgoCDClient(token="test-token")
@@ -423,7 +423,7 @@ async def test_argocd_rollback_application():
     assert result.operation_id == "rollback-123"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_argocd_get_application():
     """Teste de obtenção de aplicação ArgoCD."""
     client = ArgoCDClient(token="test-token")
@@ -460,7 +460,7 @@ async def test_argocd_get_application():
     assert result["health_status"] == "Healthy"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_argocd_list_applications():
     """Teste de listagem de aplicações ArgoCD."""
     client = ArgoCDClient(token="test-token")
@@ -509,7 +509,7 @@ async def test_argocd_list_applications():
     assert result[1]["sync_status"] == "OutOfSync"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_argocd_get_application_health():
     """Teste de obtenção de saúde de aplicação."""
     client = ArgoCDClient(token="test-token")
@@ -534,7 +534,7 @@ async def test_argocd_get_application_health():
     assert result["status"] == "Healthy"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_argocd_get_application_sync_status():
     """Teste de obtenção de status de sync."""
     client = ArgoCDClient(token="test-token")
@@ -563,7 +563,7 @@ async def test_argocd_get_application_sync_status():
     assert result["revision"] == "v1.0.0"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_argocd_delete_application():
     """Teste de deleção de aplicação."""
     client = ArgoCDClient(token="test-token")
@@ -581,7 +581,7 @@ async def test_argocd_delete_application():
     assert result is True
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_argocd_create_application():
     """Teste de criação de aplicação."""
     client = ArgoCDClient(token="test-token")
@@ -605,7 +605,7 @@ async def test_argocd_create_application():
     assert result is True
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_argocd_get_repository_list():
     """Teste de listagem de repositórios."""
     client = ArgoCDClient(token="test-token")
@@ -637,7 +637,7 @@ async def test_argocd_get_repository_list():
     assert result[1]["insecure"] is True
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_client_close():
     """Teste de fechamento de clientes HTTP."""
     github_client = GitHubClient(token="test-token")

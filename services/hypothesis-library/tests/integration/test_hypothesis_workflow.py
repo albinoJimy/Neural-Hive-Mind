@@ -1,29 +1,26 @@
 """Integration tests para workflow de hipóteses."""
 
-import pytest
-from datetime import datetime, timezone
 from unittest.mock import AsyncMock, Mock
-from uuid import uuid4
-from bson import ObjectId
 
+import pytest
 from src.models.hypothesis import (
     Hypothesis,
     HypothesisCreate,
-    HypothesisStatus,
+    HypothesisFilter,
     HypothesisPriority,
     HypothesisResults,
-    HypothesisFilter,
+    HypothesisStatus,
     HypothesisUpdate,
 )
 from src.models.workflow import WorkflowTransition
 from src.services.hypothesis_service import HypothesisService
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 class TestHypothesisWorkflowIntegration:
     """Testes de integração para workflow completo."""
 
-    @pytest.fixture
+    @pytest.fixture()
     async def hypothesis_service(self):
         """Service para testes com mocks configurados."""
         from src.repositories.hypothesis_repository import HypothesisRepository
@@ -45,7 +42,7 @@ class TestHypothesisWorkflowIntegration:
 
         return service
 
-    @pytest.fixture
+    @pytest.fixture()
     def sample_create_data(self):
         """Dados de criação."""
         return HypothesisCreate(
@@ -61,9 +58,7 @@ class TestHypothesisWorkflowIntegration:
             tags=["performance", "latency", "consensus"],
         )
 
-    async def test_create_and_propose_workflow(
-        self, hypothesis_service, sample_create_data
-    ):
+    async def test_create_and_propose_workflow(self, hypothesis_service, sample_create_data):
         """Testa criação e proposta de hipótese."""
         hypothesis = Hypothesis(
             **sample_create_data.model_dump(),
@@ -89,7 +84,11 @@ class TestHypothesisWorkflowIntegration:
         # Estados possíveis e suas transições válidas
         valid_transitions = {
             HypothesisStatus.DRAFT: [HypothesisStatus.PROPOSED, HypothesisStatus.ARCHIVED],
-            HypothesisStatus.PROPOSED: [HypothesisStatus.DRAFT, HypothesisStatus.APPROVED, HypothesisStatus.REJECTED],
+            HypothesisStatus.PROPOSED: [
+                HypothesisStatus.DRAFT,
+                HypothesisStatus.APPROVED,
+                HypothesisStatus.REJECTED,
+            ],
             HypothesisStatus.APPROVED: [HypothesisStatus.IN_TESTING],
             HypothesisStatus.IN_TESTING: [HypothesisStatus.COMPLETED],
             HypothesisStatus.COMPLETED: [HypothesisStatus.ACCEPTED, HypothesisStatus.REJECTED],

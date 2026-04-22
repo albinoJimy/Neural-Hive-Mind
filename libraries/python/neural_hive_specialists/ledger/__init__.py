@@ -1,16 +1,16 @@
 """Módulo de governança e versionamento do ledger cognitivo."""
 
+from .backup_manager import BackupManager
+from .digital_signer import DigitalSigner
 from .opinion_schema_v2 import (
-    OpinionDocumentV2,
-    Opinion,
-    ReasoningFactor,
     Mitigation,
+    Opinion,
+    OpinionDocumentV2,
+    ReasoningFactor,
     SchemaVersionManager,
 )
-from .digital_signer import DigitalSigner
 from .query_api import LedgerQueryAPI
 from .retention_manager import RetentionManager
-from .backup_manager import BackupManager
 
 __all__ = [
     "OpinionDocumentV2",

@@ -2,9 +2,10 @@
 Conftest para testes do neural_hive_agent_sdk.
 """
 
-import pytest
-import sys
 import os
+import sys
+
+import pytest
 
 # Adicionar biblioteca ao path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
@@ -27,5 +28,5 @@ def pytest_configure(config):
 @pytest.fixture(autouse=True)
 def reset_event_loop_policy():
     """Reseta política de loop de eventos entre testes."""
-    yield
+    return
     # Limpeza após teste

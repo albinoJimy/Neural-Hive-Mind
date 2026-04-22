@@ -18,7 +18,7 @@ import pytest
 class TestTemplateSelectorMCPIntegration:
     """Testes de integracao com MCP Tool Catalog."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_select_with_mcp_success(
         self,
         mock_git_client,
@@ -44,7 +44,7 @@ class TestTemplateSelectorMCPIntegration:
         mock_mcp_client.request_tool_selection.assert_called_once()
         mock_metrics.mcp_selection_requests_total.labels.assert_called()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_select_mcp_timeout_fallback(
         self,
         mock_git_client,
@@ -71,7 +71,7 @@ class TestTemplateSelectorMCPIntegration:
         assert result is not None
         mock_metrics.mcp_selection_requests_total.labels.assert_called_with(status="timeout")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_select_mcp_error_fallback(
         self,
         mock_git_client,
@@ -97,7 +97,7 @@ class TestTemplateSelectorMCPIntegration:
         assert result is not None
         mock_metrics.mcp_selection_requests_total.labels.assert_called_with(status="failure")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_select_without_mcp_client(
         self, mock_git_client, mock_redis_client, sample_pipeline_context
     ):
@@ -120,7 +120,7 @@ class TestTemplateSelectorMCPIntegration:
 class TestTemplateSelectorCache:
     """Testes de cache Redis."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_select_cache_hit(
         self, mock_git_client, mock_redis_client, sample_pipeline_context, cached_template
     ):
@@ -141,7 +141,7 @@ class TestTemplateSelectorCache:
         assert result == cached_template
         mock_git_client.clone_templates_repo.assert_not_called()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_select_cache_miss(
         self, mock_git_client, mock_redis_client, sample_pipeline_context
     ):
@@ -167,7 +167,7 @@ class TestTemplateSelectorCache:
 class TestTemplateSelectorComplexityScore:
     """Testes de calculo de complexity_score."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_calculate_complexity_score_low(
         self, mock_git_client, mock_redis_client, sample_pipeline_context
     ):
@@ -188,7 +188,7 @@ class TestTemplateSelectorComplexityScore:
 
         assert 0.0 <= score <= 0.5  # Score baixo
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_calculate_complexity_score_high(
         self, mock_git_client, mock_redis_client, sample_pipeline_context
     ):
@@ -209,7 +209,7 @@ class TestTemplateSelectorComplexityScore:
 
         assert 0.5 <= score <= 1.0  # Score alto
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_calculate_complexity_score_critical(
         self, mock_git_client, mock_redis_client, sample_pipeline_context
     ):
@@ -235,7 +235,7 @@ class TestTemplateSelectorComplexityScore:
 class TestTemplateSelectorGenerationMethod:
     """Testes de mapeamento de ferramentas para generation_method."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_map_tools_to_llm_method(self, mock_git_client, mock_redis_client):
         """Deve mapear ferramentas LLM para method LLM."""
         from src.services.template_selector import TemplateSelector
@@ -253,7 +253,7 @@ class TestTemplateSelectorGenerationMethod:
 
         assert method == "LLM"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_map_tools_to_template_method(self, mock_git_client, mock_redis_client):
         """Deve mapear ferramentas de template para method TEMPLATE."""
         from src.services.template_selector import TemplateSelector
@@ -271,7 +271,7 @@ class TestTemplateSelectorGenerationMethod:
 
         assert method == "TEMPLATE"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_map_tools_to_hybrid_method(self, mock_git_client, mock_redis_client):
         """Deve mapear ferramentas LLM + Template para method HYBRID."""
         from src.services.template_selector import TemplateSelector
@@ -292,7 +292,7 @@ class TestTemplateSelectorGenerationMethod:
 
         assert method == "HYBRID"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_map_tools_to_heuristic_method(self, mock_git_client, mock_redis_client):
         """Deve mapear ferramentas desconhecidas para method HEURISTIC."""
         from src.services.template_selector import TemplateSelector
@@ -310,7 +310,7 @@ class TestTemplateSelectorGenerationMethod:
 
         assert method == "HEURISTIC"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_map_empty_tools(self, mock_git_client, mock_redis_client):
         """Deve retornar TEMPLATE para lista vazia."""
         from src.services.template_selector import TemplateSelector
@@ -330,7 +330,7 @@ class TestTemplateSelectorGenerationMethod:
 class TestTemplateSelectorMetrics:
     """Testes de metricas Prometheus."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_metrics_recorded_on_success(
         self,
         mock_git_client,
@@ -354,7 +354,7 @@ class TestTemplateSelectorMetrics:
         mock_metrics.mcp_selection_requests_total.labels.assert_called_with(status="success")
         mock_metrics.mcp_selection_duration_seconds.observe.assert_called()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_metrics_tools_selected_counted(
         self,
         mock_git_client,
@@ -385,7 +385,7 @@ class TestTemplateSelectorMetrics:
 class TestTemplateSelectorContextUpdate:
     """Testes de atualizacao do contexto."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_context_updated_with_mcp_selection(
         self,
         mock_git_client,
@@ -412,7 +412,7 @@ class TestTemplateSelectorContextUpdate:
         assert len(sample_pipeline_context.selected_tools) == 2
         assert sample_pipeline_context.generation_method is not None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_context_updated_with_template(
         self, mock_git_client, mock_redis_client, sample_pipeline_context
     ):

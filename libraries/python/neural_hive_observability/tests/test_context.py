@@ -8,8 +8,9 @@ Este arquivo contém testes unitários e de integração para validar:
 """
 
 import logging
-import pytest
 from unittest.mock import Mock, patch
+
+import pytest
 
 from neural_hive_observability.config import ObservabilityConfig
 from neural_hive_observability.context import ContextManager
@@ -149,7 +150,7 @@ class TestContextManagerIntegration:
 
     def test_full_initialization_flow_with_init_observability(self):
         """Teste 11: Verificar fluxo completo com init_observability."""
-        from neural_hive_observability import init_observability, get_config
+        from neural_hive_observability import get_config, init_observability
 
         # Inicializar observabilidade
         init_observability(

@@ -2,14 +2,11 @@
 
 import asyncio
 import signal
-import sys
 
 import structlog
 import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from neural_hive_observability import init_observability
-
 from src.api import api_router
 from src.api.health_handlers import (
     health_handler,
@@ -19,9 +16,11 @@ from src.api.health_handlers import (
 )
 from src.clients.mongodb_client import MongoDBClient
 from src.config.settings import get_settings
-from src.services.impact_analyzer import ImpactAnalyzer
 from src.consumers import ExperimentCompletedConsumer
 from src.producers import ImpactAnalyzedProducer
+from src.services.impact_analyzer import ImpactAnalyzer
+
+from neural_hive_observability import init_observability
 
 logger = structlog.get_logger()
 

@@ -9,7 +9,7 @@ GAPS-04 Task 3
 
 import re
 from collections import defaultdict
-from typing import Any, Dict, List
+from typing import Any
 
 import structlog
 
@@ -123,7 +123,7 @@ class ReasoningExtractor:
         """
         self.max_factors = max_factors
 
-    def extract_factors(self, reasoning: str) -> Dict[str, Any]:
+    def extract_factors(self, reasoning: str) -> dict[str, Any]:
         """
         Extrai factores-chave do texto de reasoning.
 
@@ -163,7 +163,7 @@ class ReasoningExtractor:
             "num_sentences": len(sentences),
         }
 
-    def _split_into_sentences(self, text: str) -> List[str]:
+    def _split_into_sentences(self, text: str) -> list[str]:
         """Divide texto em sentenças."""
         # Dividir por pontuação básica
         sentences = re.split(r"[.!?]+", text)
@@ -202,7 +202,7 @@ class ReasoningExtractor:
 
         return min(1.0, confidence)
 
-    def categorize_factor(self, factor_text: str) -> Dict[str, Any]:
+    def categorize_factor(self, factor_text: str) -> dict[str, Any]:
         """
         Categoriza um factor de reasoning.
 
@@ -235,8 +235,8 @@ class ReasoningExtractor:
         return {"category": "general", "confidence": 0.0, "all_scores": {}}
 
     def generate_structured_output(
-        self, factors_result: Dict[str, Any], original_reasoning: str
-    ) -> Dict[str, Any]:
+        self, factors_result: dict[str, Any], original_reasoning: str
+    ) -> dict[str, Any]:
         """
         Gera output estruturado com categorias e citações.
 
@@ -275,7 +275,7 @@ class ReasoningExtractor:
             "source_length": factors_result.get("source_length", 0),
         }
 
-    def _find_citation(self, factor_text: str, original_text: str) -> Dict[str, int]:
+    def _find_citation(self, factor_text: str, original_text: str) -> dict[str, int]:
         """Encontra posição do factor no texto original."""
         start = original_text.find(factor_text)
 
@@ -285,7 +285,7 @@ class ReasoningExtractor:
 
         return {"start": -1, "end": -1, "found": False}
 
-    def _summarize_categories(self, structured_factors: List[Dict]) -> Dict[str, int]:
+    def _summarize_categories(self, structured_factors: list[dict]) -> dict[str, int]:
         """Resume contagem de factores por categoria."""
         category_count = defaultdict(int)
 
@@ -294,7 +294,7 @@ class ReasoningExtractor:
 
         return dict(category_count)
 
-    def batch_extract(self, reasonings: List[str]) -> List[Dict[str, Any]]:
+    def batch_extract(self, reasonings: list[str]) -> list[dict[str, Any]]:
         """
         Extrai factores de múltiplos textos de reasoning.
 
@@ -315,7 +315,7 @@ class ReasoningExtractor:
 
     def extract_and_categorize(
         self, reasoning: str, include_general: bool = False
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Método conveniente que extrai e categoriza em uma chamada.
 

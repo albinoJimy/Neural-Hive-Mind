@@ -1,9 +1,9 @@
 """Cliente MongoDB para Approval Gateway."""
 
 from functools import lru_cache
-from motor.motor_asyncio import AsyncIOMotorClient
-import structlog
 
+import structlog
+from motor.motor_asyncio import AsyncIOMotorClient
 from src.config.settings import get_settings
 
 logger = structlog.get_logger(__name__)
@@ -13,10 +13,7 @@ logger = structlog.get_logger(__name__)
 def get_mongodb_client():
     """Retorna cliente MongoDB singleton."""
     settings = get_settings()
-    return AsyncMongoDBClient(
-        url=settings.mongodb_url,
-        database=settings.mongodb_database
-    )
+    return AsyncMongoDBClient(url=settings.mongodb_url, database=settings.mongodb_database)
 
 
 class AsyncMongoDBClient:
@@ -63,7 +60,7 @@ class AsyncMongoDBClient:
     async def ping(self) -> bool:
         """Verifica conexão."""
         try:
-            await self._client.admin.command('ping')
+            await self._client.admin.command("ping")
             return True
         except Exception as e:
             self._logger.error("mongodb_ping_failed", error=str(e))

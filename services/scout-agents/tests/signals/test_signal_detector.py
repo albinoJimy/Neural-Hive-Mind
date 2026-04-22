@@ -4,36 +4,36 @@ Testes unitários abrangentes para SignalDetector.
 Cobertura: detecção de sinais, tipos de sinal, confiança, risco, geolocalização.
 """
 
-import pytest
-import numpy as np
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
 
+import numpy as np
+import pytest
 from src.detection.signal_detector import SignalDetector
 from src.models.raw_event import RawEvent
-from src.models.scout_signal import SignalType, ChannelType, Geolocation
-from neural_hive_domain import UnifiedDomain
+from src.models.scout_signal import ChannelType, Geolocation, SignalType
 
+from neural_hive_domain import UnifiedDomain
 
 # ============================================================================
 # Fixtures
 # ============================================================================
 
 
-@pytest.fixture
+@pytest.fixture()
 def signal_detector():
     """Instância de SignalDetector para testes."""
     return SignalDetector(scout_agent_id="test-scout-001")
 
 
-@pytest.fixture
+@pytest.fixture()
 def high_anomaly_event():
     """Evento com alta anomalia."""
     return RawEvent(
         event_id="high-anomaly-001",
         source="api-gateway",
         event_type="error_spike",
-        timestamp=datetime.now(timezone.utc),
+        timestamp=datetime.now(UTC),
         payload={
             "error_count": 500,
             "error_rate": 0.95,
@@ -44,7 +44,7 @@ def high_anomaly_event():
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def pattern_event():
     """Evento com padrão emergente."""
     values_with_variance = [i * 10 + np.random.random() * 50 for i in range(20)]
@@ -52,39 +52,39 @@ def pattern_event():
         event_id="pattern-001",
         source="analytics",
         event_type="usage_metric",
-        timestamp=datetime.now(timezone.utc),
+        timestamp=datetime.now(UTC),
         payload={"daily_users": values_with_variance[-1], "trend_data": values_with_variance},
         metadata={"trace_id": "trace-pattern"},
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def user_action_event():
     """Evento de ação do usuário."""
     return RawEvent(
         event_id="user-action-001",
         source="web-app",
         event_type="user_action",
-        timestamp=datetime.now(timezone.utc),
+        timestamp=datetime.now(UTC),
         payload={"action": "purchase", "amount": 150.00, "item_count": 3},
         metadata={"trace_id": "trace-user", "user_id": "user-123", "device_id": "device-456"},
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def threat_event():
     """Evento que representa ameaça de segurança."""
     return RawEvent(
         event_id="threat-001",
         source="security-monitor",
         event_type="intrusion_attempt",
-        timestamp=datetime.now(timezone.utc),
+        timestamp=datetime.now(UTC),
         payload={"failed_logins": 100, "blocked_ips": 50, "severity": "critical"},
         metadata={"trace_id": "trace-threat", "severity": "critical"},
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def trend_event():
     """Evento com tendência clara."""
     values = [100 + i * 5 for i in range(15)]  # Tendência crescente
@@ -92,7 +92,7 @@ def trend_event():
         event_id="trend-001",
         source="metrics",
         event_type="metric",
-        timestamp=datetime.now(timezone.utc),
+        timestamp=datetime.now(UTC),
         payload={"values": values, "mean": np.mean(values)},
         metadata={"trace_id": "trace-trend"},
     )
@@ -135,7 +135,7 @@ class TestSignalDetectorInitialization:
 class TestSignalDetection:
     """Testes do método principal de detecção."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_detect_returns_none_when_filtered(self, signal_detector, sample_raw_event):
         """Testa que sinal filtrado retorna None."""
         # Mock Bayesian filter para filtrar o evento
@@ -143,7 +143,7 @@ class TestSignalDetection:
             result = await signal_detector.detect(sample_raw_event, UnifiedDomain.BUSINESS)
             assert result is None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_detect_returns_none_when_no_signal_type(self, signal_detector, sample_raw_event):
         """Testa que sinal sem tipo detectado retorna None."""
         with patch.object(signal_detector.bayesian_filter, "filter", return_value=(True, 0.8)):
@@ -151,7 +151,7 @@ class TestSignalDetection:
                 result = await signal_detector.detect(sample_raw_event, UnifiedDomain.BUSINESS)
                 assert result is None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_detect_returns_none_when_below_thresholds(
         self, signal_detector, sample_raw_event
     ):
@@ -178,7 +178,7 @@ class TestSignalDetection:
                                 )
                                 assert result is None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_detect_returns_signal_when_all_conditions_met(
         self, signal_detector, sample_raw_event
     ):
@@ -252,7 +252,7 @@ class TestSignalTypeDetection:
             event_id="opp-001",
             source="sales",
             event_type="opportunity",
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
             payload={"value": 10000, "probability": 0.8},
             metadata={"trace_id": "trace-opp"},
         )
@@ -317,7 +317,7 @@ class TestDetectionHelpers:
             event_id="metric-001",
             source="prometheus",
             event_type="metric",
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
             payload={"cpu": 0.75, "memory": 0.60},
             metadata={},
         )
@@ -558,7 +558,7 @@ class TestGeolocationExtraction:
             event_id="geo-payload-001",
             source="mobile",
             event_type="location",
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
             payload={"latitude": 40.7128, "longitude": -74.0060},
             metadata={},
         )
@@ -573,7 +573,7 @@ class TestGeolocationExtraction:
             event_id="geo-alt-001",
             source="mobile",
             event_type="location",
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
             payload={"lat": 37.7749, "lon": -122.4194},
             metadata={},
         )
@@ -587,7 +587,7 @@ class TestGeolocationExtraction:
             event_id="geo-nested-001",
             source="mobile",
             event_type="location",
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
             payload={"location": {"latitude": 51.5074, "longitude": -0.1278}},
             metadata={},
         )
@@ -601,7 +601,7 @@ class TestGeolocationExtraction:
             event_id="geo-list-001",
             source="mobile",
             event_type="location",
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
             payload={"coordinates": [51.5074, -0.1278]},
             metadata={},
         )
@@ -619,7 +619,7 @@ class TestGeolocationExtraction:
             event_id="geo-string-001",
             source="mobile",
             event_type="location",
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
             payload={"position": "48.8566,2.3522"},
             metadata={},
         )
@@ -635,7 +635,7 @@ class TestGeolocationExtraction:
             event_id="geo-invalid-001",
             source="mobile",
             event_type="location",
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
             payload={"latitude": 200, "longitude": -200},  # Inválido (> 90)  # Inválido (< -180)
             metadata={},
         )
@@ -700,7 +700,7 @@ class TestGeolocationParsing:
 class TestSignalDetectionIntegration:
     """Testes de integração do fluxo completo."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_full_detection_pipeline_positive_anomaly(
         self, signal_detector, user_action_event
     ):
@@ -711,7 +711,7 @@ class TestSignalDetectionIntegration:
             if result:
                 assert result.signal_type in [SignalType.ANOMALY_POSITIVE, SignalType.OPPORTUNITY]
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_full_detection_pipeline_threat(self, signal_detector, threat_event):
         """Testa pipeline completo com ameaça."""
         with patch.object(threat_event, "calculate_anomaly_score", return_value=0.9):
@@ -720,14 +720,14 @@ class TestSignalDetectionIntegration:
                 assert result.signal_type == SignalType.THREAT
                 assert result.requires_validation is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_detection_with_geolocation(self, signal_detector, sample_raw_event_with_geo):
         """Testa que geolocalização é incluída quando disponível."""
         result = await signal_detector.detect(sample_raw_event_with_geo, UnifiedDomain.BEHAVIOR)
         if result:
             assert result.source.geolocation is not None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_detection_error_handling(self, signal_detector, sample_raw_event):
         """Testa que erros são tratados gracefulmente."""
         # Forçar erro no Bayesian filter
@@ -746,7 +746,7 @@ class TestSignalDetectionIntegration:
 class TestChannelTypeHandling:
     """Testes de tipos de canal."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_detection_with_core_channel(self, signal_detector, sample_raw_event):
         """Testa detecção com canal CORE."""
         with patch.object(signal_detector.bayesian_filter, "filter", return_value=(True, 0.9)):
@@ -769,7 +769,7 @@ class TestChannelTypeHandling:
                                 if result:
                                     assert result.source.channel == ChannelType.CORE
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_detection_with_web_channel(self, signal_detector, sample_raw_event):
         """Testa detecção com canal WEB."""
         with patch.object(signal_detector.bayesian_filter, "filter", return_value=(True, 0.9)):
@@ -792,7 +792,7 @@ class TestChannelTypeHandling:
                                 if result:
                                     assert result.source.channel == ChannelType.WEB
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_detection_with_mobile_channel(self, signal_detector, sample_raw_event_with_geo):
         """Testa detecção com canal MOBILE."""
         with patch.object(signal_detector.bayesian_filter, "filter", return_value=(True, 0.9)):

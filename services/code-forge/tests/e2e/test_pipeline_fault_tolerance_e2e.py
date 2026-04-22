@@ -10,42 +10,42 @@ Estes testes verificam comportamentos de fault tolerance:
 FASE 4 - Tarefas 4.2.4 a 4.2.7
 """
 
-import pytest
-import uuid
 import asyncio
+import uuid
 from datetime import datetime, timedelta
 
+import pytest
+from src.models.artifact import (
+    PipelineStatus,
+    ValidationResult,
+    ValidationStatus,
+    ValidationType,
+)
 from src.models.execution_ticket import (
+    SLA,
+    Consistency,
+    DeliveryMode,
+    Durability,
     ExecutionTicket,
+    Priority,
+    QoS,
+    RiskBand,
+    SecurityLevel,
     TaskType,
     TicketStatus,
-    Priority,
-    RiskBand,
-    SLA,
-    QoS,
-    SecurityLevel,
-    DeliveryMode,
-    Consistency,
-    Durability,
 )
-from src.models.artifact import (
-    ValidationResult,
-    ValidationType,
-    ValidationStatus,
-    PipelineStatus,
-)
+from src.services.approval_gate import ApprovalGate
+from src.services.code_composer import CodeComposer
+from src.services.packager import Packager
 from src.services.pipeline_engine import PipelineEngine
 from src.services.template_selector import TemplateSelector
-from src.services.code_composer import CodeComposer
 from src.services.validator import Validator
-from src.services.packager import Packager
-from src.services.approval_gate import ApprovalGate
 
 
 class TestPipelineRetryE2E:
     """Testes E2E de mecanismo de retry."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_retry_on_transient_failure(
         self,
         sample_ticket,
@@ -165,7 +165,7 @@ class TestPipelineRetryE2E:
         # Validação foi chamada pelo menos uma vez (pode ter retry ou falha antes)
         assert call_count >= 1
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_retry_exhaustion_fails_pipeline(
         self,
         sample_ticket,
@@ -266,7 +266,7 @@ class TestPipelineRetryE2E:
 class TestPipelinePersistenceE2E:
     """Testes E2E de persistência de dados."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_artifact_persistence_in_mongodb(
         self,
         sample_ticket,
@@ -382,7 +382,7 @@ class TestPipelinePersistenceE2E:
             assert artifact.content_uri.startswith("mongodb://artifacts/")
             assert artifact.artifact_id
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_pipeline_metadata_in_postgres(
         self,
         sample_ticket,
@@ -494,7 +494,7 @@ class TestPipelinePersistenceE2E:
 class TestPipelineConcurrentExecutionE2E:
     """Testes E2E de execução concorrente."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_concurrent_pipelines_isolation(
         self,
         mock_git_client,
@@ -658,7 +658,7 @@ class TestPipelineConcurrentExecutionE2E:
 class TestPipelineRollbackE2E:
     """Testes E2E de rollback em caso de falha."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_partial_failure_rollback(
         self,
         sample_ticket,
@@ -767,7 +767,7 @@ class TestPipelineRollbackE2E:
             # Código foi salvo no MongoDB (verificado pelo content_uri)
             assert result.artifacts[0].content_uri.startswith("mongodb://artifacts/")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_compensation_action_on_failure(
         self,
         sample_ticket,

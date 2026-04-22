@@ -1,6 +1,6 @@
 """Models for experiment impact analysis."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 from uuid import uuid4
@@ -8,7 +8,7 @@ from uuid import uuid4
 from bson import ObjectId
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-UTC = timezone.utc
+UTC = UTC
 
 
 def utcnow() -> datetime:
@@ -64,9 +64,7 @@ class MetricImpact(BaseModel):
     post_experiment_value: float = Field(..., description="Valor após experimento")
     absolute_change: float = Field(..., description="Mudança absoluta")
     relative_change_percent: float = Field(..., description="Mudança relativa em %")
-    statistical_significance: bool = Field(
-        default=False, description="Significância estatística"
-    )
+    statistical_significance: bool = Field(default=False, description="Significância estatística")
     confidence_interval: tuple[float, float] | None = Field(
         default=None, description="Intervalo de confiança (lower, upper)"
     )
@@ -86,16 +84,10 @@ class ShortTermImpact(BaseModel):
     system_stability: str = Field(
         default="unknown", description="Estabilidade do sistema (stable/degraded/improved)"
     )
-    error_rate_change: float | None = Field(
-        default=None, description="Mudança na taxa de erro"
-    )
+    error_rate_change: float | None = Field(default=None, description="Mudança na taxa de erro")
     latency_change: float | None = Field(default=None, description="Mudança na latência")
-    throughput_change: float | None = Field(
-        default=None, description="Mudança no throughput"
-    )
-    detected_at: datetime = Field(
-        default_factory=utcnow, description="Data de detecção"
-    )
+    throughput_change: float | None = Field(default=None, description="Mudança no throughput")
+    detected_at: datetime = Field(default_factory=utcnow, description="Data de detecção")
 
 
 class LongTermImpact(BaseModel):
@@ -111,9 +103,7 @@ class LongTermImpact(BaseModel):
     degradation_detected: bool = Field(
         default=False, description="Degradação detectada ao longo do tempo"
     )
-    adaptation_observed: bool = Field(
-        default=False, description="Adaptação do sistema observada"
-    )
+    adaptation_observed: bool = Field(default=False, description="Adaptação do sistema observada")
     trend_analysis: dict[str, str] = Field(
         default_factory=dict, description="Análise de tendências por métrica"
     )
@@ -123,9 +113,7 @@ class LongTermImpact(BaseModel):
     learning_curve_observed: bool = Field(
         default=False, description="Curva de aprendizado observada"
     )
-    last_analyzed_at: datetime = Field(
-        default_factory=utcnow, description="Última análise"
-    )
+    last_analyzed_at: datetime = Field(default_factory=utcnow, description="Última análise")
 
 
 class ExperimentCorrelation(BaseModel):
@@ -133,19 +121,14 @@ class ExperimentCorrelation(BaseModel):
 
     experiment_id: str = Field(..., description="ID do experimento correlacionado")
     correlation_coefficient: float = Field(..., ge=-1.0, le=1.0)
-    correlation_type: str = Field(
-        ...,
-        description="Tipo de correlação (positive, negative, none)"
-    )
+    correlation_type: str = Field(..., description="Tipo de correlação (positive, negative, none)")
     shared_metrics: list[str] = Field(
         default_factory=list, description="Métricas afetadas por ambos"
     )
     interaction_effect: float | None = Field(
         default=None, description="Efeito de interação (se houver)"
     )
-    description: str = Field(
-        default="", description="Descrição da correlação"
-    )
+    description: str = Field(default="", description="Descrição da correlação")
 
 
 class PyObjectId(ObjectId):
@@ -181,32 +164,21 @@ class ExperimentImpact(BaseModel):
 
     id: PyObjectId | None = Field(None, alias="_id", description="MongoDB ObjectId")
     impact_id: str = Field(
-        default_factory=lambda: str(uuid4()),
-        description="Unique identifier (UUID)"
+        default_factory=lambda: str(uuid4()), description="Unique identifier (UUID)"
     )
     experiment_id: str = Field(..., description="ID do experimento analisado")
     hypothesis_id: str | None = Field(None, description="ID da hipótese relacionada")
 
     # Overall assessment
-    overall_direction: ImpactDirection = Field(
-        ...,
-        description="Direção geral do impacto"
-    )
-    overall_magnitude: ImpactMagnitude = Field(
-        ...,
-        description="Magnitude geral do impacto"
-    )
+    overall_direction: ImpactDirection = Field(..., description="Direção geral do impacto")
+    overall_magnitude: ImpactMagnitude = Field(..., description="Magnitude geral do impacto")
     categories: list[ImpactCategory] = Field(
         default_factory=list, description="Categorias de impacto"
     )
 
     # Time-based analysis
-    short_term_impact: ShortTermImpact | None = Field(
-        None, description="Análise de curto prazo"
-    )
-    long_term_impact: LongTermImpact | None = Field(
-        None, description="Análise de longo prazo"
-    )
+    short_term_impact: ShortTermImpact | None = Field(None, description="Análise de curto prazo")
+    long_term_impact: LongTermImpact | None = Field(None, description="Análise de longo prazo")
 
     # Correlations
     correlated_experiments: list[ExperimentCorrelation] = Field(
@@ -214,35 +186,19 @@ class ExperimentImpact(BaseModel):
     )
 
     # Recommendations
-    recommendation: str = Field(
-        ...,
-        description="Recomendação baseada na análise"
-    )
+    recommendation: str = Field(..., description="Recomendação baseada na análise")
     confidence_level: float = Field(
-        ...,
-        ge=0.0,
-        le=1.0,
-        description="Nível de confiança na análise"
+        ..., ge=0.0, le=1.0, description="Nível de confiança na análise"
     )
 
     # Metadata
-    created_at: datetime = Field(
-        default_factory=utcnow, description="Data de criação"
-    )
-    updated_at: datetime = Field(
-        default_factory=utcnow, description="Última atualização"
-    )
-    analysis_version: int = Field(
-        default=1, description="Versão da análise"
-    )
+    created_at: datetime = Field(default_factory=utcnow, description="Data de criação")
+    updated_at: datetime = Field(default_factory=utcnow, description="Última atualização")
+    analysis_version: int = Field(default=1, description="Versão da análise")
 
     # Additional data
-    metadata: dict[str, Any] = Field(
-        default_factory=dict, description="Metadados adicionais"
-    )
-    notes: list[str] = Field(
-        default_factory=list, description="Notas adicionais"
-    )
+    metadata: dict[str, Any] = Field(default_factory=dict, description="Metadados adicionais")
+    notes: list[str] = Field(default_factory=list, description="Notas adicionais")
 
     model_config = ConfigDict(populate_by_name=True)
 
@@ -267,15 +223,10 @@ class ImpactAnalysisRequest(BaseModel):
     experiment_id: str = Field(..., description="ID do experimento")
     hypothesis_id: str | None = Field(None, description="ID da hipótese")
     timeframes: list[ImpactTimeframe] = Field(
-        default_factory=lambda: [ImpactTimeframe.SHORT_TERM],
-        description="Timeframes para analisar"
+        default_factory=lambda: [ImpactTimeframe.SHORT_TERM], description="Timeframes para analisar"
     )
-    include_correlations: bool = Field(
-        default=True, description="Incluir análise de correlações"
-    )
-    force_refresh: bool = Field(
-        default=False, description="Forçar nova análise (ignorar cache)"
-    )
+    include_correlations: bool = Field(default=True, description="Incluir análise de correlações")
+    force_refresh: bool = Field(default=False, description="Forçar nova análise (ignorar cache)")
     reference_baseline: dict[str, float] | None = Field(
         None, description="Baseline personalizado para comparação"
     )
@@ -300,14 +251,10 @@ class BatchImpactAnalysisRequest(BaseModel):
     """Request for batch impact analysis."""
 
     experiment_ids: list[str] = Field(
-        ...,
-        min_length=1,
-        max_length=50,
-        description="IDs dos experimentos para analisar"
+        ..., min_length=1, max_length=50, description="IDs dos experimentos para analisar"
     )
     timeframes: list[ImpactTimeframe] = Field(
-        default_factory=lambda: [ImpactTimeframe.SHORT_TERM],
-        description="Timeframes para analisar"
+        default_factory=lambda: [ImpactTimeframe.SHORT_TERM], description="Timeframes para analisar"
     )
 
 

@@ -5,12 +5,14 @@ Cobertura: versão leve sem Presidio, detecção via regex, compatibilidade de i
 anonymize_text, detect_pii.
 """
 
-import pytest
 from unittest.mock import patch
+
+import pytest
+
 from neural_hive_specialists.compliance.pii_detector import PIIDetectorLite
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestPIIDetectorLiteInitialization:
     """Testes de inicialização do PIIDetectorLite."""
 
@@ -40,11 +42,11 @@ class TestPIIDetectorLiteInitialization:
             assert detector.masker is None
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestPIIDetectorLiteDetectPII:
     """Testes do método detect_pii do PIIDetectorLite."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def detector(self):
         return PIIDetectorLite()
 
@@ -121,11 +123,11 @@ class TestPIIDetectorLiteDetectPII:
         assert len(result_en) >= 1
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestPIIDetectorLiteAnonymizeText:
     """Testes do método anonymize_text do PIIDetectorLite."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def detector(self):
         return PIIDetectorLite()
 
@@ -216,7 +218,7 @@ class TestPIIDetectorLiteAnonymizeText:
         assert isinstance(metadata, list)
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestPIIDetectorLiteIsEnabled:
     """Testes do método is_enabled."""
 
@@ -237,11 +239,11 @@ class TestPIIDetectorLiteIsEnabled:
             assert detector.is_enabled() is False
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestPIIDetectorLiteCompatibility:
     """Testes de compatibilidade com interface do PIIDetector."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def detector(self):
         return PIIDetectorLite()
 
@@ -274,11 +276,11 @@ class TestPIIDetectorLiteCompatibility:
             assert "score" in entity or "confidence" in entity
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestPIIDetectorLiteRealScenarios:
     """Testes de cenários reais com PIIDetectorLite."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def detector(self):
         return PIIDetectorLite()
 

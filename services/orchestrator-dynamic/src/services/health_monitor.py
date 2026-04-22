@@ -14,7 +14,7 @@ Métricas coletadas:
 import asyncio
 from contextlib import suppress
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 
@@ -22,7 +22,7 @@ import httpx
 import structlog
 from pydantic import BaseModel, Field, field_validator
 
-UTC = timezone.utc
+UTC = UTC
 logger = structlog.get_logger(__name__)
 
 

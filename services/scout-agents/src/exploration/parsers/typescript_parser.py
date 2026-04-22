@@ -6,7 +6,7 @@ Versão simplificada com regex patterns mais diretos.
 """
 
 import re
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 import structlog
 
@@ -25,10 +25,10 @@ class TypeScriptParser:
 
     def __init__(self):
         """Inicializa o TypeScriptParser."""
-        self._parsed_cache: Dict[str, Dict] = {}
+        self._parsed_cache: dict[str, dict] = {}
         self._parse_errors: set = set()
 
-    def parse(self, code: str, filename: str) -> Optional[Dict[str, Any]]:
+    def parse(self, code: str, filename: str) -> Optional[dict[str, Any]]:
         """
         Faz parsing de código TypeScript.
 
@@ -72,7 +72,7 @@ class TypeScriptParser:
             self._parse_errors.add(filename)
             return None
 
-    def _parse_with_esprima(self, code: str, filename: str) -> Dict[str, Any]:
+    def _parse_with_esprima(self, code: str, filename: str) -> dict[str, Any]:
         """Parse usando esprima (JavaScript AST parser)."""
         try:
             tree = esprima.parseScript(code, options={"tolerant": True, "jsx": True})
@@ -82,7 +82,7 @@ class TypeScriptParser:
         except Exception:
             return self._parse_with_regex(code, filename)
 
-    def _extract_from_esprima_tree(self, tree: Dict, code: str) -> Dict[str, Any]:
+    def _extract_from_esprima_tree(self, tree: dict, code: str) -> dict[str, Any]:
         """Extrai informações da AST do esprima."""
         result = {
             "classes": [],
@@ -163,7 +163,7 @@ class TypeScriptParser:
         traverse(tree)
         return result
 
-    def _parse_with_regex(self, code: str, filename: str) -> Dict[str, Any]:
+    def _parse_with_regex(self, code: str, filename: str) -> dict[str, Any]:
         """Parse baseado em regex."""
         # Detectar erros de sintaxe óbvios
         if self._has_syntax_errors(code):
@@ -226,7 +226,7 @@ class TypeScriptParser:
 
         return False
 
-    def _extract_classes(self, code: str) -> List[Dict]:
+    def _extract_classes(self, code: str) -> list[dict]:
         """Extrai classes."""
         classes = []
 
@@ -266,7 +266,7 @@ class TypeScriptParser:
 
         return classes
 
-    def _extract_functions(self, code: str) -> List[Dict]:
+    def _extract_functions(self, code: str) -> list[dict]:
         """Extrai funções."""
         functions = []
 
@@ -363,7 +363,7 @@ class TypeScriptParser:
 
         return functions
 
-    def _extract_interfaces(self, code: str) -> List[Dict]:
+    def _extract_interfaces(self, code: str) -> list[dict]:
         """Extrai interfaces."""
         interfaces = []
         pattern = r"interface\s+(\w+)(?:\s*<[^>]+>)?(?:\s+extends\s+([^{]+))?\s*\{"
@@ -383,7 +383,7 @@ class TypeScriptParser:
 
         return interfaces
 
-    def _extract_enums(self, code: str) -> List[Dict]:
+    def _extract_enums(self, code: str) -> list[dict]:
         """Extrai enums."""
         enums = []
         pattern = r"(?:const\s+)?enum\s+(\w+)\s*\{"
@@ -393,7 +393,7 @@ class TypeScriptParser:
 
         return enums
 
-    def _extract_type_aliases(self, code: str) -> List[Dict]:
+    def _extract_type_aliases(self, code: str) -> list[dict]:
         """Extrai type aliases."""
         aliases = []
         pattern = r"type\s+(\w+)\s*="
@@ -405,7 +405,7 @@ class TypeScriptParser:
 
         return aliases
 
-    def _extract_namespaces(self, code: str) -> List[Dict]:
+    def _extract_namespaces(self, code: str) -> list[dict]:
         """Extrai namespaces."""
         namespaces = []
         pattern = r"(?:export\s+)?namespace\s+(\w+(?:\.\w+)*)\s*\{"
@@ -417,7 +417,7 @@ class TypeScriptParser:
 
         return namespaces
 
-    def _extract_imports(self, code: str) -> List[Dict]:
+    def _extract_imports(self, code: str) -> list[dict]:
         """Extrai imports."""
         imports = []
 

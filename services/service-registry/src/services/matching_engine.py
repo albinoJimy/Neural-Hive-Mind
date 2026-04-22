@@ -1,9 +1,9 @@
-from typing import Dict, List, Optional
+from typing import Optional
 
 import structlog
 from opentelemetry import trace
 from prometheus_client import REGISTRY, Counter, Histogram
-from src.clients import RedisRegistryClient, PheromoneClient
+from src.clients import PheromoneClient, RedisRegistryClient
 from src.models import AgentInfo, AgentStatus, AgentType
 
 logger = structlog.get_logger()
@@ -59,11 +59,11 @@ class MatchingEngine:
     @discovery_duration_seconds.time()
     async def match_agents(
         self,
-        capabilities_required: List[str],
-        filters: Optional[Dict[str, str]] = None,
+        capabilities_required: list[str],
+        filters: Optional[dict[str, str]] = None,
         max_results: int = 5,
         agent_type: Optional[AgentType] = None,
-    ) -> List[AgentInfo]:
+    ) -> list[AgentInfo]:
         """
         Descobre agentes baseado em capabilities e retorna lista ranqueada.
 
@@ -136,8 +136,8 @@ class MatchingEngine:
                 raise
 
     def _filter_by_capabilities(
-        self, agents: List[AgentInfo], required_capabilities: List[str]
-    ) -> List[AgentInfo]:
+        self, agents: list[AgentInfo], required_capabilities: list[str]
+    ) -> list[AgentInfo]:
         """Filtra agentes que possuem todas as capabilities requeridas"""
         required_set = set(required_capabilities)
         filtered = []
@@ -158,7 +158,7 @@ class MatchingEngine:
 
         return filtered
 
-    async def _rank_agents(self, agents: List[AgentInfo]) -> List[AgentInfo]:
+    async def _rank_agents(self, agents: list[AgentInfo]) -> list[AgentInfo]:
         """
         Ranqueia agentes baseado em score composto.
 

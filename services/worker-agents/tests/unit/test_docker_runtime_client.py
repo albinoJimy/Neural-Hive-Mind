@@ -12,11 +12,12 @@ Cobertura:
 """
 
 import asyncio
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
 
-@pytest.fixture
+
+@pytest.fixture()
 def docker_client():
     """Fixture para DockerRuntimeClient."""
     from clients.docker_runtime_client import DockerRuntimeClient
@@ -31,7 +32,7 @@ def docker_client():
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def execution_request():
     """Fixture para DockerExecutionRequest."""
     from clients.docker_runtime_client import (
@@ -109,7 +110,7 @@ class TestMemoryParsing:
 class TestDockerInitialization:
     """Testes de inicialização da conexão Docker."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_initialize_success(self, docker_client):
         """Deve inicializar conexão com sucesso."""
         mock_docker = MagicMock()
@@ -121,7 +122,7 @@ class TestDockerInitialization:
             assert docker_client._initialized is True
             mock_docker.version.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_initialize_import_error(self, docker_client):
         """Deve tratar erro de import."""
         from clients.docker_runtime_client import DockerRuntimeError
@@ -133,7 +134,7 @@ class TestDockerInitialization:
 
                 assert "aiodocker" in str(exc_info.value)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_initialize_connection_error(self, docker_client):
         """Deve tratar erro de conexão."""
         from clients.docker_runtime_client import DockerRuntimeError
@@ -148,7 +149,7 @@ class TestDockerInitialization:
 class TestImagePull:
     """Testes de pull de imagens."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_pull_image_already_exists(self, docker_client):
         """Deve retornar False se imagem já existe."""
         mock_images = MagicMock()
@@ -165,7 +166,7 @@ class TestImagePull:
         assert result is False
         mock_images.inspect.assert_called_once_with("python:3.11-slim")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_pull_image_not_exists(self, docker_client):
         """Deve fazer pull se imagem não existe."""
         mock_images = MagicMock()
@@ -187,7 +188,7 @@ class TestImagePull:
 class TestCommandExecution:
     """Testes de execução de comandos."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_success(self, docker_client, execution_request):
         """Deve executar comando com sucesso."""
         mock_container = MagicMock()
@@ -218,7 +219,7 @@ class TestCommandExecution:
         assert result.container_id == "abc123def456"[:12]
         assert result.duration_ms > 0
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_with_env_vars(self, docker_client):
         """Deve passar variáveis de ambiente."""
         from clients.docker_runtime_client import DockerExecutionRequest
@@ -258,7 +259,7 @@ class TestCommandExecution:
         config = create_call[0][0]
         assert "TEST_VAR=test_value" in config["Env"]
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_nonzero_exit(self, docker_client, execution_request):
         """Deve capturar exit code diferente de zero."""
         mock_container = MagicMock()
@@ -291,7 +292,7 @@ class TestCommandExecution:
 class TestExecutionTimeout:
     """Testes de timeout de execução."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_timeout(self, docker_client):
         """Deve levantar timeout quando container demora demais."""
         from clients.docker_runtime_client import (
@@ -332,7 +333,7 @@ class TestExecutionTimeout:
 class TestContainerCleanup:
     """Testes de cleanup de containers."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_cleanup_on_success(self, docker_client, execution_request):
         """Deve remover container após execução bem-sucedida."""
         mock_container = MagicMock()
@@ -360,7 +361,7 @@ class TestContainerCleanup:
 
         mock_container.delete.assert_called_once_with(force=True)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_cleanup_on_failure(self, docker_client, execution_request):
         """Deve remover container mesmo após falha."""
         mock_container = MagicMock()
@@ -389,7 +390,7 @@ class TestContainerCleanup:
 
         mock_container.delete.assert_called_once_with(force=True)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_no_cleanup_when_disabled(self, execution_request):
         """Não deve remover container quando cleanup desabilitado."""
         from clients.docker_runtime_client import DockerRuntimeClient
@@ -425,7 +426,7 @@ class TestContainerCleanup:
 class TestHealthCheck:
     """Testes de health check."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_health_check_success(self, docker_client):
         """Deve retornar True quando Docker daemon está acessível."""
         mock_docker = MagicMock()
@@ -437,7 +438,7 @@ class TestHealthCheck:
 
         assert result is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_health_check_failure(self, docker_client):
         """Deve retornar False quando Docker daemon não está acessível."""
         mock_docker = MagicMock()
@@ -449,7 +450,7 @@ class TestHealthCheck:
 
         assert result is False
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_health_check_not_initialized(self, docker_client):
         """Deve retornar False quando cliente não inicializado."""
         docker_client._docker = None
@@ -462,7 +463,7 @@ class TestHealthCheck:
 class TestMetricsRecording:
     """Testes de registro de métricas."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_metrics_recorded_on_success(self, docker_client, execution_request):
         """Deve registrar métricas em execução bem-sucedida."""
         mock_metrics = MagicMock()
@@ -500,7 +501,7 @@ class TestMetricsRecording:
 class TestClientClose:
     """Testes de fechamento do cliente."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_close_client(self, docker_client):
         """Deve fechar cliente Docker."""
         mock_docker = MagicMock()

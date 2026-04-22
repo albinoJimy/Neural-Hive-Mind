@@ -2,7 +2,7 @@ import asyncio
 import json
 import os
 import time
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 import grpc
 import structlog
@@ -365,7 +365,7 @@ class PlanConsumer:
 
         for attempt in range(max_retries):
             try:
-                with open(schema_path, "r") as f:
+                with open(schema_path) as f:
                     schema_str = f.read()
                 logger.info(
                     "Schema Avro carregado com sucesso", path=schema_path, attempt=attempt + 1
@@ -810,7 +810,7 @@ class PlanConsumer:
             # Não commitar offset em caso de erro (permitir retry)
             raise
 
-    async def _invoke_specialists(self, cognitive_plan: Dict[str, Any]):
+    async def _invoke_specialists(self, cognitive_plan: dict[str, Any]):
         """Invoca todos os especialistas em paralelo via gRPC"""
         logger.info("Invocando especialistas", plan_id=cognitive_plan["plan_id"])
 

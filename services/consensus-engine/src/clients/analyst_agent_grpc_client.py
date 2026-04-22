@@ -1,7 +1,7 @@
 """Cliente gRPC para comunicação com Analyst Agent"""
 
 import asyncio
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Optional
 
 import grpc
 import structlog
@@ -121,7 +121,7 @@ class AnalystAgentGrpcClient:
         except asyncio.TimeoutError:
             logger.warning("analyst_agent_grpc_channel_ready_timeout", endpoint=endpoint)
 
-    async def _get_grpc_metadata(self) -> List[Tuple[str, str]]:
+    async def _get_grpc_metadata(self) -> list[tuple[str, str]]:
         """Obter metadata gRPC com JWT-SVID para autenticação"""
         spiffe_enabled = getattr(self.config, "spiffe_enabled", False)
 
@@ -154,14 +154,14 @@ class AnalystAgentGrpcClient:
         title: str,
         summary: str,
         detailed_analysis: str = "",
-        data_sources: Optional[List[str]] = None,
-        metrics: Optional[Dict[str, float]] = None,
+        data_sources: Optional[list[str]] = None,
+        metrics: Optional[dict[str, float]] = None,
         correlation_id: str = "",
-        related_entities: Optional[List[Dict[str, str]]] = None,
-        tags: Optional[List[str]] = None,
-        metadata: Optional[Dict[str, str]] = None,
+        related_entities: Optional[list[dict[str, str]]] = None,
+        tags: Optional[list[str]] = None,
+        metadata: Optional[dict[str, str]] = None,
         persist_to_neo4j: bool = False,
-    ) -> Optional[Dict[str, Any]]:
+    ) -> Optional[dict[str, Any]]:
         """Solicitar geração de insight ao Analyst Agent"""
         if not self.stub:
             logger.warning("analyst_agent_stub_not_initialized")
@@ -251,7 +251,7 @@ class AnalystAgentGrpcClient:
         offset: int = 0,
         use_graph_enrichment: bool = False,
         related_entity_id: str = "",
-    ) -> Optional[Dict[str, Any]]:
+    ) -> Optional[dict[str, Any]]:
         """Consultar insights com filtros"""
         if not self.stub:
             logger.warning("analyst_agent_stub_not_initialized")
@@ -313,8 +313,8 @@ class AnalystAgentGrpcClient:
         return None
 
     async def execute_analysis(
-        self, analysis_type: str, parameters: Optional[Dict[str, str]] = None
-    ) -> Optional[Dict[str, Any]]:
+        self, analysis_type: str, parameters: Optional[dict[str, str]] = None
+    ) -> Optional[dict[str, Any]]:
         """Executar análise ad-hoc"""
         if not self.stub:
             logger.warning("analyst_agent_stub_not_initialized")
@@ -358,7 +358,7 @@ class AnalystAgentGrpcClient:
 
         return None
 
-    async def get_insight(self, insight_id: str) -> Optional[Dict[str, Any]]:
+    async def get_insight(self, insight_id: str) -> Optional[dict[str, Any]]:
         """Buscar insight por ID"""
         if not self.stub:
             logger.warning("analyst_agent_stub_not_initialized")
@@ -408,7 +408,7 @@ class AnalystAgentGrpcClient:
 
         return None
 
-    async def health_check(self) -> Dict[str, Any]:
+    async def health_check(self) -> dict[str, Any]:
         """Verificar saúde do Analyst Agent"""
         if not self.stub:
             return {"status": "NOT_SERVING", "error": "Stub não inicializado"}

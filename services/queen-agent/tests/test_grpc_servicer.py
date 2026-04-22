@@ -8,13 +8,12 @@ Testa os seguintes métodos:
 - GetActiveConflicts: conflitos ativos no Neo4j
 """
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
-import grpc
 
+import grpc
+import pytest
 from src.grpc_server.queen_servicer import QueenAgentServicer
 from src.proto import queen_agent_pb2
-
 
 # =============================================================================
 # MOCK DE MÉTRICAS - nível módulo
@@ -145,7 +144,7 @@ def mock_metrics():
             yield mock
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_metrics():
     """Mock das métricas Prometheus"""
 
@@ -197,7 +196,7 @@ def mock_metrics():
     return metrics
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_clients():
     """Mock dos clientes"""
     mongodb = AsyncMock()
@@ -217,7 +216,7 @@ def mock_clients():
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def servicer(mock_clients):
     """Instância do servicer com mocks"""
     return QueenAgentServicer(
@@ -228,7 +227,7 @@ def servicer(mock_clients):
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_context():
     """Mock do contexto gRPC"""
     context = MagicMock()
@@ -243,7 +242,7 @@ def mock_context():
 # =============================================================================
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_get_strategic_decision_success(servicer, mock_clients, mock_context):
     """Testa busca de decisão estratégica por ID com sucesso"""
     mock_decision = {
@@ -271,7 +270,7 @@ async def test_get_strategic_decision_success(servicer, mock_clients, mock_conte
     mock_context.set_code.assert_not_called()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_get_strategic_decision_not_found(servicer, mock_clients, mock_context):
     """Testa busca de decisão não encontrada"""
     mock_clients["mongodb"].get_strategic_decision.return_value = None
@@ -284,7 +283,7 @@ async def test_get_strategic_decision_not_found(servicer, mock_clients, mock_con
     assert response.decision_id == ""
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_get_strategic_decision_internal_error(servicer, mock_clients, mock_context):
     """Testa erro interno ao buscar decisão"""
     mock_clients["mongodb"].get_strategic_decision.side_effect = Exception(
@@ -299,7 +298,7 @@ async def test_get_strategic_decision_internal_error(servicer, mock_clients, moc
     assert response.decision_id == ""
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_get_strategic_decision_partial_data(servicer, mock_clients, mock_context):
     """Testa decisão com dados parciais (campos faltando)"""
     mock_decision = {
@@ -328,7 +327,7 @@ async def test_get_strategic_decision_partial_data(servicer, mock_clients, mock_
 # =============================================================================
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_list_strategic_decisions_success(servicer, mock_clients, mock_context):
     """Testa listagem de decisões com sucesso"""
     mock_decisions = [
@@ -366,7 +365,7 @@ async def test_list_strategic_decisions_success(servicer, mock_clients, mock_con
     mock_context.set_code.assert_not_called()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_list_strategic_decisions_with_filters(servicer, mock_clients, mock_context):
     """Testa listagem com filtros de tipo e data"""
     mock_decisions = [
@@ -402,7 +401,7 @@ async def test_list_strategic_decisions_with_filters(servicer, mock_clients, moc
     mock_context.set_code.assert_not_called()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_list_strategic_decisions_pagination(servicer, mock_clients, mock_context):
     """Testa paginação com limit e offset"""
     mock_decisions = [
@@ -427,7 +426,7 @@ async def test_list_strategic_decisions_pagination(servicer, mock_clients, mock_
     assert call_args.kwargs["skip"] == 40
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_list_strategic_decisions_default_limit(servicer, mock_clients, mock_context):
     """Testa limite padrão de 50 quando não especificado"""
     mock_clients["mongodb"].list_strategic_decisions.return_value = []
@@ -441,7 +440,7 @@ async def test_list_strategic_decisions_default_limit(servicer, mock_clients, mo
     assert call_args.kwargs["skip"] == 0
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_list_strategic_decisions_empty(servicer, mock_clients, mock_context):
     """Testa listagem vazia"""
     mock_clients["mongodb"].list_strategic_decisions.return_value = []
@@ -455,7 +454,7 @@ async def test_list_strategic_decisions_empty(servicer, mock_clients, mock_conte
     mock_context.set_code.assert_not_called()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_list_strategic_decisions_internal_error(servicer, mock_clients, mock_context):
     """Testa erro interno ao listar decisões"""
     mock_clients["mongodb"].list_strategic_decisions.side_effect = Exception("Database timeout")
@@ -473,7 +472,7 @@ async def test_list_strategic_decisions_internal_error(servicer, mock_clients, m
 # =============================================================================
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_get_system_status_success(servicer, mock_clients, mock_context):
     """Testa obtenção de status do sistema com sucesso"""
     mock_health = {
@@ -498,7 +497,7 @@ async def test_get_system_status_success(servicer, mock_clients, mock_context):
     mock_context.set_code.assert_not_called()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_get_system_status_default_values(servicer, mock_clients, mock_context):
     """Testa valores padrão quando TelemetryAggregator retorna dados parciais"""
     mock_health = {
@@ -520,7 +519,7 @@ async def test_get_system_status_default_values(servicer, mock_clients, mock_con
     mock_context.set_code.assert_not_called()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_get_system_status_internal_error(servicer, mock_clients, mock_context):
     """Testa erro ao agregar métricas do sistema"""
     mock_clients["telemetry_aggregator"].aggregate_system_health.side_effect = Exception(
@@ -535,7 +534,7 @@ async def test_get_system_status_internal_error(servicer, mock_clients, mock_con
     assert response.system_score == 0.0
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_get_system_status_critical_values(servicer, mock_clients, mock_context):
     """Testa status do sistema com valores críticos"""
     mock_health = {
@@ -564,7 +563,7 @@ async def test_get_system_status_critical_values(servicer, mock_clients, mock_co
 # =============================================================================
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_get_active_conflicts_success(servicer, mock_clients, mock_context):
     """Testa obtenção de conflitos ativos com sucesso"""
     # Configurar mock do Neo4j client
@@ -595,7 +594,7 @@ async def test_get_active_conflicts_success(servicer, mock_clients, mock_context
     mock_context.set_details.assert_not_called()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_get_active_conflicts_empty(servicer, mock_clients, mock_context):
     """Testa obtenção quando não há conflitos"""
     mock_clients["neo4j"].list_active_conflicts.return_value = []
@@ -607,7 +606,7 @@ async def test_get_active_conflicts_empty(servicer, mock_clients, mock_context):
     mock_context.set_code.assert_not_called()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_get_active_conflicts_handles_exception(servicer, mock_clients, mock_context):
     """Testa tratamento de exceção"""
     # Simular exceção no Neo4j
@@ -624,7 +623,7 @@ async def test_get_active_conflicts_handles_exception(servicer, mock_clients, mo
     mock_context.set_details.assert_called_once()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_get_active_conflicts_handles_partial_data(servicer, mock_clients, mock_context):
     """Testa tratamento de dados parciais"""
     # Conflitos com campos faltando

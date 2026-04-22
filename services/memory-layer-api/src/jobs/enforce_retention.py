@@ -11,9 +11,9 @@ As políticas são carregadas do arquivo YAML montado em /etc/memory-layer/polic
 import asyncio
 import os
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 import structlog
 import yaml
@@ -32,7 +32,7 @@ logger = structlog.get_logger(__name__)
 DEFAULT_RETENTION_POLICY_PATH = "/etc/memory-layer/policies/retention-policy.yaml"
 
 
-def load_retention_policy(policy_path: Optional[str] = None) -> Dict[str, Any]:
+def load_retention_policy(policy_path: Optional[str] = None) -> dict[str, Any]:
     """
     Carrega políticas de retenção do arquivo YAML
 
@@ -55,7 +55,7 @@ def load_retention_policy(policy_path: Optional[str] = None) -> Dict[str, Any]:
         return get_default_retention_policy()
 
     try:
-        with open(policy_file, "r") as f:
+        with open(policy_file) as f:
             policy = yaml.safe_load(f)
             logger.info("Política de retenção carregada do arquivo", path=policy_path)
             return policy
@@ -68,7 +68,7 @@ def load_retention_policy(policy_path: Optional[str] = None) -> Dict[str, Any]:
         return get_default_retention_policy()
 
 
-def get_default_retention_policy() -> Dict[str, Any]:
+def get_default_retention_policy() -> dict[str, Any]:
     """Retorna política de retenção padrão como fallback"""
     return {
         "version": "1.0",
@@ -85,7 +85,7 @@ def get_default_retention_policy() -> Dict[str, Any]:
 class RetentionEnforcer:
     """Aplicador de políticas de retenção"""
 
-    def __init__(self, settings: Settings, policy: Optional[Dict[str, Any]] = None):
+    def __init__(self, settings: Settings, policy: Optional[dict[str, Any]] = None):
         self.settings = settings
         self.dry_run = os.getenv("RETENTION_DRY_RUN", "false").lower() == "true"
         self.mongodb_client = None
@@ -144,7 +144,7 @@ class RetentionEnforcer:
         """
         logger.info("Aplicando retenção no MongoDB...")
 
-        cutoff_date = datetime.now(timezone.utc) - timedelta(days=self.mongodb_retention_days)
+        cutoff_date = datetime.now(UTC) - timedelta(days=self.mongodb_retention_days)
 
         collections = ["operational_context", "data_lineage", "data_quality_metrics"]
 
@@ -178,7 +178,7 @@ class RetentionEnforcer:
 
         # Neo4j mantém dados semânticos de longo prazo
         # Apenas remove nós marcados como temporários e expirados
-        cutoff_timestamp = int((datetime.now(timezone.utc) - timedelta(days=90)).timestamp())
+        cutoff_timestamp = int((datetime.now(UTC) - timedelta(days=90)).timestamp())
 
         query = """
         MATCH (n)
@@ -215,7 +215,7 @@ class RetentionEnforcer:
         """
         logger.info("Aplicando retenção no ClickHouse...")
 
-        cutoff_date = datetime.now(timezone.utc) - timedelta(
+        cutoff_date = datetime.now(UTC) - timedelta(
             days=self.clickhouse_retention_months * 30
         )
         database = self.clickhouse_client.database

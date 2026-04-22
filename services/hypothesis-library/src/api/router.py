@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
 
 from src.api.hypotheses_routes import router as hypotheses_router
-from src.config.settings import get_settings, Settings
+from src.config.settings import Settings, get_settings
 from src.services.hypothesis_service import HypothesisService
 
 # Router principal
@@ -24,6 +24,7 @@ api_router.include_router(
 async def get_hypothesis_service() -> HypothesisService:
     """Obtém instância do HypothesisService."""
     from src.main import hypothesis_service
+
     return hypothesis_service
 
 

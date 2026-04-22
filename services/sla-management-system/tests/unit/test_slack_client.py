@@ -2,19 +2,19 @@
 Testes unitários para SlackClient.
 """
 
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
+import pytest
 from src.clients.slack_client import SlackClient, SlackMessage
 
 
-@pytest.fixture
+@pytest.fixture()
 def slack_webhook_url():
     """Webhook URL para testes."""
     return "https://hooks.slack.com/services/TEST/TEST/TEST"
 
 
-@pytest.fixture
+@pytest.fixture()
 def slack_client(slack_webhook_url):
     """Cliente Slack para testes."""
     return SlackClient(webhook_url=slack_webhook_url)
@@ -23,7 +23,7 @@ def slack_client(slack_webhook_url):
 class TestSlackClient:
     """Testes para SlackClient."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_send_message_simple(self, slack_client):
         """Testa envio de mensagem simples."""
         # Setup
@@ -42,7 +42,7 @@ class TestSlackClient:
         call_args = slack_client.session.post.call_args
         assert call_args.kwargs["json"]["text"] == "Test message"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_send_message_with_blocks(self, slack_client):
         """Testa envio de mensagem com blocks."""
         # Setup
@@ -70,7 +70,7 @@ class TestSlackClient:
         payload = call_args.kwargs["json"]
         assert payload["blocks"] == blocks
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_send_message_with_attachments(self, slack_client):
         """Testa envio de mensagem com attachments."""
         # Setup
@@ -93,24 +93,23 @@ class TestSlackClient:
         payload = call_args.kwargs["json"]
         assert payload["attachments"] == attachments
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_send_message_http_error(self, slack_client):
         """Testa retry em caso de erro HTTP."""
         # Setup - criar HTTPStatusError real que será retry pelo tenacity
         import httpx
+
         slack_client.session = AsyncMock()
         response_mock = MagicMock()
         response_mock.status_code = 500
-        http_error = httpx.HTTPStatusError(
-            "500 Error", request=MagicMock(), response=response_mock
-        )
+        http_error = httpx.HTTPStatusError("500 Error", request=MagicMock(), response=response_mock)
         slack_client.session.post.side_effect = http_error
 
         # Act & Assert - após 3 retries, erro deve ser lançado
         with pytest.raises(httpx.HTTPStatusError):
             await slack_client.send_message("Test")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_send_message_no_webhook_url(self):
         """Testa erro quando não há webhook URL."""
         # Setup
@@ -120,7 +119,7 @@ class TestSlackClient:
         with pytest.raises(ValueError, match="Slack webhook URL is required"):
             await client.send_message("Test")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_send_sla_alert_message(self, slack_client):
         """Testa formatação de alerta SLA."""
         # Setup
@@ -146,13 +145,13 @@ class TestSlackClient:
         assert result is True
         call_args = slack_client.session.post.call_args
         payload = call_args.kwargs["json"]
-        
+
         # Verificar estrutura da mensagem
         blocks = payload.get("blocks", [])
         assert len(blocks) > 0
         assert any("SLA Violation" in str(block) for block in blocks)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_connect_and_disconnect(self, slack_client):
         """Testa conexão e desconexão."""
         # Act - Connect
@@ -163,7 +162,7 @@ class TestSlackClient:
         await slack_client.disconnect()
         assert slack_client.session is None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_send_message_with_custom_channel(self, slack_client):
         """Testa envio para canal customizado."""
         # Setup

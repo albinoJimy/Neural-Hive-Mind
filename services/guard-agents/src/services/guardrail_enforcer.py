@@ -8,8 +8,7 @@ Responsável por:
 - Guardrails de custo (resource limits, cost thresholds)
 """
 
-from datetime import datetime, timezone
-from typing import List
+from datetime import UTC, datetime
 
 import structlog
 
@@ -64,7 +63,7 @@ class GuardrailEnforcer:
         self.redis_client = redis_client
         self.mode = mode  # BLOCKING ou ADVISORY
 
-    async def enforce_guardrails(self, ticket: dict) -> List[GuardrailViolation]:
+    async def enforce_guardrails(self, ticket: dict) -> list[GuardrailViolation]:
         """
         Enforça todos os guardrails no ticket.
 
@@ -79,7 +78,7 @@ class GuardrailEnforcer:
 
         with tracer.start_as_current_span("enforce_guardrails") as span:
             span.set_attribute("neural.hive.ticket.id", ticket_id)
-            violations: List[GuardrailViolation] = []
+            violations: list[GuardrailViolation] = []
 
             # 1. Ethical AI Guardrails
             violations.extend(await self._check_bias_risk(ticket))
@@ -120,7 +119,7 @@ class GuardrailEnforcer:
 
     # ===== ETHICAL AI GUARDRAILS =====
 
-    async def _check_bias_risk(self, ticket: dict) -> List[GuardrailViolation]:
+    async def _check_bias_risk(self, ticket: dict) -> list[GuardrailViolation]:
         """
         Verifica risco de bias em modelos ML.
 
@@ -167,7 +166,7 @@ class GuardrailEnforcer:
 
         return violations
 
-    async def _check_privacy_compliance(self, ticket: dict) -> List[GuardrailViolation]:
+    async def _check_privacy_compliance(self, ticket: dict) -> list[GuardrailViolation]:
         """
         Valida compliance com GDPR/LGPD para dados pessoais.
 
@@ -222,7 +221,7 @@ class GuardrailEnforcer:
 
         return violations
 
-    async def _check_explainability(self, ticket: dict) -> List[GuardrailViolation]:
+    async def _check_explainability(self, ticket: dict) -> list[GuardrailViolation]:
         """
         Requer explicabilidade para decisões críticas.
 
@@ -265,7 +264,7 @@ class GuardrailEnforcer:
 
     # ===== COMPLIANCE GUARDRAILS =====
 
-    async def _check_data_residency(self, ticket: dict) -> List[GuardrailViolation]:
+    async def _check_data_residency(self, ticket: dict) -> list[GuardrailViolation]:
         """
         Valida data residency requirements.
 
@@ -300,7 +299,7 @@ class GuardrailEnforcer:
 
         return violations
 
-    async def _check_audit_trail(self, ticket: dict) -> List[GuardrailViolation]:
+    async def _check_audit_trail(self, ticket: dict) -> list[GuardrailViolation]:
         """
         Garante auditabilidade de ações críticas.
 
@@ -339,7 +338,7 @@ class GuardrailEnforcer:
 
         return violations
 
-    async def _check_encryption(self, ticket: dict) -> List[GuardrailViolation]:
+    async def _check_encryption(self, ticket: dict) -> list[GuardrailViolation]:
         """
         Valida encryption at rest/in transit para dados sensíveis.
 
@@ -398,7 +397,7 @@ class GuardrailEnforcer:
 
     # ===== OPERATIONAL GUARDRAILS =====
 
-    async def _check_blast_radius(self, ticket: dict) -> List[GuardrailViolation]:
+    async def _check_blast_radius(self, ticket: dict) -> list[GuardrailViolation]:
         """
         Limita blast radius de mudanças.
 
@@ -438,7 +437,7 @@ class GuardrailEnforcer:
 
         return violations
 
-    async def _check_rollback_plan(self, ticket: dict) -> List[GuardrailViolation]:
+    async def _check_rollback_plan(self, ticket: dict) -> list[GuardrailViolation]:
         """
         Requer rollback plan para mudanças de alto risco.
 
@@ -476,7 +475,7 @@ class GuardrailEnforcer:
 
         return violations
 
-    async def _check_testing_coverage(self, ticket: dict) -> List[GuardrailViolation]:
+    async def _check_testing_coverage(self, ticket: dict) -> list[GuardrailViolation]:
         """
         Valida que testes foram executados antes de deploy.
 
@@ -531,7 +530,7 @@ class GuardrailEnforcer:
 
     # ===== COST GUARDRAILS =====
 
-    async def _check_resource_limits(self, ticket: dict) -> List[GuardrailViolation]:
+    async def _check_resource_limits(self, ticket: dict) -> list[GuardrailViolation]:
         """
         Valida resource requests/limits.
 
@@ -594,7 +593,7 @@ class GuardrailEnforcer:
 
         return violations
 
-    async def _check_cost_threshold(self, ticket: dict) -> List[GuardrailViolation]:
+    async def _check_cost_threshold(self, ticket: dict) -> list[GuardrailViolation]:
         """
         Bloqueia mudanças que excedem budget threshold.
 
@@ -632,7 +631,7 @@ class GuardrailEnforcer:
         return violations
 
     async def _persist_violations(
-        self, ticket_id: str, violations: List[GuardrailViolation]
+        self, ticket_id: str, violations: list[GuardrailViolation]
     ) -> None:
         """
         Persiste violations no MongoDB para análise de tendências.
@@ -647,7 +646,7 @@ class GuardrailEnforcer:
             for violation in violations:
                 document = violation.to_dict()
                 document["ticket_id"] = ticket_id
-                document["created_at"] = datetime.now(timezone.utc).isoformat()
+                document["created_at"] = datetime.now(UTC).isoformat()
 
                 await collection.insert_one(document)
 

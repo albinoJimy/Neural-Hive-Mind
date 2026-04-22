@@ -1,7 +1,7 @@
 import asyncio
 import time
 import uuid
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 import structlog
 
@@ -219,7 +219,7 @@ class TemplateSelector:
 
         return min(complexity, 1.0)
 
-    def _map_tools_to_generation_method(self, selected_tools: List[Dict]) -> str:
+    def _map_tools_to_generation_method(self, selected_tools: list[dict]) -> str:
         """
         Mapeia ferramentas selecionadas para GenerationMethod.
 
@@ -257,7 +257,7 @@ class TemplateSelector:
         else:
             return "HEURISTIC"
 
-    async def _load_and_index_templates(self, criteria: Dict[str, Any]):
+    async def _load_and_index_templates(self, criteria: dict[str, Any]):
         """
         Carrega templates do repositório Git e indexa no TemplateRegistry.
 
@@ -421,7 +421,7 @@ class TemplateSelector:
             examples={},
         )
 
-    def _create_fallback_template(self, criteria: Dict[str, Any]) -> Template:
+    def _create_fallback_template(self, criteria: dict[str, Any]) -> Template:
         """
         Cria template genérico baseado nos critérios quando nenhum template é encontrado.
 

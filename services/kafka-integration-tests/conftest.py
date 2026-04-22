@@ -3,8 +3,9 @@
 import asyncio
 import json
 import uuid
-from datetime import datetime, timezone
-from typing import Any, AsyncGenerator
+from collections.abc import AsyncGenerator
+from datetime import UTC, datetime
+from typing import Any
 
 import pytest
 from aiokafka import AIOKafkaConsumer, AIOKafkaProducer
@@ -38,7 +39,7 @@ async def kafka_bootstrap_servers() -> AsyncGenerator[str, None]:
     """Retorna endereço do Kafka para testes."""
     # Em produção, verificaríamos se Kafka está rodando
     # Para testes locais, assume localhost:9092
-    yield KAFKA_BOOTSTRAP_SERVERS
+    return KAFKA_BOOTSTRAP_SERVERS
 
 
 @pytest.fixture(scope="function")
@@ -92,7 +93,7 @@ async def kafka_consumer(kafka_bootstrap_servers: str) -> AsyncGenerator[AIOKafk
     await consumer.stop()
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_cognitive_plan() -> dict[str, Any]:
     """Retorna um plano cognitivo de exemplo."""
     return {
@@ -108,11 +109,11 @@ def sample_cognitive_plan() -> dict[str, Any]:
             "domain_backend": 0.8,
             "action_create": 0.9,
         },
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_hypothesis() -> dict[str, Any]:
     """Retorna uma hipótese de exemplo."""
     return {
@@ -124,11 +125,11 @@ def sample_hypothesis() -> dict[str, Any]:
         },
         "source": "optimizer_agent",
         "priority": "high",
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_experiment_completed() -> dict[str, Any]:
     """Retorna um experimento completado de exemplo."""
     return {
@@ -140,11 +141,11 @@ def sample_experiment_completed() -> dict[str, Any]:
             "latency_p95": 120,
             "throughput": 1000,
         },
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_inference_request() -> dict[str, Any]:
     """Retorna uma requisição de inferência de exemplo."""
     return {
@@ -157,13 +158,14 @@ def sample_inference_request() -> dict[str, Any]:
             "feature_2": "text_input",
             "categorical_feature": "category_a",
         },
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
     }
 
 
 @pytest.fixture(scope="function")
 async def consume_from_topic(kafka_consumer: AIOKafkaConsumer, kafka_bootstrap_servers: str):
     """Factory para consumer de um tópico específico."""
+
     async def _consume(topic: str, timeout_ms: int = 5000) -> list[dict[str, Any]]:
         """Consome mensagens de um tópico.
 
@@ -200,6 +202,7 @@ async def consume_from_topic(kafka_consumer: AIOKafkaConsumer, kafka_bootstrap_s
 @pytest.fixture(scope="function")
 async def publish_to_topic(kafka_producer: AIOKafkaProducer):
     """Factory para publicar em um tópico específico."""
+
     async def _publish(topic: str, message: dict[str, Any]) -> None:
         """Publica mensagem em um tópico.
 

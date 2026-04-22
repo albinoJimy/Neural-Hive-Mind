@@ -1,9 +1,10 @@
 """Testes para AutoApplier."""
 
-import pytest
 from unittest.mock import AsyncMock, patch
 
-from src.services.auto_applier import OptimizationApplier, SAFE_GUARD_PATTERNS
+import pytest
+
+from src.services.auto_applier import SAFE_GUARD_PATTERNS, OptimizationApplier
 
 
 @pytest.mark.asyncio

@@ -5,20 +5,22 @@ Este módulo testa o servidor gRPC completo com interceptor de autenticação,
 incluindo chamadas reais aos métodos gRPC e validação de Health Check bypass.
 """
 
-import pytest
-import grpc
-import jwt
 import time
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from unittest.mock import Mock
 
-from neural_hive_specialists.grpc_server import create_grpc_server_with_observability
+import grpc
+import jwt
+import pytest
+
 from neural_hive_specialists.config import SpecialistConfig
+from neural_hive_specialists.grpc_server import create_grpc_server_with_observability
 from neural_hive_specialists.metrics import SpecialistMetrics
 
 try:
-    from neural_hive_specialists.proto_gen import specialist_pb2, specialist_pb2_grpc
     from grpc_health.v1 import health_pb2, health_pb2_grpc
+
+    from neural_hive_specialists.proto_gen import specialist_pb2, specialist_pb2_grpc
 
     PROTO_AVAILABLE = True
 except ImportError:
@@ -112,42 +114,42 @@ def server(config, mock_specialist):
     grpc_server.stop(grace=1)
 
 
-@pytest.fixture
+@pytest.fixture()
 def valid_token(config):
     """Gera token JWT válido."""
     payload = {
         "sub": "consensus-engine",
         "service_type": "consensus-engine",
-        "iat": datetime.now(timezone.utc),
-        "exp": datetime.now(timezone.utc) + timedelta(hours=1),
+        "iat": datetime.now(UTC),
+        "exp": datetime.now(UTC) + timedelta(hours=1),
         "iss": config.jwt_issuer,
         "aud": config.jwt_audience,
     }
     return jwt.encode(payload, config.jwt_secret_key, algorithm=config.jwt_algorithm)
 
 
-@pytest.fixture
+@pytest.fixture()
 def expired_token(config):
     """Gera token JWT expirado."""
     payload = {
         "sub": "consensus-engine",
         "service_type": "consensus-engine",
-        "iat": datetime.now(timezone.utc) - timedelta(hours=2),
-        "exp": datetime.now(timezone.utc) - timedelta(hours=1),
+        "iat": datetime.now(UTC) - timedelta(hours=2),
+        "exp": datetime.now(UTC) - timedelta(hours=1),
         "iss": config.jwt_issuer,
         "aud": config.jwt_audience,
     }
     return jwt.encode(payload, config.jwt_secret_key, algorithm=config.jwt_algorithm)
 
 
-@pytest.fixture
+@pytest.fixture()
 def invalid_token(config):
     """Gera token JWT com assinatura inválida."""
     payload = {
         "sub": "consensus-engine",
         "service_type": "consensus-engine",
-        "iat": datetime.now(timezone.utc),
-        "exp": datetime.now(timezone.utc) + timedelta(hours=1),
+        "iat": datetime.now(UTC),
+        "exp": datetime.now(UTC) + timedelta(hours=1),
         "iss": config.jwt_issuer,
         "aud": config.jwt_audience,
     }

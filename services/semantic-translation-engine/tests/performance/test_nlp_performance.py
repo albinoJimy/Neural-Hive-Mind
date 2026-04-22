@@ -4,16 +4,17 @@ Testes de performance para NLP Processor
 Verifica latência e throughput das operações de extração NLP.
 """
 
-import pytest
-import time
 import statistics
+import time
 from unittest.mock import AsyncMock
+
+import pytest
 
 
 class TestNLPExtractionLatency:
     """Testes de latência de extração NLP"""
 
-    @pytest.fixture
+    @pytest.fixture()
     async def nlp_processor(self):
         """Fixture que cria e inicializa NLPProcessor"""
         from src.services.nlp_processor import NLPProcessor
@@ -22,7 +23,7 @@ class TestNLPExtractionLatency:
         await processor.initialize()
         return processor
 
-    @pytest.fixture
+    @pytest.fixture()
     def sample_texts(self):
         """Textos de exemplo para benchmark"""
         return [
@@ -38,7 +39,7 @@ class TestNLPExtractionLatency:
             "Create an event-driven system using Kafka and Redis Streams",
         ]
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_extract_keywords_latency_p95(self, nlp_processor, sample_texts):
         """Testa que extração de keywords tem latência P95 < 50ms"""
         latencies = []
@@ -67,7 +68,7 @@ class TestNLPExtractionLatency:
         # SLO: P95 < 50ms
         assert p95 < 50, f"Keywords extraction P95 latency {p95:.2f}ms exceeds 50ms SLO"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_extract_objectives_latency_p95(self, nlp_processor, sample_texts):
         """Testa que extração de objectives tem latência P95 < 50ms"""
         latencies = []
@@ -96,7 +97,7 @@ class TestNLPExtractionLatency:
         # SLO: P95 < 50ms
         assert p95 < 50, f"Objectives extraction P95 latency {p95:.2f}ms exceeds 50ms SLO"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_extract_entities_latency_p95(self, nlp_processor, sample_texts):
         """Testa que extração de entidades tem latência P95 < 100ms"""
         latencies = []
@@ -125,7 +126,7 @@ class TestNLPExtractionLatency:
         # SLO: P95 < 100ms (entidades são mais custosas)
         assert p95 < 100, f"Entities extraction P95 latency {p95:.2f}ms exceeds 100ms SLO"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_full_extraction_latency_p95(self, nlp_processor, sample_texts):
         """Testa latência total de todas as extrações combinadas"""
         latencies = []
@@ -162,7 +163,7 @@ class TestNLPExtractionLatency:
 class TestNLPCachePerformance:
     """Testes de performance do cache NLP"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_redis_client(self):
         """Mock do RedisClient com cache simulado"""
         cache = {}
@@ -178,7 +179,7 @@ class TestNLPCachePerformance:
         mock.cache_query_result = AsyncMock(side_effect=set_cached)
         return mock
 
-    @pytest.fixture
+    @pytest.fixture()
     async def nlp_processor_with_cache(self, mock_redis_client):
         """NLPProcessor com cache simulado"""
         from src.services.nlp_processor import NLPProcessor
@@ -188,7 +189,7 @@ class TestNLPCachePerformance:
         await processor.initialize()
         return processor
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_cache_hit_latency(self, nlp_processor_with_cache):
         """Testa que cache hit tem latência < 5ms"""
         text = "Criar API REST para produtos"
@@ -222,7 +223,7 @@ class TestNLPCachePerformance:
 class TestNLPThroughput:
     """Testes de throughput do NLP"""
 
-    @pytest.fixture
+    @pytest.fixture()
     async def nlp_processor(self):
         """Fixture que cria e inicializa NLPProcessor"""
         from src.services.nlp_processor import NLPProcessor
@@ -231,7 +232,7 @@ class TestNLPThroughput:
         await processor.initialize()
         return processor
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_keywords_throughput(self, nlp_processor):
         """Testa throughput de extração de keywords"""
         text = "Criar API REST para gerenciamento de produtos"
@@ -258,7 +259,7 @@ class TestNLPThroughput:
             throughput >= 100
         ), f"Keywords throughput {throughput:.0f} req/s below 100 req/s minimum"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_objectives_throughput(self, nlp_processor):
         """Testa throughput de extração de objectives"""
         text = "Criar API REST para gerenciamento de produtos"

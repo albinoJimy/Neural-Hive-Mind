@@ -4,9 +4,9 @@ Testes unitários para o DestructiveDetector
 Testa detecção de operações destrutivas por task type e keywords.
 """
 
-import pytest
 from unittest.mock import MagicMock, patch
 
+import pytest
 from src.models.cognitive_plan import TaskNode
 from src.services.destructive_detector import DestructiveDetector
 
@@ -14,7 +14,7 @@ from src.services.destructive_detector import DestructiveDetector
 class TestDestructiveDetectorBasicDetection:
     """Testes para detecção básica de operações destrutivas"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def settings(self):
         """Mock Settings object"""
         settings = MagicMock()
@@ -22,7 +22,7 @@ class TestDestructiveDetectorBasicDetection:
         settings.destructive_detection_strict_mode = False
         return settings
 
-    @pytest.fixture
+    @pytest.fixture()
     def detector(self, settings):
         """Create DestructiveDetector instance"""
         return DestructiveDetector(settings)
@@ -143,7 +143,7 @@ class TestDestructiveDetectorBasicDetection:
 class TestDestructiveDetectorSeverityCalculation:
     """Testes para cálculo de severidade"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def settings(self):
         """Mock Settings object"""
         settings = MagicMock()
@@ -151,7 +151,7 @@ class TestDestructiveDetectorSeverityCalculation:
         settings.destructive_detection_strict_mode = False
         return settings
 
-    @pytest.fixture
+    @pytest.fixture()
     def detector(self, settings):
         """Create DestructiveDetector instance"""
         return DestructiveDetector(settings)
@@ -250,7 +250,7 @@ class TestDestructiveDetectorSeverityCalculation:
 class TestDestructiveDetectorEdgeCases:
     """Testes para casos edge"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def settings(self):
         """Mock Settings object"""
         settings = MagicMock()
@@ -258,7 +258,7 @@ class TestDestructiveDetectorEdgeCases:
         settings.destructive_detection_strict_mode = False
         return settings
 
-    @pytest.fixture
+    @pytest.fixture()
     def detector(self, settings):
         """Create DestructiveDetector instance"""
         return DestructiveDetector(settings)
@@ -450,7 +450,7 @@ class TestDestructiveDetectorEdgeCases:
 class TestDestructiveDetectorMetrics:
     """Testes para métricas Prometheus"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def settings(self):
         """Mock Settings object"""
         settings = MagicMock()
@@ -458,7 +458,7 @@ class TestDestructiveDetectorMetrics:
         settings.destructive_detection_strict_mode = False
         return settings
 
-    @pytest.fixture
+    @pytest.fixture()
     def detector(self, settings):
         """Create DestructiveDetector instance"""
         return DestructiveDetector(settings)
@@ -529,7 +529,7 @@ class TestDestructiveDetectorMetrics:
 class TestDestructiveDetectorTaskTypeVariants:
     """Testes para variantes de task types destrutivos"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def settings(self):
         """Mock Settings object"""
         settings = MagicMock()
@@ -537,7 +537,7 @@ class TestDestructiveDetectorTaskTypeVariants:
         settings.destructive_detection_strict_mode = False
         return settings
 
-    @pytest.fixture
+    @pytest.fixture()
     def detector(self, settings):
         """Create DestructiveDetector instance"""
         return DestructiveDetector(settings)
@@ -570,7 +570,7 @@ class TestDestructiveDetectorTaskTypeVariants:
 class TestDestructiveDetectorKeywordVariants:
     """Testes para variantes de keywords destrutivas"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def settings(self):
         """Mock Settings object"""
         settings = MagicMock()
@@ -578,7 +578,7 @@ class TestDestructiveDetectorKeywordVariants:
         settings.destructive_detection_strict_mode = False
         return settings
 
-    @pytest.fixture
+    @pytest.fixture()
     def detector(self, settings):
         """Create DestructiveDetector instance"""
         return DestructiveDetector(settings)
@@ -689,7 +689,7 @@ class TestDestructiveDetectorKeywordVariants:
 class TestDestructiveDetectorDisabled:
     """Testes para comportamento com detector desabilitado"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def settings_disabled(self):
         """Mock Settings com detector desabilitado"""
         settings = MagicMock()
@@ -697,7 +697,7 @@ class TestDestructiveDetectorDisabled:
         settings.destructive_detection_strict_mode = False
         return settings
 
-    @pytest.fixture
+    @pytest.fixture()
     def detector_disabled(self, settings_disabled):
         """Create DestructiveDetector com detecção desabilitada"""
         return DestructiveDetector(settings_disabled)
@@ -766,7 +766,7 @@ class TestDestructiveDetectorDisabled:
 class TestDestructiveDetectorStrictMode:
     """Testes para modo estrito de detecção"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def settings_strict(self):
         """Mock Settings com strict mode ativado"""
         settings = MagicMock()
@@ -774,12 +774,12 @@ class TestDestructiveDetectorStrictMode:
         settings.destructive_detection_strict_mode = True
         return settings
 
-    @pytest.fixture
+    @pytest.fixture()
     def detector_strict(self, settings_strict):
         """Create DestructiveDetector com strict mode"""
         return DestructiveDetector(settings_strict)
 
-    @pytest.fixture
+    @pytest.fixture()
     def settings_normal(self):
         """Mock Settings com strict mode desativado"""
         settings = MagicMock()
@@ -787,7 +787,7 @@ class TestDestructiveDetectorStrictMode:
         settings.destructive_detection_strict_mode = False
         return settings
 
-    @pytest.fixture
+    @pytest.fixture()
     def detector_normal(self, settings_normal):
         """Create DestructiveDetector sem strict mode"""
         return DestructiveDetector(settings_normal)

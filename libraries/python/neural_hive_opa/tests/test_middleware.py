@@ -2,11 +2,10 @@
 Testes do middleware OPA.
 """
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
-from fastapi import FastAPI, Request
-from starlette.responses import Response
 
+import pytest
+from fastapi import FastAPI
 from neural_hive_opa.middleware import (
     OPAAuthorizationMiddleware,
     OPAMiddlewareConfig,
@@ -56,6 +55,7 @@ class TestOPAAuthorizationMiddleware:
         )
 
         # Criar request para path público
+
     async def test_public_path_allowed_no_auth(self, test_app):
         """Paths públicos devem funcionar sem headers de autenticação."""
         from httpx import ASGITransport, AsyncClient
@@ -164,7 +164,9 @@ class TestOPAAuthorizationMiddleware:
 
         with patch("neural_hive_opa.middleware.OPAClient") as MockOPAClient:
             mock_client_instance = MagicMock()
-            mock_client_instance.check = AsyncMock(side_effect=httpx.ConnectError("Connection refused"))
+            mock_client_instance.check = AsyncMock(
+                side_effect=httpx.ConnectError("Connection refused")
+            )
             mock_client_instance.get_circuit_breaker_state.return_value = "CLOSED"
             MockOPAClient.return_value = mock_client_instance
 

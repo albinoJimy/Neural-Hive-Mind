@@ -12,19 +12,19 @@ Este modulo contem testes de integracao que verificam:
 Todos os testes usam mocks dos clientes externos.
 """
 
-import pytest
 import uuid
 from dataclasses import dataclass
 from enum import Enum
 from unittest.mock import MagicMock, patch
 
+import pytest
 
 # ============================================
 # Fixtures Especificas
 # ============================================
 
 
-@pytest.fixture
+@pytest.fixture()
 def validate_executor_with_opa(worker_config, mock_metrics, mock_opa_client):
     """ValidateExecutor configurado com cliente OPA mockado."""
     from executors.validate_executor import ValidateExecutor
@@ -41,7 +41,7 @@ def validate_executor_with_opa(worker_config, mock_metrics, mock_opa_client):
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def validate_executor_with_trivy(worker_config, mock_metrics):
     """ValidateExecutor configurado para Trivy."""
     from executors.validate_executor import ValidateExecutor
@@ -59,7 +59,7 @@ def validate_executor_with_trivy(worker_config, mock_metrics):
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def validate_executor_simulation_only(worker_config, mock_metrics):
     """ValidateExecutor sem clientes externos (apenas simulacao)."""
     from executors.validate_executor import ValidateExecutor
@@ -76,7 +76,7 @@ def validate_executor_simulation_only(worker_config, mock_metrics):
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def validate_ticket_policy():
     """Ticket de validacao de politica OPA."""
     ticket_id = str(uuid.uuid4())
@@ -92,7 +92,7 @@ def validate_ticket_policy():
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def validate_ticket_sast():
     """Ticket de validacao SAST (Trivy)."""
     ticket_id = str(uuid.uuid4())
@@ -146,9 +146,9 @@ class MockPolicyEvaluationResponse:
 class TestValidateExecutorOPAAllow:
     """Testes de politica OPA que permite acao."""
 
-    @pytest.mark.asyncio
-    @pytest.mark.integration
-    @pytest.mark.executor_integration
+    @pytest.mark.asyncio()
+    @pytest.mark.integration()
+    @pytest.mark.executor_integration()
     async def test_validate_executor_opa_allow(
         self, validate_executor_with_opa, validate_ticket_policy, mock_opa_client
     ):
@@ -164,9 +164,9 @@ class TestValidateExecutorOPAAllow:
         assert result["output"]["violations"] == []
         assert result["metadata"]["simulated"] is False
 
-    @pytest.mark.asyncio
-    @pytest.mark.integration
-    @pytest.mark.executor_integration
+    @pytest.mark.asyncio()
+    @pytest.mark.integration()
+    @pytest.mark.executor_integration()
     async def test_validate_executor_opa_allow_with_metadata(
         self, validate_executor_with_opa, validate_ticket_policy, mock_opa_client
     ):
@@ -191,9 +191,9 @@ class TestValidateExecutorOPAAllow:
 class TestValidateExecutorOPADeny:
     """Testes de politica OPA que nega acao."""
 
-    @pytest.mark.asyncio
-    @pytest.mark.integration
-    @pytest.mark.executor_integration
+    @pytest.mark.asyncio()
+    @pytest.mark.integration()
+    @pytest.mark.executor_integration()
     async def test_validate_executor_opa_deny_with_violations(
         self, validate_executor_with_opa, validate_ticket_policy, mock_opa_client
     ):
@@ -222,9 +222,9 @@ class TestValidateExecutorOPADeny:
         assert len(result["output"]["violations"]) == 1
         assert result["output"]["violations"][0]["severity"] == "HIGH"
 
-    @pytest.mark.asyncio
-    @pytest.mark.integration
-    @pytest.mark.executor_integration
+    @pytest.mark.asyncio()
+    @pytest.mark.integration()
+    @pytest.mark.executor_integration()
     async def test_validate_executor_opa_deny_multiple_violations(
         self, validate_executor_with_opa, validate_ticket_policy, mock_opa_client
     ):
@@ -266,9 +266,9 @@ class TestValidateExecutorOPADeny:
 class TestValidateExecutorOPATimeout:
     """Testes de timeout na avaliacao OPA."""
 
-    @pytest.mark.asyncio
-    @pytest.mark.integration
-    @pytest.mark.executor_integration
+    @pytest.mark.asyncio()
+    @pytest.mark.integration()
+    @pytest.mark.executor_integration()
     async def test_validate_executor_opa_timeout(
         self, validate_executor_with_opa, validate_ticket_policy, mock_opa_client
     ):
@@ -285,9 +285,9 @@ class TestValidateExecutorOPATimeout:
         assert result["output"]["fallback_reason"] == "timeout"
         assert result["metadata"]["conservative_failure"] is True
 
-    @pytest.mark.asyncio
-    @pytest.mark.integration
-    @pytest.mark.executor_integration
+    @pytest.mark.asyncio()
+    @pytest.mark.integration()
+    @pytest.mark.executor_integration()
     async def test_validate_executor_opa_timeout_metrics(
         self, validate_executor_with_opa, validate_ticket_policy, mock_opa_client, mock_metrics
     ):
@@ -309,9 +309,9 @@ class TestValidateExecutorOPATimeout:
 class TestValidateExecutorOPAAPIError:
     """Testes de erros de API OPA."""
 
-    @pytest.mark.asyncio
-    @pytest.mark.integration
-    @pytest.mark.executor_integration
+    @pytest.mark.asyncio()
+    @pytest.mark.integration()
+    @pytest.mark.executor_integration()
     async def test_validate_executor_opa_api_error_503(
         self, validate_executor_with_opa, validate_ticket_policy, mock_opa_client
     ):
@@ -328,9 +328,9 @@ class TestValidateExecutorOPAAPIError:
         assert result["output"]["validation_passed"] is False
         assert result["output"]["fallback_reason"] == "api_error"
 
-    @pytest.mark.asyncio
-    @pytest.mark.integration
-    @pytest.mark.executor_integration
+    @pytest.mark.asyncio()
+    @pytest.mark.integration()
+    @pytest.mark.executor_integration()
     async def test_validate_executor_opa_api_error_500(
         self, validate_executor_with_opa, validate_ticket_policy, mock_opa_client
     ):
@@ -355,9 +355,9 @@ class TestValidateExecutorOPAAPIError:
 class TestValidateExecutorSAST:
     """Testes de validacao SAST via Trivy."""
 
-    @pytest.mark.asyncio
-    @pytest.mark.integration
-    @pytest.mark.executor_integration
+    @pytest.mark.asyncio()
+    @pytest.mark.integration()
+    @pytest.mark.executor_integration()
     async def test_validate_executor_trivy_success(
         self, validate_executor_with_trivy, validate_ticket_sast
     ):
@@ -372,9 +372,9 @@ class TestValidateExecutorSAST:
             assert result["output"]["violations"] == []
             assert result["metadata"]["simulated"] is False
 
-    @pytest.mark.asyncio
-    @pytest.mark.integration
-    @pytest.mark.executor_integration
+    @pytest.mark.asyncio()
+    @pytest.mark.integration()
+    @pytest.mark.executor_integration()
     async def test_validate_executor_trivy_critical_vulnerabilities(
         self, validate_executor_with_trivy, validate_ticket_sast
     ):
@@ -409,9 +409,9 @@ class TestValidateExecutorSAST:
             assert result["output"]["validation_passed"] is False
             assert len(result["output"]["violations"]) == 2
 
-    @pytest.mark.asyncio
-    @pytest.mark.integration
-    @pytest.mark.executor_integration
+    @pytest.mark.asyncio()
+    @pytest.mark.integration()
+    @pytest.mark.executor_integration()
     async def test_validate_executor_trivy_timeout(
         self, validate_executor_with_trivy, validate_ticket_sast
     ):
@@ -436,9 +436,9 @@ class TestValidateExecutorSAST:
 class TestValidateExecutorViolationMetrics:
     """Testes de metricas de violacoes por severidade."""
 
-    @pytest.mark.asyncio
-    @pytest.mark.integration
-    @pytest.mark.executor_integration
+    @pytest.mark.asyncio()
+    @pytest.mark.integration()
+    @pytest.mark.executor_integration()
     async def test_validate_executor_violation_metrics_by_severity(
         self, validate_executor_with_opa, validate_ticket_policy, mock_opa_client, mock_metrics
     ):
@@ -477,9 +477,9 @@ class TestValidateExecutorViolationMetrics:
 class TestValidateExecutorSimulation:
     """Testes de fallback para simulacao."""
 
-    @pytest.mark.asyncio
-    @pytest.mark.integration
-    @pytest.mark.executor_integration
+    @pytest.mark.asyncio()
+    @pytest.mark.integration()
+    @pytest.mark.executor_integration()
     async def test_validate_executor_simulation_fallback(
         self, validate_executor_simulation_only, validate_ticket_policy
     ):
@@ -491,9 +491,9 @@ class TestValidateExecutorSimulation:
         assert result["output"]["validation_passed"] is True
         assert result["output"]["violations"] == []
 
-    @pytest.mark.asyncio
-    @pytest.mark.integration
-    @pytest.mark.executor_integration
+    @pytest.mark.asyncio()
+    @pytest.mark.integration()
+    @pytest.mark.executor_integration()
     async def test_validate_executor_simulation_logs(
         self, validate_executor_simulation_only, validate_ticket_policy
     ):
@@ -512,9 +512,9 @@ class TestValidateExecutorSimulation:
 class TestValidateExecutorTicketValidation:
     """Testes de validacao de ticket."""
 
-    @pytest.mark.asyncio
-    @pytest.mark.integration
-    @pytest.mark.executor_integration
+    @pytest.mark.asyncio()
+    @pytest.mark.integration()
+    @pytest.mark.executor_integration()
     async def test_validate_executor_missing_ticket_id(self, validate_executor_with_opa):
         """Deve falhar com ticket sem ID."""
         invalid_ticket = {"task_type": "VALIDATE", "parameters": {}}
@@ -522,9 +522,9 @@ class TestValidateExecutorTicketValidation:
         with pytest.raises(ValueError):
             await validate_executor_with_opa.execute(invalid_ticket)
 
-    @pytest.mark.asyncio
-    @pytest.mark.integration
-    @pytest.mark.executor_integration
+    @pytest.mark.asyncio()
+    @pytest.mark.integration()
+    @pytest.mark.executor_integration()
     async def test_validate_executor_wrong_task_type(self, validate_executor_with_opa):
         """Deve falhar com task_type incorreto."""
         invalid_ticket = {"ticket_id": str(uuid.uuid4()), "task_type": "BUILD", "parameters": {}}
@@ -541,9 +541,9 @@ class TestValidateExecutorTicketValidation:
 class TestValidateExecutorUnexpectedErrors:
     """Testes de erros inesperados."""
 
-    @pytest.mark.asyncio
-    @pytest.mark.integration
-    @pytest.mark.executor_integration
+    @pytest.mark.asyncio()
+    @pytest.mark.integration()
+    @pytest.mark.executor_integration()
     async def test_validate_executor_unexpected_exception(
         self, validate_executor_with_opa, validate_ticket_policy, mock_opa_client
     ):

@@ -1,11 +1,11 @@
-# -*- coding: utf-8 -*-
 """
 Testes unitarios para o ABTestingEngine.
 """
 
-import pytest
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock
-from datetime import datetime, timezone
+
+import pytest
 
 from src.experimentation.ab_testing_engine import ABTestingEngine
 from src.experimentation.randomization import RandomizationStrategyType
@@ -528,7 +528,7 @@ class TestMongoDBClientABTestingPersistence:
             "confidence_level": 0.95,
             "early_stopped": False,
             "early_stop_reason": None,
-            "analysis_timestamp": datetime.now(timezone.utc),
+            "analysis_timestamp": datetime.now(UTC),
             "metadata": {},
         }
 

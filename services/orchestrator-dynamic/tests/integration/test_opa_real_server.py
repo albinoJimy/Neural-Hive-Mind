@@ -4,17 +4,17 @@ Testes de integração com OPA Server real via Docker.
 Requer Docker instalado e acessível.
 """
 
-import pytest
 import subprocess
 import time
 from datetime import datetime, timedelta
 from pathlib import Path
 from unittest.mock import AsyncMock
 
-from src.policies import OPAClient, PolicyValidator
-from src.policies.opa_client import OPAConnectionError
+import pytest
 from src.config.settings import OrchestratorSettings
 from src.observability.metrics import get_metrics
+from src.policies import OPAClient, PolicyValidator
+from src.policies.opa_client import OPAConnectionError
 
 
 @pytest.fixture(scope="module")
@@ -40,7 +40,7 @@ def opa_container():
         pytest.skip("Docker não disponível")
 
     # Parar container anterior se existir
-    subprocess.run(["docker", "rm", "-f", "opa-test"], capture_output=True)
+    subprocess.run(["docker", "rm", "-f", "opa-test"], capture_output=True, check=False)
 
     # Iniciar container OPA
     cmd = [
@@ -60,7 +60,7 @@ def opa_container():
         "/policies",
     ]
 
-    result = subprocess.run(cmd, capture_output=True, text=True)
+    result = subprocess.run(cmd, capture_output=True, text=True, check=False)
 
     if result.returncode != 0:
         pytest.skip(f"Falha ao iniciar OPA container: {result.stderr}")
@@ -74,7 +74,7 @@ def opa_container():
             result = subprocess.run(
                 ["docker", "exec", "opa-test", "curl", "-s", "http://localhost:8181/health"],
                 capture_output=True,
-                timeout=2,
+                timeout=2, check=False,
             )
             if result.returncode == 0:
                 break
@@ -84,7 +84,7 @@ def opa_container():
         time.sleep(1)
     else:
         # Cleanup em caso de falha
-        subprocess.run(["docker", "rm", "-f", "opa-test"], capture_output=True)
+        subprocess.run(["docker", "rm", "-f", "opa-test"], capture_output=True, check=False)
         pytest.skip("OPA container não ficou pronto a tempo")
 
     # Aguardar mais um pouco para garantir
@@ -93,10 +93,10 @@ def opa_container():
     yield container_id
 
     # Cleanup
-    subprocess.run(["docker", "rm", "-f", "opa-test"], capture_output=True)
+    subprocess.run(["docker", "rm", "-f", "opa-test"], capture_output=True, check=False)
 
 
-@pytest.fixture
+@pytest.fixture()
 def real_opa_config(opa_container):
     """Fixture com configurações para OPA real."""
     from unittest.mock import Mock
@@ -147,7 +147,7 @@ def real_opa_config(opa_container):
     return config
 
 
-@pytest.fixture
+@pytest.fixture()
 async def real_opa_client(real_opa_config):
     """Fixture com OPAClient conectado a OPA real."""
     client = OPAClient(real_opa_config)
@@ -159,7 +159,7 @@ async def real_opa_client(real_opa_config):
 class TestOPARealServerResourceLimits:
     """Testes de resource_limits com OPA real."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_valid_ticket_within_limits(self, real_opa_client):
         """Testa ticket válido dentro dos limites."""
         input_data = {
@@ -188,7 +188,7 @@ class TestOPARealServerResourceLimits:
         assert result["result"]["allow"] is True
         assert len(result["result"]["violations"]) == 0
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_timeout_exceeds_maximum(self, real_opa_client):
         """Testa violação de timeout máximo."""
         input_data = {
@@ -225,7 +225,7 @@ class TestOPARealServerResourceLimits:
         assert timeout_violation is not None
         assert timeout_violation["severity"] == "high"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_retries_exceed_maximum(self, real_opa_client):
         """Testa violação de max retries."""
         input_data = {
@@ -253,7 +253,7 @@ class TestOPARealServerResourceLimits:
         assert retry_violation is not None
         assert retry_violation["severity"] == "medium"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_capability_not_allowed(self, real_opa_client):
         """Testa violação de capability não permitida."""
         input_data = {
@@ -288,7 +288,7 @@ class TestOPARealServerResourceLimits:
 class TestOPARealServerSLAEnforcement:
     """Testes de sla_enforcement com OPA real."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_valid_sla(self, real_opa_client):
         """Testa SLA válido."""
         current_time = int(datetime.now().timestamp() * 1000)
@@ -313,7 +313,7 @@ class TestOPARealServerSLAEnforcement:
         assert result["result"]["allow"] is True
         assert len(result["result"]["violations"]) == 0
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_deadline_in_past(self, real_opa_client):
         """Testa violação de deadline no passado."""
         current_time = int(datetime.now().timestamp() * 1000)
@@ -343,7 +343,7 @@ class TestOPARealServerSLAEnforcement:
         assert deadline_violation is not None
         assert deadline_violation["severity"] == "critical"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_qos_mismatch_critical(self, real_opa_client):
         """Testa violação de QoS para risk_band critical."""
         current_time = int(datetime.now().timestamp() * 1000)
@@ -381,7 +381,7 @@ class TestOPARealServerSLAEnforcement:
 class TestOPARealServerFeatureFlags:
     """Testes de feature_flags com OPA real."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_enable_intelligent_scheduler_critical(self, real_opa_client):
         """Testa habilitação do intelligent scheduler para critical."""
         input_data = {
@@ -410,7 +410,7 @@ class TestOPARealServerFeatureFlags:
         assert "result" in result
         assert result["result"]["enable_intelligent_scheduler"] is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_burst_capacity_premium_tenant(self, real_opa_client):
         """Testa habilitação de burst capacity para tenant premium."""
         input_data = {
@@ -438,7 +438,7 @@ class TestOPARealServerFeatureFlags:
 
         assert result["result"]["enable_burst_capacity"] is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_predictive_allocation_disabled_when_low_accuracy(self, real_opa_client):
         """Testa predictive allocation desabilitado quando acurácia < 0.85."""
         input_data = {
@@ -467,7 +467,7 @@ class TestOPARealServerFeatureFlags:
 
         assert result["result"]["enable_predictive_allocation"] is False
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_auto_scaling_disabled_outside_business_hours(self, real_opa_client):
         """Testa auto-scaling desabilitado fora do horário comercial."""
         off_hours_timestamp = int(datetime(2024, 1, 1, 2, 0, 0).timestamp() * 1000)
@@ -499,7 +499,7 @@ class TestOPARealServerFeatureFlags:
 
         assert result["result"]["enable_auto_scaling"] is False
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_experimental_features_for_early_access_tenant(self, real_opa_client):
         """Testa experimental features para tenant early access."""
         input_data = {
@@ -529,7 +529,7 @@ class TestOPARealServerFeatureFlags:
 
         assert result["result"]["enable_experimental_features"] is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_combined_feature_flags_intelligent_scheduler_and_burst_capacity(
         self, real_opa_client
     ):
@@ -567,7 +567,7 @@ class TestOPARealServerFeatureFlags:
 class TestOPARealServerSecurityConstraints:
     """Testes de security_constraints com OPA real."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_cross_tenant_access_violation(self, real_opa_client, real_opa_config):
         """Testa violação de cross-tenant access."""
         validator = PolicyValidator(real_opa_client, real_opa_config)
@@ -593,7 +593,7 @@ class TestOPARealServerSecurityConstraints:
         assert any(v.rule == "cross_tenant_access" for v in result.violations)
         assert any(v.severity == "critical" for v in result.violations)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_missing_authentication_when_spiffe_enabled(
         self, real_opa_client, real_opa_config
     ):
@@ -620,7 +620,7 @@ class TestOPARealServerSecurityConstraints:
         assert result.valid is False
         assert any(v.rule == "missing_authentication" for v in result.violations)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_invalid_jwt_token(self, real_opa_client, real_opa_config):
         """Testa invalid_jwt com token malformado."""
         validator = PolicyValidator(real_opa_client, real_opa_config)
@@ -645,7 +645,7 @@ class TestOPARealServerSecurityConstraints:
         assert result.valid is False
         assert any(v.rule == "invalid_jwt" for v in result.violations)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_insufficient_permissions_for_capability(self, real_opa_client, real_opa_config):
         """Testa insufficient_permissions com usuário sem role."""
         validator = PolicyValidator(real_opa_client, real_opa_config)
@@ -671,7 +671,7 @@ class TestOPARealServerSecurityConstraints:
         assert any(v.rule == "insufficient_permissions" for v in result.violations)
         assert any(v.severity == "high" for v in result.violations)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_pii_handling_violation(self, real_opa_client, real_opa_config):
         """Testa violação de PII sem classificação confidencial."""
         validator = PolicyValidator(real_opa_client, real_opa_config)
@@ -698,7 +698,7 @@ class TestOPARealServerSecurityConstraints:
         assert result.valid is False
         assert any(v.rule == "pii_handling_violation" for v in result.violations)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_tenant_rate_limit_exceeded(self, real_opa_client, real_opa_config, monkeypatch):
         """Testa rate limit excedido para tenant."""
         validator = PolicyValidator(real_opa_client, real_opa_config)
@@ -734,7 +734,7 @@ class TestOPARealServerSecurityConstraints:
 class TestOPARealServerBatchEvaluation:
     """Testes de batch evaluation com OPA real."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_batch_evaluate_multiple_policies(self, real_opa_client):
         """Testa avaliação em batch de múltiplas políticas."""
         current_time = int(datetime.now().timestamp() * 1000)
@@ -817,7 +817,7 @@ class TestOPARealServerBatchEvaluation:
 class TestOPARealServerPolicyValidator:
     """Testes de PolicyValidator com OPA real."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_validate_execution_ticket_success(self, real_opa_client, real_opa_config):
         """Testa validação completa de ticket com sucesso."""
         validator = PolicyValidator(real_opa_client, real_opa_config)
@@ -848,7 +848,7 @@ class TestOPARealServerPolicyValidator:
         assert "sla_enforcement" in result.policy_decisions
         assert "feature_flags" in result.policy_decisions
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_validate_execution_ticket_violations(self, real_opa_client, real_opa_config):
         """Testa validação de ticket com violações."""
         validator = PolicyValidator(real_opa_client, real_opa_config)
@@ -888,7 +888,7 @@ class TestOPARealServerPolicyValidator:
 class TestOPARealServerEdgeCases:
     """Testes de edge cases de políticas OPA."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_policy_handles_empty_input(self, real_opa_client):
         """Testa política com input vazio."""
         result = await real_opa_client.evaluate_policy(
@@ -899,7 +899,7 @@ class TestOPARealServerEdgeCases:
         assert result["result"]["enable_intelligent_scheduler"] is False
         assert result["result"]["enable_burst_capacity"] is False
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_optional_fields_missing(self, real_opa_client):
         """Testa política com campos opcionais ausentes."""
         input_data = {
@@ -930,7 +930,7 @@ class TestOPARealServerEdgeCases:
         assert result["result"]["allow"] is True
         assert len(result["result"]["violations"]) == 0
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_multiple_violations_simultaneously(self, real_opa_client, real_opa_config):
         """Testa múltiplas violações simultâneas."""
         validator = PolicyValidator(real_opa_client, real_opa_config)
@@ -960,7 +960,7 @@ class TestOPARealServerEdgeCases:
         assert "timeout_exceeds_maximum" in rules
         assert "retries_exceed_maximum" in rules or "capabilities_not_allowed" in rules
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_warnings_do_not_block_execution(self, real_opa_client, real_opa_config):
         """Testa que warnings não bloqueiam execução."""
         validator = PolicyValidator(real_opa_client, real_opa_config)
@@ -986,7 +986,7 @@ class TestOPARealServerEdgeCases:
         assert result.valid is True
         assert any(w.rule == "deadline_approaching_threshold" for w in result.warnings)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_fail_open_when_opa_unavailable(self, real_opa_config, monkeypatch):
         """Testa fail-open quando OPA indisponível."""
         real_opa_config.opa_fail_open = True
@@ -1026,7 +1026,7 @@ class TestOPARealServerEdgeCases:
 class TestOPARealServerC1Integration:
     """Testes de integração C1 com PolicyValidator."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_full_cognitive_plan_validation(self, real_opa_client, real_opa_config):
         """Testa validação de plano cognitivo completo."""
         validator = PolicyValidator(real_opa_client, real_opa_config)
@@ -1053,7 +1053,7 @@ class TestOPARealServerC1Integration:
         assert result.valid is True
         assert len(result.violations) == 0
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_plan_with_multiple_tasks_and_dependencies(
         self, real_opa_client, real_opa_config
     ):
@@ -1083,7 +1083,7 @@ class TestOPARealServerC1Integration:
         assert result.valid is True
         assert len(result.violations) == 0
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_critical_plan_with_qos_requirements(self, real_opa_client, real_opa_config):
         """Testa plano critical com QoS específico."""
         validator = PolicyValidator(real_opa_client, real_opa_config)
@@ -1115,7 +1115,7 @@ class TestOPARealServerC1Integration:
 class TestOPARealServerResourceAllocation:
     """Testes de validação de alocação pós-scheduler."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_resource_allocation_within_limits(self, real_opa_client, real_opa_config):
         validator = PolicyValidator(real_opa_client, real_opa_config)
         deadline = int((datetime.now() + timedelta(minutes=30)).timestamp() * 1000)
@@ -1140,7 +1140,7 @@ class TestOPARealServerResourceAllocation:
         assert result.valid is True
         assert len(result.violations) == 0
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_resource_allocation_timeout_violation(self, real_opa_client, real_opa_config):
         validator = PolicyValidator(real_opa_client, real_opa_config)
         deadline = int((datetime.now() + timedelta(hours=1)).timestamp() * 1000)
@@ -1165,7 +1165,7 @@ class TestOPARealServerResourceAllocation:
         assert result.valid is False
         assert any(v.rule == "timeout_exceeds_maximum" for v in result.violations)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_resource_allocation_capabilities_violation(
         self, real_opa_client, real_opa_config
     ):
@@ -1192,7 +1192,7 @@ class TestOPARealServerResourceAllocation:
         assert result.valid is False
         assert any(v.rule == "capabilities_not_allowed" for v in result.violations)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_resource_allocation_concurrent_limit_violation(
         self, real_opa_client, real_opa_config
     ):
@@ -1223,7 +1223,7 @@ class TestOPARealServerResourceAllocation:
 class TestOPARealServerMetrics:
     """Testes de métricas registradas durante validações."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_metrics_increment_on_success(self, real_opa_client, real_opa_config):
         """Verifica increment de opa_validations_total após validação."""
         metrics = get_metrics()
@@ -1256,7 +1256,7 @@ class TestOPARealServerMetrics:
 
         assert after == before + 1
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_metrics_increment_on_violation(self, real_opa_client, real_opa_config):
         """Verifica opa_policy_rejections_total incrementa após violação."""
         metrics = get_metrics()
@@ -1289,7 +1289,7 @@ class TestOPARealServerMetrics:
 
         assert after == before + 1
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_validation_duration_records_latency(self, real_opa_client, real_opa_config):
         """Verifica histograma de duração de validação."""
         metrics = get_metrics()
@@ -1322,7 +1322,7 @@ class TestOPARealServerMetrics:
 
         assert after_sum > before_sum
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_circuit_breaker_state_changes(self, real_opa_config, monkeypatch):
         """Verifica atualização do estado do circuit breaker."""
         metrics = get_metrics()

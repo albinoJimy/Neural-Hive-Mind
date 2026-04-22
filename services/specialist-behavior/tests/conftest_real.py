@@ -4,10 +4,11 @@ Configuração pytest para specialist-behavior com código REAL.
 Este conftest é usado pelos testes que importam código real de src/.
 """
 
-import sys
 import os
-import pytest
+import sys
 from unittest.mock import MagicMock
+
+import pytest
 
 # Configurar paths para importação
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
@@ -50,7 +51,7 @@ def mock_env_vars():
     os.environ.update(original_env)
 
 
-@pytest.fixture
+@pytest.fixture()
 def real_config(mock_env_vars):
     """Configuração real do BehaviorSpecialistConfig."""
     from src.config import BehaviorSpecialistConfig
@@ -58,7 +59,7 @@ def real_config(mock_env_vars):
     return BehaviorSpecialistConfig()
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_mlflow_client():
     """Mock do cliente MLflow."""
     mock_client = MagicMock()
@@ -66,7 +67,7 @@ def mock_mlflow_client():
     return mock_client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_ledger_client():
     """Mock do cliente Ledger."""
     mock_client = MagicMock()
@@ -74,7 +75,7 @@ def mock_ledger_client():
     return mock_client
 
 
-@pytest.fixture
+@pytest.fixture()
 def real_specialist(real_config, mock_mlflow_client, mock_ledger_client):
     """Instância real do BehaviorSpecialist."""
     from src.specialist import BehaviorSpecialist
@@ -92,7 +93,7 @@ def real_specialist(real_config, mock_mlflow_client, mock_ledger_client):
             return specialist
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_cognitive_plan():
     """Plano cognitivo de exemplo."""
     return {

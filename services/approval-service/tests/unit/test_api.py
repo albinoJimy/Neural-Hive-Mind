@@ -4,38 +4,38 @@ Testes unitarios para API REST do Approval Service
 Testa endpoints, autenticacao e validacoes.
 """
 
-import pytest
-from datetime import datetime, timezone
-from unittest.mock import MagicMock, AsyncMock
-from fastapi import HTTPException
+from datetime import UTC, datetime
+from unittest.mock import AsyncMock, MagicMock
 
-from src.models.approval import (
-    ApprovalDecision,
-    ApprovalStats,
-    ApprovalResponse,
-    RiskBand,
-)
+import pytest
+from fastapi import HTTPException
 from src.api.routers.approvals import (
-    list_pending_approvals,
-    get_approval_stats,
-    get_approval,
     approve_plan,
+    get_approval,
+    get_approval_stats,
+    list_pending_approvals,
     reject_plan,
     republish_approved_plan,
+)
+from src.models.approval import (
+    ApprovalDecision,
+    ApprovalResponse,
+    ApprovalStats,
+    RiskBand,
 )
 
 
 class TestListPendingApprovals:
     """Testes para endpoint GET /pending"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_service(self, sample_approval_request):
         """Mock do ApprovalService"""
         service = MagicMock()
         service.get_pending_approvals = AsyncMock(return_value=[sample_approval_request])
         return service
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_list_pending_success(self, mock_service, admin_user, sample_approval_request):
         """Teste listagem bem-sucedida"""
         result = await list_pending_approvals(
@@ -53,7 +53,7 @@ class TestListPendingApprovals:
             limit=50, offset=0, risk_band=None, is_destructive=None
         )
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_list_pending_with_filters(self, mock_service, admin_user):
         """Teste listagem com filtros"""
         await list_pending_approvals(
@@ -69,7 +69,7 @@ class TestListPendingApprovals:
             limit=10, offset=20, risk_band="high", is_destructive=True
         )
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_list_pending_empty_list(self, admin_user):
         """Teste listagem vazia"""
         mock_service = MagicMock()
@@ -86,7 +86,7 @@ class TestListPendingApprovals:
 
         assert result == []
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_list_pending_service_error(self, admin_user):
         """Teste erro no servico"""
         mock_service = MagicMock()
@@ -108,7 +108,7 @@ class TestListPendingApprovals:
 class TestGetApproval:
     """Testes para endpoint GET /{plan_id}"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_approval_success(self, sample_approval_request, admin_user):
         """Teste busca bem-sucedida"""
         mock_service = MagicMock()
@@ -119,7 +119,7 @@ class TestGetApproval:
         assert result.plan_id == "plan-001"
         mock_service.get_approval_by_plan_id.assert_called_once_with("plan-001")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_approval_not_found(self, admin_user):
         """Teste plano nao encontrado"""
         mock_service = MagicMock()
@@ -135,7 +135,7 @@ class TestGetApproval:
 class TestApprovePlan:
     """Testes para endpoint POST /{plan_id}/approve"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_approve_success(self, sample_approval_decision, admin_user):
         """Teste aprovacao bem-sucedida"""
         mock_service = MagicMock()
@@ -154,7 +154,7 @@ class TestApprovePlan:
             plan_id="plan-001", user_id="user-001", comments="Aprovado"
         )
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_approve_without_comments(self, sample_approval_decision, admin_user):
         """Teste aprovacao sem comentarios"""
         mock_service = MagicMock()
@@ -169,7 +169,7 @@ class TestApprovePlan:
             plan_id="plan-001", user_id="user-001", comments=None
         )
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_approve_not_found(self, admin_user):
         """Teste plano nao encontrado"""
         mock_service = MagicMock()
@@ -182,7 +182,7 @@ class TestApprovePlan:
 
         assert exc_info.value.status_code == 404
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_approve_already_decided(self, admin_user):
         """Teste plano ja aprovado/rejeitado"""
         mock_service = MagicMock()
@@ -199,7 +199,7 @@ class TestApprovePlan:
 class TestRejectPlan:
     """Testes para endpoint POST /{plan_id}/reject"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_reject_success(self, admin_user):
         """Teste rejeicao bem-sucedida"""
         mock_service = MagicMock()
@@ -207,7 +207,7 @@ class TestRejectPlan:
             plan_id="plan-001",
             decision="rejected",
             approved_by="user-001",
-            approved_at=datetime.now(timezone.utc),
+            approved_at=datetime.now(UTC),
             rejection_reason="Risco muito alto",
         )
         mock_service.reject_plan = AsyncMock(return_value=decision)
@@ -225,7 +225,7 @@ class TestRejectPlan:
             plan_id="plan-001", user_id="user-001", reason="Risco muito alto", comments=None
         )
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_reject_not_found(self, admin_user):
         """Teste plano nao encontrado"""
         mock_service = MagicMock()
@@ -242,7 +242,7 @@ class TestRejectPlan:
 
         assert exc_info.value.status_code == 404
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_reject_empty_reason(self, admin_user):
         """Teste rejeicao com motivo vazio"""
         mock_service = MagicMock()
@@ -266,7 +266,7 @@ class TestRejectPlan:
 class TestGetApprovalStats:
     """Testes para endpoint GET /stats"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_stats_success(self, admin_user):
         """Teste obtencao de estatisticas"""
         mock_service = MagicMock()
@@ -286,7 +286,7 @@ class TestGetApprovalStats:
         assert result.rejected_count == 10
         mock_service.get_approval_stats.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_stats_service_error(self, admin_user):
         """Teste erro no servico de estatisticas"""
         mock_service = MagicMock()
@@ -301,7 +301,7 @@ class TestGetApprovalStats:
 class TestRepublishApprovedPlan:
     """Testes para endpoint POST /{plan_id}/republish"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_republish_success(self, admin_user):
         """Teste republicacao bem-sucedida"""
         mock_service = MagicMock()
@@ -310,7 +310,7 @@ class TestRepublishApprovedPlan:
             intent_id="intent-001",
             decision="approved",
             approved_by="original-admin",
-            approved_at=datetime.now(timezone.utc),
+            approved_at=datetime.now(UTC),
             cognitive_plan={"plan_id": "plan-001"},
         )
         mock_service.republish_approved_plan = AsyncMock(return_value=response)
@@ -329,7 +329,7 @@ class TestRepublishApprovedPlan:
             plan_id="plan-001", user_id="user-001", force=False, comments="Reprocessando"
         )
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_republish_without_body(self, admin_user):
         """Teste republicacao sem body (force=False, comments=None)"""
         mock_service = MagicMock()
@@ -338,7 +338,7 @@ class TestRepublishApprovedPlan:
             intent_id="intent-001",
             decision="approved",
             approved_by="original-admin",
-            approved_at=datetime.now(timezone.utc),
+            approved_at=datetime.now(UTC),
             cognitive_plan={"plan_id": "plan-001"},
         )
         mock_service.republish_approved_plan = AsyncMock(return_value=response)
@@ -352,7 +352,7 @@ class TestRepublishApprovedPlan:
             plan_id="plan-001", user_id="user-001", force=False, comments=None
         )
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_republish_with_force(self, admin_user):
         """Teste republicacao forcada"""
         mock_service = MagicMock()
@@ -361,7 +361,7 @@ class TestRepublishApprovedPlan:
             intent_id="intent-001",
             decision="approved",
             approved_by="admin",
-            approved_at=datetime.now(timezone.utc),
+            approved_at=datetime.now(UTC),
             cognitive_plan={"plan_id": "plan-001"},
         )
         mock_service.republish_approved_plan = AsyncMock(return_value=response)
@@ -378,7 +378,7 @@ class TestRepublishApprovedPlan:
             plan_id="plan-001", user_id="user-001", force=True, comments="Forcando republicacao"
         )
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_republish_not_found(self, admin_user):
         """Teste plano nao encontrado"""
         mock_service = MagicMock()
@@ -393,7 +393,7 @@ class TestRepublishApprovedPlan:
 
         assert exc_info.value.status_code == 404
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_republish_not_approved(self, admin_user):
         """Teste plano nao aprovado sem force"""
         mock_service = MagicMock()
@@ -412,7 +412,7 @@ class TestRepublishApprovedPlan:
         assert exc_info.value.status_code == 400
         assert "nao esta aprovado" in exc_info.value.detail
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_republish_missing_cognitive_plan(self, admin_user):
         """Teste plano sem cognitive_plan"""
         mock_service = MagicMock()
@@ -427,7 +427,7 @@ class TestRepublishApprovedPlan:
 
         assert exc_info.value.status_code == 400
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_republish_kafka_error(self, admin_user):
         """Teste erro ao publicar no Kafka"""
         mock_service = MagicMock()

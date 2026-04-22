@@ -6,8 +6,7 @@ Os testes de integração com Kubernetes requerem cluster real.
 """
 
 import pytest
-
-from src.services.container_builder import ContainerBuilder, BuilderType, BuildResult
+from src.services.container_builder import BuilderType, BuildResult, ContainerBuilder
 
 
 class TestKanikoBuilderBasics:

@@ -12,8 +12,8 @@ import json
 from datetime import datetime
 from typing import Any, Optional
 
-import structlog
 import httpx
+import structlog
 from temporalio import activity
 
 logger = structlog.get_logger(__name__)
@@ -85,9 +85,7 @@ async def generate_requirements(
                 f"requirements_generation_failed status={response.status_code}",
                 response_text=response.text,
             )
-            raise RuntimeError(
-                f"Falha ao gerar requisitos: status {response.status_code}"
-            )
+            raise RuntimeError(f"Falha ao gerar requisitos: status {response.status_code}")
 
         result = response.json()
         logger.info(
@@ -96,7 +94,7 @@ async def generate_requirements(
 
         return result
 
-    except Exception as e:
+    except Exception:
         logger.exception(f"Erro ao gerar requisitos para plan_id={plan_id}")
         raise
 
@@ -153,18 +151,14 @@ async def generate_documentation(
                 f"documentation_generation_failed status={response.status_code}",
                 response_text=response.text,
             )
-            raise RuntimeError(
-                f"Falha ao gerar documentação: status {response.status_code}"
-            )
+            raise RuntimeError(f"Falha ao gerar documentação: status {response.status_code}")
 
         result = response.json()
-        logger.info(
-            f"Documentação gerada: documentation_id={result.get('documentation_id')}"
-        )
+        logger.info(f"Documentação gerada: documentation_id={result.get('documentation_id')}")
 
         return result
 
-    except Exception as e:
+    except Exception:
         logger.exception(f"Erro ao gerar documentação para plan_id={plan_id}")
         raise
 
@@ -292,9 +286,7 @@ async def request_approval(
     Returns:
         Dict com decisão de aprovação
     """
-    logger.info(
-        f"G4: Solicitando aprovação para artifact_type={artifact_type}"
-    )
+    logger.info(f"G4: Solicitando aprovação para artifact_type={artifact_type}")
 
     try:
         if not _http_client:
@@ -325,9 +317,7 @@ async def request_approval(
                 f"approval_request_failed status={response.status_code}",
                 response_text=response.text,
             )
-            raise RuntimeError(
-                f"Falha ao solicitar aprovação: status {response.status_code}"
-            )
+            raise RuntimeError(f"Falha ao solicitar aprovação: status {response.status_code}")
 
         result = response.json()
         logger.info(
@@ -337,7 +327,7 @@ async def request_approval(
 
         return result
 
-    except Exception as e:
+    except Exception:
         logger.exception(f"Erro ao solicitar aprovação para {artifact_type}")
         raise
 
@@ -387,6 +377,6 @@ async def query_knowledge_graph(
         logger.exception(f"Erro na query RAG: {query_text}")
         return {
             "query": query_text,
-            "response": f"Erro: {str(e)}",
+            "response": f"Erro: {e!s}",
             "context_used": False,
         }

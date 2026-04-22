@@ -2,12 +2,13 @@
 Testes para batch evaluation de planos.
 """
 
-import pytest
 import json
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import MagicMock, Mock, patch
 
-from neural_hive_specialists.config import SpecialistConfig
+import pytest
+
 from neural_hive_specialists.base_specialist import BaseSpecialist
+from neural_hive_specialists.config import SpecialistConfig
 
 
 class MockSpecialist(BaseSpecialist):
@@ -31,7 +32,7 @@ class MockSpecialist(BaseSpecialist):
         }
 
 
-@pytest.fixture
+@pytest.fixture()
 def specialist_config():
     """Configuração mock para testes."""
     return SpecialistConfig(
@@ -54,7 +55,7 @@ def specialist_config():
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def specialist(specialist_config):
     """Especialista mock para testes."""
 
@@ -141,7 +142,7 @@ def create_mock_request(plan_id: str, intent_id: str):
 class TestBatchEvaluationSuccess:
     """Testes de batch evaluation bem-sucedida."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_batch_evaluation_single_plan(self, specialist):
         """Testa batch com um único plano."""
         requests = [create_mock_request("plan-1", "intent-1")]
@@ -155,7 +156,7 @@ class TestBatchEvaluationSuccess:
         assert len(result["successful"]) == 1
         assert len(result["failed"]) == 0
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_batch_evaluation_multiple_plans(self, specialist):
         """Testa batch com múltiplos planos."""
         requests = [create_mock_request(f"plan-{i}", f"intent-{i}") for i in range(10)]
@@ -168,7 +169,7 @@ class TestBatchEvaluationSuccess:
         assert result["statistics"]["success_rate"] == 1.0
         assert len(result["successful"]) == 10
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_batch_evaluation_custom_concurrency(self, specialist):
         """Testa batch com concorrência customizada."""
         requests = [create_mock_request(f"plan-{i}", f"intent-{i}") for i in range(5)]
@@ -181,7 +182,7 @@ class TestBatchEvaluationSuccess:
 class TestBatchEvaluationPartialFailure:
     """Testes de batch com falhas parciais."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_batch_evaluation_with_some_failures(self, specialist):
         """Testa batch onde alguns planos falham."""
         requests = [create_mock_request(f"plan-{i}", f"intent-{i}") for i in range(10)]
@@ -214,7 +215,7 @@ class TestBatchEvaluationPartialFailure:
         assert len(result["successful"]) == 7
         assert len(result["failed"]) == 3
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_batch_evaluation_all_failures(self, specialist):
         """Testa batch onde todos os planos falham."""
         requests = [create_mock_request(f"plan-{i}", f"intent-{i}") for i in range(5)]
@@ -234,7 +235,7 @@ class TestBatchEvaluationPartialFailure:
 class TestBatchEvaluationMetrics:
     """Testes de métricas de batch evaluation."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_batch_evaluation_records_metrics(self, specialist):
         """Testa que métricas são registradas."""
         requests = [create_mock_request(f"plan-{i}", f"intent-{i}") for i in range(5)]
@@ -252,7 +253,7 @@ class TestBatchEvaluationMetrics:
         assert call_args["failed"] == 0
         assert "duration" in call_args
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_batch_evaluation_duration_tracking(self, specialist):
         """Testa que duração é rastreada corretamente."""
         requests = [create_mock_request(f"plan-{i}", f"intent-{i}") for i in range(3)]
@@ -267,7 +268,7 @@ class TestBatchEvaluationMetrics:
 class TestBatchEvaluationEdgeCases:
     """Testes de casos extremos."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_batch_evaluation_empty_list(self, specialist):
         """Testa batch com lista vazia."""
         result = await specialist.evaluate_plans_batch([])
@@ -277,7 +278,7 @@ class TestBatchEvaluationEdgeCases:
         assert result["statistics"]["failed"] == 0
         assert len(result["successful"]) == 0
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_batch_evaluation_large_batch(self, specialist):
         """Testa batch com muitos planos."""
         requests = [create_mock_request(f"plan-{i}", f"intent-{i}") for i in range(20)]

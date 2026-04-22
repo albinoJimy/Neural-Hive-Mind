@@ -1,7 +1,8 @@
 """Testes para o módulo exporters do neural_hive_observability."""
 
-import pytest
 from unittest.mock import Mock, patch
+
+import pytest
 
 from neural_hive_observability.exporters import (
     ResilientOTLPSpanExporter,

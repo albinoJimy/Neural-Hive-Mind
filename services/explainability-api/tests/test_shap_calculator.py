@@ -4,9 +4,10 @@ Testes unitários para ShapCalculator.
 TDD: Testes escritos antes da implementação (GAPS-04 Task 2).
 """
 
-import pytest
 import sys
 from pathlib import Path
+
+import pytest
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
@@ -31,7 +32,7 @@ class TestShapCalculatorInitialization:
 class TestKernelSHAP:
     """Testes do método Kernel SHAP para decisões de consenso."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def sample_decision_data(self):
         """Dados de decisão para cálculo SHAP."""
         return {
@@ -161,7 +162,7 @@ class TestKernelSHAP:
 class TestBatchProcessing:
     """Testes de processamento em lote."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def sample_batch(self):
         """Lote de decisões para processamento."""
         return [

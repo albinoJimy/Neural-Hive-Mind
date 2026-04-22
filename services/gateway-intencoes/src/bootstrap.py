@@ -28,6 +28,7 @@ class ApplicationContext:
     nlu_pipeline: Any = None
     kafka_producer: Any = None
     health_manager: Any = None
+    threshold_service: Any = None
     initialized: bool = False
     errors: list[str] = field(default_factory=list)
 
@@ -157,6 +158,7 @@ class InfrastructurePhase(InitializationPhase):
     async def _execute_phase(self, context: ApplicationContext) -> bool:
         from cache.redis_client import get_redis_client
         from middleware.rate_limiter import RateLimiter, set_rate_limiter
+
         from security.oauth2_validator import (
             get_oauth2_validator,
         )
@@ -482,6 +484,53 @@ class HealthChecksPhase(InitializationPhase):
                 logger.warning("health_check_otel_pipeline_failed", error=str(e))
 
 
+class ThresholdPhase(InitializationPhase):
+    """Fase 6: Threshold Service - Externalização de configurações NLU."""
+
+    def __init__(self, settings):
+        super().__init__("threshold_service", required=False)
+        self.settings = settings
+
+    async def _execute_phase(self, context: ApplicationContext) -> bool:
+        from pathlib import Path
+
+        from services.threshold_service import ThresholdService
+
+        try:
+            logger.info("phase_threshold_service_start")
+
+            # Caminho para arquivo de configuração (opcional)
+            config_path = Path(__file__).parent.parent / "config" / "thresholds.yaml"
+
+            service = ThresholdService(
+                config_path=str(config_path) if config_path.exists() else None,
+                enable_auto_reload=self.settings.nlu_threshold_auto_reload,
+                reload_interval_seconds=self.settings.nlu_threshold_reload_interval,
+                cache_ttl_seconds=self.settings.nlu_threshold_cache_ttl,
+            )
+
+            await service.initialize()
+
+            # Carregar configurações baseadas em settings
+            service.global_config.base_threshold = self.settings.nlu_confidence_threshold
+            service.global_config.adaptive_enabled = self.settings.nlu_adaptive_threshold_enabled
+
+            context.threshold_service = service
+
+            logger.info(
+                "phase_threshold_service_complete",
+                auto_reload=self.settings.nlu_threshold_auto_reload,
+                config_path=str(config_path) if config_path.exists() else "not_set",
+            )
+            return True
+
+        except Exception as e:
+            error_msg = f"Threshold service phase failed: {e!s}"
+            logger.error("phase_threshold_service_failed", error=str(e), exc_info=True)
+            context.errors.append(error_msg)
+            return not self.required  # Não é obrigatório
+
+
 class HealthManagerStub:
     """Stub simples para HealthManager quando biblioteca não está disponível."""
 
@@ -529,6 +578,7 @@ class ApplicationBootstrapper:
             ObservabilityPhase(self.settings),
             MessagingPhase(self.settings),
             HealthChecksPhase(self.settings),
+            ThresholdPhase(self.settings),  # Externalização de thresholds NLU
         ]
 
     async def bootstrap(self) -> ApplicationContext:
@@ -623,6 +673,13 @@ class ApplicationBootstrapper:
                 logger.info("shutdown_rate_limiter_complete")
             except Exception as e:
                 logger.exception("shutdown_rate_limiter_error", error=str(e))
+
+        if context.threshold_service:
+            try:
+                await context.threshold_service.shutdown()
+                logger.info("shutdown_threshold_service_complete")
+            except Exception as e:
+                logger.exception("shutdown_threshold_service_error", error=str(e))
 
         logger.info("shutdown_complete")
 

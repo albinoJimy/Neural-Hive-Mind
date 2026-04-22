@@ -1,9 +1,10 @@
 """Testes para o playbook de recuperação de conexão de base de dados - TDD Approach."""
 
-import pytest
-import yaml
 from pathlib import Path
 from unittest.mock import MagicMock, patch
+
+import pytest
+import yaml
 
 
 class TestDatabaseConnectionRecoveryPlaybook:
@@ -71,11 +72,12 @@ class TestDatabaseConnectionRecoveryPlaybook:
 class TestDatabaseConnectionCheckAction:
     """Testes para a ação check_database_connection do PlaybookExecutor."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def executor(self, mock_execution_ticket_client, mock_orchestrator_client):
         """Cria executor de playbooks com clientes mockados."""
-        from src.services.playbook_executor import PlaybookExecutor
         import tempfile
+
+        from src.services.playbook_executor import PlaybookExecutor
 
         with tempfile.TemporaryDirectory() as tmpdir:
             executor = PlaybookExecutor(
@@ -95,7 +97,7 @@ class TestDatabaseConnectionCheckAction:
                     executor.apps_v1 = MagicMock(spec=client.AppsV1Api)
                     yield executor
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_check_database_connection_mongodb_success(self, executor):
         """Testa verificação de conexão MongoDB bem-sucedida."""
         # Arrange
@@ -117,7 +119,7 @@ class TestDatabaseConnectionCheckAction:
         assert result["connected"] is True
         assert result["database_type"] == "mongodb"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_check_database_connection_postgresql_success(self, executor):
         """Testa verificação de conexão PostgreSQL bem-sucedida."""
         # Arrange
@@ -138,7 +140,7 @@ class TestDatabaseConnectionCheckAction:
         # Em ambiente de teste, pode não ter conexão real
         assert "connected" in result or "error" in result
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_check_database_connection_redis_success(self, executor):
         """Testa verificação de conexão Redis bem-sucedida."""
         # Arrange
@@ -157,7 +159,7 @@ class TestDatabaseConnectionCheckAction:
         assert result["action"] == "check_database_connection"
         assert "database_type" in result
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_check_database_connection_failure_invalid_connection_string(self, executor):
         """Testa falha quando connection_string é inválida."""
         # Arrange
@@ -177,7 +179,7 @@ class TestDatabaseConnectionCheckAction:
         assert result["connected"] is False
         assert "error" in result
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_check_database_connection_timeout(self, executor):
         """Testa timeout na verificação de conexão."""
         # Arrange
@@ -196,7 +198,7 @@ class TestDatabaseConnectionCheckAction:
         assert result["action"] == "check_database_connection"
         assert result["connected"] is False
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_check_database_connection_unsupported_database_type(self, executor):
         """Testa erro quando database_type não é suportado."""
         # Arrange
@@ -216,7 +218,7 @@ class TestDatabaseConnectionCheckAction:
         assert "error" in result
         assert "unsupported" in result["error"].lower()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_check_database_connection_updates_context_on_success(self, executor):
         """Testa que o contexto é atualizado quando a conexão é bem-sucedida."""
         # Arrange

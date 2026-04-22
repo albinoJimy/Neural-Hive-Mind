@@ -1,9 +1,10 @@
 """Testes para OnlineLearningClient."""
 
-import pytest
+from datetime import UTC, datetime, timedelta
+from unittest.mock import Mock, patch
+
 import numpy as np
-from unittest.mock import patch, Mock
-from datetime import datetime, timedelta, timezone
+import pytest
 
 from neural_hive_specialists.online_learning_client import (
     OnlineLearningClient,
@@ -11,7 +12,7 @@ from neural_hive_specialists.online_learning_client import (
 )
 
 
-@pytest.fixture
+@pytest.fixture()
 def client():
     return OnlineLearningClient(
         specialist_type="technical",
@@ -20,7 +21,7 @@ def client():
     )
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestOnlineLearningClientError:
     """Testes para OnlineLearningClientError."""
 
@@ -34,7 +35,7 @@ class TestOnlineLearningClientError:
             raise OnlineLearningClientError("Test error")
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestOnlineLearningClientInit:
     """Testes de inicialização."""
 
@@ -82,7 +83,7 @@ class TestOnlineLearningClientInit:
         assert client._ensemble_count == 0
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestIsCacheValid:
     """Testes para _is_cache_valid."""
 
@@ -90,7 +91,7 @@ class TestIsCacheValid:
         """Testa cache válido quando timestamp é recente."""
         client = OnlineLearningClient("technical")
         client._cached_model = {"model": "data"}
-        client._cache_timestamp = datetime.now(timezone.utc) - timedelta(seconds=100)
+        client._cache_timestamp = datetime.now(UTC) - timedelta(seconds=100)
 
         assert client._is_cache_valid() is True
 
@@ -98,7 +99,7 @@ class TestIsCacheValid:
         """Testa cache inválido quando timestamp é antigo."""
         client = OnlineLearningClient("technical")
         client._cached_model = {"model": "data"}
-        client._cache_timestamp = datetime.now(timezone.utc) - timedelta(seconds=400)
+        client._cache_timestamp = datetime.now(UTC) - timedelta(seconds=400)
 
         assert client._is_cache_valid() is False
 
@@ -118,7 +119,7 @@ class TestIsCacheValid:
         assert client._is_cache_valid() is False
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestLoadOnlineModel:
     """Testes para _load_online_model."""
 
@@ -158,7 +159,7 @@ class TestLoadOnlineModel:
         assert result["model_version"] == "v1.0"
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestGetOnlineModel:
     """Testes para get_online_model."""
 
@@ -175,7 +176,7 @@ class TestGetOnlineModel:
         client = OnlineLearningClient("technical")
         cached_model = {"model": "cached"}
         client._cached_model = cached_model
-        client._cache_timestamp = datetime.now(timezone.utc) - timedelta(seconds=100)
+        client._cache_timestamp = datetime.now(UTC) - timedelta(seconds=100)
 
         result = client.get_online_model()
 
@@ -186,7 +187,7 @@ class TestGetOnlineModel:
         client = OnlineLearningClient("technical")
         old_cached = {"model": "old"}
         client._cached_model = old_cached
-        client._cache_timestamp = datetime.now(timezone.utc) - timedelta(seconds=100)
+        client._cache_timestamp = datetime.now(UTC) - timedelta(seconds=100)
 
         with patch.object(client, "_load_online_model", return_value={"model": "new"}):
             result = client.get_online_model(force_reload=True)
@@ -201,7 +202,7 @@ class TestGetOnlineModel:
         client = OnlineLearningClient("technical")
         cached_model = {"model": "cached"}
         client._cached_model = cached_model
-        client._cache_timestamp = datetime.now(timezone.utc) - timedelta(seconds=400)
+        client._cache_timestamp = datetime.now(UTC) - timedelta(seconds=400)
 
         # Simular circuit breaker aberto
         with patch.object(client, "_load_online_model", side_effect=pybreaker.CircuitBreakerError):
@@ -211,11 +212,11 @@ class TestGetOnlineModel:
         assert result == cached_model
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestPredictWithEnsemble:
     """Testes para predict_with_ensemble."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_batch_model(self):
         """Modelo batch mock."""
         model = Mock()
@@ -280,7 +281,7 @@ class TestPredictWithEnsemble:
             client.predict_with_ensemble(features, mock_batch_model)
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestReportPrediction:
     """Testes para report_prediction."""
 
@@ -323,7 +324,7 @@ class TestReportPrediction:
         )
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestGetStatistics:
     """Testes para get_statistics."""
 
@@ -351,7 +352,7 @@ class TestGetStatistics:
         assert stats["ensemble_rate"] == 0.7
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestInvalidateCache:
     """Testes para invalidate_cache."""
 
@@ -359,7 +360,7 @@ class TestInvalidateCache:
         """Testa que invalidação limpa o cache."""
         client = OnlineLearningClient("technical")
         client._cached_model = {"model": "data"}
-        client._cache_timestamp = datetime.now(timezone.utc)
+        client._cache_timestamp = datetime.now(UTC)
 
         client.invalidate_cache()
 
@@ -367,7 +368,7 @@ class TestInvalidateCache:
         assert client._cache_timestamp is None
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestIsOnlineModelAvailable:
     """Testes para is_online_model_available."""
 
@@ -381,7 +382,7 @@ class TestIsOnlineModelAvailable:
         """Testa retorna True quando modelo está carregado."""
         client = OnlineLearningClient("technical")
         client._cached_model = {"model": "data"}
-        client._cache_timestamp = datetime.now(timezone.utc)
+        client._cache_timestamp = datetime.now(UTC)
 
         with patch.object(client, "_is_cache_valid", return_value=True):
             result = client.is_online_model_available()
@@ -389,7 +390,7 @@ class TestIsOnlineModelAvailable:
         assert result is True
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestGetOnlineModelVersion:
     """Testes para get_online_model_version."""
 

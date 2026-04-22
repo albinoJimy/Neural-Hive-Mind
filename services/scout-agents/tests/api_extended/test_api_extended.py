@@ -3,12 +3,13 @@ Testes para API endpoints estendidos.
 Nova funcionalidade de exploração e detecção de sinais.
 """
 
-import pytest
-from unittest.mock import MagicMock, AsyncMock
-from datetime import datetime, timezone
 import sys
-from fastapi.testclient import TestClient
+from datetime import UTC, datetime
 from enum import Enum
+from unittest.mock import AsyncMock, MagicMock
+
+import pytest
+from fastapi.testclient import TestClient
 
 
 # Criar mock de UnifiedDomain como Enum válido
@@ -36,7 +37,7 @@ sys.modules["neural_hive_observability"] = mock_obs
 from src.api.http_server import app
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_engine():
     """Mock do ExplorationEngine."""
     engine = AsyncMock()
@@ -63,7 +64,7 @@ def mock_engine():
     return engine
 
 
-@pytest.fixture
+@pytest.fixture()
 def client(mock_engine):
     """Cliente de teste com engine mockado."""
     import src.api.http_server as http_server_module
@@ -102,7 +103,7 @@ class TestExplorationsEndpoints:
         _explorations["exp_1"] = {
             "target": "/src",
             "status": "active",
-            "created_at": datetime.now(timezone.utc).isoformat(),
+            "created_at": datetime.now(UTC).isoformat(),
             "scouts_assigned": 2,
             "files_scanned": 10,
             "patterns_found": 3,
@@ -122,7 +123,7 @@ class TestExplorationsEndpoints:
         _explorations["exp_1"] = {
             "target": "/src",
             "status": "active",
-            "created_at": datetime.now(timezone.utc).isoformat(),
+            "created_at": datetime.now(UTC).isoformat(),
             "scouts_assigned": 1,
         }
 
@@ -146,7 +147,7 @@ class TestExplorationsEndpoints:
         _explorations["exp_1"] = {
             "target": "/src",
             "status": "completed",
-            "created_at": datetime.now(timezone.utc).isoformat(),
+            "created_at": datetime.now(UTC).isoformat(),
         }
 
         response = client.delete("/api/v1/explorations/exp_1")
@@ -161,7 +162,7 @@ class TestExplorationsEndpoints:
         _explorations["exp_1"] = {
             "target": "/src",
             "status": "active",
-            "created_at": datetime.now(timezone.utc).isoformat(),
+            "created_at": datetime.now(UTC).isoformat(),
             "scouts_assigned": 1,
             "scouts": ["scout_1"],
         }
@@ -293,7 +294,7 @@ class TestHealthEndpoints:
         data = response.json()
         assert data["status"] == "started"
         assert "agent_id" in data
-        assert "started_at" is not None
+        assert "started_at" != None
 
     def test_startup_engine_not_running(self, client):
         """Testa startup probe quando engine não está rodando."""
@@ -377,7 +378,7 @@ class TestErrorHandling:
         assert response.status_code == 404
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 class TestAsyncEndpoints:
     """Testes para endpoints async."""
 

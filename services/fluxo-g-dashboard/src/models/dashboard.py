@@ -2,7 +2,7 @@
 
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from pydantic import BaseModel, Field
 
@@ -59,7 +59,7 @@ class StageProgress(BaseModel):
     started_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
     error_message: Optional[str] = None
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+    metadata: dict[str, Any] = Field(default_factory=dict)
 
 
 class FluxoGWorkflowDetail(BaseModel):
@@ -73,13 +73,13 @@ class FluxoGWorkflowDetail(BaseModel):
     completed_at: Optional[datetime] = None
 
     # Progresso por etapa
-    stages: List[StageProgress] = Field(default_factory=list)
+    stages: list[StageProgress] = Field(default_factory=list)
 
     # Resultados
-    requirements_result: Optional[Dict[str, Any]] = None
-    documentation_result: Optional[Dict[str, Any]] = None
-    knowledge_graph_result: Optional[Dict[str, Any]] = None
-    approvals_result: Optional[Dict[str, Any]] = None
+    requirements_result: Optional[dict[str, Any]] = None
+    documentation_result: Optional[dict[str, Any]] = None
+    knowledge_graph_result: Optional[dict[str, Any]] = None
+    approvals_result: Optional[dict[str, Any]] = None
 
     # Métricas
     total_duration_seconds: Optional[float] = None
@@ -105,7 +105,7 @@ class DashboardMetrics(BaseModel):
     success_rate: float = 0.0
 
     # Services health
-    services_health: Dict[str, bool] = Field(default_factory=dict)
+    services_health: dict[str, bool] = Field(default_factory=dict)
 
 
 class ApprovalItem(BaseModel):

@@ -8,8 +8,8 @@ Use markers para filtrar: pytest -m integration
 """
 
 import types
+from collections.abc import Generator
 from datetime import datetime
-from typing import Generator
 
 import pytest
 
@@ -43,7 +43,7 @@ def mongodb_container() -> Generator:
         yield container
 
 
-@pytest.fixture
+@pytest.fixture()
 def config_fail_closed(mongodb_container) -> types.SimpleNamespace:
     """Config com fail-open=False (modo produção)."""
     return types.SimpleNamespace(
@@ -67,7 +67,7 @@ def config_fail_closed(mongodb_container) -> types.SimpleNamespace:
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def config_fail_open(mongodb_container) -> types.SimpleNamespace:
     """Config com fail-open=True (modo desenvolvimento)."""
     config = types.SimpleNamespace(
@@ -92,7 +92,7 @@ def config_fail_open(mongodb_container) -> types.SimpleNamespace:
     return config
 
 
-@pytest.fixture
+@pytest.fixture()
 async def mongodb_client_real(config_fail_closed):
     """Cliente MongoDB conectado ao container de teste."""
     from src.clients.mongodb_client import MongoDBClient
@@ -103,7 +103,7 @@ async def mongodb_client_real(config_fail_closed):
     await client.close()
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_ticket() -> dict:
     """Ticket de execução de exemplo para testes."""
     return {
@@ -136,7 +136,7 @@ def sample_ticket() -> dict:
 # ======================================================
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_save_execution_ticket_creates_document(mongodb_client_real, sample_ticket):
     """Valida que documento é criado corretamente no MongoDB."""
     await mongodb_client_real.save_execution_ticket(sample_ticket)
@@ -151,7 +151,7 @@ async def test_save_execution_ticket_creates_document(mongodb_client_real, sampl
     assert saved["_id"] == sample_ticket["ticket_id"]
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_save_execution_ticket_updates_existing(mongodb_client_real, sample_ticket):
     """Valida que ticket existente é atualizado (upsert)."""
     # Primeiro save
@@ -173,7 +173,7 @@ async def test_save_execution_ticket_updates_existing(mongodb_client_real, sampl
 # ======================================================
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_indexes_created_correctly(mongodb_client_real):
     """Valida que índices são criados corretamente."""
     collection = mongodb_client_real.execution_tickets
@@ -195,7 +195,7 @@ async def test_indexes_created_correctly(mongodb_client_real):
         ), f"Índice {expected} não encontrado. Existentes: {index_names}"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_ticket_id_index_is_unique(mongodb_client_real):
     """Valida que índice ticket_id é único."""
     collection = mongodb_client_real.execution_tickets
@@ -212,7 +212,7 @@ async def test_ticket_id_index_is_unique(mongodb_client_real):
 # ======================================================
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_ensure_collection_exists_creates_collection(mongodb_client_real):
     """Valida que coleção é criada se não existir."""
     test_collection = f"test_collection_{datetime.now().timestamp()}"
@@ -226,7 +226,7 @@ async def test_ensure_collection_exists_creates_collection(mongodb_client_real):
     assert test_collection in existing
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_ensure_collection_exists_idempotent(mongodb_client_real):
     """Valida que chamada repetida não causa erro."""
     # Chamar múltiplas vezes para mesma coleção
@@ -242,7 +242,7 @@ async def test_ensure_collection_exists_idempotent(mongodb_client_real):
 # ======================================================
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_validate_indexes_no_errors_when_all_present(mongodb_client_real):
     """Valida que validate_indexes não loga erros quando índices estão corretos."""
     # Índices já foram criados em initialize()
@@ -256,7 +256,7 @@ async def test_validate_indexes_no_errors_when_all_present(mongodb_client_real):
 # ======================================================
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_initialization_validates_collection_config():
     """Valida que inicialização falha se collection_tickets não configurado."""
     from src.clients.mongodb_client import MongoDBClient
@@ -272,7 +272,7 @@ async def test_initialization_validates_collection_config():
         MongoDBClient(invalid_config)
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_initialization_validates_empty_collection_config():
     """Valida que inicialização falha se collection_tickets está vazio."""
     from src.clients.mongodb_client import MongoDBClient
@@ -293,10 +293,10 @@ async def test_initialization_validates_empty_collection_config():
 # ======================================================
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_save_ticket_records_duration_metrics(mongodb_client_real, sample_ticket):
     """Valida que métricas de duração são registradas."""
-    from unittest.mock import patch, MagicMock
+    from unittest.mock import MagicMock, patch
 
     with patch("src.clients.mongodb_client.get_metrics") as mock_get_metrics:
         mock_metrics = MagicMock()
@@ -314,21 +314,21 @@ async def test_save_ticket_records_duration_metrics(mongodb_client_real, sample_
 # ======================================================
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_cognitive_ledger_created(mongodb_client_real):
     """Valida que coleção cognitive_ledger existe."""
     existing = await mongodb_client_real.db.list_collection_names()
     assert "cognitive_ledger" in existing
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_validation_audit_created(mongodb_client_real):
     """Valida que coleção validation_audit existe."""
     existing = await mongodb_client_real.db.list_collection_names()
     assert "validation_audit" in existing
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_workflow_results_created(mongodb_client_real):
     """Valida que coleção workflow_results existe."""
     existing = await mongodb_client_real.db.list_collection_names()

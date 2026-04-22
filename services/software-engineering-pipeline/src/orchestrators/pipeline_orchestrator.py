@@ -1,5 +1,5 @@
 import asyncio
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from structlog import get_logger
 
@@ -56,7 +56,7 @@ class PipelineOrchestrator:
         self.logger.info("pipeline_execution_starting", run_id=run.run_id)
 
         run.status = PipelineStatus.RUNNING
-        run.started_at = datetime.now(timezone.utc)
+        run.started_at = datetime.now(UTC)
 
         try:
             # Define stage sequence based on environment
@@ -66,13 +66,13 @@ class PipelineOrchestrator:
                 if not await self._execute_stage(run, stage, context):
                     # Stage failed - stop execution
                     run.status = PipelineStatus.FAILED
-                    run.finished_at = datetime.now(timezone.utc)
+                    run.finished_at = datetime.now(UTC)
                     self.logger.error("pipeline_failed", run_id=run.run_id, stage=stage)
                     return run
 
             # All stages completed successfully
             run.status = PipelineStatus.SUCCESS
-            run.finished_at = datetime.now(timezone.utc)
+            run.finished_at = datetime.now(UTC)
             run.duration_seconds = int((run.finished_at - run.started_at).total_seconds())
 
             self.logger.info("pipeline_completed_successfully", run_id=run.run_id)
@@ -81,7 +81,7 @@ class PipelineOrchestrator:
         except Exception as e:
             self.logger.error("pipeline_error", run_id=run.run_id, error=str(e))
             run.status = PipelineStatus.FAILED
-            run.finished_at = datetime.now(timezone.utc)
+            run.finished_at = datetime.now(UTC)
             return run
 
     async def _execute_stage(self, run: PipelineRun, stage: PipelineStage, context: dict) -> bool:
@@ -175,7 +175,7 @@ class PipelineOrchestrator:
         # Execute rollback logic (this would integrate with GitOps provider)
         run.status = PipelineStatus.ROLLED_BACK
         run.rollback_reason = request.reason
-        run.finished_at = datetime.now(timezone.utc)
+        run.finished_at = datetime.now(UTC)
 
         self.logger.info("rollback_completed", run_id=request.run_id)
         return run

@@ -13,8 +13,8 @@ Created: 2026-03-30 (Epic J)
 
 import json
 from collections import defaultdict
-from datetime import datetime, timezone
-from typing import Any, Dict, Optional
+from datetime import UTC, datetime
+from typing import Any, Optional
 
 import structlog
 from aiokafka import AIOKafkaConsumer
@@ -165,7 +165,7 @@ class SignalFeedbackConsumer:
 
         logger.info("sinal_feedback_processado", signal_id=signal_id)
 
-    async def _update_signal_stats(self, signal: Dict[str, Any]) -> None:
+    async def _update_signal_stats(self, signal: dict[str, Any]) -> None:
         """
         Atualiza estatísticas de sinais para feedback loop.
 
@@ -182,7 +182,7 @@ class SignalFeedbackConsumer:
         key = f"{exploration_domain}:{signal_type}"
 
         self.signal_stats[key]["total"] += 1
-        self.signal_stats[key]["last_updated"] = datetime.now(timezone.utc)
+        self.signal_stats[key]["last_updated"] = datetime.now(UTC)
 
         # Atualizar média de curiosity (média móvel simples)
         current_avg = self.signal_stats[key]["avg_curiosity"]
@@ -205,7 +205,7 @@ class SignalFeedbackConsumer:
             avg_curiosity=new_avg,
         )
 
-    async def _adjust_exploration_parameters(self, signal: Dict[str, Any]) -> None:
+    async def _adjust_exploration_parameters(self, signal: dict[str, Any]) -> None:
         """
         Ajusta parâmetros de exploração baseado no feedback.
 
@@ -300,7 +300,7 @@ class SignalFeedbackConsumer:
         except Exception as e:
             logger.error("falha_ajustar_thresholds", domain=domain, error=str(e))
 
-    async def _reinforce_signal_pheromone(self, signal: Dict[str, Any]) -> None:
+    async def _reinforce_signal_pheromone(self, signal: dict[str, Any]) -> None:
         """
         Reforça feromônio de um sinal de alta qualidade.
 
@@ -323,7 +323,7 @@ class SignalFeedbackConsumer:
                 "falha_reforcar_feromonio", signal_id=signal.get("signal_id"), error=str(e)
             )
 
-    def get_feedback_stats(self) -> Dict[str, Any]:
+    def get_feedback_stats(self) -> dict[str, Any]:
         """
         Retorna estatísticas de feedback.
 

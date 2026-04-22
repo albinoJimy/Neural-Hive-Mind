@@ -32,7 +32,7 @@ class TestPatternDiscoveryInitialization:
 class TestIdentifyRepositoryPattern:
     """Testes de identificação do padrão Repository."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def discovery(self):
         return PatternDiscovery()
 
@@ -85,7 +85,7 @@ class OrderRepository:
 class TestIdentifyServicePattern:
     """Testes de identificação do padrão Service."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def discovery(self):
         return PatternDiscovery()
 
@@ -133,7 +133,7 @@ class PaymentService:
 class TestIdentifyFactoryPattern:
     """Testes de identificação do padrão Factory."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def discovery(self):
         return PatternDiscovery()
 
@@ -159,7 +159,7 @@ class ResponseFactory:
 class TestIdentifySingletonPattern:
     """Testes de identificação do padrão Singleton."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def discovery(self):
         return PatternDiscovery()
 
@@ -187,7 +187,7 @@ class DatabaseConnection:
 class TestIdentifyDecoratorPattern:
     """Testes de identificação do padrão Decorator."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def discovery(self):
         return PatternDiscovery()
 
@@ -217,7 +217,7 @@ def expensive_operation(x):
 class TestAnalyzePatternFrequency:
     """Testes de análise de frequência de padrões."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def discovery(self):
         return PatternDiscovery()
 
@@ -268,7 +268,7 @@ class UserService:
 class TestSuggestPatternApplication:
     """Testes de sugestão de aplicação de padrões."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def discovery(self):
         return PatternDiscovery()
 
@@ -308,7 +308,7 @@ def create_response(status, data):
 class TestPatternMatchingWithAST:
     """Testes de matching de padrões usando AST."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def discovery(self):
         return PatternDiscovery()
 
@@ -363,7 +363,7 @@ class OrderRepository:
 class TestPatternDocumentation:
     """Testes de documentação de padrões descobertos."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def discovery(self):
         return PatternDiscovery()
 
@@ -395,7 +395,7 @@ class TestPatternDocumentation:
 class TestExpandedPatternCount:
     """Testa que todos os 15+ padrões estão configurados."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def discovery(self):
         return PatternDiscovery()
 
@@ -425,7 +425,7 @@ class TestExpandedPatternCount:
 class TestCreationalPatterns:
     """Testes para padrões criacionais expandidos."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def discovery(self):
         return PatternDiscovery()
 
@@ -473,7 +473,7 @@ class DocumentPrototype:
 class TestStructuralPatterns:
     """Testes para padrões estruturais expandidos."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def discovery(self):
         return PatternDiscovery()
 
@@ -583,7 +583,7 @@ class DatabaseProxy:
 class TestBehavioralPatterns:
     """Testes para padrões comportamentais expandidos."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def discovery(self):
         return PatternDiscovery()
 
@@ -763,7 +763,7 @@ class PendingState:
 class TestPatternCategoryMethods:
     """Testes para métodos de categoria de padrões."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def discovery(self):
         return PatternDiscovery()
 

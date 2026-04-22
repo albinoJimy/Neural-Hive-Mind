@@ -4,12 +4,13 @@ Testes para os endpoints principais do Memory Layer API.
 Cobre health, ready, metrics, query, lineage e quality.
 """
 
-import pytest
-from unittest.mock import AsyncMock, MagicMock
 from datetime import datetime
+from unittest.mock import AsyncMock, MagicMock
+
+import pytest
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_health_endpoint():
     """Health check deve retornar status healthy."""
     from src.main import health_check
@@ -19,10 +20,10 @@ async def test_health_endpoint():
     assert response["status"] == "healthy"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_ready_endpoint_all_connected():
     """Readiness check deve retornar ready quando camadas core conectadas."""
-    from src.main import readiness_check, app_state
+    from src.main import app_state, readiness_check
 
     # Configurar app state
     app_state["redis_client"] = AsyncMock()
@@ -40,10 +41,10 @@ async def test_ready_endpoint_all_connected():
     assert response["layers"]["mongodb"] == "connected"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_ready_endpoint_missing_core_layer():
     """Readiness check deve retornar not_ready quando camada core falta."""
-    from src.main import readiness_check, app_state
+    from src.main import app_state, readiness_check
 
     app_state["redis_client"] = AsyncMock()
     app_state["mongodb_client"] = None  # Faltando
@@ -59,10 +60,10 @@ async def test_ready_endpoint_missing_core_layer():
     assert response["layers"]["mongodb"] == "disconnected"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_ready_endpoint_optional_layers():
     """Readiness check deve aceitar camadas opcionais como not_configured."""
-    from src.main import readiness_check, app_state
+    from src.main import app_state, readiness_check
 
     app_state["redis_client"] = AsyncMock()
     app_state["mongodb_client"] = AsyncMock()
@@ -79,10 +80,10 @@ async def test_ready_endpoint_optional_layers():
     assert response["layers"]["clickhouse"] == "not_configured"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_ready_endpoint_with_kafka_sync():
     """Readiness check deve verificar Kafka sync quando habilitado."""
-    from src.main import readiness_check, app_state
+    from src.main import app_state, readiness_check
 
     mock_producer = MagicMock()
     mock_producer.is_running = True
@@ -104,7 +105,7 @@ async def test_ready_endpoint_with_kafka_sync():
     assert response["layers"]["kafka_consumer"] == "running"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_metrics_endpoint():
     """Metrics endpoint deve retornar metricas Prometheus."""
     from src.main import metrics
@@ -114,10 +115,10 @@ async def test_metrics_endpoint():
     assert response.headers["media_type"] == "text/plain; version=0.0.4"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_query_memory_success():
     """Query de memoria deve retornar resultado."""
-    from src.main import query_memory, app_state
+    from src.main import app_state, query_memory
     from src.models.memory_query import MemoryQueryRequest, QueryType
 
     mock_client = AsyncMock()
@@ -135,10 +136,10 @@ async def test_query_memory_success():
     assert "data" in response
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_query_memory_with_cache():
     """Query com use_cache=True deve usar cache."""
-    from src.main import query_memory, app_state
+    from src.main import app_state, query_memory
     from src.models.memory_query import MemoryQueryRequest, QueryType
 
     mock_client = AsyncMock()
@@ -155,12 +156,12 @@ async def test_query_memory_with_cache():
     assert response["cached"] is True
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_query_memory_error_handling():
     """Query deve tratar erros e retornar 500."""
-    from src.main import query_memory, app_state
-    from src.models.memory_query import MemoryQueryRequest, QueryType
     from fastapi import HTTPException
+    from src.main import app_state, query_memory
+    from src.models.memory_query import MemoryQueryRequest, QueryType
 
     mock_client = AsyncMock()
     mock_client.query = AsyncMock(side_effect=Exception("Database error"))
@@ -175,10 +176,10 @@ async def test_query_memory_error_handling():
     assert exc_info.value.status_code == 500
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_get_lineage():
     """Obter lineage deve retornar arvore de relacionamentos."""
-    from src.main import get_lineage, app_state
+    from src.main import app_state, get_lineage
 
     mock_tracker = AsyncMock()
     mock_tracker.get_lineage_tree = AsyncMock(
@@ -198,10 +199,10 @@ async def test_get_lineage():
     assert len(response["ancestors"]) == 2
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_get_quality_stats():
     """Obter stats de qualidade deve retornar metricas."""
-    from src.main import get_quality_stats, app_state
+    from src.main import app_state, get_quality_stats
 
     mock_monitor = AsyncMock()
     mock_monitor.get_quality_trends = AsyncMock(
@@ -222,10 +223,10 @@ async def test_get_quality_stats():
     assert response["stats"]["completeness"] >= 0.9
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_invalidate_cache():
     """Invalidar cache deve retornar sucesso."""
-    from src.main import invalidate_cache, app_state
+    from src.main import app_state, invalidate_cache
 
     mock_client = AsyncMock()
     mock_client.invalidate_cache = AsyncMock(return_value=True)
@@ -239,10 +240,10 @@ async def test_invalidate_cache():
     assert response["cascade"] is False
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_list_data_assets():
     """Listar assets deve retornar lista de ativos."""
-    from src.main import list_data_assets, app_state
+    from src.main import app_state, list_data_assets
 
     mock_mongo = AsyncMock()
     mock_mongo.find = AsyncMock(
@@ -260,12 +261,13 @@ async def test_list_data_assets():
     assert response["count"] == 2
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_query_by_time_range():
     """Query por time range deve filtrar corretamente."""
-    from src.main import query_memory, app_state
-    from src.models.memory_query import MemoryQueryRequest, QueryType, TimeRange
     from datetime import timedelta
+
+    from src.main import app_state, query_memory
+    from src.models.memory_query import MemoryQueryRequest, QueryType, TimeRange
 
     mock_client = AsyncMock()
     mock_client.query = AsyncMock(
@@ -288,11 +290,11 @@ async def test_query_by_time_range():
     assert response["entity_id"] == "entity-123"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_global_exception_handler():
     """Handler global de excecao deve retornar 500."""
-    from src.main import global_exception_handler
     from fastapi import Request
+    from src.main import global_exception_handler
 
     request = MagicMock(spec=Request)
     request.url.path = "/api/v1/memory/query"

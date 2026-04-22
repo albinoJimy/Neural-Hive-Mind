@@ -10,10 +10,11 @@ Estes testes requerem:
 Marcar com @pytest.mark.integration para execução condicional.
 """
 
-import pytest
 import json
+from collections.abc import Generator
+
 import grpc
-from typing import Tuple, Generator
+import pytest
 
 # Tentar importar protobuf stubs
 try:
@@ -83,7 +84,7 @@ def _create_test_cognitive_plan(specialist_type: str) -> dict:
 
 
 @pytest.fixture(params=SPECIALISTS, ids=[s[0] for s in SPECIALISTS])
-def specialist_channel(request) -> Generator[Tuple[str, grpc.Channel], None, None]:
+def specialist_channel(request) -> Generator[tuple[str, grpc.Channel], None, None]:
     """
     Cria canal gRPC para cada especialista.
 
@@ -110,17 +111,17 @@ def specialist_channel(request) -> Generator[Tuple[str, grpc.Channel], None, Non
     channel.close()
 
 
-@pytest.fixture
+@pytest.fixture()
 def grpc_stub(
     specialist_channel,
-) -> Tuple[str, "specialist_pb2_grpc.SpecialistServiceStub"]:
+) -> tuple[str, "specialist_pb2_grpc.SpecialistServiceStub"]:
     """Cria stub do cliente gRPC."""
     specialist_type, channel = specialist_channel
     stub = specialist_pb2_grpc.SpecialistServiceStub(channel)
     return specialist_type, stub
 
 
-@pytest.mark.integration
+@pytest.mark.integration()
 @pytest.mark.skipif(not PROTO_AVAILABLE, reason="Protobuf stubs not available")
 class TestEvaluatePlanIntegration:
     """Testes de integração para EvaluatePlan."""
@@ -200,7 +201,7 @@ class TestEvaluatePlanIntegration:
             assert 0.0 <= factor.score <= 1.0, f"score deve estar entre 0 e 1: {factor.score}"
 
 
-@pytest.mark.integration
+@pytest.mark.integration()
 @pytest.mark.skipif(not PROTO_AVAILABLE, reason="Protobuf stubs not available")
 class TestHealthCheckIntegration:
     """Testes de integração para HealthCheck."""
@@ -229,7 +230,7 @@ class TestHealthCheckIntegration:
         assert "model_loaded" in response.details, "details deve incluir 'model_loaded'"
 
 
-@pytest.mark.integration
+@pytest.mark.integration()
 @pytest.mark.skipif(not PROTO_AVAILABLE, reason="Protobuf stubs not available")
 class TestGetCapabilitiesIntegration:
     """Testes de integração para GetCapabilities."""
@@ -268,7 +269,7 @@ class TestGetCapabilitiesIntegration:
             assert metrics.total_evaluations >= 0, "total_evaluations deve ser >= 0"
 
 
-@pytest.mark.integration
+@pytest.mark.integration()
 @pytest.mark.skipif(not PROTO_AVAILABLE, reason="Protobuf stubs not available")
 class TestGrpcErrorHandlingIntegration:
     """Testes de integração para tratamento de erros gRPC."""
@@ -323,7 +324,7 @@ class TestGrpcErrorHandlingIntegration:
             pass
 
 
-@pytest.mark.integration
+@pytest.mark.integration()
 @pytest.mark.skipif(not PROTO_AVAILABLE, reason="Protobuf stubs not available")
 class TestGrpcMetadataIntegration:
     """Testes de integração para propagação de metadados gRPC."""
@@ -361,8 +362,8 @@ class TestGrpcMetadataIntegration:
 # ============================================================================
 
 
-@pytest.mark.integration
-@pytest.mark.performance
+@pytest.mark.integration()
+@pytest.mark.performance()
 @pytest.mark.skipif(not PROTO_AVAILABLE, reason="Protobuf stubs not available")
 class TestGrpcPerformanceIntegration:
     """Testes de performance gRPC (opcional)."""

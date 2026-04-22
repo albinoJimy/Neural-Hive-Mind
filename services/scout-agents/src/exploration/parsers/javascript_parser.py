@@ -5,7 +5,7 @@ Suporta ES6+ e CommonJS.
 """
 
 import re
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 import structlog
 
@@ -20,10 +20,10 @@ class JavaScriptParser:
     def __init__(self):
         """Inicializa o JavaScriptParser."""
         self._ts_parser = TypeScriptParser()
-        self._parsed_cache: Dict[str, Dict] = {}
+        self._parsed_cache: dict[str, dict] = {}
         self._parse_errors: set = set()
 
-    def parse(self, code: str, filename: str) -> Optional[Dict[str, Any]]:
+    def parse(self, code: str, filename: str) -> Optional[dict[str, Any]]:
         """
         Faz parsing de código JavaScript.
 
@@ -76,7 +76,7 @@ class JavaScriptParser:
             self._parse_errors.add(filename)
             return None
 
-    def _extract_commonjs_requires(self, code: str) -> List[Dict]:
+    def _extract_commonjs_requires(self, code: str) -> list[dict]:
         """Extrai imports CommonJS (require)."""
         imports = []
 
@@ -103,7 +103,7 @@ class JavaScriptParser:
 
         return imports
 
-    def _detect_prototype_chains(self, code: str) -> List[Dict]:
+    def _detect_prototype_chains(self, code: str) -> list[dict]:
         """Detecta herança baseada em prototype."""
         chains = []
 
@@ -150,7 +150,7 @@ class JavaScriptParser:
 
         return chains
 
-    def _enhance_js_class_info(self, result: Dict, code: str):
+    def _enhance_js_class_info(self, result: dict, code: str):
         """Adiciona informações específicas de classes JavaScript."""
         # Adicionar métodos detectados via prototype
         prototype_methods = self._get_prototype_methods(code)
@@ -159,7 +159,7 @@ class JavaScriptParser:
             if cls_name in prototype_methods:
                 cls["prototype_methods"] = prototype_methods[cls_name]
 
-    def _get_prototype_methods(self, code: str) -> Dict[str, List[str]]:
+    def _get_prototype_methods(self, code: str) -> dict[str, list[str]]:
         """Mapeia classes para seus métodos prototype."""
         methods = {}
 
@@ -178,7 +178,7 @@ class JavaScriptParser:
         """Verifica se arquivo tem erros de parsing."""
         return filename in self._parse_errors
 
-    def get_stats(self) -> Dict[str, int]:
+    def get_stats(self) -> dict[str, int]:
         """Retorna estatísticas do parser."""
         return {
             "parsed_files": len(self._parsed_cache),

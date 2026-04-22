@@ -5,8 +5,8 @@ Gerencia schedules de workflows baseados em cron, eventos e triggers manuais.
 """
 
 import asyncio
-from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List, Optional
+from datetime import UTC, datetime, timedelta
+from typing import Any, Optional
 from uuid import uuid4
 
 import structlog
@@ -40,7 +40,7 @@ class ScheduleManager:
         self.temporal_namespace = temporal_namespace
         self.temporal_task_queue = temporal_task_queue
         self.logger = logger
-        self._running_schedules: Dict[str, asyncio.Task] = {}
+        self._running_schedules: dict[str, asyncio.Task] = {}
 
     async def create_schedule(
         self,
@@ -48,7 +48,7 @@ class ScheduleManager:
         schedule_type: ScheduleType,
         trigger: ScheduleTrigger,
         priority: SchedulePriority = SchedulePriority.MEDIUM,
-        metadata: Dict[str, Any] = None,
+        metadata: dict[str, Any] = None,
     ) -> str:
         """
         Cria novo schedule.
@@ -128,7 +128,7 @@ class ScheduleManager:
         status: Optional[str] = None,
         limit: int = 50,
         offset: int = 0,
-    ) -> List[Schedule]:
+    ) -> list[Schedule]:
         """
         Lista schedules com filtros.
 
@@ -172,7 +172,7 @@ class ScheduleManager:
 
         return [self._row_to_schedule(row) for row in rows]
 
-    async def trigger_workflow(self, schedule_id: str, manual: bool = False) -> Dict[str, Any]:
+    async def trigger_workflow(self, schedule_id: str, manual: bool = False) -> dict[str, Any]:
         """
         Dispara workflow baseado no schedule.
 
@@ -192,7 +192,7 @@ class ScheduleManager:
             raise ValueError(f"Schedule {schedule_id} is not active")
 
         # Iniciar workflow Temporal
-        workflow_id = f"{schedule.workflow}-{schedule_id}-{datetime.now(timezone.utc).timestamp()}"
+        workflow_id = f"{schedule.workflow}-{schedule_id}-{datetime.now(UTC).timestamp()}"
 
         try:
             handle = await self.temporal_client.start_workflow(
@@ -203,13 +203,13 @@ class ScheduleManager:
             )
 
             # Atualizar última execução
-            await self._update_schedule_last_run(schedule_id, datetime.now(timezone.utc))
+            await self._update_schedule_last_run(schedule_id, datetime.now(UTC))
 
             # Registrar execução
             execution = ScheduleExecution(
                 schedule_id=schedule_id,
                 workflow_id=handle.id,
-                started_at=datetime.now(timezone.utc),
+                started_at=datetime.now(UTC),
                 status="running",
             )
             await self._save_execution(execution)
@@ -224,7 +224,7 @@ class ScheduleManager:
             return {
                 "schedule_id": schedule_id,
                 "workflow_id": handle.id,
-                "triggered_at": datetime.now(timezone.utc).isoformat(),
+                "triggered_at": datetime.now(UTC).isoformat(),
                 "manual": manual,
             }
 
@@ -235,7 +235,7 @@ class ScheduleManager:
             self.logger.error("workflow_trigger_failed", schedule_id=schedule_id, error=str(e))
             raise
 
-    async def pause_schedule(self, schedule_id: str) -> Dict[str, Any]:
+    async def pause_schedule(self, schedule_id: str) -> dict[str, Any]:
         """
         Pausa schedule.
 
@@ -254,7 +254,7 @@ class ScheduleManager:
 
         return {"schedule_id": schedule_id, "status": "paused"}
 
-    async def resume_schedule(self, schedule_id: str) -> Dict[str, Any]:
+    async def resume_schedule(self, schedule_id: str) -> dict[str, Any]:
         """
         Retoma schedule pausado.
 
@@ -277,7 +277,7 @@ class ScheduleManager:
 
         return {"schedule_id": schedule_id, "status": "active"}
 
-    async def delete_schedule(self, schedule_id: str) -> Dict[str, Any]:
+    async def delete_schedule(self, schedule_id: str) -> dict[str, Any]:
         """
         Deleta schedule.
 
@@ -309,7 +309,7 @@ class ScheduleManager:
             while True:
                 try:
                     # Aguardar até próxima execução
-                    now = datetime.now(timezone.utc)
+                    now = datetime.now(UTC)
                     next_run = schedule.next_run_at
 
                     if next_run and next_run > now:
@@ -359,7 +359,7 @@ class ScheduleManager:
 
         minute, hour, day, month, dow = parts
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         next_run = now.replace(second=0, microsecond=0)
 
         # Lógica simplificada para alguns padrões comuns
@@ -450,7 +450,7 @@ class ScheduleManager:
             WHERE schedule_id = $3
         """
         await self.postgresql_client.execute(
-            query, status.value, datetime.now(timezone.utc), schedule_id
+            query, status.value, datetime.now(UTC), schedule_id
         )
 
     async def _update_schedule_last_run(self, schedule_id: str, last_run: datetime) -> None:
@@ -461,7 +461,7 @@ class ScheduleManager:
             WHERE schedule_id = $3
         """
         await self.postgresql_client.execute(
-            query, last_run, datetime.now(timezone.utc), schedule_id
+            query, last_run, datetime.now(UTC), schedule_id
         )
 
     async def _update_next_run(self, schedule_id: str, next_run: datetime) -> None:
@@ -471,7 +471,7 @@ class ScheduleManager:
             WHERE schedule_id = $3
         """
         await self.postgresql_client.execute(
-            query, next_run, datetime.now(timezone.utc), schedule_id
+            query, next_run, datetime.now(UTC), schedule_id
         )
 
     async def _increment_failure_count(self, schedule_id: str) -> None:
@@ -481,7 +481,7 @@ class ScheduleManager:
             SET failure_count = failure_count + 1, updated_at = $1
             WHERE schedule_id = $2
         """
-        await self.postgresql_client.execute(query, datetime.now(timezone.utc), schedule_id)
+        await self.postgresql_client.execute(query, datetime.now(UTC), schedule_id)
 
     def _row_to_schedule(self, row) -> Schedule:
         """Converte linha do banco para modelo Schedule."""
@@ -505,7 +505,7 @@ class ScheduleManager:
 
     async def list_schedule_executions(
         self, schedule_id: str, limit: int = 50, offset: int = 0
-    ) -> List[ScheduleExecution]:
+    ) -> list[ScheduleExecution]:
         """
         Lista execuções de um schedule específico.
 

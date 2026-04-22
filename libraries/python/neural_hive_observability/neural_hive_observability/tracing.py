@@ -7,19 +7,20 @@ por intent_id e plan_id conforme Fluxo D.
 """
 
 import functools
-import logging
-from contextlib import contextmanager
-from typing import Optional, Dict, Any, Callable
 import inspect
+import logging
+from collections.abc import Callable
+from contextlib import contextmanager
+from typing import Any, Optional
 
-from opentelemetry import trace, context
-from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import BatchSpanProcessor
-from opentelemetry.sdk.resources import Resource
-from opentelemetry.propagate import inject, extract
-from opentelemetry.trace import Status, StatusCode, Span
+from opentelemetry import context, trace
 from opentelemetry.baggage import get_all as get_all_baggage, set_baggage
 from opentelemetry.context import attach, detach
+from opentelemetry.propagate import extract, inject
+from opentelemetry.sdk.resources import Resource
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from opentelemetry.trace import Span, Status, StatusCode
 
 from .config import ObservabilityConfig
 from .exporters import ResilientOTLPSpanExporter, _sanitize_header_value
@@ -497,7 +498,7 @@ def get_current_span_id() -> Optional[str]:
     return None
 
 
-def get_correlation_context() -> Dict[str, Any]:
+def get_correlation_context() -> dict[str, Any]:
     """
     Retorna o contexto de correlação atual.
 
@@ -594,7 +595,7 @@ def create_child_span(name: str, parent_span: Optional[Span] = None, **attribute
     return span
 
 
-def inject_context_to_headers(headers: Dict[str, str]) -> Dict[str, str]:
+def inject_context_to_headers(headers: dict[str, str]) -> dict[str, str]:
     """
     Injeta contexto OpenTelemetry em headers.
 
@@ -620,7 +621,7 @@ def inject_context_to_headers(headers: Dict[str, str]) -> Dict[str, str]:
     return new_headers
 
 
-def extract_context_from_headers(headers: Dict[str, str]):
+def extract_context_from_headers(headers: dict[str, str]):
     """
     Extrai contexto OpenTelemetry de headers e define no contexto atual.
 

@@ -4,9 +4,10 @@ Testes de integração para ExplainabilityLedgerV2.
 Testa persistência, recuperação e queries semânticas.
 """
 
-import pytest
 from datetime import datetime
-from unittest.mock import Mock, MagicMock, patch
+from unittest.mock import MagicMock, Mock, patch
+
+import pytest
 from pydantic import ValidationError
 
 from neural_hive_specialists.explainability.explainability_ledger_v2 import (
@@ -15,7 +16,7 @@ from neural_hive_specialists.explainability.explainability_ledger_v2 import (
 )
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_config():
     """Configuração mockada."""
     config = Mock()
@@ -24,7 +25,7 @@ def mock_config():
     return config
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_explainability_data():
     """Dados de explicabilidade de exemplo."""
     return {
@@ -64,7 +65,7 @@ def sample_explainability_data():
     }
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestExplainabilityRecordSchema:
     """Testes do schema Pydantic."""
 
@@ -128,11 +129,11 @@ class TestExplainabilityRecordSchema:
         assert isinstance(record.created_at, datetime)
 
 
-@pytest.mark.integration
+@pytest.mark.integration()
 class TestExplainabilityLedgerV2Persistence:
     """Testes de persistência no MongoDB."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def ledger(self, mock_config):
         """Cria ledger com MongoDB mockado."""
         with patch(
@@ -208,11 +209,11 @@ class TestExplainabilityLedgerV2Persistence:
         assert result is None
 
 
-@pytest.mark.integration
+@pytest.mark.integration()
 class TestExplainabilityLedgerV2Queries:
     """Testes de queries semânticas."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def ledger(self, mock_config):
         """Cria ledger com MongoDB mockado."""
         with patch(

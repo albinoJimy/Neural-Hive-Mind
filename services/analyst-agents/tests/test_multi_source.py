@@ -2,19 +2,19 @@
 Testes para Multi-Source Aggregation.
 """
 
-import pytest
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
-from datetime import datetime, timezone
 
+import pytest
+from src.models.query_request import QueryRequest
 from src.services.data_fusion_engine import (
-    DataFusionEngine,
     ConflictResolution,
+    DataFusionEngine,
 )
 from src.services.query_engine import QueryEngine
-from src.models.query_request import QueryRequest
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_clickhouse_client():
     """Mock do ClickHouse client."""
     client = MagicMock()
@@ -27,7 +27,7 @@ def mock_clickhouse_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_neo4j_client():
     """Mock do Neo4j client."""
     client = MagicMock()
@@ -40,7 +40,7 @@ def mock_neo4j_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_postgresql_client():
     """Mock do PostgreSQL client."""
     client = MagicMock()
@@ -67,7 +67,7 @@ def mock_postgresql_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_redis_client():
     """Mock do Redis client."""
     client = MagicMock()
@@ -76,7 +76,7 @@ def mock_redis_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def query_engine(
     mock_clickhouse_client,
     mock_neo4j_client,
@@ -94,7 +94,7 @@ def query_engine(
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def data_fusion_engine():
     """DataFusionEngine para testes."""
     return DataFusionEngine()
@@ -112,7 +112,7 @@ class TestDataFusionEngine:
         """Testa inicialização."""
         assert data_fusion_engine.conflict_resolution == ConflictResolution.HIGHEST_CONFIDENCE
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_normalize_mongodb(self, data_fusion_engine):
         """Testa normalização de dados MongoDB."""
         data = [{"name": "test1", "value": 100}, {"name": "test2", "value": 200}]
@@ -124,7 +124,7 @@ class TestDataFusionEngine:
         assert result["count"] == 2
         assert result["items"] == data
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_normalize_postgresql(self, data_fusion_engine):
         """Testa normalização de dados PostgreSQL."""
         data = [{"id": 1, "type": "action"}, {"id": 2, "type": "query"}]
@@ -136,7 +136,7 @@ class TestDataFusionEngine:
         assert result["count"] == 2
         assert result["rows"] == data
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_normalize_neo4j(self, data_fusion_engine):
         """Testa normalização de dados Neo4j."""
         data = [{"node": "A"}, {"node": "B"}]
@@ -147,7 +147,7 @@ class TestDataFusionEngine:
         assert result["type"] == "graph"
         assert result["count"] == 2
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_normalize_clickhouse(self, data_fusion_engine):
         """Testa normalização de dados ClickHouse."""
         data = [
@@ -162,13 +162,13 @@ class TestDataFusionEngine:
         assert result["count"] == 2
         assert result["points"] == data
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_align_temporal(self, data_fusion_engine):
         """Testa alinhamento temporal."""
 
         time_window = {
-            "start": datetime(2024, 1, 1, tzinfo=timezone.utc),
-            "end": datetime(2024, 1, 2, tzinfo=timezone.utc),
+            "start": datetime(2024, 1, 1, tzinfo=UTC),
+            "end": datetime(2024, 1, 2, tzinfo=UTC),
         }
 
         normalized = {
@@ -191,7 +191,7 @@ class TestDataFusionEngine:
         assert len(aligned["source1"]["items"]) == 1
         assert aligned["source1"]["items"][0]["value"] == 100
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_join_sources(self, data_fusion_engine):
         """Testa junção de fontes."""
         aligned = {
@@ -217,7 +217,7 @@ class TestDataFusionEngine:
         assert "postgresql" in joined["by_source"]
         assert "merged_metrics" in joined
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_resolve_conflicts_highest_confidence(self, data_fusion_engine):
         """Testa resolução de conflitos com maior confiança."""
         fused = {
@@ -234,7 +234,7 @@ class TestDataFusionEngine:
         assert "resolved_metrics" in resolved
         assert resolved["resolved_metrics"]["cpu"]["source"] == "postgresql"  # Maior prioridade
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_resolve_conflicts_merge(self, data_fusion_engine):
         """Testa resolução de conflitos com merge."""
         engine = DataFusionEngine(conflict_resolution=ConflictResolution.MERGE)
@@ -254,7 +254,7 @@ class TestDataFusionEngine:
         # Média de 80.5 e 75.0
         assert abs(resolved["resolved_metrics"]["cpu"]["value"] - 77.75) < 0.1
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_fuse_sources_complete(self, data_fusion_engine):
         """Testa fluxo completo de fusão."""
 
@@ -274,7 +274,7 @@ class TestDataFusionEngine:
         assert result.fused_data is not None
         assert "fusion_metadata" in result.fused_data
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_correlation(self, data_fusion_engine):
         """Testa cálculo de correlação."""
         # Dados já normalizados para evitar await em _normalize_schemas
@@ -326,7 +326,7 @@ class TestDataFusionEngine:
 class TestQueryEngineMultiSource:
     """Testes para query multi-source no QueryEngine."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_query_with_fusion_enabled(self, query_engine):
         """Testa query com fusão habilitada."""
         query_spec = {
@@ -343,7 +343,7 @@ class TestQueryEngineMultiSource:
         assert results["results"]["by_source"] is not None
         assert results["results"]["fused"] is not None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_query_postgresql_source(self, query_engine):
         """Testa query específica do PostgreSQL."""
         query_spec = {
@@ -358,7 +358,7 @@ class TestQueryEngineMultiSource:
         assert "results" in results
         assert "postgresql" in results["results"]
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_join_sources(self, query_engine):
         """Testa junção de fontes."""
         sources = ["clickhouse", "postgresql"]
@@ -371,7 +371,7 @@ class TestQueryEngineMultiSource:
         assert "correlations" in results
         assert results["correlations"] is not None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_correlate_metrics(self, query_engine):
         """Testa cálculo de correlação."""
         # Mock para get_correlation do data_fusion

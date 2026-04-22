@@ -8,7 +8,7 @@ from neural_hive_specialists.validation.description_validator import (
 )
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestDescriptionQualityValidatorInit:
     """Testes de inicialização."""
 
@@ -21,7 +21,7 @@ class TestDescriptionQualityValidatorInit:
         assert "architecture-review" in validator._domain_patterns
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestDomainKeywords:
     """Testes para DOMAIN_KEYWORDS."""
 
@@ -54,7 +54,7 @@ class TestDomainKeywords:
         assert "business-logic" in domains
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestSecurityKeywords:
     """Testes para SECURITY_KEYWORDS."""
 
@@ -74,7 +74,7 @@ class TestSecurityKeywords:
         assert "classified" in keywords
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestQosKeywords:
     """Testes para QOS_KEYWORDS."""
 
@@ -93,11 +93,11 @@ class TestQosKeywords:
         assert "acknowledge" in keywords
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestValidateDescription:
     """Testes para validate_description."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def validator(self):
         return DescriptionQualityValidator()
 
@@ -205,11 +205,11 @@ class TestValidateDescription:
         assert result["metrics"]["security_score"] >= 0
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestScoreLength:
     """Testes para _score_length."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def validator(self):
         return DescriptionQualityValidator()
 
@@ -265,11 +265,11 @@ class TestScoreLength:
         assert len(issues) > 0
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestScoreLexicalDiversity:
     """Testes para _score_lexical_diversity."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def validator(self):
         return DescriptionQualityValidator()
 
@@ -299,11 +299,11 @@ class TestScoreLexicalDiversity:
         assert len(issues) > 0
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestScoreDomainKeywords:
     """Testes para _score_domain_keywords."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def validator(self):
         return DescriptionQualityValidator()
 
@@ -342,11 +342,11 @@ class TestScoreDomainKeywords:
         assert len(issues) == 0
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestCountDomainKeywords:
     """Testes para _count_domain_keywords."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def validator(self):
         return DescriptionQualityValidator()
 
@@ -365,11 +365,11 @@ class TestCountDomainKeywords:
         assert count == 0
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestScoreSecurityKeywords:
     """Testes para _score_security_keywords."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def validator(self):
         return DescriptionQualityValidator()
 
@@ -404,11 +404,11 @@ class TestScoreSecurityKeywords:
         assert score >= 0.8
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestScoreQosKeywords:
     """Testes para _score_qos_keywords."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def validator(self):
         return DescriptionQualityValidator()
 
@@ -436,11 +436,11 @@ class TestScoreQosKeywords:
         assert len(issues) > 0
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestValidatePlanDescriptions:
     """Testes para validate_plan_descriptions."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def validator(self):
         return DescriptionQualityValidator()
 
@@ -508,11 +508,11 @@ class TestValidatePlanDescriptions:
         assert "task_id" in result["low_quality_tasks"][0]
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestGenerateSuggestions:
     """Testes para _generate_suggestions."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def validator(self):
         return DescriptionQualityValidator()
 
@@ -560,11 +560,11 @@ class TestGenerateSuggestions:
         assert any("keyword" in s or "domínio" in s for s in suggestions)
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestSuggestImprovements:
     """Testes para suggest_improvements."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def validator(self):
         return DescriptionQualityValidator()
 
@@ -604,11 +604,11 @@ class TestSuggestImprovements:
         assert "authentication" in improved or "encryption" in improved
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestGetActionVerbs:
     """Testes para _get_action_verbs."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def validator(self):
         return DescriptionQualityValidator()
 
@@ -631,11 +631,11 @@ class TestGetActionVerbs:
         assert "Custom operation" in verb
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestSummarizeEntities:
     """Testes para _summarize_entities."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def validator(self):
         return DescriptionQualityValidator()
 
@@ -667,11 +667,11 @@ class TestSummarizeEntities:
         assert "data" in summary
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestGetDomainHint:
     """Testes para _get_domain_hint."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def validator(self):
         return DescriptionQualityValidator()
 
@@ -689,7 +689,7 @@ class TestGetDomainHint:
         assert hint == ""
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestGetValidator:
     """Testes para get_validator."""
 

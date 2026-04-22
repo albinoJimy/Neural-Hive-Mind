@@ -1,6 +1,6 @@
 """Client for MCP Tool Catalog Service."""
 
-from typing import Dict, List, Optional
+from typing import Optional
 
 import httpx
 import structlog
@@ -26,7 +26,7 @@ class MCPToolCatalogClient:
         if self.client:
             await self.client.aclose()
 
-    async def request_tool_selection(self, request_data: Dict) -> Optional[Dict]:
+    async def request_tool_selection(self, request_data: dict) -> Optional[dict]:
         """Request tool selection via synchronous REST API.
 
         Args:
@@ -57,7 +57,7 @@ class MCPToolCatalogClient:
             )
             return None
 
-    async def get_tool(self, tool_id: str) -> Optional[Dict]:
+    async def get_tool(self, tool_id: str) -> Optional[dict]:
         """Get tool descriptor by ID."""
         try:
             response = await self.client.get(f"/api/v1/tools/{tool_id}")
@@ -66,7 +66,7 @@ class MCPToolCatalogClient:
         except httpx.HTTPError:
             return None
 
-    async def list_tools(self, category: Optional[str] = None) -> List[Dict]:
+    async def list_tools(self, category: Optional[str] = None) -> list[dict]:
         """List tools, optionally filtered by category."""
         try:
             params = {"category": category} if category else {}
@@ -76,7 +76,7 @@ class MCPToolCatalogClient:
         except httpx.HTTPError:
             return []
 
-    async def send_tool_feedback(self, feedback: Dict) -> bool:
+    async def send_tool_feedback(self, feedback: dict) -> bool:
         """Send feedback about tool execution.
 
         Args:

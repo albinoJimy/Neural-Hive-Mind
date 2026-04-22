@@ -7,11 +7,12 @@ com feature extraction paralela e inferência em batch.
 
 import asyncio
 import time
+from concurrent.futures import ThreadPoolExecutor
+from typing import TYPE_CHECKING, Any, Optional
+
 import numpy as np
 import pandas as pd
 import structlog
-from typing import List, Dict, Any, Optional, TYPE_CHECKING
-from concurrent.futures import ThreadPoolExecutor
 
 if TYPE_CHECKING:
     from .base_specialist import BaseSpecialist
@@ -44,9 +45,9 @@ class BatchEvaluator:
 
     async def evaluate_batch(
         self,
-        cognitive_plans: List[Dict[str, Any]],
-        context: Optional[Dict[str, Any]] = None,
-    ) -> List[Dict[str, Any]]:
+        cognitive_plans: list[dict[str, Any]],
+        context: Optional[dict[str, Any]] = None,
+    ) -> list[dict[str, Any]]:
         """
         Avalia batch de planos cognitivos.
 
@@ -124,8 +125,8 @@ class BatchEvaluator:
             raise
 
     async def _extract_features_batch(
-        self, cognitive_plans: List[Dict[str, Any]]
-    ) -> List[Dict[str, Any]]:
+        self, cognitive_plans: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
         """
         Extrai features de múltiplos planos em paralelo.
 
@@ -137,7 +138,7 @@ class BatchEvaluator:
         """
         loop = asyncio.get_event_loop()
 
-        def _extract_single(plan: Dict[str, Any]) -> Dict[str, Any]:
+        def _extract_single(plan: dict[str, Any]) -> dict[str, Any]:
             """Extrai features de um único plano."""
             try:
                 # Verificar cache primeiro
@@ -191,8 +192,8 @@ class BatchEvaluator:
         return features_batch
 
     async def _predict_batch(
-        self, features_batch: List[Dict[str, Any]]
-    ) -> List[Optional[np.ndarray]]:
+        self, features_batch: list[dict[str, Any]]
+    ) -> list[Optional[np.ndarray]]:
         """
         Executa inferência em batch.
 
@@ -264,11 +265,11 @@ class BatchEvaluator:
 
     def _post_process_prediction(
         self,
-        plan: Dict[str, Any],
-        features: Dict[str, Any],
+        plan: dict[str, Any],
+        features: dict[str, Any],
         prediction: Optional[np.ndarray],
-        context: Dict[str, Any],
-    ) -> Dict[str, Any]:
+        context: dict[str, Any],
+    ) -> dict[str, Any]:
         """
         Pós-processa predição individual.
 
@@ -305,7 +306,7 @@ class BatchEvaluator:
                     "confidence_score": 0.5,
                     "risk_score": 0.5,
                     "recommendation": "review_required",
-                    "reasoning_summary": f"Avaliação falhou: {str(e)}",
+                    "reasoning_summary": f"Avaliação falhou: {e!s}",
                     "reasoning_factors": [],
                     "metadata": {
                         "batch_processed": True,
@@ -326,9 +327,9 @@ class BatchEvaluator:
 
     def evaluate_batch_sync(
         self,
-        cognitive_plans: List[Dict[str, Any]],
-        context: Optional[Dict[str, Any]] = None,
-    ) -> List[Dict[str, Any]]:
+        cognitive_plans: list[dict[str, Any]],
+        context: Optional[dict[str, Any]] = None,
+    ) -> list[dict[str, Any]]:
         """
         Versão síncrona de evaluate_batch.
 

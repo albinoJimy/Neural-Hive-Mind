@@ -7,9 +7,9 @@ SchedulingOptimizer (Q-learning) usando dados históricos.
 
 import asyncio
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
-UTC = timezone.utc  # type: ignore, timedelta
+UTC = UTC  # type: ignore, timedelta
 
 import numpy as np
 

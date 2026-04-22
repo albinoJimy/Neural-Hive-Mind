@@ -34,66 +34,65 @@ def process_intention(intent_id: str, user_input: str):
 
 import logging as stdlib_logging  # Import with alias to avoid conflict with local .logging module
 import os
-from typing import Optional, Dict, Any
+from typing import Any, Dict, Optional
 
 from .config import ObservabilityConfig
-from .tracing import init_tracing, trace_intent, trace_plan, get_tracer, trace_grpc_method
-from .metrics import init_metrics, NeuralHiveMetrics
-from .logging import init_logging, get_logger
-from .health import (
-    HealthChecker,
-    HealthManager,
-    HealthStatus,
-    HealthCheck,
-    HealthCheckResult,
-    RedisHealthCheck,
-    CustomHealthCheck,
-    DatabaseHealthCheck,
-    KafkaHealthCheck,
-    MemoryHealthCheck,
-)
-from .health_endpoints import (
-    create_startup_router,
-    create_liveness_router,
-    create_readiness_router,
-    StartupResponse,
-    HealthResponse,
-)
-from .health_checks import ClickHouseSchemaHealthCheck, OTELPipelineHealthCheck
-from .context import ContextManager
-from .grpc_instrumentation import (
-    init_grpc_instrumentation,
-    create_instrumented_grpc_server,
-    create_instrumented_async_grpc_server,
-    extract_grpc_context,
-    inject_grpc_context,
-    instrument_grpc_channel,
-    NeuralHiveGrpcServerInterceptor,
-)
-from .context import inject_context_to_metadata
-from .kafka_instrumentation import (
-    instrument_kafka_producer,
-    instrument_kafka_consumer,
-    InstrumentedKafkaProducer,
-    InstrumentedAIOKafkaConsumer,
-    InstrumentedAIOKafkaProducer,
-)
-from .middleware import (
-    TraceContextMiddleware,
-    parse_traceparent,
-    extract_traceparent_from_request,
-    extract_tracestate_from_request,
-    validate_trace_context,
-    get_trace_id_from_request,
-)
+from .context import ContextManager, inject_context_to_metadata
 from .dlq import (
-    DLQMessage,
-    TokenBucketRateLimiter,
-    SlidingWindowRateLimiter,
-    DLQProducer,
     DLQHandler,
+    DLQMessage,
+    DLQProducer,
+    SlidingWindowRateLimiter,
+    TokenBucketRateLimiter,
     create_dlq_handler,
 )
+from .grpc_instrumentation import (
+    NeuralHiveGrpcServerInterceptor,
+    create_instrumented_async_grpc_server,
+    create_instrumented_grpc_server,
+    extract_grpc_context,
+    init_grpc_instrumentation,
+    inject_grpc_context,
+    instrument_grpc_channel,
+)
+from .health import (
+    CustomHealthCheck,
+    DatabaseHealthCheck,
+    HealthCheck,
+    HealthChecker,
+    HealthCheckResult,
+    HealthManager,
+    HealthStatus,
+    KafkaHealthCheck,
+    MemoryHealthCheck,
+    RedisHealthCheck,
+)
+from .health_checks import ClickHouseSchemaHealthCheck, OTELPipelineHealthCheck
+from .health_endpoints import (
+    HealthResponse,
+    StartupResponse,
+    create_liveness_router,
+    create_readiness_router,
+    create_startup_router,
+)
+from .kafka_instrumentation import (
+    InstrumentedAIOKafkaConsumer,
+    InstrumentedAIOKafkaProducer,
+    InstrumentedKafkaProducer,
+    instrument_kafka_consumer,
+    instrument_kafka_producer,
+)
+from .logging import get_logger, init_logging
+from .metrics import NeuralHiveMetrics, init_metrics
+from .middleware import (
+    TraceContextMiddleware,
+    extract_traceparent_from_request,
+    extract_tracestate_from_request,
+    get_trace_id_from_request,
+    parse_traceparent,
+    validate_trace_context,
+)
+from .tracing import get_tracer, init_tracing, trace_grpc_method, trace_intent, trace_plan
 
 # Versão da biblioteca
 __version__ = "1.3.1"

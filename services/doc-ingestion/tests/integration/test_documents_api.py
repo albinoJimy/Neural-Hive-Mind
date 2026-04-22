@@ -1,6 +1,5 @@
 """Testes de integração para API de documentos."""
 
-from collections.abc import AsyncGenerator
 
 import pytest
 from fastapi.testclient import TestClient
@@ -40,9 +39,7 @@ class TestDocumentsAPI:
         assert result["uploaded_by"] == "test@example.com"
         assert result["title"] == "Test PDF"
 
-    async def test_upload_document_missing_file(
-        self, test_client: TestClient
-    ) -> None:
+    async def test_upload_document_missing_file(self, test_client: TestClient) -> None:
         """Testa upload sem arquivo."""
         # Arrange
         data = {"uploaded_by": "test@example.com"}
@@ -69,9 +66,7 @@ class TestDocumentsAPI:
         # Assert
         assert response.status_code == 422  # Validation error
 
-    async def test_upload_unsupported_format(
-        self, test_client: TestClient
-    ) -> None:
+    async def test_upload_unsupported_format(self, test_client: TestClient) -> None:
         """Testa upload de formato não suportado."""
         # Arrange
         files = {"file": ("test.txt", b"test content", "text/plain")}
@@ -88,9 +83,7 @@ class TestDocumentsAPI:
         assert response.status_code == 400
         assert "Unsupported file format" in response.json()["detail"]
 
-    async def test_list_documents_empty(
-        self, test_client: TestClient
-    ) -> None:
+    async def test_list_documents_empty(self, test_client: TestClient) -> None:
         """Testa listagem de documentos vazia."""
         # Act
         response = test_client.get("/api/v1/documents")
@@ -125,9 +118,7 @@ class TestDocumentsAPI:
         # Arrange - Upload documento
         files = {"file": ("test.pdf", sample_pdf_bytes, "application/pdf")}
         data = {"uploaded_by": "test@example.com"}
-        upload_response = test_client.post(
-            "/api/v1/documents/upload", files=files, data=data
-        )
+        upload_response = test_client.post("/api/v1/documents/upload", files=files, data=data)
         document_id = upload_response.json()["id"]
 
         # Act
@@ -139,9 +130,7 @@ class TestDocumentsAPI:
         assert result["id"] == document_id
         assert result["filename"] == "test.pdf"
 
-    async def test_get_document_not_found(
-        self, test_client: TestClient
-    ) -> None:
+    async def test_get_document_not_found(self, test_client: TestClient) -> None:
         """Testa busca de documento inexistente."""
         # Act
         response = test_client.get("/api/v1/documents/NONEXISTENT")
@@ -156,9 +145,7 @@ class TestDocumentsAPI:
         # Arrange
         files = {"file": ("test.pdf", sample_pdf_bytes, "application/pdf")}
         data = {"uploaded_by": "test@example.com"}
-        upload_response = test_client.post(
-            "/api/v1/documents/upload", files=files, data=data
-        )
+        upload_response = test_client.post("/api/v1/documents/upload", files=files, data=data)
         document_id = upload_response.json()["id"]
 
         # Act
@@ -170,16 +157,12 @@ class TestDocumentsAPI:
         assert result["id"] == document_id
         assert result["status"] == "uploaded"
 
-    async def test_delete_document(
-        self, test_client: TestClient, sample_pdf_bytes: bytes
-    ) -> None:
+    async def test_delete_document(self, test_client: TestClient, sample_pdf_bytes: bytes) -> None:
         """Testa deleção de documento."""
         # Arrange
         files = {"file": ("test.pdf", sample_pdf_bytes, "application/pdf")}
         data = {"uploaded_by": "test@example.com"}
-        upload_response = test_client.post(
-            "/api/v1/documents/upload", files=files, data=data
-        )
+        upload_response = test_client.post("/api/v1/documents/upload", files=files, data=data)
         document_id = upload_response.json()["id"]
 
         # Act
@@ -210,9 +193,7 @@ class TestDocumentsAPI:
         result = response.json()
         assert len(result["items"]) <= 3
 
-    async def test_upload_with_tags(
-        self, test_client: TestClient, sample_pdf_bytes: bytes
-    ) -> None:
+    async def test_upload_with_tags(self, test_client: TestClient, sample_pdf_bytes: bytes) -> None:
         """Testa upload com tags."""
         # Arrange
         files = {"file": ("test.pdf", sample_pdf_bytes, "application/pdf")}
@@ -222,9 +203,7 @@ class TestDocumentsAPI:
         }
 
         # Act
-        response = test_client.post(
-            "/api/v1/documents/upload", files=files, data=data
-        )
+        response = test_client.post("/api/v1/documents/upload", files=files, data=data)
 
         # Assert
         assert response.status_code == 201

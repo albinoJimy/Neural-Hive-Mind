@@ -10,7 +10,7 @@ Responsável por:
 """
 
 import json
-from typing import List, Optional
+from typing import Optional
 
 import structlog
 
@@ -125,7 +125,7 @@ class SecurityValidator:
                 logger.info("security_validator.cache_hit", ticket_id=ticket_id)
                 return cached
 
-            violations: List[GuardrailViolation] = []
+            violations: list[GuardrailViolation] = []
 
             # Executar validações em paralelo quando possível
             try:
@@ -155,7 +155,7 @@ class SecurityValidator:
                     GuardrailViolation(
                         violation_type=ViolationType.POLICY_VIOLATION,
                         severity=Severity.HIGH,
-                        description=f"Erro durante validação: {str(e)}",
+                        description=f"Erro durante validação: {e!s}",
                         remediation_suggestion="Verificar logs do Guard Agent",
                         detected_by="SecurityValidator",
                         evidence={"error": str(e)},
@@ -210,7 +210,7 @@ class SecurityValidator:
 
             return validation
 
-    async def _validate_opa_policies(self, ticket: dict) -> List[GuardrailViolation]:
+    async def _validate_opa_policies(self, ticket: dict) -> list[GuardrailViolation]:
         """
         Valida ticket contra políticas OPA (security, compliance, resource).
 
@@ -248,7 +248,7 @@ class SecurityValidator:
 
         return violations
 
-    async def _evaluate_security_policies(self, ticket: dict) -> List[GuardrailViolation]:
+    async def _evaluate_security_policies(self, ticket: dict) -> list[GuardrailViolation]:
         """
         Evaluate security policies against ticket.
 
@@ -288,7 +288,7 @@ class SecurityValidator:
 
         return violations
 
-    async def _evaluate_compliance_policies(self, ticket: dict) -> List[GuardrailViolation]:
+    async def _evaluate_compliance_policies(self, ticket: dict) -> list[GuardrailViolation]:
         """
         Evaluate compliance policies against ticket.
 
@@ -332,7 +332,7 @@ class SecurityValidator:
 
         return violations
 
-    async def _evaluate_resource_policies(self, ticket: dict) -> List[GuardrailViolation]:
+    async def _evaluate_resource_policies(self, ticket: dict) -> list[GuardrailViolation]:
         """
         Evaluate resource policies against ticket.
 
@@ -378,7 +378,7 @@ class SecurityValidator:
 
         return violations
 
-    async def _evaluate_legacy_policies(self, ticket: dict) -> List[GuardrailViolation]:
+    async def _evaluate_legacy_policies(self, ticket: dict) -> list[GuardrailViolation]:
         """
         Evaluate legacy OPA policies for backward compatibility.
 
@@ -432,7 +432,7 @@ class SecurityValidator:
 
     def _map_opa_violations(
         self, opa_result: dict, detected_by: str, default_violation_type: ViolationType
-    ) -> List[GuardrailViolation]:
+    ) -> list[GuardrailViolation]:
         """
         Map OPA policy result to GuardrailViolation list.
 
@@ -521,7 +521,7 @@ class SecurityValidator:
 
         return default_type
 
-    async def _validate_rbac(self, ticket: dict) -> List[GuardrailViolation]:
+    async def _validate_rbac(self, ticket: dict) -> list[GuardrailViolation]:
         """
         Valida permissões RBAC para o ticket.
 
@@ -593,7 +593,7 @@ class SecurityValidator:
 
         return violations
 
-    async def _scan_secrets(self, ticket: dict) -> List[GuardrailViolation]:
+    async def _scan_secrets(self, ticket: dict) -> list[GuardrailViolation]:
         """
         Escaneia ticket em busca de secrets expostos.
 
@@ -671,7 +671,7 @@ class SecurityValidator:
 
         return violations
 
-    async def _validate_compliance(self, ticket: dict) -> List[GuardrailViolation]:
+    async def _validate_compliance(self, ticket: dict) -> list[GuardrailViolation]:
         """
         Valida compliance organizacional do ticket.
 
@@ -732,7 +732,7 @@ class SecurityValidator:
         return violations
 
     async def _calculate_risk_assessment(
-        self, violations: List[GuardrailViolation], ticket: dict
+        self, violations: list[GuardrailViolation], ticket: dict
     ) -> RiskAssessment:
         """
         Calcula avaliação de risco com base nas violações.
@@ -780,7 +780,7 @@ class SecurityValidator:
         return RiskAssessment(risk_score=risk_score, severity=severity, impact=impact)
 
     def _determine_validation_status(
-        self, risk_assessment: RiskAssessment, violations: List[GuardrailViolation]
+        self, risk_assessment: RiskAssessment, violations: list[GuardrailViolation]
     ) -> ValidationStatus:
         """
         Determina status da validação baseado no risco.
@@ -816,7 +816,7 @@ class SecurityValidator:
         return ValidationStatus.REQUIRES_APPROVAL
 
     def _get_approval_reason(
-        self, risk_assessment: RiskAssessment, violations: List[GuardrailViolation]
+        self, risk_assessment: RiskAssessment, violations: list[GuardrailViolation]
     ) -> Optional[str]:
         """
         Gera razão para aprovação manual se necessário.

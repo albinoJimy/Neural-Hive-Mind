@@ -4,18 +4,17 @@ Testes unitários para ACRClient.
 Testes para integração com Azure Container Registry (ACR).
 """
 
-import pytest
+from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock, patch
-from datetime import datetime, timedelta, timezone
 
-
+import pytest
 from src.clients.acr_client import (
+    ACR_TOKEN_DEFAULT_TTL,
     ACRClient,
     ACRToken,
-    get_acr_credentials,
     detect_acr_registry,
     extract_acr_registry_name,
-    ACR_TOKEN_DEFAULT_TTL,
+    get_acr_credentials,
 )
 
 
@@ -24,8 +23,8 @@ class TestACRToken:
 
     def test_token_creation(self):
         """Testa criação de token."""
-        expires_at = datetime.now(timezone.utc) + timedelta(hours=1)
-        obtained_at = datetime.now(timezone.utc)
+        expires_at = datetime.now(UTC) + timedelta(hours=1)
+        obtained_at = datetime.now(UTC)
 
         token = ACRToken(
             access_token="test-token",
@@ -41,41 +40,41 @@ class TestACRToken:
 
     def test_token_is_expired(self):
         """Testa verificação de expiração."""
-        past = datetime.now(timezone.utc) - timedelta(hours=1)
+        past = datetime.now(UTC) - timedelta(hours=1)
 
         token = ACRToken(
             access_token="test-token",
             token_type="Bearer",
             registry="myregistry.azurecr.io",
             expires_at=past,
-            obtained_at=datetime.now(timezone.utc),
+            obtained_at=datetime.now(UTC),
         )
 
         assert token.is_expired() is True
 
     def test_token_is_not_expired(self):
         """Testa verificação de token não expirado."""
-        future = datetime.now(timezone.utc) + timedelta(hours=1)
+        future = datetime.now(UTC) + timedelta(hours=1)
 
         token = ACRToken(
             access_token="test-token",
             token_type="Bearer",
             registry="myregistry.azurecr.io",
             expires_at=future,
-            obtained_at=datetime.now(timezone.utc),
+            obtained_at=datetime.now(UTC),
         )
 
         assert token.is_expired() is False
 
     def test_token_should_refresh(self):
         """Testa verificação de renovação."""
-        old_time = datetime.now(timezone.utc) - timedelta(hours=3)
+        old_time = datetime.now(UTC) - timedelta(hours=3)
 
         token = ACRToken(
             access_token="test-token",
             token_type="Bearer",
             registry="myregistry.azurecr.io",
-            expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
+            expires_at=datetime.now(UTC) + timedelta(hours=1),
             obtained_at=old_time,
         )
 
@@ -84,13 +83,13 @@ class TestACRToken:
 
     def test_token_should_not_refresh(self):
         """Testa que token novo não precisa de renovação."""
-        recent = datetime.now(timezone.utc)
+        recent = datetime.now(UTC)
 
         token = ACRToken(
             access_token="test-token",
             token_type="Bearer",
             registry="myregistry.azurecr.io",
-            expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
+            expires_at=datetime.now(UTC) + timedelta(hours=1),
             obtained_at=recent,
         )
 
@@ -103,8 +102,8 @@ class TestACRToken:
             access_token="test-token-abc123",
             token_type="Bearer",
             registry="myregistry.azurecr.io",
-            expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
-            obtained_at=datetime.now(timezone.utc),
+            expires_at=datetime.now(UTC) + timedelta(hours=1),
+            obtained_at=datetime.now(UTC),
         )
 
         credentials = token.get_credentials()
@@ -265,8 +264,8 @@ class TestGetACRToken:
             access_token="cached-token",
             token_type="Bearer",
             registry="myregistry.azurecr.io",
-            expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
-            obtained_at=datetime.now(timezone.utc),
+            expires_at=datetime.now(UTC) + timedelta(hours=1),
+            obtained_at=datetime.now(UTC),
         )
         client._cached_token = cached_token
 
@@ -299,8 +298,8 @@ class TestGetACRCredentials:
             access_token="test-token-abc",
             token_type="Bearer",
             registry="myregistry.azurecr.io",
-            expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
-            obtained_at=datetime.now(timezone.utc),
+            expires_at=datetime.now(UTC) + timedelta(hours=1),
+            obtained_at=datetime.now(UTC),
         )
 
         username, password = client.get_acr_credentials()
@@ -356,12 +355,12 @@ class TestRefreshIfNeeded:
         client = ACRClient(token_ttl=3600)
 
         # Criar token antigo (2 horas)
-        old_time = datetime.now(timezone.utc) - timedelta(hours=2)
+        old_time = datetime.now(UTC) - timedelta(hours=2)
         client._cached_token = ACRToken(
             access_token="old-token",
             token_type="Bearer",
             registry="myregistry.azurecr.io",
-            expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
+            expires_at=datetime.now(UTC) + timedelta(hours=1),
             obtained_at=old_time,
         )
 
@@ -377,12 +376,12 @@ class TestRefreshIfNeeded:
         client = ACRClient(token_ttl=7200)
 
         # Criar token recente (5 minutos)
-        recent = datetime.now(timezone.utc) - timedelta(minutes=5)
+        recent = datetime.now(UTC) - timedelta(minutes=5)
         client._cached_token = ACRToken(
             access_token="current-token",
             token_type="Bearer",
             registry="myregistry.azurecr.io",
-            expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
+            expires_at=datetime.now(UTC) + timedelta(hours=1),
             obtained_at=recent,
         )
 

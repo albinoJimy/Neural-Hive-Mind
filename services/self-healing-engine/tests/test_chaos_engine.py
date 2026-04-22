@@ -8,9 +8,10 @@ Testa os componentes principais:
 - ScenarioLibrary
 """
 
-import pytest
 from unittest.mock import patch
 
+import pytest
+from src.chaos.chaos_engine import ChaosEngine
 from src.chaos.chaos_models import (
     ChaosExperiment,
     ChaosExperimentRequest,
@@ -24,9 +25,8 @@ from src.chaos.chaos_models import (
     ValidationCriteria,
     ValidationResult,
 )
-from src.chaos.chaos_engine import ChaosEngine
-from src.chaos.scenarios.scenario_library import ScenarioLibrary
 from src.chaos.injectors.base_injector import InjectionResult
+from src.chaos.scenarios.scenario_library import ScenarioLibrary
 
 
 class TestChaosModels:
@@ -244,19 +244,19 @@ class TestScenarioLibrary:
 class TestChaosEngine:
     """Testes para o ChaosEngine."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_k8s_client(self):
         """Mock do cliente Kubernetes."""
         with patch("kubernetes.client.CoreV1Api") as mock:
             yield mock
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_k8s_apps_client(self):
         """Mock do cliente Kubernetes Apps."""
         with patch("kubernetes.client.AppsV1Api") as mock:
             yield mock
 
-    @pytest.fixture
+    @pytest.fixture()
     def chaos_engine(self, mock_k8s_client, mock_k8s_apps_client):
         """Fixture do ChaosEngine."""
         engine = ChaosEngine(

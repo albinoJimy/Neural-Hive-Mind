@@ -1,11 +1,11 @@
 """Fingerprint extraction from CognitivePlan."""
 
 import hashlib
-from typing import Dict, Any, List
+from typing import Any
 
 import structlog
 
-from .models import Fingerprint, TaskCountRange, DurationRange
+from .models import DurationRange, Fingerprint, TaskCountRange
 
 logger = structlog.get_logger()
 
@@ -16,7 +16,7 @@ class FingerprintExtractor:
     def __init__(self):
         self.logger = logger
 
-    def extract(self, cognitive_plan: Dict[str, Any]) -> Fingerprint:
+    def extract(self, cognitive_plan: dict[str, Any]) -> Fingerprint:
         """
         Extrai fingerprint do plano cognitivo.
 
@@ -78,7 +78,7 @@ class FingerprintExtractor:
         else:
             return TaskCountRange.LARGE
 
-    def _extract_task_types(self, tasks: List[Dict]) -> List[str]:
+    def _extract_task_types(self, tasks: list[dict]) -> list[str]:
         """Extrai tipos unicos de tarefas."""
         types_set = set()
         for task in tasks:
@@ -86,7 +86,7 @@ class FingerprintExtractor:
             types_set.add(task_type)
         return sorted(list(types_set))
 
-    def _calculate_avg_dependencies(self, tasks: List[Dict]) -> float:
+    def _calculate_avg_dependencies(self, tasks: list[dict]) -> float:
         """Calcula media de dependencias por tarefa."""
         if not tasks:
             return 0.0
@@ -98,7 +98,7 @@ class FingerprintExtractor:
 
         return round(total_deps / len(tasks), 2)
 
-    def _has_conditional_dependencies(self, tasks: List[Dict]) -> bool:
+    def _has_conditional_dependencies(self, tasks: list[dict]) -> bool:
         """Verifica se ha dependencias condicionais."""
         for task in tasks:
             deps = task.get("dependencies", [])
@@ -107,7 +107,7 @@ class FingerprintExtractor:
                     return True
         return False
 
-    def _get_duration_range(self, tasks: List[Dict]) -> DurationRange:
+    def _get_duration_range(self, tasks: list[dict]) -> DurationRange:
         """Determina range de duracao estimada."""
         total_ms = 0
         for task in tasks:
@@ -129,7 +129,7 @@ class FingerprintExtractor:
         self,
         domain: str,
         task_count_range: TaskCountRange,
-        task_types: List[str],
+        task_types: list[str],
         avg_dependency_count: float,
     ) -> str:
         """

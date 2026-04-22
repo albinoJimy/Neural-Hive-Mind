@@ -4,9 +4,9 @@ API Endpoints para A/B Testing.
 Fornece endpoints REST para criar, gerenciar e analisar testes A/B.
 """
 
-from datetime import timezone
+from datetime import UTC
 
-UTC = timezone.utc  # type: ignore
+UTC = UTC  # type: ignore
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 

@@ -5,9 +5,10 @@ Esta classe é uma subclasse leve de BaseSpecialist que garante que
 o cache de opinião está habilitado.
 """
 
+import structlog
+
 from .base_specialist import BaseSpecialist
 from .config import SpecialistConfig
-import structlog
 
 logger = structlog.get_logger(__name__)
 

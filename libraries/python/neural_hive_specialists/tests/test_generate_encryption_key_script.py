@@ -2,8 +2,9 @@
 
 import os
 import sys
+from unittest.mock import Mock, patch
+
 import pytest
-from unittest.mock import patch, Mock
 
 # Adicionar diretório de scripts ao path
 sys.path.insert(
@@ -43,7 +44,6 @@ class TestGenerateKey:
                 del sys.modules["generate_encryption_key"]
             # Este teste verifica o comportamento quando cryptography não está disponível
             # Como cryptography está instalado no ambiente, vamos apenas verificar a lógica
-            pass
 
 
 class TestSaveKey:

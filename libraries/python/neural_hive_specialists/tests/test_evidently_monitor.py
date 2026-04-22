@@ -49,7 +49,7 @@ def _mock_evidently(monkeypatch, drift_result=True, drift_share=0.35):
     monkeypatch.setitem(sys.modules, "evidently.metric_preset", FakePresetModule())
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 def test_detect_drift_with_mocked_evidently(monkeypatch):
     _mock_evidently(monkeypatch)
     monitor = EvidentlyMonitor({"drift_reference_dataset_path": None})
@@ -63,7 +63,7 @@ def test_detect_drift_with_mocked_evidently(monkeypatch):
     assert "feature_a" in result["drifted_features"]
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 def test_generate_html_report(monkeypatch, tmp_path):
     _mock_evidently(monkeypatch)
     monitor = EvidentlyMonitor({"drift_reference_dataset_path": None})
@@ -77,7 +77,7 @@ def test_generate_html_report(monkeypatch, tmp_path):
     assert output_path.read_text() != ""
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 def test_detect_drift_without_reference_data(monkeypatch):
     monitor = EvidentlyMonitor({"drift_reference_dataset_path": None})
     monitor.current_data = [{"feature_a": 1}]

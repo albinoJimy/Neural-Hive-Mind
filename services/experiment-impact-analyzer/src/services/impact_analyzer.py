@@ -1,12 +1,10 @@
 """Core impact analyzer service."""
 
-import asyncio
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import structlog
 from scipy import stats
-
 from src.clients.mongodb_client import MongoDBClient
 from src.config.settings import Settings, get_settings
 from src.models.impact import (
@@ -21,7 +19,7 @@ from src.models.impact import (
     ShortTermImpact,
 )
 
-UTC = timezone.utc
+UTC = UTC
 logger = structlog.get_logger()
 
 
@@ -98,9 +96,7 @@ class ImpactAnalyzer:
         # Get baseline and post-experiment metrics
         created_at = datetime.fromtimestamp(experiment.get("created_at", 0) / 1000, tz=UTC)
         baseline_metrics = self._extract_baseline_metrics(experiment)
-        post_metrics = await self._get_post_experiment_metrics(
-            experiment_id, created_at
-        )
+        post_metrics = await self._get_post_experiment_metrics(experiment_id, created_at)
 
         # Analyze short-term impact
         short_term = None
@@ -111,11 +107,10 @@ class ImpactAnalyzer:
 
         # Analyze long-term impact
         long_term = None
-        if (ImpactTimeframe.LONG_TERM in timeframes or ImpactTimeframe.BOTH in timeframes) and \
-                self.settings.enable_long_term_analysis:
-            long_term = await self._analyze_long_term(
-                experiment_id, baseline_metrics, created_at
-            )
+        if (
+            ImpactTimeframe.LONG_TERM in timeframes or ImpactTimeframe.BOTH in timeframes
+        ) and self.settings.enable_long_term_analysis:
+            long_term = await self._analyze_long_term(experiment_id, baseline_metrics, created_at)
 
         # Determine overall direction and magnitude
         overall_direction = self._determine_direction(short_term, long_term)
@@ -233,7 +228,9 @@ class ImpactAnalyzer:
             post_value = sum(values) / len(values)  # Average
 
             absolute_change = post_value - baseline_value
-            relative_change = (absolute_change / abs(baseline_value)) * 100 if baseline_value != 0 else 0
+            relative_change = (
+                (absolute_change / abs(baseline_value)) * 100 if baseline_value != 0 else 0
+            )
 
             # Statistical significance test (t-test)
             is_significant = False
@@ -295,7 +292,9 @@ class ImpactAnalyzer:
             latency_change = latency_impact.relative_change_percent
 
         throughput_change = None
-        throughput_impact = metric_impacts.get("throughput") or metric_impacts.get("requests_per_second")
+        throughput_impact = metric_impacts.get("throughput") or metric_impacts.get(
+            "requests_per_second"
+        )
         if throughput_impact:
             throughput_change = throughput_impact.relative_change_percent
 
@@ -322,9 +321,7 @@ class ImpactAnalyzer:
 
         # Get historical metrics
         metric_names = list(baseline_metrics.keys())
-        history = await self.mongodb.get_metrics_history(
-            metric_names, start_date, end_date
-        )
+        history = await self.mongodb.get_metrics_history(metric_names, start_date, end_date)
 
         # Analyze trends
         trend_analysis = {}
@@ -338,10 +335,7 @@ class ImpactAnalyzer:
                 continue
 
             # Extract values for this metric
-            values = [
-                m.get("value", 0) for m in history
-                if m.get("metric_name") == metric_name
-            ]
+            values = [m.get("value", 0) for m in history if m.get("metric_name") == metric_name]
 
             if len(values) < 3:
                 trend_analysis[metric_name] = "insufficient_data"
@@ -425,18 +419,18 @@ class ImpactAnalyzer:
 
                 if correlation >= self.settings.correlation_threshold:
                     correlation_type = (
-                        "positive" if correlation > 0 else
-                        "negative" if correlation < 0 else
-                        "none"
+                        "positive" if correlation > 0 else "negative" if correlation < 0 else "none"
                     )
 
-                    correlations.append(ExperimentCorrelation(
-                        experiment_id=exp.get("experiment_id", ""),
-                        correlation_coefficient=correlation,
-                        correlation_type=correlation_type,
-                        shared_metrics=list(shared),
-                        description=f"Shared {len(shared)} impact categories",
-                    ))
+                    correlations.append(
+                        ExperimentCorrelation(
+                            experiment_id=exp.get("experiment_id", ""),
+                            correlation_coefficient=correlation,
+                            correlation_type=correlation_type,
+                            shared_metrics=list(shared),
+                            description=f"Shared {len(shared)} impact categories",
+                        )
+                    )
 
         return correlations
 
@@ -527,9 +521,15 @@ class ImpactAnalyzer:
         if short_term:
             if "error_rate" in short_term.metric_impacts:
                 categories.add(ImpactCategory.RELIABILITY)
-            if "latency_p95" in short_term.metric_impacts or "latency_p99" in short_term.metric_impacts:
+            if (
+                "latency_p95" in short_term.metric_impacts
+                or "latency_p99" in short_term.metric_impacts
+            ):
                 categories.add(ImpactCategory.PERFORMANCE)
-            if "throughput" in short_term.metric_impacts or "requests_per_second" in short_term.metric_impacts:
+            if (
+                "throughput" in short_term.metric_impacts
+                or "requests_per_second" in short_term.metric_impacts
+            ):
                 categories.add(ImpactCategory.SCALABILITY)
 
         # Based on target component
@@ -550,12 +550,16 @@ class ImpactAnalyzer:
         """Generate recommendation based on analysis."""
         if direction == ImpactDirection.POSITIVE:
             if magnitude in [ImpactMagnitude.CRITICAL, ImpactMagnitude.HIGH]:
-                return "PROMOTE: Strong positive impact detected. Recommend promoting to production."
+                return (
+                    "PROMOTE: Strong positive impact detected. Recommend promoting to production."
+                )
             else:
                 return "ACCEPT: Positive impact observed. Continue monitoring."
         elif direction == ImpactDirection.NEGATIVE:
             if magnitude in [ImpactMagnitude.CRITICAL, ImpactMagnitude.HIGH]:
-                return "REVERT: Significant negative impact detected. Immediate rollback recommended."
+                return (
+                    "REVERT: Significant negative impact detected. Immediate rollback recommended."
+                )
             else:
                 return "MONITOR: Negative impact detected. Consider rollback or mitigation."
         elif direction == ImpactDirection.MIXED:
@@ -572,8 +576,7 @@ class ImpactAnalyzer:
         if short_term:
             # Increase confidence based on statistical significance
             significant_count = sum(
-                1 for m in short_term.metric_impacts.values()
-                if m.statistical_significance
+                1 for m in short_term.metric_impacts.values() if m.statistical_significance
             )
             total_metrics = len(short_term.metric_impacts)
             if total_metrics > 0:
@@ -586,7 +589,8 @@ class ImpactAnalyzer:
         if long_term and long_term.trend_analysis:
             # Increase confidence if trends are clear
             clear_trends = sum(
-                1 for t in long_term.trend_analysis.values()
+                1
+                for t in long_term.trend_analysis.values()
                 if t in ["increasing", "decreasing", "stable"]
             )
             if clear_trends > 0:

@@ -11,7 +11,8 @@ Uses httpx.MockTransport for simulating HTTP responses.
 """
 
 import json
-from typing import Any, Callable, Dict, List, Optional
+from collections.abc import Callable
+from typing import Any, Optional
 
 import httpx
 import pytest
@@ -21,15 +22,15 @@ class MockHTTPServer:
     """Base class for mock HTTP servers."""
 
     def __init__(self):
-        self.requests: List[httpx.Request] = []
-        self.responses: Dict[str, Dict[str, Any]] = {}
+        self.requests: list[httpx.Request] = []
+        self.responses: dict[str, dict[str, Any]] = {}
 
     def add_response(
         self,
         method: str,
         path: str,
         status_code: int = 200,
-        json_data: Optional[Dict] = None,
+        json_data: Optional[dict] = None,
         text: str = "",
     ) -> None:
         """Add a mock response for a given method and path."""
@@ -89,14 +90,13 @@ class MockArgoCDServer(MockHTTPServer):
 
     def __init__(self, base_health_status: str = "Healthy"):
         super().__init__()
-        self.applications: Dict[str, Dict] = {}
+        self.applications: dict[str, dict] = {}
         self.health_status = base_health_status
         self._setup_routes()
 
     def _setup_routes(self) -> None:
         """Setup default ArgoCD API routes."""
         # Default responses will be dynamically generated based on applications dict
-        pass
 
     def handle_request(self, request: httpx.Request) -> httpx.Response:
         """Handle ArgoCD API requests."""
@@ -163,14 +163,14 @@ class MockOPAServer(MockHTTPServer):
 
     def __init__(self, default_allow: bool = True):
         super().__init__()
-        self.policies: Dict[str, Callable[[Dict], Dict]] = {}
+        self.policies: dict[str, Callable[[dict], dict]] = {}
         self.default_allow = default_allow
         self._setup_default_policies()
 
     def _setup_default_policies(self) -> None:
         """Setup default OPA policies."""
 
-        def default_policy(input_data: Dict) -> Dict:
+        def default_policy(input_data: dict) -> dict:
             return {
                 "allow": self.default_allow,
                 "violations": (
@@ -183,7 +183,7 @@ class MockOPAServer(MockHTTPServer):
         self.policies["policy/allow"] = default_policy
         self.policies["authz/allow"] = default_policy
 
-    def add_policy(self, path: str, handler: Callable[[Dict], Dict]) -> None:
+    def add_policy(self, path: str, handler: Callable[[dict], dict]) -> None:
         """Add a custom policy handler."""
         self.policies[path] = handler
 
@@ -232,8 +232,8 @@ class MockGitHubActionsServer(MockHTTPServer):
 
     def __init__(self, default_conclusion: str = "success"):
         super().__init__()
-        self.workflows: Dict[str, Dict] = {}
-        self.runs: Dict[str, Dict] = {}
+        self.workflows: dict[str, dict] = {}
+        self.runs: dict[str, dict] = {}
         self.default_conclusion = default_conclusion
         self.run_counter = 0
 
@@ -287,7 +287,7 @@ class MockSonarQubeServer(MockHTTPServer):
     def __init__(self, quality_gate_status: str = "OK"):
         super().__init__()
         self.quality_gate_status = quality_gate_status
-        self.issues: List[Dict] = []
+        self.issues: list[dict] = []
 
     def handle_request(self, request: httpx.Request) -> httpx.Response:
         """Handle SonarQube API requests."""
@@ -328,55 +328,55 @@ class MockSonarQubeServer(MockHTTPServer):
 # Pytest Fixtures
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_argocd_server():
     """Mock ArgoCD server with healthy status."""
     return MockArgoCDServer(base_health_status="Healthy")
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_argocd_server_progressing():
     """Mock ArgoCD server with progressing status."""
     return MockArgoCDServer(base_health_status="Progressing")
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_argocd_server_degraded():
     """Mock ArgoCD server with degraded status."""
     return MockArgoCDServer(base_health_status="Degraded")
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_opa_server():
     """Mock OPA server that allows all requests."""
     return MockOPAServer(default_allow=True)
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_opa_server_deny():
     """Mock OPA server that denies all requests."""
     return MockOPAServer(default_allow=False)
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_github_actions_server():
     """Mock GitHub Actions server with success conclusion."""
     return MockGitHubActionsServer(default_conclusion="success")
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_github_actions_server_failure():
     """Mock GitHub Actions server with failure conclusion."""
     return MockGitHubActionsServer(default_conclusion="failure")
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_sonarqube_server():
     """Mock SonarQube server with OK quality gate."""
     return MockSonarQubeServer(quality_gate_status="OK")
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_sonarqube_server_failed():
     """Mock SonarQube server with ERROR quality gate."""
     server = MockSonarQubeServer(quality_gate_status="ERROR")

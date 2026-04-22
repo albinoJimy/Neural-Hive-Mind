@@ -5,17 +5,17 @@ Testa configuracao de retry, calculo de backoff exponencial,
 jitter para evitar thundering herd e logica de retry.
 """
 
-import pytest
-from unittest.mock import AsyncMock, MagicMock
-from datetime import datetime, timezone, timedelta
-
 import sys
+from datetime import UTC, datetime, timedelta
+from unittest.mock import AsyncMock, MagicMock
+
+import pytest
 
 # Mock dos modulos problematicos antes de importar
 sys.modules["neural_hive_resilience"] = MagicMock()
 
-from src.saga.retry_config import SagaRetryConfig, NON_RETRYABLE_ERRORS
-from src.saga.retry_policy import RetryPolicy, RetryError, NoRetryPolicy, create_retry_policy
+from src.saga.retry_config import NON_RETRYABLE_ERRORS, SagaRetryConfig
+from src.saga.retry_policy import NoRetryPolicy, RetryError, RetryPolicy, create_retry_policy
 
 
 class TestSagaRetryConfigDefaults:
@@ -310,12 +310,12 @@ class TestRetryConfigWithOverrides:
 class TestRetryPolicy:
     """Testes para RetryPolicy."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_func(self):
         """Funcao mock assincrona."""
         return AsyncMock()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_retry_policy_success_on_first_attempt(self, mock_func):
         """Deve executar com sucesso na primeira tentativa."""
         policy = RetryPolicy()
@@ -326,7 +326,7 @@ class TestRetryPolicy:
         assert result == "success"
         assert mock_func.call_count == 1
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_retry_policy_retries_then_succeeds(self, mock_func):
         """Deve retentar e eventualmente ter sucesso."""
         config = SagaRetryConfig(max_attempts=3, initial_delay_ms=100)
@@ -340,7 +340,7 @@ class TestRetryPolicy:
         assert result == "success"
         assert mock_func.call_count == 3
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_retry_policy_fails_after_max_attempts(self, mock_func):
         """Deve falhar apos exceder max_attempts."""
         config = SagaRetryConfig(max_attempts=3, initial_delay_ms=100)
@@ -354,7 +354,7 @@ class TestRetryPolicy:
         assert exc_info.value.total_attempts == 3
         assert mock_func.call_count == 3
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_retry_policy_non_retryable_fails_immediately(self, mock_func):
         """Erros non-retryable devem falhar imediatamente."""
         policy = RetryPolicy()
@@ -367,7 +367,7 @@ class TestRetryPolicy:
         assert exc_info.value.attempt == 1
         assert mock_func.call_count == 1  # So tentou uma vez
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_retry_policy_passes_arguments(self, mock_func):
         """Deve passar argumentos corretamente para funcao."""
         policy = RetryPolicy()
@@ -380,7 +380,7 @@ class TestRetryPolicy:
         assert result == "result"
         mock_func.assert_called_once_with("arg1", "arg2", kwarg1="kwvalue1")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_retry_policy_preserves_exception(self, mock_func):
         """Deve preservar excecao original em RetryError."""
         policy = RetryPolicy()
@@ -400,7 +400,7 @@ class TestRetryPolicyGetRetryCount:
     def test_get_retry_count_immediate(self):
         """Tempo zero deve retornar 1."""
         policy = RetryPolicy()
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         assert policy.get_retry_count(now) == 1
 
@@ -409,7 +409,7 @@ class TestRetryPolicyGetRetryCount:
         config = SagaRetryConfig(initial_delay_ms=1000, jitter=False)
         policy = RetryPolicy(config=config)
 
-        started = datetime.now(timezone.utc) - timedelta(milliseconds=1500)
+        started = datetime.now(UTC) - timedelta(milliseconds=1500)
 
         # 1500ms > 1000ms (primeiro delay), logo na tentativa 2
         assert policy.get_retry_count(started) == 2
@@ -422,18 +422,18 @@ class TestRetryPolicyGetRetryCount:
         policy = RetryPolicy(config=config)
 
         # Apos 3000ms: 1000 + 2000, iniciando tentativa 3
-        started = datetime.now(timezone.utc) - timedelta(milliseconds=3000)
+        started = datetime.now(UTC) - timedelta(milliseconds=3000)
         assert policy.get_retry_count(started) == 3
 
         # Apos 7000ms: 1000 + 2000 + 4000, iniciando tentativa 4
-        started = datetime.now(timezone.utc) - timedelta(milliseconds=7000)
+        started = datetime.now(UTC) - timedelta(milliseconds=7000)
         assert policy.get_retry_count(started) == 4
 
 
 class TestRetryPolicyDecorator:
     """Testes para decorator de RetryPolicy."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_decorator_basic_usage(self):
         """Decorator deve aplicar retry automaticamente."""
         config = SagaRetryConfig(max_attempts=3, initial_delay_ms=100)
@@ -454,7 +454,7 @@ class TestRetryPolicyDecorator:
         assert result == "success"
         assert call_count == 3
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_decorator_default_operation_name(self):
         """Sem operation_name, deve usar nome da funcao."""
         policy = RetryPolicy()
@@ -472,7 +472,7 @@ class TestRetryPolicyDecorator:
 class TestNoRetryPolicy:
     """Testes para NoRetryPolicy."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_no_retry_executes_once(self):
         """Deve executar apenas uma vez, mesmo com falha."""
         policy = NoRetryPolicy()
@@ -483,7 +483,7 @@ class TestNoRetryPolicy:
 
         assert mock_func.call_count == 1
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_no_retry_success(self):
         """Deve funcionar normalmente em caso de sucesso."""
         policy = NoRetryPolicy()

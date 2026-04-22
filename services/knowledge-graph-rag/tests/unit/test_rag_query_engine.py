@@ -12,12 +12,16 @@ from knowledge_graph_rag.services.rag_query_engine import RAGQueryEngine
 def mock_neo4j():
     """Mock do cliente Neo4j."""
     neo4j = Mock()
-    neo4j.find_similar_architectures = AsyncMock(return_value=[
-        {"plan_id": "ARCH-001", "similarity": 0.85, "architecture_type": "microservices"}
-    ])
-    neo4j.get_connections_context = AsyncMock(return_value=[
-        {"from_id": "ARCH-001", "to_id": "COMP-001", "connection_type": "HAS_COMPONENT"}
-    ])
+    neo4j.find_similar_architectures = AsyncMock(
+        return_value=[
+            {"plan_id": "ARCH-001", "similarity": 0.85, "architecture_type": "microservices"}
+        ]
+    )
+    neo4j.get_connections_context = AsyncMock(
+        return_value=[
+            {"from_id": "ARCH-001", "to_id": "COMP-001", "connection_type": "HAS_COMPONENT"}
+        ]
+    )
     return neo4j
 
 
@@ -25,12 +29,12 @@ def mock_neo4j():
 def mock_qdrant():
     """Mock do cliente Qdrant."""
     qdrant = Mock()
-    qdrant.search_templates = AsyncMock(return_value=[
-        {"id": "TPL-001", "score": 0.9, "payload": {"name": "REST API Template"}}
-    ])
-    qdrant.search_code = AsyncMock(return_value=[
-        {"id": "CODE-001", "score": 0.88, "payload": {"language": "python"}}
-    ])
+    qdrant.search_templates = AsyncMock(
+        return_value=[{"id": "TPL-001", "score": 0.9, "payload": {"name": "REST API Template"}}]
+    )
+    qdrant.search_code = AsyncMock(
+        return_value=[{"id": "CODE-001", "score": 0.88, "payload": {"language": "python"}}]
+    )
     return qdrant
 
 
@@ -45,20 +49,13 @@ def mock_embedder():
 @pytest.fixture
 def rag_engine(mock_neo4j, mock_qdrant, mock_embedder):
     """Fixture para RAGQueryEngine com mocks."""
-    return RAGQueryEngine(
-        neo4j=mock_neo4j,
-        qdrant=mock_qdrant,
-        embedder=mock_embedder
-    )
+    return RAGQueryEngine(neo4j=mock_neo4j, qdrant=mock_qdrant, embedder=mock_embedder)
 
 
 @pytest.mark.asyncio
 async def test_hybrid_search(rag_engine, mock_qdrant, mock_neo4j):
     """Testa busca híbrida (graph + vector)."""
-    results = await rag_engine.hybrid_search(
-        query="Create REST API for user management",
-        alpha=0.5
-    )
+    results = await rag_engine.hybrid_search(query="Create REST API for user management", alpha=0.5)
 
     assert len(results) > 0
     assert isinstance(results[0], RetrievalResult)
@@ -70,10 +67,7 @@ async def test_hybrid_search(rag_engine, mock_qdrant, mock_neo4j):
 @pytest.mark.asyncio
 async def test_hybrid_search_vector_only(rag_engine, mock_qdrant, mock_neo4j):
     """Testa busca apenas vectorial (alpha=1)."""
-    results = await rag_engine.hybrid_search(
-        query="Create REST API",
-        alpha=1.0
-    )
+    results = await rag_engine.hybrid_search(query="Create REST API", alpha=1.0)
 
     assert len(results) > 0
     mock_qdrant.search_templates.assert_called_once()
@@ -84,10 +78,7 @@ async def test_hybrid_search_vector_only(rag_engine, mock_qdrant, mock_neo4j):
 @pytest.mark.asyncio
 async def test_hybrid_search_graph_only(rag_engine, mock_qdrant, mock_neo4j):
     """Testa busca apenas no grafo (alpha=0)."""
-    results = await rag_engine.hybrid_search(
-        query="microservices architecture",
-        alpha=0.0
-    )
+    results = await rag_engine.hybrid_search(query="microservices architecture", alpha=0.0)
 
     assert len(results) > 0
     mock_neo4j.find_similar_architectures.assert_called_once()
@@ -99,8 +90,7 @@ async def test_hybrid_search_graph_only(rag_engine, mock_qdrant, mock_neo4j):
 async def test_retrieve_context(rag_engine):
     """Testa recuperação de contexto."""
     context = await rag_engine.retrieve_context(
-        query="User authentication",
-        artifact_type="architecture"
+        query="User authentication", artifact_type="architecture"
     )
 
     assert context.query == "User authentication"
@@ -111,10 +101,7 @@ async def test_retrieve_context(rag_engine):
 @pytest.mark.asyncio
 async def test_retrieve_context_all_types(rag_engine, mock_qdrant):
     """Testa recuperação de contexto com todos os tipos."""
-    context = await rag_engine.retrieve_context(
-        query="API development",
-        artifact_type="all"
-    )
+    context = await rag_engine.retrieve_context(query="API development", artifact_type="all")
 
     assert context.query == "API development"
     assert len(context.similar_architectures) > 0
@@ -127,10 +114,7 @@ async def test_retrieve_context_all_types(rag_engine, mock_qdrant):
 @pytest.mark.asyncio
 async def test_search_templates(rag_engine, mock_qdrant):
     """Testa busca de templates."""
-    results = await rag_engine.search_templates(
-        query="REST API template",
-        limit=5
-    )
+    results = await rag_engine.search_templates(query="REST API template", limit=5)
 
     assert len(results) > 0
     assert results[0].type == "template"
@@ -142,9 +126,7 @@ async def test_search_templates(rag_engine, mock_qdrant):
 async def test_search_code(rag_engine, mock_qdrant):
     """Testa busca de código."""
     results = await rag_engine.search_code(
-        query="authentication handler",
-        limit=5,
-        language_filter="python"
+        query="authentication handler", limit=5, language_filter="python"
     )
 
     assert len(results) > 0
@@ -167,9 +149,7 @@ async def test_extract_keywords(rag_engine):
 @pytest.mark.asyncio
 async def test_combine_results_vector_only(rag_engine):
     """Testa combinação apenas com resultados vectoriais."""
-    vector_results = [
-        {"id": "V-001", "score": 0.9, "payload": {"type": "template"}}
-    ]
+    vector_results = [{"id": "V-001", "score": 0.9, "payload": {"type": "template"}}]
     graph_results = []
 
     combined = rag_engine._combine_results(vector_results, graph_results, alpha=0.7)
@@ -182,12 +162,8 @@ async def test_combine_results_vector_only(rag_engine):
 @pytest.mark.asyncio
 async def test_combine_results_hybrid(rag_engine):
     """Testa combinação híbrida de resultados."""
-    vector_results = [
-        {"id": "V-001", "score": 0.9, "payload": {"type": "template"}}
-    ]
-    graph_results = [
-        {"plan_id": "V-001", "similarity": 0.8, "architecture_type": "microservices"}
-    ]
+    vector_results = [{"id": "V-001", "score": 0.9, "payload": {"type": "template"}}]
+    graph_results = [{"plan_id": "V-001", "similarity": 0.8, "architecture_type": "microservices"}]
 
     combined = rag_engine._combine_results(vector_results, graph_results, alpha=0.5)
 
@@ -205,7 +181,7 @@ async def test_contextual_retriever_code_generation(rag_engine):
 
     context = await retriever.retrieve_for_code_generation(
         requirements=["Create REST API", "Add authentication", "User management"],
-        tech_stack={"framework": "FastAPI", "language": "python"}
+        tech_stack={"framework": "FastAPI", "language": "python"},
     )
 
     assert "query" in context
@@ -222,7 +198,7 @@ async def test_contextual_retriever_architecture_design(rag_engine):
 
     context = await retriever.retrieve_for_architecture_design(
         requirements=["High availability", "Scalability"],
-        constraints=["Use microservices", "Cloud native"]
+        constraints=["Use microservices", "Cloud native"],
     )
 
     assert "requirements" in context
@@ -236,10 +212,7 @@ async def test_contextual_retriever_retrieve_context(rag_engine):
     """Testa método retrieve_context do ContextualRetriever."""
     retriever = ContextualRetriever(rag_engine)
 
-    context = await retriever.retrieve_context(
-        query="Database design",
-        context_type="architecture"
-    )
+    context = await retriever.retrieve_context(query="Database design", context_type="architecture")
 
     assert context.query == "Database design"
     assert len(context.similar_architectures) > 0
@@ -251,9 +224,7 @@ async def test_contextual_retriever_with_filters(rag_engine, mock_qdrant):
     retriever = ContextualRetriever(rag_engine)
 
     context = await retriever.retrieve_with_filters(
-        query="API endpoint",
-        filters={"language": "python", "stack": "FastAPI"},
-        limit=5
+        query="API endpoint", filters={"language": "python", "stack": "FastAPI"}, limit=5
     )
 
     assert context.query == "API endpoint"
@@ -274,10 +245,7 @@ async def test_search_templates_empty_results(rag_engine, mock_qdrant):
 @pytest.mark.asyncio
 async def test_search_code_with_language_filter(rag_engine, mock_qdrant):
     """Testa busca de código com filtro de linguagem."""
-    results = await rag_engine.search_code(
-        query="handler",
-        language_filter="python"
-    )
+    results = await rag_engine.search_code(query="handler", language_filter="python")
 
     # Verifica que o filtro foi passado
     call_args = mock_qdrant.search_code.call_args
@@ -289,19 +257,16 @@ async def test_search_code_with_language_filter(rag_engine, mock_qdrant):
 async def test_hybrid_search_limit(rag_engine):
     """Testa que busca híbrida respeita o limite."""
     # Configurar mocks para retornar mais resultados que o limite
-    rag_engine.qdrant.search_templates = AsyncMock(return_value=[
-        {"id": f"TPL-{i:03d}", "score": 0.9 - i * 0.05, "payload": {}}
-        for i in range(20)
-    ])
-    rag_engine.neo4j.find_similar_architectures = AsyncMock(return_value=[
-        {"plan_id": f"ARCH-{i:03d}", "similarity": 0.8 - i * 0.05}
-        for i in range(15)
-    ])
-
-    results = await rag_engine.hybrid_search(
-        query="test",
-        limit=5
+    rag_engine.qdrant.search_templates = AsyncMock(
+        return_value=[
+            {"id": f"TPL-{i:03d}", "score": 0.9 - i * 0.05, "payload": {}} for i in range(20)
+        ]
     )
+    rag_engine.neo4j.find_similar_architectures = AsyncMock(
+        return_value=[{"plan_id": f"ARCH-{i:03d}", "similarity": 0.8 - i * 0.05} for i in range(15)]
+    )
+
+    results = await rag_engine.hybrid_search(query="test", limit=5)
 
     assert len(results) <= 5
 
@@ -309,10 +274,7 @@ async def test_hybrid_search_limit(rag_engine):
 @pytest.mark.asyncio
 async def test_retrieve_context_code_artifact_type(rag_engine, mock_qdrant):
     """Testa retrieve_context com artifact_type='code'."""
-    context = await rag_engine.retrieve_context(
-        query="algorithm",
-        artifact_type="code"
-    )
+    context = await rag_engine.retrieve_context(query="algorithm", artifact_type="code")
 
     assert len(context.code_snippets) > 0
     # Templates não devem ser buscados
@@ -331,12 +293,8 @@ async def test_extract_keywords_empty_query(rag_engine):
 @pytest.mark.asyncio
 async def test_combine_results_score_calculation(rag_engine):
     """Testa cálculo de score na combinação."""
-    vector_results = [
-        {"id": "V-001", "score": 1.0, "payload": {}}
-    ]
-    graph_results = [
-        {"plan_id": "V-001", "similarity": 0.8, "type": "arch"}
-    ]
+    vector_results = [{"id": "V-001", "score": 1.0, "payload": {}}]
+    graph_results = [{"plan_id": "V-001", "similarity": 0.8, "type": "arch"}]
 
     # Com alpha=0.5, score deve ser 0.5*1.0 + 0.5*0.8 = 0.9
     combined = rag_engine._combine_results(vector_results, graph_results, alpha=0.5)

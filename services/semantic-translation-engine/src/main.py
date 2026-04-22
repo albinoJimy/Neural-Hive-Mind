@@ -8,16 +8,12 @@ do Neural Hive-Mind. Converte Intent Envelopes em Cognitive Plans executáveis.
 import asyncio
 import json
 from contextlib import asynccontextmanager
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import structlog
 from confluent_kafka.admin import AdminClient
 from fastapi import FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
-
-# SEC-001: Security Headers
-from neural_hive_security import SecurityHeadersMiddleware
-
 from src.clients.mongodb_client import MongoDBClient
 from src.clients.neo4j_client import Neo4jClient
 from src.clients.redis_client import RedisClient
@@ -42,15 +38,18 @@ from src.services.semantic_parser import SemanticParser
 from src.services.task_splitter import TaskSplitter
 
 from neural_hive_observability import (
+    get_metrics,
     init_observability,
     instrument_kafka_consumer,
     instrument_kafka_producer,
-    get_metrics,
 )
 from neural_hive_observability.config import ObservabilityConfig
 from neural_hive_observability.health import HealthChecker, HealthStatus
 from neural_hive_observability.health_checks.otel import OTELPipelineHealthCheck
 from neural_hive_observability.middleware import TraceContextMiddleware
+
+# SEC-001: Security Headers
+from neural_hive_security import SecurityHeadersMiddleware
 
 # Configure structured logging
 logger = structlog.get_logger()
@@ -574,12 +573,15 @@ app.add_middleware(SecurityHeadersMiddleware)
 # W3C Trace Context middleware para propagação de contexto distribuído
 try:
     from neural_hive_observability.middleware import TraceContextMiddleware
+
     metrics = get_metrics()
     if metrics:
         app.add_middleware(TraceContextMiddleware, metrics=metrics)
         logger.info("W3C Trace Context middleware adicionado ao semantic-translation-engine")
     else:
-        logger.warning("Métricas não disponíveis - W3C Trace Context middleware adicionado sem métricas")
+        logger.warning(
+            "Métricas não disponíveis - W3C Trace Context middleware adicionado sem métricas"
+        )
         app.add_middleware(TraceContextMiddleware)
 except ImportError:
     logger.warning("Observabilidade não disponível - W3C Trace Context middleware não adicionado")
@@ -756,7 +758,7 @@ async def startup_check():
         "status": "started",
         "service": "semantic-translation-engine",
         "version": "1.0.0",
-        "started_at": datetime.now(timezone.utc).isoformat(),
+        "started_at": datetime.now(UTC).isoformat(),
     }
 
 

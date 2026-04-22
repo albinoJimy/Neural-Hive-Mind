@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional
+from typing import Optional
 
 import structlog
 from fastapi import APIRouter, HTTPException, Request
@@ -9,10 +9,10 @@ router = APIRouter()
 
 
 class AnalyticsQueryRequest(BaseModel):
-    sources: List[str]
-    time_window: Dict[str, int]
-    filters: Optional[Dict] = None
-    metrics: Optional[List[str]] = None
+    sources: list[str]
+    time_window: dict[str, int]
+    filters: Optional[dict] = None
+    metrics: Optional[list[str]] = None
     use_cache: bool = True
 
 
@@ -46,7 +46,7 @@ async def execute_analytics_query(query: AnalyticsQueryRequest, request: Request
 
 class AnomalyDetectionRequest(BaseModel):
     metric_name: str
-    values: List[float]
+    values: list[float]
     method: str = "zscore"
     threshold: float = 3.0
 
@@ -79,7 +79,7 @@ async def detect_anomalies(anomaly_request: AnomalyDetectionRequest, request: Re
 
 class TrendAnalysisRequest(BaseModel):
     metric_name: str
-    time_series: List[List]  # [[timestamp, value], ...]
+    time_series: list[list]  # [[timestamp, value], ...]
 
 
 @router.post("/analytics/trends")
@@ -103,9 +103,9 @@ async def analyze_trends(trend_request: TrendAnalysisRequest, request: Request):
 
 class CorrelationRequest(BaseModel):
     metric1_name: str
-    metric1_values: List[float]
+    metric1_values: list[float]
     metric2_name: str
-    metric2_values: List[float]
+    metric2_values: list[float]
 
 
 @router.post("/analytics/correlation")

@@ -5,23 +5,23 @@ Testes para RiskEnsemble
 import pytest
 
 from neural_hive_risk_scoring import (
+    EnsembleMethod,
+    RiskAssessment,
+    RiskBand,
     RiskEnsemble,
     RiskModel,
-    EnsembleMethod,
     RiskScoringConfig,
-    RiskBand,
-    RiskAssessment,
     UnifiedDomain,
 )
 
 
-@pytest.fixture
+@pytest.fixture()
 def config():
     """Configuração de teste."""
     return RiskScoringConfig()
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_models():
     """Modelos de exemplo para ensemble."""
 
@@ -51,7 +51,7 @@ def sample_models():
     ]
 
 
-@pytest.fixture
+@pytest.fixture()
 def ensemble(config, sample_models):
     """Ensemble de teste."""
     ens = RiskEnsemble(method=EnsembleMethod.WEIGHTED_AVERAGE, config=config, min_models=2)
@@ -60,7 +60,7 @@ def ensemble(config, sample_models):
     return ens
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_entity():
     """Entidade de exemplo."""
     return {"id": "test-entity", "name": "Test Plan"}

@@ -20,21 +20,15 @@ class RetrievalContext(BaseModel):
 
     query: str = Field(..., description="Query original")
     similar_architectures: List[RetrievalResult] = Field(
-        default_factory=list,
-        description="Arquiteturas similares"
+        default_factory=list, description="Arquiteturas similares"
     )
     similar_templates: List[RetrievalResult] = Field(
-        default_factory=list,
-        description="Templates similares"
+        default_factory=list, description="Templates similares"
     )
     code_snippets: List[RetrievalResult] = Field(
-        default_factory=list,
-        description="Trechos de código similar"
+        default_factory=list, description="Trechos de código similar"
     )
-    connections: List[Dict[str, Any]] = Field(
-        default_factory=list,
-        description="Conexões no grafo"
-    )
+    connections: List[Dict[str, Any]] = Field(default_factory=list, description="Conexões no grafo")
 
 
 class RetrievalRequest(BaseModel):
@@ -42,13 +36,12 @@ class RetrievalRequest(BaseModel):
 
     query: str = Field(..., description="Query de busca")
     artifact_type: str = Field(
-        default="all",
-        description="Tipo de artefacto: all, architecture, template, code"
+        default="all", description="Tipo de artefacto: all, architecture, template, code"
     )
     limit: int = Field(default=10, ge=1, le=100, description="Limite de resultados")
     alpha: float = Field(
         default=0.5,
         ge=0.0,
         le=1.0,
-        description="Peso vector vs graph (0=only graph, 1=only vector)"
+        description="Peso vector vs graph (0=only graph, 1=only vector)",
     )

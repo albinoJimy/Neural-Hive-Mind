@@ -4,7 +4,7 @@ Testes unitários para HealthCheckManager.
 Este módulo testa o gerenciador de health checks periódicos para agentes.
 """
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, patch
 from uuid import uuid4
 
@@ -13,7 +13,7 @@ from src.models import AgentInfo, AgentStatus, AgentTelemetry, AgentType
 from src.services.health_check_manager import HealthCheckManager
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_redis_client():
     """Mock do EtcdClient."""
     client = AsyncMock()
@@ -24,7 +24,7 @@ def mock_redis_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def health_check_manager(mock_redis_client):
     """Instância do HealthCheckManager para teste."""
     return HealthCheckManager(
@@ -32,7 +32,7 @@ def health_check_manager(mock_redis_client):
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_agent():
     """Agente de exemplo para testes."""
     return AgentInfo(
@@ -42,14 +42,14 @@ def sample_agent():
         status=AgentStatus.HEALTHY,
         telemetry=AgentTelemetry(success_rate=0.9, total_executions=100),
         namespace="default",
-        last_seen=int(datetime.now(timezone.utc).timestamp()),
+        last_seen=int(datetime.now(UTC).timestamp()),
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def expired_agent(sample_agent):
     """Agente expirado (last_seen antigo)."""
-    expired_time = int((datetime.now(timezone.utc) - timedelta(seconds=15)).timestamp())
+    expired_time = int((datetime.now(UTC) - timedelta(seconds=15)).timestamp())
     return AgentInfo(
         agent_id=sample_agent.agent_id,
         agent_type=sample_agent.agent_type,
@@ -64,7 +64,7 @@ def expired_agent(sample_agent):
 class TestHealthCheckManagerLifecycle:
     """Testes para ciclo de vida do HealthCheckManager."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_start_stop(self, health_check_manager):
         """Testa iniciar e parar o manager."""
         await health_check_manager.start()
@@ -76,7 +76,7 @@ class TestHealthCheckManagerLifecycle:
 
         assert health_check_manager._running is False
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_start_already_started(self, health_check_manager):
         """Testa que segunda chamada de start não cria nova task."""
         await health_check_manager.start()
@@ -91,7 +91,7 @@ class TestHealthCheckManagerLifecycle:
         # Task não deve ter sido alterada
         assert health_check_manager._task is original_task
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_stop_not_started(self, health_check_manager, caplog):
         """Testa parar sem ter iniciado."""
         # Não deve levantar exceção, apenas parar
@@ -99,7 +99,7 @@ class TestHealthCheckManagerLifecycle:
 
         assert health_check_manager._running is False
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_stop_cancels_task(self, health_check_manager):
         """Testa que stop cancela a task em execução."""
         await health_check_manager.start()
@@ -116,7 +116,7 @@ class TestHealthCheckManagerLifecycle:
 class TestHealthCheckLoop:
     """Testes para o loop de health check."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_health_check_loop_healthy_agents(
         self, health_check_manager, mock_redis_client, sample_agent
     ):
@@ -129,7 +129,7 @@ class TestHealthCheckLoop:
         mock_redis_client.put_agent.assert_not_called()
         mock_redis_client.delete_agent.assert_not_called()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_health_check_loop_with_expired(
         self, health_check_manager, mock_redis_client, expired_agent
     ):
@@ -142,7 +142,7 @@ class TestHealthCheckLoop:
         assert expired_agent.status == AgentStatus.UNHEALTHY
         mock_redis_client.put_agent.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_health_check_loop_recover(
         self, health_check_manager, mock_redis_client, sample_agent
     ):
@@ -158,7 +158,7 @@ class TestHealthCheckLoop:
         # Contador deve ser resetado
         assert agent_id_str not in health_check_manager._unhealthy_counts
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_health_check_loop_multiple_agents(
         self, health_check_manager, mock_redis_client, sample_agent
     ):
@@ -170,7 +170,7 @@ class TestHealthCheckLoop:
             status=AgentStatus.HEALTHY,
             telemetry=AgentTelemetry(success_rate=0.85),
             namespace="default",
-            last_seen=int(datetime.now(timezone.utc).timestamp()),
+            last_seen=int(datetime.now(UTC).timestamp()),
         )
 
         mock_redis_client.list_agents = AsyncMock(return_value=[sample_agent, agent2])
@@ -180,7 +180,7 @@ class TestHealthCheckLoop:
         # Nenhum deve ter sido modificado (ambos saudáveis)
         assert mock_redis_client.list_agents.call_count == 1
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_health_check_loop_exception_handling(
         self, health_check_manager, mock_redis_client
     ):
@@ -198,7 +198,7 @@ class TestHealthCheckLoop:
 class TestExpiredAgentHandling:
     """Testes para tratamento de agentes expirados."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_handle_expired_agent_cycle_1_mark_unhealthy(
         self, health_check_manager, mock_redis_client, expired_agent
     ):
@@ -210,7 +210,7 @@ class TestExpiredAgentHandling:
         assert health_check_manager._unhealthy_counts[str(expired_agent.agent_id)] == 1
         mock_redis_client.put_agent.assert_called_once_with(expired_agent)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_handle_expired_agent_cycle_2_mark_degraded(
         self, health_check_manager, mock_redis_client, expired_agent
     ):
@@ -225,7 +225,7 @@ class TestExpiredAgentHandling:
             assert health_check_manager._unhealthy_counts[str(expired_agent.agent_id)] == 2
             mock_notify.assert_called_once_with(expired_agent)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_handle_expired_agent_cycle_5_remove(
         self, health_check_manager, mock_redis_client, expired_agent
     ):
@@ -239,7 +239,7 @@ class TestExpiredAgentHandling:
         mock_redis_client.delete_agent.assert_called_once_with(expired_agent.agent_id)
         assert str(expired_agent.agent_id) not in health_check_manager._unhealthy_counts
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_handle_multiple_agents_expired(self, health_check_manager, mock_redis_client):
         """Testa múltiplos agentes expirando simultaneamente."""
         agent1 = AgentInfo(
@@ -249,7 +249,7 @@ class TestExpiredAgentHandling:
             status=AgentStatus.HEALTHY,
             telemetry=AgentTelemetry(success_rate=0.9),
             namespace="default",
-            last_seen=int((datetime.now(timezone.utc) - timedelta(seconds=15)).timestamp()),
+            last_seen=int((datetime.now(UTC) - timedelta(seconds=15)).timestamp()),
         )
         agent2 = AgentInfo(
             agent_id=uuid4(),
@@ -258,7 +258,7 @@ class TestExpiredAgentHandling:
             status=AgentStatus.HEALTHY,
             telemetry=AgentTelemetry(success_rate=0.8),
             namespace="default",
-            last_seen=int((datetime.now(timezone.utc) - timedelta(seconds=20)).timestamp()),
+            last_seen=int((datetime.now(UTC) - timedelta(seconds=20)).timestamp()),
         )
 
         # Primeiro ciclo para ambos
@@ -273,7 +273,7 @@ class TestExpiredAgentHandling:
 class TestAutocuraNotification:
     """Testes para notificação de autocura."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_notify_autocura(self, health_check_manager, sample_agent):
         """Testa notificação do sistema de autocura."""
         # Método deve completar sem erro
@@ -282,7 +282,7 @@ class TestAutocuraNotification:
         # Verificar que agente mantém estado consistente
         assert sample_agent.status == AgentStatus.HEALTHY
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_autocura_integration_on_degraded(
         self, health_check_manager, mock_redis_client, expired_agent
     ):
@@ -299,7 +299,7 @@ class TestAutocuraNotification:
 class TestCheckAgentHealth:
     """Testes para verificação de saúde de agente específico."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_check_agent_health_healthy(
         self, health_check_manager, mock_redis_client, sample_agent
     ):
@@ -310,7 +310,7 @@ class TestCheckAgentHealth:
 
         assert result == AgentStatus.HEALTHY
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_check_agent_health_expired(
         self, health_check_manager, mock_redis_client, expired_agent
     ):
@@ -321,7 +321,7 @@ class TestCheckAgentHealth:
 
         assert result == AgentStatus.UNHEALTHY
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_check_agent_health_not_found(self, health_check_manager, mock_redis_client):
         """Testa verificação de agente que não existe."""
         mock_redis_client.get_agent = AsyncMock(return_value=None)
@@ -330,7 +330,7 @@ class TestCheckAgentHealth:
 
         assert result is None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_check_agent_health_error(
         self, health_check_manager, mock_redis_client, sample_agent
     ):
@@ -345,7 +345,7 @@ class TestCheckAgentHealth:
 class TestPrometheusMetrics:
     """Testes para métricas Prometheus."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_health_checks_total_metric(
         self, health_check_manager, mock_redis_client, sample_agent
     ):
@@ -361,7 +361,7 @@ class TestPrometheusMetrics:
         # Nota: Prometheus Counter valores são monótonos
         assert health_checks_total._value.get() >= initial_value
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_agents_marked_unhealthy_metric(
         self, health_check_manager, mock_redis_client, expired_agent
     ):
@@ -374,7 +374,7 @@ class TestPrometheusMetrics:
         # Agente foi marcado UNHEALTHY no primeiro ciclo
         # A métrica deve ter sido incrementada
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_agents_removed_metric(
         self, health_check_manager, mock_redis_client, expired_agent
     ):

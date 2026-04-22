@@ -991,7 +991,7 @@ class TestExecutor(BaseTaskExecutor):
                 cwd=str(cwd) if cwd else None,
                 capture_output=True,
                 text=True,
-                timeout=timeout_seconds,
+                timeout=timeout_seconds, check=False,
             )
             duration_seconds = time.monotonic() - started_at
 

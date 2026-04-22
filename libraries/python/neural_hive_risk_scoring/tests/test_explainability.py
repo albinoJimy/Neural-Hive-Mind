@@ -5,27 +5,27 @@ Testes para RiskExplainability
 import pytest
 
 from neural_hive_risk_scoring import (
+    RiskAssessment,
+    RiskBand,
     RiskExplainability,
     RiskScoringConfig,
-    RiskBand,
-    RiskAssessment,
     UnifiedDomain,
 )
 
 
-@pytest.fixture
+@pytest.fixture()
 def config():
     """Configuração de teste."""
     return RiskScoringConfig()
 
 
-@pytest.fixture
+@pytest.fixture()
 def explainability(config):
     """Serviço de explicabilidade de teste."""
     return RiskExplainability(config)
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_assessment():
     """Avaliação de exemplo."""
     return RiskAssessment(
@@ -455,6 +455,7 @@ class TestRiskExplainability:
     def test_get_recommendation_unknown_factor(self, explainability):
         """Testa recomendação para fator desconhecido."""
         from unittest.mock import Mock
+
         from neural_hive_risk_scoring.explainability import FactorContribution
 
         # Fator sem recomendação específica

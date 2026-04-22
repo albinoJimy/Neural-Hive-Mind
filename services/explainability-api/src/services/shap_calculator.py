@@ -8,7 +8,7 @@ GAPS-04 Task 2
 """
 
 from collections import defaultdict
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 import numpy as np
 import structlog
@@ -34,7 +34,7 @@ class ShapCalculator:
         """
         self.n_background_samples = n_background_samples
 
-    def calculate_shap(self, decision_data: Dict[str, Any], features: List[str]) -> Dict[str, Any]:
+    def calculate_shap(self, decision_data: dict[str, Any], features: list[str]) -> dict[str, Any]:
         """
         Calcula valores SHAP para uma decisão de consenso.
 
@@ -72,8 +72,8 @@ class ShapCalculator:
         }
 
     def _extract_feature_values(
-        self, specialist_votes: List[Dict[str, Any]], features: List[str]
-    ) -> Dict[str, List[float]]:
+        self, specialist_votes: list[dict[str, Any]], features: list[str]
+    ) -> dict[str, list[float]]:
         """Extrai valores das features dos votos dos especialistas."""
         feature_values = defaultdict(list)
 
@@ -90,7 +90,7 @@ class ShapCalculator:
 
         return dict(feature_values)
 
-    def _get_feature_value(self, vote: Dict[str, Any], feature: str) -> Optional[float]:
+    def _get_feature_value(self, vote: dict[str, Any], feature: str) -> Optional[float]:
         """Extrai valor de uma feature de um voto."""
         # Mapeamento de features para campos no voto
         feature_mapping = {
@@ -112,7 +112,7 @@ class ShapCalculator:
         return None
 
     def _calculate_base_value(
-        self, feature_values: Dict[str, List[float]], decision_data: Dict[str, Any]
+        self, feature_values: dict[str, list[float]], decision_data: dict[str, Any]
     ) -> float:
         """
         Calcula valor base (média esperada sem conhecimento de features).
@@ -132,10 +132,10 @@ class ShapCalculator:
 
     def _calculate_kernel_shap(
         self,
-        feature_values: Dict[str, List[float]],
+        feature_values: dict[str, list[float]],
         base_value: float,
-        decision_data: Dict[str, Any],
-    ) -> Dict[str, float]:
+        decision_data: dict[str, Any],
+    ) -> dict[str, float]:
         """
         Calcula valores SHAP usando Kernel SHAP simplificado.
 
@@ -207,8 +207,8 @@ class ShapCalculator:
         return decision_map.get(decision.lower(), 0.0)
 
     def batch_calculate_shap(
-        self, decisions: List[Dict[str, Any]], features: List[str]
-    ) -> List[Dict[str, Any]]:
+        self, decisions: list[dict[str, Any]], features: list[str]
+    ) -> list[dict[str, Any]]:
         """
         Calcula valores SHAP para um lote de decisões.
 
@@ -231,7 +231,7 @@ class ShapCalculator:
 
         return results
 
-    def format_explanation(self, attribution: Dict[str, float], language: str = "pt") -> str:
+    def format_explanation(self, attribution: dict[str, float], language: str = "pt") -> str:
         """
         Formata atribuição SHAP como texto legível para humanos.
 

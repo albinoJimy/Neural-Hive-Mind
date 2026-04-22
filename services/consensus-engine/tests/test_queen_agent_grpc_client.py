@@ -4,13 +4,14 @@ Testes unitários para o cliente gRPC do Queen Agent.
 Valida comunicação entre Consensus Engine e Queen Agent via gRPC.
 """
 
-import pytest
-from unittest.mock import MagicMock, AsyncMock, patch
-import grpc
 import uuid
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import grpc
+import pytest
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_queen_agent_config():
     """Configuração mock para o cliente Queen Agent."""
     config = MagicMock()
@@ -22,7 +23,7 @@ def mock_queen_agent_config():
     return config
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_queen_agent_config_with_mtls():
     """Configuração mock com mTLS habilitado."""
     config = MagicMock()
@@ -38,7 +39,7 @@ def mock_queen_agent_config_with_mtls():
     return config
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_strategic_decision_response():
     """Response mock de decisão estratégica."""
     response = MagicMock()
@@ -53,7 +54,7 @@ def sample_strategic_decision_response():
     return response
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_system_status_response():
     """Response mock de status do sistema."""
     response = MagicMock()
@@ -66,7 +67,7 @@ def sample_system_status_response():
     return response
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_make_decision_response():
     """Response mock de criação de decisão."""
     response = MagicMock()
@@ -80,7 +81,7 @@ def sample_make_decision_response():
     return response
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_list_decisions_response(sample_strategic_decision_response):
     """Response mock de listagem de decisões."""
     response = MagicMock()
@@ -89,8 +90,8 @@ def sample_list_decisions_response(sample_strategic_decision_response):
     return response
 
 
-@pytest.mark.unit
-@pytest.mark.asyncio
+@pytest.mark.unit()
+@pytest.mark.asyncio()
 class TestQueenAgentGrpcClientInitialization:
     """Testes de inicialização do cliente."""
 
@@ -118,8 +119,9 @@ class TestQueenAgentGrpcClientInitialization:
 
     async def test_initialize_handles_timeout(self, mock_queen_agent_config):
         """Verifica tratamento de timeout na inicialização."""
-        from src.clients.queen_agent_grpc_client import QueenAgentGrpcClient
         import asyncio
+
+        from src.clients.queen_agent_grpc_client import QueenAgentGrpcClient
 
         with patch("src.clients.queen_agent_grpc_client.grpc.aio.insecure_channel") as mock_channel:
             channel = AsyncMock()
@@ -135,8 +137,8 @@ class TestQueenAgentGrpcClientInitialization:
                 await client.close()
 
 
-@pytest.mark.unit
-@pytest.mark.asyncio
+@pytest.mark.unit()
+@pytest.mark.asyncio()
 class TestQueenAgentGrpcClientGetDecision:
     """Testes de busca de decisão estratégica."""
 
@@ -234,8 +236,8 @@ class TestQueenAgentGrpcClientGetDecision:
                     await client.close()
 
 
-@pytest.mark.unit
-@pytest.mark.asyncio
+@pytest.mark.unit()
+@pytest.mark.asyncio()
 class TestQueenAgentGrpcClientMakeDecision:
     """Testes de criação de decisão estratégica."""
 
@@ -317,8 +319,8 @@ class TestQueenAgentGrpcClientMakeDecision:
                     await client.close()
 
 
-@pytest.mark.unit
-@pytest.mark.asyncio
+@pytest.mark.unit()
+@pytest.mark.asyncio()
 class TestQueenAgentGrpcClientSystemStatus:
     """Testes de status do sistema."""
 
@@ -360,8 +362,8 @@ class TestQueenAgentGrpcClientSystemStatus:
                     await client.close()
 
 
-@pytest.mark.unit
-@pytest.mark.asyncio
+@pytest.mark.unit()
+@pytest.mark.asyncio()
 class TestQueenAgentGrpcClientListDecisions:
     """Testes de listagem de decisões."""
 
@@ -404,8 +406,8 @@ class TestQueenAgentGrpcClientListDecisions:
                     await client.close()
 
 
-@pytest.mark.unit
-@pytest.mark.asyncio
+@pytest.mark.unit()
+@pytest.mark.asyncio()
 class TestQueenAgentGrpcClientHealthCheck:
     """Testes de health check."""
 

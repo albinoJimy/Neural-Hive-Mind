@@ -7,7 +7,7 @@ Define a interface comum para todos os injetores de falha do módulo de Chaos En
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 import structlog
 from prometheus_client import Counter, Histogram
@@ -42,15 +42,15 @@ class InjectionResult:
     success: bool
     injection_id: str
     fault_type: FaultType
-    affected_resources: List[str] = field(default_factory=list)
+    affected_resources: list[str] = field(default_factory=list)
     blast_radius: int = 0
     start_time: Optional[datetime] = None
     end_time: Optional[datetime] = None
-    rollback_data: Dict[str, Any] = field(default_factory=dict)
+    rollback_data: dict[str, Any] = field(default_factory=dict)
     error_message: Optional[str] = None
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Converte o resultado para dicionário."""
         return {
             "success": self.success,
@@ -99,13 +99,12 @@ class BaseFaultInjector(ABC):
         self.k8s_apps_v1 = k8s_apps_v1
         self.k8s_networking_v1 = k8s_networking_v1
         self.opa_client = opa_client
-        self._active_injections: Dict[str, FaultInjection] = {}
+        self._active_injections: dict[str, FaultInjection] = {}
 
     @property
     @abstractmethod
-    def supported_fault_types(self) -> List[FaultType]:
+    def supported_fault_types(self) -> list[FaultType]:
         """Retorna os tipos de falha suportados por este injetor."""
-        pass
 
     @abstractmethod
     async def inject(self, injection: FaultInjection) -> InjectionResult:
@@ -118,7 +117,6 @@ class BaseFaultInjector(ABC):
         Returns:
             InjectionResult com detalhes da injeção
         """
-        pass
 
     @abstractmethod
     async def validate(self, injection_id: str) -> bool:
@@ -131,7 +129,6 @@ class BaseFaultInjector(ABC):
         Returns:
             True se a injeção está ativa, False caso contrário
         """
-        pass
 
     @abstractmethod
     async def rollback(self, injection_id: str) -> InjectionResult:
@@ -144,7 +141,6 @@ class BaseFaultInjector(ABC):
         Returns:
             InjectionResult com detalhes do rollback
         """
-        pass
 
     @abstractmethod
     async def get_blast_radius(self, target: TargetSelector) -> int:
@@ -157,7 +153,6 @@ class BaseFaultInjector(ABC):
         Returns:
             Número estimado de recursos afetados
         """
-        pass
 
     async def validate_with_opa(
         self,
@@ -165,10 +160,10 @@ class BaseFaultInjector(ABC):
         environment: str,
         requester_role: str,
         requester_name: str = "unknown",
-        requester_groups: Optional[List[str]] = None,
+        requester_groups: Optional[list[str]] = None,
         approved_by: Optional[str] = None,
         blast_radius_limit: int = 5,
-    ) -> tuple[bool, List[str]]:
+    ) -> tuple[bool, list[str]]:
         """
         Valida a injeção com políticas OPA antes de executar.
 
@@ -260,7 +255,7 @@ class BaseFaultInjector(ABC):
             # Fail-open: permitir em caso de erro de comunicação com OPA
             return True, []
 
-    async def get_target_pods(self, target: TargetSelector) -> List[str]:
+    async def get_target_pods(self, target: TargetSelector) -> list[str]:
         """
         Obtém lista de pods que correspondem ao seletor de alvos.
 
@@ -366,11 +361,11 @@ class BaseFaultInjector(ABC):
         """Remove uma injeção do rastreamento de ativas."""
         self._active_injections.pop(injection_id, None)
 
-    def get_active_injections(self) -> List[FaultInjection]:
+    def get_active_injections(self) -> list[FaultInjection]:
         """Retorna lista de injeções ativas."""
         return list(self._active_injections.values())
 
-    async def cleanup_all(self) -> List[InjectionResult]:
+    async def cleanup_all(self) -> list[InjectionResult]:
         """
         Executa rollback de todas as injeções ativas.
 

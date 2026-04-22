@@ -1,4 +1,4 @@
-from typing import Dict, Optional
+from typing import Optional
 
 from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -232,7 +232,7 @@ class Settings(BaseSettings):
         default=True,
         description="Habilitar consenso hierárquico baseado em senioridade de especialistas",
     )
-    specialist_seniority: Dict[str, str] = Field(
+    specialist_seniority: dict[str, str] = Field(
         default={
             "business": "senior",
             "technical": "senior",
@@ -247,7 +247,7 @@ class Settings(BaseSettings):
         default="mid_level",
         description="Nível de senioridade padrão para especialistas não configurados",
     )
-    domain_specialist_weights: Dict[str, float] = Field(
+    domain_specialist_weights: dict[str, float] = Field(
         default={
             "business_BUSINESS": 0.25,
             "technical_TECHNICAL": 0.25,

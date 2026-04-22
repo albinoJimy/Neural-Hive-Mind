@@ -4,15 +4,16 @@ Testes unitários para GPUInferenceWrapper.
 Testa aceleração de inferência via GPU com fallback para CPU.
 """
 
-import pytest
+from unittest.mock import MagicMock, Mock, patch
+
 import numpy as np
-from unittest.mock import Mock, MagicMock, patch
+import pytest
 
 
 class TestGPUInferenceWrapper:
     """Testes da classe GPUInferenceWrapper."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_model(self):
         """Mock de modelo scikit-learn."""
         model = MagicMock()
@@ -68,6 +69,7 @@ class TestGPUInferenceWrapper:
     def test_predict_with_dataframe(self, mock_model):
         """Testa predição com pandas DataFrame."""
         import pandas as pd
+
         from neural_hive_specialists.gpu_inference import GPUInferenceWrapper
 
         wrapper = GPUInferenceWrapper(mock_model, device="cpu")
@@ -119,7 +121,7 @@ class TestGPUInferenceWrapper:
 class TestGPUInferenceWrapperWithGPU:
     """Testes com GPU mockada."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_cupy(self):
         """Mock do módulo CuPy."""
         mock_cp = MagicMock()
@@ -146,7 +148,7 @@ class TestGPUInferenceWrapperWithGPU:
 
         return mock_cp
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_model(self):
         """Mock de modelo."""
         model = MagicMock()
@@ -159,6 +161,7 @@ class TestGPUInferenceWrapperWithGPU:
         with patch.dict("sys.modules", {"cupy": mock_cupy}):
             # Recarregar módulo para usar mock
             import importlib
+
             import neural_hive_specialists.gpu_inference as gpu_module
 
             importlib.reload(gpu_module)
@@ -174,6 +177,7 @@ class TestGPUInferenceWrapperWithGPU:
 
         with patch.dict("sys.modules", {"cupy": mock_cupy}):
             import importlib
+
             import neural_hive_specialists.gpu_inference as gpu_module
 
             importlib.reload(gpu_module)
@@ -189,7 +193,7 @@ class TestGPUInferenceWrapperWithGPU:
 class TestGPUInferenceWrapperEdgeCases:
     """Testes de casos de borda."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_model(self):
         """Mock de modelo."""
         model = MagicMock()

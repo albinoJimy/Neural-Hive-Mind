@@ -4,18 +4,17 @@ FastAPI servidor HTTP robusto com circuit breakers e health checks otimizados.
 
 import asyncio
 from contextlib import asynccontextmanager
-from typing import Any, Dict
+from typing import Any
 
 import pybreaker
 import structlog
 from fastapi import FastAPI, Response, status
 from fastapi.responses import JSONResponse, PlainTextResponse
+from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
+from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 # SEC-001: Security Headers
 from neural_hive_security import SecurityHeadersMiddleware
-
-from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
-from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 logger = structlog.get_logger()
 
@@ -54,7 +53,7 @@ health_breakers = HealthCheckCircuitBreaker()
     wait=wait_exponential(multiplier=1, min=1, max=10),
     retry=retry_if_exception_type(Exception),
 )
-async def check_mongodb_health(specialist) -> Dict[str, Any]:
+async def check_mongodb_health(specialist) -> dict[str, Any]:
     """Verifica saúde do MongoDB com retry e circuit breaker."""
     try:
         await asyncio.wait_for(
@@ -81,7 +80,7 @@ async def check_mongodb_health(specialist) -> Dict[str, Any]:
     wait=wait_exponential(multiplier=1, min=1, max=10),
     retry=retry_if_exception_type(Exception),
 )
-async def check_neo4j_health(specialist) -> Dict[str, Any]:
+async def check_neo4j_health(specialist) -> dict[str, Any]:
     """Verifica saúde do Neo4j com retry e circuit breaker."""
     try:
         # Neo4j health check implementation
@@ -346,7 +345,14 @@ def create_fastapi_app(specialist, config) -> FastAPI:
     logger.info(
         "FastAPI app created",
         specialist_type=specialist.specialist_type,
-        endpoints=["/health", "/ready", "/health/startup", "/metrics", "/status", "/api/v1/feedback"],
+        endpoints=[
+            "/health",
+            "/ready",
+            "/health/startup",
+            "/metrics",
+            "/status",
+            "/api/v1/feedback",
+        ],
     )
 
     return app

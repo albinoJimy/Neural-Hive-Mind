@@ -5,18 +5,18 @@ Intercepta requisições HTTP e valida autorização via Open Policy Agent.
 """
 
 import json
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
-from typing import Any, Awaitable, Callable
+from typing import Any
 
-from fastapi import Request, Response, HTTPException, status
+import structlog
+from fastapi import Request, Response, status
 from fastapi.responses import JSONResponse
 from prometheus_client import Counter, Gauge, Histogram
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import ASGIApp
 
 from neural_hive_opa.client import OPAClient, OPAClientConfig
-
-import structlog
 
 logger = structlog.get_logger()
 

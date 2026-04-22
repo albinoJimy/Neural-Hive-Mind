@@ -145,9 +145,7 @@ class HypothesisMetrics:
         """
         self.hypothesis_status_current.labels(status=status).set(count)
 
-    def record_transition(
-        self, from_status: str, to_status: str, triggered_by: str
-    ) -> None:
+    def record_transition(self, from_status: str, to_status: str, triggered_by: str) -> None:
         """Registra transição de status.
 
         Args:
@@ -212,9 +210,7 @@ class HypothesisMetrics:
         """
         self.hypothesis_experiments_total.labels(status=status).set(count)
 
-    def record_workflow_error(
-        self, error_type: str, from_status: str, to_status: str
-    ) -> None:
+    def record_workflow_error(self, error_type: str, from_status: str, to_status: str) -> None:
         """Registra erro de workflow.
 
         Args:

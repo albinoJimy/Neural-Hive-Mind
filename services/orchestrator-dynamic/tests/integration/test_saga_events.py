@@ -1,14 +1,14 @@
 """Testes de integração para Saga Producer e Metrics."""
 
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
 import asyncio
+from unittest.mock import AsyncMock, MagicMock, patch
 
-from src.saga.saga_state import SagaState, SagaStatus, SagaStep
+import pytest
 from src.saga.saga_metrics import SagaMetrics, get_saga_metrics, timer
+from src.saga.saga_state import SagaState, SagaStatus, SagaStep
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_saga():
     """Saga de exemplo para testes."""
     steps = [
@@ -42,7 +42,7 @@ def sample_saga():
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_saga_producer():
     """Mock do SagaProducer."""
     producer = AsyncMock()
@@ -59,14 +59,14 @@ def mock_saga_producer():
 
 # Import das activities para teste
 from src.activities.saga_events import (
-    publish_saga_created,
-    publish_saga_started,
     publish_saga_completed,
+    publish_saga_created,
     publish_saga_failed,
+    publish_saga_started,
 )
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 class TestSagaEventsActivity:
     """Testes para activity de eventos de Saga."""
 
@@ -288,11 +288,11 @@ class TestSagaMetrics:
         assert metrics2.get_counter("saga_created") == 5
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 class TestSagaTimer:
     """Testes para SagaTimer."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_timer_records_duration(self):
         """Deve medir duracao de operacao."""
         metrics = SagaMetrics()
@@ -309,7 +309,7 @@ class TestSagaTimer:
         assert stats["count"] == 1
         assert stats["min"] > 0  # Deve ter medido algum tempo
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_timer_with_metrics_singleton(self):
         """Deve funcionar com singleton de metrics."""
         # Reset singleton
@@ -325,11 +325,11 @@ class TestSagaTimer:
         assert stats["count"] == 1
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 class TestSagaProducerWithMetrics:
     """Testes de integração Producer + Metrics."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_producer_registers_metrics_on_publish(self, sample_saga):
         """Deve registrar metricas quando publicar eventos."""
         from src.saga.saga_producer import SagaProducer
@@ -359,7 +359,7 @@ class TestSagaProducerWithMetrics:
         assert metrics.get_counter("saga_started", {"plan_id": "plan-123"}) == 1
         assert metrics.get_counter("step_completed", {"step_name": "validate"}) == 1
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_saga_producer_singleton(self):
         """Deve retornar singleton de producer."""
         # Reset singleton

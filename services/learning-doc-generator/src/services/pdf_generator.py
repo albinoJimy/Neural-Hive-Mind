@@ -1,7 +1,7 @@
 """Gerador de PDF a partir de Markdown"""
 
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import structlog
@@ -35,6 +35,7 @@ class PDFGenerator:
         """Verifica se weasyprint está instalado"""
         try:
             import weasyprint  # noqa: F401
+
             logger.info("WeasyPrint disponível para geração de PDF")
             return True
         except ImportError:
@@ -76,9 +77,7 @@ class PDFGenerator:
 
         try:
             # Converter Markdown para HTML
-            html_content = await self._markdown_to_html(
-                md_content, document, template_name
-            )
+            html_content = await self._markdown_to_html(md_content, document, template_name)
 
             # Gerar PDF
             pdf_path = await self._html_to_pdf(html_content, document)
@@ -144,7 +143,7 @@ class PDFGenerator:
         return template.render(
             title=document.title,
             content=body_html,
-            generated_at=document.generated_at or datetime.now(timezone.utc),
+            generated_at=document.generated_at or datetime.now(UTC),
             period_start=document.period_start,
             period_end=document.period_end,
             document_type=document.type.value,
@@ -165,7 +164,7 @@ class PDFGenerator:
 
         # Criar nome de arquivo
         safe_title = document.title.lower().replace(" ", "_").replace("/", "_")
-        timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+        timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
         filename = f"{timestamp}_{safe_title}.pdf"
         filepath = Path(self._output_dir) / filename
 
@@ -498,14 +497,13 @@ class PDFGenerator:
         # Se caminho de saída especificado, mover arquivo
         if output_path and output_path != pdf_path:
             import shutil
+
             shutil.move(pdf_path, output_path)
             pdf_path = output_path
 
         return pdf_path
 
-    async def generate_batch(
-        self, documents: list[tuple[LearningDocument, str]]
-    ) -> list[str]:
+    async def generate_batch(self, documents: list[tuple[LearningDocument, str]]) -> list[str]:
         """Gera PDFs em lote
 
         Args:

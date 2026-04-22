@@ -3,10 +3,11 @@ Testes unitários para Router do Gateway de Intenções
 Testa roteamento de intenções para serviços downstream (STE, execução direta)
 """
 
-import pytest
-from unittest.mock import AsyncMock, MagicMock
-import sys
 import os
+import sys
+from unittest.mock import AsyncMock, MagicMock
+
+import pytest
 
 # Add src to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
@@ -15,7 +16,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 class TestIntentRouter:
     """Testes para roteador de intenções"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_kafka_producer(self):
         """Mock do producer Kafka"""
         producer = AsyncMock()
@@ -23,7 +24,7 @@ class TestIntentRouter:
         producer.send_intent = AsyncMock()
         return producer
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_nlu_pipeline(self):
         """Mock do pipeline NLU"""
         nlu = AsyncMock()
@@ -39,7 +40,7 @@ class TestIntentRouter:
         )
         return nlu
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_asr_pipeline(self):
         """Mock do pipeline ASR"""
         asr = AsyncMock()
@@ -49,7 +50,7 @@ class TestIntentRouter:
         )
         return asr
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_redis_client(self):
         """Mock do cliente Redis"""
         redis = AsyncMock()
@@ -57,7 +58,7 @@ class TestIntentRouter:
         redis.set = AsyncMock()
         return redis
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_route_to_semantic_translation(self, mock_nlu_pipeline, mock_kafka_producer):
         """Testar roteamento para Semantic Translation Engine"""
         # Simular intenção que requer tradução semântica
@@ -81,7 +82,7 @@ class TestIntentRouter:
         # (simulado aqui pela verificação do domínio)
         assert nlu_result.domain in ["technical", "business", "infrastructure", "security"]
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_route_to_direct_execution(self, mock_nlu_pipeline, mock_kafka_producer):
         """Testar roteamento para execução direta (intenção simples)"""
         intent_request = MagicMock()
@@ -109,7 +110,7 @@ class TestIntentRouter:
         # Consultas simples podem ter rota direta
         assert nlu_result.classification == "query"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_route_with_cache_hit(self, mock_nlu_pipeline, mock_redis_client):
         """Testar roteamento com cache hit"""
         cached_result = {
@@ -133,7 +134,7 @@ class TestIntentRouter:
         assert cached["domain"] == "technical"
         # NLU não deve ser processado novamente
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_route_with_cache_miss(self, mock_nlu_pipeline, mock_redis_client):
         """Testar roteamento com cache miss"""
         # Mock Redis retorna None (cache miss)
@@ -145,7 +146,7 @@ class TestIntentRouter:
         assert cached is None
         # NLU deve processar a requisição
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_concurrent_requests_handling(self, mock_nlu_pipeline, mock_kafka_producer):
         """Testar handling de requisições concorrentes"""
         import asyncio
@@ -173,7 +174,7 @@ class TestIntentRouter:
             assert result.domain is not None
             assert result.confidence >= 0.0
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_unknown_domain_routing(self, mock_nlu_pipeline, mock_kafka_producer):
         """Testar roteamento para domínio desconhecido"""
         # Configurar NLU para retornar domínio desconhecido
@@ -201,7 +202,7 @@ class TestIntentRouter:
         assert result.confidence_status == "low"
         assert result.requires_manual_validation is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_fallback_on_pipeline_error(self, mock_nlu_pipeline):
         """Testar fallback quando pipeline falha"""
         # Configurar NLU para lançar exceção
@@ -221,7 +222,7 @@ class TestIntentRouter:
 class TestVoiceIntentRouter:
     """Testes para roteador de intenções de voz"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_asr_pipeline(self):
         """Mock do pipeline ASR"""
         asr = AsyncMock()
@@ -234,7 +235,7 @@ class TestVoiceIntentRouter:
         )
         return asr
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_nlu_pipeline(self):
         """Mock do pipeline NLU"""
         nlu = AsyncMock()
@@ -250,7 +251,7 @@ class TestVoiceIntentRouter:
         )
         return nlu
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_voice_intent_routing(self, mock_asr_pipeline, mock_nlu_pipeline):
         """Testar roteamento completo de intenção de voz"""
         # Dados de áudio simulados
@@ -270,7 +271,7 @@ class TestVoiceIntentRouter:
         assert nlu_result.domain == "technical"
         assert nlu_result.classification == "implementation"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_voice_intent_with_low_asr_confidence(self, mock_asr_pipeline):
         """Testar intenção de voz com baixa confiança ASR"""
         # Configurar ASR com baixa confiança
@@ -285,7 +286,7 @@ class TestVoiceIntentRouter:
         assert asr_result.confidence < 0.5
         # Pode requerer confirmação do usuário
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_voice_intent_language_detection(self, mock_asr_pipeline):
         """Testar detecção de idioma em intenção de voz"""
         # Configurar ASR para detectar inglês
@@ -305,7 +306,7 @@ class TestVoiceIntentRouter:
 class TestCircuitBreaker:
     """Testes para circuit breaker no roteador"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_circuit_breaker(self):
         """Mock do circuit breaker"""
         cb = MagicMock()
@@ -346,7 +347,7 @@ class TestCircuitBreaker:
 class TestLoadBalancing:
     """Testes para balanceamento de carga"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_round_robin_load_balancing(self):
         """Testar balanceamento round-robin"""
         # Lista de endpoints downstream
@@ -365,7 +366,7 @@ class TestLoadBalancing:
         assert selected_endpoints.count(endpoints[1]) == 2
         assert selected_endpoints.count(endpoints[2]) == 2
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_least_connections_load_balancing(self):
         """Testar balanceamento least-connections"""
         # Simular estado de conexões
@@ -381,7 +382,7 @@ class TestLoadBalancing:
         assert selected[0] == "http://ste-2:8001"
         assert selected[1] == 2
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_weighted_round_robin(self):
         """Testar balanceamento round-robin ponderado"""
         endpoints = [
@@ -408,7 +409,7 @@ class TestLoadBalancing:
 class TestRetryLogic:
     """Testes para lógica de retry"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_retry_on_transient_failure(self):
         """Testar retry em falha transitória"""
         import asyncio
@@ -435,7 +436,7 @@ class TestRetryLogic:
                     raise
                 await asyncio.sleep(0.01)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_retry_exhausted_raises_exception(self):
         """Testar que esgotar retries lança exceção"""
         import asyncio
@@ -454,7 +455,7 @@ class TestRetryLogic:
                         raise
                 await asyncio.sleep(0.01)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_exponential_backoff(self):
         """Testar exponential backoff entre retries"""
         import time
@@ -474,7 +475,7 @@ class TestRetryLogic:
 class TestRouterMetrics:
     """Testes para métricas do roteador"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_request_counted(self):
         """Testar que requisições são contadas"""
         request_counter = {"count": 0}
@@ -488,7 +489,7 @@ class TestRouterMetrics:
 
         assert request_counter["count"] == 5
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_latency_recorded(self):
         """Testar que latência é registrada"""
         import time
@@ -508,7 +509,7 @@ class TestRouterMetrics:
         for lat in latencies:
             assert 0.005 < lat < 0.1
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_error_rate_calculated(self):
         """Testar cálculo de taxa de erro"""
         total_requests = 100
@@ -523,7 +524,7 @@ class TestRouterMetrics:
 class TestRouterHealth:
     """Testes para saúde do roteador"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_health_check_returns_healthy(self):
         """Testar health check retorna saudável"""
         health_status = {
@@ -540,7 +541,7 @@ class TestRouterHealth:
         for dep, status in health_status["dependencies"].items():
             assert status == "ready"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_health_check_with_degraded_dependency(self):
         """Testar health check com dependência degradada"""
         health_status = {
@@ -556,7 +557,7 @@ class TestRouterHealth:
         assert health_status["status"] == "degraded"
         assert health_status["dependencies"]["asr_pipeline"] == "slow"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_health_check_returns_unhealthy(self):
         """Testar health check retorna não saudável"""
         health_status = {

@@ -5,9 +5,9 @@ Implementa a logica de coordenacao de Sagas com execucao sequencial
 de steps e compensacao automatica em caso de falha.
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
-UTC = timezone.utc  # type: ignore
+UTC = UTC  # type: ignore
 from typing import Any
 from uuid import uuid4
 

@@ -4,13 +4,13 @@ Testes de integração para mTLS channel do ServiceRegistryClient.
 Testa criação de canal seguro com X.509-SVID, handshake, renovação e fallbacks.
 """
 
-import pytest
-from datetime import datetime, timezone, timedelta
-from unittest.mock import AsyncMock, MagicMock, patch
 from dataclasses import dataclass
-from freezegun import freeze_time
+from datetime import UTC, datetime, timedelta
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import grpc
+import pytest
+from freezegun import freeze_time
 
 
 # Mock das classes SPIFFE antes de importar o cliente
@@ -63,7 +63,7 @@ BQAwLTELMAkGA1UEBhMCVVMxHjAcBgNVBAoMFVNQSUZGRSBUZXN0IENBIEJVRERA
 -----END CERTIFICATE-----"""
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_spiffe_manager():
     """Fixture que retorna mock do SPIFFEManager com X.509-SVID válido"""
     manager = MockSPIFFEManager()
@@ -74,13 +74,13 @@ def mock_spiffe_manager():
         private_key=TEST_PRIVATE_KEY,
         spiffe_id="spiffe://neural-hive.local/ns/neural-hive-orchestration/sa/orchestrator-dynamic",
         ca_bundle=TEST_CA_BUNDLE,
-        expires_at=datetime.now(timezone.utc) + timedelta(hours=24),
+        expires_at=datetime.now(UTC) + timedelta(hours=24),
     )
 
     return manager
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_settings():
     """Fixture que retorna configurações mockadas com mTLS habilitado"""
     from src.config.settings import OrchestratorSettings
@@ -96,7 +96,7 @@ def mock_settings():
     return settings
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_x509_svid_fetch_and_secure_channel(mock_spiffe_manager, mock_settings, caplog):
     """
     Testa que X.509-SVID é obtido e ssl_channel_credentials/secure_channel são criados.
@@ -150,7 +150,7 @@ async def test_x509_svid_fetch_and_secure_channel(mock_spiffe_manager, mock_sett
         )
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_mtls_handshake_success(mock_spiffe_manager, mock_settings):
     """
     Testa que handshake mTLS é bem-sucedido e resposta é recebida.
@@ -209,7 +209,7 @@ async def test_mtls_handshake_success(mock_spiffe_manager, mock_settings):
         assert agents[0]["capabilities"] == ["code_generation"]
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_mtls_handshake_failure_invalid_cert(mock_spiffe_manager, mock_settings):
     """
     Testa que certificado inválido (CA errado) resulta em erro SSL.
@@ -222,7 +222,7 @@ async def test_mtls_handshake_failure_invalid_cert(mock_spiffe_manager, mock_set
         private_key=TEST_PRIVATE_KEY,
         spiffe_id="spiffe://neural-hive.local/ns/neural-hive-orchestration/sa/orchestrator-dynamic",
         ca_bundle="-----BEGIN CERTIFICATE-----\nINVALID_CA\n-----END CERTIFICATE-----",
-        expires_at=datetime.now(timezone.utc) + timedelta(hours=24),
+        expires_at=datetime.now(UTC) + timedelta(hours=24),
     )
 
     with (
@@ -267,7 +267,7 @@ async def test_mtls_handshake_failure_invalid_cert(mock_spiffe_manager, mock_set
         assert "SSL" in exc_info.value.details() or "certificate" in exc_info.value.details()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_x509_svid_refresh_on_expiry(mock_spiffe_manager, mock_settings):
     """
     Testa que X.509-SVID é renovado quando atinge 80% do TTL (refresh threshold).
@@ -280,7 +280,7 @@ async def test_x509_svid_refresh_on_expiry(mock_spiffe_manager, mock_settings):
         private_key=TEST_PRIVATE_KEY,
         spiffe_id="spiffe://neural-hive.local/ns/neural-hive-orchestration/sa/orchestrator-dynamic",
         ca_bundle=TEST_CA_BUNDLE,
-        expires_at=datetime.now(timezone.utc) + timedelta(seconds=300),
+        expires_at=datetime.now(UTC) + timedelta(seconds=300),
     )
 
     # SVID renovado
@@ -289,7 +289,7 @@ async def test_x509_svid_refresh_on_expiry(mock_spiffe_manager, mock_settings):
         private_key=TEST_PRIVATE_KEY,
         spiffe_id="spiffe://neural-hive.local/ns/neural-hive-orchestration/sa/orchestrator-dynamic",
         ca_bundle=TEST_CA_BUNDLE,
-        expires_at=datetime.now(timezone.utc) + timedelta(seconds=540),  # Novo TTL após renovação
+        expires_at=datetime.now(UTC) + timedelta(seconds=540),  # Novo TTL após renovação
     )
 
     # Configurar mock para retornar SVIDs diferentes em chamadas subsequentes
@@ -330,7 +330,7 @@ async def test_x509_svid_refresh_on_expiry(mock_spiffe_manager, mock_settings):
 
         # Simular situação onde cliente precisa recriar canal com novo SVID
         # (por exemplo, após expiração detectada)
-        with freeze_time(datetime.now(timezone.utc) + timedelta(seconds=240)):  # 80% do TTL
+        with freeze_time(datetime.now(UTC) + timedelta(seconds=240)):  # 80% do TTL
             # Cliente recria canal (chamaria initialize novamente em produção)
             client.channel = None
             await client.initialize()
@@ -339,7 +339,7 @@ async def test_x509_svid_refresh_on_expiry(mock_spiffe_manager, mock_settings):
             assert mock_spiffe_manager.fetch_x509_svid.call_count == 2
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_fallback_insecure_when_x509_disabled(mock_spiffe_manager, mock_settings):
     """
     Testa que canal insecure é usado quando spiffe_enable_x509=False, mesmo com manager presente.
@@ -378,7 +378,7 @@ async def test_fallback_insecure_when_x509_disabled(mock_spiffe_manager, mock_se
         mock_spiffe_manager.fetch_x509_svid.assert_not_called()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_channel_recreation_on_cert_renewal(mock_spiffe_manager, mock_settings):
     """
     Testa que canal é recriado quando certificado é renovado.
@@ -391,7 +391,7 @@ async def test_channel_recreation_on_cert_renewal(mock_spiffe_manager, mock_sett
         private_key=TEST_PRIVATE_KEY,
         spiffe_id="spiffe://neural-hive.local/ns/neural-hive-orchestration/sa/orchestrator-dynamic",
         ca_bundle=TEST_CA_BUNDLE,
-        expires_at=datetime.now(timezone.utc) + timedelta(hours=24),
+        expires_at=datetime.now(UTC) + timedelta(hours=24),
     )
 
     svid_v2 = X509SVID(
@@ -399,7 +399,7 @@ async def test_channel_recreation_on_cert_renewal(mock_spiffe_manager, mock_sett
         private_key=TEST_PRIVATE_KEY,
         spiffe_id="spiffe://neural-hive.local/ns/neural-hive-orchestration/sa/orchestrator-dynamic",
         ca_bundle=TEST_CA_BUNDLE,
-        expires_at=datetime.now(timezone.utc) + timedelta(hours=48),
+        expires_at=datetime.now(UTC) + timedelta(hours=48),
     )
 
     mock_spiffe_manager.fetch_x509_svid.side_effect = [svid_v1, svid_v2]
@@ -448,7 +448,7 @@ async def test_channel_recreation_on_cert_renewal(mock_spiffe_manager, mock_sett
         assert first_cert != second_cert, "Certificados devem ser diferentes após renovação"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_mtls_with_jwt_combined(mock_spiffe_manager, mock_settings):
     """
     Testa que mTLS (channel) e JWT-SVID (metadata) podem ser usados juntos.
@@ -459,7 +459,7 @@ async def test_mtls_with_jwt_combined(mock_spiffe_manager, mock_settings):
     mock_spiffe_manager.fetch_jwt_svid.return_value = JWTSVID(
         token="valid.jwt.token",
         spiffe_id="spiffe://neural-hive.local/ns/neural-hive-orchestration/sa/orchestrator-dynamic",
-        expiry=datetime.now(timezone.utc) + timedelta(hours=1),
+        expiry=datetime.now(UTC) + timedelta(hours=1),
     )
 
     with (
@@ -509,14 +509,14 @@ async def test_mtls_with_jwt_combined(mock_spiffe_manager, mock_settings):
         assert auth_header.startswith("Bearer ")
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_x509_svid_expiry_logging(mock_spiffe_manager, mock_settings, caplog):
     """
     Testa que informações de expiração do certificado são logadas corretamente.
     """
     from src.clients.service_registry_client import ServiceRegistryClient
 
-    expires_at = datetime.now(timezone.utc) + timedelta(hours=24)
+    expires_at = datetime.now(UTC) + timedelta(hours=24)
     mock_spiffe_manager.fetch_x509_svid.return_value = X509SVID(
         certificate=TEST_CERT,
         private_key=TEST_PRIVATE_KEY,

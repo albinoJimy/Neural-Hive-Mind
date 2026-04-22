@@ -8,10 +8,9 @@ para mocks de clientes externos (ETS, Orchestrator, OPA).
 import sys
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
-
 from prometheus_client import REGISTRY
-
 
 # Adicionar diretório src ao path Python
 # Isso resolve os erros de import "ModuleNotFoundError: No module named 'src'"
@@ -49,14 +48,16 @@ def mock_neural_hive_observability():
     mock_tracer.start_as_current_span = MagicMock(return_value=span)
 
     # Patchar o módulo get_tracer e também o tracer já importado nos serviços
-    with patch('neural_hive_observability.get_tracer', return_value=mock_tracer), \
-         patch('src.services.detection_service.tracer', mock_tracer), \
-         patch('src.services.health_monitor.tracer', mock_tracer), \
-         patch('src.services.remediation_manager.tracer', mock_tracer):
+    with (
+        patch("neural_hive_observability.get_tracer", return_value=mock_tracer),
+        patch("src.services.detection_service.tracer", mock_tracer),
+        patch("src.services.health_monitor.tracer", mock_tracer),
+        patch("src.services.remediation_manager.tracer", mock_tracer),
+    ):
         yield mock_tracer
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_tracer():
     """Mock do OpenTelemetry tracer."""
     tracer = MagicMock()
@@ -67,7 +68,7 @@ def mock_tracer():
     return tracer
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_service_registry_client():
     """Mock do Service Registry Client."""
     client = AsyncMock()
@@ -78,7 +79,7 @@ def mock_service_registry_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_execution_ticket_client():
     """Mock do Execution Ticket Service Client."""
     client = AsyncMock()
@@ -95,7 +96,7 @@ def mock_execution_ticket_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_orchestrator_client():
     """Mock do Orchestrator gRPC Client."""
     client = AsyncMock()
@@ -110,7 +111,7 @@ def mock_orchestrator_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_opa_client():
     """Mock do OPA Client."""
     client = AsyncMock()
@@ -121,7 +122,7 @@ def mock_opa_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_kafka_consumer():
     """Mock do AIOKafkaConsumer."""
     consumer = AsyncMock()
@@ -139,7 +140,7 @@ def mock_kafka_consumer():
     return consumer
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_k8s_client():
     """Mock do cliente Kubernetes CoreV1Api."""
     with patch("kubernetes.client.CoreV1Api") as mock:
@@ -148,7 +149,7 @@ def mock_k8s_client():
         yield api
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_k8s_core_api():
     """Mock do cliente Kubernetes CoreV1Api com async support."""
     api = MagicMock()
@@ -166,7 +167,7 @@ def mock_k8s_core_api():
                         "lastState": {},
                     }
                 ]
-            }
+            },
         }
         return pod_dict
 
@@ -174,7 +175,7 @@ def mock_k8s_core_api():
     return api
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_k8s_custom_api():
     """Mock do cliente Kubernetes CustomObjectsApi (Metrics API)."""
     with patch("kubernetes.client.CustomObjectsApi") as mock:
@@ -183,7 +184,7 @@ def mock_k8s_custom_api():
         yield api
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_k8s_apps_client():
     """Mock do cliente Kubernetes AppsV1Api."""
     with patch("kubernetes.client.AppsV1Api") as mock:
@@ -192,7 +193,7 @@ def mock_k8s_apps_client():
         yield api
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_playbook_path(tmp_path):
     """Fixture que cria um playbook YAML de teste."""
     import yaml
@@ -214,7 +215,7 @@ def sample_playbook_path(tmp_path):
     return str(playbook_path)
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_incident():
     """Fixture que fornece um incidente de teste."""
     return {
@@ -228,7 +229,7 @@ def sample_incident():
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_chaos_experiment():
     """Fixture que fornece um experimento de chaos de teste."""
     from src.chaos.chaos_models import ChaosExperiment, FaultInjection, FaultType, TargetSelector

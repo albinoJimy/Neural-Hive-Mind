@@ -9,7 +9,8 @@ Mantém a mesma interface do EtcdClient para compatibilidade.
 
 import asyncio
 import json
-from typing import Callable, Dict, List, Optional
+from collections.abc import Callable
+from typing import Optional
 from uuid import UUID
 
 import redis.asyncio as redis
@@ -22,7 +23,7 @@ logger = structlog.get_logger()
 class RedisRegistryClient:
     """Cliente assíncrono para operações de registro com Redis"""
 
-    def __init__(self, cluster_nodes: List[str], prefix: str, password: str = "", timeout: int = 5):
+    def __init__(self, cluster_nodes: list[str], prefix: str, password: str = "", timeout: int = 5):
         self.cluster_nodes = cluster_nodes
         self.prefix = prefix
         self.password = password
@@ -177,8 +178,8 @@ class RedisRegistryClient:
             raise
 
     async def list_agents(
-        self, agent_type: Optional[AgentType] = None, filters: Optional[Dict[str, str]] = None
-    ) -> List[AgentInfo]:
+        self, agent_type: Optional[AgentType] = None, filters: Optional[dict[str, str]] = None
+    ) -> list[AgentInfo]:
         """Lista agentes com filtros opcionais"""
         try:
             agents = []
@@ -219,7 +220,7 @@ class RedisRegistryClient:
             logger.error("redis_list_agents_failed", error=str(e))
             raise
 
-    def _matches_filters(self, agent: AgentInfo, filters: Dict[str, str]) -> bool:
+    def _matches_filters(self, agent: AgentInfo, filters: dict[str, str]) -> bool:
         """
         Verifica se agente atende aos filtros.
 
@@ -254,7 +255,7 @@ class RedisRegistryClient:
 
         return True
 
-    async def watch_agents(self, callback: Callable[[str, Dict], None]) -> None:
+    async def watch_agents(self, callback: Callable[[str, dict], None]) -> None:
         """Observa mudanças em agentes usando pub/sub do Redis"""
         try:
             self._pubsub = self.client.pubsub()

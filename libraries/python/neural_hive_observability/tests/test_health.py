@@ -15,21 +15,22 @@ Este arquivo contém testes unitários para validar:
 """
 
 import asyncio
-import pytest
 from unittest.mock import Mock, patch
+
+import pytest
 
 from neural_hive_observability.config import ObservabilityConfig
 from neural_hive_observability.health import (
-    HealthStatus,
-    HealthCheckResult,
-    HealthCheck,
+    CustomHealthCheck,
     DatabaseHealthCheck,
+    HealthCheck,
+    HealthChecker,
+    HealthCheckResult,
+    HealthManager,
+    HealthStatus,
     KafkaHealthCheck,
     MemoryHealthCheck,
     RedisHealthCheck,
-    CustomHealthCheck,
-    HealthChecker,
-    HealthManager,
 )
 
 
@@ -116,7 +117,7 @@ class TestHealthCheck:
 class TestDatabaseHealthCheck:
     """Testes para DatabaseHealthCheck."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_check_with_connection(self):
         """Testa check com conexão ativa."""
         connection_check = Mock(return_value=True)
@@ -128,7 +129,7 @@ class TestDatabaseHealthCheck:
         assert result.status == HealthStatus.HEALTHY
         assert "OK" in result.message
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_check_with_no_connection(self):
         """Testa check sem conexão."""
         connection_check = Mock(return_value=False)
@@ -140,7 +141,7 @@ class TestDatabaseHealthCheck:
         assert result.status == HealthStatus.UNHEALTHY
         assert "Falha" in result.message
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_check_without_config(self):
         """Testa check sem configuração."""
         db_check = DatabaseHealthCheck(name="database")
@@ -150,7 +151,7 @@ class TestDatabaseHealthCheck:
         assert result.status == HealthStatus.UNKNOWN
         assert "não configurado" in result.message
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_check_with_timeout(self):
         """Testa check com timeout."""
 
@@ -167,7 +168,7 @@ class TestDatabaseHealthCheck:
         assert result.status == HealthStatus.UNHEALTHY
         assert "Timeout" in result.message
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_check_with_exception(self):
         """Testa check com exceção."""
         connection_check = Mock(side_effect=Exception("Connection error"))
@@ -183,7 +184,7 @@ class TestDatabaseHealthCheck:
 class TestKafkaHealthCheck:
     """Testes para KafkaHealthCheck."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_check_with_connection(self):
         """Testa check com conexão ativa."""
         producer_check = Mock(return_value=True)
@@ -195,7 +196,7 @@ class TestKafkaHealthCheck:
         assert result.status == HealthStatus.HEALTHY
         assert "OK" in result.message
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_check_with_no_connection(self):
         """Testa check sem conexão."""
         producer_check = Mock(return_value=False)
@@ -207,7 +208,7 @@ class TestKafkaHealthCheck:
         assert result.status == HealthStatus.UNHEALTHY
         assert "Falha" in result.message
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_check_without_config(self):
         """Testa check sem configuração."""
         kafka_check = KafkaHealthCheck(name="kafka")
@@ -217,7 +218,7 @@ class TestKafkaHealthCheck:
         assert result.status == HealthStatus.UNKNOWN
         assert "não configurado" in result.message
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_check_with_timeout(self):
         """Testa check com timeout."""
 
@@ -236,7 +237,7 @@ class TestKafkaHealthCheck:
 class TestMemoryHealthCheck:
     """Testes para MemoryHealthCheck."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_check_with_psutil_available(self):
         """Testa check com psutil disponível."""
         with patch("neural_hive_observability.health.psutil") as mock_psutil:
@@ -256,7 +257,7 @@ class TestMemoryHealthCheck:
             assert result.details is not None
             assert "memory_percent" in result.details
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_check_with_high_memory(self):
         """Testa check com memória alta."""
         with patch("neural_hive_observability.health.psutil") as mock_psutil:
@@ -274,7 +275,7 @@ class TestMemoryHealthCheck:
             assert result.status == HealthStatus.UNHEALTHY
             assert "alto" in result.message.lower()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_check_with_degraded_memory(self):
         """Testa check com memória degradada."""
         with patch("neural_hive_observability.health.psutil") as mock_psutil:
@@ -292,7 +293,7 @@ class TestMemoryHealthCheck:
             assert result.status == HealthStatus.DEGRADED
             assert "elevado" in result.message.lower()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_check_without_psutil(self):
         """Testa check sem psutil."""
         with patch("neural_hive_observability.health.psutil", side_effect=ImportError):
@@ -307,7 +308,7 @@ class TestMemoryHealthCheck:
 class TestRedisHealthCheck:
     """Testes para RedisHealthCheck."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_check_with_sync_connection(self):
         """Testa check com conexão síncrona."""
         connection_check = Mock(return_value=True)
@@ -318,7 +319,7 @@ class TestRedisHealthCheck:
 
         assert result.status == HealthStatus.HEALTHY
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_check_with_async_connection(self):
         """Testa check com conexão assíncrona."""
 
@@ -331,7 +332,7 @@ class TestRedisHealthCheck:
 
         assert result.status == HealthStatus.HEALTHY
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_check_with_no_connection(self):
         """Testa check sem conexão."""
         connection_check = Mock(return_value=False)
@@ -342,7 +343,7 @@ class TestRedisHealthCheck:
 
         assert result.status == HealthStatus.UNHEALTHY
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_check_without_config(self):
         """Testa check sem configuração."""
         redis_check = RedisHealthCheck(name="redis")
@@ -351,7 +352,7 @@ class TestRedisHealthCheck:
 
         assert result.status == HealthStatus.UNKNOWN
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_check_with_exception(self):
         """Testa check com exceção."""
         connection_check = Mock(side_effect=Exception("Redis error"))
@@ -366,7 +367,7 @@ class TestRedisHealthCheck:
 class TestCustomHealthCheck:
     """Testes para CustomHealthCheck."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_check_with_sync_function(self):
         """Testa check com função síncrona."""
         check_func = Mock(return_value=True)
@@ -380,7 +381,7 @@ class TestCustomHealthCheck:
         assert result.status == HealthStatus.HEALTHY
         assert "saudável" in result.message.lower()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_check_with_async_function(self):
         """Testa check com função assíncrona."""
 
@@ -395,7 +396,7 @@ class TestCustomHealthCheck:
 
         assert result.status == HealthStatus.HEALTHY
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_check_returns_false(self):
         """Testa check que retorna False."""
         check_func = Mock(return_value=False)
@@ -406,7 +407,7 @@ class TestCustomHealthCheck:
 
         assert result.status == HealthStatus.UNHEALTHY
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_check_with_exception(self):
         """Testa check que lança exceção."""
         check_func = Mock(side_effect=Exception("Check error"))
@@ -462,7 +463,7 @@ class TestHealthChecker:
         # Deve ter check de memória
         assert "memory" in checker.checks
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_check_all(self):
         """Testa execução de todos os checks."""
         config = ObservabilityConfig(
@@ -482,7 +483,7 @@ class TestHealthChecker:
             HealthStatus.UNKNOWN,
         ]
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_check_single(self):
         """Testa execução de check único."""
         config = ObservabilityConfig(
@@ -497,7 +498,7 @@ class TestHealthChecker:
         assert result is not None
         assert result.name == "memory"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_check_single_not_found(self):
         """Testa check único não encontrado."""
         config = ObservabilityConfig(
@@ -510,7 +511,7 @@ class TestHealthChecker:
 
         assert result is None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_check_single_with_exception(self):
         """Testa check único com exceção."""
         config = ObservabilityConfig(

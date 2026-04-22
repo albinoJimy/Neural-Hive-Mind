@@ -5,15 +5,16 @@ Testa deserialização de mensagens, extração de trace context,
 inicialização e health check do consumer.
 """
 
-import pytest
 import json
 from unittest.mock import MagicMock
+
+import pytest
 
 
 class TestApprovalResponseConsumerDeserialization:
     """Testes para deserialização de mensagens"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def settings(self):
         """Mock Settings object"""
         settings = MagicMock()
@@ -26,7 +27,7 @@ class TestApprovalResponseConsumerDeserialization:
         settings.schema_registry_url = None
         return settings
 
-    @pytest.fixture
+    @pytest.fixture()
     def consumer(self, settings):
         """Create consumer instance (sem inicializar Kafka)"""
         from src.consumers.approval_response_consumer import ApprovalResponseConsumer
@@ -116,7 +117,7 @@ class TestApprovalResponseConsumerDeserialization:
 class TestApprovalResponseConsumerTraceContext:
     """Testes para extração de trace context"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def settings(self):
         """Mock Settings object"""
         settings = MagicMock()
@@ -129,7 +130,7 @@ class TestApprovalResponseConsumerTraceContext:
         settings.schema_registry_url = None
         return settings
 
-    @pytest.fixture
+    @pytest.fixture()
     def consumer(self, settings):
         """Create consumer instance"""
         from src.consumers.approval_response_consumer import ApprovalResponseConsumer
@@ -170,7 +171,7 @@ class TestApprovalResponseConsumerTraceContext:
 class TestApprovalResponseConsumerHealthCheck:
     """Testes para health check do consumer"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def settings(self):
         """Mock Settings object"""
         settings = MagicMock()
@@ -183,7 +184,7 @@ class TestApprovalResponseConsumerHealthCheck:
         settings.schema_registry_url = None
         return settings
 
-    @pytest.fixture
+    @pytest.fixture()
     def consumer(self, settings):
         """Create consumer instance"""
         from src.consumers.approval_response_consumer import ApprovalResponseConsumer
@@ -252,7 +253,7 @@ class TestApprovalResponseConsumerHealthCheck:
 class TestApprovalResponseConsumerConfiguration:
     """Testes para configuração do consumer"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def settings(self):
         """Mock Settings object"""
         settings = MagicMock()

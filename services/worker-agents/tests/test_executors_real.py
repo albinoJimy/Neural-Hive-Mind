@@ -5,16 +5,17 @@ from types import SimpleNamespace
 import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
-import sys  # noqa: E402
+import sys
 
-sys.path.append(str(ROOT / "src"))  # noqa: E402
+sys.path.append(str(ROOT / "src"))
 
-from executors.execute_executor import ExecuteExecutor  # noqa: E402
-from executors.build_executor import BuildExecutor  # noqa: E402
-from executors.test_executor import TestExecutor  # noqa: E402
-from executors.validate_executor import ValidateExecutor  # noqa: E402
-from executors.deploy_executor import DeployExecutor  # noqa: E402
-from neural_hive_integration.clients.code_forge_client import (  # noqa: E402
+from executors.build_executor import BuildExecutor
+from executors.deploy_executor import DeployExecutor
+from executors.execute_executor import ExecuteExecutor
+from executors.test_executor import TestExecutor
+from executors.validate_executor import ValidateExecutor
+
+from neural_hive_integration.clients.code_forge_client import (
     GenerationStatus,
     PipelineStatus,
 )
@@ -37,7 +38,7 @@ class DummyMetric:
         return self
 
 
-@pytest.fixture
+@pytest.fixture()
 def base_config():
     return SimpleNamespace(
         allowed_test_commands=["pytest", "npm", "npm test", "go", "go test", "mvn", "mvn test"],
@@ -52,7 +53,7 @@ def base_config():
     )
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_execute_executor_with_code_forge(monkeypatch, base_config):
     statuses = [
         GenerationStatus(
@@ -92,7 +93,7 @@ async def test_execute_executor_with_code_forge(monkeypatch, base_config):
     assert result["output"]["request_id"] == "req-1"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_execute_executor_fallback_without_cf(base_config):
     executor = ExecuteExecutor(base_config, code_forge_client=None)
     ticket = {"ticket_id": "t1", "task_id": "task", "task_type": "EXECUTE", "parameters": {}}
@@ -101,7 +102,7 @@ async def test_execute_executor_fallback_without_cf(base_config):
     assert result["metadata"]["simulated"] is True
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_build_executor_with_code_forge(base_config):
     class StubCF:
         async def trigger_pipeline(self, artifact_id):
@@ -132,7 +133,7 @@ async def test_build_executor_with_code_forge(base_config):
     assert result["output"]["pipeline_id"] == "pipeline-1"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_build_executor_timeout_fallback(base_config):
     class StubCF:
         async def trigger_pipeline(self, artifact_id):
@@ -153,7 +154,7 @@ async def test_build_executor_timeout_fallback(base_config):
     assert result["metadata"]["simulated"] is True
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_test_executor_runs_subprocess(monkeypatch, tmp_path, base_config):
     report = {"tests_passed": 5, "tests_failed": 1, "coverage": 0.8}
     report_path = tmp_path / "report.json"
@@ -182,7 +183,7 @@ async def test_test_executor_runs_subprocess(monkeypatch, tmp_path, base_config)
     assert result["output"]["coverage"] == 0.8
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_validate_executor_with_opa(monkeypatch, base_config):
     class FakeResponse:
         def __init__(self, payload, status_code=200):
@@ -234,7 +235,7 @@ async def test_validate_executor_with_opa(monkeypatch, base_config):
     assert result["metadata"]["simulated"] is False
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_validate_executor_metrics_success(monkeypatch, base_config):
     class FakeResponse:
         def __init__(self, payload, status_code=200):
@@ -294,7 +295,7 @@ async def test_validate_executor_metrics_success(monkeypatch, base_config):
     )
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_validate_executor_metrics_error(monkeypatch, base_config):
     class FakeClient:
         async def __aenter__(self):
@@ -332,7 +333,7 @@ async def test_validate_executor_metrics_error(monkeypatch, base_config):
     assert len(error_labels) == 1
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_deploy_executor_fallback(base_config):
     executor = DeployExecutor(base_config)
     ticket = {"ticket_id": "d1", "task_id": "task", "task_type": "DEPLOY", "parameters": {}}

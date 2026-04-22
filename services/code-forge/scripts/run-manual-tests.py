@@ -7,9 +7,9 @@ PLANO_TESTE_MANUAL_CODEFORGE.md, fornecendo comandos prontos e
 um ambiente de teste organizado.
 """
 
-import sys
-import subprocess
 import shutil
+import subprocess
+import sys
 from pathlib import Path
 
 # Adicionar src ao path
@@ -172,7 +172,7 @@ def check_prerequisites() -> dict:
 
     # Python
     try:
-        result = subprocess.run(["python3", "--version"], capture_output=True, text=True)
+        result = subprocess.run(["python3", "--version"], capture_output=True, text=True, check=False)
         results["python"] = {
             "available": True,
             "version": result.stdout.strip(),
@@ -183,7 +183,7 @@ def check_prerequisites() -> dict:
 
     # Docker
     try:
-        result = subprocess.run(["docker", "--version"], capture_output=True, text=True)
+        result = subprocess.run(["docker", "--version"], capture_output=True, text=True, check=False)
         results["docker"] = {
             "available": True,
             "version": result.stdout.strip(),
@@ -195,7 +195,7 @@ def check_prerequisites() -> dict:
     # kubectl
     try:
         result = subprocess.run(
-            ["kubectl", "version", "--client", "--short"], capture_output=True, text=True
+            ["kubectl", "version", "--client", "--short"], capture_output=True, text=True, check=False
         )
         results["kubectl"] = {
             "available": True,
@@ -208,7 +208,7 @@ def check_prerequisites() -> dict:
     # Cluster connection
     try:
         result = subprocess.run(
-            ["kubectl", "cluster-info"], capture_output=True, text=True, timeout=5
+            ["kubectl", "cluster-info"], capture_output=True, text=True, timeout=5, check=False
         )
         results["cluster"] = {
             "available": result.returncode == 0,
@@ -304,8 +304,8 @@ def run_tc001():
 
     try:
         from src.services.dockerfile_generator import (
-            DockerfileGenerator,
             ArtifactType,
+            DockerfileGenerator,
             PythonVersion,
         )
 
@@ -379,8 +379,8 @@ def run_tc004():
     print_step("Gerando Dockerfile...")
     try:
         from src.services.dockerfile_generator import (
-            DockerfileGenerator,
             ArtifactType,
+            DockerfileGenerator,
             PythonVersion,
         )
 
@@ -402,7 +402,8 @@ def run_tc004():
 
     try:
         import asyncio
-        from src.services.container_builder import ContainerBuilder, BuilderType
+
+        from src.services.container_builder import BuilderType, ContainerBuilder
 
         async def build():
             builder = ContainerBuilder(builder_type=BuilderType.DOCKER, enable_metrics=True)
@@ -441,7 +442,7 @@ def run_tc004():
                 output = subprocess.run(
                     ["docker", "images", "test-python:latest", "--format", "{{.ID}}"],
                     capture_output=True,
-                    text=True,
+                    text=True, check=False,
                 )
                 if output.stdout.strip():
                     print_success(f"Imagem criada: {output.stdout.strip()}")
@@ -573,7 +574,7 @@ def clean_environment():
         result = subprocess.run(
             ["docker", "images", "--format", "{{.Repository}}:{{.Tag}}"],
             capture_output=True,
-            text=True,
+            text=True, check=False,
         )
         test_images = [
             "test-python:latest",
@@ -584,7 +585,7 @@ def clean_environment():
 
         for img in test_images:
             if img in result.stdout:
-                subprocess.run(["docker", "rmi", "-f", img], capture_output=True)
+                subprocess.run(["docker", "rmi", "-f", img], capture_output=True, check=False)
                 print_success(f"Removida: {img}")
     except:
         pass

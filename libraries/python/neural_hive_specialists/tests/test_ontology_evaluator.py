@@ -4,22 +4,23 @@ Testes unitários para OntologyBasedEvaluator.
 Cobertura para semantic_pipeline/ontology_evaluator.py
 """
 
-import pytest
-from unittest.mock import patch, mock_open
 import json
+from unittest.mock import mock_open, patch
+
+import pytest
 
 
 class TestOntologyBasedEvaluator:
     """Testes para OntologyBasedEvaluator."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def config(self):
         """Configuração de teste."""
         return {
             "ontology_path": "/fake/path/ontology",
         }
 
-    @pytest.fixture
+    @pytest.fixture()
     def sample_intents_taxonomy(self):
         """Taxonomia de intents de exemplo."""
         return {
@@ -49,7 +50,7 @@ class TestOntologyBasedEvaluator:
             }
         }
 
-    @pytest.fixture
+    @pytest.fixture()
     def sample_architecture_patterns(self):
         """Padrões arquiteturais de exemplo."""
         return {
@@ -65,7 +66,7 @@ class TestOntologyBasedEvaluator:
             }
         }
 
-    @pytest.fixture
+    @pytest.fixture()
     def sample_cognitive_plan(self):
         """Plano cognitivo de exemplo."""
         return {
@@ -77,7 +78,7 @@ class TestOntologyBasedEvaluator:
             ],
         }
 
-    @pytest.fixture
+    @pytest.fixture()
     def sample_extracted_features(self):
         """Features extraídas de exemplo."""
         return {

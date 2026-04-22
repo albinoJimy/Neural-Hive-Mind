@@ -12,23 +12,23 @@ Testes cobrem:
 - Persistência no MongoDB
 """
 
-import pytest
+import uuid
 from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock, patch
-import uuid
 
+import pytest
 from pymongo.errors import PyMongoError
-from neural_hive_resilience.circuit_breaker import CircuitBreakerError
-
 from src.activities.ticket_generation import (
-    generate_execution_tickets,
     allocate_resources,
+    generate_execution_tickets,
     publish_ticket_to_kafka,
     set_activity_dependencies,
 )
 
+from neural_hive_resilience.circuit_breaker import CircuitBreakerError
 
-@pytest.fixture
+
+@pytest.fixture()
 def mock_activity_info():
     """Mock activity.info() para contexto de workflow."""
     with patch("src.activities.ticket_generation.activity") as mock_activity:
@@ -39,7 +39,7 @@ def mock_activity_info():
         yield mock_activity
 
 
-@pytest.fixture
+@pytest.fixture()
 def simple_plan():
     """Criar plano cognitivo simples com uma task."""
     return {
@@ -64,7 +64,7 @@ def simple_plan():
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def complex_plan():
     """Criar plano cognitivo com múltiplas tasks e dependências."""
     return {
@@ -87,7 +87,7 @@ def complex_plan():
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def consolidated_decision():
     """Criar decisão consolidada mock."""
     return {
@@ -98,7 +98,7 @@ def consolidated_decision():
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_kafka_producer():
     """Criar mock de Kafka producer."""
     producer = AsyncMock()
@@ -111,7 +111,7 @@ def mock_kafka_producer():
     return producer
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_mongodb_client():
     """Criar mock de MongoDB client."""
     client = AsyncMock()
@@ -119,7 +119,7 @@ def mock_mongodb_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_intelligent_scheduler():
     """Criar mock de Intelligent Scheduler."""
     scheduler = AsyncMock()
@@ -141,7 +141,7 @@ def mock_intelligent_scheduler():
     return scheduler
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_policy_validator():
     """Criar mock de policy validator."""
     validator = AsyncMock()
@@ -156,7 +156,7 @@ def mock_policy_validator():
     return validator
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_config():
     """Criar mock de configuração."""
     config = MagicMock()
@@ -168,7 +168,7 @@ def mock_config():
     return config
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_config_production():
     """Criar mock de configuração para produção (sem fallback stub)."""
     config = MagicMock()
@@ -183,7 +183,7 @@ def mock_config_production():
 class TestGenerateExecutionTickets:
     """Testes para generate_execution_tickets activity."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_simple_plan_generates_one_ticket(
         self, mock_activity_info, simple_plan, consolidated_decision
     ):
@@ -197,7 +197,7 @@ class TestGenerateExecutionTickets:
         assert tickets[0]["task_id"] == "task-1"
         assert tickets[0]["status"] == "PENDING"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_complex_plan_maps_dependencies_correctly(
         self, mock_activity_info, complex_plan, consolidated_decision
     ):
@@ -216,7 +216,7 @@ class TestGenerateExecutionTickets:
         expected_deps = [task_to_ticket["task-2"], task_to_ticket["task-3"]]
         assert set(task_4_ticket["dependencies"]) == set(expected_deps)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_sla_calculation_critical_risk(self, mock_activity_info, consolidated_decision):
         """risk_band 'critical' deve ter max_retries=5."""
         critical_plan = {
@@ -232,7 +232,7 @@ class TestGenerateExecutionTickets:
 
         assert tickets[0]["sla"]["max_retries"] == 5
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_sla_calculation_high_risk(self, mock_activity_info, consolidated_decision):
         """risk_band 'high' deve ter max_retries=3."""
         high_plan = {
@@ -248,7 +248,7 @@ class TestGenerateExecutionTickets:
 
         assert tickets[0]["sla"]["max_retries"] == 3
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_qos_critical_uses_exactly_once(self, mock_activity_info, consolidated_decision):
         """risk_band 'critical' deve usar delivery_mode EXACTLY_ONCE e consistency STRONG."""
         critical_plan = {
@@ -265,7 +265,7 @@ class TestGenerateExecutionTickets:
         assert tickets[0]["qos"]["delivery_mode"] == "EXACTLY_ONCE"
         assert tickets[0]["qos"]["consistency"] == "STRONG"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_qos_low_uses_at_least_once(
         self, mock_activity_info, simple_plan, consolidated_decision
     ):
@@ -281,7 +281,7 @@ class TestGenerateExecutionTickets:
 class TestAllocateResources:
     """Testes para allocate_resources activity."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_allocate_with_intelligent_scheduler(
         self, mock_activity_info, mock_intelligent_scheduler
     ):
@@ -301,7 +301,7 @@ class TestAllocateResources:
         assert result["allocation_metadata"]["allocation_method"] == "intelligent_scheduler"
         assert result["allocation_metadata"]["agent_id"] == "worker-agent-001"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_allocate_fallback_stub_when_scheduler_unavailable_dev(
         self, mock_activity_info, mock_config
     ):
@@ -325,7 +325,7 @@ class TestAllocateResources:
         assert result["allocation_metadata"]["allocation_method"] == "fallback_stub"
         assert result["allocation_metadata"]["agent_id"] == "worker-agent-pool"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_allocate_propagates_exception_when_scheduler_fails_in_production(
         self, mock_activity_info, mock_config_production
     ):
@@ -348,7 +348,7 @@ class TestAllocateResources:
         with pytest.raises(RuntimeError, match="Intelligent Scheduler falhou"):
             await allocate_resources(ticket)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_allocate_allows_fallback_stub_in_development_on_scheduler_failure(
         self, mock_activity_info, mock_config
     ):
@@ -378,7 +378,7 @@ class TestAllocateResources:
         assert result["allocation_metadata"]["allocation_method"] == "fallback_stub"
         assert result["allocation_metadata"]["agent_id"] == "worker-agent-pool"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_allocate_with_opa_validation(
         self, mock_activity_info, mock_policy_validator, mock_config
     ):
@@ -398,7 +398,7 @@ class TestAllocateResources:
         assert "metadata" in result
         assert "policy_decisions" in result["metadata"]
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_allocate_rejects_on_opa_violation(self, mock_activity_info, mock_config):
         """Violação de política OPA deve rejeitar alocação."""
         mock_validator = AsyncMock()
@@ -430,7 +430,7 @@ class TestAllocateResources:
 class TestPublishTicketToKafka:
     """Testes para publish_ticket_to_kafka activity."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_config_publish(self):
         """Config mock para testes de publish_ticket_to_kafka."""
         config = MagicMock()
@@ -439,7 +439,7 @@ class TestPublishTicketToKafka:
         config.scheduler_fallback_stub_enabled = False
         return config
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_publish_valid_ticket(
         self, mock_activity_info, mock_kafka_producer, mock_mongodb_client, mock_config_publish
     ):
@@ -474,7 +474,7 @@ class TestPublishTicketToKafka:
         saved_ticket = mock_mongodb_client.save_execution_ticket.call_args[0][0]
         assert saved_ticket["status"] == "PENDING", "Ticket deve ser persistido com status PENDING"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_rejected_ticket_not_published(
         self, mock_activity_info, mock_kafka_producer, mock_mongodb_client, mock_config_publish
     ):
@@ -502,7 +502,7 @@ class TestPublishTicketToKafka:
         assert result["rejection_reason"] == "policy_violation"
         mock_kafka_producer.publish_ticket.assert_not_called()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_publish_persists_to_mongodb(
         self, mock_activity_info, mock_kafka_producer, mock_mongodb_client, mock_config_publish
     ):
@@ -527,7 +527,7 @@ class TestPublishTicketToKafka:
         saved_ticket = mock_mongodb_client.save_execution_ticket.call_args[0][0]
         assert saved_ticket["status"] == "PENDING"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_publish_raises_when_kafka_unavailable(
         self, mock_activity_info, mock_config_publish
     ):
@@ -545,7 +545,7 @@ class TestPublishTicketToKafka:
         with pytest.raises(RuntimeError, match="Kafka producer"):
             await publish_ticket_to_kafka(ticket)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_publish_maintains_pending_status(
         self, mock_activity_info, mock_kafka_producer, mock_mongodb_client, mock_config_publish
     ):
@@ -575,7 +575,7 @@ class TestPublishTicketToKafka:
         saved_ticket = mock_mongodb_client.save_execution_ticket.call_args[0][0]
         assert saved_ticket["status"] == "PENDING"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_publish_rejects_fallback_stub_ticket(
         self, mock_activity_info, mock_kafka_producer, mock_mongodb_client, mock_config_publish
     ):
@@ -608,7 +608,7 @@ class TestPublishTicketToKafka:
         # MongoDB deve persistir o ticket para auditoria
         mock_mongodb_client.save_execution_ticket.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_publish_fallback_stub_ticket_persists_to_mongodb(
         self, mock_activity_info, mock_kafka_producer, mock_mongodb_client, mock_config_publish
     ):
@@ -642,7 +642,7 @@ class TestPublishTicketToKafka:
 class TestSLATimeoutConfiguration:
     """Testes para configuração de timeout de SLA."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_timeout_uses_configured_minimum(self, mock_activity_info, consolidated_decision):
         """Timeout deve respeitar o mínimo configurado."""
         # Configurar mock com valores customizados
@@ -671,7 +671,7 @@ class TestSLATimeoutConfiguration:
         # Timeout deve ser o mínimo configurado (90s), não 10s * 3.0 = 30s
         assert tickets[0]["sla"]["timeout_ms"] == 90000
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_timeout_uses_configured_multiplier(
         self, mock_activity_info, consolidated_decision
     ):
@@ -697,7 +697,7 @@ class TestSLATimeoutConfiguration:
         # Timeout deve ser 30s * 4.0 = 120s (maior que mínimo de 60s)
         assert tickets[0]["sla"]["timeout_ms"] == 120000
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_timeout_defaults_when_config_unavailable(
         self, mock_activity_info, consolidated_decision
     ):
@@ -725,7 +725,7 @@ class TestSLATimeoutConfiguration:
 class TestSLATimeoutFormulaValidation:
     """Testes abrangentes para validação da fórmula de timeout de SLA."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_timeout_formula_with_very_short_duration(
         self, mock_activity_info, consolidated_decision
     ):
@@ -749,7 +749,7 @@ class TestSLATimeoutFormulaValidation:
         # Fórmula: max(60000, 1 * 3.0) = max(60000, 3) = 60000
         assert tickets[0]["sla"]["timeout_ms"] == 60000
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_timeout_formula_at_threshold(self, mock_activity_info, consolidated_decision):
         """Duração exatamente no threshold (20s) deve usar timeout mínimo."""
         mock_cfg = MagicMock()
@@ -773,7 +773,7 @@ class TestSLATimeoutFormulaValidation:
         # Fórmula: max(60000, 20000 * 3.0) = max(60000, 60000) = 60000
         assert tickets[0]["sla"]["timeout_ms"] == 60000
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_timeout_formula_above_threshold(self, mock_activity_info, consolidated_decision):
         """Duração acima do threshold deve usar multiplicador."""
         mock_cfg = MagicMock()
@@ -797,7 +797,7 @@ class TestSLATimeoutFormulaValidation:
         # Fórmula: max(60000, 50000 * 3.0) = max(60000, 150000) = 150000
         assert tickets[0]["sla"]["timeout_ms"] == 150000
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_timeout_formula_with_large_duration(
         self, mock_activity_info, consolidated_decision
     ):
@@ -827,7 +827,7 @@ class TestSLATimeoutFormulaValidation:
         # Fórmula: max(60000, 600000 * 3.0) = max(60000, 1800000) = 1800000 (30 min)
         assert tickets[0]["sla"]["timeout_ms"] == 1800000
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_timeout_never_below_minimum_with_various_configs(
         self, mock_activity_info, consolidated_decision
     ):
@@ -868,7 +868,7 @@ class TestSLATimeoutFormulaValidation:
                 f"esperado {expected}, obtido {tickets[0]['sla']['timeout_ms']}"
             )
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_timeout_calculation_with_different_multipliers(
         self, mock_activity_info, consolidated_decision
     ):
@@ -915,7 +915,7 @@ class TestSLATimeoutFormulaValidation:
 class TestMongoDBPersistenceFailOpen:
     """Testes para configuração fail-open de persistência MongoDB."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_publish_propagates_persistence_error_when_fail_open_disabled(
         self, mock_activity_info, mock_kafka_producer
     ):
@@ -940,7 +940,7 @@ class TestMongoDBPersistenceFailOpen:
         with pytest.raises(RuntimeError, match="Falha crítica na persistência"):
             await publish_ticket_to_kafka(ticket)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_publish_continues_when_fail_open_enabled(
         self, mock_activity_info, mock_kafka_producer
     ):
@@ -969,7 +969,7 @@ class TestMongoDBPersistenceFailOpen:
         assert result["ticket_id"] == ticket["ticket_id"]
         mock_kafka_producer.publish_ticket.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_publish_handles_circuit_breaker_error(
         self, mock_activity_info, mock_kafka_producer
     ):
@@ -1001,7 +1001,7 @@ class TestMongoDBPersistenceFailOpen:
         # Kafka publish foi chamado antes da persistência falhar
         mock_kafka_producer.publish_ticket.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_publish_raises_when_config_unavailable(
         self, mock_activity_info, mock_kafka_producer
     ):

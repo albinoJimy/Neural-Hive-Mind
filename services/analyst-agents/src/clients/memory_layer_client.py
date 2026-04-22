@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional
+from typing import Optional
 
 import httpx
 import structlog
@@ -27,9 +27,9 @@ class MemoryLayerAPIClient:
         self,
         query_type: str,
         entity_id: str,
-        time_range: Optional[Dict] = None,
+        time_range: Optional[dict] = None,
         use_cache: bool = True,
-    ) -> Dict:
+    ) -> dict:
         """Consultar memória unificada"""
         try:
             payload = {"query_type": query_type, "entity_id": entity_id, "use_cache": use_cache}
@@ -47,7 +47,7 @@ class MemoryLayerAPIClient:
             logger.error("memory_query_error", error=str(e))
             return {}
 
-    async def get_context(self, entity_id: str, context_type: str) -> Dict:
+    async def get_context(self, entity_id: str, context_type: str) -> dict:
         """Obter contexto de entidade"""
         try:
             response = await self.client.get(
@@ -63,7 +63,7 @@ class MemoryLayerAPIClient:
             logger.error("get_context_error", error=str(e))
             return {}
 
-    async def get_lineage(self, entity_id: str, depth: int = 3) -> Dict:
+    async def get_lineage(self, entity_id: str, depth: int = 3) -> dict:
         """Obter lineage de dados"""
         try:
             response = await self.client.get(
@@ -79,7 +79,7 @@ class MemoryLayerAPIClient:
             logger.error("get_lineage_error", error=str(e))
             return {}
 
-    async def get_quality_stats(self, data_type: str) -> Dict:
+    async def get_quality_stats(self, data_type: str) -> dict:
         """Obter estatísticas de qualidade de dados"""
         try:
             response = await self.client.get(
@@ -110,7 +110,7 @@ class MemoryLayerAPIClient:
             logger.error("invalidate_cache_error", error=str(e))
             return False
 
-    async def list_data_assets(self, limit: int = 100, offset: int = 0) -> List[Dict]:
+    async def list_data_assets(self, limit: int = 100, offset: int = 0) -> list[dict]:
         """Listar ativos de dados catalogados"""
         try:
             response = await self.client.get(

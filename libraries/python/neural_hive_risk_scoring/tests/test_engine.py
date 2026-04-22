@@ -2,32 +2,33 @@
 Testes para RiskScoringEngine e RiskScoringMetrics
 """
 
+from datetime import UTC, datetime
+
 import pytest
-from datetime import datetime, timezone
 
 from neural_hive_risk_scoring import (
+    RiskAssessment,
+    RiskBand,
+    RiskScoringConfig,
     RiskScoringEngine,
     RiskScoringMetrics,
-    RiskScoringConfig,
-    RiskBand,
-    RiskAssessment,
     UnifiedDomain,
 )
 
 
-@pytest.fixture
+@pytest.fixture()
 def config():
     """Configuração de teste."""
     return RiskScoringConfig()
 
 
-@pytest.fixture
+@pytest.fixture()
 def engine(config):
     """Motor de risco para testes."""
     return RiskScoringEngine(config=config)
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_entity_business():
     """Entidade de exemplo para domínio BUSINESS."""
     return {
@@ -40,7 +41,7 @@ def sample_entity_business():
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_entity_security():
     """Entidade de exemplo para domínio SECURITY."""
     return {
@@ -52,7 +53,7 @@ def sample_entity_security():
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_entity_technical():
     """Entidade de exemplo para domínio TECHNICAL."""
     return {
@@ -530,9 +531,9 @@ class TestRiskScoringEngineMetricsIntegration:
         """Testa que assessed_at é datetime recente."""
         entity = {"id": "test"}
 
-        before = datetime.now(timezone.utc)
+        before = datetime.now(UTC)
         assessment = engine.score(entity, UnifiedDomain.BUSINESS)
-        after = datetime.now(timezone.utc)
+        after = datetime.now(UTC)
 
         # assessed_at deve estar entre antes e depois
         assert before <= assessment.assessed_at <= after

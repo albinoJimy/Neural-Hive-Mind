@@ -1,16 +1,17 @@
 import asyncio
-from dataclasses import asdict, dataclass, field
-from datetime import datetime, timezone
-from enum import Enum
-from typing import Callable, Dict, Optional
-from uuid import uuid4
 import time
+from collections.abc import Callable
+from dataclasses import asdict, dataclass, field
+from datetime import UTC, datetime
+from enum import Enum
+from typing import Optional
+from uuid import uuid4
 
 import structlog
-from prometheus_client import Counter, Histogram
-from neural_hive_observability import get_tracer
 from opentelemetry.trace import Status, StatusCode
+from prometheus_client import Counter, Histogram
 
+from neural_hive_observability import get_tracer
 from src.models.remediation_models import RemediationRequest
 
 logger = structlog.get_logger()
@@ -60,9 +61,9 @@ class RemediationState:
     total_actions: int = 0
     result: Optional[dict] = None
     error: Optional[str] = None
-    metadata: Dict = field(default_factory=dict)
+    metadata: dict = field(default_factory=dict)
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return asdict(self)
 
 
@@ -72,7 +73,7 @@ class RemediationManager:
     def __init__(self, redis_client=None, default_timeout_seconds: int = 300):
         self.redis_client = redis_client
         self.default_timeout_seconds = default_timeout_seconds
-        self.active_remediations: Dict[str, RemediationState] = {}
+        self.active_remediations: dict[str, RemediationState] = {}
 
         # Métricas Prometheus para RemediationManager (globais)
         self._mttr_seconds_total = _mttr_seconds_total
@@ -136,7 +137,7 @@ class RemediationManager:
             ).inc()
 
             state.status = RemediationStatus.RUNNING
-            state.started_at = datetime.now(timezone.utc).isoformat()
+            state.started_at = datetime.now(UTC).isoformat()
             await self._persist_state(state)
 
             async def on_action_completed(action_result: dict):
@@ -156,7 +157,7 @@ class RemediationManager:
                 )
                 state.status = final_status
                 state.error = result.get("error")
-                state.completed_at = datetime.now(timezone.utc).isoformat()
+                state.completed_at = datetime.now(UTC).isoformat()
 
                 # Registrar métricas de conclusão
                 self._remediation_duration_seconds.labels(
@@ -203,7 +204,7 @@ class RemediationManager:
                 total_duration = time.time() - remediation_start_time
                 state.status = RemediationStatus.TIMEOUT
                 state.error = "Playbook timeout"
-                state.completed_at = datetime.now(timezone.utc).isoformat()
+                state.completed_at = datetime.now(UTC).isoformat()
 
                 # Registrar métricas de timeout
                 self._remediation_duration_seconds.labels(
@@ -228,7 +229,7 @@ class RemediationManager:
                 total_duration = time.time() - remediation_start_time
                 state.status = RemediationStatus.CANCELLED
                 state.error = "Cancelled"
-                state.completed_at = datetime.now(timezone.utc).isoformat()
+                state.completed_at = datetime.now(UTC).isoformat()
 
                 # Registrar métricas de cancelamento
                 self._remediation_duration_seconds.labels(
@@ -247,11 +248,11 @@ class RemediationManager:
                 logger.info(
                     "remediation_manager.playbook_cancelled", remediation_id=state.remediation_id
                 )
-            except Exception as exc:  # noqa: BLE001 - fail-open
+            except Exception as exc:  # - fail-open
                 total_duration = time.time() - remediation_start_time
                 state.status = RemediationStatus.FAILED
                 state.error = str(exc)
-                state.completed_at = datetime.now(timezone.utc).isoformat()
+                state.completed_at = datetime.now(UTC).isoformat()
 
                 # Registrar métricas de falha
                 self._remediation_duration_seconds.labels(
@@ -297,7 +298,7 @@ class RemediationManager:
             return None
 
         state.status = RemediationStatus.CANCELLED
-        state.completed_at = datetime.now(timezone.utc).isoformat()
+        state.completed_at = datetime.now(UTC).isoformat()
         asyncio.create_task(self._persist_state(state))
 
         logger.info("remediation_manager.remediation_cancelled", remediation_id=remediation_id)
@@ -312,7 +313,7 @@ class RemediationManager:
             await self.redis_client.set(
                 f"remediation:{state.remediation_id}", state.to_dict(), ex=3600
             )
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.warning(
                 "remediation_manager.redis_persist_failed",
                 remediation_id=state.remediation_id,

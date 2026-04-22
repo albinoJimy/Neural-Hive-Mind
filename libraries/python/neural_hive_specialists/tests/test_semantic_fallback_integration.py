@@ -5,15 +5,16 @@ Valida que specialists usam SemanticPipeline quando ML falha,
 ao invés de heurísticas simples.
 """
 
+from typing import Any
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import patch, MagicMock
-from typing import Dict, Any
 
 
 class TestSemanticFallbackIntegration:
     """Testes de integração para fallback semântico."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_config_with_semantic_fallback(self):
         """Config com SemanticPipeline habilitado."""
         config = MagicMock()
@@ -36,7 +37,7 @@ class TestSemanticFallbackIntegration:
         config.http_port = 8000
         return config
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_config_without_semantic_fallback(self):
         """Config com SemanticPipeline desabilitado."""
         config = MagicMock()
@@ -59,8 +60,8 @@ class TestSemanticFallbackIntegration:
         config.http_port = 8000
         return config
 
-    @pytest.fixture
-    def sample_plan_request(self) -> Dict[str, Any]:
+    @pytest.fixture()
+    def sample_plan_request(self) -> dict[str, Any]:
         """Requisição de plano de exemplo para testes."""
         return {
             "plan_id": "test-plan-123",

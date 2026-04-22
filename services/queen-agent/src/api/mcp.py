@@ -5,7 +5,6 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException
 
 from neural_hive_observability import get_logger
-
 from src.api.dependencies import get_mcp_orchestrator
 
 logger = get_logger(__name__)

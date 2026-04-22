@@ -23,6 +23,7 @@ from .execution_ticket import (
     TaskType,
     TicketStatus,
 )
+from .migration import MigrationStatus
 from .workflow import (
     CutoverConfig,
     CutoverEvent,

@@ -7,11 +7,12 @@ e narrativa legível, garantindo reprodutibilidade e auditoria.
 
 import hashlib
 import json
-from datetime import datetime, timezone
-from typing import Dict, List, Any, Optional
+from datetime import UTC, datetime
+from typing import Any, Optional
+
 import structlog
-from pymongo import MongoClient, ASCENDING, IndexModel
 from pydantic import BaseModel, Field, model_validator
+from pymongo import ASCENDING, IndexModel, MongoClient
 
 logger = structlog.get_logger(__name__)
 
@@ -30,17 +31,17 @@ class ExplainabilityRecordSchema(BaseModel):
     )
 
     # Input features completas
-    input_features: Dict[str, float] = Field(
+    input_features: dict[str, float] = Field(
         ..., description="Features estruturadas usadas na predição"
     )
-    feature_names: List[str] = Field(..., description="Nomes ordenados das features")
+    feature_names: list[str] = Field(..., description="Nomes ordenados das features")
 
     # Model metadata
     model_version: str = Field(..., description="Versão do modelo MLflow")
     model_type: str = Field(..., description="Tipo do modelo (RandomForest, XGBoost, etc.)")
 
     # Importance vectors (suporta ambos feature_importances e importance_vectors)
-    feature_importances: List[Dict[str, Any]] = Field(
+    feature_importances: list[dict[str, Any]] = Field(
         ..., description="Lista de importâncias por feature com valores SHAP/LIME"
     )
 
@@ -49,7 +50,7 @@ class ExplainabilityRecordSchema(BaseModel):
     detailed_narrative: str = Field(..., description="Narrativa completa com top features")
 
     # Metadata adicional
-    prediction: Dict[str, float] = Field(
+    prediction: dict[str, float] = Field(
         ..., description="Predição do modelo (confidence_score, risk_score)"
     )
     computation_time_ms: int = Field(..., description="Tempo de computação da explicação")
@@ -134,7 +135,7 @@ class ExplainabilityLedgerV2:
 
     def persist(
         self,
-        explainability_data: Dict[str, Any],
+        explainability_data: dict[str, Any],
         specialist_type: str,
         correlation_id: Optional[str] = None,
     ) -> str:
@@ -192,7 +193,7 @@ class ExplainabilityLedgerV2:
             logger.error("Failed to persist explainability record", error=str(e), exc_info=True)
             raise
 
-    def _generate_token(self, explainability_data: Dict[str, Any]) -> str:
+    def _generate_token(self, explainability_data: dict[str, Any]) -> str:
         """
         Gera token único baseado em hash dos inputs.
 
@@ -208,7 +209,7 @@ class ExplainabilityLedgerV2:
                 "plan_id": explainability_data["plan_id"],
                 "input_features": explainability_data["input_features"],
                 "model_version": explainability_data["model_version"],
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
             },
             sort_keys=True,
         )
@@ -218,7 +219,7 @@ class ExplainabilityLedgerV2:
 
         return token
 
-    def retrieve(self, token: str) -> Optional[Dict[str, Any]]:
+    def retrieve(self, token: str) -> Optional[dict[str, Any]]:
         """
         Recupera explicação completa por token.
 
@@ -244,7 +245,7 @@ class ExplainabilityLedgerV2:
             logger.error("Failed to retrieve explainability record", token=token, error=str(e))
             return None
 
-    def query_by_plan(self, plan_id: str) -> List[Dict[str, Any]]:
+    def query_by_plan(self, plan_id: str) -> list[dict[str, Any]]:
         """
         Recupera todas as explicações de um plano.
 
@@ -271,7 +272,7 @@ class ExplainabilityLedgerV2:
             logger.error("Failed to query explanations by plan", plan_id=plan_id, error=str(e))
             return []
 
-    def query_by_specialist(self, specialist_type: str, limit: int = 100) -> List[Dict[str, Any]]:
+    def query_by_specialist(self, specialist_type: str, limit: int = 100) -> list[dict[str, Any]]:
         """
         Recupera explicações por tipo de especialista.
 
@@ -307,7 +308,7 @@ class ExplainabilityLedgerV2:
             )
             return []
 
-    def validate_schema(self, document: Dict[str, Any]) -> bool:
+    def validate_schema(self, document: dict[str, Any]) -> bool:
         """
         Valida documento contra schema v2.
 

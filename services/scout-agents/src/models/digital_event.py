@@ -1,8 +1,8 @@
 """Modelo para eventos de canais digitais."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, Dict, Optional, Union
+from typing import Any, Optional, Union
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from pydantic.functional_serializers import field_serializer
@@ -45,10 +45,10 @@ class DigitalEvent(BaseModel):
     user_id: Optional[str] = Field(None, description="User identifier")
     session_id: Optional[str] = Field(None, description="Session identifier")
     timestamp: Union[datetime, str] = Field(
-        default_factory=lambda: datetime.now(timezone.utc), description="Event timestamp"
+        default_factory=lambda: datetime.now(UTC), description="Event timestamp"
     )
-    payload: Dict[str, Any] = Field(default_factory=dict, description="Event payload data")
-    metadata: Dict[str, Any] = Field(default_factory=dict, description="Event metadata")
+    payload: dict[str, Any] = Field(default_factory=dict, description="Event payload data")
+    metadata: dict[str, Any] = Field(default_factory=dict, description="Event metadata")
 
     @field_validator("timestamp", mode="before")
     @classmethod
@@ -58,7 +58,7 @@ class DigitalEvent(BaseModel):
             try:
                 return datetime.fromisoformat(v.replace("Z", "+00:00"))
             except ValueError:
-                return datetime.now(timezone.utc)
+                return datetime.now(UTC)
         return v
 
     @field_validator("event_type", mode="before")
@@ -91,7 +91,7 @@ class DigitalEvent(BaseModel):
         """Serialize timestamp to ISO format"""
         return dt.isoformat()
 
-    def to_raw_event(self) -> Dict[str, Any]:
+    def to_raw_event(self) -> dict[str, Any]:
         """
         Converte o evento digital para formato RawEvent compatível.
 

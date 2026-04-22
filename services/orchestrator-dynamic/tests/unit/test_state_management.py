@@ -5,10 +5,11 @@ Testa as transições de estado do OrchestrationWorkflow durante
 a execução: PENDING -> RUNNING -> COMPLETED/FAILED.
 """
 
-import pytest
 import sys
 from pathlib import Path
 from unittest.mock import MagicMock
+
+import pytest
 
 # Adicionar src ao path
 src_path = str(Path(__file__).parent.parent.parent / "src")
@@ -20,7 +21,7 @@ sys.modules["neural_hive_security"] = MagicMock()
 sys.modules["neural_hive_security.cors"] = MagicMock()
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_cognitive_plan():
     """Cognitive plan sample para testes."""
     return {
@@ -32,7 +33,7 @@ def sample_cognitive_plan():
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_consolidated_decision():
     """Consolidated decision sample para testes."""
     return {
@@ -43,7 +44,7 @@ def sample_consolidated_decision():
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_workflow_instance():
     """Instância de OrchestrationWorkflow mockada."""
     from src.workflows.orchestration_workflow import OrchestrationWorkflow

@@ -5,8 +5,9 @@ TDD: Testes escritos antes da implementação.
 Espec: GAPS-05 Scout Agents
 """
 
+from unittest.mock import AsyncMock, MagicMock
+
 import pytest
-from unittest.mock import MagicMock, AsyncMock
 
 # Import com skip automático se módulo não disponível
 QueenAgentIntegration = pytest.importorskip(
@@ -42,7 +43,7 @@ class TestQueenAgentIntegrationInitialization:
 class TestAgentRegistration:
     """Testes de registro no Queen Agent."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def integration(self):
         mock_channel = AsyncMock()
         mock_stub = AsyncMock()
@@ -52,14 +53,14 @@ class TestAgentRegistration:
 
         return QueenAgentIntegration(channel=mock_channel, stub=mock_stub, agent_id="scout-agent-1")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_register_agent_success(self, integration):
         """Testa registro bem-sucedido."""
         result = await integration.register_agent()
 
         assert result["status"] == "accepted"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_register_with_capabilities(self, integration):
         """Testa registro com capacidades declaradas."""
         integration.capabilities = [
@@ -76,7 +77,7 @@ class TestAgentRegistration:
 class TestHeartbeat:
     """Testes de heartbeat para Queen Agent."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def integration(self):
         mock_channel = AsyncMock()
         mock_stub = AsyncMock()
@@ -87,14 +88,14 @@ class TestHeartbeat:
         )
         return integration
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_send_heartbeat(self, integration):
         """Testa envio de heartbeat."""
         result = await integration.send_heartbeat()
 
         assert result["acknowledged"] is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_heartbeat_with_status(self, integration):
         """Testa heartbeat com status atual."""
         integration.current_status = {"active_explorations": 3, "total_processed": 42}
@@ -107,7 +108,7 @@ class TestHeartbeat:
 class TestReportExplorationResults:
     """Testes de report de resultados para Queen Agent."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def integration(self):
         mock_channel = AsyncMock()
         mock_stub = AsyncMock()
@@ -117,7 +118,7 @@ class TestReportExplorationResults:
 
         return QueenAgentIntegration(channel=mock_channel, stub=mock_stub, agent_id="scout-agent-1")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_report_exploration_completed(self, integration):
         """Testa report de exploração completada."""
         results = {
@@ -131,7 +132,7 @@ class TestReportExplorationResults:
 
         assert result["received"] is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_report_with_error(self, integration):
         """Testa report de erro na exploração."""
         error_report = {
@@ -148,7 +149,7 @@ class TestReportExplorationResults:
 class TestHandleQueenCommands:
     """Testes de manipulação de comandos do Queen Agent."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def integration(self):
         mock_channel = AsyncMock()
         mock_stub = AsyncMock()
@@ -168,7 +169,7 @@ class TestHandleQueenCommands:
 
         assert "explore" in integration.command_handlers
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_registered_command(self, integration):
         """Testa execução de comando registrado."""
 
@@ -187,7 +188,7 @@ class TestHandleQueenCommands:
 class TestAgentStatusReporting:
     """Testes de report de status do agente."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def integration(self):
         mock_channel = AsyncMock()
         mock_stub = AsyncMock()
@@ -195,7 +196,7 @@ class TestAgentStatusReporting:
 
         return QueenAgentIntegration(channel=mock_channel, stub=mock_stub, agent_id="scout-agent-1")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_report_status_to_queen(self, integration):
         """Testa report de status para Queen Agent."""
         status = {"agent_id": "scout-agent-1", "status": "ready", "uptime_sec": 3600}

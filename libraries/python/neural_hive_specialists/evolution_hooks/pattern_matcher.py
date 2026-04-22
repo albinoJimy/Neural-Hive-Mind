@@ -1,6 +1,6 @@
 """Pattern matching for similar plans."""
 
-from typing import List
+
 import structlog
 
 from .models import Fingerprint, PatternRecord
@@ -26,7 +26,7 @@ class PatternMatcher:
 
     async def find_similar(
         self, fingerprint: Fingerprint, limit: int = 50, min_similarity: float = 0.0
-    ) -> List[PatternRecord]:
+    ) -> list[PatternRecord]:
         """
         Busca padroes similares.
 

@@ -5,10 +5,11 @@ Define estrutura imutável com validação Pydantic e suporte a migração
 de versões antigas.
 """
 
-from typing import Dict, List, Any, Optional
-from datetime import datetime, timezone
-from pydantic import BaseModel, Field, field_validator, ConfigDict
+from datetime import UTC, datetime
+from typing import Any, Optional
+
 import structlog
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 logger = structlog.get_logger(__name__)
 
@@ -40,15 +41,15 @@ class Opinion(BaseModel):
         ..., description="Recomendação (approve, reject, review_required, conditional)"
     )
     reasoning_summary: str = Field(..., description="Resumo do raciocínio")
-    reasoning_factors: List[ReasoningFactor] = Field(..., description="Fatores de raciocínio")
+    reasoning_factors: list[ReasoningFactor] = Field(..., description="Fatores de raciocínio")
     explainability_token: str = Field(..., description="Token de explicabilidade")
-    explainability: Dict[str, Any] = Field(
+    explainability: dict[str, Any] = Field(
         default_factory=dict, description="Metadados de explicabilidade"
     )
-    mitigations: List[Mitigation] = Field(
+    mitigations: list[Mitigation] = Field(
         default_factory=list, description="Mitigações recomendadas"
     )
-    metadata: Dict[str, Any] = Field(default_factory=dict, description="Metadados adicionais")
+    metadata: dict[str, Any] = Field(default_factory=dict, description="Metadados adicionais")
 
     @field_validator("recommendation")
     @classmethod
@@ -100,7 +101,7 @@ class OpinionDocumentV2(BaseModel):
 
     # Compliance
     retention_policy: Optional[str] = Field(None, description="Política de retenção aplicada")
-    masked_fields: List[str] = Field(
+    masked_fields: list[str] = Field(
         default_factory=list, description="Campos mascarados por compliance"
     )
     gdpr_consent: Optional[bool] = Field(None, description="Consentimento GDPR se aplicável")
@@ -155,7 +156,7 @@ class SchemaVersionManager:
         return version in SchemaVersionManager.SUPPORTED_VERSIONS
 
     @staticmethod
-    def migrate_to_v2(v1_document: Dict[str, Any]) -> OpinionDocumentV2:
+    def migrate_to_v2(v1_document: dict[str, Any]) -> OpinionDocumentV2:
         """
         Migra documento v1 para v2.
 
@@ -199,7 +200,7 @@ class SchemaVersionManager:
             trace_id=v1_document.get("trace_id"),
             span_id=v1_document.get("span_id"),
             evaluated_at=v1_document["evaluated_at"],
-            created_at=v1_document.get("created_at", datetime.now(timezone.utc)),
+            created_at=v1_document.get("created_at", datetime.now(UTC)),
             processing_time_ms=v1_document["processing_time_ms"],
             buffered=v1_document.get("buffered", False),
             content_hash=v1_document.get("content_hash", ""),
@@ -214,7 +215,7 @@ class SchemaVersionManager:
         return v2_document
 
     @staticmethod
-    def validate_document(document: Dict[str, Any]) -> bool:
+    def validate_document(document: dict[str, Any]) -> bool:
         """
         Valida documento contra schema.
 

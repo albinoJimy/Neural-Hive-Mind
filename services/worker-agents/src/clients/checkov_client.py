@@ -11,7 +11,7 @@ import asyncio
 import json
 import os
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 
@@ -83,13 +83,11 @@ class CheckovError(Exception):
 class CheckovNotFoundError(CheckovError):
     """Checkov CLI not found."""
 
-    pass
 
 
 class CheckovExecutionError(CheckovError):
     """Error executing Checkov scan."""
 
-    pass
 
 
 class CheckovClient:
@@ -192,7 +190,7 @@ class CheckovClient:
         Returns:
             CheckovReport with scan findings
         """
-        start_time = datetime.now(timezone.utc)
+        start_time = datetime.now(UTC)
         logs = []
 
         try:
@@ -246,7 +244,7 @@ class CheckovClient:
             except asyncio.TimeoutError:
                 proc.kill()
                 await proc.wait()
-                duration = (datetime.now(timezone.utc) - start_time).total_seconds()
+                duration = (datetime.now(UTC) - start_time).total_seconds()
                 return CheckovReport(
                     passed=False,
                     findings=[],
@@ -264,7 +262,7 @@ class CheckovClient:
                     error="Scan timeout",
                 )
 
-            duration = (datetime.now(timezone.utc) - start_time).total_seconds()
+            duration = (datetime.now(UTC) - start_time).total_seconds()
 
             # Parse output
             findings = []
@@ -340,7 +338,7 @@ class CheckovClient:
             )
 
         except CheckovNotFoundError as e:
-            duration = (datetime.now(timezone.utc) - start_time).total_seconds()
+            duration = (datetime.now(UTC) - start_time).total_seconds()
             return CheckovReport(
                 passed=False,
                 findings=[],
@@ -359,7 +357,7 @@ class CheckovClient:
             )
 
         except Exception as e:
-            duration = (datetime.now(timezone.utc) - start_time).total_seconds()
+            duration = (datetime.now(UTC) - start_time).total_seconds()
             self.logger.exception("checkov_scan_exception")
             return CheckovReport(
                 passed=False,
@@ -373,7 +371,7 @@ class CheckovClient:
                     severity_counts={},
                 ),
                 duration_seconds=duration,
-                logs=[f"Exception: {str(e)}"],
+                logs=[f"Exception: {e!s}"],
                 exit_code=1,
                 error=str(e),
             )

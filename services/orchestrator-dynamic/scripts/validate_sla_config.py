@@ -7,8 +7,8 @@ Valida que:
 2. Valores estão dentro dos limites recomendados
 3. Fórmula está calculando corretamente
 """
-import sys
 import os
+import sys
 
 # Adicionar src ao path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))

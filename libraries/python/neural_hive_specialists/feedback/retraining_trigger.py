@@ -5,23 +5,24 @@ Este módulo monitora a quantidade de feedback humano e dispara pipeline
 MLflow de re-treinamento quando threshold é atingido.
 """
 
-import uuid
 import asyncio
 import os
 import sys
-from datetime import datetime, timedelta, timezone
-from typing import Dict, Any, Optional, Tuple, TYPE_CHECKING
+import uuid
+from datetime import UTC, datetime, timedelta
+from typing import TYPE_CHECKING, Any, Optional
+
 import structlog
 
 if TYPE_CHECKING:
     from ..metrics import SpecialistMetrics
-from pydantic import BaseModel, Field, ConfigDict
-from pymongo import MongoClient, DESCENDING
 import mlflow
+from pydantic import BaseModel, ConfigDict, Field
+from pymongo import DESCENDING, MongoClient
 
 from ..config import SpecialistConfig
-from .feedback_collector import FeedbackCollector
 from ..mlflow_client import MLflowClient
+from .feedback_collector import FeedbackCollector
 
 # Importar ModelAuditLogger para auditoria do ciclo de vida de modelos
 try:
@@ -37,7 +38,7 @@ try:
         "src",
     )
     sys.path.insert(0, _orchestrator_path)
-    from ml.model_audit_logger import ModelAuditLogger, AuditEventContext
+    from ml.model_audit_logger import AuditEventContext, ModelAuditLogger
 
     _MODEL_AUDIT_LOGGER_AVAILABLE = True
 except ImportError:
@@ -75,7 +76,7 @@ class RetrainingTriggerRecord(BaseModel):
     )
     error_message: Optional[str] = Field(default=None, description="Mensagem de erro se falhou")
     completed_at: Optional[datetime] = Field(default=None, description="Timestamp de conclusão")
-    metadata: Dict[str, Any] = Field(
+    metadata: dict[str, Any] = Field(
         default_factory=dict,
         description="Metadados (model_version, dataset_size, etc.)",
     )
@@ -162,7 +163,7 @@ class RetrainingTrigger:
             True se cooldown ativo (não deve disparar), False caso contrário
         """
         try:
-            cutoff_time = datetime.now(timezone.utc) - timedelta(hours=cooldown_hours)
+            cutoff_time = datetime.now(UTC) - timedelta(hours=cooldown_hours)
 
             # Buscar último trigger bem-sucedido
             last_trigger = self._triggers_collection.find_one(
@@ -176,7 +177,7 @@ class RetrainingTrigger:
 
             if last_trigger:
                 time_since_trigger = (
-                    datetime.now(timezone.utc) - last_trigger["triggered_at"]
+                    datetime.now(UTC) - last_trigger["triggered_at"]
                 ).total_seconds() / 3600
                 logger.info(
                     "Cooldown active - recent trigger found",
@@ -194,7 +195,7 @@ class RetrainingTrigger:
             # Em caso de erro, assumir que cooldown está ativo (seguro)
             return True
 
-    def _should_trigger(self, specialist_type: str) -> Tuple[bool, int]:
+    def _should_trigger(self, specialist_type: str) -> tuple[bool, int]:
         """
         Verifica se deve disparar re-treinamento.
 
@@ -228,7 +229,7 @@ class RetrainingTrigger:
 
         return should_trigger, feedback_count
 
-    def _start_mlflow_run(self, specialist_type: str, feedback_count: int) -> Tuple[str, str]:
+    def _start_mlflow_run(self, specialist_type: str, feedback_count: int) -> tuple[str, str]:
         """
         Inicia run MLflow via mlflow.projects.run().
 
@@ -347,7 +348,7 @@ class RetrainingTrigger:
                 metadata={
                     "mlflow_run_id": run_id,
                     "mlflow_experiment_id": experiment_id,
-                    "started_at": datetime.now(timezone.utc).isoformat(),
+                    "started_at": datetime.now(UTC).isoformat(),
                 },
             )
 
@@ -431,7 +432,7 @@ class RetrainingTrigger:
                 status="failed",
                 metadata={
                     "error_message": str(e),
-                    "failed_at": datetime.now(timezone.utc).isoformat(),
+                    "failed_at": datetime.now(UTC).isoformat(),
                 },
             )
             # Emitir métrica de trigger falhado
@@ -440,7 +441,7 @@ class RetrainingTrigger:
             raise
 
     def update_trigger_status(
-        self, trigger_id: str, status: str, metadata: Optional[Dict[str, Any]] = None
+        self, trigger_id: str, status: str, metadata: Optional[dict[str, Any]] = None
     ):
         """
         Atualiza status de um trigger.
@@ -457,7 +458,7 @@ class RetrainingTrigger:
                 update_doc["$set"]["metadata"] = metadata
 
             if status in ["completed", "failed"]:
-                update_doc["$set"]["completed_at"] = datetime.now(timezone.utc)
+                update_doc["$set"]["completed_at"] = datetime.now(UTC)
 
             self._triggers_collection.update_one({"trigger_id": trigger_id}, update_doc)
 
@@ -610,7 +611,7 @@ class RetrainingTrigger:
                 metadata = {
                     "duration_seconds": duration,
                     "mlflow_status": run_status,
-                    "completed_at": datetime.now(timezone.utc).isoformat(),
+                    "completed_at": datetime.now(UTC).isoformat(),
                 }
 
                 # Extrair métricas se disponíveis

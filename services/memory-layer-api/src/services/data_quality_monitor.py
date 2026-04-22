@@ -3,8 +3,8 @@ Data Quality Monitor
 """
 
 import statistics
-from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List, Optional, Tuple
+from datetime import UTC, datetime, timedelta
+from typing import Any, Optional
 
 import structlog
 from prometheus_client import Counter, Gauge
@@ -32,8 +32,8 @@ class DataQualityMonitor:
         self.clickhouse = clickhouse_client
 
     async def validate_data(
-        self, data: Dict[str, Any], schema: Dict[str, Any]
-    ) -> Tuple[bool, List[str]]:
+        self, data: dict[str, Any], schema: dict[str, Any]
+    ) -> tuple[bool, list[str]]:
         """
         Validate data against schema
 
@@ -74,7 +74,7 @@ class DataQualityMonitor:
 
     async def calculate_quality_score(
         self, data_type: str, sample_size: int = 1000
-    ) -> Dict[str, float]:
+    ) -> dict[str, float]:
         """
         Calculate quality scores by dimension
 
@@ -125,7 +125,7 @@ class DataQualityMonitor:
             logger.error("Quality score calculation failed", error=str(e))
             return self._empty_scores()
 
-    def _calculate_completeness(self, sample: List[Dict]) -> float:
+    def _calculate_completeness(self, sample: list[dict]) -> float:
         """Calculate completeness score (% of non-null fields)"""
         if not sample:
             return 0.0
@@ -142,7 +142,7 @@ class DataQualityMonitor:
 
         return (non_null_fields / total_fields * 100) if total_fields > 0 else 0.0
 
-    def _calculate_accuracy(self, sample: List[Dict]) -> float:
+    def _calculate_accuracy(self, sample: list[dict]) -> float:
         """Calculate accuracy score (% of valid records)"""
         if not sample:
             return 0.0
@@ -169,12 +169,12 @@ class DataQualityMonitor:
 
         return (valid_records / len(sample) * 100) if sample else 0.0
 
-    def _calculate_timeliness(self, sample: List[Dict]) -> float:
+    def _calculate_timeliness(self, sample: list[dict]) -> float:
         """Calculate timeliness score (% of fresh records)"""
         if not sample:
             return 0.0
 
-        threshold = datetime.now(timezone.utc) - timedelta(
+        threshold = datetime.now(UTC) - timedelta(
             hours=self.settings.freshness_threshold_hours
         )
         fresh_records = 0
@@ -192,7 +192,7 @@ class DataQualityMonitor:
 
         return (fresh_records / len(sample) * 100) if sample else 0.0
 
-    def _calculate_uniqueness(self, sample: List[Dict]) -> float:
+    def _calculate_uniqueness(self, sample: list[dict]) -> float:
         """Calculate uniqueness score (% of unique entity_ids)"""
         if not sample:
             return 0.0
@@ -202,7 +202,7 @@ class DataQualityMonitor:
 
         return (len(unique_ids) / len(entity_ids) * 100) if entity_ids else 0.0
 
-    def _calculate_consistency(self, sample: List[Dict]) -> float:
+    def _calculate_consistency(self, sample: list[dict]) -> float:
         """Calculate consistency score"""
         # For now, simple heuristic - can be enhanced
         # Check for consistent schema across records
@@ -219,7 +219,7 @@ class DataQualityMonitor:
 
         return (len(common_fields) / len(all_fields) * 100) if all_fields else 0.0
 
-    def _empty_scores(self) -> Dict[str, float]:
+    def _empty_scores(self) -> dict[str, float]:
         """Return empty scores"""
         return {
             "completeness_score": 0.0,
@@ -232,7 +232,7 @@ class DataQualityMonitor:
 
     async def detect_anomalies(
         self, data_type: str, metric: str, window_hours: int = 24, baseline_days: int = 7
-    ) -> List[Dict]:
+    ) -> list[dict]:
         """
         Detecta anomalias usando método estatístico (mean ± 3*std)
 
@@ -249,7 +249,7 @@ class DataQualityMonitor:
             Lista de anomalias detectadas com timestamp, valor, z_score e severidade
         """
         try:
-            now = datetime.now(timezone.utc)
+            now = datetime.now(UTC)
             baseline_start = now - timedelta(days=baseline_days)
             window_start = now - timedelta(hours=window_hours)
 
@@ -505,7 +505,7 @@ class DataQualityMonitor:
         }
         return metric_mapping.get(metric, "overall_score")
 
-    async def check_freshness(self, data_type: str) -> Dict[str, Any]:
+    async def check_freshness(self, data_type: str) -> dict[str, Any]:
         """Check data freshness"""
         try:
             # Find most recent record
@@ -523,7 +523,7 @@ class DataQualityMonitor:
             if isinstance(created_at, str):
                 created_at = datetime.fromisoformat(created_at)
 
-            age = datetime.now(timezone.utc) - created_at
+            age = datetime.now(UTC) - created_at
             age_hours = age.total_seconds() / 3600
 
             status = "fresh"
@@ -543,15 +543,15 @@ class DataQualityMonitor:
     async def persist_quality_metrics(
         self,
         data_type: str,
-        quality_scores: Dict[str, float],
-        anomalies: List[Dict],
-        freshness: Dict[str, Any],
+        quality_scores: dict[str, float],
+        anomalies: list[dict],
+        freshness: dict[str, Any],
     ):
         """Persist quality metrics to MongoDB"""
         try:
             document = {
                 "data_type": data_type,
-                "timestamp": datetime.now(timezone.utc),
+                "timestamp": datetime.now(UTC),
                 "quality_scores": quality_scores,
                 "anomalies": anomalies,
                 "freshness": freshness,
@@ -571,10 +571,10 @@ class DataQualityMonitor:
         except Exception as e:
             logger.error("Failed to persist quality metrics", error=str(e))
 
-    async def get_quality_trends(self, data_type: str, days: int = 7) -> List[Dict]:
+    async def get_quality_trends(self, data_type: str, days: int = 7) -> list[dict]:
         """Get quality trends over time"""
         try:
-            start_date = datetime.now(timezone.utc) - timedelta(days=days)
+            start_date = datetime.now(UTC) - timedelta(days=days)
 
             trends = await self.mongodb.find(
                 collection=self.settings.mongodb_quality_collection,

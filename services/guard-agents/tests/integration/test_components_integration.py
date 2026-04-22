@@ -3,11 +3,12 @@ Testes de integração dos componentes do fluxo de resiliência.
 Valida que componentes individuais funcionam integrados.
 """
 
+from unittest.mock import AsyncMock, Mock
+
 import pytest
-from unittest.mock import Mock, AsyncMock
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_producer_publishes_to_kafka():
     """Testa que RemediationProducer publica eventos no Kafka"""
     from src.producers.remediation_producer import RemediationProducer
@@ -34,7 +35,7 @@ async def test_producer_publishes_to_kafka():
     print("✅ RemediationProducer: Publica eventos corretamente")
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_self_healing_client_triggers_remediation():
     """Testa que SelfHealingClient comunica com engine"""
     from src.clients.self_healing_client import SelfHealingClient
@@ -61,7 +62,7 @@ async def test_self_healing_client_triggers_remediation():
     print("✅ SelfHealingClient: Dispara remediações corretamente")
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_opa_client_evaluates_policy():
     """Testa que OPAClient valida políticas"""
     from src.clients.opa_client import OPAClient
@@ -90,7 +91,7 @@ async def test_opa_client_evaluates_policy():
     print("✅ OPAClient: Avalia políticas corretamente")
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_prometheus_client_validates_sla():
     """Testa que PrometheusClient valida SLA"""
     from src.clients.prometheus_client import PrometheusClient
@@ -130,7 +131,7 @@ async def test_prometheus_client_validates_sla():
     print(f"✅ PrometheusClient: Valida SLA - Restaurado: {result['sla_restored']}")
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_policy_enforcer_with_opa_istio():
     """Testa PolicyEnforcer com OPA e Istio integrados"""
     from src.services.policy_enforcer import PolicyEnforcer
@@ -177,7 +178,7 @@ async def test_policy_enforcer_with_opa_istio():
     print("✅ PolicyEnforcer: Integra OPA e Istio corretamente")
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_remediation_coordinator_with_engine():
     """Testa RemediationCoordinator delegando para Self-Healing Engine"""
     from src.services.remediation_coordinator import RemediationCoordinator
@@ -226,7 +227,7 @@ async def test_remediation_coordinator_with_engine():
     print("✅ RemediationCoordinator: Delega para Self-Healing Engine corretamente")
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_full_pipeline_integration():
     """
     Testa integração completa dos componentes principais:

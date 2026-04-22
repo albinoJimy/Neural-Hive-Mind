@@ -4,9 +4,9 @@ Modelo para ferramenta MCP validada.
 Representa ferramenta com relatórios de validação de schema, segurança e conectividade.
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 from pydantic.functional_serializers import field_serializer
@@ -32,10 +32,10 @@ class SchemaValidationSummary(BaseModel):
     output_valid: bool = Field(default=True, description="Se schema de saída é válido")
     input_issues_count: int = Field(default=0, description="Número de issues no schema de entrada")
     output_issues_count: int = Field(default=0, description="Número de issues no schema de saída")
-    input_recommendations: List[str] = Field(
+    input_recommendations: list[str] = Field(
         default_factory=list, description="Recomendações para input"
     )
-    output_recommendations: List[str] = Field(
+    output_recommendations: list[str] = Field(
         default_factory=list, description="Recomendações para output"
     )
 
@@ -50,10 +50,10 @@ class SecurityValidationSummary(BaseModel):
     medium_risks: int = Field(default=0, description="Riscos médios")
     low_risks: int = Field(default=0, description="Riscos baixos")
     requires_approval: bool = Field(default=False, description="Se requer aprovação humana")
-    allowed_contexts: List[str] = Field(
+    allowed_contexts: list[str] = Field(
         default_factory=lambda: ["default"], description="Contextos onde pode ser usada"
     )
-    risk_types: List[str] = Field(default_factory=list, description="Tipos de risco encontrados")
+    risk_types: list[str] = Field(default_factory=list, description="Tipos de risco encontrados")
 
 
 class ConnectivityStatus(str, Enum):
@@ -76,7 +76,7 @@ class ConnectivityValidationSummary(BaseModel):
     last_check: Optional[datetime] = Field(default=None, description="Data da última verificação")
     tests_passed: int = Field(default=0, description="Testes que passaram")
     tests_failed: int = Field(default=0, description="Testes que falharam")
-    recommendations: List[str] = Field(default_factory=list, description="Recomendações")
+    recommendations: list[str] = Field(default_factory=list, description="Recomendações")
 
 
 class ValidatedTool(BaseModel):
@@ -90,19 +90,19 @@ class ValidatedTool(BaseModel):
     tool_id: str
     tool_name: str
     category: str
-    capabilities: List[str]
+    capabilities: list[str]
     version: str
     reputation_score: float
     average_execution_time_ms: int
     cost_score: float
-    required_parameters: Dict[str, str] = Field(default_factory=dict)
+    required_parameters: dict[str, str] = Field(default_factory=dict)
     output_format: str
     integration_type: str
     endpoint_url: Optional[str] = None
     authentication_method: str
-    metadata: Dict[str, Any] = Field(default_factory=dict)
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    metadata: dict[str, Any] = Field(default_factory=dict)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     trace_id: Optional[str] = None
     span_id: Optional[str] = None
     schema_version: int = 1
@@ -113,8 +113,8 @@ class ValidatedTool(BaseModel):
 
     # Validação de Schema
     schema_validation: Optional[SchemaValidationSummary] = Field(default=None)
-    input_schema: Optional[Dict[str, Any]] = Field(default=None)
-    output_schema: Optional[Dict[str, Any]] = Field(default=None)
+    input_schema: Optional[dict[str, Any]] = Field(default=None)
+    output_schema: Optional[dict[str, Any]] = Field(default=None)
 
     # Validação de Segurança
     security_validation: Optional[SecurityValidationSummary] = Field(default=None)
@@ -183,7 +183,7 @@ class ValidatedTool(BaseModel):
             schema_version=self.schema_version,
         )
 
-    def get_validation_summary(self) -> Dict[str, Any]:
+    def get_validation_summary(self) -> dict[str, Any]:
         """Retorna resumo das validações."""
         return {
             "tool_id": self.tool_id,

@@ -16,42 +16,42 @@ Cobertura:
 - Múltiplas linguagens (Python, JavaScript, Go)
 """
 
-import pytest
 import uuid
 from datetime import datetime, timedelta
 
+import pytest
+from src.models.artifact import (
+    PipelineStatus,
+    ValidationResult,
+    ValidationStatus,
+    ValidationType,
+)
 from src.models.execution_ticket import (
+    SLA,
+    Consistency,
+    DeliveryMode,
+    Durability,
     ExecutionTicket,
+    Priority,
+    QoS,
+    RiskBand,
+    SecurityLevel,
     TaskType,
     TicketStatus,
-    Priority,
-    RiskBand,
-    SLA,
-    QoS,
-    SecurityLevel,
-    DeliveryMode,
-    Consistency,
-    Durability,
 )
-from src.models.artifact import (
-    ValidationResult,
-    ValidationType,
-    ValidationStatus,
-    PipelineStatus,
-)
+from src.services.approval_gate import ApprovalGate
+from src.services.code_composer import CodeComposer
+from src.services.packager import Packager
 from src.services.pipeline_engine import PipelineEngine
 from src.services.template_selector import TemplateSelector
-from src.services.code_composer import CodeComposer
-from src.services.validator import Validator
 from src.services.test_runner import TestRunner
-from src.services.packager import Packager
-from src.services.approval_gate import ApprovalGate
+from src.services.validator import Validator
 
 
 class TestPipelineE2EWithApproval:
     """Testes E2E do pipeline completo com Approval Gate."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_e2e_pipeline_with_auto_approval(
         self,
         sample_ticket,
@@ -214,7 +214,7 @@ async def root():
         # Para auto-aprovação não há MR (apenas commit e push)
         assert result.git_mr_url is None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_e2e_pipeline_with_manual_review(
         self,
         sample_ticket,
@@ -382,7 +382,7 @@ async def root():
 class TestPipelineE2ELicenseValidation:
     """Testes E2E com validação de licenças."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_e2e_pipeline_with_license_check(
         self,
         sample_ticket,
@@ -419,7 +419,7 @@ class TestPipelineE2ELicenseValidation:
         mock_mongodb_client.get_artifact_sbom.return_value = sbom_data
 
         # Configurar validações para retornar bem-sucedidas
-        from src.models.artifact import ValidationResult, ValidationType, ValidationStatus
+        from src.models.artifact import ValidationResult, ValidationStatus, ValidationType
 
         mock_sonarqube_client.analyze_code.return_value = ValidationResult(
             validation_type=ValidationType.SAST,
@@ -535,7 +535,7 @@ class TestPipelineE2ELicenseValidation:
             if "license" in v.stage_name.lower() or hasattr(v, "validation_type")
         ]
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_e2e_pipeline_with_gpl_license(
         self,
         sample_ticket,
@@ -568,7 +568,7 @@ class TestPipelineE2ELicenseValidation:
         mock_mongodb_client.get_artifact_sbom.return_value = sbom_data
 
         # Configurar validações para retornar bem-sucedidas (menos licença)
-        from src.models.artifact import ValidationResult, ValidationType, ValidationStatus
+        from src.models.artifact import ValidationResult, ValidationStatus, ValidationType
 
         mock_sonarqube_client.analyze_code.return_value = ValidationResult(
             validation_type=ValidationType.SAST,
@@ -683,7 +683,7 @@ class TestPipelineE2ELicenseValidation:
 class TestPipelineE2EMultipleLanguages:
     """Testes E2E para múltiplas linguagens."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     @pytest.mark.parametrize(
         "language,expected_ext",
         [("python", "py"), ("javascript", "js"), ("typescript", "ts"), ("go", "go")],
@@ -761,7 +761,7 @@ class TestPipelineE2EMultipleLanguages:
         }
 
         # Configurar validações para retornar bem-sucedidas
-        from src.models.artifact import ValidationResult, ValidationType, ValidationStatus
+        from src.models.artifact import ValidationResult, ValidationStatus, ValidationType
 
         mock_sonarqube_client.analyze_code.return_value = ValidationResult(
             validation_type=ValidationType.SAST,
@@ -876,7 +876,7 @@ class TestPipelineE2EMultipleLanguages:
 class TestPipelineE2ETimeout:
     """Testes E2E de timeout do pipeline."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_e2e_pipeline_timeout(
         self,
         sample_ticket,

@@ -1,21 +1,20 @@
 """Testes para o AlertManager Client."""
 
-import pytest
-from unittest.mock import AsyncMock, patch, MagicMock
-import httpx
+from unittest.mock import AsyncMock, MagicMock
 
+import pytest
 from src.services.alert_manager_client import (
-    AlertManagerClient,
     Alert,
+    AlertManagerClient,
     AlertSeverity,
     alert_deadlock_detected,
     alert_memory_leak_detected,
-    alert_remediation_started,
     alert_remediation_failed,
+    alert_remediation_started,
 )
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_httpx_client():
     """Mock do httpx.AsyncClient."""
     client = MagicMock()
@@ -23,7 +22,7 @@ def mock_httpx_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def alert_client(mock_httpx_client):
     """AlertManagerClient com HTTP client mockado."""
     client = AlertManagerClient(
@@ -56,7 +55,7 @@ class TestAlert:
 class TestAlertManagerClient:
     """Testes para o AlertManagerClient."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_send_alert_all_channels_success(self, alert_client, mock_httpx_client):
         """Testa envio de alerta para todos os canais."""
         mock_httpx_client.post.return_value = MagicMock(status_code=200)
@@ -75,7 +74,7 @@ class TestAlertManagerClient:
         assert result is True
         assert mock_httpx_client.post.call_count == 3  # alertmanager + slack + pagerduty
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_send_alert_disabled(self, alert_client):
         """Testa que alerta não é enviado quando desabilitado."""
         alert_client.enabled = False
@@ -93,7 +92,7 @@ class TestAlertManagerClient:
 
         assert result is False
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_send_alert_only_slack(self, mock_httpx_client):
         """Testa envio apenas para Slack."""
         mock_httpx_client.post.return_value = MagicMock(status_code=200)
@@ -117,7 +116,7 @@ class TestAlertManagerClient:
         assert result is True
         assert mock_httpx_client.post.call_count == 1
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_send_to_alertmanager_success(self, alert_client, mock_httpx_client):
         """Testa envio bem-sucedido para AlertManager."""
         mock_httpx_client.post.return_value = MagicMock(status_code=200)
@@ -135,7 +134,7 @@ class TestAlertManagerClient:
 
         assert result is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_send_to_alertmanager_failure(self, alert_client, mock_httpx_client):
         """Testa falha ao enviar para AlertManager."""
         mock_httpx_client.post.return_value = MagicMock(status_code=500)
@@ -153,7 +152,7 @@ class TestAlertManagerClient:
 
         assert result is False
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_send_to_slack_success(self, alert_client, mock_httpx_client):
         """Testa envio bem-sucedido para Slack."""
         mock_httpx_client.post.return_value = MagicMock(status_code=200)
@@ -171,7 +170,7 @@ class TestAlertManagerClient:
 
         assert result is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_send_to_pagerduty_success(self, alert_client, mock_httpx_client):
         """Testa envio bem-sucedido para PagerDuty."""
         mock_httpx_client.post.return_value = MagicMock(status_code=202)
@@ -189,7 +188,7 @@ class TestAlertManagerClient:
 
         assert result is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_send_batch_alerts(self, alert_client, mock_httpx_client):
         """Testa envio de múltiplos alertas."""
         mock_httpx_client.post.return_value = MagicMock(status_code=200)
@@ -213,7 +212,7 @@ class TestAlertManagerClient:
         assert results["failed"] == 0
         assert mock_httpx_client.post.call_count == 9
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_close_client(self, alert_client):
         """Testa fechamento do cliente."""
         alert_client._client.aclose = AsyncMock()
@@ -224,7 +223,7 @@ class TestAlertManagerClient:
 class TestAlertConvenienceFunctions:
     """Testes para funções de conveniência de alerta."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_alert_deadlock_detected(self, alert_client, mock_httpx_client):
         """Testa alerta de deadlock detectado."""
         mock_httpx_client.post.return_value = MagicMock(status_code=200)
@@ -238,7 +237,7 @@ class TestAlertConvenienceFunctions:
 
         assert mock_httpx_client.post.call_count == 3
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_alert_memory_leak_detected(self, alert_client, mock_httpx_client):
         """Testa alerta de memory leak detectado."""
         mock_httpx_client.post.return_value = MagicMock(status_code=200)
@@ -253,7 +252,7 @@ class TestAlertConvenienceFunctions:
 
         assert mock_httpx_client.post.call_count == 3
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_alert_remediation_started(self, alert_client, mock_httpx_client):
         """Testa alerta de remediação iniciada."""
         mock_httpx_client.post.return_value = MagicMock(status_code=200)
@@ -267,7 +266,7 @@ class TestAlertConvenienceFunctions:
 
         assert mock_httpx_client.post.call_count == 3
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_alert_remediation_failed(self, alert_client, mock_httpx_client):
         """Testa alerta de falha na remediação."""
         mock_httpx_client.post.return_value = MagicMock(status_code=200)

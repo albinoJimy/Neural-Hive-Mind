@@ -3,8 +3,11 @@ from enum import Enum
 
 class StrEnum(str, Enum):
     """Compatibilidade StrEnum para Python 3.10"""
+
     def _generate_next_value_(name, start, count, last_values):
         return name
+
+
 from typing import Any
 
 from pydantic import BaseModel, Field, field_validator

@@ -4,13 +4,13 @@ Testes de integração para autenticação JWT-SVID do ServiceRegistryClient.
 Testa cenários de sucesso, falhas, cache e fallback de JWT-SVID.
 """
 
-import pytest
 import asyncio
-from datetime import datetime, timezone, timedelta
-from unittest.mock import AsyncMock, MagicMock, patch
 from dataclasses import dataclass
+from datetime import UTC, datetime, timedelta
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import grpc
+import pytest
 import structlog
 
 
@@ -48,7 +48,7 @@ class MockSPIFFEManager:
 logger = structlog.get_logger(__name__)
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_spiffe_manager():
     """Fixture que retorna mock do SPIFFEManager"""
     manager = MockSPIFFEManager()
@@ -57,13 +57,13 @@ def mock_spiffe_manager():
     manager.fetch_jwt_svid.return_value = JWTSVID(
         token="eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJzcGlmZmU6Ly9uZXVyYWwtaGl2ZS5sb2NhbC9ucy9uZXVyYWwtaGl2ZS1vcmNoZXN0cmF0aW9uL3NhL29yY2hlc3RyYXRvci1keW5hbWljIiwiYXVkIjoic2VydmljZS1yZWdpc3RyeS5uZXVyYWwtaGl2ZS5sb2NhbCIsImV4cCI6OTk5OTk5OTk5OX0.valid",
         spiffe_id="spiffe://neural-hive.local/ns/neural-hive-orchestration/sa/orchestrator-dynamic",
-        expiry=datetime.now(timezone.utc) + timedelta(hours=1),
+        expiry=datetime.now(UTC) + timedelta(hours=1),
     )
 
     return manager
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_settings():
     """Fixture que retorna configurações mockadas"""
     from src.config.settings import OrchestratorSettings
@@ -79,7 +79,7 @@ def mock_settings():
     return settings
 
 
-@pytest.fixture
+@pytest.fixture()
 async def mock_grpc_stub():
     """Fixture que retorna stub gRPC mockado"""
     stub = AsyncMock()
@@ -92,7 +92,7 @@ async def mock_grpc_stub():
     return stub
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_jwt_svid_fetch_and_attach_metadata(mock_spiffe_manager, mock_settings, caplog):
     """
     Testa que JWT-SVID é obtido corretamente e metadata 'Bearer' é anexado à chamada gRPC.
@@ -157,7 +157,7 @@ async def test_jwt_svid_fetch_and_attach_metadata(mock_spiffe_manager, mock_sett
         )
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_jwt_svid_cache_hit(mock_spiffe_manager, mock_settings):
     """
     Testa que JWT-SVID é cacheado e fetch_jwt_svid é chamado apenas uma vez em múltiplas chamadas.
@@ -196,7 +196,7 @@ async def test_jwt_svid_cache_hit(mock_spiffe_manager, mock_settings):
         assert mock_spiffe_manager.fetch_jwt_svid.call_count == 2
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_jwt_auth_failure_invalid_token(mock_spiffe_manager, mock_settings):
     """
     Testa que token JWT expirado/inválido resulta em grpc.RpcError com UNAUTHENTICATED.
@@ -207,7 +207,7 @@ async def test_jwt_auth_failure_invalid_token(mock_spiffe_manager, mock_settings
     mock_spiffe_manager.fetch_jwt_svid.return_value = JWTSVID(
         token="expired.jwt.token",
         spiffe_id="spiffe://neural-hive.local/ns/neural-hive-orchestration/sa/orchestrator-dynamic",
-        expiry=datetime.now(timezone.utc) - timedelta(hours=1),  # Expirado
+        expiry=datetime.now(UTC) - timedelta(hours=1),  # Expirado
     )
 
     with (
@@ -247,7 +247,7 @@ async def test_jwt_auth_failure_invalid_token(mock_spiffe_manager, mock_settings
         assert exc_info.value.code() == grpc.StatusCode.UNAUTHENTICATED
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_jwt_auth_failure_unauthorized_spiffe_id(mock_spiffe_manager, mock_settings):
     """
     Testa que SPIFFE ID não autorizado resulta em PERMISSION_DENIED.
@@ -258,7 +258,7 @@ async def test_jwt_auth_failure_unauthorized_spiffe_id(mock_spiffe_manager, mock
     mock_spiffe_manager.fetch_jwt_svid.return_value = JWTSVID(
         token="valid.jwt.token",
         spiffe_id="spiffe://wrong-domain.com/ns/attacker/sa/malicious",
-        expiry=datetime.now(timezone.utc) + timedelta(hours=1),
+        expiry=datetime.now(UTC) + timedelta(hours=1),
     )
 
     with (
@@ -298,7 +298,7 @@ async def test_jwt_auth_failure_unauthorized_spiffe_id(mock_spiffe_manager, mock
         assert exc_info.value.code() == grpc.StatusCode.PERMISSION_DENIED
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_fallback_no_auth_when_spiffe_disabled(mock_settings):
     """
     Testa que quando SPIFFE está desabilitado, nenhum metadata é enviado e canal insecure é usado.
@@ -342,7 +342,7 @@ async def test_fallback_no_auth_when_spiffe_disabled(mock_settings):
         ), "Metadata não deve estar presente quando SPIFFE desabilitado"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_spiffe_unavailable_fallback(mock_spiffe_manager, mock_settings, caplog):
     """
     Testa que quando SPIFFE está indisponível, warning é logado e fallback para sem metadata.
@@ -398,7 +398,7 @@ async def test_spiffe_unavailable_fallback(mock_spiffe_manager, mock_settings, c
             assert not auth_present, "Authorization header não deve estar presente em fallback"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_jwt_svid_with_custom_audience(mock_spiffe_manager, mock_settings):
     """
     Testa que audience customizado é passado corretamente para fetch_jwt_svid.
@@ -437,7 +437,7 @@ async def test_jwt_svid_with_custom_audience(mock_spiffe_manager, mock_settings)
         mock_spiffe_manager.fetch_jwt_svid.assert_called_once_with(audience=custom_audience)
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_concurrent_discover_calls_with_jwt(mock_spiffe_manager, mock_settings):
     """
     Testa que múltiplas chamadas concorrentes a discover_agents são thread-safe.

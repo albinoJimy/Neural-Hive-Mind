@@ -4,11 +4,12 @@ Testes unitários para ExplainabilityConsolidator com campos hierárquicos.
 TDD: Testes escritos antes da implementação (GAPS-04 Task 1).
 """
 
-import pytest
 import sys
-from pathlib import Path
-from unittest.mock import MagicMock, AsyncMock
 from enum import Enum
+from pathlib import Path
+from unittest.mock import AsyncMock, MagicMock
+
+import pytest
 
 
 # Set up UnifiedDomain mock BEFORE any imports
@@ -37,7 +38,7 @@ from src.services.explainability_consolidator import ExplainabilityConsolidator
 class TestExplainabilityConsolidatorHierarchical:
     """Testes do consolidador de explicabilidade com campos hierárquicos."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_mongodb(self):
         """Mock do cliente MongoDB."""
         mongo = MagicMock()
@@ -45,12 +46,12 @@ class TestExplainabilityConsolidatorHierarchical:
         mongo.db["consensus_explainability"] = MagicMock()
         return mongo
 
-    @pytest.fixture
+    @pytest.fixture()
     def consolidator(self, mock_mongodb):
         """Instância do consolidador."""
         return ExplainabilityConsolidator(mock_mongodb)
 
-    @pytest.fixture
+    @pytest.fixture()
     def sample_opinions_with_seniority(self):
         """Opiniões de especialistas com campos hierárquicos."""
         return [
@@ -271,7 +272,7 @@ class TestExplainabilityConsolidatorHierarchical:
 class TestExplainabilityConsolidatorAsync:
     """Testes de funcionalidade assíncrona."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_mongodb(self):
         """Mock do cliente MongoDB com async."""
         mongo = MagicMock()
@@ -281,12 +282,12 @@ class TestExplainabilityConsolidatorAsync:
         mongo.db["consensus_explainability"] = collection
         return mongo
 
-    @pytest.fixture
+    @pytest.fixture()
     def consolidator(self, mock_mongodb):
         """Instância do consolidador."""
         return ExplainabilityConsolidator(mock_mongodb)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_persist_explanation_called(self, consolidator, mock_mongodb):
         """Testa que persistência é chamada com token e explicação."""
         token = "test-token-123"

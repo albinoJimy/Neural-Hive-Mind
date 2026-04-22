@@ -19,13 +19,13 @@ import pytest
 class TestToolExecutorRouting:
     """Testes de roteamento hibrido MCP/Adapter."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_routes_to_adapter_when_no_mcp_configured(
         self, cli_tool, mock_settings, mock_metrics
     ):
         """Deve rotear para adapter quando MCP nao configurado."""
-        from src.services.tool_executor import ToolExecutor
         from src.adapters.base_adapter import ExecutionResult
+        from src.services.tool_executor import ToolExecutor
 
         mock_adapter_result = ExecutionResult(
             success=True, output="test output", execution_time_ms=100.0, exit_code=0
@@ -46,13 +46,13 @@ class TestToolExecutorRouting:
             assert result.output == "test output"
             executor.cli_adapter.execute.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_routes_to_mcp_when_configured(
         self, cli_tool, mock_settings_with_mcp, mock_metrics
     ):
         """Deve rotear para MCP quando configurado."""
+        from src.models.mcp_messages import MCPContentItem, MCPToolCallResponse
         from src.services.tool_executor import ToolExecutor
-        from src.models.mcp_messages import MCPToolCallResponse, MCPContentItem
 
         # Configurar tool_id no mcp_servers
         cli_tool.tool_id = "trivy-001"
@@ -82,14 +82,14 @@ class TestToolExecutorRouting:
 class TestToolExecutorGracefulDegradation:
     """Testes de graceful degradation MCP -> Adapter."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_fallback_to_adapter_on_mcp_failure(
         self, cli_tool, mock_settings_with_mcp, mock_metrics
     ):
         """Deve fazer fallback para adapter quando MCP falha."""
-        from src.services.tool_executor import ToolExecutor
         from src.adapters.base_adapter import ExecutionResult
         from src.clients.mcp_exceptions import MCPError
+        from src.services.tool_executor import ToolExecutor
 
         cli_tool.tool_id = "trivy-001"
 
@@ -130,11 +130,11 @@ class TestToolExecutorGracefulDegradation:
 class TestToolExecutorAdapterExecution:
     """Testes de execucao via adapters."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_via_cli_adapter(self, cli_tool, mock_settings, mock_metrics):
         """Deve executar ferramenta CLI via CLIAdapter."""
-        from src.services.tool_executor import ToolExecutor
         from src.adapters.base_adapter import ExecutionResult
+        from src.services.tool_executor import ToolExecutor
 
         mock_result = ExecutionResult(
             success=True, output="pytest results", execution_time_ms=5000.0, exit_code=0
@@ -155,11 +155,11 @@ class TestToolExecutorAdapterExecution:
             assert result.metadata.get("execution_route") == "adapter"
             assert result.metadata.get("adapter_type") == "CLI"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_via_rest_adapter(self, rest_tool, mock_settings, mock_metrics):
         """Deve executar ferramenta REST via RESTAdapter."""
-        from src.services.tool_executor import ToolExecutor
         from src.adapters.base_adapter import ExecutionResult
+        from src.services.tool_executor import ToolExecutor
 
         mock_result = ExecutionResult(
             success=True, output='{"analysis": "complete"}', execution_time_ms=3000.0, exit_code=200
@@ -179,11 +179,11 @@ class TestToolExecutorAdapterExecution:
             assert result.success is True
             assert result.metadata.get("adapter_type") == "REST_API"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_via_container_adapter(self, container_tool, mock_settings, mock_metrics):
         """Deve executar ferramenta Container via ContainerAdapter."""
-        from src.services.tool_executor import ToolExecutor
         from src.adapters.base_adapter import ExecutionResult
+        from src.services.tool_executor import ToolExecutor
 
         mock_result = ExecutionResult(
             success=True, output='{"vulnerabilities": []}', execution_time_ms=60000.0, exit_code=0
@@ -207,7 +207,7 @@ class TestToolExecutorAdapterExecution:
 class TestToolExecutorBuildCommand:
     """Testes de construcao de comando por integration_type."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_build_command_for_cli(self, cli_tool, mock_settings):
         """Deve construir comando CLI corretamente."""
         from src.services.tool_executor import ToolExecutor
@@ -220,7 +220,7 @@ class TestToolExecutorBuildCommand:
 
             assert cmd == "pytest"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_build_command_for_rest(self, rest_tool, mock_settings):
         """Deve construir URL REST corretamente."""
         from src.services.tool_executor import ToolExecutor
@@ -233,7 +233,7 @@ class TestToolExecutorBuildCommand:
 
             assert cmd == "http://sonarqube:9000/api/analyze"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_build_command_for_container(self, container_tool, mock_settings):
         """Deve construir imagem Docker corretamente."""
         from src.services.tool_executor import ToolExecutor
@@ -250,11 +250,11 @@ class TestToolExecutorBuildCommand:
 class TestToolExecutorMetrics:
     """Testes de metricas e feedback loop."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_records_execution_metrics(self, cli_tool, mock_settings, mock_metrics):
         """Deve registrar metricas de execucao."""
-        from src.services.tool_executor import ToolExecutor
         from src.adapters.base_adapter import ExecutionResult
+        from src.services.tool_executor import ToolExecutor
 
         mock_result = ExecutionResult(
             success=True, output="output", execution_time_ms=1000.0, exit_code=0
@@ -273,13 +273,13 @@ class TestToolExecutorMetrics:
             assert call_kwargs["status"] == "success"
             assert call_kwargs["execution_route"] == "adapter"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_updates_tool_registry_feedback(
         self, cli_tool, mock_settings, mock_metrics, mock_tool_registry
     ):
         """Deve atualizar reputacao no tool registry."""
-        from src.services.tool_executor import ToolExecutor
         from src.adapters.base_adapter import ExecutionResult
+        from src.services.tool_executor import ToolExecutor
 
         mock_result = ExecutionResult(
             success=True, output="output", execution_time_ms=1000.0, exit_code=0
@@ -301,11 +301,11 @@ class TestToolExecutorMetrics:
 class TestToolExecutorBatchExecution:
     """Testes de execucao em batch."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_tools_batch(self, benchmark_tools, mock_settings, mock_metrics):
         """Deve executar multiplas ferramentas em paralelo."""
-        from src.services.tool_executor import ToolExecutor
         from src.adapters.base_adapter import ExecutionResult
+        from src.services.tool_executor import ToolExecutor
 
         mock_result = ExecutionResult(
             success=True, output="batch output", execution_time_ms=100.0, exit_code=0
@@ -324,13 +324,13 @@ class TestToolExecutorBatchExecution:
             for tool_id, result in results.items():
                 assert result.success is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_batch_handles_individual_failures(
         self, benchmark_tools, mock_settings, mock_metrics
     ):
         """Deve tratar falhas individuais no batch."""
-        from src.services.tool_executor import ToolExecutor
         from src.adapters.base_adapter import ExecutionResult
+        from src.services.tool_executor import ToolExecutor
 
         call_count = 0
 
@@ -363,7 +363,7 @@ class TestToolExecutorBatchExecution:
 class TestToolExecutorLifecycle:
     """Testes de lifecycle (start/stop)."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_start_initializes_mcp_clients(self, mock_settings_with_mcp):
         """Deve inicializar clientes MCP no start."""
         from src.services.tool_executor import ToolExecutor
@@ -382,7 +382,7 @@ class TestToolExecutorLifecycle:
                 # Deve ter tentado criar clientes para MCP_SERVERS configurados
                 assert MockMCPClient.call_count > 0
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_stop_closes_mcp_clients(self, mock_settings_with_mcp):
         """Deve fechar clientes MCP no stop."""
         from src.services.tool_executor import ToolExecutor
@@ -404,11 +404,11 @@ class TestToolExecutorLifecycle:
 class TestToolExecutorErrorHandling:
     """Testes de tratamento de erros."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_returns_error_when_no_adapter_available(self, mock_settings):
         """Deve retornar erro quando nenhum adapter disponivel."""
+        from src.models.tool_descriptor import IntegrationType, ToolCategory, ToolDescriptor
         from src.services.tool_executor import ToolExecutor
-        from src.models.tool_descriptor import ToolDescriptor, ToolCategory, IntegrationType
 
         # Criar tool com integration_type desconhecido
         unknown_tool = ToolDescriptor(
@@ -433,7 +433,7 @@ class TestToolExecutorErrorHandling:
             assert result.success is False
             assert "No executor available" in result.error
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_handles_tool_not_available(self, cli_tool, mock_settings, mock_metrics):
         """Deve tratar ferramenta nao disponivel."""
         from src.services.tool_executor import ToolExecutor
@@ -447,7 +447,7 @@ class TestToolExecutorErrorHandling:
             assert result.success is False
             assert "not available" in result.error
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_handles_adapter_exception(self, cli_tool, mock_settings, mock_metrics):
         """Deve tratar excecao do adapter graciosamente."""
         from src.services.tool_executor import ToolExecutor

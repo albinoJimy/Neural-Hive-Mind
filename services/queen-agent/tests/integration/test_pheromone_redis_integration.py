@@ -8,13 +8,13 @@ Atualizado para usar formato unificado de chaves via DomainMapper:
 pheromone:{layer}:{domain}:{type}:{id?}
 """
 
-import pytest
-import os
 import json
+import os
 from unittest.mock import MagicMock
 
-from neural_hive_domain import UnifiedDomain
+import pytest
 
+from neural_hive_domain import UnifiedDomain
 
 # Verificar se Redis esta disponivel
 REDIS_AVAILABLE = (
@@ -22,7 +22,7 @@ REDIS_AVAILABLE = (
 )
 
 
-@pytest.fixture
+@pytest.fixture()
 async def redis_client():
     """Cria cliente Redis real para testes de integracao"""
     from redis.asyncio import Redis
@@ -48,7 +48,7 @@ async def redis_client():
     await client.close()
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_redis_client_wrapper(redis_client):
     """Wrapper para RedisClient que usa Redis real"""
 
@@ -68,7 +68,7 @@ def mock_redis_client_wrapper(redis_client):
     return RealRedisClientWrapper(redis_client)
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_settings():
     """Mock de configuracoes - REDIS_PHEROMONE_PREFIX deprecated, chaves via DomainMapper"""
     settings = MagicMock()
@@ -77,7 +77,7 @@ def mock_settings():
     return settings
 
 
-@pytest.fixture
+@pytest.fixture()
 def pheromone_client(mock_redis_client_wrapper, mock_settings):
     """Instancia do PheromoneClient com Redis real"""
     from src.clients.pheromone_client import PheromoneClient
@@ -127,15 +127,15 @@ async def populate_redis_with_mixed_pheromones(redis_client, count: int):
         await redis_client.setex(key, 3600, json.dumps(data))
 
 
-@pytest.mark.integration
+@pytest.mark.integration()
 @pytest.mark.skipif(not REDIS_AVAILABLE, reason="Redis nao disponivel")
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_get_success_trails_real_redis(pheromone_client, redis_client):
     """
     Teste com Redis real.
     Popula Redis com 100 feromonios SUCCESS e valida retorno ordenado.
     """
-    from unittest.mock import patch, MagicMock
+    from unittest.mock import MagicMock, patch
 
     # Popular Redis com 100 feromonios SUCCESS
     await populate_redis_with_pheromones(redis_client, 100, prefix="test-real")
@@ -161,14 +161,14 @@ async def test_get_success_trails_real_redis(pheromone_client, redis_client):
     assert result[0]["strength"] == 1.0  # O mais forte tem strength 1.0
 
 
-@pytest.mark.integration
+@pytest.mark.integration()
 @pytest.mark.skipif(not REDIS_AVAILABLE, reason="Redis nao disponivel")
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_scan_pattern_matching(pheromone_client, redis_client):
     """
     Valida que apenas SUCCESS sao retornados quando ha mix de tipos.
     """
-    from unittest.mock import patch, MagicMock
+    from unittest.mock import MagicMock, patch
 
     # Popular Redis com mix de SUCCESS, FAILURE, WARNING
     await populate_redis_with_mixed_pheromones(redis_client, 30)
@@ -191,9 +191,9 @@ async def test_scan_pattern_matching(pheromone_client, redis_client):
         assert "test-mixed" in trail["domain"]
 
 
-@pytest.mark.integration
+@pytest.mark.integration()
 @pytest.mark.skipif(not REDIS_AVAILABLE, reason="Redis nao disponivel")
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_cache_invalidation_flow(pheromone_client, redis_client):
     """
     Testa fluxo de invalidacao de cache:
@@ -202,7 +202,7 @@ async def test_cache_invalidation_flow(pheromone_client, redis_client):
     3. Valida que cache foi invalidado
     4. Busca trilhas novamente (deve buscar do Redis)
     """
-    from unittest.mock import patch, MagicMock
+    from unittest.mock import MagicMock, patch
 
     # Popular Redis com 10 feromonios
     await populate_redis_with_pheromones(redis_client, 10, prefix="test-cache")
@@ -246,14 +246,14 @@ async def test_cache_invalidation_flow(pheromone_client, redis_client):
         assert pheromone_client._cache_timestamp > original_cache_timestamp
 
 
-@pytest.mark.integration
+@pytest.mark.integration()
 @pytest.mark.skipif(not REDIS_AVAILABLE, reason="Redis nao disponivel")
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_publish_and_retrieve_flow(pheromone_client, redis_client):
     """
     Testa fluxo completo de publicacao e recuperacao usando domínios unificados.
     """
-    from unittest.mock import patch, MagicMock
+    from unittest.mock import MagicMock, patch
 
     # Domínios válidos para publicação
     valid_domains = ["business", "technical", "security", "infrastructure", "behavior"]
@@ -285,15 +285,15 @@ async def test_publish_and_retrieve_flow(pheromone_client, redis_client):
     assert result[2]["strength"] == 0.7  # security
 
 
-@pytest.mark.integration
+@pytest.mark.integration()
 @pytest.mark.skipif(not REDIS_AVAILABLE, reason="Redis nao disponivel")
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_large_scale_scan(pheromone_client, redis_client):
     """
     Teste de escala com 1000 feromonios no Redis real.
     """
-    from unittest.mock import patch, MagicMock
     import time
+    from unittest.mock import MagicMock, patch
 
     # Popular Redis com 1000 feromonios
     await populate_redis_with_pheromones(redis_client, 1000, prefix="test-scale")

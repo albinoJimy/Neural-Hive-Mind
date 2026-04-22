@@ -14,10 +14,10 @@ import argparse
 import os
 import sys
 from datetime import datetime, timedelta
-from typing import Dict, List, Any, Optional
+from typing import Any, Optional
 
 
-def load_config() -> Dict[str, Any]:
+def load_config() -> dict[str, Any]:
     """
     Carrega configuração de variáveis de ambiente.
 
@@ -51,7 +51,7 @@ def fetch_historical_metrics_from_clickhouse(
     clickhouse_database: str,
     window_days: int,
     specialist_type: Optional[str] = None,
-) -> List[Dict[str, float]]:
+) -> list[dict[str, float]]:
     """
     Busca métricas históricas do ClickHouse.
 
@@ -128,7 +128,7 @@ def fetch_historical_metrics_from_clickhouse(
         sys.exit(1)
 
 
-def generate_synthetic_metrics(num_samples: int = 500) -> List[Dict[str, float]]:
+def generate_synthetic_metrics(num_samples: int = 500) -> list[dict[str, float]]:
     """
     Gera métricas sintéticas para demonstração.
 
@@ -181,8 +181,8 @@ def generate_synthetic_metrics(num_samples: int = 500) -> List[Dict[str, float]]
 
 
 def train_anomaly_detector(
-    config: Dict[str, Any],
-    metrics_history: List[Dict[str, float]],
+    config: dict[str, Any],
+    metrics_history: list[dict[str, float]],
     specialist_type: str,
     validate: bool = False,
 ) -> bool:

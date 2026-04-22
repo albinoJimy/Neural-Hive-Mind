@@ -4,11 +4,10 @@ Cobertura de identificação de padrões de design.
 """
 
 import pytest
-
 from src.discovery.pattern_discovery import PatternDiscovery
 
 
-@pytest.fixture
+@pytest.fixture()
 def pattern_discovery():
     """Instância de PatternDiscovery para testes."""
     return PatternDiscovery()
@@ -154,7 +153,7 @@ class Service:
 class TestPatternFrequency:
     """Testes de análise de frequência de padrões."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def sample_files(self):
         """Arquivos de exemplo para análise de frequência."""
         return {
@@ -259,7 +258,7 @@ class Utils:
 class TestPatternReporting:
     """Testes de geração de relatórios."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def report_files(self):
         """Arquivos para teste de relatório."""
         return {

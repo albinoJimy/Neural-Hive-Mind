@@ -5,17 +5,16 @@ from unittest.mock import AsyncMock
 import pytest
 from fastapi import status
 from fastapi.testclient import TestClient
-
 from src.main import app
 
 
-@pytest.fixture
+@pytest.fixture()
 def client():
     """Cliente de teste FastAPI."""
     return TestClient(app)
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_pipeline_repo():
     """Mock do PipelineRunRepository."""
     from src.repositories.pipeline_repository import PipelineRunRepository
@@ -53,7 +52,7 @@ def mock_pipeline_repo():
     return repo
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_anomaly_repo():
     """Mock do AnomalyRepository."""
     from src.repositories.pipeline_repository import AnomalyRepository
@@ -84,7 +83,7 @@ def mock_anomaly_repo():
     return repo
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_manifest_repo():
     """Mock do PipelineManifestRepository."""
     from src.repositories.pipeline_repository import PipelineManifestRepository

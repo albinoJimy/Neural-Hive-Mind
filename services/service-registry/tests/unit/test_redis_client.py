@@ -13,7 +13,7 @@ from src.clients.redis_registry_client import RedisRegistryClient
 from src.models import AgentInfo, AgentStatus, AgentTelemetry, AgentType
 
 
-@pytest.fixture
+@pytest.fixture()
 def redis_client():
     """Instância do RedisRegistryClient para teste."""
     return RedisRegistryClient(
@@ -21,7 +21,7 @@ def redis_client():
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_redis_connection():
     """Mock de conexão Redis."""
     connection = AsyncMock()
@@ -39,7 +39,7 @@ def mock_redis_connection():
     return connection
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_agent():
     """Agente de exemplo para testes."""
     return AgentInfo(
@@ -57,7 +57,7 @@ def sample_agent():
 class TestRedisRegistryClientInitialization:
     """Testes para inicialização do RedisRegistryClient."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_initialize_success(self, redis_client, mock_redis_connection):
         """Testa inicialização bem-sucedida."""
         with patch("redis.asyncio.Redis", return_value=mock_redis_connection):
@@ -66,7 +66,7 @@ class TestRedisRegistryClientInitialization:
             assert redis_client.client is not None
             mock_redis_connection.ping.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_initialize_invalid_endpoint(self):
         """Testa erro com endpoint inválido."""
         client = RedisRegistryClient(cluster_nodes=["invalid_endpoint"], prefix="/test")
@@ -76,7 +76,7 @@ class TestRedisRegistryClientInitialization:
 
         assert "Formato de endpoint inválido" in str(exc_info.value)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_initialize_empty_nodes(self):
         """Testa erro com cluster_nodes vazio."""
         client = RedisRegistryClient(cluster_nodes=[], prefix="/test")
@@ -86,7 +86,7 @@ class TestRedisRegistryClientInitialization:
 
         assert "não pode estar vazio" in str(exc_info.value)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_initialize_invalid_port(self):
         """Testa erro com porta inválida."""
         client = RedisRegistryClient(cluster_nodes=["localhost:abc"], prefix="/test")
@@ -96,7 +96,7 @@ class TestRedisRegistryClientInitialization:
 
         assert "Porta inválida" in str(exc_info.value)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_initialize_timeout_on_connection(self, redis_client):
         """Testa timeout de conexão."""
         mock_conn = AsyncMock()
@@ -106,7 +106,7 @@ class TestRedisRegistryClientInitialization:
             with pytest.raises(TimeoutError):
                 await redis_client.initialize()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_initialize_auth_failure(self, redis_client):
         """Testa falha de autenticação."""
         mock_conn = AsyncMock()
@@ -129,7 +129,7 @@ class TestRedisRegistryClientInitialization:
 class TestRedisRegistryClientCRUD:
     """Testes para operações CRUD do RedisRegistryClient."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_put_agent(self, redis_client, mock_redis_connection, sample_agent):
         """Testa salvar agente no Redis."""
         redis_client.client = mock_redis_connection
@@ -141,7 +141,7 @@ class TestRedisRegistryClientCRUD:
         mock_redis_connection.sadd.assert_called_once()
         mock_redis_connection.publish.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_agent(self, redis_client, mock_redis_connection, sample_agent):
         """Testa buscar agente existente."""
         agent_data = json.dumps(sample_agent.to_proto_dict())
@@ -154,7 +154,7 @@ class TestRedisRegistryClientCRUD:
         assert result.agent_id == sample_agent.agent_id
         assert result.agent_type == sample_agent.agent_type
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_agent_not_found(self, redis_client, mock_redis_connection):
         """Testa buscar agente inexistente."""
         mock_redis_connection.get = AsyncMock(return_value=None)
@@ -164,7 +164,7 @@ class TestRedisRegistryClientCRUD:
 
         assert result is None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_delete_agent(self, redis_client, mock_redis_connection, sample_agent):
         """Testa remover agente do Redis."""
         mock_redis_connection.delete = AsyncMock(return_value=1)
@@ -176,7 +176,7 @@ class TestRedisRegistryClientCRUD:
         mock_redis_connection.delete.assert_called()
         mock_redis_connection.srem.assert_called()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_delete_agent_not_found(self, redis_client, mock_redis_connection):
         """Testa remover agente inexistente."""
         mock_redis_connection.delete = AsyncMock(return_value=0)
@@ -190,7 +190,7 @@ class TestRedisRegistryClientCRUD:
 class TestRedisRegistryClientListing:
     """Testes para listagem de agentes."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_list_agents_empty(self, redis_client, mock_redis_connection):
         """Testa listagem quando não há agentes."""
         mock_redis_connection.smembers = AsyncMock(return_value=set())
@@ -200,7 +200,7 @@ class TestRedisRegistryClientListing:
 
         assert result == []
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_list_agents_all(self, redis_client, mock_redis_connection, sample_agent):
         """Testa listar todos os agentes."""
         agent_data = json.dumps(sample_agent.to_proto_dict())
@@ -220,7 +220,7 @@ class TestRedisRegistryClientListing:
         assert len(result) == 1
         assert result[0].agent_id == sample_agent.agent_id
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_list_agents_by_type(self, redis_client, mock_redis_connection, sample_agent):
         """Testa listar agentes por tipo."""
         agent_data = json.dumps(sample_agent.to_proto_dict())
@@ -233,7 +233,7 @@ class TestRedisRegistryClientListing:
         assert len(result) == 1
         assert result[0].agent_type == AgentType.WORKER
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_list_agents_with_filters(
         self, redis_client, mock_redis_connection, sample_agent
     ):
@@ -255,7 +255,7 @@ class TestRedisRegistryClientListing:
         assert len(result) == 1
         assert result[0].namespace == "default"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_list_agents_filter_no_match(
         self, redis_client, mock_redis_connection, sample_agent
     ):
@@ -269,7 +269,7 @@ class TestRedisRegistryClientListing:
 
         assert len(result) == 0
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_list_agents_with_expired_index_entry(
         self, redis_client, mock_redis_connection, sample_agent
     ):
@@ -349,7 +349,7 @@ class TestRedisRegistryClientFiltering:
 class TestRedisRegistryClientConnection:
     """Testes para gestão de conexão."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_close(self, redis_client, mock_redis_connection):
         """Testa fechar conexão."""
         redis_client.client = mock_redis_connection
@@ -358,13 +358,13 @@ class TestRedisRegistryClientConnection:
 
         mock_redis_connection.close.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_close_without_client(self, redis_client):
         """Testa fechar sem cliente inicializado."""
         # Não deve levantar exceção
         await redis_client.close()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_connection_failure_during_operation(
         self, redis_client, mock_redis_connection, sample_agent
     ):
@@ -375,7 +375,7 @@ class TestRedisRegistryClientConnection:
         with pytest.raises(ConnectionError):
             await redis_client.put_agent(sample_agent)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_health_check_success(self, redis_client, mock_redis_connection):
         """Testa verificação de saúde com sucesso."""
         mock_redis_connection.ping = AsyncMock(return_value=True)
@@ -385,7 +385,7 @@ class TestRedisRegistryClientConnection:
 
         assert result is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_health_check_failure(self, redis_client, mock_redis_connection):
         """Testa verificação de saúde com falha."""
         mock_redis_connection.ping = AsyncMock(side_effect=ConnectionError("Redis down"))
@@ -399,7 +399,7 @@ class TestRedisRegistryClientConnection:
 class TestRedisRegistryClientHeartbeat:
     """Testes para operações de heartbeat."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_heartbeat_success(self, redis_client, mock_redis_connection, sample_agent):
         """Testa renovação de TTL com sucesso."""
         redis_client.client = mock_redis_connection
@@ -409,7 +409,7 @@ class TestRedisRegistryClientHeartbeat:
         assert result is True
         mock_redis_connection.expire.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_heartbeat_agent_not_found(self, redis_client, mock_redis_connection):
         """Testa heartbeat para agente não encontrado."""
         mock_redis_connection.exists = AsyncMock(return_value=0)
@@ -419,7 +419,7 @@ class TestRedisRegistryClientHeartbeat:
 
         assert result is False
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_heartbeat_failure(self, redis_client, mock_redis_connection):
         """Testa falha no heartbeat."""
         mock_redis_connection.expire = AsyncMock(side_effect=Exception("Redis error"))
@@ -433,7 +433,7 @@ class TestRedisRegistryClientHeartbeat:
 class TestRedisRegistryClientWatch:
     """Testes para funcionalidade de watch."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_watch_agents(self, redis_client, mock_redis_connection):
         """Testa observar mudanças em agentes."""
 

@@ -8,8 +8,9 @@ Valida:
 - Propagação de contexto gRPC (tenant_id, trace_id)
 """
 
-import pytest
 from unittest.mock import Mock, patch
+
+import pytest
 from google.protobuf.timestamp_pb2 import Timestamp
 
 from neural_hive_specialists.grpc_server import SpecialistServicer
@@ -18,14 +19,14 @@ from neural_hive_specialists.grpc_server import SpecialistServicer
 class TestSpecialistServicer:
     """Testes para SpecialistServicer."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_specialist(self):
         """Cria mock do especialista."""
         specialist = Mock()
         specialist.specialist_type = "test_specialist"
         return specialist
 
-    @pytest.fixture
+    @pytest.fixture()
     def servicer(self, mock_specialist):
         """Cria servicer para testes."""
         return SpecialistServicer(mock_specialist)
@@ -192,11 +193,11 @@ class TestSpecialistServicer:
                 assert response is not None
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestEvaluatePlan:
     """Testes do método EvaluatePlan."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_specialist(self):
         """Cria mock do especialista."""
         specialist = Mock()
@@ -221,7 +222,7 @@ class TestEvaluatePlan:
         )
         return specialist
 
-    @pytest.fixture
+    @pytest.fixture()
     def servicer(self, mock_specialist):
         """Cria servicer para testes."""
         return SpecialistServicer(mock_specialist)
@@ -295,11 +296,11 @@ class TestEvaluatePlan:
             context.abort.assert_called_once()
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestHealthCheck:
     """Testes do método HealthCheck."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def servicer(self):
         """Cria servicer para testes."""
         specialist = Mock()
@@ -347,11 +348,11 @@ class TestHealthCheck:
             assert mock_pb2.HealthCheckResponse.called
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestBuildEvaluatePlanResponse:
     """Testes do método _build_evaluate_plan_response."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def servicer(self):
         """Cria servicer para testes."""
         specialist = Mock()
@@ -399,7 +400,7 @@ class TestBuildEvaluatePlanResponse:
             assert mock_pb2.MitigationSuggestion.called
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestCreateGRPCServer:
     """Testes da função create_grpc_server_with_observability."""
 
@@ -445,7 +446,7 @@ class TestCreateGRPCServer:
 # ============================================================================
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestSpecialistServicerComplete:
     """
     Testes completos do SpecialistServicer conforme plano de implementação.
@@ -458,7 +459,7 @@ class TestSpecialistServicerComplete:
     - Propagação de contexto (tenant_id, trace_id)
     """
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_specialist_complete(self):
         """Mock completo de BaseSpecialist."""
         specialist = Mock()
@@ -530,7 +531,7 @@ class TestSpecialistServicerComplete:
 
         return specialist
 
-    @pytest.fixture
+    @pytest.fixture()
     def servicer_complete(self, mock_specialist_complete):
         """Instância de SpecialistServicer com mock completo."""
         return SpecialistServicer(mock_specialist_complete)
@@ -854,11 +855,11 @@ class TestSpecialistServicerComplete:
         context.abort.assert_called_once()
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestBuildEvaluatePlanResponseComplete:
     """Testes completos do método _build_evaluate_plan_response."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def servicer(self):
         """Cria servicer para testes."""
         specialist = Mock()
@@ -1023,14 +1024,15 @@ class TestBuildEvaluatePlanResponseComplete:
             assert timestamp.seconds > 0
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestHealthServicer:
     """Testes para HealthServicer."""
 
     def test_check_serving(self):
         """Testa Check quando status é SERVING."""
-        from neural_hive_specialists.grpc_server import HealthServicer
         from grpc_health.v1 import health_pb2
+
+        from neural_hive_specialists.grpc_server import HealthServicer
 
         specialist = Mock()
         specialist.health_check.return_value = {"status": "SERVING", "details": {}}
@@ -1046,8 +1048,9 @@ class TestHealthServicer:
 
     def test_check_not_serving(self):
         """Testa Check quando status é NOT_SERVING."""
-        from neural_hive_specialists.grpc_server import HealthServicer
         from grpc_health.v1 import health_pb2
+
+        from neural_hive_specialists.grpc_server import HealthServicer
 
         specialist = Mock()
         specialist.health_check.return_value = {"status": "NOT_SERVING", "details": {}}
@@ -1063,8 +1066,9 @@ class TestHealthServicer:
 
     def test_check_handles_exception(self):
         """Testa Check quando ocorre exceção."""
-        from neural_hive_specialists.grpc_server import HealthServicer
         from grpc_health.v1 import health_pb2
+
+        from neural_hive_specialists.grpc_server import HealthServicer
 
         specialist = Mock()
         specialist.health_check.side_effect = RuntimeError("Error")
@@ -1080,8 +1084,9 @@ class TestHealthServicer:
 
     def test_watch_streaming(self):
         """Testa Watch (streaming)."""
-        from neural_hive_specialists.grpc_server import HealthServicer
         from grpc_health.v1 import health_pb2
+
+        from neural_hive_specialists.grpc_server import HealthServicer
 
         specialist = Mock()
         specialist.health_check.return_value = {"status": "SERVING", "details": {}}

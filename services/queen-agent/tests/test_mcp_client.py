@@ -2,20 +2,20 @@
 Testes para MCPClient.
 """
 
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import httpx
 import pytest
 import pytest_asyncio
-from unittest.mock import AsyncMock, MagicMock, patch
-import httpx
-
 from src.clients.mcp_client import (
-    MCPClient,
     HTTPMCPClient,
+    MCPClient,
     MCPConnectionError,
     MCPToolExecutionError,
 )
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_settings():
     """Mock de configurações."""
     settings = MagicMock()
@@ -35,7 +35,7 @@ async def mock_http_response():
     return response
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_mcp_client_connect_success():
     """Testa conexão bem-sucedida com servidor MCP."""
     client = MCPClient(server_url="http://localhost:3000")
@@ -67,7 +67,7 @@ async def test_mcp_client_connect_success():
         await client.close()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_mcp_client_list_tools():
     """Testa listagem de ferramentas disponíveis."""
     client = MCPClient(server_url="http://localhost:3000")
@@ -127,7 +127,7 @@ async def test_mcp_client_list_tools():
         await client.close()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_mcp_client_execute_tool_success():
     """Testa execução bem-sucedida de ferramenta."""
     client = MCPClient(server_url="http://localhost:3000")
@@ -186,7 +186,7 @@ async def test_mcp_client_execute_tool_success():
         await client.close()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_mcp_client_execute_tool_not_found():
     """Testa erro ao executar ferramenta inexistente."""
     client = MCPClient(server_url="http://localhost:3000")
@@ -217,7 +217,7 @@ async def test_mcp_client_execute_tool_not_found():
         await client.close()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_mcp_client_execute_tool_http_error():
     """Testa tratamento de erro HTTP na execução."""
     client = MCPClient(server_url="http://localhost:3000")
@@ -270,7 +270,7 @@ async def test_mcp_client_execute_tool_http_error():
         await client.close()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_mcp_client_connection_error():
     """Testa erro ao conectar com servidor indisponível."""
     client = MCPClient(server_url="http://unavailable:3000")
@@ -284,7 +284,7 @@ async def test_mcp_client_connection_error():
             await client.connect()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_mcp_client_json_rpc_error():
     """Testa tratamento de erro JSON-RPC."""
     client = MCPClient(server_url="http://localhost:3000")
@@ -340,7 +340,7 @@ async def test_mcp_client_json_rpc_error():
         await client.close()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_mcp_client_not_connected():
     """Testa erro quando cliente não está conectado."""
     client = MCPClient(server_url="http://localhost:3000")
@@ -349,7 +349,7 @@ async def test_mcp_client_not_connected():
         await client.list_tools()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_mcp_client_get_tool():
     """Testa obtenção de informações de ferramenta específica."""
     client = MCPClient(server_url="http://localhost:3000")
@@ -403,7 +403,7 @@ async def test_mcp_client_get_tool():
         await client.close()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_mcp_client_close_without_connect():
     """Testa close sem conexão prévia."""
     client = MCPClient(server_url="http://localhost:3000")
@@ -416,7 +416,7 @@ async def test_mcp_client_close_without_connect():
 # ============ HTTPMCPClient Tests ============
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_http_mcp_client_connect_success():
     """Testa conexão bem-sucedida com servidor HTTP MCP."""
     client = HTTPMCPClient(server_url="http://localhost:8080")
@@ -442,7 +442,7 @@ async def test_http_mcp_client_connect_success():
         await client.close()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_http_mcp_client_list_tools():
     """Testa listagem de ferramentas via REST."""
     client = HTTPMCPClient(server_url="http://localhost:8080")
@@ -485,7 +485,7 @@ async def test_http_mcp_client_list_tools():
         await client.close()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_http_mcp_client_execute_tool_success():
     """Testa execução de ferramenta via POST /execute."""
     client = HTTPMCPClient(server_url="http://localhost:8080")
@@ -533,7 +533,7 @@ async def test_http_mcp_client_execute_tool_success():
         await client.close()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_http_mcp_client_execute_tool_not_found():
     """Testa erro ao executar ferramenta inexistente."""
     client = HTTPMCPClient(server_url="http://localhost:8080")
@@ -564,7 +564,7 @@ async def test_http_mcp_client_execute_tool_not_found():
         await client.close()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_http_mcp_client_connection_error():
     """Testa erro ao conectar com servidor indisponível."""
     client = HTTPMCPClient(server_url="http://unavailable:8080")
@@ -578,7 +578,7 @@ async def test_http_mcp_client_connection_error():
             await client.connect()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_http_mcp_client_tools_count():
     """Testa contagem de ferramentas disponíveis."""
     client = HTTPMCPClient(server_url="http://localhost:8080")

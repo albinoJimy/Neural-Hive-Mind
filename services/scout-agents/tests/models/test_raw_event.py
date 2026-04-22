@@ -4,38 +4,37 @@ Testes unitários abrangentes para RawEvent.
 Cobertura: extração de features, normalização, validação, cálculo de anomalia.
 """
 
+from datetime import UTC, datetime
+
 import pytest
-from datetime import datetime, timezone
-
 from src.models.raw_event import RawEvent
-
 
 # ============================================================================
 # Fixtures
 # ============================================================================
 
 
-@pytest.fixture
+@pytest.fixture()
 def basic_raw_event():
     """Evento básico para testes."""
     return RawEvent(
         event_id="event-001",
         source="test-source",
         event_type="user_action",
-        timestamp=datetime.now(timezone.utc),
+        timestamp=datetime.now(UTC),
         payload={"action": "click", "value": 100, "count": 5},
         metadata={"trace_id": "trace-001"},
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def complex_nested_event():
     """Evento com payload aninhado complexo."""
     return RawEvent(
         event_id="complex-001",
         source="api",
         event_type="response",
-        timestamp=datetime.now(timezone.utc),
+        timestamp=datetime.now(UTC),
         payload={
             "data": {
                 "user": {"id": 123, "score": 85.5},
@@ -48,14 +47,14 @@ def complex_nested_event():
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def event_with_list_data():
     """Evento com dados em lista."""
     return RawEvent(
         event_id="list-001",
         source="metrics",
         event_type="timeseries",
-        timestamp=datetime.now(timezone.utc),
+        timestamp=datetime.now(UTC),
         payload={
             "values": [10, 20, 30, 40, 50],
             "timestamps": [1, 2, 3, 4, 5],
@@ -65,14 +64,14 @@ def event_with_list_data():
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def event_with_no_numeric_data():
     """Evento sem dados numéricos."""
     return RawEvent(
         event_id="no-numeric-001",
         source="logs",
         event_type="message",
-        timestamp=datetime.now(timezone.utc),
+        timestamp=datetime.now(UTC),
         payload={"message": "User logged in", "level": "INFO", "service": "auth-service"},
         metadata={},
     )
@@ -109,7 +108,7 @@ class TestRawEventCreation:
             event_id="event-002",
             source="test",
             event_type="test",
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
             payload={"value": 1},
         )
         assert event.metadata == {}
@@ -166,7 +165,7 @@ class TestFeatureExtraction:
             event_id="pad-001",
             source="test",
             event_type="test",
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
             payload={"value": 1},  # Apenas 1 feature
             metadata={},
         )
@@ -182,7 +181,7 @@ class TestFeatureExtraction:
             event_id="trunc-001",
             source="test",
             event_type="test",
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
             payload={"values": many_values},
             metadata={},
         )
@@ -254,7 +253,7 @@ class TestValidation:
             event_id="",  # Vazio
             source="test",
             event_type="test",
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
             payload={},
         )
         assert event.is_valid() is False
@@ -265,7 +264,7 @@ class TestValidation:
             event_id="event-001",
             source=None,
             event_type="test",
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
             payload={},
         )
         # Pydantic pode converter None para string ou validar
@@ -288,7 +287,7 @@ class TestValidation:
             event_id="event-001",
             source="test",
             event_type="test",
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
             payload=None,
         )
         if event.payload is None:
@@ -338,7 +337,7 @@ class TestAnomalyScoreCalculation:
             event_id="extreme-001",
             source="test",
             event_type="test",
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
             payload={"value": 10000},  # Valor extremo
             metadata={},
         )
@@ -361,7 +360,7 @@ class TestSpecialCases:
             event_id="mixed-001",
             source="test",
             event_type="test",
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
             payload={
                 "string": "hello",
                 "integer": 42,
@@ -389,7 +388,7 @@ class TestSpecialCases:
             event_id="unicode-001",
             source="test",
             event_type="test",
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
             payload={"metric": 100.5, "label": "café", "emoji": "🚀"},
             metadata={},
         )
@@ -403,7 +402,7 @@ class TestSpecialCases:
             event_id="deep-001",
             source="test",
             event_type="test",
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
             payload={"level1": {"level2": {"level3": {"level4": {"value": 42}}}}},
             metadata={},
         )
@@ -418,7 +417,7 @@ class TestSpecialCases:
             event_id="sci-001",
             source="test",
             event_type="test",
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
             payload={"small": 1.5e-10, "large": 1.5e10},
             metadata={},
         )
@@ -464,7 +463,7 @@ class TestPerformance:
             event_id="large-001",
             source="test",
             event_type="test",
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
             payload=large_payload,
             metadata={},
         )
@@ -483,7 +482,7 @@ class TestPerformance:
             event_id="deep-perf-001",
             source="test",
             event_type="test",
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
             payload=payload,
             metadata={},
         )
@@ -506,7 +505,7 @@ class TestBoundaryConditions:
             event_id="empty-001",
             source="test",
             event_type="test",
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
             payload={},
             metadata={},
         )
@@ -521,7 +520,7 @@ class TestBoundaryConditions:
             event_id="zeros-001",
             source="test",
             event_type="test",
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
             payload={"a": 0, "b": 0.0, "c": -0.0},
             metadata={},
         )
@@ -535,7 +534,7 @@ class TestBoundaryConditions:
             event_id="neg-001",
             source="test",
             event_type="test",
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
             payload={"negative": -100, "positive": 50},
             metadata={},
         )
@@ -549,7 +548,7 @@ class TestBoundaryConditions:
             event_id="inf-001",
             source="test",
             event_type="test",
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
             payload={"inf": float("inf"), "ninf": float("-inf")},
             metadata={},
         )
@@ -563,7 +562,7 @@ class TestBoundaryConditions:
             event_id="nan-001",
             source="test",
             event_type="test",
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
             payload={"nan": float("nan")},
             metadata={},
         )

@@ -4,11 +4,10 @@ Parsing de Java para análise estática.
 """
 
 import pytest
-
 from src.exploration.parsers.multilanguage.java_parser import JavaParser
 
 
-@pytest.fixture
+@pytest.fixture()
 def java_parser():
     """Instância de JavaParser para testes."""
     return JavaParser()

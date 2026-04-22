@@ -7,12 +7,13 @@ com métricas Prometheus para monitoramento de componentes críticos.
 
 import asyncio
 import logging
+import threading
 import time
 from abc import ABC, abstractmethod
+from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum
-from typing import Dict, Optional, Callable, Any
-import threading
+from typing import Any, Optional
 
 from .config import ObservabilityConfig
 
@@ -35,7 +36,7 @@ class HealthCheckResult:
     name: str
     status: HealthStatus
     message: Optional[str] = None
-    details: Optional[Dict[str, Any]] = None
+    details: Optional[dict[str, Any]] = None
     duration_seconds: float = 0.0
     timestamp: float = 0.0
 
@@ -62,13 +63,12 @@ class HealthCheck(ABC):
         Returns:
             Resultado do health check
         """
-        pass
 
     def _create_result(
         self,
         status: HealthStatus,
         message: Optional[str] = None,
-        details: Optional[Dict[str, Any]] = None,
+        details: Optional[dict[str, Any]] = None,
         start_time: float = 0.0,
     ) -> HealthCheckResult:
         """Cria resultado padronizado."""
@@ -131,7 +131,7 @@ class DatabaseHealthCheck(HealthCheck):
         except Exception as e:
             return self._create_result(
                 HealthStatus.UNHEALTHY,
-                f"Erro na conexão com database: {str(e)}",
+                f"Erro na conexão com database: {e!s}",
                 start_time=start_time,
             )
 
@@ -183,7 +183,7 @@ class KafkaHealthCheck(HealthCheck):
         except Exception as e:
             return self._create_result(
                 HealthStatus.UNHEALTHY,
-                f"Erro na conexão com Kafka: {str(e)}",
+                f"Erro na conexão com Kafka: {e!s}",
                 start_time=start_time,
             )
 
@@ -251,7 +251,7 @@ class MemoryHealthCheck(HealthCheck):
         except Exception as e:
             return self._create_result(
                 HealthStatus.UNHEALTHY,
-                f"Erro ao verificar memória: {str(e)}",
+                f"Erro ao verificar memória: {e!s}",
                 start_time=start_time,
             )
 
@@ -267,8 +267,8 @@ class HealthChecker:
             config: Configuração de observabilidade
         """
         self.config = config
-        self.checks: Dict[str, HealthCheck] = {}
-        self._last_results: Dict[str, HealthCheckResult] = {}
+        self.checks: dict[str, HealthCheck] = {}
+        self._last_results: dict[str, HealthCheckResult] = {}
         self._lock = threading.Lock()
 
     def register_check(self, check: HealthCheck) -> None:
@@ -289,7 +289,7 @@ class HealthChecker:
 
         logger.info(f"Health checks padrão registrados: {list(self.checks.keys())}")
 
-    async def check_all(self) -> Dict[str, HealthCheckResult]:
+    async def check_all(self) -> dict[str, HealthCheckResult]:
         """
         Executa todos os health checks.
 
@@ -315,7 +315,7 @@ class HealthChecker:
                 result = HealthCheckResult(
                     name=name,
                     status=HealthStatus.UNHEALTHY,
-                    message=f"Erro interno: {str(e)}",
+                    message=f"Erro interno: {e!s}",
                     timestamp=time.time(),
                 )
                 results[name] = result
@@ -349,11 +349,11 @@ class HealthChecker:
             return HealthCheckResult(
                 name=check_name,
                 status=HealthStatus.UNHEALTHY,
-                message=f"Erro interno: {str(e)}",
+                message=f"Erro interno: {e!s}",
                 timestamp=time.time(),
             )
 
-    def get_last_results(self) -> Dict[str, HealthCheckResult]:
+    def get_last_results(self) -> dict[str, HealthCheckResult]:
         """Retorna últimos resultados dos health checks."""
         with self._lock:
             return self._last_results.copy()
@@ -396,7 +396,7 @@ class HealthChecker:
         except Exception as e:
             logger.debug(f"Erro ao atualizar métrica de health: {e}")
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """
         Converte estado atual para dicionário.
 
@@ -471,7 +471,7 @@ class RedisHealthCheck(HealthCheck):
         except Exception as e:
             return self._create_result(
                 HealthStatus.UNHEALTHY,
-                f"Erro ao verificar conexão Redis: {str(e)}",
+                f"Erro ao verificar conexão Redis: {e!s}",
                 start_time=start_time,
             )
 
@@ -526,7 +526,7 @@ class CustomHealthCheck(HealthCheck):
         except Exception as e:
             return self._create_result(
                 HealthStatus.UNHEALTHY,
-                f"Erro no check '{self.name}': {str(e)}",
+                f"Erro no check '{self.name}': {e!s}",
                 start_time=start_time,
             )
 

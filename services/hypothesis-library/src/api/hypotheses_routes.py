@@ -1,7 +1,6 @@
 """Rotas da API para hipóteses."""
 
-import time
-from datetime import datetime, timezone
+from datetime import UTC
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -11,19 +10,19 @@ from src.models.hypothesis import (
     Hypothesis,
     HypothesisCreate,
     HypothesisFilter,
-    HypothesisStatus,
     HypothesisPriority,
-    HypothesisUpdate,
     HypothesisResults,
+    HypothesisStatus,
+    HypothesisUpdate,
 )
 from src.models.hypothesis_version import VersionDiff
 from src.models.workflow import WorkflowTransition
-from src.services.hypothesis_service import HypothesisService
 from src.observability.metrics import hypothesis_metrics
+from src.services.hypothesis_service import HypothesisService
 
 router = APIRouter()
 
-UTC = timezone.utc
+UTC = UTC
 
 
 # Schemas para requests/responses
@@ -32,8 +31,7 @@ class HypothesisResponse(BaseModel):
 
     hypothesis: Hypothesis
     allowed_transitions: list[HypothesisStatus] = Field(
-        default_factory=list,
-        description="Transições permitidas para o status atual"
+        default_factory=list, description="Transições permitidas para o status atual"
     )
 
 
@@ -76,6 +74,7 @@ class StartTestingRequest(BaseModel):
 # CRUD Básico
 # ============================================================================
 
+
 @router.post("", response_model=Hypothesis, status_code=status.HTTP_201_CREATED)
 async def create_hypothesis(
     data: HypothesisCreate,
@@ -95,10 +94,18 @@ async def create_hypothesis(
     hypothesis = await service.create(data, author=author)
 
     # Registrar métrica
-    priority = hypothesis.priority.value if hasattr(hypothesis.priority, 'value') else str(hypothesis.priority)
+    priority = (
+        hypothesis.priority.value
+        if hasattr(hypothesis.priority, "value")
+        else str(hypothesis.priority)
+    )
     hypothesis_metrics.record_hypothesis_created(priority=priority, author=author)
     hypothesis_metrics.update_status_count(
-        status=hypothesis.status.value if hasattr(hypothesis.status, 'value') else str(hypothesis.status),
+        status=(
+            hypothesis.status.value
+            if hasattr(hypothesis.status, "value")
+            else str(hypothesis.status)
+        ),
         count=1,  # Será atualizado por agregação
     )
 
@@ -265,6 +272,7 @@ async def delete_hypothesis(
 # Workflow
 # ============================================================================
 
+
 @router.post("/{hypothesis_id}/propose", response_model=TransitionResponse)
 async def propose_hypothesis(
     hypothesis_id: str,
@@ -317,17 +325,31 @@ async def approve_hypothesis(
         )
 
     # Registrar métricas
-    priority = hypothesis.priority.value if hasattr(hypothesis.priority, 'value') else str(hypothesis.priority)
+    priority = (
+        hypothesis.priority.value
+        if hasattr(hypothesis.priority, "value")
+        else str(hypothesis.priority)
+    )
     hypothesis_metrics.record_hypothesis_approved(priority=priority, reviewer=approved_by)
 
     # Calcular e registrar duração da aprovação
     if hypothesis.created_at and transition.timestamp:
-        approval_duration = (transition.timestamp.replace(tzinfo=UTC) - hypothesis.created_at.replace(tzinfo=UTC)).total_seconds()
+        approval_duration = (
+            transition.timestamp.replace(tzinfo=UTC) - hypothesis.created_at.replace(tzinfo=UTC)
+        ).total_seconds()
         hypothesis_metrics.record_approval_duration(priority, approval_duration)
 
     # Registrar transição
-    from_status = transition.from_status.value if hasattr(transition.from_status, 'value') else str(transition.from_status)
-    to_status = transition.to_status.value if hasattr(transition.to_status, 'value') else str(transition.to_status)
+    from_status = (
+        transition.from_status.value
+        if hasattr(transition.from_status, "value")
+        else str(transition.from_status)
+    )
+    to_status = (
+        transition.to_status.value
+        if hasattr(transition.to_status, "value")
+        else str(transition.to_status)
+    )
     hypothesis_metrics.record_transition(from_status, to_status, approved_by)
 
     return TransitionResponse(hypothesis=hypothesis, transition=transition)
@@ -387,8 +409,16 @@ async def start_testing(
         )
 
     # Registrar transição
-    from_status = transition.from_status.value if hasattr(transition.from_status, 'value') else str(transition.from_status)
-    to_status = transition.to_status.value if hasattr(transition.to_status, 'value') else str(transition.to_status)
+    from_status = (
+        transition.from_status.value
+        if hasattr(transition.from_status, "value")
+        else str(transition.from_status)
+    )
+    to_status = (
+        transition.to_status.value
+        if hasattr(transition.to_status, "value")
+        else str(transition.to_status)
+    )
     hypothesis_metrics.record_transition(from_status, to_status, started_by)
 
     return TransitionResponse(hypothesis=hypothesis, transition=transition)
@@ -431,18 +461,32 @@ async def complete_testing(
         )
 
     # Registrar métricas
-    outcome = results.outcome.value if hasattr(results.outcome, 'value') else str(results.outcome)
+    outcome = results.outcome.value if hasattr(results.outcome, "value") else str(results.outcome)
     hypothesis_metrics.record_hypothesis_tested(outcome=outcome)
 
     # Calcular duração do teste
     if testing_start and transition.timestamp:
-        testing_duration = (transition.timestamp.replace(tzinfo=UTC) - testing_start.replace(tzinfo=UTC)).total_seconds()
-        priority = hypothesis.priority.value if hasattr(hypothesis.priority, 'value') else str(hypothesis.priority)
+        testing_duration = (
+            transition.timestamp.replace(tzinfo=UTC) - testing_start.replace(tzinfo=UTC)
+        ).total_seconds()
+        priority = (
+            hypothesis.priority.value
+            if hasattr(hypothesis.priority, "value")
+            else str(hypothesis.priority)
+        )
         hypothesis_metrics.record_testing_duration(priority, testing_duration)
 
     # Registrar transição
-    from_status = transition.from_status.value if hasattr(transition.from_status, 'value') else str(transition.from_status)
-    to_status = transition.to_status.value if hasattr(transition.to_status, 'value') else str(transition.to_status)
+    from_status = (
+        transition.from_status.value
+        if hasattr(transition.from_status, "value")
+        else str(transition.from_status)
+    )
+    to_status = (
+        transition.to_status.value
+        if hasattr(transition.to_status, "value")
+        else str(transition.to_status)
+    )
     hypothesis_metrics.record_transition(from_status, to_status, completed_by)
 
     return TransitionResponse(hypothesis=hypothesis, transition=transition)
@@ -519,6 +563,7 @@ async def get_transition_history(
 # Versionamento
 # ============================================================================
 
+
 @router.get("/{hypothesis_id}/versions", response_model=VersionResponse)
 async def get_version_history(
     hypothesis_id: str,
@@ -568,6 +613,7 @@ async def compare_versions(
 # ============================================================================
 # Metadata
 # ============================================================================
+
 
 @router.get("/{hypothesis_id}/allowed-transitions")
 async def get_allowed_transitions(

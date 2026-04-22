@@ -5,9 +5,9 @@ Testa avaliação de risco multi-domínio, floor de risco para operações
 destrutivas, e integração com DestructiveDetector.
 """
 
-import pytest
 from unittest.mock import MagicMock, patch
 
+import pytest
 from src.models.cognitive_plan import RiskBand, TaskNode
 from src.services.risk_scorer import RiskScorer
 
@@ -15,7 +15,7 @@ from src.services.risk_scorer import RiskScorer
 class TestRiskScorerMultiDomain:
     """Testes para avaliação multi-domínio"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def settings(self):
         """Mock Settings object"""
         settings = MagicMock()
@@ -28,12 +28,12 @@ class TestRiskScorerMultiDomain:
         settings.destructive_detection_strict_mode = False
         return settings
 
-    @pytest.fixture
+    @pytest.fixture()
     def risk_scorer(self, settings):
         """Create RiskScorer instance"""
         return RiskScorer(settings)
 
-    @pytest.fixture
+    @pytest.fixture()
     def sample_tasks_safe(self):
         """Tasks seguras para teste"""
         return [
@@ -48,7 +48,7 @@ class TestRiskScorerMultiDomain:
             ),
         ]
 
-    @pytest.fixture
+    @pytest.fixture()
     def intermediate_repr(self):
         """Representação intermediária de teste"""
         return {"metadata": {"priority": "high", "security_level": "confidential"}}
@@ -159,7 +159,7 @@ class TestRiskScorerMultiDomain:
 class TestRiskScorerFloorApplication:
     """Testes para aplicação de floor de risco"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def settings(self):
         """Mock Settings object"""
         settings = MagicMock()
@@ -172,7 +172,7 @@ class TestRiskScorerFloorApplication:
         settings.destructive_detection_strict_mode = False
         return settings
 
-    @pytest.fixture
+    @pytest.fixture()
     def risk_scorer(self, settings):
         """Create RiskScorer instance"""
         return RiskScorer(settings)
@@ -211,7 +211,7 @@ class TestRiskScorerFloorApplication:
 class TestRiskScorerDestructiveIntegration:
     """Testes de integração com DestructiveDetector"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def settings(self):
         """Mock Settings object"""
         settings = MagicMock()
@@ -224,12 +224,12 @@ class TestRiskScorerDestructiveIntegration:
         settings.destructive_detection_strict_mode = False
         return settings
 
-    @pytest.fixture
+    @pytest.fixture()
     def risk_scorer(self, settings):
         """Create RiskScorer instance"""
         return RiskScorer(settings)
 
-    @pytest.fixture
+    @pytest.fixture()
     def sample_tasks_destructive(self):
         """Tasks destrutivas para teste"""
         return [
@@ -241,7 +241,7 @@ class TestRiskScorerDestructiveIntegration:
             )
         ]
 
-    @pytest.fixture
+    @pytest.fixture()
     def intermediate_repr(self):
         """Representação intermediária de teste"""
         return {"metadata": {"priority": "medium", "security_level": "internal"}}
@@ -300,7 +300,7 @@ class TestRiskScorerDestructiveIntegration:
 class TestRiskScorerScoreAggregation:
     """Testes para agregação de scores"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def settings(self):
         """Mock Settings object"""
         settings = MagicMock()
@@ -313,7 +313,7 @@ class TestRiskScorerScoreAggregation:
         settings.destructive_detection_strict_mode = False
         return settings
 
-    @pytest.fixture
+    @pytest.fixture()
     def risk_scorer(self, settings):
         """Create RiskScorer instance"""
         return RiskScorer(settings)
@@ -350,7 +350,7 @@ class TestRiskScorerScoreAggregation:
 class TestRiskScorerBackwardCompatibility:
     """Testes de compatibilidade com método score() original"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def settings(self):
         """Mock Settings object"""
         settings = MagicMock()
@@ -363,12 +363,12 @@ class TestRiskScorerBackwardCompatibility:
         settings.destructive_detection_strict_mode = False
         return settings
 
-    @pytest.fixture
+    @pytest.fixture()
     def risk_scorer(self, settings):
         """Create RiskScorer instance"""
         return RiskScorer(settings)
 
-    @pytest.fixture
+    @pytest.fixture()
     def sample_tasks(self):
         """Tasks de teste"""
         return [
@@ -377,7 +377,7 @@ class TestRiskScorerBackwardCompatibility:
             )
         ]
 
-    @pytest.fixture
+    @pytest.fixture()
     def intermediate_repr(self):
         """Representação intermediária de teste"""
         return {"metadata": {"priority": "medium", "security_level": "internal"}}
@@ -416,7 +416,7 @@ class TestRiskScorerBackwardCompatibility:
 class TestRiskScorerLogging:
     """Testes para logging estruturado"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def settings(self):
         """Mock Settings object"""
         settings = MagicMock()
@@ -429,12 +429,12 @@ class TestRiskScorerLogging:
         settings.destructive_detection_strict_mode = False
         return settings
 
-    @pytest.fixture
+    @pytest.fixture()
     def risk_scorer(self, settings):
         """Create RiskScorer instance"""
         return RiskScorer(settings)
 
-    @pytest.fixture
+    @pytest.fixture()
     def sample_tasks(self):
         """Tasks de teste"""
         return [
@@ -443,7 +443,7 @@ class TestRiskScorerLogging:
             )
         ]
 
-    @pytest.fixture
+    @pytest.fixture()
     def intermediate_repr(self):
         """Representação intermediária de teste"""
         return {"metadata": {"priority": "medium", "security_level": "internal"}}
@@ -476,7 +476,7 @@ class TestRiskScorerLogging:
 class TestRiskScorerEdgeCases:
     """Testes para edge cases"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def settings(self):
         """Mock Settings object"""
         settings = MagicMock()
@@ -489,12 +489,12 @@ class TestRiskScorerEdgeCases:
         settings.destructive_detection_strict_mode = False
         return settings
 
-    @pytest.fixture
+    @pytest.fixture()
     def risk_scorer(self, settings):
         """Create RiskScorer instance"""
         return RiskScorer(settings)
 
-    @pytest.fixture
+    @pytest.fixture()
     def intermediate_repr(self):
         """Representação intermediária de teste"""
         return {"metadata": {"priority": "medium", "security_level": "internal"}}
@@ -547,7 +547,7 @@ class TestRiskScorerEdgeCases:
 class TestRiskScorerBandClassification:
     """Testes para classificação de banda de risco"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def settings(self):
         """Mock Settings object"""
         settings = MagicMock()
@@ -560,7 +560,7 @@ class TestRiskScorerBandClassification:
         settings.destructive_detection_strict_mode = False
         return settings
 
-    @pytest.fixture
+    @pytest.fixture()
     def risk_scorer(self, settings):
         """Create RiskScorer instance"""
         return RiskScorer(settings)

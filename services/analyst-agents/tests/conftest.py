@@ -2,11 +2,12 @@
 Conftest para testes do Analyst Agents.
 """
 
-import pytest
-from datetime import datetime, timezone, timedelta
-import sys
 import os
+import sys
+from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock
+
+import pytest
 
 # Set environment variables BEFORE any imports
 os.environ.setdefault("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
@@ -153,24 +154,23 @@ sys.modules["neural_hive_observability.health_checks.clickhouse"] = MagicMock()
 sys.modules["neural_hive_observability.config"] = MagicMock()
 # Mock inject_grpc_context to return empty list
 mock_grpc_instrumentation = MagicMock()
-mock_grpc_instrumentation.inject_grpc_context = lambda: []
+mock_grpc_instrumentation.inject_grpc_context = list
 sys.modules["neural_hive_observability.grpc_instrumentation"] = mock_grpc_instrumentation
 sys.modules["neural_hive_observability.context"] = MagicMock()
 sys.modules["neural_hive_observability.health_checks.clickhouse"] = MagicMock()
 
-from src.models.insight_extended import (
-    InsightCreate,
-    InsightResponse,
-    AnalysisType,
-    InsightSource,
-    InsightStatus,
-    InsightMetadata,
-    InsightMetrics,
-)
-from src.repositories.insight_repository import InsightRepository
-
 # Importar serviços diretamente
 import src.services.timeseries_analyzer as ts_module
+from src.models.insight_extended import (
+    AnalysisType,
+    InsightCreate,
+    InsightMetadata,
+    InsightMetrics,
+    InsightResponse,
+    InsightSource,
+    InsightStatus,
+)
+from src.repositories.insight_repository import InsightRepository
 
 TimeSeriesAnalyzer = ts_module.TimeSeriesAnalyzer
 import src.services.mcp_integration as mcp_module
@@ -178,7 +178,7 @@ import src.services.mcp_integration as mcp_module
 MCPIntegration = mcp_module.MCPIntegration
 
 
-@pytest.fixture
+@pytest.fixture()
 async def mongodb_client():
     """Cliente MongoDB mockado para testes."""
     from unittest.mock import AsyncMock, MagicMock
@@ -246,24 +246,25 @@ async def mongodb_client():
     mock_client = AsyncMock()
     mock_client.__getitem__ = lambda self, name: mock_db
 
-    yield mock_client
+    return mock_client
 
 
-@pytest.fixture
+@pytest.fixture()
 async def test_database(mongodb_client):
     """Database de teste."""
     return mongodb_client["test_analyst_agents"]
 
 
-@pytest.fixture
+@pytest.fixture()
 async def insight_repository(mongodb_client, test_database):
     """Repositório de insights para testes com mock."""
+    import uuid
+    from datetime import datetime, timedelta
     from unittest.mock import MagicMock
-    from datetime import datetime, timezone, timedelta
+
     from src.models.insight_extended import (
         InsightCreate,
     )
-    import uuid
 
     # In-memory storage para testes
     storage = {"insights": {}, "cache": {}}
@@ -282,8 +283,8 @@ async def insight_repository(mongodb_client, test_database):
             doc = insight.model_dump() if hasattr(insight, "model_dump") else insight.dict()
             doc["insight_id"] = str(uuid.uuid4())
             doc["status"] = InsightStatus.PENDING.value
-            doc["created_at"] = datetime.now(timezone.utc)
-            doc["expires_at"] = datetime.now(timezone.utc) + timedelta(days=90)
+            doc["created_at"] = datetime.now(UTC)
+            doc["expires_at"] = datetime.now(UTC) + timedelta(days=90)
             doc["metrics"] = InsightMetrics(
                 processing_time_ms=0, confidence_score=0.0, data_points=0
             ).model_dump()
@@ -356,8 +357,8 @@ async def insight_repository(mongodb_client, test_database):
                 "metric_name": metric_name,
                 "data": copy.copy(data),
                 "statistics": copy.copy(statistics),
-                "created_at": datetime.now(timezone.utc),
-                "expires_at": datetime.now(timezone.utc) + timedelta(hours=24),
+                "created_at": datetime.now(UTC),
+                "expires_at": datetime.now(UTC) + timedelta(hours=24),
             }
             self.storage["cache"][cache_key] = doc
             from src.models.insight_extended import TimeSeriesCacheEntry
@@ -393,10 +394,10 @@ async def insight_repository(mongodb_client, test_database):
                 "top_sources": [],
             }
 
-    yield MockInsightRepository()
+    return MockInsightRepository()
 
 
-@pytest.fixture
+@pytest.fixture()
 def timeseries_analyzer():
     """Analisador de séries temporais para testes."""
     return TimeSeriesAnalyzer(
@@ -406,7 +407,7 @@ def timeseries_analyzer():
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_insight_create():
     """Insight de exemplo para testes."""
     return InsightCreate(
@@ -419,20 +420,20 @@ def sample_insight_create():
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_timeseries_data():
     """Dados de série temporal de exemplo."""
-    base_time = datetime.now(timezone.utc) - timedelta(hours=1)
+    base_time = datetime.now(UTC) - timedelta(hours=1)
     return [(base_time + timedelta(minutes=i * 5), 50.0 + i * 0.5) for i in range(12)]
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_timeseries_with_anomalies():
     """Dados de série temporal com anomalias."""
     import random
 
     random.seed(42)
-    base_time = datetime.now(timezone.utc) - timedelta(hours=1)
+    base_time = datetime.now(UTC) - timedelta(hours=1)
     data = []
     for i in range(20):
         value = random.gauss(50, 5)
@@ -445,7 +446,7 @@ def sample_timeseries_with_anomalies():
     return data
 
 
-@pytest.fixture
+@pytest.fixture()
 async def mcp_integration():
     """Integração MCP para testes."""
     integration = MCPIntegration(

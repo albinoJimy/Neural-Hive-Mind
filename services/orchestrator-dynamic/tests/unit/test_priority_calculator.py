@@ -11,16 +11,16 @@ Cobertura:
 - Normalização de scores
 """
 
-import pytest
-from datetime import datetime, timezone, timedelta
+from datetime import UTC, datetime, timedelta
+from typing import Any
 from unittest.mock import MagicMock
-from typing import Dict, Any
 
-from src.scheduler.priority_calculator import PriorityCalculator
+import pytest
 from src.config.settings import OrchestratorSettings
+from src.scheduler.priority_calculator import PriorityCalculator
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_config_default():
     """Config com pesos padrão."""
     config = MagicMock(spec=OrchestratorSettings)
@@ -28,7 +28,7 @@ def mock_config_default():
     return config
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_config_custom():
     """Config com pesos customizados."""
     config = MagicMock(spec=OrchestratorSettings)
@@ -36,13 +36,13 @@ def mock_config_custom():
     return config
 
 
-@pytest.fixture
-def ticket_critical() -> Dict[str, Any]:
+@pytest.fixture()
+def ticket_critical() -> dict[str, Any]:
     """Ticket com risco crítico, QoS alto, deadline se aproximando."""
-    deadline = datetime.now(timezone.utc) + timedelta(
+    deadline = datetime.now(UTC) + timedelta(
         minutes=6
     )  # 90% do tempo consumido (1h total)
-    created = datetime.now(timezone.utc) - timedelta(minutes=54)
+    created = datetime.now(UTC) - timedelta(minutes=54)
 
     return {
         "ticket_id": "ticket-critical",
@@ -58,11 +58,11 @@ def ticket_critical() -> Dict[str, Any]:
     }
 
 
-@pytest.fixture
-def ticket_low() -> Dict[str, Any]:
+@pytest.fixture()
+def ticket_low() -> dict[str, Any]:
     """Ticket com risco baixo, QoS baixo, deadline segura."""
-    deadline = datetime.now(timezone.utc) + timedelta(minutes=48)  # 20% do tempo consumido
-    created = datetime.now(timezone.utc) - timedelta(minutes=12)
+    deadline = datetime.now(UTC) + timedelta(minutes=48)  # 20% do tempo consumido
+    created = datetime.now(UTC) - timedelta(minutes=12)
 
     return {
         "ticket_id": "ticket-low",
@@ -78,11 +78,11 @@ def ticket_low() -> Dict[str, Any]:
     }
 
 
-@pytest.fixture
-def ticket_deadline_approaching() -> Dict[str, Any]:
+@pytest.fixture()
+def ticket_deadline_approaching() -> dict[str, Any]:
     """Ticket com 90% do SLA consumido."""
-    deadline = datetime.now(timezone.utc) + timedelta(minutes=6)
-    created = datetime.now(timezone.utc) - timedelta(minutes=54)
+    deadline = datetime.now(UTC) + timedelta(minutes=6)
+    created = datetime.now(UTC) - timedelta(minutes=54)
 
     return {
         "ticket_id": "ticket-deadline-approaching",
@@ -98,11 +98,11 @@ def ticket_deadline_approaching() -> Dict[str, Any]:
     }
 
 
-@pytest.fixture
-def ticket_deadline_safe() -> Dict[str, Any]:
+@pytest.fixture()
+def ticket_deadline_safe() -> dict[str, Any]:
     """Ticket com 20% do SLA consumido."""
-    deadline = datetime.now(timezone.utc) + timedelta(minutes=48)
-    created = datetime.now(timezone.utc) - timedelta(minutes=12)
+    deadline = datetime.now(UTC) + timedelta(minutes=48)
+    created = datetime.now(UTC) - timedelta(minutes=12)
 
     return {
         "ticket_id": "ticket-deadline-safe",
@@ -118,10 +118,10 @@ def ticket_deadline_safe() -> Dict[str, Any]:
     }
 
 
-@pytest.fixture
-def ticket_no_deadline() -> Dict[str, Any]:
+@pytest.fixture()
+def ticket_no_deadline() -> dict[str, Any]:
     """Ticket sem deadline explícito."""
-    created = datetime.now(timezone.utc) - timedelta(minutes=30)
+    created = datetime.now(UTC) - timedelta(minutes=30)
 
     return {
         "ticket_id": "ticket-no-deadline",
@@ -173,10 +173,10 @@ class TestPriorityCalculator:
                 "durability": "PERSISTENT",
             },
             "sla": {
-                "deadline": (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat(),
+                "deadline": (datetime.now(UTC) + timedelta(hours=1)).isoformat(),
                 "timeout_ms": 3600000,
             },
-            "created_at": datetime.now(timezone.utc).isoformat(),
+            "created_at": datetime.now(UTC).isoformat(),
         }
 
         score = calculator.calculate_priority_score(ticket)
@@ -197,10 +197,10 @@ class TestPriorityCalculator:
                 "durability": "PERSISTENT",
             },
             "sla": {
-                "deadline": (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat(),
+                "deadline": (datetime.now(UTC) + timedelta(hours=1)).isoformat(),
                 "timeout_ms": 3600000,
             },
-            "created_at": datetime.now(timezone.utc).isoformat(),
+            "created_at": datetime.now(UTC).isoformat(),
         }
 
         score = calculator.calculate_priority_score(ticket)
@@ -286,8 +286,8 @@ class TestPriorityCalculator:
         calculator = PriorityCalculator(mock_config_default)
 
         # Deadline no passado
-        deadline = datetime.now(timezone.utc) - timedelta(minutes=10)
-        created = datetime.now(timezone.utc) - timedelta(hours=2)
+        deadline = datetime.now(UTC) - timedelta(minutes=10)
+        created = datetime.now(UTC) - timedelta(hours=2)
 
         sla = {"deadline": deadline.isoformat(), "timeout_ms": 3600000}
 
@@ -323,11 +323,11 @@ class TestPriorityCalculator:
                 },
                 "sla": {
                     "deadline": (
-                        datetime.now(timezone.utc) - timedelta(hours=1)
+                        datetime.now(UTC) - timedelta(hours=1)
                     ).isoformat(),  # Passado
                     "timeout_ms": 3600000,
                 },
-                "created_at": (datetime.now(timezone.utc) - timedelta(hours=2)).isoformat(),
+                "created_at": (datetime.now(UTC) - timedelta(hours=2)).isoformat(),
             },
             {
                 "risk_band": "low",
@@ -337,10 +337,10 @@ class TestPriorityCalculator:
                     "durability": "EPHEMERAL",
                 },
                 "sla": {
-                    "deadline": (datetime.now(timezone.utc) + timedelta(days=1)).isoformat(),
+                    "deadline": (datetime.now(UTC) + timedelta(days=1)).isoformat(),
                     "timeout_ms": 3600000,
                 },
-                "created_at": datetime.now(timezone.utc).isoformat(),
+                "created_at": datetime.now(UTC).isoformat(),
             },
         ]
 

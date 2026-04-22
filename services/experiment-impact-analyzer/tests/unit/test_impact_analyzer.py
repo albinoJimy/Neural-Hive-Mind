@@ -1,8 +1,9 @@
 """Unit tests for ImpactAnalyzer service."""
 
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from datetime import UTC
+from unittest.mock import AsyncMock, patch
 
+import pytest
 from src.models.impact import (
     ImpactCategory,
     ImpactDirection,
@@ -12,7 +13,7 @@ from src.models.impact import (
 from src.services.impact_analyzer import ImpactAnalyzer
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 class TestImpactAnalyzer:
     """Test suite for ImpactAnalyzer."""
 
@@ -29,11 +30,15 @@ class TestImpactAnalyzer:
         """Test short-term analysis with positive impact."""
         impact_analyzer.mongodb = mock_experiment_data
 
-        with patch.object(impact_analyzer, "_get_post_experiment_metrics", return_value={
-            "error_rate": [0.045, 0.048, 0.046, 0.047, 0.046],
-            "latency_p95": [92.0, 98.0, 95.0, 97.0, 94.0],
-            "throughput": [1050.0, 1020.0, 1040.0, 1030.0, 1045.0],
-        }):
+        with patch.object(
+            impact_analyzer,
+            "_get_post_experiment_metrics",
+            return_value={
+                "error_rate": [0.045, 0.048, 0.046, 0.047, 0.046],
+                "latency_p95": [92.0, 98.0, 95.0, 97.0, 94.0],
+                "throughput": [1050.0, 1020.0, 1040.0, 1030.0, 1045.0],
+            },
+        ):
             short_term = await impact_analyzer._analyze_short_term(
                 experiment_id="test-exp-001",
                 baseline_metrics={"error_rate": 0.05, "latency_p95": 100.0, "throughput": 1000.0},
@@ -59,10 +64,14 @@ class TestImpactAnalyzer:
         """Test short-term analysis with negative impact."""
         impact_analyzer.mongodb = mock_experiment_data
 
-        with patch.object(impact_analyzer, "_get_post_experiment_metrics", return_value={
-            "error_rate": [0.055, 0.058, 0.056, 0.057, 0.056],
-            "latency_p95": [110.0, 115.0, 112.0, 113.0, 111.0],
-        }):
+        with patch.object(
+            impact_analyzer,
+            "_get_post_experiment_metrics",
+            return_value={
+                "error_rate": [0.055, 0.058, 0.056, 0.057, 0.056],
+                "latency_p95": [110.0, 115.0, 112.0, 113.0, 111.0],
+            },
+        ):
             short_term = await impact_analyzer._analyze_short_term(
                 experiment_id="test-exp-002",
                 baseline_metrics={"error_rate": 0.05, "latency_p95": 100.0},
@@ -77,9 +86,7 @@ class TestImpactAnalyzer:
         error_impact = short_term.metric_impacts["error_rate"]
         assert error_impact.relative_change_percent > 0
 
-    async def test_determine_direction_positive(
-        self, impact_analyzer, sample_experiment
-    ):
+    async def test_determine_direction_positive(self, impact_analyzer, sample_experiment):
         """Test determining positive impact direction."""
         from src.models.impact import ShortTermImpact
 
@@ -96,9 +103,7 @@ class TestImpactAnalyzer:
         direction = impact_analyzer._determine_direction(short_term, None)
         assert direction == ImpactDirection.POSITIVE
 
-    async def test_determine_direction_negative(
-        self, impact_analyzer, sample_experiment
-    ):
+    async def test_determine_direction_negative(self, impact_analyzer, sample_experiment):
         """Test determining negative impact direction."""
         from src.models.impact import ShortTermImpact
 
@@ -115,11 +120,9 @@ class TestImpactAnalyzer:
         direction = impact_analyzer._determine_direction(short_term, None)
         assert direction == ImpactDirection.NEGATIVE
 
-    async def test_determine_magnitude_critical(
-        self, impact_analyzer, sample_experiment
-    ):
+    async def test_determine_magnitude_critical(self, impact_analyzer, sample_experiment):
         """Test determining critical impact magnitude."""
-        from src.models.impact import ShortTermImpact, MetricImpact
+        from src.models.impact import MetricImpact, ShortTermImpact
 
         # Create a scenario with multiple large significant changes
         short_term = ShortTermImpact(
@@ -150,9 +153,7 @@ class TestImpactAnalyzer:
         # With 200% and 100% changes, magnitude should be at least HIGH
         assert magnitude in [ImpactMagnitude.CRITICAL, ImpactMagnitude.HIGH, ImpactMagnitude.MEDIUM]
 
-    async def test_determine_magnitude_low(
-        self, impact_analyzer, sample_experiment
-    ):
+    async def test_determine_magnitude_low(self, impact_analyzer, sample_experiment):
         """Test determining low impact magnitude."""
         from src.models.impact import ShortTermImpact
 
@@ -166,9 +167,7 @@ class TestImpactAnalyzer:
         magnitude = impact_analyzer._determine_magnitude(short_term, None)
         assert magnitude == ImpactMagnitude.NEGLIGIBLE
 
-    async def test_determine_categories(
-        self, impact_analyzer, sample_experiment
-    ):
+    async def test_determine_categories(self, impact_analyzer, sample_experiment):
         """Test determining affected categories."""
         from src.models.impact import ShortTermImpact
 
@@ -187,9 +186,7 @@ class TestImpactAnalyzer:
 
         assert len(categories) > 0
 
-    async def test_generate_recommendation_positive(
-        self, impact_analyzer
-    ):
+    async def test_generate_recommendation_positive(self, impact_analyzer):
         """Test recommendation generation for positive impact."""
         recommendation = impact_analyzer._generate_recommendation(
             direction=ImpactDirection.POSITIVE,
@@ -200,9 +197,7 @@ class TestImpactAnalyzer:
 
         assert "PROMOTE" in recommendation or "ACCEPT" in recommendation
 
-    async def test_generate_recommendation_negative(
-        self, impact_analyzer
-    ):
+    async def test_generate_recommendation_negative(self, impact_analyzer):
         """Test recommendation generation for negative impact."""
         recommendation = impact_analyzer._generate_recommendation(
             direction=ImpactDirection.NEGATIVE,
@@ -213,11 +208,9 @@ class TestImpactAnalyzer:
 
         assert "REVERT" in recommendation or "MONITOR" in recommendation
 
-    async def test_calculate_confidence(
-        self, impact_analyzer, sample_experiment
-    ):
+    async def test_calculate_confidence(self, impact_analyzer, sample_experiment):
         """Test confidence level calculation."""
-        from src.models.impact import ShortTermImpact, MetricImpact
+        from src.models.impact import MetricImpact, ShortTermImpact
 
         short_term = ShortTermImpact(
             timeframe_days=7,
@@ -247,11 +240,15 @@ class TestImpactAnalyzer:
         impact_analyzer.mongodb = mock_experiment_data
 
         with patch.object(impact_analyzer, "_get_experiment_data", return_value=sample_experiment):
-            with patch.object(impact_analyzer, "_get_post_experiment_metrics", return_value={
-                "error_rate": [0.045, 0.048, 0.046, 0.047, 0.046],
-                "latency_p95": [92.0, 98.0, 95.0, 97.0, 94.0],
-                "throughput": [1050.0, 1020.0, 1040.0, 1030.0, 1045.0],
-            }):
+            with patch.object(
+                impact_analyzer,
+                "_get_post_experiment_metrics",
+                return_value={
+                    "error_rate": [0.045, 0.048, 0.046, 0.047, 0.046],
+                    "latency_p95": [92.0, 98.0, 95.0, 97.0, 94.0],
+                    "throughput": [1050.0, 1020.0, 1040.0, 1030.0, 1045.0],
+                },
+            ):
                 impact = await impact_analyzer.analyze_experiment_impact(
                     experiment_id="test-exp-001",
                     timeframes=[ImpactTimeframe.SHORT_TERM],
@@ -261,18 +258,12 @@ class TestImpactAnalyzer:
 
         assert impact is not None
         assert impact.experiment_id == "test-exp-001"
-        assert impact.overall_direction in [
-            d for d in ImpactDirection
-        ]
-        assert impact.overall_magnitude in [
-            m for m in ImpactMagnitude
-        ]
+        assert impact.overall_direction in [d for d in ImpactDirection]
+        assert impact.overall_magnitude in [m for m in ImpactMagnitude]
         assert 0.0 <= impact.confidence_level <= 1.0
         assert len(impact.recommendation) > 0
 
-    async def test_analyze_experiment_not_found(
-        self, impact_analyzer, mock_experiment_data
-    ):
+    async def test_analyze_experiment_not_found(self, impact_analyzer, mock_experiment_data):
         """Test analyzing non-existent experiment."""
         impact_analyzer.mongodb = mock_experiment_data
         mock_experiment_data.get_experiment = AsyncMock(return_value=None)
@@ -289,17 +280,20 @@ class TestImpactAnalyzer:
         impact_analyzer.mongodb = mock_experiment_data
 
         # Simulate degrading metrics
-        mock_experiment_data.get_metrics_history = AsyncMock(return_value=[
-            {"metric_name": "error_rate", "value": 0.05, "timestamp": "2024-01-01"},
-            {"metric_name": "error_rate", "value": 0.055, "timestamp": "2024-01-02"},
-            {"metric_name": "error_rate", "value": 0.06, "timestamp": "2024-01-03"},
-            {"metric_name": "error_rate", "value": 0.065, "timestamp": "2024-01-04"},
-            {"metric_name": "error_rate", "value": 0.07, "timestamp": "2024-01-05"},
-        ])
+        mock_experiment_data.get_metrics_history = AsyncMock(
+            return_value=[
+                {"metric_name": "error_rate", "value": 0.05, "timestamp": "2024-01-01"},
+                {"metric_name": "error_rate", "value": 0.055, "timestamp": "2024-01-02"},
+                {"metric_name": "error_rate", "value": 0.06, "timestamp": "2024-01-03"},
+                {"metric_name": "error_rate", "value": 0.065, "timestamp": "2024-01-04"},
+                {"metric_name": "error_rate", "value": 0.07, "timestamp": "2024-01-05"},
+            ]
+        )
 
         # Use actual timestamp from sample experiment
-        from datetime import datetime, timezone
-        UTC = timezone.utc
+        from datetime import datetime
+
+        UTC = UTC
         created_at = datetime.fromtimestamp(sample_experiment["created_at"] / 1000, tz=UTC)
 
         long_term = await impact_analyzer._analyze_long_term(
@@ -313,25 +307,25 @@ class TestImpactAnalyzer:
         # work perfectly with just 5 data points, so we check the result exists
         assert long_term.trend_analysis is not None
 
-    async def test_analyze_correlations(
-        self, impact_analyzer, mock_experiment_data
-    ):
+    async def test_analyze_correlations(self, impact_analyzer, mock_experiment_data):
         """Test experiment correlation analysis."""
         impact_analyzer.mongodb = mock_experiment_data
 
         # Mock correlated experiments
-        mock_experiment_data.find_correlated_experiments = AsyncMock(return_value=[
-            {
-                "experiment_id": "test-exp-002",
-                "categories": ["performance", "reliability"],
-                "overall_direction": "positive",
-            },
-            {
-                "experiment_id": "test-exp-003",
-                "categories": ["performance"],
-                "overall_direction": "negative",
-            },
-        ])
+        mock_experiment_data.find_correlated_experiments = AsyncMock(
+            return_value=[
+                {
+                    "experiment_id": "test-exp-002",
+                    "categories": ["performance", "reliability"],
+                    "overall_direction": "positive",
+                },
+                {
+                    "experiment_id": "test-exp-003",
+                    "categories": ["performance"],
+                    "overall_direction": "negative",
+                },
+            ]
+        )
 
         correlations = await impact_analyzer._analyze_correlations(
             experiment_id="test-exp-001",

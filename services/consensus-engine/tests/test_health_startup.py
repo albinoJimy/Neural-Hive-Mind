@@ -3,12 +3,13 @@ Testes do endpoint /health/startup para Kubernetes startupProbe.
 
 Este teste verifica que o endpoint de startup está funcionando corretamente.
 """
-import sys
+
 import os
+import sys
+from datetime import datetime
+from enum import Enum
 from pathlib import Path
 from unittest.mock import MagicMock
-from datetime import datetime, timezone
-from enum import Enum
 
 # Configurar variáveis de ambiente mínimas para Settings não falhar
 # Precisa ser ANTES de qualquer import do projeto
@@ -21,6 +22,7 @@ os.environ["ENVIRONMENT"] = "test"
 src_path = Path(__file__).parent.parent / "src"
 if str(src_path) not in sys.path:
     sys.path.insert(0, str(src_path))
+
 
 # Mocks necessários antes de importar o app
 # Mock de domain
@@ -95,7 +97,6 @@ sys.modules["specialist_pb2_grpc"] = mock_specialist_pb2_grpc
 
 import pytest
 from fastapi.testclient import TestClient
-
 
 # Importar app uma só vez no nível do módulo
 # Para evitar re-imports com Settings já validados

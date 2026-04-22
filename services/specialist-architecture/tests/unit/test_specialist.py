@@ -1,9 +1,9 @@
 """Testes unitários para ArchitectureSpecialist - Métodos de Análise."""
 
-import sys
 import os
+import sys
+
 import pytest
-from typing import Dict, List
 
 # Configurar paths
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "src"))
@@ -13,7 +13,7 @@ class ArchitectureAnalysisTestHelper:
     """Helper class para testar métodos de análise de arquitetura."""
 
     @staticmethod
-    def analyze_design_patterns(tasks: List[Dict]) -> float:
+    def analyze_design_patterns(tasks: list[dict]) -> float:
         """Implementação do método de análise de design patterns."""
         if not tasks:
             return 0.5
@@ -68,7 +68,7 @@ class ArchitectureAnalysisTestHelper:
         return max(0.0, min(1.0, score))
 
     @staticmethod
-    def analyze_solid_principles(tasks: List[Dict], cognitive_plan: Dict) -> float:
+    def analyze_solid_principles(tasks: list[dict], cognitive_plan: dict) -> float:
         """Implementação do método de análise de princípios SOLID."""
         if not tasks:
             return 0.5
@@ -122,7 +122,7 @@ class ArchitectureAnalysisTestHelper:
         return max(0.0, min(1.0, indicator_score))
 
     @staticmethod
-    def analyze_coupling_cohesion(tasks: List[Dict]) -> float:
+    def analyze_coupling_cohesion(tasks: list[dict]) -> float:
         """Implementação do método de análise de acoplamento e coesão."""
         if not tasks:
             return 0.5
@@ -161,7 +161,7 @@ class ArchitectureAnalysisTestHelper:
         return max(0.0, min(1.0, coupling_cohesion_score))
 
     @staticmethod
-    def analyze_separation_of_concerns(tasks: List[Dict]) -> float:
+    def analyze_separation_of_concerns(tasks: list[dict]) -> float:
         """Implementação do método de análise de separação de concerns."""
         if not tasks:
             return 0.5
@@ -196,7 +196,7 @@ class ArchitectureAnalysisTestHelper:
         return max(0.0, min(1.0, separation_score))
 
     @staticmethod
-    def analyze_modularity(tasks: List[Dict]) -> float:
+    def analyze_modularity(tasks: list[dict]) -> float:
         """Implementação do método de análise de modularidade."""
         if not tasks:
             return 0.5
@@ -246,7 +246,7 @@ class ArchitectureAnalysisTestHelper:
             return "conditional"
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_cognitive_plan():
     return {
         "plan_id": "arch-plan-123",

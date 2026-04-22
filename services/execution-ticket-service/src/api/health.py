@@ -1,6 +1,6 @@
 """Health check endpoints."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Request, Response, status
 from fastapi.responses import JSONResponse
@@ -106,5 +106,5 @@ async def startup_check():
         "status": "started",
         "service": "execution-ticket-service",
         "version": settings.service_version if hasattr(settings, "service_version") else "1.0.0",
-        "started_at": datetime.now(timezone.utc).isoformat(),
+        "started_at": datetime.now(UTC).isoformat(),
     }

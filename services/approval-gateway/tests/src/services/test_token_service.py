@@ -1,14 +1,7 @@
 """Testes unitários para TokenService."""
 
-import pytest
-from datetime import datetime, timedelta
 
-from src.services.token_service import (
-    TokenService,
-    TokenPair,
-    TokenPayload,
-    get_token_service
-)
+from src.services.token_service import TokenPair, TokenPayload, TokenService, get_token_service
 
 
 class TestTokenService:
@@ -179,9 +172,11 @@ class TestTokenService:
     def test_token_expiration(self):
         """Testa que token expirado é rejeitado."""
         import time
+
         service = TokenService()
         # Criar token expirado (timestamp no passado)
         import jwt
+
         now_ts = int(time.time())
         expired_payload = {
             "sub": "user-123",
@@ -189,12 +184,10 @@ class TestTokenService:
             "iat": now_ts - 7200,  # criado há 2 horas
             "jti": "test-jti",
             "type": "access",
-            "permissions": []
+            "permissions": [],
         }
         expired_token = jwt.encode(
-            expired_payload,
-            service._secret_key,
-            algorithm=service._algorithm
+            expired_payload, service._secret_key, algorithm=service._algorithm
         )
 
         payload = service.verify_access_token(expired_token)

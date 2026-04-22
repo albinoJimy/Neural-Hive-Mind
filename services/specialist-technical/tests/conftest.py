@@ -1,16 +1,17 @@
 """Configuração pytest para specialist-technical."""
 
-import sys
 import os
-import pytest
+import sys
 from unittest.mock import MagicMock
+
+import pytest
 
 # Adicionar paths para importação
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 sys.path.insert(0, "/app/libraries/python")
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_specialist_config():
     """Configuração mock do especialista."""
     config = MagicMock()
@@ -26,7 +27,7 @@ def mock_specialist_config():
     return config
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_mlflow_client():
     """Cliente MLflow mock."""
     client = MagicMock()
@@ -37,7 +38,7 @@ def mock_mlflow_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_cognitive_plan():
     """Plano cognitivo de exemplo."""
     return {
@@ -73,7 +74,7 @@ def sample_cognitive_plan():
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_opinion():
     """Opinião de especialista de exemplo."""
     return {

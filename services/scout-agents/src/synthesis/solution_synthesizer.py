@@ -11,7 +11,7 @@ Responsável por:
 
 import json
 from collections import defaultdict
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 import structlog
 
@@ -29,7 +29,7 @@ class SolutionSynthesizer:
         "prioritization": "by_severity_then_impact",
     }
 
-    def __init__(self, strategies: Optional[Dict[str, Any]] = None):
+    def __init__(self, strategies: Optional[dict[str, Any]] = None):
         """
         Inicializa o SolutionSynthesizer.
 
@@ -38,7 +38,7 @@ class SolutionSynthesizer:
         """
         self.synthesis_strategies = strategies or dict(self.DEFAULT_STRATEGIES)
 
-    def synthesize(self, source_data: Dict[str, Any], format: str = "dict") -> Dict[str, Any]:
+    def synthesize(self, source_data: dict[str, Any], format: str = "dict") -> dict[str, Any]:
         """
         Sintetiza dados de uma única fonte.
 
@@ -73,8 +73,8 @@ class SolutionSynthesizer:
         return self._format_output(result, format)
 
     def synthesize_multiple(
-        self, sources: List[Dict[str, Any]], format: str = "dict"
-    ) -> Dict[str, Any]:
+        self, sources: list[dict[str, Any]], format: str = "dict"
+    ) -> dict[str, Any]:
         """
         Sintetiza dados de múltiplas fontes.
 
@@ -150,7 +150,7 @@ class SolutionSynthesizer:
 
         return self._format_output(result, format)
 
-    def _merge_patterns(self, all_patterns: Dict[str, List[Dict]]) -> List[Dict[str, Any]]:
+    def _merge_patterns(self, all_patterns: dict[str, list[dict]]) -> list[dict[str, Any]]:
         """Mescla padrões de múltiplas fontes."""
         merged = []
 
@@ -187,7 +187,7 @@ class SolutionSynthesizer:
         merged.sort(key=lambda x: x["count"], reverse=True)
         return merged
 
-    def _generate_summary(self, source_data: Dict[str, Any]) -> str:
+    def _generate_summary(self, source_data: dict[str, Any]) -> str:
         """Gera resumo dos dados da fonte."""
         parts = []
 
@@ -208,7 +208,7 @@ class SolutionSynthesizer:
 
         return ". ".join(parts) if parts else "Analysis completed"
 
-    def generate_recommendations(self, data: Dict[str, Any]) -> List[Dict[str, Any]]:
+    def generate_recommendations(self, data: dict[str, Any]) -> list[dict[str, Any]]:
         """Gera recomendações baseadas nos dados analisados."""
         recommendations = []
 
@@ -263,8 +263,8 @@ class SolutionSynthesizer:
         return effort_map.get(severity.lower(), "medium")
 
     def _prioritize_recommendations(
-        self, recommendations: List[Dict[str, Any]]
-    ) -> List[Dict[str, Any]]:
+        self, recommendations: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
         """Prioriza recomendações por severidade e esforço."""
         # Adicionar score de prioridade
         for rec in recommendations:
@@ -284,7 +284,7 @@ class SolutionSynthesizer:
 
         return recommendations
 
-    def generate_actionable_insights(self, data: Dict[str, Any]) -> Dict[str, Any]:
+    def generate_actionable_insights(self, data: dict[str, Any]) -> dict[str, Any]:
         """Gera insights acionáveis a partir dos dados."""
         effort = "medium"
         # Tentar extrair effort dos dados
@@ -332,7 +332,7 @@ class SolutionSynthesizer:
 
         return insights
 
-    def calculate_quality_metrics(self, sources: List[Dict[str, Any]]) -> Dict[str, Any]:
+    def calculate_quality_metrics(self, sources: list[dict[str, Any]]) -> dict[str, Any]:
         """Calcula métricas de qualidade da síntese."""
         metrics = {"coverage": 0.0, "confidence_distribution": {"high": 0, "medium": 0, "low": 0}}
 
@@ -368,7 +368,7 @@ class SolutionSynthesizer:
 
         return metrics
 
-    def _format_output(self, data: Dict[str, Any], format: str) -> Any:
+    def _format_output(self, data: dict[str, Any], format: str) -> Any:
         """Formata a saída conforme especificado."""
         if format == "json":
             return json.dumps(data, indent=2, default=str)
@@ -376,7 +376,7 @@ class SolutionSynthesizer:
             return self._to_markdown(data)
         return data
 
-    def _to_markdown(self, data: Dict[str, Any]) -> str:
+    def _to_markdown(self, data: dict[str, Any]) -> str:
         """Converte dados para formato Markdown."""
         lines = ["# Scout Analysis Report\n"]
 

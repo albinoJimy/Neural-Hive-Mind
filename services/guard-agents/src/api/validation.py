@@ -2,7 +2,7 @@
 API REST para validação manual e consulta de validações de segurança.
 """
 
-from typing import List, Optional
+from typing import Optional
 
 import structlog
 from fastapi import APIRouter, HTTPException, Query, Request
@@ -36,7 +36,7 @@ class ValidationStatistics(BaseModel):
     rejected_count: int
     pending_approval_count: int
     approval_rate: float
-    top_violations: List[dict]
+    top_violations: list[dict]
     avg_risk_score: float
 
 

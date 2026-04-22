@@ -4,14 +4,14 @@ Testes de API REST para Leader Election
 Testa endpoints de consulta de estado da eleição.
 """
 
-import pytest
-from httpx import AsyncClient
 from unittest.mock import AsyncMock, MagicMock
 
-from src.services.leader_election import NodeRole, ElectionState
+import pytest
+from httpx import AsyncClient
+from src.services.leader_election import ElectionState, NodeRole
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_app_state():
     """Mock app state"""
     state = MagicMock()
@@ -32,7 +32,7 @@ def mock_app_state():
     return state
 
 
-@pytest.fixture
+@pytest.fixture()
 def app(mock_app_state):
     """Fixture FastAPI app"""
     from fastapi import FastAPI
@@ -47,7 +47,7 @@ def app(mock_app_state):
 class TestElectionStatusEndpoint:
     """Testes do endpoint /api/v1/election/status"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_election_status_leader(self, app, async_client: AsyncClient):
         """Testa obtenção de status quando é líder"""
         app.state.app_state.leader_election.get_state.return_value = ElectionState(
@@ -62,7 +62,7 @@ class TestElectionStatusEndpoint:
         assert data["is_leader"] is True
         assert data["term"] == 1
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_election_status_follower(self, app, async_client: AsyncClient):
         """Testa obtenção de status quando é follower"""
         app.state.app_state.leader_election.get_state.return_value = ElectionState(
@@ -77,7 +77,7 @@ class TestElectionStatusEndpoint:
         assert data["is_leader"] is False
         assert data["leader_id"] == "other-node"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_election_status_disabled(self, app, async_client: AsyncClient):
         """Testa resposta quando election está desabilitado"""
         app.state.app_state.leader_election = None
@@ -90,7 +90,7 @@ class TestElectionStatusEndpoint:
 class TestLeaderInfoEndpoint:
     """Testes do endpoint /api/v1/election/leader"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_leader_info(self, async_client: AsyncClient):
         """Testa obtenção de informações do líder"""
         response = await async_client.get("/api/v1/election/leader")
@@ -101,7 +101,7 @@ class TestLeaderInfoEndpoint:
         assert data["term"] == 1
         assert data["acquired_at"] == "2024-01-01T00:00:00"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_leader_info_no_leader(self, app, async_client: AsyncClient):
         """Testa resposta quando não há líder"""
         app.state.app_state.leader_election.get_leader_metadata = AsyncMock(return_value={})
@@ -116,7 +116,7 @@ class TestLeaderInfoEndpoint:
 class TestLeaderHeartbeatEndpoint:
     """Testes do endpoint /api/v1/election/leader/heartbeat"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_leader_heartbeat(self, async_client: AsyncClient):
         """Testa obtenção de heartbeat do líder"""
         response = await async_client.get("/api/v1/election/leader/heartbeat")
@@ -130,7 +130,7 @@ class TestLeaderHeartbeatEndpoint:
 class TestResignLeadershipEndpoint:
     """Testes do endpoint POST /api/v1/election/resign"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_resign_leadership_as_leader(self, async_client: AsyncClient):
         """Testa renúncia de liderança quando é líder"""
         response = await async_client.post("/api/v1/election/resign")
@@ -139,7 +139,7 @@ class TestResignLeadershipEndpoint:
         data = response.json()
         assert data["message"] == "Leadership resigned successfully"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_resign_leadership_as_follower(self, app, async_client: AsyncClient):
         """Testa tentativa de renúncia quando não é líder"""
         app.state.app_state.leader_election.is_leader.return_value = False

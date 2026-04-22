@@ -4,10 +4,11 @@ Testes para Migration 004 - Seniority History.
 Verifica que a migration cria corretamente a colecao e indices.
 """
 
-import pytest
-from unittest.mock import AsyncMock, MagicMock
-from pathlib import Path
 import sys
+from pathlib import Path
+from unittest.mock import AsyncMock, MagicMock
+
+import pytest
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
@@ -16,7 +17,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 class TestM004SeniorityHistory:
     """Testes unitarios para migration m004_seniority_history."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_m004_creates_collection(self):
         """Verifica que migration cria colecao seniority_history."""
         from src.database.migrations.m004_seniority_history import upgrade
@@ -31,7 +32,7 @@ class TestM004SeniorityHistory:
         db = mongo_client["neural_hive"]
         db.create_collection.assert_called_once_with("seniority_history")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_m004_creates_indexes(self):
         """Verifica indices criados."""
         from src.database.migrations.m004_seniority_history import upgrade
@@ -63,7 +64,7 @@ class TestM004SeniorityHistory:
         assert calls[2][0][0] == [("changed_at", 1)]
         assert calls[2][1]["name"] == "changed_at_1"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_m004_downgrade_drops_collection(self):
         """Verifica que downgrade remove a colecao."""
         from src.database.migrations.m004_seniority_history import downgrade
@@ -78,7 +79,7 @@ class TestM004SeniorityHistory:
         db = mongo_client["neural_hive"]
         db.drop_collection.assert_called_once_with("seniority_history")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_verify_schema(self):
         """Verifica verificação de schema."""
         from src.database.migrations.m004_seniority_history import verify_schema

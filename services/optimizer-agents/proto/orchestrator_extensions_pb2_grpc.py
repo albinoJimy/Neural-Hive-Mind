@@ -24,7 +24,7 @@ if _version_not_supported:
     )
 
 
-class OrchestratorOptimizationStub(object):
+class OrchestratorOptimizationStub:
     """Extensões propostas para orchestrator.proto
     Estas extensões permitem ao Optimizer Agents ajustar SLOs dinamicamente
 
@@ -74,7 +74,7 @@ class OrchestratorOptimizationStub(object):
                 _registered_method=True)
 
 
-class OrchestratorOptimizationServicer(object):
+class OrchestratorOptimizationServicer:
     """Extensões propostas para orchestrator.proto
     Estas extensões permitem ao Optimizer Agents ajustar SLOs dinamicamente
 
@@ -176,7 +176,7 @@ def add_OrchestratorOptimizationServicer_to_server(servicer, server):
 
 
  # This class is part of an EXPERIMENTAL API.
-class OrchestratorOptimization(object):
+class OrchestratorOptimization:
     """Extensões propostas para orchestrator.proto
     Estas extensões permitem ao Optimizer Agents ajustar SLOs dinamicamente
 

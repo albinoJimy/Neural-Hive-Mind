@@ -3,19 +3,20 @@ Testes para RedisStateStore.
 Compartilhamento de estado via Redis.
 """
 
-import pytest
 import json
 from unittest.mock import AsyncMock, MagicMock
+
+import pytest
 from src.coordination.redis_state_store import RedisStateStore
 
 
-@pytest.fixture
+@pytest.fixture()
 def state_store():
     """Instância de RedisStateStore para testes."""
     return RedisStateStore(redis_url="redis://localhost:6379/15", key_prefix="test_scout", ttl=60)
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_redis():
     """Mock de cliente Redis."""
     mock = AsyncMock()
@@ -40,14 +41,14 @@ def mock_redis():
 class TestConnection:
     """Testes de conexão com Redis."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_start_without_redis(self, state_store):
         """Testa start sem Redis disponível."""
         # Redis pode não estar disponível em testes
         await state_store.start()
         # Não deve lançar exceção
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_stop(self, state_store, mock_redis):
         """Testa fechamento de conexão."""
         state_store._redis = mock_redis
@@ -59,7 +60,7 @@ class TestConnection:
 class TestTaskProgress:
     """Testes de progresso de tarefa."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_set_and_get_task_progress(self, state_store, mock_redis):
         """Testa armazenar e recuperar progresso."""
         state_store._redis = mock_redis
@@ -81,7 +82,7 @@ class TestTaskProgress:
         assert result["scout_id"] == "scout_1"
         assert result["progress"] == progress
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_nonexistent_task(self, state_store, mock_redis):
         """Testa buscar tarefa inexistente."""
         state_store._redis = mock_redis
@@ -95,7 +96,7 @@ class TestTaskProgress:
 class TestExploredFiles:
     """Testes de arquivos explorados."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_mark_and_check_file(self, state_store, mock_redis):
         """Testa marcar e verificar arquivo explorado."""
         state_store._redis = mock_redis
@@ -107,7 +108,7 @@ class TestExploredFiles:
 
         assert is_explored is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_check_unexplored_file(self, state_store, mock_redis):
         """Testa verificar arquivo não explorado."""
         state_store._redis = mock_redis
@@ -121,7 +122,7 @@ class TestExploredFiles:
 class TestLocks:
     """Testes de locks."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_acquire_and_release_lock(self, state_store, mock_redis):
         """Testa adquirir e liberar lock."""
         state_store._redis = mock_redis
@@ -137,7 +138,7 @@ class TestLocks:
 
         mock_redis.delete.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_lock_already_held(self, state_store, mock_redis):
         """Testa lock já segurado por outro."""
         state_store._redis = mock_redis
@@ -152,7 +153,7 @@ class TestLocks:
 class TestDiscoveries:
     """Testes de descobertas."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_publish_and_get_discoveries(self, state_store, mock_redis):
         """Testa publicar e recuperar descobertas."""
         state_store._redis = mock_redis
@@ -174,7 +175,7 @@ class TestDiscoveries:
 class TestScoutState:
     """Testes de estado de scout."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_set_and_get_scout_state(self, state_store, mock_redis):
         """Testa armazenar e recuperar estado."""
         state_store._redis = mock_redis
@@ -193,7 +194,7 @@ class TestScoutState:
 class TestCounters:
     """Testes de contadores compartilhados."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_increment_counter(self, state_store, mock_redis):
         """Testa incrementar contador."""
         state_store._redis = mock_redis
@@ -204,7 +205,7 @@ class TestCounters:
         assert new_value == 5
         mock_redis.incrby.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_counter(self, state_store, mock_redis):
         """Testa obter contador."""
         state_store._redis = mock_redis
@@ -230,7 +231,7 @@ class TestMakeKey:
 class TestFallbackBehavior:
     """Testes de comportamento fallback sem Redis."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_acquire_lock_fallback(self, state_store):
         """Testa lock sem Redis (fallback)."""
         state_store._redis = None
@@ -240,7 +241,7 @@ class TestFallbackBehavior:
         # Sem Redis, sempre retorna True
         assert acquired is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_counter_fallback(self, state_store):
         """Testa contador sem Redis (fallback)."""
         state_store._redis = None

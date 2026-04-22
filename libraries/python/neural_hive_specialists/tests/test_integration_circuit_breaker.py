@@ -3,11 +3,12 @@ Testes de integração para circuit breakers.
 Valida transições de estado, buffer flush, e fallback com cache expirado.
 """
 
-import pytest
 import time
 import uuid
-from datetime import datetime, timezone
-from unittest.mock import patch, MagicMock
+from datetime import UTC, datetime
+from unittest.mock import MagicMock, patch
+
+import pytest
 from pymongo.errors import ConnectionFailure
 
 from neural_hive_specialists.config import SpecialistConfig
@@ -15,7 +16,7 @@ from neural_hive_specialists.ledger_client import LedgerClient
 from neural_hive_specialists.mlflow_client import MLflowClient
 
 
-@pytest.mark.integration
+@pytest.mark.integration()
 def test_ledger_circuit_breaker_opens_on_failures(mongodb_uri):
     """Valida abertura de circuit breaker após múltiplas falhas no Ledger."""
     config = SpecialistConfig(
@@ -49,7 +50,7 @@ def test_ledger_circuit_breaker_opens_on_failures(mongodb_uri):
         "suggested_mitigations": [],
         "explainability_token": "token-123",
         "processing_time_ms": 100.0,
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
         "metadata": {},
     }
 
@@ -67,7 +68,7 @@ def test_ledger_circuit_breaker_opens_on_failures(mongodb_uri):
     assert buffer_size > 0
 
 
-@pytest.mark.integration
+@pytest.mark.integration()
 def test_ledger_circuit_breaker_recovery_and_buffer_flush(mongodb_uri):
     """Valida recuperação de circuit breaker e flush de buffer ao reconectar."""
     config = SpecialistConfig(
@@ -106,7 +107,7 @@ def test_ledger_circuit_breaker_recovery_and_buffer_flush(mongodb_uri):
                 "suggested_mitigations": [],
                 "explainability_token": f"token-{i}",
                 "processing_time_ms": 100.0,
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
                 "metadata": {},
             }
             ledger.save_opinion_with_fallback(opinion)
@@ -134,7 +135,7 @@ def test_ledger_circuit_breaker_recovery_and_buffer_flush(mongodb_uri):
         "suggested_mitigations": [],
         "explainability_token": "token-recovery",
         "processing_time_ms": 100.0,
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
         "metadata": {},
     }
 
@@ -147,7 +148,7 @@ def test_ledger_circuit_breaker_recovery_and_buffer_flush(mongodb_uri):
     assert buffer_size == 0  # Buffer vazio após flush
 
 
-@pytest.mark.integration
+@pytest.mark.integration()
 def test_mlflow_circuit_breaker_expired_cache_fallback(mocker):
     """Valida fallback para cache expirado quando circuit breaker está aberto."""
     config = SpecialistConfig(
@@ -197,7 +198,7 @@ def test_mlflow_circuit_breaker_expired_cache_fallback(mocker):
         assert mlflow_client.used_expired_cache_recently is True
 
 
-@pytest.mark.integration
+@pytest.mark.integration()
 def test_circuit_breaker_half_open_transition(mongodb_uri):
     """Valida transição half-open -> closed após sucesso."""
     config = SpecialistConfig(
@@ -236,7 +237,7 @@ def test_circuit_breaker_half_open_transition(mongodb_uri):
                 "suggested_mitigations": [],
                 "explainability_token": f"token-{i}",
                 "processing_time_ms": 100.0,
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
                 "metadata": {},
             }
             ledger.save_opinion_with_fallback(opinion)
@@ -262,7 +263,7 @@ def test_circuit_breaker_half_open_transition(mongodb_uri):
         "suggested_mitigations": [],
         "explainability_token": "token-test",
         "processing_time_ms": 100.0,
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
         "metadata": {},
     }
 
@@ -274,7 +275,7 @@ def test_circuit_breaker_half_open_transition(mongodb_uri):
     assert ledger._circuit_breaker_state in ["half-open", "closed"]
 
 
-@pytest.mark.integration
+@pytest.mark.integration()
 def test_ledger_buffer_overflow_handling(mongodb_uri):
     """Valida comportamento quando buffer atinge capacidade máxima."""
     config = SpecialistConfig(
@@ -310,7 +311,7 @@ def test_ledger_buffer_overflow_handling(mongodb_uri):
             "suggested_mitigations": [],
             "explainability_token": f"token-{i}",
             "processing_time_ms": 100.0,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "metadata": {},
         }
         ledger.save_opinion_with_fallback(opinion)
@@ -320,7 +321,7 @@ def test_ledger_buffer_overflow_handling(mongodb_uri):
     assert buffer_size <= 5
 
 
-@pytest.mark.integration
+@pytest.mark.integration()
 def test_circuit_breaker_metrics_tracking(mongodb_uri, mocker):
     """Valida rastreamento de métricas durante transições de circuit breaker."""
     mock_metrics = mocker.MagicMock()
@@ -358,7 +359,7 @@ def test_circuit_breaker_metrics_tracking(mongodb_uri, mocker):
             "suggested_mitigations": [],
             "explainability_token": f"token-{i}",
             "processing_time_ms": 100.0,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "metadata": {},
         }
         ledger.save_opinion_with_fallback(opinion)

@@ -8,29 +8,29 @@ Valida que o modelo atende aos critérios mínimos de performance:
 - False Positive Rate < 10%
 """
 
-import pytest
+import sys
+from datetime import UTC, datetime, timedelta
+from pathlib import Path
+from unittest.mock import AsyncMock, MagicMock
+
 import numpy as np
 import pandas as pd
-from datetime import datetime, timezone, timedelta
-from unittest.mock import AsyncMock, MagicMock
-from sklearn.metrics import precision_score, recall_score, f1_score, confusion_matrix
-
-import sys
-from pathlib import Path
+import pytest
+from sklearn.metrics import confusion_matrix, f1_score, precision_score, recall_score
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
 from ml.anomaly_training_utils import (
+    _apply_heuristic_labels,
     prepare_anomaly_training_data,
     validate_anomaly_training_data,
-    _apply_heuristic_labels,
 )
 
 
 class TestAnomalyDetectorAccuracy:
     """Testes de acurácia para AnomalyDetector."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_config(self):
         """Configuração mock."""
         config = MagicMock()
@@ -42,14 +42,14 @@ class TestAnomalyDetectorAccuracy:
         config.ml_validation_precision_threshold = 0.75
         return config
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_mongodb(self):
         """Cliente MongoDB mock."""
         mongodb = MagicMock()
         mongodb.db = MagicMock()
         return mongodb
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_model_registry(self):
         """ModelRegistry mock."""
         registry = AsyncMock()
@@ -58,7 +58,7 @@ class TestAnomalyDetectorAccuracy:
         registry.promote_model = AsyncMock()
         return registry
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_metrics(self):
         """Métricas mock."""
         metrics = MagicMock()
@@ -68,7 +68,7 @@ class TestAnomalyDetectorAccuracy:
         metrics.record_ml_anomaly = MagicMock()
         return metrics
 
-    @pytest.fixture
+    @pytest.fixture()
     def sample_tickets_with_anomalies(self):
         """Gera tickets de exemplo com anomalias conhecidas."""
         np.random.seed(42)
@@ -97,7 +97,7 @@ class TestAnomalyDetectorAccuracy:
                     "actual_duration_ms": duration,
                     "estimated_duration_ms": duration * np.random.uniform(0.8, 1.2),
                     "status": "COMPLETED",
-                    "created_at": datetime.now(timezone.utc)
+                    "created_at": datetime.now(UTC)
                     - timedelta(days=np.random.randint(1, 30)),
                     "retry_count": np.random.choice([0, 0, 0, 1]),  # Maioria sem retry
                     "required_capabilities": ["cpu"][: np.random.randint(1, 3)],
@@ -126,7 +126,7 @@ class TestAnomalyDetectorAccuracy:
                 "task_type": task_type,
                 "risk_band": risk_band,
                 "status": "COMPLETED" if np.random.random() > 0.3 else "FAILED",
-                "created_at": datetime.now(timezone.utc) - timedelta(days=np.random.randint(1, 30)),
+                "created_at": datetime.now(UTC) - timedelta(days=np.random.randint(1, 30)),
                 "parameters": {},
                 "sla_timeout_ms": 300000,
                 "resource_cpu": 0.5,
@@ -165,7 +165,7 @@ class TestAnomalyDetectorAccuracy:
         np.random.shuffle(tickets)
         return tickets
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_precision_threshold(self, sample_tickets_with_anomalies):
         """
         Testa se Precision está acima de 75%.
@@ -205,7 +205,7 @@ class TestAnomalyDetectorAccuracy:
         print("Threshold: 75%")
         print("Status: PASS ✓")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_recall_threshold(self, sample_tickets_with_anomalies):
         """
         Testa se Recall está acima de 60%.
@@ -243,7 +243,7 @@ class TestAnomalyDetectorAccuracy:
         print("Threshold: 60%")
         print("Status: PASS ✓")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_f1_score_threshold(self, sample_tickets_with_anomalies):
         """
         Testa se F1 Score está acima de 0.65.
@@ -279,7 +279,7 @@ class TestAnomalyDetectorAccuracy:
         print("Threshold: 0.65")
         print("Status: PASS ✓")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_false_positive_rate(self, sample_tickets_with_anomalies):
         """
         Testa se False Positive Rate está abaixo de 10%.
@@ -318,7 +318,7 @@ class TestAnomalyDetectorAccuracy:
         print("Threshold: < 10%")
         print("Status: PASS ✓")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_synthetic_anomaly_detection(self, sample_tickets_with_anomalies):
         """
         Testa detecção de anomalias sintéticas conhecidas.

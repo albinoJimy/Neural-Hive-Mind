@@ -5,9 +5,10 @@ This module provides parametrized fixtures for testing executors
 with different client configurations and modes.
 """
 
-import pytest
-from typing import Dict, Optional
+from typing import Optional
 from unittest.mock import AsyncMock
+
+import pytest
 
 from neural_hive_integration.clients.code_forge_client import PipelineStatus
 
@@ -18,7 +19,7 @@ def create_pipeline_status(
     stage: str = "deploy",
     duration_ms: int = 30000,
     artifacts: Optional[list] = None,
-    sbom: Optional[Dict] = None,
+    sbom: Optional[dict] = None,
     signature: Optional[str] = None,
 ) -> PipelineStatus:
     """Create a PipelineStatus for testing."""
@@ -181,61 +182,61 @@ def create_mock_checkov_client(
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_code_forge_success():
     """Mock Code Forge client that succeeds."""
     return create_mock_code_forge_client(status="completed")
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_code_forge_failed():
     """Mock Code Forge client where pipeline fails."""
     return create_mock_code_forge_client(status="failed")
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_code_forge_timeout():
     """Mock Code Forge client that times out."""
     return create_mock_code_forge_client(status="timeout")
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_code_forge_connection_error():
     """Mock Code Forge client that fails with connection error."""
     return create_mock_code_forge_client(should_fail=True)
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_code_forge_retry_success():
     """Mock Code Forge client that fails twice then succeeds."""
     return create_mock_code_forge_client(should_fail=True, fail_after_retries=2)
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_github_actions_success():
     """Mock GitHub Actions client that succeeds."""
     return create_mock_github_actions_client(success=True)
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_github_actions_failed():
     """Mock GitHub Actions client where workflow fails."""
     return create_mock_github_actions_client(success=False, tests_failed=5)
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_github_actions_connection_error():
     """Mock GitHub Actions client that fails with connection error."""
     return create_mock_github_actions_client(should_fail=True)
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_sonarqube_success():
     """Mock SonarQube client that passes."""
     return create_mock_sonarqube_client(passed=True)
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_sonarqube_failed():
     """Mock SonarQube client with issues."""
     return create_mock_sonarqube_client(
@@ -244,13 +245,13 @@ def mock_sonarqube_failed():
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_snyk_success():
     """Mock Snyk client that passes."""
     return create_mock_snyk_client(passed=True)
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_snyk_failed():
     """Mock Snyk client with vulnerabilities."""
     return create_mock_snyk_client(
@@ -259,13 +260,13 @@ def mock_snyk_failed():
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_checkov_success():
     """Mock Checkov client that passes."""
     return create_mock_checkov_client(passed=True)
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_checkov_failed():
     """Mock Checkov client with findings."""
     return create_mock_checkov_client(

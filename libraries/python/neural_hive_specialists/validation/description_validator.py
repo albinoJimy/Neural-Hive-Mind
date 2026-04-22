@@ -10,9 +10,9 @@ Este módulo é compartilhado entre:
 - ml_pipelines/training (geração de datasets)
 """
 
-import re
 import logging
-from typing import Dict, List, Optional, Any
+import re
+from typing import Any, Optional
 
 # Usar logging padrão para compatibilidade entre contextos
 logger = logging.getLogger(__name__)
@@ -23,7 +23,7 @@ class DescriptionQualityValidator:
 
     # Keywords específicas por domínio para validação de qualidade
     # Expandidas com sinônimos para melhor matching de descrições geradas por LLM
-    DOMAIN_KEYWORDS: Dict[str, List[str]] = {
+    DOMAIN_KEYWORDS: dict[str, list[str]] = {
         "security-analysis": [
             # Keywords originais
             "auth",
@@ -227,7 +227,7 @@ class DescriptionQualityValidator:
     }
 
     # Keywords por nível de segurança
-    SECURITY_KEYWORDS: Dict[str, List[str]] = {
+    SECURITY_KEYWORDS: dict[str, list[str]] = {
         "confidential": [
             "encrypt",
             "auth",
@@ -257,7 +257,7 @@ class DescriptionQualityValidator:
     }
 
     # Keywords de QoS
-    QOS_KEYWORDS: Dict[str, List[str]] = {
+    QOS_KEYWORDS: dict[str, list[str]] = {
         "exactly_once": [
             "idempotent",
             "transaction",
@@ -292,7 +292,7 @@ class DescriptionQualityValidator:
 
     def _compile_patterns(self):
         """Compila padrões regex para matching de keywords."""
-        self._domain_patterns: Dict[str, List[re.Pattern]] = {}
+        self._domain_patterns: dict[str, list[re.Pattern]] = {}
         for domain, keywords in self.DOMAIN_KEYWORDS.items():
             self._domain_patterns[domain] = [
                 re.compile(rf"\b{kw}\w*\b", re.IGNORECASE) for kw in keywords
@@ -304,7 +304,7 @@ class DescriptionQualityValidator:
         domain: str,
         security_level: Optional[str] = None,
         qos: Optional[str] = None,
-    ) -> Dict:
+    ) -> dict:
         """
         Valida uma descrição de tarefa e retorna métricas de qualidade.
 
@@ -321,7 +321,7 @@ class DescriptionQualityValidator:
                 - suggestions: List[str] com dicas de melhoria
                 - metrics: Dict com scores detalhados
         """
-        issues: List[str] = []
+        issues: list[str] = []
 
         # Calcular métricas individuais
         length_score, length_issues = self._score_length(description)
@@ -399,9 +399,9 @@ class DescriptionQualityValidator:
 
     def validate_plan_descriptions(
         self,
-        cognitive_plan: Dict[str, Any],
+        cognitive_plan: dict[str, Any],
         min_quality_score: float = 0.5,  # Reduzido de 0.6 para 0.5 para maior taxa de aceitação
-    ) -> Dict:
+    ) -> dict:
         """
         Valida qualidade de todas as descrições em um cognitive plan.
 
@@ -651,7 +651,7 @@ class DescriptionQualityValidator:
         length_score: float,
         diversity_score: float,
         domain_score: float,
-    ) -> List[str]:
+    ) -> list[str]:
         """Gera sugestões acionáveis para melhoria."""
         suggestions = []
 
@@ -679,7 +679,7 @@ class DescriptionQualityValidator:
 
         return suggestions
 
-    def suggest_improvements(self, description: str, context: Dict) -> str:
+    def suggest_improvements(self, description: str, context: dict) -> str:
         """
         Gera uma versão melhorada de uma descrição pobre.
 
@@ -762,7 +762,7 @@ class DescriptionQualityValidator:
 
         return f"{objective.capitalize()} and process data"
 
-    def _summarize_entities(self, entities: List[Dict]) -> str:
+    def _summarize_entities(self, entities: list[dict]) -> str:
         """Resume entidades para contexto da descrição."""
         if not entities:
             return ""

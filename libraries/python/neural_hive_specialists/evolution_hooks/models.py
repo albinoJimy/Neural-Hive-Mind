@@ -6,10 +6,11 @@ do Evolution Specialist, incluindo fingerprints de planos, registros de
 padrões, avaliações e feedback.
 """
 
-from datetime import datetime, timezone
-from typing import Dict, List, Optional, Any
-from pydantic import BaseModel, Field, field_validator, ConfigDict
+from datetime import UTC, datetime
 from enum import Enum
+from typing import Any, Optional
+
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class TaskCountRange(str, Enum):
@@ -40,7 +41,7 @@ class Fingerprint(BaseModel):
     domain: str = Field(..., description="Domínio do plano")
     priority: str = Field(..., description="Prioridade: low, normal, high")
     task_count_range: TaskCountRange = Field(..., description="Range de contagem de tarefas")
-    task_types: List[str] = Field(default_factory=list, description="Tipos únicos de tarefas")
+    task_types: list[str] = Field(default_factory=list, description="Tipos únicos de tarefas")
     avg_dependency_count: float = Field(ge=0, description="Média de dependências")
     has_conditional_deps: bool = Field(default=False, description="Tem dependências condicionais?")
     estimated_duration_range: DurationRange = Field(default=DurationRange.MEDIUM)
@@ -73,11 +74,11 @@ class EvolutionEvaluation(BaseModel):
     recommendation: str = Field(
         ..., description="Recomendação: approve, reject, review_required, conditional"
     )
-    weights_used: Dict[str, float] = Field(
+    weights_used: dict[str, float] = Field(
         default_factory=lambda: DEFAULT_WEIGHTS.copy(),
         description="Pesos utilizados nesta avaliação",
     )
-    reasoning_factors: List[Dict[str, Any]] = Field(
+    reasoning_factors: list[dict[str, Any]] = Field(
         default_factory=list, description="Fatores de raciocínio detalhados"
     )
 
@@ -104,7 +105,7 @@ class PatternMetrics(BaseModel):
     times_matched: int = Field(default=0, ge=0, description="Vezes usado como similar")
     success_rate: float = Field(default=0.5, ge=0, le=1, description="Taxa de sucesso")
     last_updated: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc), description="Última atualização"
+        default_factory=lambda: datetime.now(UTC), description="Última atualização"
     )
 
 
@@ -135,9 +136,9 @@ class FeedbackData(BaseModel):
     source: FeedbackSource = Field(..., description="Origem do feedback")
     reasoning: Optional[str] = Field(None, description="Justificativa do feedback")
     timestamp: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc), description="Timestamp do feedback"
+        default_factory=lambda: datetime.now(UTC), description="Timestamp do feedback"
     )
-    corrected_weights: Optional[Dict[str, float]] = Field(
+    corrected_weights: Optional[dict[str, float]] = Field(
         None, description="Pesos corrigidos após feedback (se aplicável)"
     )
 
@@ -159,10 +160,10 @@ class PatternRecord(BaseModel):
         default_factory=PatternMetrics, description="Métricas de aprendizado"
     )
     created_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc), description="Timestamp de criação"
+        default_factory=lambda: datetime.now(UTC), description="Timestamp de criação"
     )
     updated_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc),
+        default_factory=lambda: datetime.now(UTC),
         description="Timestamp da última atualização",
     )
 

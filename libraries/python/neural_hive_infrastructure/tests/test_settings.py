@@ -5,14 +5,14 @@ from pydantic import ValidationError
 
 from neural_hive_infrastructure import (
     BaseInfrastructureSettings,
+    GRPCSettings,
     KafkaSettings,
     MongoDBSettings,
-    RedisSettings,
+    ObservabilitySettings,
     OpenTelemetrySettings,
-    GRPCSettings,
+    RedisSettings,
     SPIFFESettings,
     VaultSettings,
-    ObservabilitySettings,
     get_settings,
 )
 
@@ -246,7 +246,7 @@ class TestVaultSettings:
         """Test fail-open validation in production."""
         # This test requires environment to be set in the parent model
         # For standalone VaultSettings, it checks environment from data
-        pass  # Validated when used within BaseInfrastructureSettings
+        # Validated when used within BaseInfrastructureSettings
 
 
 class TestObservabilitySettings:
@@ -285,4 +285,3 @@ class TestGetSettings:
     def test_force_reload(self):
         """Test force_reload parameter."""
         # Test implementation would require mocking
-        pass

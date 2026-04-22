@@ -7,8 +7,8 @@ e despachando alertas para múltiplos canais.
 
 import asyncio
 import uuid
-from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List, Optional
+from datetime import UTC, datetime, timedelta
+from typing import Any, Optional
 
 import structlog
 
@@ -56,8 +56,8 @@ class AlertEngine:
         self._monitoring_task: Optional[asyncio.Task] = None
 
         # Cache de regras e alertas
-        self._rules: Dict[str, AlertRule] = {}
-        self._last_alert_times: Dict[str, datetime] = {}
+        self._rules: dict[str, AlertRule] = {}
+        self._last_alert_times: dict[str, datetime] = {}
 
     async def start(self):
         """Inicia o motor de alertas."""
@@ -100,13 +100,13 @@ class AlertEngine:
 
         while self._running:
             try:
-                start_time = datetime.now(timezone.utc)
+                start_time = datetime.now(UTC)
 
                 # Executar ciclo de monitoramento
                 await self._monitoring_cycle()
 
                 # Calcular duração e esperar próximo ciclo
-                duration = (datetime.now(timezone.utc) - start_time).total_seconds()
+                duration = (datetime.now(UTC) - start_time).total_seconds()
                 sleep_time = max(0, self.check_interval_seconds - duration)
 
                 await asyncio.sleep(sleep_time)
@@ -222,7 +222,7 @@ class AlertEngine:
             details=details,
             slo_id=budget.slo_id,
             service_name=budget.service_name,
-            triggered_at=datetime.now(timezone.utc),
+            triggered_at=datetime.now(UTC),
         )
 
         # Despachar para canais configurados
@@ -242,7 +242,7 @@ class AlertEngine:
         await self.postgresql_client.save_alert(alert)
 
         # Atualizar última trigger da regra
-        self._last_alert_times[rule.rule_id] = datetime.now(timezone.utc)
+        self._last_alert_times[rule.rule_id] = datetime.now(UTC)
         await self._update_rule_last_triggered(rule.rule_id)
 
         self.logger.info(
@@ -257,7 +257,7 @@ class AlertEngine:
 
     def _create_alert_message(
         self, rule: AlertRule, budget: ErrorBudget
-    ) -> tuple[str, str, Dict[str, Any]]:
+    ) -> tuple[str, str, dict[str, Any]]:
         """Cria mensagem de alerta."""
         # Lidar com condition_type que pode ser enum ou string
         condition_type_value = rule.condition.condition_type
@@ -366,11 +366,11 @@ class AlertEngine:
             return False
 
         cooldown_until = last_triggered + timedelta(minutes=rule.cooldown_minutes)
-        return datetime.now(timezone.utc) < cooldown_until
+        return datetime.now(UTC) < cooldown_until
 
     async def _update_rule_last_triggered(self, rule_id: str):
         """Atualiza timestamp da última trigger da regra."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         await self.redis_client.client.setex(
             f"alert:last_triggered:{rule_id}", 86400, now.isoformat()  # 24 horas
         )
@@ -400,7 +400,7 @@ class AlertEngine:
                 severity=AlertSeverity.CRITICAL,
                 channels=[AlertChannel.SLACK, AlertChannel.ALERTMANAGER],
                 cooldown_minutes=30,
-                created_at=datetime.now(timezone.utc),
+                created_at=datetime.now(UTC),
             ),
             AlertRule(
                 rule_id="budget-exhausted",
@@ -413,7 +413,7 @@ class AlertEngine:
                 severity=AlertSeverity.EMERGENCY,
                 channels=[AlertChannel.SLACK, AlertChannel.PAGERDUTY, AlertChannel.ALERTMANAGER],
                 cooldown_minutes=15,
-                created_at=datetime.now(timezone.utc),
+                created_at=datetime.now(UTC),
             ),
             AlertRule(
                 rule_id="burn-rate-critical",
@@ -427,7 +427,7 @@ class AlertEngine:
                 severity=AlertSeverity.CRITICAL,
                 channels=[AlertChannel.SLACK],
                 cooldown_minutes=60,
-                created_at=datetime.now(timezone.utc),
+                created_at=datetime.now(UTC),
             ),
             AlertRule(
                 rule_id="status-warning",
@@ -440,7 +440,7 @@ class AlertEngine:
                 severity=AlertSeverity.WARNING,
                 channels=[AlertChannel.SLACK],
                 cooldown_minutes=120,
-                created_at=datetime.now(timezone.utc),
+                created_at=datetime.now(UTC),
             ),
             AlertRule(
                 rule_id="violations-high",
@@ -453,7 +453,7 @@ class AlertEngine:
                 severity=AlertSeverity.WARNING,
                 channels=[AlertChannel.SLACK],
                 cooldown_minutes=180,
-                created_at=datetime.now(timezone.utc),
+                created_at=datetime.now(UTC),
             ),
         ]
 
@@ -463,7 +463,7 @@ class AlertEngine:
     async def _cleanup_old_alerts(self):
         """Remove alertas antigos do banco."""
         try:
-            cutoff = datetime.now(timezone.utc) - timedelta(days=self.retention_days)
+            cutoff = datetime.now(UTC) - timedelta(days=self.retention_days)
             # TODO: Implementar cleanup_alerts no PostgreSQLClient
             # await self.postgresql_client.cleanup_alerts(cutoff)
             self.logger.debug("old_alerts_cleaned", cutoff=cutoff.isoformat())
@@ -480,7 +480,7 @@ class AlertEngine:
         if not rule.rule_id:
             rule.rule_id = f"rule-{uuid.uuid4().hex[:8]}"
 
-        rule.created_at = datetime.now(timezone.utc)
+        rule.created_at = datetime.now(UTC)
         self._rules[rule.rule_id] = rule
 
         # TODO: Persistir no banco
@@ -488,7 +488,7 @@ class AlertEngine:
 
         return rule
 
-    async def update_rule(self, rule_id: str, updates: Dict[str, Any]) -> Optional[AlertRule]:
+    async def update_rule(self, rule_id: str, updates: dict[str, Any]) -> Optional[AlertRule]:
         """Atualiza uma regra existente."""
         rule = self._rules.get(rule_id)
         if not rule:
@@ -499,7 +499,7 @@ class AlertEngine:
             if hasattr(rule, key):
                 setattr(rule, key, value)
 
-        rule.updated_at = datetime.now(timezone.utc)
+        rule.updated_at = datetime.now(UTC)
 
         # TODO: Persistir no banco
         self.logger.info("alert_rule_updated", rule_id=rule_id)
@@ -515,7 +515,7 @@ class AlertEngine:
             return True
         return False
 
-    async def list_rules(self) -> List[AlertRule]:
+    async def list_rules(self) -> list[AlertRule]:
         """Lista todas as regras."""
         return list(self._rules.values())
 
@@ -529,7 +529,7 @@ class AlertEngine:
         severity: Optional[AlertSeverity] = None,
         slo_id: Optional[str] = None,
         service_name: Optional[str] = None,
-    ) -> List[Alert]:
+    ) -> list[Alert]:
         """Lista alertas com filtros."""
         # TODO: Implementar list_alerts no PostgreSQLClient
         return []

@@ -5,6 +5,7 @@ Define metricas customizadas para observabilidade do servico de aprovacoes.
 """
 
 import asyncio
+from datetime import UTC
 
 import structlog
 from prometheus_client import Counter, Gauge, Histogram
@@ -197,7 +198,7 @@ class NeuralHiveMetrics:
             return
 
         async def _do_update():
-            from datetime import datetime, timezone
+            from datetime import datetime
 
             try:
                 # Usa agregacao para contar pendentes por risk_band
@@ -237,14 +238,14 @@ class NeuralHiveMetrics:
                     length=10
                 )
 
-                now = datetime.now(timezone.utc)
+                now = datetime.now(UTC)
                 for item in age_results:
                     risk_band = item["_id"]
                     oldest = item.get("oldest_requested_at")
                     if oldest:
                         # Calcula idade em segundos
                         if oldest.tzinfo is None:
-                            oldest = oldest.replace(tzinfo=timezone.utc)
+                            oldest = oldest.replace(tzinfo=UTC)
                         age_seconds = (now - oldest).total_seconds()
                         approval_requests_max_pending_age_seconds.labels(risk_band=risk_band).set(
                             age_seconds
@@ -269,4 +270,3 @@ class NeuralHiveMetrics:
 def register_metrics():
     """Registra todas as metricas customizadas"""
     # Metricas sao auto-registradas com prometheus_client
-    pass

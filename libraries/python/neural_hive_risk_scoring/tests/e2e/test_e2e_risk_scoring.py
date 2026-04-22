@@ -7,25 +7,23 @@ incluindo integração com todas as camadas da biblioteca.
 
 import asyncio
 import time
-from datetime import datetime, timezone
-from typing import Dict, Any, List
-import pytest
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
-from risk_scoring.engine import RiskScoringEngine, RiskScoringMetrics
-from risk_scoring.config import RiskScoringConfig, RiskBand
-from risk_scoring.models import RiskAssessment, RiskMatrixConfig
-from risk_scoring.history import RiskHistoryManager
+import pytest
 from risk_scoring.alerts import RiskAlertManager
 from risk_scoring.calculator import RiskCalculator
+from risk_scoring.config import RiskScoringConfig
+from risk_scoring.engine import RiskScoringEngine
 from risk_scoring.ensemble import RiskEnsemble
-
+from risk_scoring.history import RiskHistoryManager
+from risk_scoring.models import RiskMatrixConfig
 
 # ========== FIXTURES ==========
 
 
-@pytest.fixture
-def sample_domain_data() -> Dict[str, Any]:
+@pytest.fixture()
+def sample_domain_data() -> dict[str, Any]:
     """Dados de domínio de exemplo para testes E2E."""
     return {
         "domain_id": "test_domain_001",
@@ -40,8 +38,8 @@ def sample_domain_data() -> Dict[str, Any]:
     }
 
 
-@pytest.fixture
-def sample_votes() -> List[Dict[str, Any]]:
+@pytest.fixture()
+def sample_votes() -> list[dict[str, Any]]:
     """Votos de especialistas de exemplo para testes E2E."""
     return [
         {
@@ -87,7 +85,7 @@ def sample_votes() -> List[Dict[str, Any]]:
     ]
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_mongodb_client():
     """Mock client MongoDB para testes E2E."""
     client = AsyncMock()
@@ -128,7 +126,7 @@ def mock_mongodb_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def risk_engine(mock_mongodb_client) -> RiskScoringEngine:
     """Engine de risk scoring configurada para testes E2E."""
     config = RiskScoringConfig(
@@ -150,14 +148,14 @@ def risk_engine(mock_mongodb_client) -> RiskScoringEngine:
 class TestE2ERiskScoringPipeline:
     """Testes E2E do pipeline completo de risk scoring."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_complete_assessment_flow(self, risk_engine, sample_domain_data, sample_votes):
         """Testa fluxo completo de avaliação de risco."""
         # Executar avaliação completa
         assessment = await risk_engine.assess_risk(
             domain_data=sample_domain_data,
             votes=sample_votes,
-            context={"request_id": "e2e_test_001"}
+            context={"request_id": "e2e_test_001"},
         )
 
         # Validar estrutura da resposta
@@ -168,35 +166,32 @@ class TestE2ERiskScoringPipeline:
         assert assessment.risk_band in ["VERY_LOW", "LOW", "MEDIUM", "HIGH", "CRITICAL"]
         assert assessment.timestamp is not None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_ensemble_scoring_flow(self, sample_votes):
         """Testa fluxo de scoring ensemble com múltiplos métodos."""
-        config = RiskScoringConfig(
-            enable_ensemble=True,
-            ensemble_method="weighted_average"
-        )
+        config = RiskScoringConfig(enable_ensemble=True, ensemble_method="weighted_average")
         engine = RiskScoringEngine(config)
 
         assessment = await engine.assess_risk(
             domain_data={"domain_id": "test_ensemble"},
             votes=sample_votes,
-            context={"use_ensemble": True}
+            context={"use_ensemble": True},
         )
 
         assert assessment.risk_score is not None
         # Ensemble deve produzir score consistente
         assert 0.0 <= assessment.risk_score <= 1.0
 
-    @pytest.mark.asyncio
-    async def test_history_tracking_flow(self, risk_engine, sample_domain_data, sample_votes, mock_mongodb_client):
+    @pytest.mark.asyncio()
+    async def test_history_tracking_flow(
+        self, risk_engine, sample_domain_data, sample_votes, mock_mongodb_client
+    ):
         """Testa fluxo de rastreamento histórico de avaliações."""
         decision_id = "e2e_history_001"
 
         # Primeira avaliação
         assessment1 = await risk_engine.assess_risk(
-            domain_data=sample_domain_data,
-            votes=sample_votes,
-            context={"decision_id": decision_id}
+            domain_data=sample_domain_data, votes=sample_votes, context={"decision_id": decision_id}
         )
 
         # Simular mudança no domínio
@@ -205,16 +200,14 @@ class TestE2ERiskScoringPipeline:
 
         # Segunda avaliação
         assessment2 = await risk_engine.assess_risk(
-            domain_data=sample_domain_data,
-            votes=sample_votes,
-            context={"decision_id": decision_id}
+            domain_data=sample_domain_data, votes=sample_votes, context={"decision_id": decision_id}
         )
 
         # Histórico deve capturar evolução
         assert assessment1.decision_id == decision_id
         assert assessment2.decision_id == decision_id
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_alert_generation_flow(self, risk_engine, sample_domain_data):
         """Testa fluxo de geração de alertas baseado em risco."""
         # Criar cenário de alto risco
@@ -235,16 +228,14 @@ class TestE2ERiskScoringPipeline:
         ]
 
         assessment = await risk_engine.assess_risk(
-            domain_data=high_risk_data,
-            votes=high_risk_votes,
-            context={"trigger_alerts": True}
+            domain_data=high_risk_data, votes=high_risk_votes, context={"trigger_alerts": True}
         )
 
         # Alto risco deve gerar alerta
         assert assessment.risk_score >= 0.7
         assert assessment.risk_band in ["HIGH", "CRITICAL"]
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_metrics_recording_flow(self, risk_engine, sample_votes):
         """Testa fluxo de registro de métricas Prometheus."""
         # Acessar métricas
@@ -257,7 +248,7 @@ class TestE2ERiskScoringPipeline:
             await risk_engine.assess_risk(
                 domain_data={"domain_id": f"test_metrics_{i}"},
                 votes=sample_votes,
-                context={"iteration": i}
+                context={"iteration": i},
             )
 
         # Verificar que métricas foram incrementadas
@@ -268,7 +259,7 @@ class TestE2ERiskScoringPipeline:
 class TestE2ERiskBands:
     """Testes E2E de bandas de risco."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_very_low_risk_band(self, risk_engine):
         """Testa banda VERY_LOW para cenário de baixo risco."""
         low_risk_data = {
@@ -292,15 +283,12 @@ class TestE2ERiskBands:
             for i in range(5)
         ]
 
-        assessment = await risk_engine.assess_risk(
-            domain_data=low_risk_data,
-            votes=low_risk_votes
-        )
+        assessment = await risk_engine.assess_risk(domain_data=low_risk_data, votes=low_risk_votes)
 
         assert assessment.risk_band == "VERY_LOW"
         assert assessment.risk_score < 0.2
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_critical_risk_band(self, risk_engine):
         """Testa banda CRITICAL para cenário de risco crítico."""
         critical_data = {
@@ -324,10 +312,7 @@ class TestE2ERiskBands:
             for i in range(5)
         ]
 
-        assessment = await risk_engine.assess_risk(
-            domain_data=critical_data,
-            votes=critical_votes
-        )
+        assessment = await risk_engine.assess_risk(domain_data=critical_data, votes=critical_votes)
 
         assert assessment.risk_band == "CRITICAL"
         assert assessment.risk_score >= 0.8
@@ -336,7 +321,7 @@ class TestE2ERiskBands:
 class TestE2EIntegration:
     """Testes E2E de integração entre componentes."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_calculator_ensemble_integration(self, sample_votes):
         """Testa integração entre Calculator e Ensemble."""
         config = RiskScoringConfig()
@@ -348,15 +333,15 @@ class TestE2EIntegration:
 
         # Ensemble deve refinar scores
         ensemble = RiskEnsemble(config)
-        ensemble_result = await engine._ensemble_scoring(
-            base_score, sample_votes, context={}
-        )
+        ensemble_result = await engine._ensemble_scoring(base_score, sample_votes, context={})
 
         assert ensemble_result is not None
         assert 0.0 <= ensemble_result <= 1.0
 
-    @pytest.mark.asyncio
-    async def test_history_alerts_integration(self, risk_engine, sample_domain_data, mock_mongodb_client):
+    @pytest.mark.asyncio()
+    async def test_history_alerts_integration(
+        self, risk_engine, sample_domain_data, mock_mongodb_client
+    ):
         """Testa integração entre History e Alerts."""
         # Criar alerta manager
         alert_manager = RiskAlertManager(mock_mongodb_client)
@@ -368,14 +353,14 @@ class TestE2EIntegration:
         assessment = await risk_engine.assess_risk(
             domain_data=sample_domain_data,
             votes=sample_votes[:3],  # Menos votos para aumentar variação
-            context={"decision_id": "integration_test"}
+            context={"decision_id": "integration_test"},
         )
 
         # Verificar que componentes foram integrados
         assert assessment.decision_id == "integration_test"
         assert assessment.risk_score is not None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_concurrent_assessments(self, risk_engine, sample_domain_data, sample_votes):
         """Testa avaliações concorrentes (thread safety)."""
         decision_ids = [f"concurrent_{i}" for i in range(10)]
@@ -385,7 +370,7 @@ class TestE2EIntegration:
             risk_engine.assess_risk(
                 domain_data={**sample_domain_data, "domain_id": f"domain_{i}"},
                 votes=sample_votes,
-                context={"decision_id": decision_ids[i]}
+                context={"decision_id": decision_ids[i]},
             )
             for i in range(10)
         ]
@@ -403,20 +388,18 @@ class TestE2EIntegration:
 class TestE2EErrorHandling:
     """Testes E2E de tratamento de erros."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_empty_votes_handling(self, risk_engine, sample_domain_data):
         """Testa tratamento de votos vazios."""
         assessment = await risk_engine.assess_risk(
-            domain_data=sample_domain_data,
-            votes=[],
-            context={"decision_id": "empty_votes"}
+            domain_data=sample_domain_data, votes=[], context={"decision_id": "empty_votes"}
         )
 
         # Deve retornar avaliação com score neutro
         assert assessment.risk_score is not None
         assert assessment.risk_band in ["LOW", "MEDIUM"]
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_malformed_votes_handling(self, risk_engine, sample_domain_data):
         """Testa tratamento de votos malformados."""
         malformed_votes = [
@@ -427,21 +410,19 @@ class TestE2EErrorHandling:
         assessment = await risk_engine.assess_risk(
             domain_data=sample_domain_data,
             votes=malformed_votes,
-            context={"decision_id": "malformed"}
+            context={"decision_id": "malformed"},
         )
 
         # Deve usar valores default e retornar avaliação
         assert assessment is not None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_missing_domain_data_handling(self, risk_engine, sample_votes):
         """Testa tratamento de dados de domínio faltantes."""
         minimal_data = {"domain_id": "minimal"}
 
         assessment = await risk_engine.assess_risk(
-            domain_data=minimal_data,
-            votes=sample_votes,
-            context={"decision_id": "minimal_data"}
+            domain_data=minimal_data, votes=sample_votes, context={"decision_id": "minimal_data"}
         )
 
         # Deve usar valores default
@@ -451,22 +432,21 @@ class TestE2EErrorHandling:
 class TestE2EPerformance:
     """Testes E2E de performance."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_assessment_latency(self, risk_engine, sample_domain_data, sample_votes):
         """Testa latência de avaliação (deve ser < 100ms)."""
         import time
 
         start = time.time()
         assessment = await risk_engine.assess_risk(
-            domain_data=sample_domain_data,
-            votes=sample_votes
+            domain_data=sample_domain_data, votes=sample_votes
         )
         latency_ms = (time.time() - start) * 1000
 
         assert assessment.risk_score is not None
         assert latency_ms < 100, f"Assessment took {latency_ms}ms, expected < 100ms"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_batch_assessments(self, risk_engine, sample_domain_data, sample_votes):
         """Testa desempenho de avaliações em lote."""
         batch_size = 50
@@ -474,8 +454,7 @@ class TestE2EPerformance:
         start = time.time()
         tasks = [
             risk_engine.assess_risk(
-                domain_data={**sample_domain_data, "domain_id": f"batch_{i}"},
-                votes=sample_votes
+                domain_data={**sample_domain_data, "domain_id": f"batch_{i}"}, votes=sample_votes
             )
             for i in range(batch_size)
         ]
@@ -487,19 +466,17 @@ class TestE2EPerformance:
         avg_latency = (total_time / batch_size) * 1000
         assert avg_latency < 50, f"Average latency {avg_latency}ms, expected < 50ms"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_cache_effectiveness(self, risk_engine, sample_domain_data, sample_votes):
         """Testa efetividade do cache interno."""
         # Primeira chamada (cache miss)
         assessment1 = await risk_engine.assess_risk(
-            domain_data=sample_domain_data,
-            votes=sample_votes
+            domain_data=sample_domain_data, votes=sample_votes
         )
 
         # Segunda chamada com mesmos dados (cache hit se implementado)
         assessment2 = await risk_engine.assess_risk(
-            domain_data=sample_domain_data,
-            votes=sample_votes
+            domain_data=sample_domain_data, votes=sample_votes
         )
 
         # Resultados devem ser consistentes

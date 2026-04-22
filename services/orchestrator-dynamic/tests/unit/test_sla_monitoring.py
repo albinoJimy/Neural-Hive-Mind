@@ -5,11 +5,12 @@ Testa a verificação de SLA de workflows, detecção de deadline approaching
 e violações de SLA.
 """
 
-import pytest
 import sys
+from datetime import datetime
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
-from datetime import datetime
+
+import pytest
 
 # Adicionar src ao path
 src_path = str(Path(__file__).parent.parent.parent / "src")
@@ -21,7 +22,7 @@ sys.modules["neural_hive_security"] = MagicMock()
 sys.modules["neural_have_security.cors"] = MagicMock()
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_config():
     """Config mock para testes."""
     config = MagicMock()
@@ -34,7 +35,7 @@ def mock_config():
     return config
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_redis_client():
     """Redis client mock."""
     redis = AsyncMock()
@@ -44,7 +45,7 @@ def mock_redis_client():
     return redis
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_metrics():
     """Metrics mock."""
     metrics = MagicMock()
@@ -55,7 +56,7 @@ def mock_metrics():
     return metrics
 
 
-@pytest.fixture
+@pytest.fixture()
 def sla_monitor(mock_config, mock_redis_client, mock_metrics):
     """SLAMonitor instance para testes."""
     from src.sla.sla_monitor import SLAMonitor
@@ -64,7 +65,7 @@ def sla_monitor(mock_config, mock_redis_client, mock_metrics):
     return monitor
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_ticket_with_sla():
     """Ticket com SLA definido."""
     now_ms = datetime.now().timestamp() * 1000
@@ -76,7 +77,7 @@ def sample_ticket_with_sla():
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_ticket_near_deadline():
     """Ticket próximo do deadline (85% consumido)."""
     now_ms = datetime.now().timestamp() * 1000
@@ -90,7 +91,7 @@ def sample_ticket_near_deadline():
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_tickets_list(sample_ticket_with_sla, sample_ticket_near_deadline):
     """Lista de tickets para verificação de workflow."""
     # check_workflow_sla espera formato {'ticket': {...}}
@@ -100,7 +101,7 @@ def sample_tickets_list(sample_ticket_with_sla, sample_ticket_near_deadline):
 class TestTicketDeadlineCheck:
     """Testes de verificação de deadline de ticket."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_check_ticket_deadline_ok(self, sla_monitor, sample_ticket_with_sla):
         """Deve verificar ticket com tempo suficiente."""
         await sla_monitor.initialize()
@@ -112,7 +113,7 @@ class TestTicketDeadlineCheck:
         assert result["percent_consumed"] < 0.8
         assert result["sla_deadline"] is not None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_check_ticket_deadline_approaching(
         self, sla_monitor, sample_ticket_near_deadline
     ):
@@ -125,7 +126,7 @@ class TestTicketDeadlineCheck:
         assert result["remaining_seconds"] > 0
         assert result["percent_consumed"] >= 0.8
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_check_ticket_without_sla(self, sla_monitor):
         """Deve lidar com ticket sem campos SLA."""
         ticket = {"ticket_id": "ticket-789", "action": "query"}
@@ -137,7 +138,7 @@ class TestTicketDeadlineCheck:
         assert result["remaining_seconds"] == 0
         assert result["sla_deadline"] is None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_check_ticket_missed_deadline(self, sla_monitor):
         """Deve detectar deadline já ultrapassado."""
         now_ms = datetime.now().timestamp() * 1000
@@ -158,7 +159,7 @@ class TestTicketDeadlineCheck:
 class TestWorkflowSlaCheck:
     """Testes de verificação de SLA de workflow."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_check_workflow_sla_compliance(self, sla_monitor, sample_ticket_with_sla):
         """Deve verificar compliance de SLA do workflow."""
         await sla_monitor.initialize()
@@ -173,7 +174,7 @@ class TestWorkflowSlaCheck:
         assert "remaining_seconds" in result
         assert result["deadline_approaching"] is False
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_check_workflow_with_critical_tickets(self, sla_monitor, sample_tickets_list):
         """Deve identificar tickets críticos no workflow."""
         await sla_monitor.initialize()
@@ -186,7 +187,7 @@ class TestWorkflowSlaCheck:
         assert len(result["critical_tickets"]) > 0
         assert "ticket-456" in result["critical_tickets"]
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_check_empty_workflow(self, sla_monitor):
         """Deve lidar com workflow sem tickets."""
         await sla_monitor.initialize()
@@ -200,7 +201,7 @@ class TestWorkflowSlaCheck:
 class TestSlaBreachAlert:
     """Testes de alerta de violação de SLA."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_trigger_sla_breach_alert(self, sla_monitor, sample_ticket_near_deadline):
         """Deve detectar deadline approaching."""
         await sla_monitor.initialize()
@@ -212,7 +213,7 @@ class TestSlaBreachAlert:
         assert result["remaining_seconds"] > 0
         assert result["percent_consumed"] >= 0.8
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_calculate_remaining_time(self, sla_monitor, sample_ticket_with_sla):
         """Deve calcular tempo restante corretamente."""
         await sla_monitor.initialize()

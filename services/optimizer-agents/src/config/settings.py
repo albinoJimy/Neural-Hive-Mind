@@ -264,7 +264,7 @@ class Settings(BaseSettings):
     # Hypothesis Library Configuration
     hypothesis_library_url: str = Field(
         default="http://hypothesis-library.hypothesis-library.svc.cluster.local:8001",
-        description="URL base do Hypothesis Library API"
+        description="URL base do Hypothesis Library API",
     )
 
     @field_validator(

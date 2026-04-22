@@ -1,7 +1,7 @@
 import asyncio
 import time
 from datetime import datetime
-from typing import Any, Optional, Tuple
+from typing import Any, Optional
 
 import structlog
 
@@ -16,7 +16,7 @@ from ..observability.metrics import CodeForgeMetrics
 logger = structlog.get_logger()
 
 
-async def _run_with_timing(coro, validation_type: str, tool_name: str) -> Tuple[Any, int]:
+async def _run_with_timing(coro, validation_type: str, tool_name: str) -> tuple[Any, int]:
     """
     Wrapper que mede o tempo de execução de uma validação.
 

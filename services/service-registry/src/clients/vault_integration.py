@@ -2,7 +2,7 @@
 Cliente de integração Vault para service-registry
 """
 
-from typing import Dict, Optional
+from typing import Optional
 
 import structlog
 from prometheus_client import Counter
@@ -88,7 +88,7 @@ class ServiceRegistryVaultClient:
             else:
                 self.logger.warning("vault_initialization_failed_failopen", error=str(e))
 
-    async def get_etcd_credentials(self) -> Dict[str, str]:
+    async def get_etcd_credentials(self) -> dict[str, str]:
         """
         Busca credenciais do etcd no Vault
 

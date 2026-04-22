@@ -2,7 +2,7 @@
 
 import asyncio
 import logging
-from typing import List, Optional
+from typing import Optional
 
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import (
@@ -137,7 +137,7 @@ class PostgresClient:
             )
             return result.scalar_one_or_none()
 
-    async def get_tickets_by_plan_id(self, plan_id: str) -> List[TicketORM]:
+    async def get_tickets_by_plan_id(self, plan_id: str) -> list[TicketORM]:
         """Busca tickets por plan_id."""
         async with self._session_maker() as session:
             result = await session.execute(select(TicketORM).where(TicketORM.plan_id == plan_id))
@@ -145,7 +145,7 @@ class PostgresClient:
 
     async def get_tickets_by_status(
         self, status: TicketStatus, limit: int = 100
-    ) -> List[TicketORM]:
+    ) -> list[TicketORM]:
         """Busca tickets por status."""
         async with self._session_maker() as session:
             result = await session.execute(
@@ -200,7 +200,7 @@ class PostgresClient:
                 )
             return updated
 
-    async def get_failed_tickets(self, limit: int = 100) -> List[TicketORM]:
+    async def get_failed_tickets(self, limit: int = 100) -> list[TicketORM]:
         """
         Busca tickets com status FAILED que podem ser reprocessados.
 
@@ -248,7 +248,7 @@ class PostgresClient:
 
     async def list_tickets(
         self, filters: dict, offset: int = 0, limit: int = 100
-    ) -> List[TicketORM]:
+    ) -> list[TicketORM]:
         """Lista tickets com filtros."""
         async with self._session_maker() as session:
             query = select(TicketORM)

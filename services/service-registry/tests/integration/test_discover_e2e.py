@@ -8,23 +8,25 @@ Testa o fluxo completo usando canais de rede reais:
 4. Valida que primeiro Worker e retornado com ranking correto
 """
 
-import pytest
-import grpc
-import json
 import asyncio
+import json
 import os
-import sys
 import socket
+import sys
 from contextlib import asynccontextmanager
+
+import grpc
+import pytest
 
 # Adicionar src ao path para importacao
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../src"))
 
 from grpc_server.registry_servicer import ServiceRegistryServicer
-from models.agent import AgentType, AgentInfo
+from models.agent import AgentInfo, AgentType
+from proto import service_registry_pb2, service_registry_pb2_grpc
+
 from services.matching_engine import MatchingEngine
 from services.registry_service import RegistryService
-from proto import service_registry_pb2, service_registry_pb2_grpc
 
 
 def get_free_port() -> int:
@@ -226,18 +228,18 @@ async def create_grpc_channel(port: int):
 class TestDiscoverE2EWithRealServer:
     """Testes end-to-end de descoberta com servidor gRPC real"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def etcd_client(self):
         """Mock do EtcdClient"""
         return MockEtcdClient()
 
-    @pytest.fixture
+    @pytest.fixture()
     def pheromone_client(self):
         """Mock do PheromoneClient"""
         return MockPheromoneClient()
 
-    @pytest.mark.asyncio
-    @pytest.mark.integration
+    @pytest.mark.asyncio()
+    @pytest.mark.integration()
     async def test_full_discovery_flow_with_worker_and_guard(self, etcd_client, pheromone_client):
         """
         Testa fluxo completo E2E:
@@ -297,8 +299,8 @@ class TestDiscoverE2EWithRealServer:
                 assert "terraform" in discovered_agent.capabilities
                 assert discovered_agent.agent_type == service_registry_pb2.WORKER
 
-    @pytest.mark.asyncio
-    @pytest.mark.integration
+    @pytest.mark.asyncio()
+    @pytest.mark.integration()
     async def test_discover_multiple_workers_with_ranking(self, etcd_client, pheromone_client):
         """Testa descoberta com multiplos workers e ranking por score"""
         async with create_grpc_server(etcd_client, pheromone_client) as (server, port):
@@ -347,8 +349,8 @@ class TestDiscoverE2EWithRealServer:
                 success_rates = [agent.telemetry.success_rate for agent in discover_response.agents]
                 assert success_rates == sorted(success_rates, reverse=True)
 
-    @pytest.mark.asyncio
-    @pytest.mark.integration
+    @pytest.mark.asyncio()
+    @pytest.mark.integration()
     async def test_discover_with_namespace_filter(self, etcd_client, pheromone_client):
         """Testa descoberta com filtro de namespace via servidor gRPC real"""
         async with create_grpc_server(etcd_client, pheromone_client) as (server, port):
@@ -388,8 +390,8 @@ class TestDiscoverE2EWithRealServer:
                 assert discover_response.agents[0].namespace == "production"
                 assert discover_response.agents[0].agent_id == prod_response.agent_id
 
-    @pytest.mark.asyncio
-    @pytest.mark.integration
+    @pytest.mark.asyncio()
+    @pytest.mark.integration()
     async def test_discover_multiple_capabilities_and_logic(self, etcd_client, pheromone_client):
         """Testa que multiplas capabilities usam logica AND via servidor real"""
         async with create_grpc_server(etcd_client, pheromone_client) as (server, port):
@@ -443,8 +445,8 @@ class TestDiscoverE2EWithRealServer:
                 assert "python" in discover_response.agents[0].capabilities
                 assert "terraform" in discover_response.agents[0].capabilities
 
-    @pytest.mark.asyncio
-    @pytest.mark.integration
+    @pytest.mark.asyncio()
+    @pytest.mark.integration()
     async def test_discover_filters_unhealthy_agents(self, etcd_client, pheromone_client):
         """Testa que agentes UNHEALTHY sao filtrados via servidor real"""
         async with create_grpc_server(etcd_client, pheromone_client) as (server, port):
@@ -510,8 +512,8 @@ class TestDiscoverE2EWithRealServer:
                 assert len(discover_response.agents) == 1
                 assert discover_response.agents[0].agent_id == healthy_response.agent_id
 
-    @pytest.mark.asyncio
-    @pytest.mark.integration
+    @pytest.mark.asyncio()
+    @pytest.mark.integration()
     async def test_discover_respects_max_results(self, etcd_client, pheromone_client):
         """Testa que max_results limita resultados via servidor real"""
         async with create_grpc_server(etcd_client, pheromone_client) as (server, port):
@@ -539,8 +541,8 @@ class TestDiscoverE2EWithRealServer:
                 # Validar limite
                 assert len(discover_response.agents) == 3
 
-    @pytest.mark.asyncio
-    @pytest.mark.integration
+    @pytest.mark.asyncio()
+    @pytest.mark.integration()
     async def test_discover_no_matching_capabilities(self, etcd_client, pheromone_client):
         """Testa retorno vazio quando nenhum agent tem a capability"""
         async with create_grpc_server(etcd_client, pheromone_client) as (server, port):
@@ -568,8 +570,8 @@ class TestDiscoverE2EWithRealServer:
                 assert len(discover_response.agents) == 0
                 assert discover_response.ranked is True
 
-    @pytest.mark.asyncio
-    @pytest.mark.integration
+    @pytest.mark.asyncio()
+    @pytest.mark.integration()
     async def test_register_and_deregister_flow(self, etcd_client, pheromone_client):
         """Testa fluxo completo de registro e deregistro via servidor real"""
         async with create_grpc_server(etcd_client, pheromone_client) as (server, port):
@@ -609,8 +611,8 @@ class TestDiscoverE2EWithRealServer:
                 )
                 assert len(discover_response.agents) == 0
 
-    @pytest.mark.asyncio
-    @pytest.mark.integration
+    @pytest.mark.asyncio()
+    @pytest.mark.integration()
     async def test_heartbeat_updates_telemetry(self, etcd_client, pheromone_client):
         """Testa que heartbeat atualiza telemetria via servidor real"""
         async with create_grpc_server(etcd_client, pheromone_client) as (server, port):
@@ -652,8 +654,8 @@ class TestDiscoverE2EWithRealServer:
                 assert get_response.agent.telemetry.avg_duration_ms == 150
                 assert get_response.agent.telemetry.total_executions == 200
 
-    @pytest.mark.asyncio
-    @pytest.mark.integration
+    @pytest.mark.asyncio()
+    @pytest.mark.integration()
     async def test_list_agents_by_type(self, etcd_client, pheromone_client):
         """Testa listagem de agentes por tipo via servidor real"""
         async with create_grpc_server(etcd_client, pheromone_client) as (server, port):
@@ -703,8 +705,8 @@ class TestDiscoverE2EWithRealServer:
                 for agent in list_response.agents:
                     assert agent.agent_type == service_registry_pb2.GUARD
 
-    @pytest.mark.asyncio
-    @pytest.mark.integration
+    @pytest.mark.asyncio()
+    @pytest.mark.integration()
     async def test_concurrent_registrations(self, etcd_client, pheromone_client):
         """Testa registros concorrentes via servidor real"""
         async with create_grpc_server(etcd_client, pheromone_client) as (server, port):

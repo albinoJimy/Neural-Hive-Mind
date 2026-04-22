@@ -17,14 +17,13 @@ from tests.helpers.integration_helpers import (
     ResultValidator,
 )
 
-
 pytestmark = [pytest.mark.integration]
 
 
 class TestDeployExecutorWithMockArgoCD:
     """Tests for DeployExecutor with mocked ArgoCD API."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_deploy_executor_with_mock_argocd_success(
         self, worker_config, mock_vault_client, mock_metrics
     ):
@@ -70,7 +69,7 @@ class TestDeployExecutorWithMockArgoCD:
         ResultValidator.assert_output_value(result, "namespace", "test-ns")
         ResultValidator.assert_has_logs(result, min_count=2)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_deploy_executor_argocd_timeout(
         self, worker_config, mock_vault_client, mock_metrics
     ):
@@ -108,7 +107,7 @@ class TestDeployExecutorWithMockArgoCD:
         ResultValidator.assert_simulated(result, expected=False)
         ResultValidator.assert_output_value(result, "status", "timeout")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_deploy_executor_argocd_auth_error(
         self, worker_config, mock_vault_client, mock_metrics
     ):
@@ -150,7 +149,7 @@ class TestDeployExecutorWithMockArgoCD:
         ResultValidator.assert_failure(result)
         ResultValidator.assert_output_value(result, "status", "error")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_deploy_executor_argocd_connection_error(
         self, worker_config, mock_vault_client, mock_metrics
     ):
@@ -183,7 +182,7 @@ class TestDeployExecutorWithMockArgoCD:
 class TestDeployExecutorSimulation:
     """Tests for DeployExecutor simulation mode (ArgoCD disabled)."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_deploy_executor_simulation_mode(
         self, worker_config_minimal, mock_vault_client, mock_metrics
     ):
@@ -210,7 +209,7 @@ class TestDeployExecutorSimulation:
         ResultValidator.assert_output_value(result, "status", "deployed")
         ResultValidator.assert_log_contains(result, "simulated")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_deploy_executor_fallback_simulation(
         self, worker_config, mock_vault_client, mock_metrics
     ):
@@ -234,7 +233,7 @@ class TestDeployExecutorSimulation:
         ResultValidator.assert_success(result)
         ResultValidator.assert_simulated(result, expected=True)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_deploy_executor_simulation_metrics(
         self, worker_config_minimal, mock_vault_client, mock_metrics
     ):
@@ -259,7 +258,7 @@ class TestDeployExecutorSimulation:
 class TestDeployExecutorValidation:
     """Tests for DeployExecutor input validation."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_deploy_executor_missing_ticket_id(self, deploy_executor):
         """Test that missing ticket_id raises ValidationError."""
         from executors.base_executor import ValidationError
@@ -275,7 +274,7 @@ class TestDeployExecutorValidation:
 
         assert "ticket_id" in str(exc_info.value)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_deploy_executor_wrong_task_type(self, deploy_executor):
         """Test that wrong task_type raises ValidationError."""
         from executors.base_executor import ValidationError
@@ -296,7 +295,7 @@ class TestDeployExecutorValidation:
 class TestDeployExecutorWithMockHTTPTransport:
     """Tests using httpx.MockTransport for HTTP mocking."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_deploy_executor_mock_transport_success(
         self, worker_config, mock_vault_client, mock_metrics
     ):
@@ -367,12 +366,12 @@ class TestDeployExecutorWithMockHTTPTransport:
         assert len(requests_made) >= 2, "Expected at least POST and GET requests"
 
 
-@pytest.mark.real_integration
-@pytest.mark.argocd
+@pytest.mark.real_integration()
+@pytest.mark.argocd()
 class TestDeployExecutorRealArgoCD:
     """Tests that require a real ArgoCD instance."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_deploy_executor_with_real_argocd(
         self, worker_config, mock_vault_client, mock_metrics
     ):

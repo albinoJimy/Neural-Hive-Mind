@@ -6,8 +6,11 @@ import uuid
 from contextlib import asynccontextmanager
 
 import structlog
-from fastapi import FastAPI, status
+from fastapi import FastAPI, Response, status
 from fastapi.responses import JSONResponse
+
+# Prometheus metrics
+from prometheus_client import CONTENT_TYPE_LATEST, REGISTRY, generate_latest
 
 from src.api.routers.migrations import router as migrations_router
 from src.clients.service_registry_client import DataMigrationServiceRegistryClient
@@ -128,6 +131,13 @@ async def log_requests(request, call_next):
     response = await call_next(request)
     logger.info("request_completed", status_code=response.status_code, request_id=request_id)
     return response
+
+
+# Prometheus metrics
+@app.get("/metrics")
+async def metrics():
+    """Prometheus metrics endpoint."""
+    return Response(content=generate_latest(REGISTRY), media_type=CONTENT_TYPE_LATEST)
 
 
 # Health check

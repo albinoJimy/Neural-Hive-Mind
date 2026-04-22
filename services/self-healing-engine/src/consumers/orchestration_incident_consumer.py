@@ -3,14 +3,14 @@
 import asyncio
 import json
 from io import BytesIO
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 import structlog
 from aiokafka import AIOKafkaConsumer
 
 try:
     from fastavro import schemaless_reader  # type: ignore
-except Exception:  # noqa: BLE001
+except Exception:
     schemaless_reader = None
 
 from src.models.remediation_models import RemediationRequest
@@ -30,7 +30,7 @@ class OrchestrationIncidentConsumer:
         topic: str,
         playbook_executor: PlaybookExecutor,
         remediation_manager: RemediationManager,
-        incident_schema: Optional[Dict[str, Any]] = None,
+        incident_schema: Optional[dict[str, Any]] = None,
     ):
         self.bootstrap_servers = bootstrap_servers
         self.group_id = group_id
@@ -57,7 +57,7 @@ class OrchestrationIncidentConsumer:
             self._running = True
             self._consume_task = asyncio.create_task(self._consume_loop())
             logger.info("incident_consumer.started", topic=self.topic)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.error("incident_consumer.start_failed", error=str(exc))
             raise
 
@@ -105,10 +105,10 @@ class OrchestrationIncidentConsumer:
                 )
 
                 await self.consumer.commit()
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.error("incident_consumer.consume_loop_failed", error=str(exc))
 
-    def _deserialize(self, payload: bytes) -> Optional[Dict[str, Any]]:
+    def _deserialize(self, payload: bytes) -> Optional[dict[str, Any]]:
         """Tenta deserializar payload como JSON, fallback para Avro se schema disponível."""
         try:
             return json.loads(payload.decode("utf-8"))
@@ -117,7 +117,7 @@ class OrchestrationIncidentConsumer:
                 try:
                     bio = BytesIO(payload)
                     return schemaless_reader(bio, self.incident_schema)
-                except Exception as exc:  # noqa: BLE001
+                except Exception as exc:
                     logger.warning("incident_consumer.avro_deserialize_failed", error=str(exc))
             return None
 
@@ -129,11 +129,11 @@ class OrchestrationIncidentConsumer:
         }
         return mapping.get(incident_type or "")
 
-    def _build_parameters(self, incident: Dict[str, Any], incident_type: str) -> Dict[str, Any]:
+    def _build_parameters(self, incident: dict[str, Any], incident_type: str) -> dict[str, Any]:
         """Monta parâmetros esperados pelos playbooks."""
         affected_tickets = incident.get("affected_tickets") or []
         namespace = incident.get("namespace") or "default"
-        params: Dict[str, Any] = {
+        params: dict[str, Any] = {
             "workflow_id": incident.get("workflow_id"),
             "incident_type": incident_type,
             "affected_tickets": affected_tickets,

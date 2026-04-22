@@ -25,8 +25,9 @@ def mock_test_runner():
     # Mock do run_tests para evitar execução real de subprocess
     async def mock_run_tests(context):
         """Mock que simula testes passando sem executar subprocess"""
-        from src.models.artifact import ValidationResult, ValidationType, ValidationStatus
         from datetime import datetime
+
+        from src.models.artifact import ValidationResult, ValidationStatus, ValidationType
 
         # Adicionar resultado de teste bem-sucedido
         test_result = ValidationResult(

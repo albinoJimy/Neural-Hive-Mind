@@ -1,15 +1,16 @@
 """Testes para OptimizerMCPClient - Integração HTTP com MCP Server."""
 
-import pytest
 from unittest.mock import AsyncMock, patch
 
+import pytest
+
 from src.clients.optimizer_mcp_client import (
-    OptimizerMCPClient,
-    SyncOptimizerMCPClient,
-    FileAnalysisResult,
     DirectoryAnalysisResult,
-    RecommendationsResult,
+    FileAnalysisResult,
     FileMetrics,
+    OptimizerMCPClient,
+    RecommendationsResult,
+    SyncOptimizerMCPClient,
 )
 
 

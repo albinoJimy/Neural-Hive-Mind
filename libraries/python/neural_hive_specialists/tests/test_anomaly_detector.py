@@ -9,17 +9,18 @@ Testa:
 - Persistência e carregamento de modelos
 """
 
-import pytest
-import numpy as np
-import tempfile
-import shutil
 import os
+import shutil
+import tempfile
 from unittest.mock import patch
+
+import numpy as np
+import pytest
 
 from neural_hive_specialists.observability.anomaly_detector import AnomalyDetector
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_config():
     """Config mock para testes."""
     temp_dir = tempfile.mkdtemp()
@@ -38,13 +39,13 @@ def mock_config():
     shutil.rmtree(temp_dir, ignore_errors=True)
 
 
-@pytest.fixture
+@pytest.fixture()
 def detector(mock_config):
     """Instância de AnomalyDetector para testes."""
     return AnomalyDetector(mock_config)
 
 
-@pytest.fixture
+@pytest.fixture()
 def normal_metrics_history():
     """Gera histórico de métricas normais (distribuição normal)."""
     np.random.seed(42)
@@ -68,7 +69,7 @@ def normal_metrics_history():
     return history
 
 
-@pytest.fixture
+@pytest.fixture()
 def anomalous_metrics():
     """Gera métricas anômalas (fora da distribuição normal)."""
     return {

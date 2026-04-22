@@ -17,12 +17,12 @@ Requisitos:
 
 import os
 import uuid
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from datetime import UTC, datetime
+from typing import Any, Optional
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
 
 # Importações do projeto (com fallback para ambientes sem dependências completas)
 try:
@@ -84,10 +84,10 @@ except ImportError:
 # Tentar importar helpers de E2E (podem não existir em todos os ambientes)
 try:
     from tests.e2e.utils.kafka_helpers import (
-        KafkaTestHelper,
         KafkaMessageValidation,
-        wait_for_kafka_message,
+        KafkaTestHelper,
         collect_kafka_messages,
+        wait_for_kafka_message,
     )
 
     KAFKA_HELPERS_AVAILABLE = True
@@ -138,8 +138,8 @@ COLLECTION_APPROVALS = "plan_approvals"
 # ============================================================================
 
 
-@pytest.fixture
-def destructive_intent_data() -> Dict[str, Any]:
+@pytest.fixture()
+def destructive_intent_data() -> dict[str, Any]:
     """Intent com operação destrutiva em produção."""
     intent_id = f"intent-e2e-destructive-{uuid.uuid4().hex[:8]}"
     return {
@@ -179,8 +179,8 @@ def destructive_intent_data() -> Dict[str, Any]:
     }
 
 
-@pytest.fixture
-def complex_intent_data() -> Dict[str, Any]:
+@pytest.fixture()
+def complex_intent_data() -> dict[str, Any]:
     """Intent complexo com padrão de migração de dados."""
     intent_id = f"intent-e2e-complex-{uuid.uuid4().hex[:8]}"
     return {
@@ -226,8 +226,8 @@ def complex_intent_data() -> Dict[str, Any]:
     }
 
 
-@pytest.fixture
-def safe_intent_data() -> Dict[str, Any]:
+@pytest.fixture()
+def safe_intent_data() -> dict[str, Any]:
     """Intent simples e seguro (query apenas)."""
     intent_id = f"intent-e2e-safe-{uuid.uuid4().hex[:8]}"
     return {
@@ -260,7 +260,7 @@ def safe_intent_data() -> Dict[str, Any]:
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_settings():
     """Settings mockado para testes."""
     settings = MagicMock()
@@ -282,8 +282,8 @@ def mock_settings():
     return settings
 
 
-@pytest.fixture
-def sample_ledger_entry() -> Dict[str, Any]:
+@pytest.fixture()
+def sample_ledger_entry() -> dict[str, Any]:
     """Entrada de ledger com plano pendente de aprovação."""
     plan_id = f"plan-e2e-{uuid.uuid4().hex[:8]}"
     intent_id = f"intent-e2e-{uuid.uuid4().hex[:8]}"
@@ -291,7 +291,7 @@ def sample_ledger_entry() -> Dict[str, Any]:
         "plan_id": plan_id,
         "intent_id": intent_id,
         "version": "1.0.0",
-        "timestamp": datetime.now(timezone.utc),
+        "timestamp": datetime.now(UTC),
         "plan_data": {
             "plan_id": plan_id,
             "intent_id": intent_id,
@@ -343,7 +343,7 @@ def sample_ledger_entry() -> Dict[str, Any]:
 # ============================================================================
 
 
-@pytest.fixture
+@pytest.fixture()
 def kafka_test_helper():
     """Helper para testes Kafka (skip se não disponível)."""
     if not KAFKA_HELPERS_AVAILABLE:
@@ -354,7 +354,7 @@ def kafka_test_helper():
     helper.close()
 
 
-@pytest.fixture
+@pytest.fixture()
 def mongodb_test_helper():
     """Helper para testes MongoDB (skip se não disponível)."""
     if not MONGODB_HELPERS_AVAILABLE:
@@ -366,7 +366,7 @@ def mongodb_test_helper():
     helper.close()
 
 
-@pytest.fixture
+@pytest.fixture()
 async def approval_service_client():
     """Cliente HTTP para Approval Service."""
     async with httpx.AsyncClient(
@@ -386,7 +386,7 @@ async def wait_for_plan_in_topic(
     topic: str,
     plan_id: str,
     timeout: int = 60,
-) -> Optional[Dict[str, Any]]:
+) -> Optional[dict[str, Any]]:
     """
     Aguarda plano aparecer em tópico Kafka.
 
@@ -412,7 +412,7 @@ async def validate_ledger_entry(
     mongodb_helper,
     plan_id: str,
     expected_status: str,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Valida entrada no ledger MongoDB.
 
@@ -445,8 +445,8 @@ async def validate_ledger_entry(
 
 async def scrape_prometheus_metrics(
     service_url: str,
-    metric_names: List[str],
-) -> Dict[str, float]:
+    metric_names: list[str],
+) -> dict[str, float]:
     """
     Faz scrape de métricas Prometheus do serviço.
 
@@ -464,7 +464,7 @@ async def scrape_prometheus_metrics(
         except httpx.HTTPError:
             return {}
 
-        metrics: Dict[str, float] = {}
+        metrics: dict[str, float] = {}
         for line in response.text.split("\n"):
             if line.startswith("#") or not line.strip():
                 continue
@@ -484,7 +484,7 @@ async def scrape_prometheus_metrics(
         return metrics
 
 
-def create_task_nodes(tasks_data: List[Dict[str, Any]]) -> List[TaskNode]:
+def create_task_nodes(tasks_data: list[dict[str, Any]]) -> list[TaskNode]:
     """Converte lista de dicts em lista de TaskNode."""
     return [
         TaskNode(
@@ -502,9 +502,9 @@ def create_task_nodes(tasks_data: List[Dict[str, Any]]) -> List[TaskNode]:
 # ============================================================================
 
 
-@pytest.mark.e2e
-@pytest.mark.approval_flow
-@pytest.mark.asyncio
+@pytest.mark.e2e()
+@pytest.mark.approval_flow()
+@pytest.mark.asyncio()
 @pytest.mark.skipif(
     not APPROVAL_PROCESSOR_AVAILABLE,
     reason="ApprovalProcessor não disponível (dependências faltando)",
@@ -550,7 +550,7 @@ class TestDestructiveIntentApprovalFlow:
             "intent_id": sample_ledger_entry["intent_id"],
             "decision": "approved",
             "approved_by": "security-admin@company.com",
-            "approved_at": int(datetime.now(timezone.utc).timestamp() * 1000),
+            "approved_at": int(datetime.now(UTC).timestamp() * 1000),
             "rejection_reason": None,
         }
 
@@ -656,9 +656,9 @@ class TestDestructiveIntentApprovalFlow:
 # ============================================================================
 
 
-@pytest.mark.e2e
-@pytest.mark.approval_flow
-@pytest.mark.asyncio
+@pytest.mark.e2e()
+@pytest.mark.approval_flow()
+@pytest.mark.asyncio()
 @pytest.mark.skipif(
     not APPROVAL_PROCESSOR_AVAILABLE,
     reason="ApprovalProcessor não disponível (dependências faltando)",
@@ -705,7 +705,7 @@ class TestDestructiveIntentRejectionFlow:
             "intent_id": sample_ledger_entry["intent_id"],
             "decision": "rejected",
             "approved_by": "security-admin@company.com",
-            "approved_at": int(datetime.now(timezone.utc).timestamp() * 1000),
+            "approved_at": int(datetime.now(UTC).timestamp() * 1000),
             "rejection_reason": rejection_reason,
         }
 
@@ -756,7 +756,7 @@ class TestDestructiveIntentRejectionFlow:
             "intent_id": sample_ledger_entry["intent_id"],
             "decision": "rejected",
             "approved_by": "admin",
-            "approved_at": int(datetime.now(timezone.utc).timestamp() * 1000),
+            "approved_at": int(datetime.now(UTC).timestamp() * 1000),
             "rejection_reason": "Risco muito alto",
         }
 
@@ -771,8 +771,8 @@ class TestDestructiveIntentRejectionFlow:
 # ============================================================================
 
 
-@pytest.mark.e2e
-@pytest.mark.approval_flow
+@pytest.mark.e2e()
+@pytest.mark.approval_flow()
 @pytest.mark.skipif(
     not DESTRUCTIVE_DETECTOR_AVAILABLE or not RISK_SCORER_AVAILABLE,
     reason="DestructiveDetector ou RiskScorer não disponível (dependências faltando)",
@@ -888,9 +888,9 @@ class TestAdvancedDecompositionFlow:
 # ============================================================================
 
 
-@pytest.mark.e2e
-@pytest.mark.metrics
-@pytest.mark.asyncio
+@pytest.mark.e2e()
+@pytest.mark.metrics()
+@pytest.mark.asyncio()
 @pytest.mark.skipif(
     not APPROVAL_PROCESSOR_AVAILABLE or not DESTRUCTIVE_DETECTOR_AVAILABLE,
     reason="ApprovalProcessor ou DestructiveDetector não disponível (dependências faltando)",
@@ -929,7 +929,7 @@ class TestPrometheusMetricsValidation:
             "intent_id": sample_ledger_entry["intent_id"],
             "decision": "approved",
             "approved_by": "admin",
-            "approved_at": int(datetime.now(timezone.utc).timestamp() * 1000),
+            "approved_at": int(datetime.now(UTC).timestamp() * 1000),
         }
 
         await processor.process_approval_response(approval_response, {})
@@ -974,9 +974,9 @@ class TestPrometheusMetricsValidation:
 # ============================================================================
 
 
-@pytest.mark.e2e
-@pytest.mark.failure_scenarios
-@pytest.mark.asyncio
+@pytest.mark.e2e()
+@pytest.mark.failure_scenarios()
+@pytest.mark.asyncio()
 @pytest.mark.skipif(
     not APPROVAL_PROCESSOR_AVAILABLE,
     reason="ApprovalProcessor não disponível (dependências faltando)",
@@ -1007,7 +1007,7 @@ class TestFailureScenarios:
             "intent_id": "intent-fail",
             "decision": "approved",
             "approved_by": "admin",
-            "approved_at": int(datetime.now(timezone.utc).timestamp() * 1000),
+            "approved_at": int(datetime.now(UTC).timestamp() * 1000),
         }
 
         # Act & Assert: Deve propagar exceção para retry do consumer
@@ -1022,7 +1022,7 @@ class TestFailureScenarios:
         # Arrange: Ledger entry com plan_data malformado
         malformed_entry = {
             "plan_id": "plan-malformed",
-            "timestamp": datetime.now(timezone.utc),
+            "timestamp": datetime.now(UTC),
             "plan_data": {
                 "approval_status": "pending",
                 "risk_band": "high",
@@ -1050,7 +1050,7 @@ class TestFailureScenarios:
             "intent_id": "intent-x",
             "decision": "approved",
             "approved_by": "admin",
-            "approved_at": int(datetime.now(timezone.utc).timestamp() * 1000),
+            "approved_at": int(datetime.now(UTC).timestamp() * 1000),
         }
 
         # Act & Assert: Deve propagar erro de reconstrução
@@ -1073,7 +1073,7 @@ class TestFailureScenarios:
             "intent_id": "intent-not-exists",
             "decision": "approved",
             "approved_by": "admin",
-            "approved_at": int(datetime.now(timezone.utc).timestamp() * 1000),
+            "approved_at": int(datetime.now(UTC).timestamp() * 1000),
         }
 
         # Act: Processor deve logar erro e ignorar quando plano não encontrado
@@ -1112,8 +1112,8 @@ class TestFailureScenarios:
 # ============================================================================
 
 
-@pytest.mark.e2e
-@pytest.mark.slow
+@pytest.mark.e2e()
+@pytest.mark.slow()
 @pytest.mark.skipif(
     not KAFKA_HELPERS_AVAILABLE or not MONGODB_HELPERS_AVAILABLE,
     reason="Helpers de infraestrutura não disponíveis",
@@ -1125,19 +1125,19 @@ class TestRealInfrastructureIntegration:
     Estes testes requerem ambiente completo e são marcados como slow.
     """
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_kafka_message_round_trip(self, kafka_test_helper):
         """Valida envio e recebimento de mensagem Kafka."""
         # Este teste só executa se Kafka estiver disponível
         pytest.skip("Teste requer Kafka real - execute manualmente")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_mongodb_ledger_persistence(self, mongodb_test_helper):
         """Valida persistência no ledger MongoDB."""
         # Este teste só executa se MongoDB estiver disponível
         pytest.skip("Teste requer MongoDB real - execute manualmente")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_approval_service_health(self, approval_service_client):
         """Valida health check do Approval Service."""
         try:
@@ -1152,8 +1152,8 @@ class TestRealInfrastructureIntegration:
 # ============================================================================
 
 
-@pytest.mark.e2e
-@pytest.mark.approval_flow
+@pytest.mark.e2e()
+@pytest.mark.approval_flow()
 class TestApprovalAPIContract:
     """Testes de contrato para APIs de aprovação."""
 
@@ -1174,7 +1174,7 @@ class TestApprovalAPIContract:
             "intent_id": "intent-123",
             "decision": "approved",
             "approved_by": "admin@company.com",
-            "approved_at": int(datetime.now(timezone.utc).timestamp() * 1000),
+            "approved_at": int(datetime.now(UTC).timestamp() * 1000),
         }
 
         # Assert: Todos os campos obrigatórios presentes
@@ -1191,7 +1191,7 @@ class TestApprovalAPIContract:
                 "intent_id": "intent-123",
                 "decision": decision,
                 "approved_by": "admin",
-                "approved_at": int(datetime.now(timezone.utc).timestamp() * 1000),
+                "approved_at": int(datetime.now(UTC).timestamp() * 1000),
             }
             assert response["decision"] in valid_decisions
 
@@ -1202,7 +1202,7 @@ class TestApprovalAPIContract:
             "intent_id": "intent-123",
             "decision": "rejected",
             "approved_by": "admin",
-            "approved_at": int(datetime.now(timezone.utc).timestamp() * 1000),
+            "approved_at": int(datetime.now(UTC).timestamp() * 1000),
             "rejection_reason": "Operação muito arriscada",
         }
 

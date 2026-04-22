@@ -3,9 +3,10 @@ Testes para MCPIntegration.
 Usa mocks para evitar dependências externas (HTTP servers).
 """
 
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
 import sys
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 
 # Mock httpx antes de importar
 mock_httpx = MagicMock()
@@ -29,7 +30,7 @@ def create_mock_response(status_code=200, json_data=None):
     return mock_resp
 
 
-@pytest.fixture
+@pytest.fixture()
 async def mcp_client():
     """Cliente MCP com mocks HTTP."""
     client = MCPIntegration(
@@ -59,7 +60,7 @@ async def mcp_client():
 # ============================================================================
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_initialize():
     """Testar inicialização do cliente."""
     integration = MCPIntegration(timeout=5.0)
@@ -77,7 +78,7 @@ async def test_initialize():
         await integration.close()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_close():
     """Testar fechamento do cliente."""
     integration = MCPIntegration()
@@ -97,7 +98,7 @@ async def test_close():
 # ============================================================================
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_scout_list_files_success(mcp_client):
     """Testar list_files com sucesso."""
 
@@ -115,7 +116,7 @@ async def test_scout_list_files_success(mcp_client):
     assert result[0]["path"] == "test.py"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_scout_list_files_error():
     """Testar list_files com erro."""
     integration = MCPIntegration()
@@ -136,7 +137,7 @@ async def test_scout_list_files_error():
         await integration.scout_list_files()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_scout_search_code_success(mcp_client):
     """Testar search_code com sucesso."""
 
@@ -157,7 +158,7 @@ async def test_scout_search_code_success(mcp_client):
     assert result[0]["file"] == "test.py"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_scout_analyze_structure_success(mcp_client):
     """Testar analyze_structure com sucesso."""
 
@@ -183,7 +184,7 @@ async def test_scout_analyze_structure_success(mcp_client):
 # ============================================================================
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_optimizer_analyze_performance_success(mcp_client):
     """Testar analyze_performance com sucesso."""
 
@@ -204,7 +205,7 @@ async def test_optimizer_analyze_performance_success(mcp_client):
     assert result["complexity"] == "O(n)"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_optimizer_suggest_refactors_success(mcp_client):
     """Testar suggest_refactors com sucesso."""
 
@@ -225,7 +226,7 @@ async def test_optimizer_suggest_refactors_success(mcp_client):
     assert result[0]["type"] == "simplify"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_optimizer_optimize_queries_success(mcp_client):
     """Testar optimize_queries com sucesso."""
 
@@ -250,7 +251,7 @@ async def test_optimizer_optimize_queries_success(mcp_client):
 # ============================================================================
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_execute_aggregated_analysis_code_discovery(mcp_client):
     """Testar análise agregada de code discovery."""
     call_count = [0]
@@ -281,7 +282,7 @@ async def test_execute_aggregated_analysis_code_discovery(mcp_client):
     assert "data" in result
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_execute_aggregated_analysis_performance_optimization(mcp_client):
     """Testar análise agregada de performance optimization."""
     call_count = [0]
@@ -310,7 +311,7 @@ async def test_execute_aggregated_analysis_performance_optimization(mcp_client):
     assert "data" in result
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_execute_aggregated_analysis_with_errors(mcp_client):
     """Testar análise agregada com erros parciais."""
     call_count = [0]
@@ -339,7 +340,7 @@ async def test_execute_aggregated_analysis_with_errors(mcp_client):
     assert "scout_analyze_structure" in result["tools_used"]
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_execute_aggregated_analysis_unknown_type(mcp_client):
     """Testar análise agregada com tipo desconhecido."""
     result = await mcp_client.execute_aggregated_analysis(analysis_type="unknown_type", params={})
@@ -353,7 +354,7 @@ async def test_execute_aggregated_analysis_unknown_type(mcp_client):
 # ============================================================================
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_health_check_all_up(mcp_client):
     """Testar health check com todos servidores ativos."""
 
@@ -370,7 +371,7 @@ async def test_health_check_all_up(mcp_client):
     assert health["optimizer"] is True
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_health_check_all_down(mcp_client):
     """Testar health check com servidores inativos."""
 
@@ -385,7 +386,7 @@ async def test_health_check_all_down(mcp_client):
     assert health["optimizer"] is False
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_health_check_client_not_initialized():
     """Testar health check com cliente não inicializado."""
     client = MCPIntegration()
@@ -401,7 +402,7 @@ async def test_health_check_client_not_initialized():
 # ============================================================================
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_retry_on_failure():
     """Testar retry em falha."""
     integration = MCPIntegration(max_retries=3)
@@ -429,7 +430,7 @@ async def test_retry_on_failure():
 # ============================================================================
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_scout_list_files_with_pattern(mcp_client):
     """Testar scout_list_files com pattern."""
 
@@ -448,7 +449,7 @@ async def test_scout_list_files_with_pattern(mcp_client):
     assert len(result) == 1
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_scout_search_code_with_file_pattern(mcp_client):
     """Testar scout_search_code com file_pattern."""
 
@@ -466,7 +467,7 @@ async def test_scout_search_code_with_file_pattern(mcp_client):
     assert result == []
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_performance_optimization_without_code(mcp_client):
     """Testar performance_optimization sem código fornecido."""
     result = await mcp_client.execute_aggregated_analysis(
@@ -477,7 +478,7 @@ async def test_performance_optimization_without_code(mcp_client):
     assert len(result["tools_used"]) == 0
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_scout_list_files_error_response(mcp_client):
     """Testar scout_list_files com response de erro."""
 
@@ -492,7 +493,7 @@ async def test_scout_list_files_error_response(mcp_client):
         await mcp_client.scout_list_files(path="/invalid")
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_optimizer_suggest_refactors_empty(mcp_client):
     """Testar suggest_refactors sem sugestões."""
 

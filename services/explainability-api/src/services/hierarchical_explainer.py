@@ -8,8 +8,8 @@ Explainability API v3 - Task 3
 
 import hashlib
 import json
-from datetime import datetime, timezone, timedelta
-from typing import Any, Dict, List, Optional
+from datetime import UTC, datetime, timedelta
+from typing import Any, Optional
 
 import structlog
 
@@ -22,7 +22,7 @@ logger = structlog.get_logger(__name__)
 class CacheEntry:
     """Entrada de cache com TTL."""
 
-    def __init__(self, value: Dict[str, Any], ttl_seconds: int = 300):
+    def __init__(self, value: dict[str, Any], ttl_seconds: int = 300):
         """
         Inicializa entrada de cache.
 
@@ -31,11 +31,11 @@ class CacheEntry:
             ttl_seconds: Time-to-live em segundos (default: 5 minutos)
         """
         self.value = value
-        self.expires_at = datetime.now(timezone.utc) + timedelta(seconds=ttl_seconds)
+        self.expires_at = datetime.now(UTC) + timedelta(seconds=ttl_seconds)
 
     def is_expired(self) -> bool:
         """Verifica se a entrada expirou."""
-        return datetime.now(timezone.utc) > self.expires_at
+        return datetime.now(UTC) > self.expires_at
 
 
 class HierarchicalExplainer:
@@ -58,7 +58,12 @@ class HierarchicalExplainer:
     DEFAULT_CACHE_TTL = 300  # 5 minutos
     DEFAULT_CACHE_SIZE = 100  # Máximo de entradas
 
-    def __init__(self, cache_ttl: int = DEFAULT_CACHE_TTL, cache_size: int = DEFAULT_CACHE_SIZE, enable_cache: bool = True):
+    def __init__(
+        self,
+        cache_ttl: int = DEFAULT_CACHE_TTL,
+        cache_size: int = DEFAULT_CACHE_SIZE,
+        enable_cache: bool = True,
+    ):
         """
         Inicializa o explainer hierárquico.
 
@@ -71,11 +76,11 @@ class HierarchicalExplainer:
         self.cache_ttl = cache_ttl
         self.cache_size = cache_size
         self.enable_cache = enable_cache
-        self._cache: Dict[str, CacheEntry] = {}
+        self._cache: dict[str, CacheEntry] = {}
         self._cache_hits = 0
         self._cache_misses = 0
 
-    def _generate_cache_key(self, votes: List[Dict[str, Any]]) -> str:
+    def _generate_cache_key(self, votes: list[dict[str, Any]]) -> str:
         """
         Gera chave de cache baseada no hash dos votos.
 
@@ -89,7 +94,7 @@ class HierarchicalExplainer:
         normalized = json.dumps(votes, sort_keys=True, default=str)
         return hashlib.sha256(normalized.encode()).hexdigest()
 
-    def _get_from_cache(self, cache_key: str) -> Optional[Dict[str, Any]]:
+    def _get_from_cache(self, cache_key: str) -> Optional[dict[str, Any]]:
         """
         Busca explicação do cache.
 
@@ -117,7 +122,7 @@ class HierarchicalExplainer:
         self._cache_hits += 1
         return entry.value
 
-    def _store_in_cache(self, cache_key: str, value: Dict[str, Any]) -> None:
+    def _store_in_cache(self, cache_key: str, value: dict[str, Any]) -> None:
         """
         Armazena explicação no cache.
 
@@ -136,7 +141,7 @@ class HierarchicalExplainer:
 
         self._cache[cache_key] = CacheEntry(value, self.cache_ttl)
 
-    def explain(self, votes: List[Dict[str, Any]]) -> Dict[str, Any]:
+    def explain(self, votes: list[dict[str, Any]]) -> dict[str, Any]:
         """
         Gera explicação completa hierárquica para uma decisão.
 
@@ -204,7 +209,7 @@ class HierarchicalExplainer:
         self._cache.clear()
         self.logger.info("Cache cleared")
 
-    def get_cache_stats(self) -> Dict[str, Any]:
+    def get_cache_stats(self) -> dict[str, Any]:
         """
         Retorna estatísticas do cache.
 
@@ -223,7 +228,7 @@ class HierarchicalExplainer:
             "enabled": self.enable_cache,
         }
 
-    def _normalize_votes(self, votes: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def _normalize_votes(self, votes: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """
         Normaliza votos, adaptando formato specialist_votes para v3.
 
@@ -308,8 +313,8 @@ class HierarchicalExplainer:
         return normalized
 
     def _calculate_by_level_breakdown(
-        self, votes: List[Dict[str, Any]]
-    ) -> Dict[str, Dict[str, Any]]:
+        self, votes: list[dict[str, Any]]
+    ) -> dict[str, dict[str, Any]]:
         """
         Calcula breakdown estatístico por nível de senioridade.
 
@@ -319,7 +324,7 @@ class HierarchicalExplainer:
         Returns:
             Dicionário com estatísticas por nível
         """
-        by_level: Dict[str, Dict[str, Any]] = {}
+        by_level: dict[str, dict[str, Any]] = {}
 
         for vote in votes:
             level = vote["seniority_level"]
@@ -374,7 +379,7 @@ class HierarchicalExplainer:
 
         return by_level
 
-    def _calculate_consensus_strength(self, by_level: Dict[str, Dict[str, Any]]) -> float:
+    def _calculate_consensus_strength(self, by_level: dict[str, dict[str, Any]]) -> float:
         """
         Calcula a força do consenso entre níveis hierárquicos.
 
@@ -418,7 +423,7 @@ class HierarchicalExplainer:
 
         return most_common_count / len(directions)
 
-    def _determine_dominant_level(self, by_level: Dict[str, Dict[str, Any]]) -> Optional[str]:
+    def _determine_dominant_level(self, by_level: dict[str, dict[str, Any]]) -> Optional[str]:
         """
         Determina o nível hierárquico dominante na decisão.
 
@@ -445,8 +450,8 @@ class HierarchicalExplainer:
         return dominant_level
 
     def _calculate_individual_contributions(
-        self, votes: List[Dict[str, Any]]
-    ) -> List[Dict[str, Any]]:
+        self, votes: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
         """
         Calcula contribuição individual de cada especialista.
 
@@ -496,7 +501,7 @@ class HierarchicalExplainer:
 
         return contributions
 
-    async def explain_decision(self, decision: Dict[str, Any]) -> Dict[str, Any]:
+    async def explain_decision(self, decision: dict[str, Any]) -> dict[str, Any]:
         """
         Gera explicação completa para uma decisão (async wrapper).
 
@@ -527,7 +532,7 @@ class HierarchicalExplainer:
 
         return result
 
-    def _calculate_seniority_impact(self, breakdown: Dict[str, Any]) -> float:
+    def _calculate_seniority_impact(self, breakdown: dict[str, Any]) -> float:
         """Calcula impacto total da senioridade na decisão."""
         by_level = breakdown.get("by_level", {})
 
@@ -541,7 +546,7 @@ class HierarchicalExplainer:
 
         return total_impact
 
-    def calculate_seniority_weights(self, votes: List[Dict[str, Any]]) -> Dict[str, float]:
+    def calculate_seniority_weights(self, votes: list[dict[str, Any]]) -> dict[str, float]:
         """
         Calcula pesos de senioridade para uma lista de votos.
 

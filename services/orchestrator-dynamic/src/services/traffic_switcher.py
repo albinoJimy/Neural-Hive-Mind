@@ -16,14 +16,14 @@ Suporta múltiplas estratégias de implementação:
 
 import asyncio
 from abc import ABC, abstractmethod
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 
 import httpx
 import structlog
 
-UTC = timezone.utc  # type: ignore
+UTC = UTC  # type: ignore
 logger = structlog.get_logger(__name__)
 
 
@@ -40,7 +40,9 @@ class TrafficSwitchStrategy(str, Enum):
 class TrafficSwitchError(Exception):
     """Erro base para operações de traffic switch."""
 
-    def __init__(self, message: str, strategy: TrafficSwitchStrategy, details: dict[str, Any] | None = None):
+    def __init__(
+        self, message: str, strategy: TrafficSwitchStrategy, details: dict[str, Any] | None = None
+    ):
         self.message = message
         self.strategy = strategy
         self.details = details or {}
@@ -49,7 +51,6 @@ class TrafficSwitchError(Exception):
 
 class EmergencyRollbackError(TrafficSwitchError):
     """Erro crítico que requer rollback imediato."""
-
 
 
 class TrafficSwitcher(ABC):

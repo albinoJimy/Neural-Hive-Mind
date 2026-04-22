@@ -16,7 +16,7 @@ Evolution Hooks (meta-learning):
 """
 
 import sys
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 import structlog
 
@@ -130,7 +130,7 @@ class EvolutionSpecialist(BaseSpecialist):
             logger.warning("Failed to initialize evolution hooks, using defaults", error=str(e))
             self._evolution_hooks_enabled = False
 
-    async def _get_adaptive_weights(self, cognitive_plan: Dict[str, Any]) -> Dict[str, float]:
+    async def _get_adaptive_weights(self, cognitive_plan: dict[str, Any]) -> dict[str, float]:
         """
         Obtém pesos adaptativos baseados em histórico.
 
@@ -172,7 +172,7 @@ class EvolutionSpecialist(BaseSpecialist):
             return self.DEFAULT_WEIGHTS.copy()
 
     async def _store_evaluation_for_learning(
-        self, plan_id: str, cognitive_plan: Dict[str, Any], evaluation_result: Dict[str, Any]
+        self, plan_id: str, cognitive_plan: dict[str, Any], evaluation_result: dict[str, Any]
     ) -> None:
         """
         Armazena avaliação para aprendizado futuro.
@@ -265,8 +265,8 @@ class EvolutionSpecialist(BaseSpecialist):
             return None
 
     def _evaluate_plan_internal(
-        self, cognitive_plan: Dict[str, Any], context: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, cognitive_plan: dict[str, Any], context: dict[str, Any]
+    ) -> dict[str, Any]:
         """
         Avalia plano sob perspectiva de evolução.
 
@@ -460,7 +460,7 @@ class EvolutionSpecialist(BaseSpecialist):
 
         return result
 
-    def _analyze_maintainability(self, tasks: List[Dict], cognitive_plan: Dict) -> float:
+    def _analyze_maintainability(self, tasks: list[dict], cognitive_plan: dict) -> float:
         """
         Analisa manutenibilidade do plano.
 
@@ -522,7 +522,7 @@ class EvolutionSpecialist(BaseSpecialist):
 
         return max(0.0, min(1.0, maintainability_score))
 
-    def _analyze_scalability(self, tasks: List[Dict], cognitive_plan: Dict) -> float:
+    def _analyze_scalability(self, tasks: list[dict], cognitive_plan: dict) -> float:
         """
         Analisa escalabilidade do plano.
 
@@ -581,7 +581,7 @@ class EvolutionSpecialist(BaseSpecialist):
 
         return max(0.0, min(1.0, scalability_score))
 
-    def _analyze_extensibility(self, tasks: List[Dict], cognitive_plan: Dict) -> float:
+    def _analyze_extensibility(self, tasks: list[dict], cognitive_plan: dict) -> float:
         """
         Analisa extensibilidade do plano.
 
@@ -633,7 +633,7 @@ class EvolutionSpecialist(BaseSpecialist):
 
         return max(0.0, min(1.0, extensibility_score))
 
-    def _analyze_modularity(self, tasks: List[Dict]) -> float:
+    def _analyze_modularity(self, tasks: list[dict]) -> float:
         """
         Analisa modularidade do design.
 
@@ -688,7 +688,7 @@ class EvolutionSpecialist(BaseSpecialist):
 
         return max(0.0, min(1.0, modularity_score))
 
-    def _analyze_tech_debt_risk(self, tasks: List[Dict], cognitive_plan: Dict) -> float:
+    def _analyze_tech_debt_risk(self, tasks: list[dict], cognitive_plan: dict) -> float:
         """
         Analisa risco de tech debt futuro.
 
@@ -851,7 +851,7 @@ class EvolutionSpecialist(BaseSpecialist):
         extensibility_score: float,
         modularity_score: float,
         tech_debt_score: float,
-    ) -> List[Dict]:
+    ) -> list[dict]:
         """Gera sugestões de mitigação de riscos."""
         mitigations = []
 

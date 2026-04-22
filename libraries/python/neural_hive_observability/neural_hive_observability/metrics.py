@@ -6,14 +6,15 @@ com labels neural_hive_component, neural_hive_layer, domain, channel, status.
 """
 
 import logging
-from typing import Optional, Dict, List
+from typing import Optional
+
 from prometheus_client import (
+    CollectorRegistry,
     Counter,
-    Histogram,
     Gauge,
+    Histogram,
     Info,
     start_http_server,
-    CollectorRegistry,
 )
 
 from .config import ObservabilityConfig
@@ -264,7 +265,8 @@ class NeuralHiveMetrics:
         self.trace_context_extraction_failure_total = Counter(
             "neural_hive_trace_context_extraction_failure_total",
             "Total de extrações de contexto falhadas",
-            self._common_labels + ["reason"],  # reason: invalid_format, missing_header, extract_error
+            self._common_labels
+            + ["reason"],  # reason: invalid_format, missing_header, extract_error
             registry=self.registry,
         )
 
@@ -371,8 +373,8 @@ class NeuralHiveMetrics:
         self,
         metric,
         value: float,
-        labels: List[str],
-        exemplar_data: Optional[Dict[str, str]] = None,
+        labels: list[str],
+        exemplar_data: Optional[dict[str, str]] = None,
     ):
         """
         Observa métrica com suporte a exemplars para correlação.

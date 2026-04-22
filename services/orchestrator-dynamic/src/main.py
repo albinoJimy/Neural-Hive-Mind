@@ -17,11 +17,16 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from prometheus_client import make_asgi_app
 
+from neural_hive_observability import (
+    get_logger,
+    get_metrics,
+    init_observability,
+    instrument_kafka_consumer,
+)
+from neural_hive_observability.middleware import TraceContextMiddleware
+
 # SEC-001: Security Headers
 from neural_hive_security import SecurityHeadersMiddleware
-
-from neural_hive_observability import get_logger, init_observability, get_metrics, instrument_kafka_consumer
-from neural_hive_observability.middleware import TraceContextMiddleware
 from src.config import get_settings
 from src.consumers.decision_consumer import DecisionConsumer
 
@@ -33,7 +38,7 @@ try:
 except ImportError:
     EXECUTION_RESULT_CONSUMER_AVAILABLE = False
     ExecutionResultConsumer = None
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import uuid4
 
 from pydantic import BaseModel, Field, ValidationError
@@ -755,7 +760,9 @@ async def lifespan(app: FastAPI):
                 metrics=orchestrator_metrics,
             )
             await app_state.execution_result_consumer.initialize()
-            app_state.execution_result_consumer = instrument_kafka_consumer(app_state.execution_result_consumer)
+            app_state.execution_result_consumer = instrument_kafka_consumer(
+                app_state.execution_result_consumer
+            )
             logger.info("Execution Result Consumer inicializado")
         else:
             logger.info("Execution Result Consumer desabilitado ou não disponível")
@@ -1105,12 +1112,15 @@ app.add_middleware(SecurityHeadersMiddleware)
 # W3C Trace Context middleware para propagação de contexto distribuído
 try:
     from neural_hive_observability.middleware import TraceContextMiddleware
+
     metrics = get_metrics()
     if metrics:
         app.add_middleware(TraceContextMiddleware, metrics=metrics)
         logger.info("W3C Trace Context middleware adicionado ao orchestrator-dynamic")
     else:
-        logger.warning("Métricas não disponíveis - W3C Trace Context middleware adicionado sem métricas")
+        logger.warning(
+            "Métricas não disponíveis - W3C Trace Context middleware adicionado sem métricas"
+        )
         app.add_middleware(TraceContextMiddleware)
 except ImportError:
     logger.warning("Observabilidade não disponível - W3C Trace Context middleware não adicionado")
@@ -1629,7 +1639,7 @@ async def health_check():
             "status": overall_status,
             "service": "orchestrator-dynamic",
             "version": "1.0.0",
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "checks": {"redis": redis_status, "vault": vault_status},
         },
     )
@@ -1769,7 +1779,7 @@ async def kafka_producer_health_check():
             content={
                 "status": "unhealthy",
                 "error": "Kafka Producer not initialized",
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
             },
         )
 
@@ -1813,7 +1823,7 @@ async def kafka_producer_health_check():
         content={
             "status": status,
             "component": "kafka_producer",
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "checks": checks,
         },
     )
@@ -1834,7 +1844,7 @@ async def temporal_activities_health_check():
             content={
                 "status": "unavailable",
                 "error": "Temporal Worker not initialized",
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
             },
         )
 
@@ -1872,7 +1882,7 @@ async def temporal_activities_health_check():
         content={
             "status": status,
             "component": "temporal_activities",
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "registered_count": len(registered_activities),
             "expected_count": len(expected_activities),
             "missing_activities": missing_activities,
@@ -2846,7 +2856,7 @@ async def get_prediction_statistics():
         # Query tickets com predições nas últimas 24h
         from datetime import datetime, timedelta
 
-        cutoff = datetime.now(timezone.utc) - timedelta(hours=24)
+        cutoff = datetime.now(UTC) - timedelta(hours=24)
 
         pipeline = [
             {"$match": {"created_at": {"$gte": cutoff}, "predictions": {"$exists": True}}},

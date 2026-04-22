@@ -931,4 +931,3 @@ async def get_cdc_reconnection_stats(job_id: str) -> Dict[str, Any]:
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Erro ao obter stats de reconexão: {e}",
         ) from e
-

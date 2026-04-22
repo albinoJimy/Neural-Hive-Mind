@@ -15,8 +15,8 @@ from neural_hive_observability import (
     ObservabilityConfig,
     create_instrumented_grpc_server,
     extract_grpc_context,
-    init_observability,
     get_config,
+    init_observability,
     trace_grpc_method,
 )
 

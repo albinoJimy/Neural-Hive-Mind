@@ -11,12 +11,13 @@ Cobertura:
 - Retry logic
 """
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
+
 import httpx
+import pytest
 
 
-@pytest.fixture
+@pytest.fixture()
 def argocd_client():
     """Fixture para ArgoCDClient."""
     from clients.argocd_client import ArgoCDClient
@@ -24,15 +25,15 @@ def argocd_client():
     return ArgoCDClient(base_url="http://argocd.test:8080", token="test-token", timeout=30)
 
 
-@pytest.fixture
+@pytest.fixture()
 def application_request():
     """Fixture para ApplicationCreateRequest."""
     from clients.argocd_client import (
         ApplicationCreateRequest,
-        ApplicationMetadata,
-        ApplicationSpec,
-        ApplicationSource,
         ApplicationDestination,
+        ApplicationMetadata,
+        ApplicationSource,
+        ApplicationSpec,
         SyncPolicy,
     )
 
@@ -95,7 +96,7 @@ class TestArgoCDClientInit:
 class TestCreateApplication:
     """Testes de criacao de aplicacao."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_create_application_success(self, argocd_client, application_request):
         """Deve criar aplicacao com sucesso."""
         mock_response = MagicMock()
@@ -113,7 +114,7 @@ class TestCreateApplication:
             call_args = mock_post.call_args
             assert "api/v1/applications" in call_args[0][0]
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_create_application_http_error(self, argocd_client, application_request):
         """Deve tratar erro HTTP na criacao."""
         from clients.argocd_client import ArgoCDAPIError
@@ -132,7 +133,7 @@ class TestCreateApplication:
 
             assert exc_info.value.status_code == 409
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_create_application_timeout(self, argocd_client, application_request):
         """Deve tratar timeout na criacao."""
         from clients.argocd_client import ArgoCDTimeoutError
@@ -147,7 +148,7 @@ class TestCreateApplication:
 class TestGetApplicationStatus:
     """Testes de obtencao de status."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_status_success(self, argocd_client):
         """Deve obter status com sucesso."""
         mock_response = MagicMock()
@@ -172,7 +173,7 @@ class TestGetApplicationStatus:
             assert status.sync.status == "Synced"
             assert status.sync.revision == "abc123"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_status_not_found(self, argocd_client):
         """Deve tratar aplicacao nao encontrada."""
         from clients.argocd_client import ArgoCDAPIError
@@ -195,7 +196,7 @@ class TestGetApplicationStatus:
 class TestWaitForHealth:
     """Testes de polling de health."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_wait_for_health_immediate_success(self, argocd_client):
         """Deve retornar imediatamente se ja healthy."""
         from clients.argocd_client import ApplicationStatus, HealthStatus, SyncStatus
@@ -214,7 +215,7 @@ class TestWaitForHealth:
             assert result.health.status == "Healthy"
             mock_get.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_wait_for_health_polling(self, argocd_client):
         """Deve fazer polling ate ficar healthy."""
         from clients.argocd_client import ApplicationStatus, HealthStatus, SyncStatus
@@ -250,14 +251,14 @@ class TestWaitForHealth:
             assert result.health.status == "Healthy"
             assert mock_get.call_count == 3
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_wait_for_health_timeout(self, argocd_client):
         """Deve levantar timeout se nao ficar healthy."""
         from clients.argocd_client import (
             ApplicationStatus,
+            ArgoCDTimeoutError,
             HealthStatus,
             SyncStatus,
-            ArgoCDTimeoutError,
         )
 
         mock_status = ApplicationStatus(
@@ -283,7 +284,7 @@ class TestWaitForHealth:
 class TestSyncApplication:
     """Testes de sync manual."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_sync_success(self, argocd_client):
         """Deve fazer sync com sucesso."""
         mock_response = MagicMock()
@@ -300,7 +301,7 @@ class TestSyncApplication:
             call_args = mock_post.call_args
             assert "test-app/sync" in call_args[0][0]
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_sync_with_prune(self, argocd_client):
         """Deve fazer sync com prune."""
         mock_response = MagicMock()
@@ -316,7 +317,7 @@ class TestSyncApplication:
             call_args = mock_post.call_args
             assert call_args[1]["json"]["prune"] is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_sync_with_dry_run(self, argocd_client):
         """Deve fazer sync com dry-run."""
         mock_response = MagicMock()
@@ -336,7 +337,7 @@ class TestSyncApplication:
 class TestDeleteApplication:
     """Testes de delecao de aplicacao."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_delete_success(self, argocd_client):
         """Deve deletar aplicacao com sucesso."""
         mock_response = MagicMock()
@@ -352,7 +353,7 @@ class TestDeleteApplication:
             call_args = mock_delete.call_args
             assert "cascade=true" in str(call_args)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_delete_not_found_returns_true(self, argocd_client):
         """Deve retornar True se aplicacao nao existe."""
         mock_response = MagicMock()
@@ -368,7 +369,7 @@ class TestDeleteApplication:
 
             assert result is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_delete_without_cascade(self, argocd_client):
         """Deve deletar sem cascade."""
         mock_response = MagicMock()
@@ -387,7 +388,7 @@ class TestDeleteApplication:
 class TestListApplications:
     """Testes de listagem de aplicacoes."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_list_success(self, argocd_client):
         """Deve listar aplicacoes com sucesso."""
         mock_response = MagicMock()
@@ -417,7 +418,7 @@ class TestListApplications:
             assert result[0].metadata["name"] == "app1"
             assert result[1].metadata["name"] == "app2"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_list_with_project_filter(self, argocd_client):
         """Deve filtrar por projeto."""
         mock_response = MagicMock()
@@ -433,7 +434,7 @@ class TestListApplications:
             call_args = mock_get.call_args
             assert call_args[1]["params"]["project"] == "my-project"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_list_empty(self, argocd_client):
         """Deve retornar lista vazia."""
         mock_response = MagicMock()
@@ -452,7 +453,7 @@ class TestListApplications:
 class TestClientClose:
     """Testes de fechamento do cliente."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_close_client(self, argocd_client):
         """Deve fechar cliente HTTP."""
         with patch.object(argocd_client.client, "aclose", new_callable=AsyncMock) as mock_close:

@@ -5,7 +5,8 @@ Transforma feature importances em texto legível em português para explicar
 decisões do modelo de forma compreensível para stakeholders de negócio.
 """
 
-from typing import Dict, List, Any
+from typing import Any
+
 import structlog
 
 logger = structlog.get_logger(__name__)
@@ -14,7 +15,7 @@ logger = structlog.get_logger(__name__)
 class NarrativeGenerator:
     """Gera narrativas explicativas em português."""
 
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, config: dict[str, Any]):
         """
         Inicializa gerador de narrativas.
 
@@ -26,7 +27,7 @@ class NarrativeGenerator:
 
         logger.info("NarrativeGenerator initialized")
 
-    def _load_feature_templates(self) -> Dict[str, str]:
+    def _load_feature_templates(self) -> dict[str, str]:
         """
         Carrega templates de descrição para features.
 
@@ -64,10 +65,10 @@ class NarrativeGenerator:
 
     def generate_narrative(
         self,
-        feature_importances: List[Dict[str, Any]],
+        feature_importances: list[dict[str, Any]],
         top_n: int = 5,
         explanation_type: str = "shap",
-        reasoning_links: Dict[str, Dict[str, Any]] = None,
+        reasoning_links: dict[str, dict[str, Any]] = None,
     ) -> str:
         """
         Gera narrativa explicativa baseada em importâncias.
@@ -124,9 +125,9 @@ class NarrativeGenerator:
 
     def _describe_feature(
         self,
-        feature: Dict[str, Any],
+        feature: dict[str, Any],
         weight_key: str,
-        reasoning_links: Dict[str, Dict[str, Any]] = None,
+        reasoning_links: dict[str, dict[str, Any]] = None,
     ) -> str:
         """
         Gera descrição textual de uma feature.
@@ -281,7 +282,7 @@ class NarrativeGenerator:
             return "limitado"
 
     def generate_summary(
-        self, feature_importances: List[Dict[str, Any]], explanation_type: str = "shap"
+        self, feature_importances: list[dict[str, Any]], explanation_type: str = "shap"
     ) -> str:
         """
         Gera resumo executivo de uma linha.

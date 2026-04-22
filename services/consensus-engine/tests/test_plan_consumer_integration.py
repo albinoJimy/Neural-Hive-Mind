@@ -1,8 +1,9 @@
 """Integration tests for PlanConsumer pipeline"""
 
 import asyncio
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 from src.consumers.plan_consumer import PlanConsumer
 from src.models.consolidated_decision import ConsolidatedDecision, FinalDecision
 
@@ -19,12 +20,12 @@ class MockConfig:
     grpc_timeout_ms = 5000
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_config():
     return MockConfig()
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_specialists_client():
     """Mock SpecialistsGrpcClient"""
     client = AsyncMock()
@@ -130,7 +131,7 @@ def mock_specialists_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_mongodb_client():
     """Mock MongoDBClient"""
     client = AsyncMock()
@@ -138,13 +139,13 @@ def mock_mongodb_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_pheromone_client():
     """Mock PheromoneClient"""
     return AsyncMock()
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_orchestrator():
     """Mock ConsensusOrchestrator"""
     orchestrator = AsyncMock()
@@ -167,7 +168,7 @@ def mock_orchestrator():
     return orchestrator
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_plan_consumer_parallel_invocation_happy_path(
     mock_config,
     mock_specialists_client,
@@ -238,7 +239,7 @@ async def test_plan_consumer_parallel_invocation_happy_path(
     assert queued_decision.decision_id == "dec-123"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_plan_consumer_sequential_fallback(
     mock_specialists_client, mock_mongodb_client, mock_pheromone_client, mock_orchestrator
 ):
@@ -287,7 +288,7 @@ async def test_plan_consumer_sequential_fallback(
     assert "architecture" in called_types
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_plan_consumer_handles_specialist_errors_gracefully(
     mock_config,
     mock_specialists_client,
@@ -353,7 +354,7 @@ async def test_plan_consumer_handles_specialist_errors_gracefully(
     mock_mongodb_client.save_consensus_decision.assert_called_once()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_plan_consumer_propagates_trace_context(
     mock_config, mock_specialists_client, mock_mongodb_client, mock_pheromone_client
 ):

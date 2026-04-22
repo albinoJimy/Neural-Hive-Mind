@@ -7,18 +7,18 @@ Testa:
 - Integração com DAGGenerator
 """
 
-import pytest
 from unittest.mock import patch
 
-from src.services.intent_classifier import IntentClassifier, IntentType, IntentClassification
-from src.services.decomposition_templates import DecompositionTemplates
+import pytest
 from src.services.dag_generator import DAGGenerator
+from src.services.decomposition_templates import DecompositionTemplates
+from src.services.intent_classifier import IntentClassification, IntentClassifier, IntentType
 
 
 class TestIntentClassifier:
     """Testes para classificação de intents."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def classifier(self):
         """IntentClassifier sem modelo de embeddings (apenas padrões)."""
         return IntentClassifier(config={"intent_classification_min_confidence": 0.3})
@@ -101,7 +101,7 @@ class TestIntentClassifier:
 class TestDecompositionTemplates:
     """Testes para templates de decomposição."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def templates(self):
         """Instância de DecompositionTemplates."""
         return DecompositionTemplates()
@@ -201,12 +201,12 @@ class TestDecompositionTemplates:
 class TestDAGGeneratorIntentDecomposition:
     """Testes de integração com DAGGenerator."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def dag_generator(self):
         """DAGGenerator com decomposição por intent habilitada."""
         return DAGGenerator(intent_decomposition_enabled=True)
 
-    @pytest.fixture
+    @pytest.fixture()
     def dag_generator_disabled(self):
         """DAGGenerator com decomposição por intent desabilitada."""
         return DAGGenerator(intent_decomposition_enabled=False)
@@ -276,7 +276,7 @@ class TestDAGGeneratorIntentDecomposition:
 class TestIntentDecompositionEndToEnd:
     """Testes end-to-end de decomposição de intents reais."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def dag_generator(self):
         """DAGGenerator completo."""
         return DAGGenerator(intent_decomposition_enabled=True)
@@ -340,7 +340,7 @@ class TestIntentDecompositionEndToEnd:
 class TestIntentClassifierEdgeCases:
     """Testes para edge cases do IntentClassifier"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def classifier(self):
         return IntentClassifier(config={"intent_classification_min_confidence": 0.3})
 
@@ -375,7 +375,7 @@ class TestIntentClassifierEdgeCases:
 class TestDecompositionTemplatesEdgeCases:
     """Testes para edge cases de DecompositionTemplates"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def templates(self):
         return DecompositionTemplates()
 
@@ -397,7 +397,7 @@ class TestDecompositionTemplatesEdgeCases:
 class TestIntentDecompositionWithEntities:
     """Testes para decomposição com entidades complexas"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def dag_generator(self):
         return DAGGenerator(intent_decomposition_enabled=True)
 
@@ -443,7 +443,7 @@ class TestIntentDecompositionWithEntities:
 class TestDAGGeneratorWithIntentDecompositionDisabled:
     """Testes para DAGGenerator com decomposição por intent desabilitada"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def dag_generator(self):
         return DAGGenerator(intent_decomposition_enabled=False)
 
@@ -477,7 +477,7 @@ class TestDAGGeneratorWithIntentDecompositionDisabled:
 class TestIntentClassificationConfidence:
     """Testes para níveis de confiança na classificação"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def classifier(self):
         return IntentClassifier(config={"intent_classification_min_confidence": 0.5})
 
@@ -525,7 +525,7 @@ class TestIntentClassificationConfidence:
 class TestDecompositionTaskParameters:
     """Testes para parâmetros de tasks geradas"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def dag_generator(self):
         return DAGGenerator(intent_decomposition_enabled=True)
 

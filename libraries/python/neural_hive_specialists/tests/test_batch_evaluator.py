@@ -4,16 +4,17 @@ Testes unitários para BatchEvaluator.
 Testa processamento em batch de múltiplos planos cognitivos.
 """
 
-import pytest
 import asyncio
+from unittest.mock import MagicMock, Mock
+
 import numpy as np
-from unittest.mock import Mock, MagicMock
+import pytest
 
 
 class TestBatchEvaluator:
     """Testes da classe BatchEvaluator."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_specialist(self):
         """Mock do BaseSpecialist."""
         specialist = MagicMock()
@@ -57,14 +58,14 @@ class TestBatchEvaluator:
         specialist.metrics = MagicMock()
         return specialist
 
-    @pytest.fixture
+    @pytest.fixture()
     def batch_evaluator(self, mock_specialist):
         """Cria BatchEvaluator com specialist mockado."""
         from neural_hive_specialists.batch_evaluator import BatchEvaluator
 
         return BatchEvaluator(specialist=mock_specialist, batch_size=32, max_workers=4)
 
-    @pytest.fixture
+    @pytest.fixture()
     def sample_plans(self):
         """Lista de planos cognitivos de teste."""
         return [
@@ -86,7 +87,7 @@ class TestBatchEvaluator:
             for i in range(10)
         ]
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_batch_evaluation_success(self, batch_evaluator, sample_plans):
         """Testa avaliação em batch bem-sucedida."""
         results = await batch_evaluator.evaluate_batch(sample_plans)
@@ -98,19 +99,19 @@ class TestBatchEvaluator:
             assert "recommendation" in result
             assert result["metadata"].get("batch_processed") is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_batch_evaluation_empty_list(self, batch_evaluator):
         """Testa avaliação com lista vazia."""
         results = await batch_evaluator.evaluate_batch([])
         assert results == []
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_batch_evaluation_single_plan(self, batch_evaluator, sample_plans):
         """Testa avaliação com um único plano."""
         results = await batch_evaluator.evaluate_batch([sample_plans[0]])
         assert len(results) == 1
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_batch_feature_extraction_parallel(
         self, batch_evaluator, sample_plans, mock_specialist
     ):
@@ -120,7 +121,7 @@ class TestBatchEvaluator:
         # Verificar que extract_features foi chamado para cada plano
         assert mock_specialist.feature_extractor.extract_features.call_count >= len(sample_plans)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_batch_fallback_on_prediction_failure(
         self, batch_evaluator, sample_plans, mock_specialist
     ):
@@ -133,7 +134,7 @@ class TestBatchEvaluator:
         # Deve usar _evaluate_plan_internal como fallback
         assert len(results) == len(sample_plans)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_batch_with_feature_cache(self, batch_evaluator, sample_plans, mock_specialist):
         """Testa batch com feature cache habilitado."""
         # Configurar cache mock
@@ -156,7 +157,7 @@ class TestBatchEvaluator:
         for result in results:
             assert "confidence_score" in result
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_batch_handles_extraction_error(
         self, batch_evaluator, sample_plans, mock_specialist
     ):
@@ -179,7 +180,7 @@ class TestBatchEvaluator:
         # Deve retornar resultados para todos os planos (com fallback para erros)
         assert len(results) == len(sample_plans)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_batch_metadata_includes_plan_id(self, batch_evaluator, sample_plans):
         """Testa que metadata inclui plan_id."""
         results = await batch_evaluator.evaluate_batch(sample_plans)
@@ -191,7 +192,7 @@ class TestBatchEvaluator:
 class TestBatchEvaluatorPerformance:
     """Testes de performance para BatchEvaluator."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_specialist_slow(self):
         """Mock do specialist com operações lentas simuladas."""
         specialist = MagicMock()
@@ -233,10 +234,11 @@ class TestBatchEvaluatorPerformance:
         specialist.metrics = MagicMock()
         return specialist
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_batch_faster_than_sequential(self, mock_specialist_slow):
         """Verifica que batch é mais rápido que processamento sequencial."""
         import time
+
         from neural_hive_specialists.batch_evaluator import BatchEvaluator
 
         evaluator = BatchEvaluator(specialist=mock_specialist_slow, batch_size=32, max_workers=8)

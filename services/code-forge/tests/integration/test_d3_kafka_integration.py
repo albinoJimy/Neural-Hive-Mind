@@ -15,11 +15,9 @@ from datetime import datetime
 from unittest.mock import AsyncMock
 
 import pytest
-
-from src.types.artifact_types import ArtifactCategory
 from src.models.artifact import PipelineResult, PipelineStatus
 from src.models.execution_ticket import TaskType, TicketStatus
-
+from src.types.artifact_types import ArtifactCategory
 
 pytest_plugins = ["tests.unit.conftest", "tests.fixtures.d3_fixtures"]
 
@@ -32,7 +30,7 @@ pytest_plugins = ["tests.unit.conftest", "tests.fixtures.d3_fixtures"]
 class TestD3KafkaResultProduction:
     """Testes de produção de resultados no Kafka."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_d3_result_publish_on_completion(
         self, d3_build_ticket, mock_d3_pipeline_engine, mock_d3_kafka_producer
     ):
@@ -61,7 +59,7 @@ class TestD3KafkaResultProduction:
         assert published_result.ticket_id == d3_build_ticket.ticket_id
         assert published_result.trace_id == d3_build_ticket.trace_id
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_d3_result_publish_on_failure(
         self, d3_build_ticket, mock_d3_pipeline_engine, mock_d3_kafka_producer, mock_d3_validator
     ):
@@ -92,7 +90,7 @@ class TestD3KafkaResultProduction:
         assert published_result.status == PipelineStatus.FAILED
         assert published_result.error_message is not None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_d3_result_message_structure(
         self, d3_build_ticket, mock_d3_pipeline_engine, mock_d3_kafka_producer
     ):
@@ -141,7 +139,7 @@ class TestD3KafkaResultProduction:
         assert isinstance(published_result.artifacts, list)
         assert isinstance(published_result.total_duration_ms, int)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_d3_result_artifact_inclusion(
         self, d3_build_ticket_with_container, mock_d3_pipeline_engine, mock_d3_kafka_producer
     ):
@@ -177,7 +175,7 @@ class TestD3KafkaResultProduction:
 class TestD3KafkaTicketConsumption:
     """Testes de consumo de tickets do Kafka."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_d3_consume_build_ticket(self, mock_d3_kafka_consumer):
         """
         D3: Consumo de ticket BUILD
@@ -193,7 +191,7 @@ class TestD3KafkaTicketConsumption:
         assert ticket["task_type"] == "BUILD"
         assert "parameters" in ticket
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_d3_consume_batch_tickets(self, mock_d3_kafka_consumer):
         """
         D3: Consumo de lote de tickets
@@ -208,7 +206,7 @@ class TestD3KafkaTicketConsumption:
         # Commit deve ser possível (método existe)
         assert mock_d3_kafka_consumer.commit_offset is not None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_d3_ticket_deserialization(self, d3_build_ticket):
         """
         D3: Deserialização de ticket
@@ -240,7 +238,7 @@ class TestD3KafkaTicketConsumption:
 class TestD3KafkaPipelineEvents:
     """Testes de eventos de pipeline no Kafka."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_d3_stage_started_event(
         self, d3_build_ticket, mock_d3_pipeline_engine, mock_d3_kafka_producer
     ):
@@ -275,7 +273,7 @@ class TestD3KafkaPipelineEvents:
         result = call_args[0][0]
         assert len(result.pipeline_stages) > 0
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_d3_stage_completed_event(self, d3_build_ticket, mock_d3_pipeline_engine):
         """
         D3: Evento de stage completado
@@ -293,7 +291,7 @@ class TestD3KafkaPipelineEvents:
             assert stage.duration_ms >= 0
             assert stage.stage_name is not None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_d3_pipeline_completed_event(
         self, d3_build_ticket, mock_d3_pipeline_engine, mock_d3_kafka_producer
     ):
@@ -325,7 +323,7 @@ class TestD3KafkaPipelineEvents:
 class TestD3KafkaConfiguration:
     """Testes de configuração do Kafka producer/consumer."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_d3_kafka_producer_start_stop(self, mock_d3_kafka_producer):
         """
         D3: Start/Stop do producer
@@ -340,7 +338,7 @@ class TestD3KafkaConfiguration:
         assert mock_d3_kafka_producer.start.called
         assert mock_d3_kafka_producer.stop.called
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_d3_kafka_consumer_start_stop(self, mock_d3_kafka_consumer):
         """
         D3: Start/Stop do consumer
@@ -356,7 +354,7 @@ class TestD3KafkaConfiguration:
         assert mock_d3_kafka_consumer.start.called
         assert mock_d3_kafka_consumer.stop.called
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_d3_kafka_retry_on_failure(self, mock_d3_kafka_producer):
         """
         D3: Retry em falha de publicação
@@ -434,7 +432,7 @@ class TestD3KafkaTopics:
             assert topic.startswith("execution.")
             assert purpose in ["input", "output", "events"]
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_d3_result_topic_partitioning(self, d3_build_ticket, mock_d3_pipeline_engine):
         """
         D3: Partitioning do tópico de resultados
@@ -492,7 +490,7 @@ class TestD3KafkaSerialization:
         assert restored.status == PipelineStatus.COMPLETED
         assert len(restored.artifacts) == len(d3_expected_pipeline_result.artifacts)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_d3_ticket_serialization_roundtrip(self, d3_build_ticket):
         """
         D3: Roundtrip de serialização de ticket
@@ -524,7 +522,7 @@ class TestD3KafkaSerialization:
 class TestD3KafkaOpenTelemetry:
     """Testes de integração Kafka com OpenTelemetry."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_d3_trace_propagation(
         self, d3_build_ticket, mock_d3_pipeline_engine, mock_d3_kafka_producer
     ):
@@ -547,7 +545,7 @@ class TestD3KafkaOpenTelemetry:
         assert len(published_result.trace_id) > 0
         assert len(published_result.span_id) > 0
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_d3_w3c_trace_context_format(self, d3_build_ticket):
         """
         D3: Formato W3C Trace Context
@@ -583,7 +581,7 @@ class TestD3KafkaOpenTelemetry:
 class TestD3KafkaPerformance:
     """Testes de performance do Kafka."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_d3_publish_latency(self, mock_d3_kafka_producer):
         """
         D3: Latência de publicação
@@ -611,7 +609,7 @@ class TestD3KafkaPerformance:
         # Mock deve ser rápido
         assert latency_ms < 100
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_d3_batch_publish(self, mock_d3_kafka_producer):
         """
         D3: Publicação em lote
@@ -649,7 +647,7 @@ class TestD3KafkaPerformance:
 class TestD3KafkaErrorHandling:
     """Testes de tratamento de erros Kafka."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_d3_publish_failure_handling(self, mock_d3_kafka_producer, d3_build_ticket):
         """
         D3: Tratamento de falha de publicação
@@ -688,7 +686,7 @@ class TestD3KafkaErrorHandling:
             # Esperado: exceção propagada
             assert "Kafka" in str(e) or "broker" in str(e)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_d3_consumer_error_handling(self, mock_d3_kafka_consumer):
         """
         D3: Tratamento de erro no consumer

@@ -7,35 +7,35 @@ Este módulo testa os fluxos completos do sistema de meta-learning:
 3. Fallback on MongoDB Failure: Sistema retorna defaults quando MongoDB indisponível
 """
 
-import pytest
 import asyncio
-from datetime import datetime, timezone, timedelta
+from datetime import UTC, datetime, timedelta
 from unittest.mock import patch
 
+import pytest
+
+from neural_hive_specialists.evolution_hooks.feedback_consumer import (
+    EvolutionFeedbackConsumer,
+)
 from neural_hive_specialists.evolution_hooks.models import (
-    Fingerprint,
+    DEFAULT_WEIGHTS,
+    DurationRange,
     EvolutionEvaluation,
     FeedbackData,
     FeedbackOutcome,
     FeedbackSource,
+    Fingerprint,
     TaskCountRange,
-    DurationRange,
-    DEFAULT_WEIGHTS,
 )
-from neural_hive_specialists.evolution_hooks.pattern_registry import PatternRegistry
 from neural_hive_specialists.evolution_hooks.pattern_matcher import PatternMatcher
+from neural_hive_specialists.evolution_hooks.pattern_registry import PatternRegistry
 from neural_hive_specialists.evolution_hooks.weight_adapter import WeightAdapter
-from neural_hive_specialists.evolution_hooks.feedback_consumer import (
-    EvolutionFeedbackConsumer,
-)
-
 
 # ============================================================================
 # Fixtures E2E
 # ============================================================================
 
 
-@pytest.fixture
+@pytest.fixture()
 def technical_fingerprint():
     """Fingerprint técnico para testes E2E."""
     return Fingerprint(
@@ -50,7 +50,7 @@ def technical_fingerprint():
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def business_fingerprint():
     """Fingerprint de negócio para testes E2E."""
     return Fingerprint(
@@ -65,7 +65,7 @@ def business_fingerprint():
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_evaluation():
     """Avaliação de exemplo."""
     return EvolutionEvaluation(
@@ -84,7 +84,7 @@ def sample_evaluation():
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 async def e2e_clean_registry(mongo_client):
     """
     Registry limpo para cada teste E2E.
@@ -116,8 +116,8 @@ async def e2e_clean_registry(mongo_client):
 # ============================================================================
 
 
-@pytest.mark.asyncio
-@pytest.mark.e2e
+@pytest.mark.asyncio()
+@pytest.mark.e2e()
 async def test_cold_start_returns_defaults(e2e_clean_registry, mongo_client, technical_fingerprint):
     """
     Cenário 1.1: Cold Start - Sistema sem histórico retorna pesos defaults.
@@ -146,8 +146,8 @@ async def test_cold_start_returns_defaults(e2e_clean_registry, mongo_client, tec
     assert adapted_weights["tech_debt_prevention"] == 0.15
 
 
-@pytest.mark.asyncio
-@pytest.mark.e2e
+@pytest.mark.asyncio()
+@pytest.mark.e2e()
 async def test_cold_start_with_learning(
     e2e_clean_registry, mongo_client, technical_fingerprint, sample_evaluation
 ):
@@ -185,7 +185,7 @@ async def test_cold_start_with_learning(
             outcome=FeedbackOutcome.APPROVE,
             source=FeedbackSource.HUMAN,
             reasoning=f"Approved plan {i}",
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
         )
         await registry.add_feedback(plan_id, feedback)
 
@@ -205,8 +205,8 @@ async def test_cold_start_with_learning(
         assert pattern.feedback.outcome == FeedbackOutcome.APPROVE
 
 
-@pytest.mark.asyncio
-@pytest.mark.e2e
+@pytest.mark.asyncio()
+@pytest.mark.e2e()
 async def test_learning_from_mixed_feedback(
     e2e_clean_registry, mongo_client, technical_fingerprint, sample_evaluation
 ):
@@ -244,7 +244,7 @@ async def test_learning_from_mixed_feedback(
             outcome=outcome,
             source=FeedbackSource.HUMAN,
             reasoning=f"Plan {i} outcome",
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
         )
         await registry.add_feedback(plan_id, feedback)
 
@@ -277,8 +277,8 @@ async def test_learning_from_mixed_feedback(
 # ============================================================================
 
 
-@pytest.mark.asyncio
-@pytest.mark.e2e
+@pytest.mark.asyncio()
+@pytest.mark.e2e()
 async def test_pattern_decay_high_success_then_failure(
     e2e_clean_registry, mongo_client, technical_fingerprint, sample_evaluation
 ):
@@ -304,7 +304,7 @@ async def test_pattern_decay_high_success_then_failure(
             outcome=FeedbackOutcome.APPROVE,
             source=FeedbackSource.HUMAN,
             reasoning=f"Good plan {i}",
-            timestamp=datetime.now(timezone.utc) + timedelta(seconds=i),
+            timestamp=datetime.now(UTC) + timedelta(seconds=i),
         )
         await registry.add_feedback(plan_id, feedback)
         # Atualizar métricas explicitamente (assim como o sistema real faria)
@@ -321,7 +321,7 @@ async def test_pattern_decay_high_success_then_failure(
         outcome=FeedbackOutcome.REJECT,
         source=FeedbackSource.HUMAN,
         reasoning="Security concerns found",
-        timestamp=datetime.now(timezone.utc) + timedelta(seconds=10),
+        timestamp=datetime.now(UTC) + timedelta(seconds=10),
     )
     await registry.add_feedback(plan_id, negative_feedback)
     # Atualizar métricas com failure
@@ -333,8 +333,8 @@ async def test_pattern_decay_high_success_then_failure(
     assert decayed_rate < initial_rate
 
 
-@pytest.mark.asyncio
-@pytest.mark.e2e
+@pytest.mark.asyncio()
+@pytest.mark.e2e()
 async def test_weight_adjustment_after_decay(
     e2e_clean_registry, mongo_client, technical_fingerprint, sample_evaluation
 ):
@@ -371,7 +371,7 @@ async def test_weight_adjustment_after_decay(
             outcome=FeedbackOutcome.APPROVE,
             source=FeedbackSource.HUMAN,
             reasoning=f"Good maintainability {i}",
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
         )
         await registry.add_feedback(plan_id, feedback)
 
@@ -397,7 +397,7 @@ async def test_weight_adjustment_after_decay(
             outcome=FeedbackOutcome.REJECT,
             source=FeedbackSource.HUMAN,
             reasoning=f"Poor maintainability {i}",
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
         )
         await registry.add_feedback(plan_id, feedback)
 
@@ -414,8 +414,8 @@ async def test_weight_adjustment_after_decay(
     assert abs(sum(adapted.values()) - 1.0) < 0.001
 
 
-@pytest.mark.asyncio
-@pytest.mark.e2e
+@pytest.mark.asyncio()
+@pytest.mark.e2e()
 async def test_pattern_decay_recovery(
     e2e_clean_registry, mongo_client, technical_fingerprint, sample_evaluation
 ):
@@ -438,7 +438,7 @@ async def test_pattern_decay_recovery(
             outcome=FeedbackOutcome.APPROVE,
             source=FeedbackSource.HUMAN,
             reasoning="Good",
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
         )
         await registry.add_feedback(plan_id, feedback)
         await registry.update_metrics(pattern_id, success=True)
@@ -452,7 +452,7 @@ async def test_pattern_decay_recovery(
             outcome=FeedbackOutcome.REJECT,
             source=FeedbackSource.AUTOMATED,
             reasoning="Failed",
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
         )
         await registry.add_feedback(plan_id, feedback)
         await registry.update_metrics(pattern_id, success=False)
@@ -467,7 +467,7 @@ async def test_pattern_decay_recovery(
             outcome=FeedbackOutcome.APPROVE,
             source=FeedbackSource.HUMAN,
             reasoning="Good again",
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
         )
         await registry.add_feedback(plan_id, feedback)
         await registry.update_metrics(pattern_id, success=True)
@@ -482,8 +482,8 @@ async def test_pattern_decay_recovery(
 # ============================================================================
 
 
-@pytest.mark.asyncio
-@pytest.mark.e2e
+@pytest.mark.asyncio()
+@pytest.mark.e2e()
 async def test_fallback_on_mongo_connection_error(mongo_client, technical_fingerprint):
     """
     Cenário 3.1: Fallback quando MongoDB levanta exceção de conexão.
@@ -506,8 +506,8 @@ async def test_fallback_on_mongo_connection_error(mongo_client, technical_finger
         assert adapted == DEFAULT_WEIGHTS
 
 
-@pytest.mark.asyncio
-@pytest.mark.e2e
+@pytest.mark.asyncio()
+@pytest.mark.e2e()
 async def test_fallback_on_registry_unavailable(mongo_client, technical_fingerprint):
     """
     Cenário 3.2: Fallback quando PatternRegistry está indisponível.
@@ -529,8 +529,8 @@ async def test_fallback_on_registry_unavailable(mongo_client, technical_fingerpr
         assert adapted == DEFAULT_WEIGHTS
 
 
-@pytest.mark.asyncio
-@pytest.mark.e2e
+@pytest.mark.asyncio()
+@pytest.mark.e2e()
 async def test_fallback_on_timeout_during_pattern_search(
     e2e_clean_registry, mongo_client, technical_fingerprint
 ):
@@ -557,8 +557,8 @@ async def test_fallback_on_timeout_during_pattern_search(
         assert adapted == DEFAULT_WEIGHTS
 
 
-@pytest.mark.asyncio
-@pytest.mark.e2e
+@pytest.mark.asyncio()
+@pytest.mark.e2e()
 async def test_pattern_matcher_cache_invalidated_on_error(mongo_client, technical_fingerprint):
     """
     Cenário 3.4: Cache do PatternMatcher é invalidado em caso de erro.
@@ -592,8 +592,8 @@ async def test_pattern_matcher_cache_invalidated_on_error(mongo_client, technica
 # ============================================================================
 
 
-@pytest.mark.asyncio
-@pytest.mark.e2e
+@pytest.mark.asyncio()
+@pytest.mark.e2e()
 async def test_full_feedback_loop_integration(
     e2e_clean_registry, mongo_client, technical_fingerprint, sample_evaluation
 ):
@@ -634,7 +634,7 @@ async def test_full_feedback_loop_integration(
             "outcome": "approve",
             "source": "human",
             "reasoning": "Approved after review",
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
         },
     }
 
@@ -656,7 +656,7 @@ async def test_full_feedback_loop_integration(
             outcome=FeedbackOutcome.APPROVE,
             source=FeedbackSource.HUMAN,
             reasoning=f"Approved {i}",
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
         )
         await registry.add_feedback(pid, fb)
 
@@ -666,8 +666,8 @@ async def test_full_feedback_loop_integration(
     assert len(similar) >= adapter.min_similar_patterns
 
 
-@pytest.mark.asyncio
-@pytest.mark.e2e
+@pytest.mark.asyncio()
+@pytest.mark.e2e()
 async def test_multiple_domains_separate_learning(
     e2e_clean_registry, mongo_client, technical_fingerprint, business_fingerprint, sample_evaluation
 ):
@@ -691,7 +691,7 @@ async def test_multiple_domains_separate_learning(
             outcome=FeedbackOutcome.APPROVE,
             source=FeedbackSource.HUMAN,
             reasoning=f"Technical plan approved {i}",
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
         )
         await registry.add_feedback(plan_id, feedback)
 
@@ -704,7 +704,7 @@ async def test_multiple_domains_separate_learning(
             outcome=FeedbackOutcome.REJECT,
             source=FeedbackSource.HUMAN,
             reasoning=f"Business plan rejected {i}",
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
         )
         await registry.add_feedback(plan_id, feedback)
 
@@ -727,8 +727,8 @@ async def test_multiple_domains_separate_learning(
     assert bus_count == 5
 
 
-@pytest.mark.asyncio
-@pytest.mark.e2e
+@pytest.mark.asyncio()
+@pytest.mark.e2e()
 async def test_corrected_weights_propagation(
     e2e_clean_registry, mongo_client, technical_fingerprint, sample_evaluation
 ):
@@ -759,7 +759,7 @@ async def test_corrected_weights_propagation(
         outcome=FeedbackOutcome.APPROVE,
         source=FeedbackSource.HUMAN,
         reasoning="Weights adjusted after review",
-        timestamp=datetime.now(timezone.utc),
+        timestamp=datetime.now(UTC),
         corrected_weights=corrected_weights,
     )
 
@@ -780,8 +780,8 @@ async def test_corrected_weights_propagation(
 # ============================================================================
 
 
-@pytest.mark.asyncio
-@pytest.mark.e2e
+@pytest.mark.asyncio()
+@pytest.mark.e2e()
 async def test_weight_normalization_boundary(
     e2e_clean_registry, mongo_client, technical_fingerprint
 ):
@@ -811,7 +811,7 @@ async def test_weight_normalization_boundary(
         fb = FeedbackData(
             outcome=FeedbackOutcome.APPROVE,
             source=FeedbackSource.SYSTEM,
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
         )
         await registry.add_feedback(plan_id, fb)
 
@@ -832,8 +832,8 @@ async def test_weight_normalization_boundary(
         ), f"Weight {name} = {value} outside [{min_val}, {max_val}]"
 
 
-@pytest.mark.asyncio
-@pytest.mark.e2e
+@pytest.mark.asyncio()
+@pytest.mark.e2e()
 async def test_empty_task_types_similarity(e2e_clean_registry, mongo_client, sample_evaluation):
     """
     Cenário 5.2: Similaridade com task_types vazio.
@@ -867,8 +867,8 @@ async def test_empty_task_types_similarity(e2e_clean_registry, mongo_client, sam
     assert similar[0].fingerprint.task_types == []
 
 
-@pytest.mark.asyncio
-@pytest.mark.e2e
+@pytest.mark.asyncio()
+@pytest.mark.e2e()
 async def test_concurrent_feedback_processing(
     e2e_clean_registry, mongo_client, technical_fingerprint, sample_evaluation
 ):
@@ -895,7 +895,7 @@ async def test_concurrent_feedback_processing(
             outcome=outcome,
             source=FeedbackSource.HUMAN,
             reasoning=f"Concurrent feedback for {plan_id}",
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
         )
         return await registry.add_feedback(plan_id, feedback)
 
@@ -918,8 +918,8 @@ async def test_concurrent_feedback_processing(
     assert stats["patterns_with_feedback"] == 10
 
 
-@pytest.mark.asyncio
-@pytest.mark.e2e
+@pytest.mark.asyncio()
+@pytest.mark.e2e()
 async def test_pattern_registry_statistics(
     e2e_clean_registry, mongo_client, technical_fingerprint, business_fingerprint, sample_evaluation
 ):
@@ -941,7 +941,7 @@ async def test_pattern_registry_statistics(
         fb = FeedbackData(
             outcome=FeedbackOutcome.APPROVE,
             source=FeedbackSource.HUMAN,
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
         )
         await registry.add_feedback(plan_id, fb)
 
@@ -953,7 +953,7 @@ async def test_pattern_registry_statistics(
         fb = FeedbackData(
             outcome=FeedbackOutcome.REJECT,
             source=FeedbackSource.AUTOMATED,
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
         )
         await registry.add_feedback(plan_id, fb)
 
@@ -978,8 +978,8 @@ async def test_pattern_registry_statistics(
 # ============================================================================
 
 
-@pytest.mark.asyncio
-@pytest.mark.e2e
+@pytest.mark.asyncio()
+@pytest.mark.e2e()
 async def test_learning_trajectory_simulation(
     e2e_clean_registry, mongo_client, technical_fingerprint, sample_evaluation
 ):
@@ -1025,7 +1025,7 @@ async def test_learning_trajectory_simulation(
             outcome=outcome,
             source=FeedbackSource.HUMAN,
             reasoning=f"Phase2 feedback {i}",
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
         )
         await registry.add_feedback(plan_id, feedback)
 
@@ -1045,7 +1045,7 @@ async def test_learning_trajectory_simulation(
         feedback = FeedbackData(
             outcome=FeedbackOutcome.APPROVE,
             source=FeedbackSource.SYSTEM,
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
         )
         await registry.add_feedback(plan_id, feedback)
 

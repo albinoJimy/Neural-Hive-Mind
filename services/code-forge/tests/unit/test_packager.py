@@ -19,7 +19,7 @@ import pytest
 class TestPackagerSBOMGeneration:
     """Testes de geracao de SBOM."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_package_generates_sbom(
         self, mock_sigstore_client, sample_pipeline_context_with_artifacts
     ):
@@ -38,13 +38,13 @@ class TestPackagerSBOMGeneration:
         artifact = sample_pipeline_context_with_artifacts.generated_artifacts[0]
         assert artifact.sbom_uri is not None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_package_multiple_artifacts(
         self, mock_sigstore_client, sample_pipeline_context_with_artifacts
     ):
         """Deve processar multiplos artefatos."""
-        from src.services.packager import Packager
         from src.models.artifact import CodeForgeArtifact, GenerationMethod
+        from src.services.packager import Packager
         from src.types.artifact_types import ArtifactCategory
 
         # Adicionar segundo artefato
@@ -80,7 +80,7 @@ class TestPackagerSBOMGeneration:
 class TestPackagerSignature:
     """Testes de assinatura de artefatos."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_package_signs_artifact(
         self, mock_sigstore_client, sample_pipeline_context_with_artifacts
     ):
@@ -103,7 +103,7 @@ class TestPackagerSignature:
 class TestPackagerS3Integration:
     """Testes de integracao com S3."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_package_verifies_s3_integrity(
         self, mock_sigstore_client, mock_s3_client, sample_pipeline_context_with_artifacts
     ):
@@ -124,7 +124,7 @@ class TestPackagerS3Integration:
             "s3://code-forge/sboms/test.json"
         )
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_package_skips_s3_for_non_s3_uri(
         self, mock_sigstore_client, mock_s3_client, sample_pipeline_context_with_artifacts
     ):
@@ -147,7 +147,7 @@ class TestPackagerS3Integration:
 class TestPackagerIntegrityRetry:
     """Testes de retry de verificacao de integridade."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_retry_on_integrity_failure(
         self, mock_sigstore_client, mock_s3_client, sample_pipeline_context_with_artifacts
     ):
@@ -169,7 +169,7 @@ class TestPackagerIntegrityRetry:
         # Deve re-gerar SBOM apos falha
         assert mock_sigstore_client.generate_sbom.call_count == 2
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_max_retries_exhausted(
         self, mock_sigstore_client, mock_s3_client, sample_pipeline_context_with_artifacts
     ):
@@ -194,7 +194,7 @@ class TestPackagerIntegrityRetry:
 class TestPackagerArtifactRegistry:
     """Testes de integracao com Artifact Registry."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_registers_sbom_in_artifact_registry(
         self,
         mock_sigstore_client,
@@ -219,7 +219,7 @@ class TestPackagerArtifactRegistry:
         artifact = sample_pipeline_context_with_artifacts.generated_artifacts[0]
         assert artifact.registry_reference is not None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_skips_registry_for_non_s3_uri(
         self,
         mock_sigstore_client,
@@ -245,7 +245,7 @@ class TestPackagerArtifactRegistry:
 class TestPackagerMetadata:
     """Testes de metadata passada para clientes."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_passes_ticket_id_to_sbom(
         self, mock_sigstore_client, sample_pipeline_context_with_artifacts
     ):
@@ -263,7 +263,7 @@ class TestPackagerMetadata:
         call_kwargs = mock_sigstore_client.generate_sbom.call_args[1]
         assert "ticket_id" in call_kwargs
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_passes_artifact_id_to_sbom(
         self, mock_sigstore_client, sample_pipeline_context_with_artifacts
     ):
@@ -285,7 +285,7 @@ class TestPackagerMetadata:
 class TestPackagerPostgresPersistence:
     """Testes de persistencia de metadados no PostgreSQL."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_saves_artifact_metadata_to_postgres(
         self, mock_sigstore_client, mock_postgres_client, sample_pipeline_context_with_artifacts
     ):
@@ -314,15 +314,16 @@ class TestPackagerPostgresPersistence:
             == sample_pipeline_context_with_artifacts.generated_artifacts[0].artifact_id
         )
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_saves_metadata_for_multiple_artifacts(
         self, mock_sigstore_client, mock_postgres_client, sample_pipeline_context_with_artifacts
     ):
         """Deve persistir metadados para multiplos artefatos."""
-        from src.services.packager import Packager
-        from src.models.artifact import CodeForgeArtifact, GenerationMethod
-        from src.types.artifact_types import ArtifactCategory
         import uuid
+
+        from src.models.artifact import CodeForgeArtifact, GenerationMethod
+        from src.services.packager import Packager
+        from src.types.artifact_types import ArtifactCategory
 
         # Adicionar segundo artefato
         artifact2 = CodeForgeArtifact(
@@ -355,7 +356,7 @@ class TestPackagerPostgresPersistence:
         # Verificar que save_artifact_metadata foi chamado para cada artefato
         assert mock_postgres_client.save_artifact_metadata.call_count == 2
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_continues_packaging_when_postgres_fails(
         self, mock_sigstore_client, mock_postgres_client, sample_pipeline_context_with_artifacts
     ):
@@ -386,7 +387,7 @@ class TestPackagerPostgresPersistence:
         assert mock_sigstore_client.generate_sbom.call_count >= 1
         assert mock_sigstore_client.sign_artifact.call_count >= 1
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_skips_postgres_when_client_not_provided(
         self, mock_sigstore_client, sample_pipeline_context_with_artifacts
     ):

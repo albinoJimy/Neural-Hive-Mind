@@ -513,8 +513,9 @@ class TestBusinessValidations:
             if current is None:
                 current = next_status
             else:
-                assert current.is_valid_transition(next_status), \
-                    f"Transição inválida: {current} -> {next_status}"
+                assert current.is_valid_transition(
+                    next_status
+                ), f"Transição inválida: {current} -> {next_status}"
                 current = next_status
 
     def test_migration_rollback_possible_states(self):

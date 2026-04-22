@@ -3,7 +3,6 @@ import json
 import re
 from datetime import datetime
 from pathlib import Path
-from typing import Dict
 
 import structlog
 
@@ -702,7 +701,7 @@ class TestRunner:
             duration_ms=duration_ms,
         )
 
-    def _generate_test_suite(self, language: str, code: str, parameters: Dict) -> str:
+    def _generate_test_suite(self, language: str, code: str, parameters: dict) -> str:
         """
         Gera suite de testes baseada no código gerado.
 
@@ -719,7 +718,7 @@ class TestRunner:
         else:
             return self._generate_generic_test_suite(language, code)
 
-    def _generate_python_test_suite(self, code: str, parameters: Dict) -> str:
+    def _generate_python_test_suite(self, code: str, parameters: dict) -> str:
         """Gera testes pytest para código Python."""
         service_name = parameters.get("service_name", "my-service")
 
@@ -919,7 +918,7 @@ class TestGeneratedCode:
             indent=2,
         )
 
-    def _generate_jest_test_suite(self, language: str, code: str, parameters: Dict) -> str:
+    def _generate_jest_test_suite(self, language: str, code: str, parameters: dict) -> str:
         """
         Gera suite de testes Jest para JavaScript/TypeScript.
 

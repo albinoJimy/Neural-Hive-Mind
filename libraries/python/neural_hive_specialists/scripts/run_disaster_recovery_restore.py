@@ -20,10 +20,11 @@ Uso:
 """
 
 import argparse
-import sys
-import os
 import json
+import os
+import sys
 from datetime import datetime
+
 import structlog
 
 # Adicionar path do library ao sys.path
@@ -34,9 +35,9 @@ from neural_hive_specialists.disaster_recovery.disaster_recovery_manager import 
     DisasterRecoveryManager,
 )
 from neural_hive_specialists.disaster_recovery.storage_client import (
-    S3StorageClient,
     GCSStorageClient,
     LocalStorageClient,
+    S3StorageClient,
 )
 
 logger = structlog.get_logger()
@@ -307,7 +308,7 @@ def main():
             return 1
 
     except Exception as e:
-        print(f"ERRO: {str(e)}", file=sys.stderr)
+        print(f"ERRO: {e!s}", file=sys.stderr)
         logger.exception("Erro fatal no script de restore")
         return 1
 

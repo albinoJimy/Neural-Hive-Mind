@@ -1,5 +1,5 @@
 import asyncio
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Optional
 
 import grpc
 import structlog
@@ -142,7 +142,7 @@ class QueenAgentGrpcClient:
         except asyncio.TimeoutError:
             logger.warning("queen_agent_grpc_channel_ready_timeout", endpoint=endpoint)
 
-    async def _get_grpc_metadata(self) -> List[Tuple[str, str]]:
+    async def _get_grpc_metadata(self) -> list[tuple[str, str]]:
         """Obter metadata gRPC com JWT-SVID para autenticação"""
         settings = self._settings
         spiffe_enabled = settings.SPIFFE_ENABLED
@@ -296,7 +296,7 @@ class QueenAgentGrpcClient:
         """Enviar insight operacional ao Queen Agent (usa mesma implementação que strategic)"""
         return await self.send_strategic_insight(insight)
 
-    async def request_strategic_decision(self, context: Dict) -> Optional[Dict]:
+    async def request_strategic_decision(self, context: dict) -> Optional[dict]:
         """Solicitar decisão estratégica ao Queen Agent"""
         try:
             if not self.stub:
@@ -347,7 +347,7 @@ class QueenAgentGrpcClient:
             logger.error("request_strategic_decision_failed", error=str(e))
             return None
 
-    async def notify_anomaly(self, anomaly: Dict) -> bool:
+    async def notify_anomaly(self, anomaly: dict) -> bool:
         """Notificar anomalia detectada"""
         try:
             if not self.channel:
@@ -365,7 +365,7 @@ class QueenAgentGrpcClient:
             logger.error("notify_anomaly_failed", error=str(e))
             return False
 
-    async def get_strategic_priorities(self) -> Optional[Dict]:
+    async def get_strategic_priorities(self) -> Optional[dict]:
         """Obter prioridades estratégicas atuais"""
         try:
             if not self.stub:
@@ -413,7 +413,7 @@ class QueenAgentGrpcClient:
             logger.error("get_strategic_priorities_failed", error=str(e))
             return None
 
-    async def health_check(self) -> Dict[str, Any]:
+    async def health_check(self) -> dict[str, Any]:
         """Verificar saúde do Queen Agent"""
         try:
             status = await self.get_strategic_priorities()

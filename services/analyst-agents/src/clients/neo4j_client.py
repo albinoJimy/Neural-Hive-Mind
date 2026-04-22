@@ -1,4 +1,3 @@
-from typing import List
 
 import structlog
 from neo4j import AsyncGraphDatabase
@@ -30,7 +29,7 @@ class Neo4jClient:
             await self.driver.close()
             logger.info("neo4j_client_closed")
 
-    async def query_patterns(self, cypher_query: str, parameters: dict = None) -> List[dict]:
+    async def query_patterns(self, cypher_query: str, parameters: dict = None) -> list[dict]:
         """Executar consulta Cypher customizada"""
         try:
             async with self.driver.session(database=self.database) as session:
@@ -43,7 +42,7 @@ class Neo4jClient:
 
     async def find_related_entities(
         self, entity_id: str, relationship_type: str = None, depth: int = 2
-    ) -> List[dict]:
+    ) -> list[dict]:
         """Encontrar entidades relacionadas"""
         rel_filter = f"[:{relationship_type}*1..{depth}]" if relationship_type else f"[*1..{depth}]"
         query = f"""
@@ -53,7 +52,7 @@ class Neo4jClient:
         """
         return await self.query_patterns(query, {"entity_id": entity_id})
 
-    async def analyze_intent_flow(self, intent_id: str) -> List[dict]:
+    async def analyze_intent_flow(self, intent_id: str) -> list[dict]:
         """Analisar fluxo completo de uma intenção"""
         query = """
         MATCH path = (i:Intent {intent_id: $intent_id})-[:GENERATED]->(p:Plan)
@@ -62,7 +61,7 @@ class Neo4jClient:
         """
         return await self.query_patterns(query, {"intent_id": intent_id})
 
-    async def find_bottlenecks(self, threshold: float = 1000.0) -> List[dict]:
+    async def find_bottlenecks(self, threshold: float = 1000.0) -> list[dict]:
         """Identificar gargalos no grafo de execução"""
         query = """
         MATCH (n)-[r]->(m)
@@ -73,7 +72,7 @@ class Neo4jClient:
         """
         return await self.query_patterns(query, {"threshold": threshold})
 
-    async def get_entity_centrality(self, entity_type: str, limit: int = 10) -> List[dict]:
+    async def get_entity_centrality(self, entity_type: str, limit: int = 10) -> list[dict]:
         """Calcular centralidade de entidades"""
         query = f"""
         MATCH (n:{entity_type})
@@ -86,7 +85,7 @@ class Neo4jClient:
 
     async def find_causal_chains(
         self, source_entity: str, target_entity: str, max_depth: int = 5
-    ) -> List[dict]:
+    ) -> list[dict]:
         """Encontrar cadeias causais entre entidades"""
         query = """
         MATCH path = shortestPath(

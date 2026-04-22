@@ -9,16 +9,17 @@ Responsabilidades:
 - Geração de manifest de backup
 """
 
+import json
 import os
 import shutil
+import subprocess
 import tarfile
 import tempfile
 import uuid
-import json
-import subprocess
-from datetime import datetime, timedelta, timezone
-from typing import Dict, Any, Optional, List
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import UTC, datetime, timedelta
+from typing import Any, Optional
+
 import structlog
 
 from .backup_manifest import BackupManifest
@@ -67,7 +68,7 @@ class DisasterRecoveryManager:
             storage_provider=config.backup_storage_provider,
         )
 
-    def backup_specialist_state(self, tenant_id: Optional[str] = None) -> Dict[str, Any]:
+    def backup_specialist_state(self, tenant_id: Optional[str] = None) -> dict[str, Any]:
         """
         Executa backup do estado do especialista.
 
@@ -122,7 +123,7 @@ class DisasterRecoveryManager:
                 backup_id=backup_id,
                 specialist_type=self.config.specialist_type,
                 tenant_id=tenant_id,
-                backup_timestamp=datetime.now(timezone.utc),
+                backup_timestamp=datetime.now(UTC),
                 compression_level=self.config.backup_compression_level,
                 metadata={
                     "environment": self.config.environment,
@@ -204,7 +205,7 @@ class DisasterRecoveryManager:
             manifest.save_to_file(manifest_path)
 
             # Criar arquivo .tar.gz
-            timestamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
+            timestamp = datetime.now(UTC).strftime("%Y%m%d-%H%M%S")
             backup_filename = (
                 f"specialist-{self.config.specialist_type}{tenant_suffix}-backup-{timestamp}.tar.gz"
             )
@@ -332,7 +333,7 @@ class DisasterRecoveryManager:
                 "duration_seconds": round(duration, 2),
             }
 
-    def _backup_model(self, backup_dir: str) -> Dict[str, Any]:
+    def _backup_model(self, backup_dir: str) -> dict[str, Any]:
         """
         Backup de modelo MLflow incluindo artifacts.
 
@@ -452,7 +453,7 @@ class DisasterRecoveryManager:
 
             return {"success": False, "error": str(e), "duration_seconds": duration}
 
-    def _backup_config(self, backup_dir: str) -> Dict[str, Any]:
+    def _backup_config(self, backup_dir: str) -> dict[str, Any]:
         """
         Backup de configuração.
 
@@ -517,7 +518,7 @@ class DisasterRecoveryManager:
 
             return {"success": False, "error": str(e), "duration_seconds": duration}
 
-    def _backup_ledger(self, backup_dir: str, tenant_id: Optional[str] = None) -> Dict[str, Any]:
+    def _backup_ledger(self, backup_dir: str, tenant_id: Optional[str] = None) -> dict[str, Any]:
         """
         Backup de ledger MongoDB.
 
@@ -566,7 +567,7 @@ class DisasterRecoveryManager:
 
             # Executar mongodump
             try:
-                result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+                result = subprocess.run(cmd, capture_output=True, text=True, timeout=300, check=False)
 
                 if result.returncode != 0:
                     raise Exception(f"mongodump falhou: {result.stderr}")
@@ -608,7 +609,7 @@ class DisasterRecoveryManager:
 
             return {"success": False, "error": str(e), "duration_seconds": duration}
 
-    def _backup_cache(self, backup_dir: str) -> Dict[str, Any]:
+    def _backup_cache(self, backup_dir: str) -> dict[str, Any]:
         """
         Backup de cache Redis (opcional).
 
@@ -660,7 +661,7 @@ class DisasterRecoveryManager:
 
     def _backup_feature_store(
         self, backup_dir: str, tenant_id: Optional[str] = None
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Backup de feature store MongoDB.
 
@@ -726,7 +727,7 @@ class DisasterRecoveryManager:
 
             return {"success": False, "error": str(e), "duration_seconds": duration}
 
-    def _backup_metrics(self, backup_dir: str) -> Dict[str, Any]:
+    def _backup_metrics(self, backup_dir: str) -> dict[str, Any]:
         """
         Backup de resumo de métricas.
 
@@ -786,7 +787,7 @@ class DisasterRecoveryManager:
     # Incremental Backup com Content-Addressed Storage
     # ============================================================================
 
-    def _backup_incremental(self, tenant_id: Optional[str] = None) -> Dict[str, Any]:
+    def _backup_incremental(self, tenant_id: Optional[str] = None) -> dict[str, Any]:
         """
         Executa backup incremental com content-addressed storage e deduplicação.
 
@@ -804,7 +805,7 @@ class DisasterRecoveryManager:
 
         start_time = time.time()
 
-        snapshot_id = f"snapshot-{datetime.now(timezone.utc).strftime('%Y%m%d-%H%M%S')}"
+        snapshot_id = f"snapshot-{datetime.now(UTC).strftime('%Y%m%d-%H%M%S')}"
         tenant_suffix = f"-{tenant_id}" if tenant_id else ""
 
         logger.info(
@@ -823,7 +824,7 @@ class DisasterRecoveryManager:
                 backup_id=snapshot_id,
                 specialist_type=self.config.specialist_type,
                 tenant_id=tenant_id,
-                backup_timestamp=datetime.now(timezone.utc),
+                backup_timestamp=datetime.now(UTC),
                 compression_level=self.config.backup_compression_level,
                 metadata={
                     "environment": self.config.environment,
@@ -958,7 +959,7 @@ class DisasterRecoveryManager:
             # Criar snapshot JSON com referências
             snapshot = {
                 "snapshot_id": snapshot_id,
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
                 "specialist_type": self.config.specialist_type,
                 "tenant_id": tenant_id,
                 "component_refs": component_digests,
@@ -1080,7 +1081,7 @@ class DisasterRecoveryManager:
             )
             return False
 
-    def garbage_collect_blobs(self) -> Dict[str, Any]:
+    def garbage_collect_blobs(self) -> dict[str, Any]:
         """
         Remove blobs órfãos não referenciados por nenhum snapshot ativo.
 
@@ -1098,7 +1099,6 @@ class DisasterRecoveryManager:
             - duration_seconds: Duração
         """
         import time
-        from datetime import timezone
 
         start_time = time.time()
 
@@ -1113,7 +1113,7 @@ class DisasterRecoveryManager:
             all_snapshots = self.storage_client.list_backups(prefix=snapshot_prefix)
 
             # Filtrar snapshots não expirados
-            cutoff_date = datetime.now(timezone.utc) - timedelta(
+            cutoff_date = datetime.now(UTC) - timedelta(
                 days=self.config.backup_retention_days
             )
             active_snapshots = []
@@ -1127,9 +1127,9 @@ class DisasterRecoveryManager:
                     # Normalizar timestamp para UTC timezone-aware
                     if isinstance(snapshot_timestamp, datetime):
                         if snapshot_timestamp.tzinfo is None:
-                            snapshot_timestamp = snapshot_timestamp.replace(tzinfo=timezone.utc)
+                            snapshot_timestamp = snapshot_timestamp.replace(tzinfo=UTC)
                         else:
-                            snapshot_timestamp = snapshot_timestamp.astimezone(timezone.utc)
+                            snapshot_timestamp = snapshot_timestamp.astimezone(UTC)
 
                         # Verificar se não expirou
                         if snapshot_timestamp >= cutoff_date:
@@ -1152,7 +1152,7 @@ class DisasterRecoveryManager:
                     )
 
                     if self.storage_client.download_backup(snapshot_obj["key"], snapshot_local):
-                        with open(snapshot_local, "r") as f:
+                        with open(snapshot_local) as f:
                             snapshot_data = json.load(f)
 
                         # Adicionar SHA-256s referenciados
@@ -1248,7 +1248,7 @@ class DisasterRecoveryManager:
         target_dir: Optional[str] = None,
         skip_validation: bool = False,
         skip_smoke_tests: bool = False,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Restaura estado do especialista a partir de snapshot incremental.
 
@@ -1299,7 +1299,7 @@ class DisasterRecoveryManager:
                 raise Exception("Falha no download do snapshot")
 
             # Carregar snapshot JSON
-            with open(snapshot_local, "r") as f:
+            with open(snapshot_local) as f:
                 snapshot_data = json.load(f)
 
             component_refs = snapshot_data.get("component_refs", {})
@@ -1450,7 +1450,7 @@ class DisasterRecoveryManager:
         target_dir: Optional[str] = None,
         skip_validation: bool = False,
         skip_smoke_tests: bool = False,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Restaura estado do especialista de backup.
 
@@ -1549,7 +1549,7 @@ class DisasterRecoveryManager:
             if not skip_validation and checksum_local_path:
                 logger.info("Validando checksum do backup")
 
-                with open(checksum_local_path, "r") as f:
+                with open(checksum_local_path) as f:
                     expected_checksum = f.read().strip().split()[0]
 
                 actual_checksum = self._calculate_file_checksum(backup_local_path)
@@ -1722,7 +1722,7 @@ class DisasterRecoveryManager:
                 "restored_components": restored_components,
             }
 
-    def test_recovery(self, backup_id: Optional[str] = None) -> Dict[str, Any]:
+    def test_recovery(self, backup_id: Optional[str] = None) -> dict[str, Any]:
         """
         Testa recovery de backup automaticamente (sem aplicar mudanças).
 
@@ -1808,7 +1808,7 @@ class DisasterRecoveryManager:
             if has_checksum:
                 logger.info("Validando checksum")
 
-                with open(checksum_local_path, "r") as f:
+                with open(checksum_local_path) as f:
                     expected_checksum = f.read().strip().split()[0]
 
                 actual_checksum = self._calculate_file_checksum(backup_local_path)
@@ -1946,7 +1946,7 @@ class DisasterRecoveryManager:
                 "duration_seconds": round(duration, 2),
             }
 
-    def list_available_backups(self) -> List[Dict]:
+    def list_available_backups(self) -> list[dict]:
         """
         Lista backups disponíveis no storage (apenas arquivos .tar.gz).
 
@@ -1975,7 +1975,6 @@ class DisasterRecoveryManager:
         Returns:
             Número de backups/snapshots deletados
         """
-        from datetime import timezone
 
         logger.info(
             "Verificando backups expirados",
@@ -1983,7 +1982,7 @@ class DisasterRecoveryManager:
         )
 
         # Usar timezone-aware UTC para consistência
-        cutoff_date = datetime.now(timezone.utc) - timedelta(days=self.config.backup_retention_days)
+        cutoff_date = datetime.now(UTC) - timedelta(days=self.config.backup_retention_days)
 
         deleted_count = 0
         error_count = 0
@@ -2009,9 +2008,9 @@ class DisasterRecoveryManager:
                 # Normalizar timestamp
                 if isinstance(snapshot_timestamp, datetime):
                     if snapshot_timestamp.tzinfo is None:
-                        snapshot_timestamp = snapshot_timestamp.replace(tzinfo=timezone.utc)
+                        snapshot_timestamp = snapshot_timestamp.replace(tzinfo=UTC)
                     else:
-                        snapshot_timestamp = snapshot_timestamp.astimezone(timezone.utc)
+                        snapshot_timestamp = snapshot_timestamp.astimezone(UTC)
                 else:
                     logger.warning(
                         "Timestamp inválido, pulando",
@@ -2025,7 +2024,7 @@ class DisasterRecoveryManager:
                     logger.info(
                         "Deletando snapshot expirado",
                         snapshot_key=snapshot["key"],
-                        age_days=(datetime.now(timezone.utc) - snapshot_timestamp).days,
+                        age_days=(datetime.now(UTC) - snapshot_timestamp).days,
                     )
 
                     if self.storage_client.delete_backup(snapshot["key"]):
@@ -2059,10 +2058,10 @@ class DisasterRecoveryManager:
                 if isinstance(backup_timestamp, datetime):
                     if backup_timestamp.tzinfo is None:
                         # Naive datetime, assumir UTC
-                        backup_timestamp = backup_timestamp.replace(tzinfo=timezone.utc)
+                        backup_timestamp = backup_timestamp.replace(tzinfo=UTC)
                     else:
                         # Converter para UTC
-                        backup_timestamp = backup_timestamp.astimezone(timezone.utc)
+                        backup_timestamp = backup_timestamp.astimezone(UTC)
                 else:
                     logger.warning(
                         "Timestamp inválido, pulando",
@@ -2076,7 +2075,7 @@ class DisasterRecoveryManager:
                     logger.info(
                         "Deletando backup expirado",
                         backup_key=backup["key"],
-                        age_days=(datetime.now(timezone.utc) - backup_timestamp).days,
+                        age_days=(datetime.now(UTC) - backup_timestamp).days,
                     )
 
                     # Deletar arquivo de backup
@@ -2123,7 +2122,7 @@ class DisasterRecoveryManager:
             logger.warning("Arquivo de config não encontrado")
             return
 
-        with open(config_file, "r") as f:
+        with open(config_file) as f:
             config_data = json.load(f)
 
         logger.info(
@@ -2145,7 +2144,7 @@ class DisasterRecoveryManager:
             logger.warning("Metadata de modelo não encontrado")
             return
 
-        with open(metadata_file, "r") as f:
+        with open(metadata_file) as f:
             model_metadata = json.load(f)
 
         logger.info(
@@ -2191,7 +2190,7 @@ class DisasterRecoveryManager:
                     "original_model_version",
                     model_metadata.get("model_version", "unknown"),
                 )
-                mlflow.log_param("backup_timestamp", datetime.now(timezone.utc).isoformat())
+                mlflow.log_param("backup_timestamp", datetime.now(UTC).isoformat())
 
                 # Carregar modelo dos artifacts
                 model = mlflow.pyfunc.load_model(artifacts_dir)
@@ -2282,7 +2281,7 @@ class DisasterRecoveryManager:
                     dump_dir,
                 ]
 
-                result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+                result = subprocess.run(cmd, capture_output=True, text=True, timeout=300, check=False)
 
                 if result.returncode != 0:
                     raise Exception(f"mongorestore falhou: {result.stderr}")
@@ -2300,10 +2299,10 @@ class DisasterRecoveryManager:
             logger.info("Restaurando ledger via driver MongoDB", json_file=json_file)
 
             try:
-                from pymongo import MongoClient, UpdateOne
                 from bson import ObjectId
+                from pymongo import MongoClient, UpdateOne
 
-                with open(json_file, "r") as f:
+                with open(json_file) as f:
                     ledger_data = json.load(f)
 
                 if not isinstance(ledger_data, list):
@@ -2388,7 +2387,7 @@ class DisasterRecoveryManager:
             return
 
         try:
-            with open(cache_file, "r") as f:
+            with open(cache_file) as f:
                 cache_data = json.load(f)
 
             logger.info("Restaurando cache Redis", key_count=cache_data.get("key_count", 0))
@@ -2489,7 +2488,7 @@ class DisasterRecoveryManager:
             return
 
         try:
-            with open(features_file, "r") as f:
+            with open(features_file) as f:
                 features_data = json.load(f)
 
             if not isinstance(features_data, list):
@@ -2503,8 +2502,8 @@ class DisasterRecoveryManager:
                 return
 
             # Conectar ao MongoDB
-            from pymongo import MongoClient, UpdateOne, ASCENDING
             from bson import ObjectId
+            from pymongo import ASCENDING, MongoClient, UpdateOne
 
             client = MongoClient(self.config.mongodb_uri)
             db = client[self.config.mongodb_database]
@@ -2610,7 +2609,7 @@ class DisasterRecoveryManager:
             return
 
         try:
-            with open(metrics_file, "r") as f:
+            with open(metrics_file) as f:
                 metrics_data = json.load(f)
 
             # Validar estrutura básica das métricas
@@ -2634,7 +2633,7 @@ class DisasterRecoveryManager:
         except Exception as e:
             logger.warning("Erro ao validar métricas", error=str(e), error_type=type(e).__name__)
 
-    def _run_smoke_tests(self) -> Dict[str, Any]:
+    def _run_smoke_tests(self) -> dict[str, Any]:
         """
         Executa smoke tests básicos após restore.
 

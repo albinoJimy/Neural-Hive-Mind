@@ -7,7 +7,7 @@ detectar anomalias e triggerar rollback durante cutover.
 
 import asyncio
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -27,7 +27,7 @@ from src.services.health_monitor import (
     SystemHealth,
 )
 
-UTC = timezone.utc
+UTC = UTC
 
 
 class TestHealthThreshold:
@@ -227,7 +227,7 @@ class TestHealthMonitorConfig:
 class TestHealthMonitor:
     """Testes do HealthMonitor."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def config(self):
         """Retorna configuração padrão para testes."""
         return HealthMonitorConfig(
@@ -237,12 +237,12 @@ class TestHealthMonitor:
             enable_auto_rollback=False,  # Desabilitar para testes
         )
 
-    @pytest.fixture
+    @pytest.fixture()
     def monitor(self, config):
         """Retorna instância do monitor para testes."""
         return HealthMonitor(config=config)
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_httpx_response(self):
         """Retorna mock de response HTTP saudável."""
         mock_response = MagicMock()
@@ -271,7 +271,7 @@ class TestHealthMonitor:
         assert monitor._legacy_consecutive_failures == 0
         assert monitor._target_consecutive_failures == 0
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_start_stop_monitoring(self, monitor):
         """Deve iniciar e parar monitoramento."""
         await monitor.start_monitoring()
@@ -281,7 +281,7 @@ class TestHealthMonitor:
         await monitor.stop_monitoring()
         assert monitor._running is False
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_start_when_already_running(self, monitor):
         """Deve não reiniciar se já está rodando."""
         await monitor.start_monitoring()
@@ -292,7 +292,7 @@ class TestHealthMonitor:
 
         await monitor.stop_monitoring()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_health_status_healthy(self, monitor, mock_httpx_response):
         """Deve retornar status healthy para sistemas saudáveis."""
         with patch("httpx.AsyncClient.get", return_value=mock_httpx_response):
@@ -304,7 +304,7 @@ class TestHealthMonitor:
             assert comparison.should_rollback is False
             assert comparison.rollback_reason is None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_health_status_high_error_rate(self, monitor):
         """Deve detectar error rate alto e marcar para rollback."""
         # Mock response com error rate alto
@@ -340,7 +340,7 @@ class TestHealthMonitor:
             assert "Error rate" in comparison.rollback_reason
             assert comparison.overall_status == HealthStatus.CRITICAL
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_health_status_high_latency(self, monitor):
         """Deve detectar latência alta e marcar para rollback."""
         # Mock response com latência alta
@@ -376,7 +376,7 @@ class TestHealthMonitor:
             assert "latency" in comparison.rollback_reason.lower()
             assert comparison.overall_status == HealthStatus.CRITICAL
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_health_status_latency_ratio(self, monitor):
         """Deve detectar latência P95 > 2x legacy e marcar para rollback."""
         # Mock response com latência proporcional alta
@@ -411,7 +411,7 @@ class TestHealthMonitor:
             assert comparison.should_rollback is True
             assert "2x" in comparison.rollback_reason
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_health_status_system_down(self, monitor):
         """Deve detectar sistema DOWN e marcar para rollback."""
         # Mock response com erro de conexão
@@ -427,7 +427,7 @@ class TestHealthMonitor:
             assert comparison.should_rollback is True
             assert "DOWN" in comparison.rollback_reason
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_health_status_http_error(self, monitor):
         """Deve detectar HTTP 5xx como CRITICAL."""
         # Mock response com erro 500
@@ -468,7 +468,7 @@ class TestHealthMonitor:
             assert comparison.target_health.status in [HealthStatus.CRITICAL, HealthStatus.DOWN]
             assert any("500" in a for a in comparison.target_health.anomalies)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_check_rollback_conditions_true(self, monitor):
         """Deve retornar True quando condições de rollback são atendidas."""
         target_response = MagicMock()
@@ -502,7 +502,7 @@ class TestHealthMonitor:
             assert reason is not None
             assert "Error rate" in reason
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_check_rollback_conditions_false(self, monitor, mock_httpx_response):
         """Deve retornar False quando sistema está saudável."""
         with patch("httpx.AsyncClient.get", return_value=mock_httpx_response):
@@ -511,7 +511,7 @@ class TestHealthMonitor:
             assert should_rollback is False
             assert reason is None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_monitor_loop_with_auto_rollback(self, config):
         """Deve executar rollback automaticamente quando threshold excedido."""
         # Criar config específica para este teste com intervalo menor
@@ -570,7 +570,7 @@ class TestHealthMonitor:
 
         await monitor.stop_monitoring()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_metrics_history(self, monitor, mock_httpx_response):
         """Deve retornar histórico de métricas."""
         with patch("httpx.AsyncClient.get", return_value=mock_httpx_response):
@@ -587,7 +587,7 @@ class TestHealthMonitor:
             assert len(history) == 3
             assert all(isinstance(h, HealthComparison) for h in history)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_current_health(self, monitor, mock_httpx_response):
         """Deve retornar saúde atual de ambos os sistemas."""
         with patch("httpx.AsyncClient.get", return_value=mock_httpx_response):
@@ -600,7 +600,7 @@ class TestHealthMonitor:
             assert legacy.service_name == "legacy"
             assert target.service_name == "target"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_consecutive_failures_counter(self, monitor):
         """Deve contar falhas consecutivas corretamente."""
         from httpx import ConnectError
@@ -620,7 +620,7 @@ class TestHealthMonitor:
             await monitor.get_health_status()
             assert monitor._target_consecutive_failures == 3
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_consecutive_failures_trigger_rollback(self, config):
         """Deve triggerar rollback após N falhas consecutivas."""
         test_config = HealthMonitorConfig(
@@ -661,13 +661,13 @@ class TestHealthMonitor:
             # Pode ser "Target system is DOWN" ou mencionar failures
             assert reason is not None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_consecutive_failures_monitor_loop_triggers_rollback(self, config):
         """Teste alternativo: monitor loop deve detectar falhas e triggerar rollback."""
         # Remover este teste ou torná-lo mais simples
         # O teste anterior já cobre a contagem de falhas
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_degraded_status_warning(self, monitor):
         """Deve marcar status DEGRADED para métricas em warning level."""
         legacy_response = MagicMock()
@@ -705,7 +705,7 @@ class TestHealthMonitor:
             assert comparison.overall_status == HealthStatus.DEGRADED
             assert comparison.should_rollback is False
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_close(self, monitor):
         """Deve limpar recursos ao fechar."""
         await monitor.start_monitoring()
@@ -714,7 +714,7 @@ class TestHealthMonitor:
         assert monitor._running is False
         # HTTP client deve estar fechado
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_determine_status_from_response_healthy(self, monitor):
         """Deve determinar HEALTHY para métricas normais."""
         data = {
@@ -728,7 +728,7 @@ class TestHealthMonitor:
 
         assert status == HealthStatus.HEALTHY
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_determine_status_from_response_degraded_error_rate(self, monitor):
         """Deve determinar DEGRADED para error rate em warning."""
         data = {
@@ -741,7 +741,7 @@ class TestHealthMonitor:
 
         assert status == HealthStatus.DEGRADED
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_determine_status_from_response_critical_latency(self, monitor):
         """Deve determinar CRITICAL para latência alta."""
         data = {
@@ -754,7 +754,7 @@ class TestHealthMonitor:
 
         assert status == HealthStatus.CRITICAL
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_determine_status_from_response_critical_cpu(self, monitor):
         """Deve determinar CRITICAL para CPU alto."""
         data = {
@@ -767,7 +767,7 @@ class TestHealthMonitor:
 
         assert status == HealthStatus.CRITICAL
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_comparison_calculation(self, monitor):
         """Deve calcular deltas e ratios corretamente."""
         legacy = SystemHealth(
@@ -789,7 +789,7 @@ class TestHealthMonitor:
         assert comparison.latency_p95_ratio == 2.5  # 250/100
         assert comparison.throughput_ratio == 0.8  # 80/100
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_history_size_limit(self, monitor, mock_httpx_response):
         """Deve limitar tamanho do histórico de comparações."""
         with patch("httpx.AsyncClient.get", return_value=mock_httpx_response):

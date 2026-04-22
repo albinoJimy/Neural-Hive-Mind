@@ -10,15 +10,16 @@ Ferramentas:
 - dispatch_webhook: Disparar webhooks de notificação
 """
 
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
 from datetime import datetime
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 
 
 class TestCreateTicketTool:
     """Testes da ferramenta create_ticket."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_create_ticket_success(self):
         """Testa criação de ticket com sucesso."""
         from execution_mcp_server.tools.execution_tools import create_ticket
@@ -46,7 +47,7 @@ class TestCreateTicketTool:
             assert result["status"] == "PENDING"
             mock_persist.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_create_ticket_invalid_task_type(self):
         """Testa erro para task_type inválido."""
         from execution_mcp_server.tools.execution_tools import create_ticket
@@ -54,7 +55,7 @@ class TestCreateTicketTool:
         with pytest.raises(ValueError, match="Invalid task_type"):
             await create_ticket(plan_id="plan-456", task_type="INVALID_TYPE", description="Teste")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_create_ticket_all_valid_task_types(self):
         """Testa todos os tipos de tarefas válidos."""
         from execution_mcp_server.tools.execution_tools import create_ticket
@@ -81,7 +82,7 @@ class TestCreateTicketTool:
                 )
                 assert result["status"] == "PENDING"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_create_ticket_with_dependencies(self):
         """Testa criação de ticket com dependências."""
         from execution_mcp_server.tools.execution_tools import create_ticket
@@ -104,7 +105,7 @@ class TestCreateTicketTool:
             assert result["ticket_id"] == "ticket-3"
             mock_persist.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_create_ticket_with_optional_params(self):
         """Testa criação com parâmetros opcionais."""
         from execution_mcp_server.tools.execution_tools import create_ticket
@@ -126,7 +127,7 @@ class TestCreateTicketTool:
 
             mock_persist.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_create_ticket_invalid_priority(self):
         """Testa erro para priority inválido."""
         from execution_mcp_server.tools.execution_tools import create_ticket
@@ -136,7 +137,7 @@ class TestCreateTicketTool:
                 plan_id="plan-1", task_type="TEST", description="Teste", priority="INVALID"
             )
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_create_ticket_invalid_risk_band(self):
         """Testa erro para risk_band inválido."""
         from execution_mcp_server.tools.execution_tools import create_ticket
@@ -146,7 +147,7 @@ class TestCreateTicketTool:
                 plan_id="plan-1", task_type="TEST", description="Teste", risk_band="INVALID"
             )
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_create_ticket_invalid_security_level(self):
         """Testa erro para security_level inválido."""
         from execution_mcp_server.tools.execution_tools import create_ticket
@@ -160,7 +161,7 @@ class TestCreateTicketTool:
 class TestUpdateStatusTool:
     """Testes da ferramenta update_status."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_update_status_success(self):
         """Testa atualização de status com sucesso."""
         from execution_mcp_server.tools.execution_tools import update_status
@@ -181,7 +182,7 @@ class TestUpdateStatusTool:
             assert result["previous_status"] == "PENDING"
             mock_update.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_update_status_invalid_status(self):
         """Testa erro para status inválido."""
         from execution_mcp_server.tools.execution_tools import update_status
@@ -189,7 +190,7 @@ class TestUpdateStatusTool:
         with pytest.raises(ValueError, match="Invalid status"):
             await update_status(ticket_id="ticket-123", status="INVALID_STATUS")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_update_status_all_valid_statuses(self):
         """Testa todos os status válidos."""
         from execution_mcp_server.tools.execution_tools import update_status
@@ -213,7 +214,7 @@ class TestUpdateStatusTool:
                 # Verificar que o ticket_id está presente (valor exato pode variar)
                 assert "ticket_id" in result
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_update_status_with_error_message(self):
         """Testa atualização para FAILED com mensagem de erro."""
         from execution_mcp_server.tools.execution_tools import update_status
@@ -229,7 +230,7 @@ class TestUpdateStatusTool:
 
             mock_update.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_update_status_to_completed(self):
         """Testa atualização para COMPLETED."""
         from execution_mcp_server.tools.execution_tools import update_status
@@ -247,7 +248,7 @@ class TestUpdateStatusTool:
 class TestQueryTicketTool:
     """Testes da ferramenta query_ticket."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_query_ticket_success(self):
         """Testa consulta de ticket por ID com sucesso."""
         from execution_mcp_server.tools.execution_tools import query_ticket
@@ -271,7 +272,7 @@ class TestQueryTicketTool:
             assert result["status"] == "RUNNING"
             mock_retrieve.assert_called_once_with("ticket-123")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_query_ticket_not_found(self):
         """Testa consulta de ticket inexistente."""
         from execution_mcp_server.tools.execution_tools import query_ticket
@@ -285,7 +286,7 @@ class TestQueryTicketTool:
 
             assert result is None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_query_ticket_by_status(self):
         """Testa consulta de tickets por status."""
         from execution_mcp_server.tools.execution_tools import query_ticket
@@ -305,7 +306,7 @@ class TestQueryTicketTool:
             assert len(result) == 2
             assert all(t["status"] == "PENDING" for t in result)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_query_ticket_by_plan_id(self):
         """Testa consulta de tickets por plan_id."""
         from execution_mcp_server.tools.execution_tools import query_ticket
@@ -325,7 +326,7 @@ class TestQueryTicketTool:
             assert len(result) == 2
             assert all(t["plan_id"] == "plan-123" for t in result)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_query_ticket_empty_result(self):
         """Testa consulta que retorna lista vazia."""
         from execution_mcp_server.tools.execution_tools import query_ticket
@@ -343,7 +344,7 @@ class TestQueryTicketTool:
 class TestGenerateTokenTool:
     """Testes da ferramenta generate_token."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_generate_token_success(self):
         """Testa geração de token JWT com sucesso."""
         from execution_mcp_server.tools.execution_tools import generate_token
@@ -363,7 +364,7 @@ class TestGenerateTokenTool:
             assert result["ticket_id"] == "ticket-123"
             mock_create.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_generate_token_with_default_ttl(self):
         """Testa geração com TTL padrão."""
         from execution_mcp_server.tools.execution_tools import generate_token
@@ -383,7 +384,7 @@ class TestGenerateTokenTool:
             # call_args[0] é ticket_id, call_args[1] é ttl_seconds
             assert len(call_args) >= 2  # ticket_id e pelo menos um outro argumento
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_generate_token_with_custom_ttl(self):
         """Testa geração com TTL customizado."""
         from execution_mcp_server.tools.execution_tools import generate_token
@@ -399,7 +400,7 @@ class TestGenerateTokenTool:
             mock_create.assert_called_once()
             assert result["ttl_seconds"] == 7200
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_generate_token_invalid_ttl(self):
         """Testa erro para TTL negativo."""
         from execution_mcp_server.tools.execution_tools import generate_token
@@ -407,7 +408,7 @@ class TestGenerateTokenTool:
         with pytest.raises(ValueError, match="TTL must be positive"):
             await generate_token(ticket_id="ticket-1", ttl_seconds=-100)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_generate_token_with_claims(self):
         """Testa geração com claims customizados."""
         from execution_mcp_server.tools.execution_tools import generate_token
@@ -429,7 +430,7 @@ class TestGenerateTokenTool:
 class TestDispatchWebhookTool:
     """Testes da ferramenta dispatch_webhook."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_dispatch_webhook_success(self):
         """Testa disparo de webhook com sucesso."""
         from execution_mcp_server.tools.execution_tools import dispatch_webhook
@@ -454,7 +455,7 @@ class TestDispatchWebhookTool:
             assert result["status_code"] == 200
             mock_send.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_dispatch_webhook_invalid_event_type(self):
         """Testa erro para event_type inválido."""
         from execution_mcp_server.tools.execution_tools import dispatch_webhook
@@ -467,7 +468,7 @@ class TestDispatchWebhookTool:
                 url="https://example.com/webhook",
             )
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_dispatch_webhook_all_valid_event_types(self):
         """Testa todos os tipos de eventos válidos."""
         from execution_mcp_server.tools.execution_tools import dispatch_webhook
@@ -494,7 +495,7 @@ class TestDispatchWebhookTool:
                 )
                 assert result["status"] == "delivered"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_dispatch_webhook_retry_on_failure(self):
         """Testa retry em caso de falha."""
         from execution_mcp_server.tools.execution_tools import dispatch_webhook
@@ -521,7 +522,7 @@ class TestDispatchWebhookTool:
             assert result["status"] == "delivered"
             mock_send.assert_called()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_dispatch_webhook_with_headers(self):
         """Testa disparo com headers customizados."""
         from execution_mcp_server.tools.execution_tools import dispatch_webhook
@@ -545,7 +546,7 @@ class TestDispatchWebhookTool:
             mock_send.assert_called()
             assert result["status"] == "delivered"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_dispatch_webhook_invalid_url(self):
         """Testa erro para URL inválida."""
         from execution_mcp_server.tools.execution_tools import dispatch_webhook
@@ -559,7 +560,7 @@ class TestDispatchWebhookTool:
 class TestHelperFunctions:
     """Testes das funções auxiliares."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_persist_ticket_success(self):
         """Testa persistência de ticket."""
         from execution_mcp_server.tools.execution_tools import _persist_ticket
@@ -575,7 +576,7 @@ class TestHelperFunctions:
         assert "status" in result
         assert result["status"] == "PENDING"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_update_ticket_status_success(self):
         """Testa atualização de status."""
         from execution_mcp_server.tools.execution_tools import _update_ticket_status
@@ -589,7 +590,7 @@ class TestHelperFunctions:
         assert result["status"] == "RUNNING"
         assert "previous_status" in result
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_retrieve_ticket_success(self):
         """Testa recuperação de ticket."""
         from execution_mcp_server.tools.execution_tools import _retrieve_ticket
@@ -600,7 +601,7 @@ class TestHelperFunctions:
         # Sem MongoDB, retorna None
         assert result is None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_create_jwt_token_success(self):
         """Testa criação de token JWT."""
         from execution_mcp_server.tools.execution_tools import _create_jwt_token
@@ -611,7 +612,7 @@ class TestHelperFunctions:
             assert result["token"] == "encoded-token"
             mock_encode.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_send_webhook_success(self):
         """Testa envio de webhook."""
         from execution_mcp_server.tools.execution_tools import _send_webhook
@@ -648,10 +649,10 @@ class TestExecutionMCPServerIntegration:
         """Testa que ferramentas têm metadata descritiva."""
         from execution_mcp_server.tools.execution_tools import (
             create_ticket,
-            update_status,
-            query_ticket,
-            generate_token,
             dispatch_webhook,
+            generate_token,
+            query_ticket,
+            update_status,
         )
 
         assert create_ticket.__doc__

@@ -10,7 +10,6 @@ from typing import Any, Optional
 
 import structlog
 from aiokafka import AIOKafkaProducer
-
 from src.config import get_settings
 
 logger = structlog.get_logger()

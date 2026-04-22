@@ -1,17 +1,16 @@
 """Unit tests for test report parsers."""
 
 import pytest
-
 from src.utils.test_report_parser import (
-    JUnitXMLParser,
     CoberturaXMLParser,
+    CoverageResults,
+    JUnitXMLParser,
     LCOVParser,
     TestCase,
     TestResults,
-    CoverageResults,
-    parse_test_report,
-    parse_coverage_report,
     detect_report_format,
+    parse_coverage_report,
+    parse_test_report,
 )
 
 

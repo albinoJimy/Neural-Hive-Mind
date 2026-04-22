@@ -1,20 +1,21 @@
 """Testes para módulo registry."""
 
-import pytest
 from datetime import datetime
 
+import pytest
+
+from neural_hive_resilience.exceptions import (
+    PolicyAlreadyExistsError,
+    PolicyNotFoundError,
+)
 from neural_hive_resilience.registry import (
-    ResilienceRegistry,
-    PolicyType,
     PolicyMetadata,
+    PolicyType,
+    ResilienceRegistry,
     get_global_registry,
     init_global_registry,
 )
 from neural_hive_resilience.retry import BackoffStrategy
-from neural_hive_resilience.exceptions import (
-    PolicyNotFoundError,
-    PolicyAlreadyExistsError,
-)
 
 
 class TestResilienceRegistry:

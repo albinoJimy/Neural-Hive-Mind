@@ -15,23 +15,24 @@ import asyncio
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional, Type, Union
+from typing import Any, Optional, Union
+
 import structlog
 
+from .bulkhead import BulkheadConfig, SemaphoreBulkhead
 from .circuit_breaker import MonitoredCircuitBreaker
-from .retry import RetryPolicy, BackoffStrategy
-from .rate_limiter import (
-    TokenBucketRateLimiter,
-    SlidingWindowLogRateLimiter,
-    ConcurrencyLimiter,
-    RateLimiterFactory,
+from .exceptions import (
+    PolicyAlreadyExistsError,
+    PolicyNotFoundError,
 )
 from .fallback import FallbackChain, FallbackConfig
-from .bulkhead import SemaphoreBulkhead, BulkheadConfig
-from .exceptions import (
-    PolicyNotFoundError,
-    PolicyAlreadyExistsError,
+from .rate_limiter import (
+    ConcurrencyLimiter,
+    RateLimiterFactory,
+    SlidingWindowLogRateLimiter,
+    TokenBucketRateLimiter,
 )
+from .retry import BackoffStrategy, RetryPolicy
 
 
 class PolicyType(Enum):
@@ -66,8 +67,8 @@ class PolicyMetadata:
     last_used: Optional[datetime] = None
     usage_count: int = 0
     description: str = ""
-    tags: List[str] = field(default_factory=list)
-    config: Dict[str, Any] = field(default_factory=dict)
+    tags: list[str] = field(default_factory=list)
+    config: dict[str, Any] = field(default_factory=dict)
 
 
 class ResilienceRegistry:
@@ -110,9 +111,9 @@ class ResilienceRegistry:
         self._lock = asyncio.Lock()
 
         # Storage por tipo
-        self._circuit_breakers: Dict[str, MonitoredCircuitBreaker] = {}
-        self._retry_policies: Dict[str, RetryPolicy] = {}
-        self._rate_limiters: Dict[
+        self._circuit_breakers: dict[str, MonitoredCircuitBreaker] = {}
+        self._retry_policies: dict[str, RetryPolicy] = {}
+        self._rate_limiters: dict[
             str,
             Union[
                 TokenBucketRateLimiter,
@@ -120,12 +121,12 @@ class ResilienceRegistry:
                 ConcurrencyLimiter,
             ],
         ] = {}
-        self._timeouts: Dict[str, float] = {}
-        self._fallbacks: Dict[str, FallbackChain] = {}
-        self._bulkheads: Dict[str, SemaphoreBulkhead] = {}
+        self._timeouts: dict[str, float] = {}
+        self._fallbacks: dict[str, FallbackChain] = {}
+        self._bulkheads: dict[str, SemaphoreBulkhead] = {}
 
         # Metadados
-        self._metadata: Dict[str, PolicyMetadata] = {}
+        self._metadata: dict[str, PolicyMetadata] = {}
 
         # Inicializar políticas padrão se solicitado
         if default_policies:
@@ -169,9 +170,9 @@ class ResilienceRegistry:
         name: str,
         failure_threshold: int = 5,
         recovery_timeout: int = 60,
-        expected_exception: Optional[Type[Exception]] = None,
+        expected_exception: Optional[type[Exception]] = None,
         description: str = "",
-        tags: Optional[List[str]] = None,
+        tags: Optional[list[str]] = None,
     ) -> MonitoredCircuitBreaker:
         """Registra um circuit breaker.
 
@@ -260,7 +261,7 @@ class ResilienceRegistry:
         backoff_strategy: BackoffStrategy = BackoffStrategy.EXPONENTIAL,
         jitter_enabled: bool = True,
         description: str = "",
-        tags: Optional[List[str]] = None,
+        tags: Optional[list[str]] = None,
     ) -> RetryPolicy:
         """Registra uma política de retry.
 
@@ -351,7 +352,7 @@ class ResilienceRegistry:
         capacity: int,
         refill_rate: float,
         description: str = "",
-        tags: Optional[List[str]] = None,
+        tags: Optional[list[str]] = None,
     ) -> TokenBucketRateLimiter:
         """Registra um rate limiter do tipo token bucket.
 
@@ -414,7 +415,7 @@ class ResilienceRegistry:
         limit: int,
         window_seconds: float,
         description: str = "",
-        tags: Optional[List[str]] = None,
+        tags: Optional[list[str]] = None,
     ) -> SlidingWindowLogRateLimiter:
         """Registra um rate limiter do tipo sliding window.
 
@@ -502,7 +503,7 @@ class ResilienceRegistry:
         name: str,
         timeout_seconds: float,
         description: str = "",
-        tags: Optional[List[str]] = None,
+        tags: Optional[list[str]] = None,
     ) -> float:
         """Registra um timeout.
 
@@ -572,9 +573,9 @@ class ResilienceRegistry:
     def register_fallback_chain(
         self,
         name: str,
-        fallbacks: List[FallbackConfig],
+        fallbacks: list[FallbackConfig],
         description: str = "",
-        tags: Optional[List[str]] = None,
+        tags: Optional[list[str]] = None,
     ) -> FallbackChain:
         """Registra uma cadeia de fallback.
 
@@ -656,7 +657,7 @@ class ResilienceRegistry:
         max_concurrent: int = 10,
         max_queue_size: int = 5,
         description: str = "",
-        tags: Optional[List[str]] = None,
+        tags: Optional[list[str]] = None,
     ) -> SemaphoreBulkhead:
         """Registra um bulkhead.
 
@@ -761,7 +762,7 @@ class ResilienceRegistry:
         self,
         policy_type: Optional[PolicyType] = None,
         tag: Optional[str] = None,
-    ) -> List[PolicyMetadata]:
+    ) -> list[PolicyMetadata]:
         """Lista políticas registradas.
 
         Args:
@@ -781,7 +782,7 @@ class ResilienceRegistry:
 
         return result
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """Retorna estatísticas do registro.
 
         Returns:

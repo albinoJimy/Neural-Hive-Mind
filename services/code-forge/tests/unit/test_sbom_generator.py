@@ -4,18 +4,18 @@ Testes unitários para SBOM Generator (SigstoreClient).
 Seguindo TDD, estes testes validam a geração de SBOM via Syft CLI.
 """
 
-import pytest
 import json
-import tempfile
 import os
+import tempfile
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
-from src.clients.sigstore_client import SigstoreClient
+import pytest
 from src.clients.s3_artifact_client import S3ArtifactClient
+from src.clients.sigstore_client import SigstoreClient
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_s3_client():
     """Mock do S3ArtifactClient."""
     client = AsyncMock(spec=S3ArtifactClient)
@@ -26,7 +26,7 @@ def mock_s3_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def sbom_generator(mock_s3_client):
     """Instância do SigstoreClient com mocks."""
     client = SigstoreClient(
@@ -42,7 +42,7 @@ def sbom_generator(mock_s3_client):
 class TestSBOMGeneration:
     """Testes de geração de SBOM."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_generate_sbom_with_syft_success(self, sbom_generator, mock_s3_client):
         """Testa geração de SBOM com Syft CLI sucesso."""
         # Criar diretório temporário com arquivo Python simples
@@ -103,7 +103,7 @@ def root():
                     if os.path.exists(sbom_temp_path):
                         os.unlink(sbom_temp_path)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_generate_sbom_syft_not_available(self, sbom_generator):
         """Testa fallback quando Syft não está disponível."""
         sbom_generator._tools_available["syft"] = False
@@ -116,7 +116,7 @@ def root():
         # Deve retornar mock URI quando Syft não disponível
         assert result == "MOCK_SBOM_URI_SYFT_NOT_INSTALLED"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_generate_sbom_client_disabled(self, sbom_generator):
         """Testa comportamento quando cliente está desabilitado."""
         sbom_generator.enabled = False
@@ -128,7 +128,7 @@ def root():
         # Deve retornar string vazia quando desabilitado
         assert result == ""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_generate_sbom_syft_command_failure(self, sbom_generator):
         """Testa tratamento de erro quando Syft falha."""
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -164,7 +164,7 @@ def root():
                     if os.path.exists(sbom_temp_path):
                         os.unlink(sbom_temp_path)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_generate_sbom_s3_upload_fallback(self, sbom_generator, mock_s3_client):
         """Testa fallback para file:// quando S3 upload falha."""
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -206,7 +206,7 @@ def root():
                     if os.path.exists(sbom_temp_path):
                         os.unlink(sbom_temp_path)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_generate_sbom_without_s3_client(self):
         """Testa geração de SBOM sem cliente S3."""
         # Cliente sem S3
@@ -252,7 +252,7 @@ def root():
 class TestSBOMFormats:
     """Testes de diferentes formatos de SBOM."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_generate_sbom_cyclonedx_format(self, sbom_generator, mock_s3_client):
         """Testa geração de SBOM no formato CycloneDX."""
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -289,7 +289,7 @@ class TestSBOMFormats:
                     if os.path.exists(sbom_temp_path):
                         os.unlink(sbom_temp_path)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_generate_sbom_spdx_format(self, sbom_generator, mock_s3_client):
         """Testa geração de SBOM no formato SPDX."""
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -326,7 +326,7 @@ class TestSBOMFormats:
                     if os.path.exists(sbom_temp_path):
                         os.unlink(sbom_temp_path)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_generate_sbom_table_format(self, sbom_generator, mock_s3_client):
         """Testa geração de SBOM no formato tabela."""
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -365,7 +365,7 @@ class TestSBOMFormats:
 class TestSBOMIntegration:
     """Testes de integração SBOM com outros componentes."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_sbom_integrity_verification(self, mock_s3_client):
         """Testa verificação de integridade de SBOM."""
         mock_s3_client.verify_sbom_integrity = AsyncMock(return_value=True)
@@ -379,7 +379,7 @@ class TestSBOMIntegration:
             sbom_uri="s3://bucket/sboms/ticket-123/artifact-456/sbom.json"
         )
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_sbom_metadata_retrieval(self, mock_s3_client):
         """Testa recuperação de metadados de SBOM."""
         mock_metadata = {
@@ -397,7 +397,7 @@ class TestSBOMIntegration:
         assert result["size"] == 2048
         assert result["metadata"]["sha256"] == "1234abcd..."
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_list_sboms_by_ticket(self, mock_s3_client):
         """Testa listagem de SBOMs por ticket."""
         mock_sboms = [

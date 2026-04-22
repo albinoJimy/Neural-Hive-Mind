@@ -5,36 +5,35 @@ Este modulo testa metodos e caminhos nao cobertos pelos testes existentes,
 focando em edge cases, error handling e cenarios alternativos.
 """
 
-import pytest
-from unittest.mock import AsyncMock
+import uuid
 from datetime import datetime
+from unittest.mock import AsyncMock
 
-from src.services.approval_gate import ApprovalGate
-from src.models.pipeline_context import PipelineContext
+import pytest
+from src.models.artifact import CodeForgeArtifact, GenerationMethod
 from src.models.execution_ticket import (
+    SLA,
+    Consistency,
+    DeliveryMode,
+    Durability,
     ExecutionTicket,
+    Priority,
+    QoS,
+    RiskBand,
+    SecurityLevel,
     TaskType,
     TicketStatus,
-    Priority,
-    RiskBand,
-    SLA,
-    QoS,
-    SecurityLevel,
-    DeliveryMode,
-    Consistency,
-    Durability,
 )
-from src.models.artifact import CodeForgeArtifact, GenerationMethod
-from src.types.artifact_types import ArtifactCategory
+from src.models.pipeline_context import PipelineContext
 from src.models.template import Template, TemplateMetadata, TemplateType
-from src.types.artifact_types import CodeLanguage
-import uuid
+from src.services.approval_gate import ApprovalGate
+from src.types.artifact_types import ArtifactCategory, CodeLanguage
 
 
 class TestGetFilenameForLanguage:
     """Testes para metodo _get_filename_for_language."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def approval_gate(self, mock_git_client):
         """Instancia do ApprovalGate para testes."""
         return ApprovalGate(
@@ -105,7 +104,7 @@ class TestGetFilenameForLanguage:
 class TestGenerateReadme:
     """Testes para metodo _generate_readme."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def approval_gate(self, mock_git_client):
         """Instancia do ApprovalGate para testes."""
         return ApprovalGate(
@@ -115,7 +114,7 @@ class TestGenerateReadme:
             min_quality_score=0.5,
         )
 
-    @pytest.fixture
+    @pytest.fixture()
     def sample_context(self):
         """Contexto de pipeline para testes."""
         ticket_id = str(uuid.uuid4())
@@ -175,7 +174,7 @@ class TestGenerateReadme:
 
         return context
 
-    @pytest.fixture
+    @pytest.fixture()
     def sample_artifact(self, sample_context):
         """Artefato para testes."""
         return CodeForgeArtifact(
@@ -282,7 +281,7 @@ class TestGenerateReadme:
 class TestCommitAndPushEdgeCases:
     """Testes para edge cases do metodo _commit_and_push."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def approval_gate_with_mongo(self, mock_git_client, mock_mongodb_client):
         """Instancia do ApprovalGate com MongoDB mock."""
         return ApprovalGate(
@@ -292,7 +291,7 @@ class TestCommitAndPushEdgeCases:
             min_quality_score=0.5,
         )
 
-    @pytest.fixture
+    @pytest.fixture()
     def approval_gate_no_mongo(self, mock_git_client):
         """Instancia do ApprovalGate sem MongoDB."""
         return ApprovalGate(
@@ -302,7 +301,7 @@ class TestCommitAndPushEdgeCases:
             min_quality_score=0.5,
         )
 
-    @pytest.fixture
+    @pytest.fixture()
     def sample_context_with_artifact(self):
         """Contexto com artifact para testes."""
         ticket_id = str(uuid.uuid4())
@@ -364,7 +363,7 @@ class TestCommitAndPushEdgeCases:
 
         return context
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_commit_and_push_no_mongodb_client(
         self, approval_gate_no_mongo, sample_context_with_artifact
     ):
@@ -375,7 +374,7 @@ class TestCommitAndPushEdgeCases:
 
         assert result is None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_commit_and_push_no_artifact(self, approval_gate_no_mongo):
         """Testa _commit_and_push quando nao ha artifact."""
         # Criar contexto sem artifact
@@ -416,7 +415,7 @@ class TestCommitAndPushEdgeCases:
 
         assert result is None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_commit_and_push_no_target_repo(
         self, approval_gate_with_mongo, sample_context_with_artifact
     ):
@@ -430,7 +429,7 @@ class TestCommitAndPushEdgeCases:
 
         assert result is None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_commit_and_push_empty_artifact_content(
         self, approval_gate_with_mongo, sample_context_with_artifact
     ):
@@ -444,7 +443,7 @@ class TestCommitAndPushEdgeCases:
 
         assert result is None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_commit_and_push_artifact_retrieval_exception(
         self, approval_gate_with_mongo, sample_context_with_artifact
     ):
@@ -466,7 +465,7 @@ class TestCommitAndPushEdgeCases:
 class TestCheckApprovalScenarios:
     """Testes para cenarios especificos de check_approval."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def approval_gate(self, mock_git_client, mock_mongodb_client):
         """Instancia do ApprovalGate para testes."""
         return ApprovalGate(
@@ -476,7 +475,7 @@ class TestCheckApprovalScenarios:
             min_quality_score=0.5,
         )
 
-    @pytest.fixture
+    @pytest.fixture()
     def sample_context(self):
         """Contexto base para testes."""
         ticket_id = str(uuid.uuid4())
@@ -535,10 +534,10 @@ class TestCheckApprovalScenarios:
 
         return context
 
-    @pytest.fixture
+    @pytest.fixture()
     def context_with_validation(self, sample_context):
         """Contexto com validacao para testar has_critical_issues."""
-        from src.models.artifact import ValidationResult, ValidationType, ValidationStatus
+        from src.models.artifact import ValidationResult, ValidationStatus, ValidationType
 
         validation = ValidationResult(
             validation_type=ValidationType.SAST,
@@ -558,10 +557,10 @@ class TestCheckApprovalScenarios:
 
         return sample_context
 
-    @pytest.fixture
+    @pytest.fixture()
     def context_with_critical_issue(self, sample_context):
         """Contexto com issue critico."""
-        from src.models.artifact import ValidationResult, ValidationType, ValidationStatus
+        from src.models.artifact import ValidationResult, ValidationStatus, ValidationType
 
         validation = ValidationResult(
             validation_type=ValidationType.SAST,
@@ -581,7 +580,7 @@ class TestCheckApprovalScenarios:
 
         return sample_context
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_check_approval_manual_review_without_repo(self, approval_gate, sample_context):
         """Testa check_approval em revisao manual sem target_repo."""
         # Adicionar artifact para satisfazer condicoes
@@ -613,7 +612,7 @@ class TestCheckApprovalScenarios:
         # Deve ser marcado como manual_no_repo
         assert sample_context.metadata.get("approval") == "manual_no_repo"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_check_approval_score_below_minimum(
         self, approval_gate, context_with_critical_issue
     ):
@@ -648,7 +647,7 @@ class TestCheckApprovalScenarios:
 class TestEdgeCasesWithGenerationMethod:
     """Testes para edge cases relacionados ao GenerationMethod."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def approval_gate(self, mock_git_client, mock_mongodb_client):
         """Instancia do ApprovalGate para testes."""
         return ApprovalGate(

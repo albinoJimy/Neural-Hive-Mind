@@ -1,16 +1,17 @@
 """Utilitários de engenharia de features compartilhados."""
 
-from typing import Dict, List, Any, Optional
-import numpy as np
-from datetime import datetime
 import logging
+from datetime import datetime
+from typing import Any, Optional
+
+import numpy as np
 
 logger = logging.getLogger(__name__)
 
 
 def extract_ticket_features(
-    ticket: Dict[str, Any], historical_stats: Optional[Dict[str, Any]] = None
-) -> Dict[str, Any]:
+    ticket: dict[str, Any], historical_stats: Optional[dict[str, Any]] = None
+) -> dict[str, Any]:
     """
     Extrai features de um ticket para ML.
 
@@ -71,7 +72,7 @@ def extract_ticket_features(
     return features
 
 
-def normalize_features(features_dict: Dict[str, Any]) -> np.ndarray:
+def normalize_features(features_dict: dict[str, Any]) -> np.ndarray:
     """
     Normaliza features para range [0, 1].
 
@@ -109,7 +110,7 @@ def normalize_features(features_dict: Dict[str, Any]) -> np.ndarray:
     return np.clip(normalized, 0, 1)
 
 
-def create_feature_vector(features: Dict[str, Any], feature_names: List[str]) -> np.ndarray:
+def create_feature_vector(features: dict[str, Any], feature_names: list[str]) -> np.ndarray:
     """
     Cria vetor de features ordenado.
 
@@ -125,7 +126,7 @@ def create_feature_vector(features: Dict[str, Any], feature_names: List[str]) ->
 
 async def compute_historical_stats(
     mongodb_client: Any, window_days: int = 30
-) -> Dict[str, Dict[str, float]]:
+) -> dict[str, dict[str, float]]:
     """
     Calcula estatísticas históricas agregadas.
 
@@ -185,7 +186,7 @@ async def compute_historical_stats(
         return {}
 
 
-def get_feature_importance(model: Any, feature_names: List[str]) -> Dict[str, float]:
+def get_feature_importance(model: Any, feature_names: list[str]) -> dict[str, float]:
     """
     Extrai importância de features de modelos baseados em árvore.
 
@@ -237,7 +238,7 @@ def _encode_task_type(task_type: str) -> int:
     return task_type_map.get(task_type, 0)
 
 
-def _extract_temporal_features(timestamp: str) -> Dict[str, float]:
+def _extract_temporal_features(timestamp: str) -> dict[str, float]:
     """Extrai features temporais de timestamp."""
     try:
         dt = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))

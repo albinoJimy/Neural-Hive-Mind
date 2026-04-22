@@ -6,8 +6,8 @@ for automated remediation workflows.
 """
 
 import asyncio
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from datetime import UTC, datetime
+from typing import Any, Optional
 from uuid import uuid4
 
 import httpx
@@ -43,7 +43,6 @@ TICKET_STATUS_UPDATE_TOTAL = Counter(
 class CircuitBreakerOpen(Exception):
     """Circuit breaker is open, refusing requests."""
 
-    pass
 
 
 class SelfHealingTicketClient:
@@ -142,7 +141,7 @@ class SelfHealingTicketClient:
         retry=retry_if_exception_type((httpx.HTTPError, asyncio.TimeoutError)),
     )
     async def _make_request(
-        self, method: str, path: str, json: Optional[Dict] = None, params: Optional[Dict] = None
+        self, method: str, path: str, json: Optional[dict] = None, params: Optional[dict] = None
     ) -> httpx.Response:
         """Make HTTP request with retry and circuit breaker."""
         self._check_circuit_breaker()
@@ -159,7 +158,7 @@ class SelfHealingTicketClient:
             self._record_failure()
             raise
 
-    async def get_ticket(self, ticket_id: str) -> Dict[str, Any]:
+    async def get_ticket(self, ticket_id: str) -> dict[str, Any]:
         """
         Get ticket by ID.
 
@@ -179,10 +178,10 @@ class SelfHealingTicketClient:
         self,
         ticket_id: str,
         status: str,
-        result: Optional[Dict[str, Any]] = None,
+        result: Optional[dict[str, Any]] = None,
         assigned_worker: Optional[str] = None,
-        metadata: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, Any]:
+        metadata: Optional[dict[str, Any]] = None,
+    ) -> dict[str, Any]:
         """
         Update ticket status.
 
@@ -200,7 +199,7 @@ class SelfHealingTicketClient:
             span.set_attribute("ticket.id", ticket_id)
             span.set_attribute("ticket.status", status)
 
-            payload: Dict[str, Any] = {"status": status}
+            payload: dict[str, Any] = {"status": status}
             if result is not None:
                 payload["result"] = result
             if assigned_worker is not None:
@@ -231,8 +230,8 @@ class SelfHealingTicketClient:
                 raise
 
     async def reallocate_ticket(
-        self, ticket_id: str, reason: str, metadata: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
+        self, ticket_id: str, reason: str, metadata: Optional[dict[str, Any]] = None
+    ) -> dict[str, Any]:
         """
         Reallocate a single ticket for re-execution.
 
@@ -260,7 +259,7 @@ class SelfHealingTicketClient:
             reallocation_metadata = {
                 "reallocation_id": reallocation_id,
                 "reallocation_reason": reason,
-                "reallocation_timestamp": datetime.now(timezone.utc).isoformat(),
+                "reallocation_timestamp": datetime.now(UTC).isoformat(),
                 "reallocation_source": "self-healing-engine",
                 **(metadata or {}),
             }
@@ -328,8 +327,8 @@ class SelfHealingTicketClient:
                 raise
 
     async def reallocate_multiple_tickets(
-        self, ticket_ids: List[str], reason: str, metadata: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
+        self, ticket_ids: list[str], reason: str, metadata: Optional[dict[str, Any]] = None
+    ) -> dict[str, Any]:
         """
         Reallocate multiple tickets in batch.
 
@@ -362,7 +361,7 @@ class SelfHealingTicketClient:
             # Create tasks for concurrent reallocation (with semaphore for rate limiting)
             semaphore = asyncio.Semaphore(10)  # Max 10 concurrent requests
 
-            async def reallocate_with_semaphore(ticket_id: str) -> Dict[str, Any]:
+            async def reallocate_with_semaphore(ticket_id: str) -> dict[str, Any]:
                 async with semaphore:
                     try:
                         result = await self.reallocate_ticket(
@@ -405,7 +404,7 @@ class SelfHealingTicketClient:
 
     async def list_tickets_by_worker(
         self, worker_id: str, status: Optional[str] = None
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         List all tickets assigned to a specific worker.
 
@@ -450,7 +449,7 @@ class SelfHealingTicketClient:
             logger.warning("self_healing_ticket_client.health_check_failed", error=str(e))
             return False
 
-    def get_circuit_breaker_state(self) -> Dict[str, Any]:
+    def get_circuit_breaker_state(self) -> dict[str, Any]:
         """
         Get current circuit breaker state.
 

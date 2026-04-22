@@ -2,8 +2,8 @@
 API REST para enforcement de políticas e remediação.
 """
 
-from datetime import datetime, timezone
-from typing import List, Optional
+from datetime import UTC, datetime
+from typing import Optional
 
 import structlog
 from fastapi import APIRouter, HTTPException, Query, Request
@@ -19,7 +19,7 @@ class EnforcementActionRequest(BaseModel):
 
     incident_id: str
     action_type: str
-    resources: List[str]
+    resources: list[str]
     reason: Optional[str] = None
     requested_by: str
 
@@ -117,7 +117,7 @@ async def execute_enforcement_action(request: EnforcementActionRequest, fastapi_
             success=result.get("success", False),
             action=result.get("action", request.action_type),
             details=result.get("details", {}),
-            timestamp=datetime.now(timezone.utc).isoformat(),
+            timestamp=datetime.now(UTC).isoformat(),
         )
 
     except HTTPException:
@@ -171,7 +171,7 @@ async def execute_remediation_action(request: RemediationActionRequest, fastapi_
             success=result.get("success", False),
             action_type=request.action_type,
             details=result.get("details", {}),
-            timestamp=datetime.now(timezone.utc).isoformat(),
+            timestamp=datetime.now(UTC).isoformat(),
         )
 
     except HTTPException:
@@ -181,7 +181,7 @@ async def execute_remediation_action(request: RemediationActionRequest, fastapi_
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/enforcement/history", response_model=List[EnforcementHistoryResponse])
+@router.get("/enforcement/history", response_model=list[EnforcementHistoryResponse])
 async def get_enforcement_history(
     incident_id: Optional[str] = Query(None),
     limit: int = Query(50, ge=1, le=200),
@@ -221,7 +221,7 @@ async def get_enforcement_history(
                     incident_id=doc.get("incident_id", ""),
                     action=doc.get("action", "unknown"),
                     status=doc.get("status", "unknown"),
-                    applied_at=doc.get("timestamp", datetime.now(timezone.utc).isoformat()),
+                    applied_at=doc.get("timestamp", datetime.now(UTC).isoformat()),
                     applied_by=doc.get("applied_by", "system"),
                     details=doc.get("details", {}),
                 )

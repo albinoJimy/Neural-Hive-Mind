@@ -3,6 +3,7 @@ Producer Kafka para publicação de eventos de autocura.
 """
 
 import json
+from datetime import UTC
 from typing import Any
 
 import structlog
@@ -141,14 +142,14 @@ class AutocuraEventProducer:
             logger.warning("autocura_producer_not_available")
             return False
 
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         event = {
             "event_type": "agent_recovered",
             "agent_id": agent_id,
             "agent_type": agent_type,
             "status": status,
-            "timestamp": int(datetime.now(timezone.utc).timestamp()),
+            "timestamp": int(datetime.now(UTC).timestamp()),
             "severity": "info",
         }
 

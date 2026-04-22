@@ -15,18 +15,18 @@ Requisitos:
 - kubectl configurado ou kubeconfig válido
 """
 
-import pytest
-import tempfile
 import os
+import tempfile
 
-from src.services.container_builder import ContainerBuilder, BuilderType, BuildResult
+import pytest
+from src.services.container_builder import BuilderType, BuildResult, ContainerBuilder
 
 
-@pytest.mark.e2e
+@pytest.mark.e2e()
 class TestKanikoK8sReal:
     """Testes E2E com cluster Kubernetes real."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_kaniko_namespace_exists(self):
         """Verifica se o namespace docker-build existe."""
         try:
@@ -42,7 +42,7 @@ class TestKanikoK8sReal:
         except Exception as e:
             pytest.skip(f"Cluster Kubernetes não acessível: {e}")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_kaniko_simple_build(self):
         """Executa um build simples com Kaniko no cluster real."""
         try:
@@ -100,7 +100,7 @@ CMD cat /tmp/test.txt
             # desde que o pod tenha sido criado
             print(f"Build duration: {result.duration_seconds}s")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_kaniko_digest_parsing(self):
         """Testa o parsing de digest com logs reais do Kaniko."""
         builder = ContainerBuilder(builder_type=BuilderType.KANIKO)
@@ -125,7 +125,7 @@ INFO0018[0010] Pushed image with digest sha256:1234567890abcdef1234567890abcdef1
         assert len(digest) == 71  # "sha256:" (7) + 64 caracteres
         print(f"✅ Digest parseado: {digest}")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_kaniko_list_pods_in_namespace(self):
         """Lista pods no namespace docker-build."""
         try:
@@ -144,7 +144,7 @@ INFO0018[0010] Pushed image with digest sha256:1234567890abcdef1234567890abcdef1
         except Exception as e:
             pytest.skip(f"Erro ao listar pods: {e}")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_kaniko_pod_manifest_structure(self):
         """Valida a estrutura do manifesto Pod Kaniko."""
         builder = ContainerBuilder(builder_type=BuilderType.KANIKO)
@@ -160,17 +160,17 @@ INFO0018[0010] Pushed image with digest sha256:1234567890abcdef1234567890abcdef1
         print("✅ Métodos Kaniko validados")
 
 
-@pytest.mark.e2e
+@pytest.mark.e2e()
 class TestKanikoIntegration:
     """Testes de integração Kaniko com outros componentes."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_kaniko_dockerfile_generator_integration(self):
         """Testa integração entre DockerfileGenerator e Kaniko."""
         from src.services.dockerfile_generator import (
-            DockerfileGenerator,
-            CodeLanguage,
             ArtifactCategory,
+            CodeLanguage,
+            DockerfileGenerator,
         )
 
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -189,7 +189,7 @@ class TestKanikoIntegration:
             # Validar que o Dockerfile foi gerado corretamente
             assert os.path.exists(dockerfile_path)
 
-            with open(dockerfile_path, "r") as f:
+            with open(dockerfile_path) as f:
                 content = f.read()
                 assert "FROM python:" in content
                 # Lambda functions têm CMD específico
@@ -197,7 +197,7 @@ class TestKanikoIntegration:
 
             print("✅ Dockerfile gerado para Kaniko build")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_kaniko_build_result_structure(self):
         """Valida a estrutura de BuildResult para builds Kaniko."""
         # Testar resultado de sucesso

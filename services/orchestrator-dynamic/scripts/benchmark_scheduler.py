@@ -15,20 +15,20 @@ import json
 import statistics
 import sys
 import time
-from dataclasses import dataclass, field, asdict
-from datetime import datetime, timezone, timedelta
+from dataclasses import asdict, dataclass, field
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Dict, List, Any, Optional
+from typing import Any, Optional
 from unittest.mock import AsyncMock, MagicMock
 
 # Adicionar src ao path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
+from config.settings import OrchestratorSettings
+from observability.metrics import OrchestratorMetrics
 from scheduler.intelligent_scheduler import IntelligentScheduler
 from scheduler.priority_calculator import PriorityCalculator
 from scheduler.resource_allocator import ResourceAllocator
-from config.settings import OrchestratorSettings
-from observability.metrics import OrchestratorMetrics
 
 
 @dataclass
@@ -64,9 +64,9 @@ class BenchmarkSummary:
     avg_latency_p99_ms: float
     avg_success_rate: float
     avg_cache_hit_rate: float
-    baseline_comparison: Optional[Dict[str, Any]] = None
+    baseline_comparison: Optional[dict[str, Any]] = None
     meets_slos: bool = True
-    slo_violations: List[str] = field(default_factory=list)
+    slo_violations: list[str] = field(default_factory=list)
 
 
 # SLOs de baseline
@@ -103,7 +103,7 @@ def create_mock_metrics() -> OrchestratorMetrics:
     return metrics
 
 
-def create_sample_workers(count: int = 10) -> List[Dict[str, Any]]:
+def create_sample_workers(count: int = 10) -> list[dict[str, Any]]:
     """Cria lista de workers mock."""
     return [
         {
@@ -117,7 +117,7 @@ def create_sample_workers(count: int = 10) -> List[Dict[str, Any]]:
     ]
 
 
-def create_mock_allocator(workers: List[Dict], latency_ms: float = 10) -> AsyncMock:
+def create_mock_allocator(workers: list[dict], latency_ms: float = 10) -> AsyncMock:
     """Cria ResourceAllocator mock com latência simulada."""
     allocator = AsyncMock(spec=ResourceAllocator)
 
@@ -132,7 +132,7 @@ def create_mock_allocator(workers: List[Dict], latency_ms: float = 10) -> AsyncM
     return allocator
 
 
-def generate_tickets(count: int, patterns: int = 5) -> List[Dict[str, Any]]:
+def generate_tickets(count: int, patterns: int = 5) -> list[dict[str, Any]]:
     """Gera tickets de teste."""
     capability_options = [
         ["python", "data-processing"],
@@ -155,21 +155,21 @@ def generate_tickets(count: int, patterns: int = 5) -> List[Dict[str, Any]]:
                     "durability": "PERSISTENT",
                 },
                 "sla": {
-                    "deadline": (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat(),
+                    "deadline": (datetime.now(UTC) + timedelta(hours=1)).isoformat(),
                     "timeout_ms": 3600000,
                 },
                 "required_capabilities": capability_options[i % patterns],
                 "namespace": "default",
                 "security_level": "standard",
                 "estimated_duration_ms": 1000,
-                "created_at": datetime.now(timezone.utc).isoformat(),
+                "created_at": datetime.now(UTC).isoformat(),
             }
         )
     return tickets
 
 
 async def run_benchmark_iteration(
-    scheduler: IntelligentScheduler, tickets: List[Dict], concurrency: int, metrics: MagicMock
+    scheduler: IntelligentScheduler, tickets: list[dict], concurrency: int, metrics: MagicMock
 ) -> BenchmarkResult:
     """Executa uma iteração de benchmark."""
     latencies = []
@@ -178,7 +178,7 @@ async def run_benchmark_iteration(
     error_count = 0
     metrics.cache_hit_count = 0
 
-    async def process_ticket(ticket: Dict) -> tuple:
+    async def process_ticket(ticket: dict) -> tuple:
         start = time.time()
         try:
             result = await scheduler.schedule_ticket(ticket)
@@ -323,7 +323,7 @@ async def run_benchmarks(
     return results, summary
 
 
-def print_report(results: List[BenchmarkResult], summary: BenchmarkSummary):
+def print_report(results: list[BenchmarkResult], summary: BenchmarkSummary):
     """Imprime relatório de benchmark."""
     print("\n" + "=" * 60)
     print("RELATÓRIO DE BENCHMARK - IntelligentScheduler")
@@ -369,10 +369,10 @@ def print_report(results: List[BenchmarkResult], summary: BenchmarkSummary):
     print("\n" + "=" * 60)
 
 
-def save_results(results: List[BenchmarkResult], summary: BenchmarkSummary, output_path: str):
+def save_results(results: list[BenchmarkResult], summary: BenchmarkSummary, output_path: str):
     """Salva resultados em arquivo JSON."""
     data = {
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
         "baselines": BASELINE_SLOS,
         "summary": asdict(summary),
         "iterations": [asdict(r) for r in results],

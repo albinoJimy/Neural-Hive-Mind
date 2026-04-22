@@ -178,7 +178,7 @@ class ASRPipeline:
                     ],
                     capture_output=True,
                     text=True,
-                    timeout=10,
+                    timeout=10, check=False,
                 )
 
                 if result.returncode == 0:

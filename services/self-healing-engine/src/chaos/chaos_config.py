@@ -4,10 +4,10 @@ Configurações para o módulo de Chaos Engineering.
 Define constantes, limites e configurações padrão para experimentos de chaos.
 """
 
-from typing import Dict, List, Set
+from datetime import UTC
 
 # Namespaces protegidos que não podem ser alvos de chaos experiments
-PROTECTED_NAMESPACES: Set[str] = {
+PROTECTED_NAMESPACES: set[str] = {
     "kube-system",
     "kube-public",
     "kube-node-lease",
@@ -16,7 +16,7 @@ PROTECTED_NAMESPACES: Set[str] = {
 }
 
 # Serviços críticos que requerem aprovação especial em produção
-CRITICAL_SERVICES: Set[str] = {
+CRITICAL_SERVICES: set[str] = {
     "gateway-intencoes",
     "consensus-engine",
     "orchestrator-dynamic",
@@ -24,7 +24,7 @@ CRITICAL_SERVICES: Set[str] = {
 }
 
 # Limites padrão para blast radius por ambiente
-BLAST_RADIUS_LIMITS: Dict[str, int] = {
+BLAST_RADIUS_LIMITS: dict[str, int] = {
     "development": 10,
     "staging": 5,
     "production": 2,
@@ -37,7 +37,7 @@ BUSINESS_HOURS = {
 }
 
 # Timeouts padrão por tipo de experimento (em segundos)
-DEFAULT_TIMEOUTS: Dict[str, int] = {
+DEFAULT_TIMEOUTS: dict[str, int] = {
     "network_latency": 120,
     "network_packet_loss": 120,
     "network_partition": 300,
@@ -93,7 +93,7 @@ CHAOS_ANNOTATIONS = {
 }
 
 # Cenários pré-definidos disponíveis
-AVAILABLE_SCENARIOS: List[str] = [
+AVAILABLE_SCENARIOS: list[str] = [
     "pod_failure_scenario",
     "network_partition_scenario",
     "resource_exhaustion_scenario",
@@ -102,7 +102,7 @@ AVAILABLE_SCENARIOS: List[str] = [
 ]
 
 # Playbooks mapeados por tipo de falha para validação
-PLAYBOOK_FAULT_MAPPING: Dict[str, str] = {
+PLAYBOOK_FAULT_MAPPING: dict[str, str] = {
     "pod_kill": "restart-pod",
     "container_kill": "restart-pod",
     "cpu_stress": "scale-up-deployment",
@@ -121,7 +121,7 @@ PROMETHEUS_METRICS = {
 }
 
 # Roles que podem executar experimentos de chaos
-CHAOS_ALLOWED_ROLES: Set[str] = {
+CHAOS_ALLOWED_ROLES: set[str] = {
     "chaos-engineer",
     "sre-lead",
     "platform-admin",
@@ -160,9 +160,9 @@ def is_critical_service(service_name: str) -> bool:
 
 def is_business_hours() -> bool:
     """Verifica se o momento atual está dentro do horário de negócio (UTC)."""
-    from datetime import datetime, timezone
+    from datetime import datetime
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     return BUSINESS_HOURS["start_hour"] <= now.hour < BUSINESS_HOURS["end_hour"]
 
 

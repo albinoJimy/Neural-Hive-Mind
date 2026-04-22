@@ -1,6 +1,6 @@
 """Tool Registry service for managing 87 MCP tools."""
 
-from typing import Dict, List, Optional
+from typing import Optional
 
 import structlog
 
@@ -55,7 +55,7 @@ class ToolRegistry:
         logger.info("tool_registered", tool_id=tool_id, tool_name=tool.tool_name)
         return tool_id
 
-    async def update_tool(self, tool_id: str, updates: Dict) -> bool:
+    async def update_tool(self, tool_id: str, updates: dict) -> bool:
         """Update existing tool."""
         tool = await self.mongodb_client.get_tool(tool_id)
         if not tool:
@@ -97,19 +97,19 @@ class ToolRegistry:
         tool = await self.mongodb_client.get_tool(tool_id)
         return tool
 
-    async def list_tools_by_category(self, category: ToolCategory) -> List[ToolDescriptor]:
+    async def list_tools_by_category(self, category: ToolCategory) -> list[ToolDescriptor]:
         """List tools by category."""
         return await self.mongodb_client.list_tools(category=category)
 
     async def search_tools(
-        self, query: str, filters: Optional[Dict] = None
-    ) -> List[ToolDescriptor]:
+        self, query: str, filters: Optional[dict] = None
+    ) -> list[ToolDescriptor]:
         """Search tools by text query and filters."""
         # Simplified search - should implement full-text search
         mongo_filters = filters or {}
         return await self.mongodb_client.list_tools(filters=mongo_filters)
 
-    async def get_tools_by_capabilities(self, capabilities: List[str]) -> List[ToolDescriptor]:
+    async def get_tools_by_capabilities(self, capabilities: list[str]) -> list[ToolDescriptor]:
         """Get tools matching required capabilities."""
         filters = {"capabilities": {"$all": capabilities}}
         return await self.mongodb_client.list_tools(filters=filters)
@@ -133,7 +133,7 @@ class ToolRegistry:
 
         return updated
 
-    async def get_tool_statistics(self, tool_id: str) -> Dict:
+    async def get_tool_statistics(self, tool_id: str) -> dict:
         """Get usage statistics for a tool."""
         stats = await self.mongodb_client.get_tool_usage_stats(tool_id)
         usage_count = await self.redis_client.get_tool_usage(tool_id)
@@ -143,7 +143,7 @@ class ToolRegistry:
             "redis_usage_count": usage_count,
         }
 
-    async def get_all_tools(self) -> List[ToolDescriptor]:
+    async def get_all_tools(self) -> list[ToolDescriptor]:
         """Get all tools from catalog."""
         return await self.mongodb_client.list_tools()
 
@@ -151,7 +151,7 @@ class ToolRegistry:
         """Get tool by ID (alias for get_tool)."""
         return await self.get_tool(tool_id)
 
-    async def get_tools_by_category(self, category: ToolCategory) -> List[ToolDescriptor]:
+    async def get_tools_by_category(self, category: ToolCategory) -> list[ToolDescriptor]:
         """Get tools by category (alias for list_tools_by_category)."""
         return await self.list_tools_by_category(category)
 
@@ -179,7 +179,7 @@ class ToolRegistry:
         logger.debug("tool_registry_metrics_updated")
 
     async def update_tool_metrics(
-        self, tool_id: str, category: str, success: bool, execution_time_ms: int, metadata: Dict
+        self, tool_id: str, category: str, success: bool, execution_time_ms: int, metadata: dict
     ) -> None:
         """Atualiza métricas de feedback de ferramentas."""
         try:

@@ -9,18 +9,19 @@ Usage:
     service's specific components and requirements.
 """
 
-from datetime import datetime, timezone
-from typing import Dict, Any
 import logging
+from datetime import UTC, datetime
+from typing import Any
 
 from fastapi import FastAPI, JSONResponse
+
 from neural_hive_observability.health import (
-    HealthManager,
-    RedisHealthCheck,
-    DatabaseHealthCheck,
-    KafkaHealthCheck,
     CustomHealthCheck,
+    DatabaseHealthCheck,
+    HealthManager,
     HealthStatus,
+    KafkaHealthCheck,
+    RedisHealthCheck,
 )
 
 logger = logging.getLogger(__name__)
@@ -82,13 +83,13 @@ class ServiceHealthManager:
         """Check if health manager is initialized."""
         return self._initialized
 
-    async def get_health_response(self) -> Dict[str, Any]:
+    async def get_health_response(self) -> dict[str, Any]:
         """Get standardized health check response."""
         if not self._initialized:
             return {
                 "status": "unhealthy",
                 "message": "Health manager not initialized",
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
                 "version": self.version,
                 "service_name": self.service_name,
             }
@@ -111,7 +112,7 @@ class ServiceHealthManager:
 
             return {
                 "status": overall_status.value,
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
                 "version": self.version,
                 "service_name": self.service_name,
                 "neural_hive_component": self.component,
@@ -123,13 +124,13 @@ class ServiceHealthManager:
             logger.error(f"Health check error: {e}")
             return {
                 "status": "unhealthy",
-                "message": f"Health check error: {str(e)}",
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "message": f"Health check error: {e!s}",
+                "timestamp": datetime.now(UTC).isoformat(),
                 "version": self.version,
                 "service_name": self.service_name,
             }
 
-    async def get_readiness_response(self, critical_checks: list = None) -> Dict[str, Any]:
+    async def get_readiness_response(self, critical_checks: list = None) -> dict[str, Any]:
         """
         Get standardized readiness check response.
 
@@ -142,7 +143,7 @@ class ServiceHealthManager:
             return {
                 "status": "not_ready",
                 "message": "Health manager not initialized",
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
             }
 
         try:
@@ -161,7 +162,7 @@ class ServiceHealthManager:
 
             return {
                 "status": "ready" if overall_ready else "not_ready",
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
                 "service_name": self.service_name,
                 "neural_hive_component": self.component,
             }
@@ -170,8 +171,8 @@ class ServiceHealthManager:
             logger.error(f"Readiness check error: {e}")
             return {
                 "status": "not_ready",
-                "message": f"Readiness check error: {str(e)}",
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "message": f"Readiness check error: {e!s}",
+                "timestamp": datetime.now(UTC).isoformat(),
             }
 
 
@@ -217,7 +218,7 @@ def setup_health_endpoints(
                 content={
                     "status": "unhealthy",
                     "message": "Health manager not initialized",
-                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "timestamp": datetime.now(UTC).isoformat(),
                 },
             )
 
@@ -229,7 +230,7 @@ def setup_health_endpoints(
                     content={
                         "status": "not_found",
                         "message": f"Component '{component_name}' not found",
-                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                        "timestamp": datetime.now(UTC).isoformat(),
                     },
                 )
 
@@ -252,8 +253,8 @@ def setup_health_endpoints(
                 content={
                     "component": component_name,
                     "status": "unhealthy",
-                    "message": f"Health check error: {str(e)}",
-                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "message": f"Health check error: {e!s}",
+                    "timestamp": datetime.now(UTC).isoformat(),
                 },
             )
 

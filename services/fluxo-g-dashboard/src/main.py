@@ -1,15 +1,14 @@
 """Aplicação principal Fluxo G Dashboard."""
 
 from contextlib import asynccontextmanager
+
+import structlog
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
-from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-import structlog
-
-from src.config.settings import get_settings
 from src.api.routers.dashboard import router as api_router
+from src.config.settings import get_settings
 
 settings = get_settings()
 

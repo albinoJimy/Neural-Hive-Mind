@@ -2,7 +2,7 @@
 Router FastAPI para endpoints de SLOs.
 """
 
-from typing import List, Optional
+from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
@@ -20,7 +20,7 @@ class SLOCreateResponse(BaseModel):
 
 
 class SLOListResponse(BaseModel):
-    slos: List[SLODefinition]
+    slos: list[SLODefinition]
     total: int
 
 
@@ -31,7 +31,7 @@ class SLOTestResponse(BaseModel):
 
 
 class SLOImportResponse(BaseModel):
-    imported_slos: List[str]
+    imported_slos: list[str]
     total: int
 
 
@@ -61,7 +61,7 @@ async def create_slo(slo: SLODefinition, manager: SLOManager = Depends(get_slo_m
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Internal error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Internal error: {e!s}")
 
 
 @router.get("/{slo_id}", response_model=SLODefinition)
@@ -106,7 +106,7 @@ async def update_slo(slo_id: str, updates: dict, manager: SLOManager = Depends(g
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Internal error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Internal error: {e!s}")
 
 
 @router.delete("/{slo_id}")
@@ -150,4 +150,4 @@ async def import_from_alerts(
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail="Alert rules file not found")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Import failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Import failed: {e!s}")

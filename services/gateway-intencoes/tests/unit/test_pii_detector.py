@@ -3,11 +3,12 @@ Testes unitários para PII Detector e Masker
 Testa detecção e mascaramento de informações pessoais sensíveis
 """
 
-import pytest
-from unittest.mock import MagicMock
+import os
 import re
 import sys
-import os
+from unittest.mock import MagicMock
+
+import pytest
 
 # Add src to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
@@ -16,7 +17,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 class TestPIIDetectorLite:
     """Testes para o detector de PII"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_detector(self):
         """Mock do detector de PII"""
         detector = MagicMock()
@@ -105,7 +106,7 @@ class TestPIIDetectorLite:
 class TestPIIMasker:
     """Testes para o mascarador de PII"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_masker(self):
         """Mock do masker de PII"""
         masker = MagicMock()
@@ -215,7 +216,7 @@ class TestPIIMasker:
 class TestPIIIntegration:
     """Testes de integração de detecção e mascaramento"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_pii_system(self):
         """Mock do sistema completo de PII"""
         detector = MagicMock()

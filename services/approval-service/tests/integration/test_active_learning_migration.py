@@ -7,11 +7,12 @@ NOTA: Estes testes requerem uma instância MongoDB real rodando.
 Execute com: docker-compose up -d mongodb
 """
 
+import os
+from datetime import UTC, datetime
+from unittest.mock import MagicMock
+
 import pytest
 from motor.motor_asyncio import AsyncIOMotorClient
-from unittest.mock import MagicMock
-from datetime import datetime, timezone
-import os
 
 # Import das funções de migration
 try:
@@ -32,7 +33,7 @@ needs_mongodb = pytest.mark.skipif(
 
 
 @needs_mongodb
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_create_active_learning_queue_collection(mongo_client):
     """Testa criação da coleção active_learning_queue com índices."""
     db_name = mongo_client.name
@@ -64,7 +65,7 @@ async def test_create_active_learning_queue_collection(mongo_client):
 
 
 @needs_mongodb
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_update_specialist_feedback_collection(mongo_client):
     """Testa atualização da coleção specialist_feedback."""
     db_name = mongo_client.name
@@ -89,7 +90,7 @@ async def test_update_specialist_feedback_collection(mongo_client):
     assert "idx_balanced_recommendation" in index_names
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_verify_schema(mongo_client):
     """Testa verificação do schema."""
     db_name = mongo_client.name
@@ -109,7 +110,7 @@ async def test_verify_schema(mongo_client):
 
 
 @needs_mongodb
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_active_learning_queue_document_structure(mongo_client):
     """Testa que documentos na fila seguem o schema esperado."""
     db_name = mongo_client.name
@@ -126,7 +127,7 @@ async def test_active_learning_queue_document_structure(mongo_client):
         "confidence": 0.5,
         "predicted_decision": "approve",
         "status": "pending",
-        "created_at": datetime.now(timezone.utc),
+        "created_at": datetime.now(UTC),
     }
 
     await collection.insert_one(test_doc)
@@ -138,7 +139,7 @@ async def test_active_learning_queue_document_structure(mongo_client):
     assert doc["status"] == "pending"
 
 
-@pytest.fixture
+@pytest.fixture()
 async def mongo_client():
     """Fixture para cliente MongoDB de teste."""
     # Em um cenário real, usaríamos mongodb_container
@@ -188,4 +189,4 @@ async def mongo_client():
     db.__getitem__ = lambda self, name: collection
     client.__getitem__ = lambda self, name: db
 
-    yield client
+    return client

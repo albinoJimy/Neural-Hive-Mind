@@ -5,14 +5,15 @@ Cobertura: generate com/sem modelo, determinação de método (shap/lime/heurist
 feature importances, persistência/recuperação, circuit breaker.
 """
 
+from unittest.mock import MagicMock, Mock, patch
+
 import pytest
-from unittest.mock import Mock, MagicMock, patch
 from circuitbreaker import CircuitBreakerError
 
 from neural_hive_specialists.explainability_generator import ExplainabilityGenerator
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestExplainabilityGeneratorInitialization:
     """Testes de inicialização do ExplainabilityGenerator."""
 
@@ -32,11 +33,11 @@ class TestExplainabilityGeneratorInitialization:
             assert gen.ledger_v2 is not None
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestGenerateWithModel:
     """Testes de geração de explicabilidade com modelo."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def generator(self, mock_config):
         """Cria generator com MongoDB mockado."""
         with patch("neural_hive_specialists.explainability_generator.MongoClient") as mock_mongo:
@@ -106,11 +107,11 @@ class TestGenerateWithModel:
         generator.ledger_v2.persist.assert_called_once()
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestGenerateWithoutModel:
     """Testes de geração heurística sem modelo."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def generator(self, mock_config):
         """Cria generator com ledger mockado."""
         with patch("neural_hive_specialists.explainability_generator.MongoClient") as mock_mongo:
@@ -158,11 +159,11 @@ class TestGenerateWithoutModel:
         assert len(importances) >= 0
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestMethodDetermination:
     """Testes de determinação do método de explicabilidade."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def generator(self, mock_config):
         """Cria generator."""
         with patch("neural_hive_specialists.explainability_generator.MongoClient"):
@@ -190,11 +191,11 @@ class TestMethodDetermination:
         assert method == "lime"
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestPersistenceAndRetrieval:
     """Testes de persistência e recuperação de explicações."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def generator(self, mock_config):
         """Cria generator com MongoDB mockado."""
         with patch("neural_hive_specialists.explainability_generator.MongoClient") as mock_mongo:
@@ -226,11 +227,11 @@ class TestPersistenceAndRetrieval:
             assert result is None
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestCircuitBreaker:
     """Testes de circuit breaker do ExplainabilityGenerator."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def generator(self, mock_config, mock_metrics):
         """Cria generator com circuit breaker habilitado."""
         mock_config.enable_circuit_breaker = True
@@ -274,11 +275,11 @@ class TestCircuitBreaker:
             generator.retrieve_explanation("token-123")
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestHeuristicExplanation:
     """Testes de geração de explicação heurística."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def generator(self, mock_config):
         """Cria generator."""
         with patch("neural_hive_specialists.explainability_generator.MongoClient"):
@@ -317,11 +318,11 @@ class TestHeuristicExplanation:
         assert contribution == "neutral"
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestMinimalExplainability:
     """Testes de geração de explicabilidade mínima."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def generator(self, mock_config):
         """Cria generator."""
         with patch("neural_hive_specialists.explainability_generator.MongoClient"):
@@ -338,11 +339,11 @@ class TestMinimalExplainability:
         assert metadata["model_version"] == "heuristic"
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestGetModelInfo:
     """Testes de obtenção de informações do modelo."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def generator(self, mock_config):
         """Cria generator."""
         with patch("neural_hive_specialists.explainability_generator.MongoClient"):
@@ -367,11 +368,11 @@ class TestGetModelInfo:
         assert model_type == "RandomForestClassifier"
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestReasoningLinks:
     """Testes de construção de links entre reasoning_factors e features."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def generator(self, mock_config):
         """Cria generator."""
         with patch("neural_hive_specialists.explainability_generator.MongoClient"):

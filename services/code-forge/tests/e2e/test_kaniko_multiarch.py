@@ -10,24 +10,24 @@ Requisitos:
 - APK (Alpine Package Keeper) funcionando no cluster
 """
 
-import pytest
-import tempfile
 import os
+import tempfile
 import time
 
+import pytest
 from src.services.container_builder import (
-    ContainerBuilder,
     BuilderType,
     BuildResult,
+    ContainerBuilder,
     _get_qemu_binaries,
 )
 
 
-@pytest.mark.e2e
+@pytest.mark.e2e()
 class TestKanikoMultiArchQEMU:
     """Testes E2E para builds multi-arch com QEMU."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_qemu_binaries_detection(self):
         """Verifica a detecção correta de binários QEMU necessários."""
         # Test com plataformas ARM
@@ -49,7 +49,7 @@ class TestKanikoMultiArchQEMU:
         none_bins = _get_qemu_binaries(None)
         assert none_bins == []
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_kaniko_single_arch_native(self):
         """Testa build de arquitetura nativa (amd64) sem QEMU."""
         timestamp = int(time.time())
@@ -87,7 +87,7 @@ CMD ["/bin/sh"]
                 print(f"⚠️ Native build falhou: {result.error_message}")
                 assert result.duration_seconds > 0
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_kaniko_multiarch_arm64(self):
         """Testa build multi-arch com ARM64 usando QEMU."""
         timestamp = int(time.time())
@@ -133,7 +133,7 @@ CMD ["/bin/sh"]
                 if result.error_message and "qemu" in result.error_message.lower():
                     pytest.skip("QEMU não disponível no cluster")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_kaniko_multiarch_arm_v7(self):
         """Testa build multi-arch com ARM v7 usando QEMU."""
         timestamp = int(time.time())
@@ -168,7 +168,7 @@ CMD ["/bin/sh"]
             else:
                 print(f"⚠️ ARM v7 build falhou: {result.error_message}")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_kaniko_multiarch_dual_platform(self):
         """Testa build para múltiplas plataformas simultaneamente."""
         timestamp = int(time.time())
@@ -209,7 +209,7 @@ CMD ["/bin/sh"]
             else:
                 print(f"⚠️ Dual platform build falhou: {result.error_message}")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_kaniko_platform_aliases(self):
         """Testa build usando aliases de plataforma."""
         timestamp = int(time.time())
@@ -246,11 +246,11 @@ CMD ["/bin/sh"]
                 print(f"⚠️ Platform aliases build falhou: {result.error_message}")
 
 
-@pytest.mark.e2e
+@pytest.mark.e2e()
 class TestKanikoMultiArchPython:
     """Testes E2E para builds multi-arch de aplicações Python."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_python_multiarch_arm64(self):
         """Testa build de imagem Python para ARM64."""
         timestamp = int(time.time())
@@ -291,7 +291,7 @@ CMD ["/bin/sh"]
             else:
                 print(f"⚠️ Python ARM64 build falhou: {result.error_message}")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_fastapi_multiarch_build(self):
         """Testa build de microserviço FastAPI multi-arch."""
         timestamp = int(time.time())
@@ -330,11 +330,11 @@ CMD ["/bin/sh"]
                 print(f"⚠️ FastAPI multi-arch build falhou: {result.error_message}")
 
 
-@pytest.mark.e2e
+@pytest.mark.e2e()
 class TestQEMUPodStructure:
     """Testes para validar estrutura do pod com QEMU."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_qemu_init_container_present(self):
         """Verifica que o init container qemu-setup está presente quando necessário."""
         import tempfile
@@ -366,7 +366,7 @@ class TestQEMUPodStructure:
 
             print("✅ QEMU init container structure valid!")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_qemu_volumes_present(self):
         """Verifica que o volume QEMU está presente quando necessário."""
         builder = ContainerBuilder(builder_type=BuilderType.KANIKO, timeout_seconds=600)
@@ -393,7 +393,7 @@ class TestQEMUPodStructure:
 
         print("✅ QEMU volumes structure valid!")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_qemu_volume_mounts_present(self):
         """Verifica que o volumeMount QEMU está presente no container Kaniko."""
         builder = ContainerBuilder(builder_type=BuilderType.KANIKO, timeout_seconds=600)

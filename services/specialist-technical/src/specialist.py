@@ -10,7 +10,7 @@ Analisa planos cognitivos sob perspectiva técnica:
 """
 
 import sys
-from typing import Any, Dict, List
+from typing import Any
 
 import structlog
 
@@ -83,8 +83,8 @@ class TechnicalSpecialist(BaseSpecialist):
             return None
 
     def _evaluate_plan_internal(
-        self, cognitive_plan: Dict[str, Any], context: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, cognitive_plan: dict[str, Any], context: dict[str, Any]
+    ) -> dict[str, Any]:
         """
         Avalia plano sob perspectiva técnica.
 
@@ -206,7 +206,7 @@ class TechnicalSpecialist(BaseSpecialist):
             },
         }
 
-    def _analyze_security(self, tasks: List[Dict], cognitive_plan: Dict) -> float:
+    def _analyze_security(self, tasks: list[dict], cognitive_plan: dict) -> float:
         """
         Analisa aspectos de segurança do plano.
 
@@ -272,7 +272,7 @@ class TechnicalSpecialist(BaseSpecialist):
 
         return max(0.0, min(1.0, security_score))
 
-    def _analyze_architecture(self, tasks: List[Dict], cognitive_plan: Dict) -> float:
+    def _analyze_architecture(self, tasks: list[dict], cognitive_plan: dict) -> float:
         """
         Analisa padrões arquiteturais e design.
 
@@ -341,7 +341,7 @@ class TechnicalSpecialist(BaseSpecialist):
 
         return max(0.0, min(1.0, architecture_score))
 
-    def _analyze_performance(self, tasks: List[Dict]) -> float:
+    def _analyze_performance(self, tasks: list[dict]) -> float:
         """
         Analisa aspectos de performance.
 
@@ -400,7 +400,7 @@ class TechnicalSpecialist(BaseSpecialist):
 
         return max(0.0, min(1.0, performance_score))
 
-    def _analyze_code_quality(self, tasks: List[Dict]) -> float:
+    def _analyze_code_quality(self, tasks: list[dict]) -> float:
         """
         Analisa qualidade de código esperada.
 
@@ -459,7 +459,7 @@ class TechnicalSpecialist(BaseSpecialist):
 
     def _calculate_technical_risk(
         self,
-        cognitive_plan: Dict,
+        cognitive_plan: dict,
         security_score: float,
         architecture_score: float,
         performance_score: float,
@@ -548,7 +548,7 @@ class TechnicalSpecialist(BaseSpecialist):
         architecture_score: float,
         performance_score: float,
         code_quality_score: float,
-    ) -> List[Dict]:
+    ) -> list[dict]:
         """Gera sugestões de mitigação de riscos técnicos."""
         mitigations = []
 

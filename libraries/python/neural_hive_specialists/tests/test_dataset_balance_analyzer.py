@@ -5,13 +5,14 @@ TDD: Testes escritos antes da implementação.
 Espec: @.agent-os/specs/2026-03-17-active-learning-feedback/
 """
 
-import pytest
 from unittest.mock import MagicMock
+
+import pytest
 from pymongo.collection import Collection
 
 from neural_hive_specialists.feedback.active_learning.balance_analyzer import (
-    DatasetBalanceAnalyzer,
     BalanceMetrics,
+    DatasetBalanceAnalyzer,
     PriorityRecommendation,
 )
 
@@ -19,18 +20,18 @@ from neural_hive_specialists.feedback.active_learning.balance_analyzer import (
 class TestDatasetBalanceAnalyzer:
     """Testes do DatasetBalanceAnalyzer."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_collection(self):
         """Mock da coleção specialist_feedback."""
         collection = MagicMock(spec=Collection)
         return collection
 
-    @pytest.fixture
+    @pytest.fixture()
     def analyzer(self, mock_collection):
         """Instância do DatasetBalanceAnalyzer."""
         return DatasetBalanceAnalyzer(mock_collection)
 
-    @pytest.fixture
+    @pytest.fixture()
     def sample_feedbacks(self):
         """Dados de feedback para testes."""
         return [

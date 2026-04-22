@@ -1,10 +1,11 @@
 """MLflow Client para Approval Models - Online Learning."""
 
-from typing import Any, Dict, List, Optional
 import logging
+from typing import Any, Optional
+
 import mlflow
-from mlflow.tracking import MlflowClient
 from mlflow.exceptions import MlflowException
+from mlflow.tracking import MlflowClient
 
 logger = logging.getLogger(__name__)
 
@@ -40,12 +41,12 @@ class MLflowClient:
         self,
         model: Any,
         version: str,
-        metrics: Dict[str, float],
-        params: Dict[str, Any],
-        feature_importance: Optional[Dict[str, float]] = None,
+        metrics: dict[str, float],
+        params: dict[str, Any],
+        feature_importance: Optional[dict[str, float]] = None,
         n_samples: int = 0,
         run_id: Optional[str] = None,
-        tags: Optional[Dict[str, str]] = None,
+        tags: Optional[dict[str, str]] = None,
     ) -> str:
         """
         Registra modelo no MLflow com metadados completos.
@@ -111,11 +112,11 @@ class MLflowClient:
         self,
         model: Any,
         model_name: str,
-        metrics: Dict[str, float],
-        params: Dict[str, Any],
-        feature_importance: Optional[Dict[str, float]],
+        metrics: dict[str, float],
+        params: dict[str, Any],
+        feature_importance: Optional[dict[str, float]],
         n_samples: int,
-        tags: Optional[Dict[str, str]],
+        tags: Optional[dict[str, str]],
     ) -> str:
         """Helper para logar métricas e modelo."""
         # Log params
@@ -168,7 +169,7 @@ class MLflowClient:
 
     def get_model_version(
         self, model_name: str, stage: str = "Staging"
-    ) -> Optional[Dict[str, Any]]:
+    ) -> Optional[dict[str, Any]]:
         """
         Obtém metadados de versão específica do modelo.
 
@@ -258,7 +259,7 @@ class MLflowClient:
             logger.error(f"Erro ao promover modelo {model_name}: {e}")
             raise
 
-    def list_models(self, filter_string: Optional[str] = None) -> List[Dict[str, Any]]:
+    def list_models(self, filter_string: Optional[str] = None) -> list[dict[str, Any]]:
         """
         Lista modelos registrados.
 
@@ -327,7 +328,7 @@ class MLflowClient:
             logger.error(f"Erro ao deletar modelo: {e}")
             raise
 
-    def get_run_history(self, model_name: str, limit: int = 10) -> List[Dict[str, Any]]:
+    def get_run_history(self, model_name: str, limit: int = 10) -> list[dict[str, Any]]:
         """
         Obtém histórico de runs de um modelo.
 

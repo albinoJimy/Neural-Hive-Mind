@@ -4,25 +4,26 @@ Cliente para persistência de pareceres no ledger cognitivo (MongoDB).
 
 import hashlib
 import json
-from typing import Dict, Any, Optional, List
-from datetime import datetime, timezone
 import uuid
+from datetime import UTC, datetime
+from queue import Empty, Full, Queue
+from typing import Any, Optional
+
 import structlog
-from pymongo import MongoClient, ASCENDING, DESCENDING
+from circuitbreaker import CircuitBreaker, CircuitBreakerError
+from pymongo import ASCENDING, DESCENDING, MongoClient
 from pymongo.errors import PyMongoError
 from tenacity import (
     retry,
+    retry_if_exception_type,
     stop_after_attempt,
     wait_exponential,
-    retry_if_exception_type,
 )
-from circuitbreaker import CircuitBreaker, CircuitBreakerError
-from queue import Queue, Full, Empty
 
-from .config import SpecialistConfig
-from .ledger import OpinionDocumentV2, Opinion, DigitalSigner, SchemaVersionManager
-from .ledger.query_api import LedgerQueryAPI
 from .compliance import AuditLogger, FieldEncryptor
+from .config import SpecialistConfig
+from .ledger import DigitalSigner, Opinion, OpinionDocumentV2, SchemaVersionManager
+from .ledger.query_api import LedgerQueryAPI
 
 logger = structlog.get_logger()
 
@@ -310,7 +311,7 @@ class LedgerClient:
 
     def save_opinion(
         self,
-        opinion: Dict[str, Any],
+        opinion: dict[str, Any],
         plan_id: str,
         intent_id: str,
         specialist_type: str,
@@ -374,7 +375,7 @@ class LedgerClient:
     )
     def save_opinion_impl(
         self,
-        opinion: Dict[str, Any],
+        opinion: dict[str, Any],
         plan_id: str,
         intent_id: str,
         specialist_type: str,
@@ -478,7 +479,7 @@ class LedgerClient:
                 correlation_id=correlation_id,
                 trace_id=trace_id,
                 span_id=span_id,
-                evaluated_at=datetime.now(timezone.utc),
+                evaluated_at=datetime.now(UTC),
                 processing_time_ms=(
                     processing_time_ms
                     if processing_time_ms is not None
@@ -623,7 +624,7 @@ class LedgerClient:
             )
             raise
 
-    def _calculate_hash(self, document: Dict[str, Any]) -> str:
+    def _calculate_hash(self, document: dict[str, Any]) -> str:
         """
         Calcula hash SHA-256 do documento para auditoria (formato legado).
 
@@ -654,7 +655,7 @@ class LedgerClient:
         # Calcular hash SHA-256
         return hashlib.sha256(json_str.encode("utf-8")).hexdigest()
 
-    def _calculate_content_hash(self, document: Dict[str, Any]) -> str:
+    def _calculate_content_hash(self, document: dict[str, Any]) -> str:
         """
         Calcula content_hash para OpinionDocumentV2.
 
@@ -814,7 +815,7 @@ class LedgerClient:
 
     def save_opinion_with_fallback(
         self,
-        opinion: Dict[str, Any],
+        opinion: dict[str, Any],
         plan_id: str,
         intent_id: str,
         specialist_type: str,
@@ -881,7 +882,7 @@ class LedgerClient:
                 "specialist_type": specialist_type,
                 "correlation_id": correlation_id,
                 "opinion_data": opinion,
-                "timestamp": datetime.now(timezone.utc),
+                "timestamp": datetime.now(UTC),
                 "immutable": True,
                 "buffered": True,
             }
@@ -921,7 +922,7 @@ class LedgerClient:
             )
             raise
 
-    def _buffer_opinion(self, opinion_data: Dict[str, Any]):
+    def _buffer_opinion(self, opinion_data: dict[str, Any]):
         """
         Adiciona opinião ao buffer em memória (método privado para testes).
 
@@ -1017,7 +1018,7 @@ class LedgerClient:
 
         return flushed_count
 
-    def get_opinion(self, opinion_id: str) -> Optional[Dict[str, Any]]:
+    def get_opinion(self, opinion_id: str) -> Optional[dict[str, Any]]:
         """
         Recupera parecer por ID.
 
@@ -1032,7 +1033,7 @@ class LedgerClient:
         else:
             return self.get_opinion_impl(opinion_id)
 
-    def get_opinion_impl(self, opinion_id: str) -> Optional[Dict[str, Any]]:
+    def get_opinion_impl(self, opinion_id: str) -> Optional[dict[str, Any]]:
         """
         Implementação interna de get_opinion.
 
@@ -1074,7 +1075,7 @@ class LedgerClient:
 
     def get_opinions_by_plan(
         self, plan_id: str, tenant_id: Optional[str] = None
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Recupera todos os pareceres de um plano.
 
@@ -1094,7 +1095,7 @@ class LedgerClient:
 
     def get_opinions_by_plan_impl(
         self, plan_id: str, tenant_id: Optional[str] = None
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Implementação interna de get_opinions_by_plan.
 
@@ -1143,7 +1144,7 @@ class LedgerClient:
 
     def get_opinions_by_intent(
         self, intent_id: str, tenant_id: Optional[str] = None
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Recupera todos os pareceres de uma intenção.
 
@@ -1163,7 +1164,7 @@ class LedgerClient:
 
     def get_opinions_by_intent_impl(
         self, intent_id: str, tenant_id: Optional[str] = None
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Implementação interna de get_opinions_by_intent.
 
@@ -1209,13 +1210,13 @@ class LedgerClient:
 
     def get_opinions_by_plan_id(
         self, plan_id: str, tenant_id: Optional[str] = None
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Alias para get_opinions_by_plan (backward compatibility)."""
         return self.get_opinions_by_plan(plan_id, tenant_id)
 
     def get_opinions_by_intent_id(
         self, intent_id: str, tenant_id: Optional[str] = None
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Alias para get_opinions_by_intent (backward compatibility)."""
         return self.get_opinions_by_intent(intent_id, tenant_id)
 
@@ -1298,8 +1299,8 @@ class LedgerClient:
         Returns:
             True se conectado, False caso contrário
         """
-        import threading
         import queue
+        import threading
 
         def _ping():
             try:
@@ -1329,7 +1330,7 @@ class LedgerClient:
             logger.warning("MongoDB not connected", error=str(e))
             return False
 
-    def check_health(self) -> Dict[str, Any]:
+    def check_health(self) -> dict[str, Any]:
         """
         Verifica saúde completa do MongoDB (conectividade + índices).
 
@@ -1372,7 +1373,7 @@ class LedgerClient:
 
     def get_opinions_by_domain(
         self, domain: str, limit: int = 100, skip: int = 0
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Busca opiniões por domínio original do plano cognitivo.
 
@@ -1392,7 +1393,7 @@ class LedgerClient:
 
     def get_opinions_by_feature(
         self, feature_name: str, min_score: Optional[float] = None, limit: int = 100
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Busca opiniões por fator de raciocínio (reasoning_factor).
 
@@ -1410,7 +1411,7 @@ class LedgerClient:
 
         return self._query_api.get_opinions_by_feature(feature_name, min_score, limit)
 
-    def apply_retention_policies(self) -> Dict[str, int]:
+    def apply_retention_policies(self) -> dict[str, int]:
         """
         Aplica políticas de retenção de dados (mascaramento e deleção).
 
@@ -1486,7 +1487,7 @@ class LedgerClient:
                 "errors": 1,
             }
 
-    def get_retention_status(self) -> Dict[str, Any]:
+    def get_retention_status(self) -> dict[str, Any]:
         """
         Retorna status atual das políticas de retenção.
 

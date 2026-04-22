@@ -7,19 +7,19 @@ Note: These tests require environment variables or mocks for the
 actual CI provider APIs. In CI environments, they use mocked responses.
 """
 
-import pytest
 import os
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
-from datetime import datetime, timezone
 
-from executors.test_executor import TestExecutor
+import pytest
 from clients.github_actions_client import GitHubActionsClient, WorkflowRunStatus
 from clients.gitlab_ci_client import GitLabCIClient, PipelineStatus
-from clients.jenkins_client import JenkinsClient, JenkinsBuildStatus
+from clients.jenkins_client import JenkinsBuildStatus, JenkinsClient
+from executors.test_executor import TestExecutor
 from src.config.settings import WorkerAgentSettings
 
 
-@pytest.fixture
+@pytest.fixture()
 def integration_config():
     """Create configuration for integration tests."""
     return WorkerAgentSettings(
@@ -46,7 +46,7 @@ def integration_config():
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_metrics():
     """Create mock metrics for integration tests."""
     metrics = MagicMock()
@@ -75,12 +75,12 @@ def mock_metrics():
 class TestGitHubActionsIntegration:
     """Integration tests for GitHub Actions provider."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def github_client(self, integration_config):
         """Create GitHub Actions client."""
         return GitHubActionsClient.from_env(integration_config)
 
-    @pytest.fixture
+    @pytest.fixture()
     def executor_with_github(self, integration_config, mock_metrics, github_client):
         """Create executor with GitHub Actions client."""
         return TestExecutor(
@@ -91,8 +91,8 @@ class TestGitHubActionsIntegration:
             github_actions_client=github_client,
         )
 
-    @pytest.mark.asyncio
-    @pytest.mark.integration
+    @pytest.mark.asyncio()
+    @pytest.mark.integration()
     async def test_github_actions_workflow_trigger(self, executor_with_github):
         """Test triggering a GitHub Actions workflow."""
         with patch.object(
@@ -109,8 +109,8 @@ class TestGitHubActionsIntegration:
                     status="completed",
                     conclusion="success",
                     html_url="https://github.com/owner/repo/actions/runs/12345",
-                    created_at=datetime.now(timezone.utc),
-                    updated_at=datetime.now(timezone.utc),
+                    created_at=datetime.now(UTC),
+                    updated_at=datetime.now(UTC),
                     tests_passed=50,
                     tests_failed=0,
                     tests_skipped=2,
@@ -134,8 +134,8 @@ class TestGitHubActionsIntegration:
                 assert result["coverage_percent"] == 87.5
                 mock_trigger.assert_called_once()
 
-    @pytest.mark.asyncio
-    @pytest.mark.integration
+    @pytest.mark.asyncio()
+    @pytest.mark.integration()
     async def test_github_actions_with_test_artifacts(self, executor_with_github):
         """Test GitHub Actions with test report artifacts."""
         with patch.object(
@@ -157,8 +157,8 @@ class TestGitHubActionsIntegration:
                         status="completed",
                         conclusion="success",
                         html_url="https://github.com",
-                        created_at=datetime.now(timezone.utc),
-                        updated_at=datetime.now(timezone.utc),
+                        created_at=datetime.now(UTC),
+                        updated_at=datetime.now(UTC),
                     )
                     mock_results.return_value = {
                         "total": 100,
@@ -184,12 +184,12 @@ class TestGitHubActionsIntegration:
 class TestGitLabCIIntegration:
     """Integration tests for GitLab CI provider."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def gitlab_client(self, integration_config):
         """Create GitLab CI client."""
         return GitLabCIClient.from_env(integration_config)
 
-    @pytest.fixture
+    @pytest.fixture()
     def executor_with_gitlab(self, integration_config, mock_metrics, gitlab_client):
         """Create executor with GitLab CI client."""
         return TestExecutor(
@@ -200,8 +200,8 @@ class TestGitLabCIIntegration:
             gitlab_ci_client=gitlab_client,
         )
 
-    @pytest.mark.asyncio
-    @pytest.mark.integration
+    @pytest.mark.asyncio()
+    @pytest.mark.integration()
     async def test_gitlab_ci_pipeline_trigger(self, executor_with_gitlab):
         """Test triggering a GitLab CI pipeline."""
         with patch.object(
@@ -224,8 +224,8 @@ class TestGitLabCIIntegration:
                         ref="main",
                         sha="abc123def",
                         web_url="https://gitlab.com/project/-/pipelines/54321",
-                        created_at=datetime.now(timezone.utc),
-                        updated_at=datetime.now(timezone.utc),
+                        created_at=datetime.now(UTC),
+                        updated_at=datetime.now(UTC),
                         duration=180,
                     )
                     mock_report.return_value = {
@@ -249,8 +249,8 @@ class TestGitLabCIIntegration:
                     assert result["status"] == "success"
                     mock_trigger.assert_called_once()
 
-    @pytest.mark.asyncio
-    @pytest.mark.integration
+    @pytest.mark.asyncio()
+    @pytest.mark.integration()
     async def test_gitlab_ci_pipeline_failure(self, executor_with_gitlab):
         """Test GitLab CI pipeline with failures."""
         with patch.object(
@@ -270,8 +270,8 @@ class TestGitLabCIIntegration:
                         ref="feature-branch",
                         sha="xyz789",
                         web_url="https://gitlab.com/project/-/pipelines/54322",
-                        created_at=datetime.now(timezone.utc),
-                        updated_at=datetime.now(timezone.utc),
+                        created_at=datetime.now(UTC),
+                        updated_at=datetime.now(UTC),
                     )
                     mock_report.return_value = {
                         "total_count": 50,
@@ -297,12 +297,12 @@ class TestGitLabCIIntegration:
 class TestJenkinsIntegration:
     """Integration tests for Jenkins provider."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def jenkins_client(self, integration_config):
         """Create Jenkins client."""
         return JenkinsClient.from_env(integration_config)
 
-    @pytest.fixture
+    @pytest.fixture()
     def executor_with_jenkins(self, integration_config, mock_metrics, jenkins_client):
         """Create executor with Jenkins client."""
         return TestExecutor(
@@ -313,8 +313,8 @@ class TestJenkinsIntegration:
             jenkins_client=jenkins_client,
         )
 
-    @pytest.mark.asyncio
-    @pytest.mark.integration
+    @pytest.mark.asyncio()
+    @pytest.mark.integration()
     async def test_jenkins_build_trigger(self, executor_with_jenkins):
         """Test triggering a Jenkins build."""
         with patch.object(
@@ -335,7 +335,7 @@ class TestJenkinsIntegration:
                         building=False,
                         url="https://jenkins.example.com/job/test-job/100/",
                         duration=90000,
-                        timestamp=datetime.now(timezone.utc),
+                        timestamp=datetime.now(UTC),
                         tests_passed=60,
                         tests_failed=0,
                         tests_skipped=5,
@@ -359,8 +359,8 @@ class TestJenkinsIntegration:
                     assert result["tests_passed"] == 60
                     mock_trigger.assert_called_once()
 
-    @pytest.mark.asyncio
-    @pytest.mark.integration
+    @pytest.mark.asyncio()
+    @pytest.mark.integration()
     async def test_jenkins_parameterized_build(self, executor_with_jenkins):
         """Test Jenkins parameterized build."""
         with patch.object(
@@ -381,7 +381,7 @@ class TestJenkinsIntegration:
                         building=False,
                         url="https://jenkins.example.com/job/test-job/101/",
                         duration=120000,
-                        timestamp=datetime.now(timezone.utc),
+                        timestamp=datetime.now(UTC),
                     )
                     mock_coverage.return_value = {}
 
@@ -413,7 +413,7 @@ class TestJenkinsIntegration:
 class TestMultiProviderIntegration:
     """Integration tests for multi-provider scenarios."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def executor_all_providers(self, integration_config, mock_metrics):
         """Create executor with all providers."""
         github_client = MagicMock(spec=GitHubActionsClient)
@@ -430,8 +430,8 @@ class TestMultiProviderIntegration:
             jenkins_client=jenkins_client,
         )
 
-    @pytest.mark.asyncio
-    @pytest.mark.integration
+    @pytest.mark.asyncio()
+    @pytest.mark.integration()
     async def test_provider_selection_github(self, executor_all_providers):
         """Test correct provider selection for GitHub Actions."""
         ticket = MagicMock()
@@ -448,8 +448,8 @@ class TestMultiProviderIntegration:
             await executor_all_providers.execute(ticket)
             mock_github.assert_called_once()
 
-    @pytest.mark.asyncio
-    @pytest.mark.integration
+    @pytest.mark.asyncio()
+    @pytest.mark.integration()
     async def test_provider_selection_gitlab(self, executor_all_providers):
         """Test correct provider selection for GitLab CI."""
         ticket = MagicMock()
@@ -466,8 +466,8 @@ class TestMultiProviderIntegration:
             await executor_all_providers.execute(ticket)
             mock_gitlab.assert_called_once()
 
-    @pytest.mark.asyncio
-    @pytest.mark.integration
+    @pytest.mark.asyncio()
+    @pytest.mark.integration()
     async def test_provider_selection_jenkins(self, executor_all_providers):
         """Test correct provider selection for Jenkins."""
         ticket = MagicMock()
@@ -483,8 +483,8 @@ class TestMultiProviderIntegration:
             await executor_all_providers.execute(ticket)
             mock_jenkins.assert_called_once()
 
-    @pytest.mark.asyncio
-    @pytest.mark.integration
+    @pytest.mark.asyncio()
+    @pytest.mark.integration()
     async def test_fallback_when_provider_unavailable(self, integration_config, mock_metrics):
         """Test fallback to simulation when provider is unavailable."""
         executor = TestExecutor(
@@ -510,8 +510,8 @@ class TestMultiProviderIntegration:
 class TestEndToEndFlow:
     """End-to-end integration tests."""
 
-    @pytest.mark.asyncio
-    @pytest.mark.integration
+    @pytest.mark.asyncio()
+    @pytest.mark.integration()
     async def test_complete_test_flow_with_metrics(self, integration_config, mock_metrics):
         """Test complete test flow with metrics recording."""
         github_client = AsyncMock(spec=GitHubActionsClient)
@@ -521,8 +521,8 @@ class TestEndToEndFlow:
             status="completed",
             conclusion="success",
             html_url="https://github.com",
-            created_at=datetime.now(timezone.utc),
-            updated_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
+            updated_at=datetime.now(UTC),
             tests_passed=100,
             tests_failed=0,
             tests_skipped=5,

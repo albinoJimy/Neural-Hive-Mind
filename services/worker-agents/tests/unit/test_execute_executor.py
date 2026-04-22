@@ -12,11 +12,12 @@ Cobertura:
 - Simulação
 """
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock
 
+import pytest
 
-@pytest.fixture
+
+@pytest.fixture()
 def mock_config():
     """Fixture para configurações."""
     config = MagicMock()
@@ -38,7 +39,7 @@ def mock_config():
     return config
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_local_client():
     """Fixture para LocalRuntimeClient mockado."""
     client = MagicMock()
@@ -53,7 +54,7 @@ def mock_local_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_docker_client():
     """Fixture para DockerRuntimeClient mockado."""
     client = MagicMock()
@@ -68,7 +69,7 @@ def mock_docker_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_k8s_client():
     """Fixture para KubernetesJobsClient mockado."""
     from clients.k8s_jobs_client import K8sJobStatus
@@ -85,7 +86,7 @@ def mock_k8s_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_lambda_client():
     """Fixture para LambdaRuntimeClient mockado."""
     client = MagicMock()
@@ -104,7 +105,7 @@ def mock_lambda_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def execute_executor(mock_config, mock_local_client):
     """Fixture para ExecuteExecutor com local client."""
     from executors.execute_executor import ExecuteExecutor
@@ -115,7 +116,7 @@ def execute_executor(mock_config, mock_local_client):
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def execute_executor_all_runtimes(
     mock_config, mock_local_client, mock_docker_client, mock_k8s_client, mock_lambda_client
 ):
@@ -184,7 +185,7 @@ class TestRuntimeSelection:
 class TestLocalExecution:
     """Testes de execução local."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_local_success(self, execute_executor, mock_local_client):
         """Deve executar localmente com sucesso."""
         ticket = {
@@ -204,7 +205,7 @@ class TestLocalExecution:
         assert result["metadata"]["simulated"] is False
         mock_local_client.execute_local.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_local_with_env_vars(self, execute_executor, mock_local_client):
         """Deve passar variáveis de ambiente."""
         ticket = {
@@ -227,7 +228,7 @@ class TestLocalExecution:
 class TestDockerExecution:
     """Testes de execução via Docker."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_docker_success(self, execute_executor_all_runtimes, mock_docker_client):
         """Deve executar via Docker com sucesso."""
         ticket = {
@@ -251,7 +252,7 @@ class TestDockerExecution:
 class TestK8sExecution:
     """Testes de execução via Kubernetes Jobs."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_k8s_success(self, execute_executor_all_runtimes, mock_k8s_client):
         """Deve executar via K8s Jobs com sucesso."""
         ticket = {
@@ -276,7 +277,7 @@ class TestK8sExecution:
 class TestLambdaExecution:
     """Testes de execução via Lambda."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_lambda_success(self, execute_executor_all_runtimes, mock_lambda_client):
         """Deve executar via Lambda com sucesso."""
         ticket = {
@@ -300,7 +301,7 @@ class TestLambdaExecution:
 class TestSimulationExecution:
     """Testes de execução simulada."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_simulation(self, mock_config):
         """Deve executar simulação quando nenhum runtime disponível."""
         from executors.execute_executor import ExecuteExecutor
@@ -326,7 +327,7 @@ class TestSimulationExecution:
 class TestRuntimeFallback:
     """Testes de fallback entre runtimes."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_fallback_on_error(self, mock_config, mock_local_client, mock_docker_client):
         """Deve fazer fallback quando runtime falha."""
         from executors.execute_executor import ExecuteExecutor
@@ -360,7 +361,7 @@ class TestRuntimeFallback:
 class TestCodeForgeExecution:
     """Testes de execução via Code Forge."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_code_forge_success(self, mock_config, mock_local_client):
         """Deve executar via Code Forge quando template fornecido."""
         from executors.execute_executor import ExecuteExecutor
@@ -396,7 +397,7 @@ class TestCodeForgeExecution:
         assert len(result["output"]["artifacts"]) == 2
         mock_code_forge.submit_generation_request.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_code_forge_fallback_to_runtime(self, mock_config, mock_local_client):
         """Deve fazer fallback para runtime quando Code Forge falha."""
         from executors.execute_executor import ExecuteExecutor
@@ -432,7 +433,7 @@ class TestCodeForgeExecution:
 class TestMetricsRecording:
     """Testes de registro de métricas."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_metrics_recorded_on_success(self, execute_executor, mock_local_client):
         """Deve registrar métricas em execução bem-sucedida."""
         mock_metrics = MagicMock()
@@ -454,7 +455,7 @@ class TestMetricsRecording:
 
         mock_metrics.execute_tasks_executed_total.labels.assert_called_with(status="success")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_fallback_metrics_recorded(
         self, mock_config, mock_docker_client, mock_local_client
     ):

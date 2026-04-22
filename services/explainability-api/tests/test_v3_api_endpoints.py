@@ -4,20 +4,20 @@ Testes unitários para V3 API Endpoints.
 TDD: Testes escritos antes da implementação (Explainability API v3 Task 6).
 """
 
-import pytest
-from unittest.mock import MagicMock
-from fastapi.testclient import TestClient
 import sys
 from pathlib import Path
-from typing import Dict, Any, List
+from typing import Any
+from unittest.mock import MagicMock
+
+import pytest
+from fastapi.testclient import TestClient
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from src.api.routes.v3.hierarchical import V3ExplanationService
-
 # Importar modelos Pydantic para testes
 from pydantic import BaseModel, Field
+from src.api.routes.v3.hierarchical import V3ExplanationService
 
 
 # Definir modelos localmente para evitar import circular
@@ -25,14 +25,14 @@ class HierarchicalBreakdownResponse(BaseModel):
     """Response para breakdown hierárquico."""
 
     decision_id: str
-    hierarchical_breakdown: Dict[str, Any]
+    hierarchical_breakdown: dict[str, Any]
 
 
 class IndividualContributionsResponse(BaseModel):
     """Response para contribuições individuais."""
 
     decision_id: str
-    individual_contributions: List[Dict[str, Any]]
+    individual_contributions: list[dict[str, Any]]
     total_specialists: int
 
 
@@ -40,7 +40,7 @@ class CounterfactualsResponse(BaseModel):
     """Response para análise contrafactual."""
 
     decision_id: str
-    counterfactuals: List[Dict[str, Any]]
+    counterfactuals: list[dict[str, Any]]
     sensitivity_score: float
 
 
@@ -48,21 +48,21 @@ class TemporalAnalysisResponse(BaseModel):
     """Response para análise temporal."""
 
     decision_id: str
-    temporal_analysis: Dict[str, Any]
+    temporal_analysis: dict[str, Any]
 
 
 class FullExplanationResponse(BaseModel):
     """Response para explicação completa."""
 
     decision_id: str
-    hierarchical_breakdown: Dict[str, Any]
-    individual_contributions: List[Dict[str, Any]]
+    hierarchical_breakdown: dict[str, Any]
+    individual_contributions: list[dict[str, Any]]
 
 
 class BatchExplanationRequest(BaseModel):
     """Request para explicação em lote."""
 
-    decision_ids: List[str] = Field(..., min_length=1, max_length=10)
+    decision_ids: list[str] = Field(..., min_length=1, max_length=10)
     include_counterfactuals: bool = False
     include_temporal: bool = False
 
@@ -70,16 +70,16 @@ class BatchExplanationRequest(BaseModel):
 class BatchExplanationResponse(BaseModel):
     """Response para explicação em lote."""
 
-    explanations: List[Dict[str, Any]]
-    failed_ids: List[str]
-    summary: Dict[str, Any]
+    explanations: list[dict[str, Any]]
+    failed_ids: list[str]
+    summary: dict[str, Any]
 
 
 # ========== FIXTURES ==========
 
 
-@pytest.fixture
-def sample_votes() -> List[Dict[str, Any]]:
+@pytest.fixture()
+def sample_votes() -> list[dict[str, Any]]:
     """Votos de especialistas para testes."""
     return [
         {
@@ -115,8 +115,8 @@ def sample_votes() -> List[Dict[str, Any]]:
     ]
 
 
-@pytest.fixture
-def sample_explanation_document() -> Dict[str, Any]:
+@pytest.fixture()
+def sample_explanation_document() -> dict[str, Any]:
     """Documento de decisão do MongoDB (consensus_decisions format)."""
     return {
         "_id": "507f1f77bcf86cd799439011",
@@ -144,7 +144,7 @@ def sample_explanation_document() -> Dict[str, Any]:
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_mongo_client(sample_explanation_document):
     """Mock do cliente MongoDB."""
     client = MagicMock()
@@ -163,7 +163,7 @@ def mock_mongo_client(sample_explanation_document):
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_mongo_client_not_found():
     """Mock do MongoDB para simular não encontrado."""
     client = MagicMock()
@@ -199,7 +199,7 @@ class TestV3ExplanationServiceInitialization:
 class TestV3ExplanationServiceGetDecisionVotes:
     """Testes do método _get_decision_votes."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_decision_votes_returns_votes(
         self, mock_mongo_client, sample_explanation_document
     ):
@@ -215,7 +215,7 @@ class TestV3ExplanationServiceGetDecisionVotes:
         assert votes[0]["opinion_id"] == "business_expert"
         assert votes[0]["decision_id"] == "decision-456"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_decision_votes_not_found(self, mock_mongo_client_not_found):
         """Testa que retorna None quando não encontrado."""
         service = V3ExplanationService(mock_mongo_client_not_found)
@@ -228,7 +228,7 @@ class TestV3ExplanationServiceGetDecisionVotes:
 class TestV3ExplanationServiceGetFullExplanation:
     """Testes do método get_full_explanation."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_full_explanation_basic(self, mock_mongo_client):
         """Testa explicação completa básica."""
         service = V3ExplanationService(mock_mongo_client)
@@ -240,7 +240,7 @@ class TestV3ExplanationServiceGetFullExplanation:
         assert "hierarchical_breakdown" in result
         assert "individual_contributions" in result
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_full_explanation_with_counterfactuals(self, mock_mongo_client):
         """Testa explicação completa com contrafactuais."""
         service = V3ExplanationService(mock_mongo_client)
@@ -251,7 +251,7 @@ class TestV3ExplanationServiceGetFullExplanation:
         assert "counterfactuals" in result
         assert "sensitivity_score" in result
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_full_explanation_with_temporal(self, mock_mongo_client):
         """Testa explicação completa com análise temporal."""
         service = V3ExplanationService(mock_mongo_client)
@@ -272,7 +272,7 @@ class TestV3ExplanationServiceGetFullExplanation:
         assert result is not None
         assert "temporal_analysis" in result
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_full_explanation_not_found(self, mock_mongo_client_not_found):
         """Testa explicação quando decisão não existe."""
         service = V3ExplanationService(mock_mongo_client_not_found)
@@ -285,7 +285,7 @@ class TestV3ExplanationServiceGetFullExplanation:
 class TestV3ExplanationServiceGetHierarchicalBreakdown:
     """Testes do método get_hierarchical_breakdown."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_hierarchical_breakdown(self, mock_mongo_client):
         """Testa retorno de breakdown hierárquico."""
         service = V3ExplanationService(mock_mongo_client)
@@ -299,7 +299,7 @@ class TestV3ExplanationServiceGetHierarchicalBreakdown:
         assert "dominant_level" in result["hierarchical_breakdown"]
         assert "consensus_strength" in result["hierarchical_breakdown"]
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_hierarchical_breakdown_not_found(self, mock_mongo_client_not_found):
         """Testa breakdown quando decisão não existe."""
         service = V3ExplanationService(mock_mongo_client_not_found)
@@ -312,7 +312,7 @@ class TestV3ExplanationServiceGetHierarchicalBreakdown:
 class TestV3ExplanationServiceGetIndividualContributions:
     """Testes do método get_individual_contributions."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_individual_contributions(self, mock_mongo_client):
         """Testa retorno de contribuições individuais."""
         service = V3ExplanationService(mock_mongo_client)
@@ -325,7 +325,7 @@ class TestV3ExplanationServiceGetIndividualContributions:
         assert "total_specialists" in result
         assert isinstance(result["individual_contributions"], list)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_individual_contributions_not_found(self, mock_mongo_client_not_found):
         """Testa contribuições quando decisão não existe."""
         service = V3ExplanationService(mock_mongo_client_not_found)
@@ -338,7 +338,7 @@ class TestV3ExplanationServiceGetIndividualContributions:
 class TestV3ExplanationServiceGetCounterfactuals:
     """Testes do método get_counterfactuals."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_counterfactuals(self, mock_mongo_client):
         """Testa retorno de análise contrafactual."""
         service = V3ExplanationService(mock_mongo_client)
@@ -350,7 +350,7 @@ class TestV3ExplanationServiceGetCounterfactuals:
         assert "counterfactuals" in result
         assert "sensitivity_score" in result
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_counterfactuals_not_found(self, mock_mongo_client_not_found):
         """Testa contrafactuais quando decisão não existe."""
         service = V3ExplanationService(mock_mongo_client_not_found)
@@ -363,7 +363,7 @@ class TestV3ExplanationServiceGetCounterfactuals:
 class TestV3ExplanationServiceGetTemporalAnalysis:
     """Testes do método get_temporal_analysis."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_temporal_analysis(self, mock_mongo_client):
         """Testa retorno de análise temporal."""
         service = V3ExplanationService(mock_mongo_client)
@@ -385,7 +385,7 @@ class TestV3ExplanationServiceGetTemporalAnalysis:
         assert result["decision_id"] == "decision-456"
         assert "temporal_analysis" in result
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_temporal_analysis_no_data(self, mock_mongo_client):
         """Testa análise temporal quando não há dados."""
         service = V3ExplanationService(mock_mongo_client)
@@ -408,7 +408,7 @@ class TestV3ExplanationServiceGetTemporalAnalysis:
 class TestV3ExplanationServiceGetBatchExplanations:
     """Testes do método get_batch_explanations."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_batch_explanations_success(self, mock_mongo_client):
         """Testa explicação em lote bem-sucedida."""
         service = V3ExplanationService(mock_mongo_client)
@@ -422,7 +422,7 @@ class TestV3ExplanationServiceGetBatchExplanations:
         assert result["summary"]["total_requested"] == 1
         assert result["summary"]["successful"] == 1
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_batch_explanations_mixed(self, mock_mongo_client):
         """Testa explicação em lote com sucessos e falhas."""
         service = V3ExplanationService(mock_mongo_client)
@@ -630,7 +630,7 @@ class TestRouterEndpoints:
 class TestV3RouterIntegration:
     """Testes de integração do router v3."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def test_client(self, mock_mongo_client):
         """Cliente de teste FastAPI."""
         from fastapi import FastAPI

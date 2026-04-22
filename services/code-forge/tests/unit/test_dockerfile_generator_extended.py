@@ -6,15 +6,14 @@ para o gerador de Dockerfiles.
 """
 
 import pytest
-
 from src.services.dockerfile_generator import DockerfileGenerator
-from src.types.artifact_types import CodeLanguage, ArtifactSubtype
+from src.types.artifact_types import ArtifactSubtype, CodeLanguage
 
 
 class TestDockerfileGeneratorPython:
     """Testes para geracao de Dockerfiles Python."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def generator(self):
         """Instancia do DockerfileGenerator."""
         return DockerfileGenerator()
@@ -91,7 +90,7 @@ class TestDockerfileGeneratorPython:
 class TestDockerfileGeneratorNodejs:
     """Testes para geracao de Dockerfiles Node.js."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def generator(self):
         """Instancia do DockerfileGenerator."""
         return DockerfileGenerator()
@@ -161,7 +160,7 @@ class TestDockerfileGeneratorNodejs:
 class TestDockerfileGeneratorGolang:
     """Testes para geracao de Dockerfiles Go."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def generator(self):
         """Instancia do DockerfileGenerator."""
         return DockerfileGenerator()
@@ -221,7 +220,7 @@ class TestDockerfileGeneratorGolang:
 class TestDockerfileGeneratorJava:
     """Testes para geracao de Dockerfiles Java."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def generator(self):
         """Instancia do DockerfileGenerator."""
         return DockerfileGenerator()
@@ -273,7 +272,7 @@ class TestDockerfileGeneratorJava:
 class TestDockerfileGeneratorTypescript:
     """Testes para geracao de Dockerfiles TypeScript."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def generator(self):
         """Instancia do DockerfileGenerator."""
         return DockerfileGenerator()
@@ -337,7 +336,7 @@ class TestDockerfileGeneratorTypescript:
 class TestDockerfileGeneratorCsharp:
     """Testes para geracao de Dockerfiles C#."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def generator(self):
         """Instancia do DockerfileGenerator."""
         return DockerfileGenerator()
@@ -398,7 +397,7 @@ class TestDockerfileGeneratorCsharp:
 class TestDockerfileGeneratorEdgeCases:
     """Testes para cenarios edge cases do DockerfileGenerator."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def generator(self):
         """Instancia do DockerfileGenerator."""
         return DockerfileGenerator()
@@ -492,7 +491,7 @@ class TestDockerfileGeneratorEdgeCases:
 class TestDockerfileGeneratorVersionConstants:
     """Testes para constantes de versao das imagens base."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def generator(self):
         """Instancia do DockerfileGenerator."""
         return DockerfileGenerator()

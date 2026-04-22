@@ -2,14 +2,14 @@
 Unit tests for ExecutionEngine cancellation/preemption functionality.
 """
 
-import pytest
 import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
 from src.engine.execution_engine import ExecutionEngine
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_config():
     """Create mock configuration for tests."""
     config = MagicMock()
@@ -22,7 +22,7 @@ def mock_config():
     return config
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_ticket_client():
     """Create mock ticket client."""
     client = AsyncMock()
@@ -30,7 +30,7 @@ def mock_ticket_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_result_producer():
     """Create mock result producer."""
     producer = AsyncMock()
@@ -38,13 +38,13 @@ def mock_result_producer():
     return producer
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_dependency_coordinator():
     """Create mock dependency coordinator."""
     return AsyncMock()
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_executor_registry():
     """Create mock executor registry."""
     registry = MagicMock()
@@ -54,7 +54,7 @@ def mock_executor_registry():
     return registry
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_redis_client():
     """Create mock Redis client."""
     client = AsyncMock()
@@ -65,7 +65,7 @@ def mock_redis_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_metrics():
     """Create mock metrics."""
     metrics = MagicMock()
@@ -78,7 +78,7 @@ def mock_metrics():
     return metrics
 
 
-@pytest.fixture
+@pytest.fixture()
 def execution_engine(
     mock_config,
     mock_ticket_client,
@@ -103,7 +103,7 @@ def execution_engine(
 class TestCancelActiveTask:
     """Tests for cancel_active_task method."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_cancel_non_existent_task(self, execution_engine):
         """Returns failure when task not found."""
         result = await execution_engine.cancel_active_task(
@@ -113,7 +113,7 @@ class TestCancelActiveTask:
         assert result["success"] is False
         assert "not active" in result["message"]
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_cancel_active_task_success(
         self, execution_engine, mock_ticket_client, mock_result_producer, mock_redis_client
     ):
@@ -146,7 +146,7 @@ class TestCancelActiveTask:
         # Verify result was published
         mock_result_producer.publish_result.assert_called()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_cancel_with_checkpoint_save(self, execution_engine, mock_redis_client):
         """Saves checkpoint during cancellation."""
 
@@ -169,7 +169,7 @@ class TestCancelActiveTask:
         # Verify checkpoint was saved to Redis
         mock_redis_client.set.assert_called()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_cancel_metrics_recorded(self, execution_engine, mock_metrics):
         """Metrics are recorded during cancellation."""
 
@@ -192,7 +192,7 @@ class TestCancelActiveTask:
 class TestSaveCheckpoint:
     """Tests for _save_checkpoint method."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_save_checkpoint_success(self, execution_engine, mock_redis_client):
         """Successfully saves checkpoint."""
         result = await execution_engine._save_checkpoint(
@@ -203,7 +203,7 @@ class TestSaveCheckpoint:
         assert result["checkpoint_key"] == "checkpoint:test-ticket"
         mock_redis_client.set.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_save_checkpoint_no_redis(self, execution_engine):
         """Returns failure when Redis not available."""
         execution_engine.redis_client = None
@@ -215,7 +215,7 @@ class TestSaveCheckpoint:
         assert result["success"] is False
         assert "Redis not available" in result["message"]
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_save_checkpoint_redis_error(self, execution_engine, mock_redis_client):
         """Handles Redis error gracefully."""
         mock_redis_client.set.side_effect = Exception("Redis connection error")
@@ -231,7 +231,7 @@ class TestSaveCheckpoint:
 class TestExecuteTicketCancellation:
     """Tests for _execute_ticket handling CancelledError."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_ticket_handles_cancellation(
         self,
         execution_engine,
@@ -283,7 +283,7 @@ class TestExecuteTicketCancellation:
 class TestGracefulShutdownWithPreemption:
     """Tests for shutdown behavior with preemption."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_shutdown_cancels_active_tasks(self, execution_engine, mock_metrics):
         """Shutdown cancels all active tasks."""
 

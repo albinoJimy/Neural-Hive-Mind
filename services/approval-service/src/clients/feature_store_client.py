@@ -4,7 +4,7 @@ Feature Store Client para Approval Service
 Cliente HTTP para interagir com o Feature Store Service.
 """
 
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 import httpx
 import structlog
@@ -49,7 +49,7 @@ class FeatureStoreClient:
             await self._client.aclose()
             logger.info("Feature Store client fechado")
 
-    async def get_features(self, plan_id: str) -> Optional[Dict[str, Any]]:
+    async def get_features(self, plan_id: str) -> Optional[dict[str, Any]]:
         """
         Busca features de um plano
 
@@ -85,8 +85,8 @@ class FeatureStoreClient:
             return None
 
     async def compute_and_save_features(
-        self, plan_id: str, cognitive_plan: Dict[str, Any], force_recompute: bool = False
-    ) -> Optional[Dict[str, Any]]:
+        self, plan_id: str, cognitive_plan: dict[str, Any], force_recompute: bool = False
+    ) -> Optional[dict[str, Any]]:
         """
         Computa e salva features para um plano
 
@@ -129,7 +129,7 @@ class FeatureStoreClient:
             logger.error("Erro ao computar features", plan_id=plan_id, error=str(e))
             return None
 
-    async def get_features_by_plan_ids(self, plan_ids: list[str]) -> Dict[str, Dict[str, Any]]:
+    async def get_features_by_plan_ids(self, plan_ids: list[str]) -> dict[str, dict[str, Any]]:
         """
         Busca features para múltiplos planos
 

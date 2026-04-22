@@ -4,11 +4,12 @@ Testes para SeniorityHistoryRepository.
 Verifica operacoes CRUD de historico de mudancas de senioridade.
 """
 
-import pytest
-from datetime import datetime, timezone, timedelta
-from unittest.mock import AsyncMock, MagicMock
-from pathlib import Path
 import sys
+from datetime import UTC, datetime, timedelta
+from pathlib import Path
+from unittest.mock import AsyncMock, MagicMock
+
+import pytest
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -64,13 +65,13 @@ def _create_mock_mongo_client(test_data=None):
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mongo_client():
     """Mock MongoDB client."""
     return _create_mock_mongo_client()
 
 
-@pytest.fixture
+@pytest.fixture()
 def repo(mongo_client):
     """Repository instance."""
     from src.repositories.seniority_history_repo import SeniorityHistoryRepository
@@ -81,7 +82,7 @@ def repo(mongo_client):
 class TestSeniorityHistoryRepository:
     """Testes unitarios para SeniorityHistoryRepository."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_save_seniority_change(self, repo):
         """Salvar mudanca de senioridade."""
         doc_id = await repo.save_change(
@@ -110,7 +111,7 @@ class TestSeniorityHistoryRepository:
         assert call_args["change_reason"] == "promocao"
         assert call_args["decision_id"] == "decision_123"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_save_change_with_all_optional_params(self, repo):
         """Salvar mudanca com todos os parametros opcionais."""
         await repo.save_change(
@@ -131,7 +132,7 @@ class TestSeniorityHistoryRepository:
         assert call_args["decision_id"] == "decision_456"
         assert call_args["plan_id"] == "plan_789"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_save_change_without_optional_params(self, repo):
         """Salvar mudanca sem parametros opcionais."""
         doc_id = await repo.save_change(
@@ -152,7 +153,7 @@ class TestSeniorityHistoryRepository:
         assert call_args["decision_id"] is None
         assert call_args["plan_id"] is None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_history(self):
         """Buscar historico de um especialista."""
         # Setup test data
@@ -161,13 +162,13 @@ class TestSeniorityHistoryRepository:
                 "_id": "doc_1",
                 "specialist_id": "business_analyst",
                 "new_level": "senior",
-                "changed_at": datetime.now(timezone.utc),
+                "changed_at": datetime.now(UTC),
             },
             {
                 "_id": "doc_2",
                 "specialist_id": "business_analyst",
                 "new_level": "expert",
-                "changed_at": datetime.now(timezone.utc),
+                "changed_at": datetime.now(UTC),
             },
         ]
 
@@ -190,7 +191,7 @@ class TestSeniorityHistoryRepository:
         call_args = repo_instance.collection.find.call_args[0][0]
         assert call_args["specialist_id"] == "business_analyst"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_history_empty(self):
         """Buscar historico vazio."""
         mongo_client = _create_mock_mongo_client([])
@@ -202,7 +203,7 @@ class TestSeniorityHistoryRepository:
 
         assert len(changes) == 0
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_history_limit(self):
         """Buscar historico com limite customizado."""
         test_data = [
@@ -210,7 +211,7 @@ class TestSeniorityHistoryRepository:
                 "_id": "doc_1",
                 "specialist_id": "spec_1",
                 "new_level": "senior",
-                "changed_at": datetime.now(timezone.utc),
+                "changed_at": datetime.now(UTC),
             }
         ]
 
@@ -226,7 +227,7 @@ class TestSeniorityHistoryRepository:
         call_args = repo_instance.collection.find.call_args[0][0]
         assert call_args["specialist_id"] == "spec_1"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_recent_changes_multiple_specialists(self):
         """Buscar mudancas recentes de varios especialistas."""
         # Setup test data
@@ -235,13 +236,13 @@ class TestSeniorityHistoryRepository:
                 "_id": "doc_1",
                 "specialist_id": "spec_1",
                 "new_level": "senior",
-                "changed_at": datetime.now(timezone.utc),
+                "changed_at": datetime.now(UTC),
             },
             {
                 "_id": "doc_2",
                 "specialist_id": "spec_2",
                 "new_level": "expert",
-                "changed_at": datetime.now(timezone.utc),
+                "changed_at": datetime.now(UTC),
             },
         ]
 
@@ -264,7 +265,7 @@ class TestSeniorityHistoryRepository:
         assert "changed_at" in call_args
         assert "$gte" in call_args["changed_at"]
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_by_domain(self):
         """Buscar mudancas por dominio."""
         test_data = [
@@ -273,7 +274,7 @@ class TestSeniorityHistoryRepository:
                 "domain": "BUSINESS",
                 "specialist_id": "spec_1",
                 "new_level": "senior",
-                "changed_at": datetime.now(timezone.utc),
+                "changed_at": datetime.now(UTC),
             }
         ]
 
@@ -291,7 +292,7 @@ class TestSeniorityHistoryRepository:
         assert "changed_at" in call_args
         assert "$gte" in call_args["changed_at"]
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_by_domain_without_since(self):
         """Buscar mudancas por dominio sem filtro temporal."""
         mongo_client = _create_mock_mongo_client([])
@@ -306,7 +307,7 @@ class TestSeniorityHistoryRepository:
         assert call_args["domain"] == "TECHNICAL"
         assert "changed_at" not in call_args  # No temporal filter
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_parse_cursor_removes_id(self):
         """Verifica que _id eh removido dos resultados."""
         test_data = [{"_id": "doc_123", "specialist_id": "test_spec", "new_level": "senior"}]

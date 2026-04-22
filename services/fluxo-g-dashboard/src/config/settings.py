@@ -24,50 +24,39 @@ class Settings(BaseSettings):
 
     # Temporal
     temporal_host: str = Field(
-        default="temporal-frontend.temporal.svc.cluster.local",
-        description="Host do Temporal"
+        default="temporal-frontend.temporal.svc.cluster.local", description="Host do Temporal"
     )
     temporal_port: int = Field(default=7233, description="Porta do Temporal")
     temporal_namespace: str = Field(default="default", description="Namespace")
     temporal_task_queue: str = Field(
-        default="orchestration-tasks",
-        description="Fila de tarefas do Fluxo G"
+        default="orchestration-tasks", description="Fila de tarefas do Fluxo G"
     )
 
     # Services URLs
     orchestrator_url: str = Field(
-        default="http://orchestrator-dynamic:8003",
-        description="URL do Orchestrator"
+        default="http://orchestrator-dynamic:8003", description="URL do Orchestrator"
     )
     requirements_url: str = Field(
         default="http://requirements-engineering:8010",
-        description="URL do Requirements Engineering"
+        description="URL do Requirements Engineering",
     )
     documentation_url: str = Field(
         default="http://documentation-generation:8014",
-        description="URL do Documentation Generation"
+        description="URL do Documentation Generation",
     )
     knowledge_graph_url: str = Field(
-        default="http://knowledge-graph-rag:8016",
-        description="URL do Knowledge Graph RAG"
+        default="http://knowledge-graph-rag:8016", description="URL do Knowledge Graph RAG"
     )
     approval_url: str = Field(
-        default="http://approval-gateway:8017",
-        description="URL do Approval Gateway"
+        default="http://approval-gateway:8017", description="URL do Approval Gateway"
     )
 
     # Dashboard Settings
     refresh_interval_seconds: int = Field(
-        default=30,
-        ge=5,
-        le=300,
-        description="Intervalo de refresh automático"
+        default=30, ge=5, le=300, description="Intervalo de refresh automático"
     )
     max_workflows_display: int = Field(
-        default=50,
-        ge=10,
-        le=500,
-        description="Máximo de workflows a exibir"
+        default=50, ge=10, le=500, description="Máximo de workflows a exibir"
     )
 
     # Service Info

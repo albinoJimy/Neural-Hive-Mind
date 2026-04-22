@@ -40,7 +40,7 @@ class TestMCPClient:
 
         assert client.headers == headers
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_list_tools_returns_available_tools(self):
         """Testa que lista ferramentas disponíveis."""
         from src.mcp_client_sdk.client import MCPClient
@@ -64,7 +64,7 @@ class TestMCPClient:
         assert tools[0]["name"] == "list_files"
         assert tools[1]["name"] == "search_code"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_tool_calls_tool_with_params(self):
         """Testa execução de ferramenta com parâmetros."""
         from src.mcp_client_sdk.client import MCPClient
@@ -84,7 +84,7 @@ class TestMCPClient:
         mock_post.assert_called_once()
         assert result["result"]["files"] == ["file1.py", "file2.py"]
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_tool_raises_on_http_error(self):
         """Testa erro HTTP na execução de ferramenta."""
         from src.mcp_client_sdk.client import MCPClient
@@ -100,7 +100,7 @@ class TestMCPClient:
             with pytest.raises(Exception):
                 await client.execute_tool(tool_name="list_files", params={})
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_batch_runs_tools_in_parallel(self):
         """Testa execução em lote de ferramentas em paralelo."""
         from src.mcp_client_sdk.client import MCPClient
@@ -134,7 +134,7 @@ class TestMCPClient:
         assert len(results) == 2
         assert call_count == 2
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_batch_returns_results_in_order(self):
         """Testa que resultados retornam na ordem de solicitação."""
         from src.mcp_client_sdk.client import MCPClient
@@ -177,10 +177,9 @@ class TestMCPClientConfig:
 
     def test_config_from_env_variables(self):
         """Testa configuração via variáveis de ambiente."""
-        from src.mcp_client_sdk.config import get_config
-
         # Reset config instance
         import src.mcp_client_sdk.config as config_module
+        from src.mcp_client_sdk.config import get_config
 
         config_module._config_instance = None
 
@@ -204,11 +203,11 @@ class TestMCPClientConfig:
 class TestMCPClientErrors:
     """Testes de tratamento de erros do MCP Client."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_connection_error_raises_mcp_error(self):
         """Testa erro de conexão."""
-        from src.mcp_client_sdk.client import MCPClient, MCPConnectionError
         import httpx
+        from src.mcp_client_sdk.client import MCPClient, MCPConnectionError
 
         client = MCPClient(server_url="http://invalid:9999")
 
@@ -224,11 +223,11 @@ class TestMCPClientErrors:
                 with pytest.raises(MCPConnectionError):
                     await client.list_tools()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_timeout_error_raises_mcp_error(self):
         """Testa erro de timeout."""
-        from src.mcp_client_sdk.client import MCPClient, MCPTimeoutError
         import httpx
+        from src.mcp_client_sdk.client import MCPClient, MCPTimeoutError
 
         client = MCPClient(server_url="http://localhost:3010", timeout=1)
 
@@ -244,7 +243,7 @@ class TestMCPClientErrors:
                 with pytest.raises(MCPTimeoutError):
                     await client.list_tools()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_invalid_response_raises_mcp_error(self):
         """Testa resposta inválida."""
         from src.mcp_client_sdk.client import MCPClient, MCPResponseError

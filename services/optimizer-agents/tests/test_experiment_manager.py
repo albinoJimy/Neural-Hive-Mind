@@ -9,14 +9,15 @@ Cobre:
 - Rollback de experimentos
 """
 
-import pytest
-from unittest.mock import Mock, AsyncMock, patch
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+from unittest.mock import AsyncMock, Mock, patch
 
-from src.services.experiment_manager import ExperimentManager
-from src.models.optimization_hypothesis import OptimizationHypothesis
-from src.models.optimization_event import OptimizationType
+import pytest
+
 from src.config.settings import Settings
+from src.models.optimization_event import OptimizationType
+from src.models.optimization_hypothesis import OptimizationHypothesis
+from src.services.experiment_manager import ExperimentManager
 
 
 @pytest.fixture
@@ -57,7 +58,7 @@ def mock_mongodb_client():
     client.update_experiment_status = AsyncMock(return_value=True)
 
     # Criar um dict compatível com ExperimentRequest
-    now_millis = int(datetime.now(timezone.utc).timestamp() * 1000)
+    now_millis = int(datetime.now(UTC).timestamp() * 1000)
     experiment_doc = {
         "experiment_id": "exp-123",
         "version": "1.0.0",

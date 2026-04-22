@@ -1,9 +1,9 @@
 """Repository MongoDB para recomendações de otimização."""
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
-UTC = timezone.utc  # type: ignore
+UTC = UTC  # type: ignore
 from typing import Any
 
 from bson import ObjectId

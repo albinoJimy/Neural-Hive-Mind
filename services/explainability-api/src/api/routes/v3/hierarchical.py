@@ -7,7 +7,7 @@ Explainability API v3 - Task 6
 """
 
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 import structlog
 from fastapi import APIRouter, HTTPException, Query, status
@@ -33,11 +33,11 @@ class HierarchicalBreakdownResponse(BaseModel):
     """Response para breakdown hierárquico."""
 
     decision_id: str = Field(..., description="ID da decisão")
-    hierarchical_breakdown: Dict[str, Any] = Field(
+    hierarchical_breakdown: dict[str, Any] = Field(
         ...,
         description="Breakdown hierárquico contendo: by_level (estatísticas por nível), dominant_level (nível dominante), consensus_strength (força do consenso 0.0-1.0)",
     )
-    explanation_quality: Optional[Dict[str, float]] = Field(
+    explanation_quality: Optional[dict[str, float]] = Field(
         None, description="Métricas de qualidade da explicação"
     )
 
@@ -46,7 +46,7 @@ class IndividualContributionsResponse(BaseModel):
     """Response para contribuições individuais."""
 
     decision_id: str = Field(..., description="ID da decisão")
-    individual_contributions: List[Dict[str, Any]] = Field(
+    individual_contributions: list[dict[str, Any]] = Field(
         ...,
         description="Lista de contribuições individuais ordenadas por rank. Cada item contém: specialist_id, seniority_level, rank, contribution_score",
     )
@@ -57,7 +57,7 @@ class CounterfactualsResponse(BaseModel):
     """Response para análise contrafactual."""
 
     decision_id: str = Field(..., description="ID da decisão")
-    counterfactuals: List[Dict[str, Any]] = Field(
+    counterfactuals: list[dict[str, Any]] = Field(
         ...,
         description="Lista de cenários contrafactuais. Cada item contém: scenario, flipped_decision, confidence_change",
     )
@@ -71,7 +71,7 @@ class TemporalAnalysisResponse(BaseModel):
     """Response para análise temporal."""
 
     decision_id: str = Field(..., description="ID da decisão")
-    temporal_analysis: Dict[str, Any] = Field(
+    temporal_analysis: dict[str, Any] = Field(
         ...,
         description="Análise temporal contendo: current_seniority (nível atual), history (lista de mudanças), trend (tendência: stable/upward/downward), volatility (volatilidade 0.0-1.0)",
     )
@@ -81,19 +81,19 @@ class FullExplanationResponse(BaseModel):
     """Response para explicação completa (todos os componentes)."""
 
     decision_id: str = Field(..., description="ID da decisão")
-    hierarchical_breakdown: Dict[str, Any] = Field(
+    hierarchical_breakdown: dict[str, Any] = Field(
         ..., description="Breakdown hierárquico completo"
     )
-    individual_contributions: List[Dict[str, Any]] = Field(
+    individual_contributions: list[dict[str, Any]] = Field(
         ..., description="Contribuições individuais ordenadas"
     )
-    counterfactuals: Optional[List[Dict[str, Any]]] = Field(
+    counterfactuals: Optional[list[dict[str, Any]]] = Field(
         None, description="Análise contrafactual (se disponível)"
     )
-    temporal_analysis: Optional[Dict[str, Any]] = Field(
+    temporal_analysis: Optional[dict[str, Any]] = Field(
         None, description="Análise temporal (se disponível)"
     )
-    explanation_quality: Optional[Dict[str, float]] = Field(
+    explanation_quality: Optional[dict[str, float]] = Field(
         None, description="Métricas de qualidade"
     )
 
@@ -101,7 +101,7 @@ class FullExplanationResponse(BaseModel):
 class BatchExplanationRequest(BaseModel):
     """Request para explicação em lote."""
 
-    decision_ids: List[str] = Field(
+    decision_ids: list[str] = Field(
         ...,
         min_length=1,
         max_length=10,
@@ -114,23 +114,23 @@ class BatchExplanationRequest(BaseModel):
 class BatchExplanationResponse(BaseModel):
     """Response para explicação em lote."""
 
-    explanations: List[Dict[str, Any]] = Field(
+    explanations: list[dict[str, Any]] = Field(
         ..., description="Lista de explicações (mesma ordem da request)"
     )
-    failed_ids: List[str] = Field(..., description="IDs que falharam (não encontrados ou erro)")
-    summary: Dict[str, Any] = Field(..., description="Resumo: total_requested, successful, failed")
+    failed_ids: list[str] = Field(..., description="IDs que falharam (não encontrados ou erro)")
+    summary: dict[str, Any] = Field(..., description="Resumo: total_requested, successful, failed")
 
 
 class ExplanationComparison(BaseModel):
     """Model para comparação entre decisões."""
 
-    decision_ids: List[str] = Field(
+    decision_ids: list[str] = Field(
         ...,
         min_length=2,
         max_length=5,
         description="IDs das decisões para comparar (2 a 5)",
     )
-    comparison_dimensions: List[str] = Field(
+    comparison_dimensions: list[str] = Field(
         default=["hierarchical", "individual"],
         description="Dimensões para comparar: hierarchical, individual, counterfactuals, temporal",
     )
@@ -159,7 +159,7 @@ class V3ExplanationService:
         self.temporal_tracker = TemporalTracker(mongo_client=mongodb_client)
         self.logger = logger
 
-    async def _get_decision_votes(self, decision_id: str) -> Optional[List[Dict[str, Any]]]:
+    async def _get_decision_votes(self, decision_id: str) -> Optional[list[dict[str, Any]]]:
         """
         Busca votos da decisão no MongoDB.
 
@@ -190,7 +190,7 @@ class V3ExplanationService:
         decision_id: str,
         include_counterfactuals: bool = False,
         include_temporal: bool = False,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Gera explicação completa para uma decisão.
 
@@ -250,7 +250,7 @@ class V3ExplanationService:
 
         return result
 
-    async def get_hierarchical_breakdown(self, decision_id: str) -> Optional[Dict[str, Any]]:
+    async def get_hierarchical_breakdown(self, decision_id: str) -> Optional[dict[str, Any]]:
         """
         Retorna apenas o breakdown hierárquico.
 
@@ -272,7 +272,7 @@ class V3ExplanationService:
             "hierarchical_breakdown": result["hierarchical_breakdown"],
         }
 
-    async def get_individual_contributions(self, decision_id: str) -> Optional[Dict[str, Any]]:
+    async def get_individual_contributions(self, decision_id: str) -> Optional[dict[str, Any]]:
         """
         Retorna apenas as contribuições individuais.
 
@@ -295,7 +295,7 @@ class V3ExplanationService:
             "total_specialists": len(result["individual_contributions"]),
         }
 
-    async def get_counterfactuals(self, decision_id: str) -> Optional[Dict[str, Any]]:
+    async def get_counterfactuals(self, decision_id: str) -> Optional[dict[str, Any]]:
         """
         Retorna apenas a análise contrafactual.
 
@@ -318,7 +318,7 @@ class V3ExplanationService:
             "sensitivity_score": result["sensitivity_analysis"].get("sensitivity_score", 0.0),
         }
 
-    async def get_temporal_analysis(self, decision_id: str) -> Optional[Dict[str, Any]]:
+    async def get_temporal_analysis(self, decision_id: str) -> Optional[dict[str, Any]]:
         """
         Retorna apenas a análise temporal.
 
@@ -376,10 +376,10 @@ class V3ExplanationService:
 
     async def get_batch_explanations(
         self,
-        decision_ids: List[str],
+        decision_ids: list[str],
         include_counterfactuals: bool = False,
         include_temporal: bool = False,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Gera explicações em lote para múltiplas decisões.
 

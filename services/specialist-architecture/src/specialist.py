@@ -10,7 +10,7 @@ Analisa planos cognitivos sob perspectiva de arquitetura de software:
 """
 
 import sys
-from typing import Any, Dict, List
+from typing import Any
 
 import structlog
 
@@ -58,8 +58,8 @@ class ArchitectureSpecialist(BaseSpecialist):
             return None
 
     def _evaluate_plan_internal(
-        self, cognitive_plan: Dict[str, Any], context: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, cognitive_plan: dict[str, Any], context: dict[str, Any]
+    ) -> dict[str, Any]:
         """
         Avalia plano sob perspectiva arquitetural.
 
@@ -198,7 +198,7 @@ class ArchitectureSpecialist(BaseSpecialist):
             },
         }
 
-    def _analyze_design_patterns(self, tasks: List[Dict]) -> float:
+    def _analyze_design_patterns(self, tasks: list[dict]) -> float:
         """
         Analisa uso apropriado de design patterns.
 
@@ -275,7 +275,7 @@ class ArchitectureSpecialist(BaseSpecialist):
 
         return max(0.0, min(1.0, score))
 
-    def _analyze_solid_principles(self, tasks: List[Dict], cognitive_plan: Dict) -> float:
+    def _analyze_solid_principles(self, tasks: list[dict], cognitive_plan: dict) -> float:
         """
         Analisa aderência aos princípios SOLID.
 
@@ -372,7 +372,7 @@ class ArchitectureSpecialist(BaseSpecialist):
 
         return max(0.0, min(1.0, solid_score))
 
-    def _analyze_coupling_cohesion(self, tasks: List[Dict]) -> float:
+    def _analyze_coupling_cohesion(self, tasks: list[dict]) -> float:
         """
         Analisa acoplamento e coesão.
 
@@ -440,7 +440,7 @@ class ArchitectureSpecialist(BaseSpecialist):
 
         return max(0.0, min(1.0, coupling_cohesion_score))
 
-    def _analyze_separation_of_concerns(self, tasks: List[Dict]) -> float:
+    def _analyze_separation_of_concerns(self, tasks: list[dict]) -> float:
         """
         Analisa separação de concerns.
 
@@ -493,7 +493,7 @@ class ArchitectureSpecialist(BaseSpecialist):
 
         return max(0.0, min(1.0, separation_score))
 
-    def _analyze_modularity(self, tasks: List[Dict]) -> float:
+    def _analyze_modularity(self, tasks: list[dict]) -> float:
         """
         Analisa modularidade e organização em camadas.
 
@@ -555,7 +555,7 @@ class ArchitectureSpecialist(BaseSpecialist):
 
     def _calculate_architecture_risk(
         self,
-        cognitive_plan: Dict,
+        cognitive_plan: dict,
         design_pattern_score: float,
         solid_score: float,
         coupling_cohesion_score: float,
@@ -652,7 +652,7 @@ class ArchitectureSpecialist(BaseSpecialist):
         coupling_cohesion_score: float,
         separation_score: float,
         modularity_score: float,
-    ) -> List[Dict]:
+    ) -> list[dict]:
         """Gera sugestões de mitigação de riscos arquiteturais."""
         mitigations = []
 

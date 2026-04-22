@@ -17,19 +17,15 @@ from datetime import datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-
 from src.models.workflow import (
     CutoverConfig,
-    CutoverEvent,
-    CutoverMetrics,
     CutoverPhase,
-    CutoverStatus,
     RollbackReason,
 )
 from src.services.cutover_manager import CutoverManager
 
 
-@pytest.fixture
+@pytest.fixture()
 def cutover_config():
     """Fixture com configuração padrão de cutover."""
     return CutoverConfig(
@@ -45,7 +41,7 @@ def cutover_config():
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_kafka_producer():
     """Fixture para producer Kafka mockado."""
     producer = AsyncMock()
@@ -53,7 +49,7 @@ def mock_kafka_producer():
     return producer
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_mongodb_client():
     """Fixture para cliente MongoDB mockado."""
     client = MagicMock()
@@ -65,7 +61,7 @@ def mock_mongodb_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_metrics_client():
     """Fixture para cliente de métricas mockado."""
     client = MagicMock()
@@ -75,7 +71,7 @@ def mock_metrics_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def cutover_manager(cutover_config, mock_kafka_producer, mock_mongodb_client, mock_metrics_client):
     """Fixture para CutoverManager com todos os mocks."""
     return CutoverManager(
@@ -87,11 +83,11 @@ def cutover_manager(cutover_config, mock_kafka_producer, mock_mongodb_client, mo
     )
 
 
-@pytest.mark.integration
+@pytest.mark.integration()
 class TestShadowModeE2E:
     """Testes E2E para fase de Shadow Mode."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_shadow_mode_initialization(self, cutover_manager):
         """
         Teste E2E: Inicialização do Shadow Mode.
@@ -124,7 +120,7 @@ class TestShadowModeE2E:
 
         assert "cutover.started" in event_types
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_shadow_mode_metrics_collection(self, cutover_manager):
         """
         Teste E2E: Coleta de métricas durante Shadow Mode.
@@ -161,7 +157,7 @@ class TestShadowModeE2E:
         assert status.current_metrics.p95_latency_ms == 105
         assert len(status.metrics_history) == 1
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_shadow_mode_to_canary_promotion(self, cutover_manager, cutover_config):
         """
         Teste E2E: Promoção de Shadow Mode para Canary.
@@ -200,7 +196,7 @@ class TestShadowModeE2E:
         assert cutover_manager.status.phase == CutoverPhase.CANARY_5
         assert cutover_manager.status.traffic_percentage == 5
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_shadow_mode_insufficient_time_blocks_promotion(
         self, cutover_manager, cutover_config
     ):
@@ -221,11 +217,11 @@ class TestShadowModeE2E:
         assert "Tempo mínimo não atingido" in reason
 
 
-@pytest.mark.integration
+@pytest.mark.integration()
 class TestCanaryDeploymentE2E:
     """Testes E2E para Canary Deployment."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_canary_5_to_25_to_50_progression(self, cutover_manager, cutover_config):
         """
         Teste E2E: Progressão completa pelas fases de Canary.
@@ -255,7 +251,7 @@ class TestCanaryDeploymentE2E:
         assert cutover_manager.status.phase == CutoverPhase.CANARY_50
         assert cutover_manager.status.traffic_percentage == 50
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_canary_50_to_full_cutover(self, cutover_manager, cutover_config):
         """
         Teste E2E: Promoção de CANARY_50 para FULL_CUTOVER.
@@ -275,7 +271,7 @@ class TestCanaryDeploymentE2E:
         assert cutover_manager.status.phase == CutoverPhase.FULL_CUTOVER
         assert cutover_manager.status.traffic_percentage == 100
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_canary_rollback_on_high_error_rate(self, cutover_manager, cutover_config):
         """
         Teste E2E: Rollback automático quando error rate excede threshold.
@@ -306,7 +302,7 @@ class TestCanaryDeploymentE2E:
         assert status.traffic_percentage == 0
         assert status.rollback_reason == RollbackReason.ERROR_RATE_EXCEEDED
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_canary_rollback_on_high_latency(self, cutover_manager, cutover_config):
         """
         Teste E2E: Rollback automático quando latência P95 excede threshold.
@@ -335,7 +331,7 @@ class TestCanaryDeploymentE2E:
         assert status.phase == CutoverPhase.ROLLED_BACK
         assert status.rollback_reason == RollbackReason.LATENCY_HIGH
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_canary_rollback_on_anomaly_detected(self, cutover_manager):
         """
         Teste E2E: Rollback automático quando anomalia é detectada.
@@ -362,7 +358,7 @@ class TestCanaryDeploymentE2E:
         assert status.phase == CutoverPhase.ROLLED_BACK
         assert status.rollback_message == "Anomalia detectada nas métricas"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_canary_latency_twice_legacy_triggers_rollback(self, cutover_manager):
         """
         Teste E2E: Rollback quando latência é 2x maior que legado.
@@ -391,11 +387,11 @@ class TestCanaryDeploymentE2E:
         assert "2.1x" in status.rollback_message
 
 
-@pytest.mark.integration
+@pytest.mark.integration()
 class TestFullCutoverE2E:
     """Testes E2E para Full Cutover."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_full_cutover_completion(self, cutover_manager, cutover_config):
         """
         Teste E2E: Full Cutover completo com sucesso.
@@ -452,7 +448,7 @@ class TestFullCutoverE2E:
         assert status.traffic_percentage == 100
         assert status.phase_transitions > 0
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     @pytest.mark.skip(reason="Test waits for 7 day stabilization period")
     async def test_full_cutover_stabilization_after_7_days(self, cutover_manager):
         """
@@ -478,7 +474,7 @@ class TestFullCutoverE2E:
         assert status.phase == CutoverPhase.COMPLETED
         assert status.completed_at is not None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_full_cutover_metrics_during_stabilization(self, cutover_manager):
         """
         Teste E2E: Coleta de métricas durante estabilização.
@@ -512,11 +508,11 @@ class TestFullCutoverE2E:
         assert summary["avg_error_rate"] > 0
 
 
-@pytest.mark.integration
+@pytest.mark.integration()
 class TestRollbackE2E:
     """Testes E2E para Rollback."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_manual_rollback_from_any_phase(self, cutover_manager):
         """
         Teste E2E: Rollback manual de qualquer fase.
@@ -542,7 +538,7 @@ class TestRollbackE2E:
         assert status.rollback_reason == RollbackReason.MANUAL_REQUEST
         assert status.rollback_count == 1
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_auto_rollback_on_system_down(self, cutover_manager):
         """
         Teste E2E: Rollback automático quando sistema está down.
@@ -569,7 +565,7 @@ class TestRollbackE2E:
         status = await cutover_manager.get_status()
         assert status.phase == CutoverPhase.ROLLED_BACK
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_rollback_prevents_further_promotions(self, cutover_manager):
         """
         Teste E2E: Após rollback, não é possível promover.
@@ -589,7 +585,7 @@ class TestRollbackE2E:
         # Deve falhar pois está em ROLLED_BACK
         assert not success
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_rollback_emits_event(self, cutover_manager):
         """
         Teste E2E: Rollback emite evento Kafka.
@@ -605,7 +601,7 @@ class TestRollbackE2E:
         # Verificar que evento foi emitido
         assert cutover_manager.kafka_producer.produce.called
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_multiple_rollbacks_increment_counter(self, cutover_manager):
         """
         Teste E2E: Múltiplos rollbacks incrementam contador.
@@ -630,11 +626,11 @@ class TestRollbackE2E:
         assert cutover_manager.status.rollback_count == 2
 
 
-@pytest.mark.integration
+@pytest.mark.integration()
 class TestPauseResumeE2E:
     """Testes E2E para Pause/Resume."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_pause_cutover(self, cutover_manager):
         """
         Teste E2E: Pausar cutover.
@@ -651,7 +647,7 @@ class TestPauseResumeE2E:
         assert status.phase == CutoverPhase.SHADOW_MODE  # Mantém fase
         assert not cutover_manager._running
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_resume_paused_cutover(self, cutover_manager):
         """
         Teste E2E: Resumir cutover pausado.
@@ -671,11 +667,11 @@ class TestPauseResumeE2E:
         assert status.phase == CutoverPhase.SHADOW_MODE
 
 
-@pytest.mark.integration
+@pytest.mark.integration()
 class TestCutoverWorkflowE2E:
     """Testes E2E completos do workflow."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_complete_successful_cutover(self, cutover_manager, cutover_config):
         """
         Teste E2E: Cutover completo do início ao fim.
@@ -732,7 +728,7 @@ class TestCutoverWorkflowE2E:
         assert status.phase == CutoverPhase.FULL_CUTOVER
         assert status.traffic_percentage == 100
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_cutover_with_rollback_and_recovery(self, cutover_manager, cutover_config):
         """
         Teste E2E: Cutover com rollback e recuperação.
@@ -775,7 +771,7 @@ class TestCutoverWorkflowE2E:
         assert new_status.phase == CutoverPhase.SHADOW_MODE
         assert new_status.cutover_id == cutover_manager.cutover_id
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_metrics_history_limit_enforced(self, cutover_manager):
         """
         Teste E2E: Histórico de métricas limitado a 1000 registros.
@@ -805,7 +801,7 @@ class TestCutoverWorkflowE2E:
         # Última métrica deve ser a mais recente
         assert status.metrics_history[-1].p95_latency_ms == 1599
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_metrics_summary(self, cutover_manager):
         """
         Teste E2E: Obter resumo de métricas.
@@ -841,11 +837,11 @@ class TestCutoverWorkflowE2E:
         assert summary["max_p95_latency_ms"] == max(latencies)
 
 
-@pytest.mark.integration
+@pytest.mark.integration()
 class TestCutoverEventsE2E:
     """Testes E2E para eventos de cutover."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_all_phase_transitions_emit_events(self, cutover_manager):
         """
         Teste E2E: Todas as transições de fase emitem eventos.
@@ -873,7 +869,7 @@ class TestCutoverEventsE2E:
         # Cada transição deve emitir pelo menos um evento
         assert cutover_manager.kafka_producer.produce.call_count > initial_call_count
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_rollback_event_contains_details(self, cutover_manager):
         """
         Teste E2E: Evento de rollback contém detalhes.
@@ -901,7 +897,7 @@ class TestCutoverEventsE2E:
         assert event_data.get("phase") == CutoverPhase.ROLLED_BACK.value
 
 
-@pytest.mark.integration
+@pytest.mark.integration()
 class TestCutoverConfigValidation:
     """Testes E2E para validação de configuração."""
 
@@ -951,11 +947,11 @@ class TestCutoverConfigValidation:
             )
 
 
-@pytest.mark.integration
+@pytest.mark.integration()
 class TestCutoverManagerCleanup:
     """Testes E2E para cleanup do CutoverManager."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_close_stops_monitoring(self, cutover_manager):
         """
         Teste E2E: close() para monitoramento.
@@ -974,7 +970,7 @@ class TestCutoverManagerCleanup:
         assert not cutover_manager._running
         assert cutover_manager._monitor_task is None or cutover_manager._monitor_task.done()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_close_cancels_monitor_task(self, cutover_manager):
         """
         Teste E2E: close() cancela task de monitoramento.

@@ -4,7 +4,8 @@ Infrastructure exceptions for Neural Hive-Mind.
 Erros relacionados a conexões externas, bancos de dados, Kafka, etc.
 """
 
-from typing import Dict, Any, Optional
+from typing import Any, Optional
+
 from .base import NeuralHiveError, error_code
 
 
@@ -56,7 +57,7 @@ class ConnectionError(NeuralHiveError):
         port: Optional[int] = None,
         reason: Optional[str] = None,
         code: Optional[str] = None,
-        details: Optional[Dict[str, Any]] = None,
+        details: Optional[dict[str, Any]] = None,
     ):
         code = code or InfrastructureErrorCode.CONNECTION_FAILED
 
@@ -106,7 +107,7 @@ class TimeoutError(NeuralHiveError):
         timeout_seconds: Optional[float] = None,
         service: Optional[str] = None,
         code: Optional[str] = None,
-        details: Optional[Dict[str, Any]] = None,
+        details: Optional[dict[str, Any]] = None,
     ):
         code = code or InfrastructureErrorCode.CONNECTION_TIMEOUT
 
@@ -143,7 +144,7 @@ class DatabaseError(NeuralHiveError):
         message: str,
         query: Optional[str] = None,
         database: Optional[str] = None,
-        details: Optional[Dict[str, Any]] = None,
+        details: Optional[dict[str, Any]] = None,
     ):
         code = InfrastructureErrorCode.DATABASE_ERROR
 
@@ -172,7 +173,7 @@ class KafkaError(NeuralHiveError):
         topic: Optional[str] = None,
         partition: Optional[int] = None,
         code: Optional[str] = None,
-        details: Optional[Dict[str, Any]] = None,
+        details: Optional[dict[str, Any]] = None,
     ):
         code = code or InfrastructureErrorCode.KAFKA_ERROR
 

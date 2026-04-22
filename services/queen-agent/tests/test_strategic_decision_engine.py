@@ -2,23 +2,23 @@
 Testes para StrategicDecisionEngine - foco em execute_decision_action
 """
 
-import pytest
-from unittest.mock import AsyncMock, MagicMock
 from datetime import datetime
+from unittest.mock import AsyncMock, MagicMock
 
-from src.services.strategic_decision_engine import StrategicDecisionEngine
+import pytest
 from src.models import (
-    StrategicDecision,
-    DecisionType,
-    DecisionContext,
-    DecisionAnalysis,
     DecisionAction,
+    DecisionAnalysis,
+    DecisionContext,
+    DecisionType,
     RiskAssessment,
+    StrategicDecision,
     TriggeredBy,
 )
+from src.services.strategic_decision_engine import StrategicDecisionEngine
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_clients():
     """Mock de todos os clientes necessários"""
     # OPA client com métodos específicos
@@ -45,7 +45,7 @@ def mock_clients():
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_settings():
     """Mock de configurações"""
     settings = MagicMock()
@@ -54,7 +54,7 @@ def mock_settings():
     return settings
 
 
-@pytest.fixture
+@pytest.fixture()
 def decision_engine(mock_clients, mock_settings):
     """Instância do StrategicDecisionEngine com mocks"""
     return StrategicDecisionEngine(
@@ -70,7 +70,7 @@ def decision_engine(mock_clients, mock_settings):
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_decision():
     """Decisão estratégica de exemplo"""
     return StrategicDecision(
@@ -103,7 +103,7 @@ def sample_decision():
     )
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_execute_decision_action_trigger_replanning(
     decision_engine, mock_clients, sample_decision
 ):
@@ -127,7 +127,7 @@ async def test_execute_decision_action_trigger_replanning(
     assert first_call.kwargs["context"]["decision_id"] == sample_decision.decision_id
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_execute_decision_action_adjust_qos(decision_engine, mock_clients):
     """Testa execução de ação adjust_qos"""
     decision = StrategicDecision(
@@ -162,7 +162,7 @@ async def test_execute_decision_action_adjust_qos(decision_engine, mock_clients)
     assert mock_clients["orchestrator"].adjust_priorities.call_count == 1
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_execute_decision_action_pause_execution(decision_engine, mock_clients):
     """Testa execução de ação pause_execution"""
     decision = StrategicDecision(
@@ -195,7 +195,7 @@ async def test_execute_decision_action_pause_execution(decision_engine, mock_cli
     assert mock_clients["orchestrator"].pause_workflow.call_count == 2
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_execute_decision_action_unknown_action(decision_engine, mock_clients):
     """Testa execução de ação desconhecida"""
     decision = StrategicDecision(
@@ -220,7 +220,7 @@ async def test_execute_decision_action_unknown_action(decision_engine, mock_clie
     assert result is False
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_execute_decision_action_delegated_actions(decision_engine, mock_clients):
     """Testa ações que usam o orchestrator_client (adjust_priorities)"""
     decision = StrategicDecision(
@@ -253,7 +253,7 @@ async def test_execute_decision_action_delegated_actions(decision_engine, mock_c
     assert mock_clients["orchestrator"].adjust_priorities.call_count == 1
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_execute_decision_action_handles_exceptions(decision_engine, mock_clients):
     """Testa tratamento de exceções durante execução"""
     decision = StrategicDecision(
@@ -289,7 +289,7 @@ async def test_execute_decision_action_handles_exceptions(decision_engine, mock_
 # ============================================================================
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_validate_guardrails_opa_allows(mock_clients, mock_settings):
     """Testa validação de guardrails quando OPA permite"""
     # Configurar mock OPA
@@ -329,7 +329,7 @@ async def test_validate_guardrails_opa_allows(mock_clients, mock_settings):
     mock_clients["opa"].evaluate_policy.assert_called_once()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_validate_guardrails_opa_denies(mock_clients, mock_settings):
     """Testa validação de guardrails quando OPA nega"""
     mock_clients["opa"].is_connected.return_value = True
@@ -374,7 +374,7 @@ async def test_validate_guardrails_opa_denies(mock_clients, mock_settings):
     mock_clients["opa"].evaluate_policy.assert_called_once()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_validate_guardrails_opa_unavailable_fail_open(mock_clients, mock_settings):
     """Testa fallback para validação básica quando OPA indisponível (fail open)"""
     mock_clients["opa"].is_connected.return_value = False
@@ -408,7 +408,7 @@ async def test_validate_guardrails_opa_unavailable_fail_open(mock_clients, mock_
     mock_clients["opa"].evaluate_policy.assert_not_called()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_validate_guardrails_opa_with_warnings(mock_clients, mock_settings):
     """Testa validação de guardrails com warnings"""
     mock_clients["opa"].is_connected.return_value = True
@@ -452,7 +452,7 @@ async def test_validate_guardrails_opa_with_warnings(mock_clients, mock_settings
     mock_clients["opa"].evaluate_policy.assert_called_once()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_validate_guardrails_no_opa_client(mock_clients, mock_settings):
     """Testa validação quando não há cliente OPA"""
     # Configurar fail-open para usar validação básica como fallback
@@ -485,7 +485,7 @@ async def test_validate_guardrails_no_opa_client(mock_clients, mock_settings):
     assert "risk_threshold_acceptable" in result
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_basic_guardrail_validation_high_risk(mock_clients, mock_settings):
     """Testa validação básica com risco alto"""
     engine = StrategicDecisionEngine(
@@ -509,7 +509,7 @@ async def test_basic_guardrail_validation_high_risk(mock_clients, mock_settings)
     assert "risk_threshold_acceptable" not in result
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_basic_guardrail_validation_exception_approval(mock_clients, mock_settings):
     """Testa validação básica com exception approval"""
     engine = StrategicDecisionEngine(

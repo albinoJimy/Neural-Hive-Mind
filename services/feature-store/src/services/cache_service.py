@@ -5,8 +5,8 @@ Gerencia cache de features usando Redis com TTL configurável.
 """
 
 import json
-from datetime import datetime, timezone
-from typing import Any, Dict, Optional
+from datetime import UTC, datetime
+from typing import Any, Optional
 
 import structlog
 
@@ -85,7 +85,7 @@ class RedisCacheService:
         """Gera chave Redis para um plano"""
         return f"feature_store:{plan_id}"
 
-    async def get(self, plan_id: str) -> Optional[Dict[str, Any]]:
+    async def get(self, plan_id: str) -> Optional[dict[str, Any]]:
         """
         Busca features do cache
 
@@ -115,7 +115,7 @@ class RedisCacheService:
             return None
 
     async def set(
-        self, plan_id: str, features: Dict[str, Any], ttl_seconds: Optional[int] = None
+        self, plan_id: str, features: dict[str, Any], ttl_seconds: Optional[int] = None
     ) -> bool:
         """
         Salva features no cache
@@ -136,7 +136,7 @@ class RedisCacheService:
             key = self._make_key(plan_id)
 
             # Adiciona timestamp de cache
-            features["_cached_at"] = datetime.now(timezone.utc).isoformat()
+            features["_cached_at"] = datetime.now(UTC).isoformat()
 
             await self._redis.setex(key, ttl, json.dumps(features))
 
@@ -198,7 +198,7 @@ class RedisCacheService:
             logger.error("Erro ao limpar cache", error=str(e))
             return 0
 
-    async def get_stats(self) -> Dict[str, Any]:
+    async def get_stats(self) -> dict[str, Any]:
         """
         Retorna estatísticas do cache
 

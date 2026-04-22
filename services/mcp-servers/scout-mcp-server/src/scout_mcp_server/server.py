@@ -7,7 +7,6 @@ de descoberta e análise de código.
 
 import structlog
 from fastmcp import FastMCP
-
 from scout_mcp_server.config import get_settings
 from scout_mcp_server.tools.scout_tools import register_scout_tools
 

@@ -2,12 +2,13 @@
 Testes de integracao para API de Authorization Audit.
 """
 
-import pytest
 from datetime import datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
 
-@pytest.fixture
+
+@pytest.fixture()
 def mock_mongodb_client_with_data():
     """Mock do MongoDB client com dados de auditoria."""
     from unittest.mock import AsyncMock
@@ -71,7 +72,7 @@ def mock_mongodb_client_with_data():
 class TestAuthorizationAuditAPI:
     """Testes para endpoint /api/v1/audit/authorizations."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_query_authorization_audit_all(self, mock_mongodb_client_with_data):
         """Testa query de todas as entradas de auditoria."""
         mock_client, audit_data = mock_mongodb_client_with_data
@@ -79,7 +80,7 @@ class TestAuthorizationAuditAPI:
         with patch("src.main.app_state") as mock_app_state:
             mock_app_state.mongodb_client = mock_client
 
-            from httpx import AsyncClient, ASGITransport
+            from httpx import ASGITransport, AsyncClient
             from src.main import app
 
             transport = ASGITransport(app=app)
@@ -93,7 +94,7 @@ class TestAuthorizationAuditAPI:
                 assert data["total"] == 3
                 assert len(data["results"]) == 3
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_query_authorization_audit_by_tenant(self, mock_mongodb_client_with_data):
         """Testa query filtrada por tenant."""
         mock_client, audit_data = mock_mongodb_client_with_data
@@ -108,7 +109,7 @@ class TestAuthorizationAuditAPI:
         with patch("src.main.app_state") as mock_app_state:
             mock_app_state.mongodb_client = mock_client
 
-            from httpx import AsyncClient, ASGITransport
+            from httpx import ASGITransport, AsyncClient
             from src.main import app
 
             transport = ASGITransport(app=app)
@@ -123,7 +124,7 @@ class TestAuthorizationAuditAPI:
                 # Verificar filtro aplicado
                 assert data["query"]["tenant_id"] == "tenant-abc"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_query_authorization_audit_by_decision(self, mock_mongodb_client_with_data):
         """Testa query filtrada por decisao."""
         mock_client, audit_data = mock_mongodb_client_with_data
@@ -138,7 +139,7 @@ class TestAuthorizationAuditAPI:
         with patch("src.main.app_state") as mock_app_state:
             mock_app_state.mongodb_client = mock_client
 
-            from httpx import AsyncClient, ASGITransport
+            from httpx import ASGITransport, AsyncClient
             from src.main import app
 
             transport = ASGITransport(app=app)
@@ -151,7 +152,7 @@ class TestAuthorizationAuditAPI:
                 data = response.json()
                 assert data["query"]["decision"] == "deny"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_query_authorization_audit_pagination(self, mock_mongodb_client_with_data):
         """Testa paginacao de resultados."""
         mock_client, audit_data = mock_mongodb_client_with_data
@@ -159,7 +160,7 @@ class TestAuthorizationAuditAPI:
         with patch("src.main.app_state") as mock_app_state:
             mock_app_state.mongodb_client = mock_client
 
-            from httpx import AsyncClient, ASGITransport
+            from httpx import ASGITransport, AsyncClient
             from src.main import app
 
             transport = ASGITransport(app=app)
@@ -183,7 +184,7 @@ class TestAuthorizationAuditAPI:
                 data2 = response2.json()
                 assert data2["query"]["skip"] == 2
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_query_authorization_audit_time_range(self, mock_mongodb_client_with_data):
         """Testa query com filtro de periodo."""
         mock_client, audit_data = mock_mongodb_client_with_data
@@ -195,7 +196,7 @@ class TestAuthorizationAuditAPI:
         with patch("src.main.app_state") as mock_app_state:
             mock_app_state.mongodb_client = mock_client
 
-            from httpx import AsyncClient, ASGITransport
+            from httpx import ASGITransport, AsyncClient
             from src.main import app
 
             transport = ASGITransport(app=app)
@@ -210,13 +211,13 @@ class TestAuthorizationAuditAPI:
                 assert data["query"]["start_time"] == start_time
                 assert data["query"]["end_time"] == end_time
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_query_authorization_audit_mongodb_unavailable(self):
         """Testa resposta quando MongoDB nao esta disponivel."""
         with patch("src.main.app_state") as mock_app_state:
             mock_app_state.mongodb_client = None
 
-            from httpx import AsyncClient, ASGITransport
+            from httpx import ASGITransport, AsyncClient
             from src.main import app
 
             transport = ASGITransport(app=app)
@@ -226,7 +227,7 @@ class TestAuthorizationAuditAPI:
                 assert response.status_code == 503
                 assert "MongoDB" in response.json()["detail"]
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_query_authorization_audit_removes_mongodb_id(
         self, mock_mongodb_client_with_data
     ):
@@ -236,7 +237,7 @@ class TestAuthorizationAuditAPI:
         with patch("src.main.app_state") as mock_app_state:
             mock_app_state.mongodb_client = mock_client
 
-            from httpx import AsyncClient, ASGITransport
+            from httpx import ASGITransport, AsyncClient
             from src.main import app
 
             transport = ASGITransport(app=app)
@@ -250,7 +251,7 @@ class TestAuthorizationAuditAPI:
                 for result in data["results"]:
                     assert "_id" not in result
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_query_authorization_audit_by_user_id(self, mock_mongodb_client_with_data):
         """Testa query filtrada por user_id."""
         mock_client, audit_data = mock_mongodb_client_with_data
@@ -265,7 +266,7 @@ class TestAuthorizationAuditAPI:
         with patch("src.main.app_state") as mock_app_state:
             mock_app_state.mongodb_client = mock_client
 
-            from httpx import AsyncClient, ASGITransport
+            from httpx import ASGITransport, AsyncClient
             from src.main import app
 
             transport = ASGITransport(app=app)
@@ -278,7 +279,7 @@ class TestAuthorizationAuditAPI:
                 data = response.json()
                 assert data["query"]["user_id"] == "user-123"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_query_authorization_audit_by_policy_path(self, mock_mongodb_client_with_data):
         """Testa query filtrada por policy_path."""
         mock_client, audit_data = mock_mongodb_client_with_data
@@ -293,7 +294,7 @@ class TestAuthorizationAuditAPI:
         with patch("src.main.app_state") as mock_app_state:
             mock_app_state.mongodb_client = mock_client
 
-            from httpx import AsyncClient, ASGITransport
+            from httpx import ASGITransport, AsyncClient
             from src.main import app
 
             transport = ASGITransport(app=app)
@@ -306,7 +307,7 @@ class TestAuthorizationAuditAPI:
                 data = response.json()
                 assert data["query"]["policy_path"] == policy
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_query_authorization_audit_limit_validation(self, mock_mongodb_client_with_data):
         """Testa validacao de limite maximo."""
         mock_client, _ = mock_mongodb_client_with_data
@@ -314,7 +315,7 @@ class TestAuthorizationAuditAPI:
         with patch("src.main.app_state") as mock_app_state:
             mock_app_state.mongodb_client = mock_client
 
-            from httpx import AsyncClient, ASGITransport
+            from httpx import ASGITransport, AsyncClient
             from src.main import app
 
             transport = ASGITransport(app=app)
@@ -325,7 +326,7 @@ class TestAuthorizationAuditAPI:
                 # FastAPI deve rejeitar com 422 (Validation Error)
                 assert response.status_code == 422
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_query_authorization_audit_combined_filters(self, mock_mongodb_client_with_data):
         """Testa multiplos filtros combinados."""
         mock_client, audit_data = mock_mongodb_client_with_data
@@ -333,7 +334,7 @@ class TestAuthorizationAuditAPI:
         with patch("src.main.app_state") as mock_app_state:
             mock_app_state.mongodb_client = mock_client
 
-            from httpx import AsyncClient, ASGITransport
+            from httpx import ASGITransport, AsyncClient
             from src.main import app
 
             transport = ASGITransport(app=app)

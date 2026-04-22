@@ -1,6 +1,6 @@
 """Modelos para delegação de tarefas a agentes especializados."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 
@@ -70,10 +70,10 @@ class DelegatedTask(BaseModel):
     metadata: dict[str, Any] = Field(default_factory=dict, description="Metadados adicionais")
 
     created_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc), description="Data de criação"
+        default_factory=lambda: datetime.now(UTC), description="Data de criação"
     )
     updated_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc), description="Data de atualização"
+        default_factory=lambda: datetime.now(UTC), description="Data de atualização"
     )
 
 

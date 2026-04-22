@@ -4,11 +4,11 @@ Testes de integracao para mTLS entre Worker Agent e Service Registry.
 Testa criacao de canal seguro com X.509-SVID, JWT-SVID em metadata e fallbacks.
 """
 
-import pytest
-from datetime import datetime, timezone, timedelta
-from unittest.mock import AsyncMock, MagicMock, patch
 from dataclasses import dataclass
+from datetime import UTC, datetime, timedelta
+from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
 
 
 @dataclass
@@ -61,7 +61,7 @@ class MockSPIFFEManager:
         self.close = AsyncMock()
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_spiffe_manager():
     """Fixture que retorna mock do SPIFFEManager com X.509-SVID e JWT-SVID validos"""
     manager = MockSPIFFEManager()
@@ -72,20 +72,20 @@ def mock_spiffe_manager():
         private_key=TEST_PRIVATE_KEY,
         spiffe_id="spiffe://neural-hive.local/ns/neural-hive-execution/sa/worker-agents",
         ca_bundle=TEST_CA_BUNDLE,
-        expires_at=datetime.now(timezone.utc) + timedelta(hours=24),
+        expires_at=datetime.now(UTC) + timedelta(hours=24),
     )
 
     # Configurar retorno padrao de JWT-SVID valido
     manager.fetch_jwt_svid.return_value = JWTSVID(
         token="valid.jwt.token",
         spiffe_id="spiffe://neural-hive.local/ns/neural-hive-execution/sa/worker-agents",
-        expiry=datetime.now(timezone.utc) + timedelta(hours=1),
+        expiry=datetime.now(UTC) + timedelta(hours=1),
     )
 
     return manager
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_config():
     """Fixture que retorna configuracoes mockadas com SPIFFE habilitado"""
     config = MagicMock()
@@ -109,7 +109,7 @@ def mock_config():
     return config
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_worker_agent_mtls_initialization(mock_spiffe_manager, mock_config):
     """Testa inicializacao do Worker Agent com mTLS via X.509-SVID"""
     from src.clients.service_registry_client import ServiceRegistryClient
@@ -155,7 +155,7 @@ async def test_worker_agent_mtls_initialization(mock_spiffe_manager, mock_config
         )
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_worker_agent_registration_with_jwt_metadata(mock_spiffe_manager, mock_config):
     """Testa registro do Worker Agent com JWT-SVID em metadata"""
     from src.clients.service_registry_client import ServiceRegistryClient
@@ -214,7 +214,7 @@ async def test_worker_agent_registration_with_jwt_metadata(mock_spiffe_manager, 
         assert agent_id == "worker-1"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_worker_agent_mtls_required_in_production(mock_config):
     """Testa que mTLS e obrigatorio em producao"""
     from src.clients.service_registry_client import ServiceRegistryClient
@@ -232,7 +232,7 @@ async def test_worker_agent_mtls_required_in_production(mock_config):
             await client.initialize()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_worker_agent_insecure_allowed_in_dev(mock_config):
     """Testa que canal inseguro e permitido em desenvolvimento"""
     from src.clients.service_registry_client import ServiceRegistryClient
@@ -260,7 +260,7 @@ async def test_worker_agent_insecure_allowed_in_dev(mock_config):
         mock_insecure_channel.assert_called_once()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_worker_agent_heartbeat_with_jwt_metadata(mock_spiffe_manager, mock_config):
     """Testa heartbeat do Worker Agent com JWT-SVID em metadata"""
     from src.clients.service_registry_client import ServiceRegistryClient
@@ -329,7 +329,7 @@ async def test_worker_agent_heartbeat_with_jwt_metadata(mock_spiffe_manager, moc
         assert result is True
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_worker_agent_deregister_with_jwt_metadata(mock_spiffe_manager, mock_config):
     """Testa deregister do Worker Agent com JWT-SVID em metadata"""
     from src.clients.service_registry_client import ServiceRegistryClient
@@ -391,7 +391,7 @@ async def test_worker_agent_deregister_with_jwt_metadata(mock_spiffe_manager, mo
         assert result is True
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_jwt_svid_failure_continues_in_dev(mock_spiffe_manager, mock_config):
     """Testa que falha ao buscar JWT-SVID continua em desenvolvimento"""
     from src.clients.service_registry_client import ServiceRegistryClient
@@ -438,7 +438,7 @@ async def test_jwt_svid_failure_continues_in_dev(mock_spiffe_manager, mock_confi
         assert agent_id == "worker-1"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_jwt_svid_failure_raises_in_production(mock_spiffe_manager, mock_config):
     """Testa que falha ao buscar JWT-SVID levanta erro em producao"""
     from src.clients.service_registry_client import ServiceRegistryClient

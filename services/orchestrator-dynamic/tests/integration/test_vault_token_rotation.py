@@ -9,14 +9,15 @@ Testa cenários de:
 - Fail-open/fail-closed behavior
 """
 
-import pytest
 import asyncio
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
-from datetime import datetime, timezone, timedelta
+
+import pytest
 
 
 # Mock de configurações
-@pytest.fixture
+@pytest.fixture()
 def mock_config():
     """Mock de configurações do orchestrator alinhado com OrchestratorSettings."""
     config = MagicMock()
@@ -52,12 +53,12 @@ def mock_config():
     return config
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_vault_client():
     """Mock do VaultClient da biblioteca neural_hive_security."""
     mock_client = AsyncMock()
     mock_client.token = "s.test_token_12345"
-    mock_client.token_expiry = datetime.now(timezone.utc) + timedelta(seconds=3600)
+    mock_client.token_expiry = datetime.now(UTC) + timedelta(seconds=3600)
     mock_client.initialize = AsyncMock()
     mock_client.renew_token = AsyncMock(return_value=True)
     mock_client.get_database_credentials = AsyncMock(
@@ -72,7 +73,7 @@ def mock_vault_client():
     return mock_client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_spiffe_manager():
     """Mock do SPIFFEManager da biblioteca neural_hive_security."""
     mock_manager = AsyncMock()
@@ -81,7 +82,7 @@ def mock_spiffe_manager():
     return mock_manager
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_vault_token_renewal_success(mock_config, mock_vault_client):
     """
     Testa renovação bem-sucedida do token Vault.
@@ -106,7 +107,7 @@ async def test_vault_token_renewal_success(mock_config, mock_vault_client):
 
             # Simular token próximo da expiração (20% do TTL restante = threshold)
             original_expiry = mock_vault_client.token_expiry
-            mock_vault_client.token_expiry = datetime.now(timezone.utc) + timedelta(
+            mock_vault_client.token_expiry = datetime.now(UTC) + timedelta(
                 seconds=720
             )  # 20% de 3600
 
@@ -120,7 +121,7 @@ async def test_vault_token_renewal_success(mock_config, mock_vault_client):
             await vault_client.close()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_postgres_credential_rotation(mock_config, mock_vault_client):
     """
     Testa rotação de credenciais PostgreSQL dinâmicas.
@@ -152,7 +153,7 @@ async def test_postgres_credential_rotation(mock_config, mock_vault_client):
             }
 
             # Simular TTL baixo (20% restante = threshold)
-            vault_client._postgres_credentials_expiry = datetime.now(timezone.utc) + timedelta(
+            vault_client._postgres_credentials_expiry = datetime.now(UTC) + timedelta(
                 seconds=720
             )  # 20% de 3600
 
@@ -168,7 +169,7 @@ async def test_postgres_credential_rotation(mock_config, mock_vault_client):
             await vault_client.close()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_credential_renewal_task_interval_calculation(mock_config, mock_vault_client):
     """
     Testa cálculo de intervalo de renovação baseado em TTLs.
@@ -181,8 +182,8 @@ async def test_credential_renewal_task_interval_calculation(mock_config, mock_va
             await vault_client.initialize()
 
             # Configurar TTLs
-            mock_vault_client.token_expiry = datetime.now(timezone.utc) + timedelta(seconds=3600)
-            vault_client._postgres_credentials_expiry = datetime.now(timezone.utc) + timedelta(
+            mock_vault_client.token_expiry = datetime.now(UTC) + timedelta(seconds=3600)
+            vault_client._postgres_credentials_expiry = datetime.now(UTC) + timedelta(
                 seconds=1800
             )
 
@@ -198,7 +199,7 @@ async def test_credential_renewal_task_interval_calculation(mock_config, mock_va
             await vault_client.close()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_renewal_task_cancellation_on_close(mock_config, mock_vault_client):
     """
     Testa que tarefa de renovação é cancelada corretamente ao fechar cliente.
@@ -224,7 +225,7 @@ async def test_renewal_task_cancellation_on_close(mock_config, mock_vault_client
             assert vault_client._renewal_task.cancelled() or vault_client._renewal_task.done()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_fail_open_on_vault_unavailable(mock_config):
     """
     Testa comportamento fail-open quando Vault está indisponível.
@@ -261,7 +262,7 @@ async def test_fail_open_on_vault_unavailable(mock_config):
             await vault_client.close()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_fail_closed_on_vault_unavailable(mock_config):
     """
     Testa comportamento fail-closed quando Vault está indisponível.
@@ -291,7 +292,7 @@ async def test_fail_closed_on_vault_unavailable(mock_config):
             await vault_client.close()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_postgres_credentials_expired_immediate_renewal(mock_config, mock_vault_client):
     """
     Testa renovação imediata quando credenciais PostgreSQL expiram.
@@ -309,7 +310,7 @@ async def test_postgres_credentials_expired_immediate_renewal(mock_config, mock_
                 "password": "old_pass",
                 "ttl": 3600,
             }
-            vault_client._postgres_credentials_expiry = datetime.now(timezone.utc) - timedelta(
+            vault_client._postgres_credentials_expiry = datetime.now(UTC) - timedelta(
                 seconds=10
             )  # Expirado
 

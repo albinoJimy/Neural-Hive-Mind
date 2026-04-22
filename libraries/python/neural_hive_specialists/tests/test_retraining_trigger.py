@@ -2,14 +2,16 @@
 Testes unitários para RetrainingTrigger.
 """
 
+from datetime import UTC, datetime, timedelta
+from unittest.mock import MagicMock, Mock, patch
+
 import pytest
-from datetime import datetime, timedelta, timezone
-from unittest.mock import Mock, MagicMock, patch
-from neural_hive_specialists.feedback import RetrainingTrigger
+
 from neural_hive_specialists.config import SpecialistConfig
+from neural_hive_specialists.feedback import RetrainingTrigger
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_config():
     """Configuração mock para testes."""
     return SpecialistConfig(
@@ -32,7 +34,7 @@ def mock_config():
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_feedback_collector():
     """FeedbackCollector mock."""
     collector = Mock()
@@ -40,13 +42,13 @@ def mock_feedback_collector():
     return collector
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_mlflow_client():
     """MLflowClient mock."""
     return Mock()
 
 
-@pytest.fixture
+@pytest.fixture()
 def retraining_trigger(mock_config, mock_feedback_collector, mock_mlflow_client):
     """Instância de RetrainingTrigger com mocks."""
     with patch("neural_hive_specialists.feedback.retraining_trigger.MongoClient"):
@@ -83,7 +85,7 @@ class TestRetrainingTrigger:
         # Simular trigger recente (1 hora atrás)
         recent_trigger = {
             "specialist_type": "technical",
-            "triggered_at": datetime.now(timezone.utc) - timedelta(hours=1),
+            "triggered_at": datetime.now(UTC) - timedelta(hours=1),
             "trigger_id": "test-trigger",
             "status": "completed",
         }
@@ -101,7 +103,7 @@ class TestRetrainingTrigger:
         # Simular trigger antigo (48 horas atrás) - fora do período de cooldown de 24h
         old_trigger = {
             "specialist_type": "technical",
-            "triggered_at": datetime.now(timezone.utc) - timedelta(hours=48),
+            "triggered_at": datetime.now(UTC) - timedelta(hours=48),
             "trigger_id": "test-trigger",
             "status": "completed",
         }
@@ -236,7 +238,7 @@ class TestRetrainingTrigger:
             {
                 "trigger_id": "trigger-1",
                 "specialist_type": "technical",
-                "triggered_at": datetime.now(timezone.utc),
+                "triggered_at": datetime.now(UTC),
                 "feedback_count": 150,
                 "feedback_window_days": 7,
                 "status": "completed",

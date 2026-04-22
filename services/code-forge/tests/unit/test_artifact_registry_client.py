@@ -4,19 +4,19 @@ Testes unitários para ArtifactRegistryClient.
 Valida registro e recuperação de artefatos no registry.
 """
 
-import pytest
 from unittest.mock import MagicMock, patch
 
+import pytest
 from src.clients.artifact_registry_client import ArtifactRegistryClient
 
 
-@pytest.fixture
+@pytest.fixture()
 def registry_client():
     """Instância do ArtifactRegistryClient."""
     return ArtifactRegistryClient(registry_url="https://registry.example.com")
 
 
-@pytest.fixture
+@pytest.fixture()
 async def started_registry_client(registry_client):
     """Cliente com HTTP inicializado."""
     await registry_client.start()
@@ -45,7 +45,7 @@ class TestArtifactRegistryClientInitialization:
 class TestArtifactRegistryLifecycle:
     """Testes de ciclo de vida do cliente."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_start_creates_http_client(self, registry_client):
         """Testa que start cria cliente HTTP."""
         await registry_client.start()
@@ -54,7 +54,7 @@ class TestArtifactRegistryLifecycle:
 
         await registry_client.stop()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_stop_closes_http_client(self, registry_client):
         """Testa que stop fecha cliente HTTP."""
         await registry_client.start()
@@ -67,7 +67,7 @@ class TestArtifactRegistryLifecycle:
 class TestRegisterArtifact:
     """Testes de registro de artefatos."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_register_container_image_success(self, started_registry_client):
         """Testa registro bem-sucedido de imagem de container."""
         with patch.object(started_registry_client._client, "post") as mock_post:
@@ -88,7 +88,7 @@ class TestRegisterArtifact:
             assert result is not None
             assert result["artifact_id"] == "artifact-123"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_register_artifact_failure(self, started_registry_client):
         """Testa falha no registro de artefato."""
         with patch.object(started_registry_client._client, "post") as mock_post:
@@ -105,7 +105,7 @@ class TestRegisterArtifact:
 
             assert result is None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_register_artifact_client_not_started(self, registry_client):
         """Testa registro quando cliente não foi iniciado."""
         result = await registry_client.register_artifact(
@@ -120,7 +120,7 @@ class TestRegisterArtifact:
 class TestGetArtifactMetadata:
     """Testes de obtenção de metadados de artefato."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_artifact_metadata_success(self, started_registry_client):
         """Testa obtenção bem-sucedida de metadados."""
         with patch.object(started_registry_client._client, "get") as mock_get:
@@ -140,7 +140,7 @@ class TestGetArtifactMetadata:
             assert result["artifact_id"] == "artifact-123"
             assert result["metadata"]["digest"] == "sha256:abc123"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_artifact_metadata_not_found(self, started_registry_client):
         """Testa artefato não encontrado."""
         with patch.object(started_registry_client._client, "get") as mock_get:
@@ -152,7 +152,7 @@ class TestGetArtifactMetadata:
 
             assert result is None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_artifact_metadata_error(self, started_registry_client):
         """Testa erro na obtenção de metadados."""
         with patch.object(started_registry_client._client, "get") as mock_get:
@@ -166,7 +166,7 @@ class TestGetArtifactMetadata:
 class TestRegisterSBOM:
     """Testes de registro de SBOM."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_register_sbom_success(self, started_registry_client):
         """Testa registro bem-sucedido de SBOM."""
         with patch.object(started_registry_client._client, "post") as mock_post:
@@ -183,7 +183,7 @@ class TestRegisterSBOM:
 
             assert result == "registry.example.com/sboms/sbom-456"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_register_sbom_failure(self, started_registry_client):
         """Testa falha no registro de SBOM."""
         with patch.object(started_registry_client._client, "post") as mock_post:
@@ -202,7 +202,7 @@ class TestRegisterSBOM:
 class TestGetSBOMReference:
     """Testes de obtenção de referência de SBOM."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_sbom_reference_success(self, started_registry_client):
         """Testa obtenção bem-sucedida de referência de SBOM."""
         with patch.object(started_registry_client._client, "get") as mock_get:
@@ -218,7 +218,7 @@ class TestGetSBOMReference:
 
             assert result == "s3://bucket/sboms/ticket-123/artifact-456/sbom.json"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_sbom_reference_not_found(self, started_registry_client):
         """Testa SBOM não encontrado."""
         with patch.object(started_registry_client._client, "get") as mock_get:
@@ -234,7 +234,7 @@ class TestGetSBOMReference:
 class TestListArtifacts:
     """Testes de listagem de artefatos."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_list_artifacts_success(self, started_registry_client):
         """Testa listagem bem-sucedida de artefatos."""
         with patch.object(started_registry_client._client, "get") as mock_get:
@@ -253,7 +253,7 @@ class TestListArtifacts:
             assert len(result) == 2
             assert result[0]["artifact_id"] == "artifact-1"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_list_artifacts_filtered_by_type(self, started_registry_client):
         """Testa listagem filtrada por tipo."""
         with patch.object(started_registry_client._client, "get") as mock_get:
@@ -271,7 +271,7 @@ class TestListArtifacts:
             assert len(result) == 1
             assert result[0]["artifact_type"] == "CONTAINER_IMAGE"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_list_artifacts_error(self, started_registry_client):
         """Testa erro na listagem."""
         with patch.object(started_registry_client._client, "get") as mock_get:
@@ -281,7 +281,7 @@ class TestListArtifacts:
 
             assert result == []
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_list_artifacts_with_limit(self, started_registry_client):
         """Testa listagem com limite."""
         with patch.object(started_registry_client._client, "get") as mock_get:
@@ -299,7 +299,7 @@ class TestListArtifacts:
 class TestHealthCheck:
     """Testes de verificação de saúde."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_health_check_success(self, started_registry_client):
         """Testa health_check bem-sucedido."""
         with patch.object(started_registry_client._client, "get") as mock_get:
@@ -311,7 +311,7 @@ class TestHealthCheck:
 
             assert result is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_health_check_failure(self, started_registry_client):
         """Testa health_check com falha."""
         with patch.object(started_registry_client._client, "get") as mock_get:
@@ -323,7 +323,7 @@ class TestHealthCheck:
 
             assert result is False
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_health_check_exception(self, started_registry_client):
         """Testa health_check com exceção."""
         with patch.object(started_registry_client._client, "get") as mock_get:
@@ -333,7 +333,7 @@ class TestHealthCheck:
 
             assert result is False
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_health_check_client_not_started(self, registry_client):
         """Testa health_check quando cliente não iniciado."""
         result = await registry_client.health_check()

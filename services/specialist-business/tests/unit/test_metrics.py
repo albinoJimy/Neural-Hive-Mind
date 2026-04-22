@@ -1,9 +1,10 @@
 """Testes de métricas para BusinessSpecialist."""
 
-import sys
 import os
-import pytest
+import sys
 from unittest.mock import MagicMock
+
+import pytest
 
 # Configurar paths
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "src"))
@@ -51,13 +52,13 @@ class MockBusinessMetrics:
         self.cost_score.labels(specialist_type="business").set(score)
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_metrics():
     """Fixture para métricas mock."""
     return MockBusinessMetrics()
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_business_evaluation():
     """Resultado de avaliação de negócio de exemplo."""
     return {

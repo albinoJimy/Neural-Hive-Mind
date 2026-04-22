@@ -4,20 +4,20 @@ Testes unitários abrangentes para KafkaSignalProducer.
 Cobertura: publicação de sinais, oportunidades, batch, tratamento de erros.
 """
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
 from src.clients.kafka_signal_producer import KafkaSignalProducer
-from src.models.scout_signal import ScoutSignal, SignalType, SignalSource, ChannelType, Geolocation
-from neural_hive_domain import UnifiedDomain
+from src.models.scout_signal import ChannelType, Geolocation, ScoutSignal, SignalSource, SignalType
 
+from neural_hive_domain import UnifiedDomain
 
 # ============================================================================
 # Fixtures
 # ============================================================================
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_signal():
     """Sinal de exemplo para testes."""
     return ScoutSignal(
@@ -38,7 +38,7 @@ def sample_signal():
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def opportunity_signal():
     """Sinal de oportunidade para testes."""
     return ScoutSignal(
@@ -59,7 +59,7 @@ def opportunity_signal():
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def signal_with_geolocation():
     """Sinal com geolocalização."""
     return ScoutSignal(
@@ -107,7 +107,7 @@ class TestKafkaSignalProducerInitialization:
 class TestKafkaProducerLifecycle:
     """Testes de ciclo de vida do produtor."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_start_initializes_producer(self):
         """Testa que start inicializa o produtor Kafka."""
         producer = KafkaSignalProducer()
@@ -123,7 +123,7 @@ class TestKafkaProducerLifecycle:
             mock_instance.start.assert_called_once()
             assert producer._is_running is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_start_error_handling(self):
         """Testa tratamento de erro no start."""
         producer = KafkaSignalProducer()
@@ -134,7 +134,7 @@ class TestKafkaProducerLifecycle:
             with pytest.raises(Exception):
                 await producer.start()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_stop_gracefully(self):
         """Testa parada graceful do produtor."""
         producer = KafkaSignalProducer()
@@ -147,7 +147,7 @@ class TestKafkaProducerLifecycle:
         producer.producer.stop.assert_called_once()
         assert producer._is_running is False
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_stop_handles_none_producer(self):
         """Testa stop quando producer é None."""
         producer = KafkaSignalProducer()
@@ -158,7 +158,7 @@ class TestKafkaProducerLifecycle:
 
         assert producer._is_running is False
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_stop_error_handling(self):
         """Testa tratamento de erro no stop."""
         producer = KafkaSignalProducer()
@@ -180,7 +180,7 @@ class TestKafkaProducerLifecycle:
 class TestSignalPublishing:
     """Testes de publicação de sinais."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_publish_signal_success(self, sample_signal):
         """Testa publicação bem-sucedida de sinal."""
         producer = KafkaSignalProducer()
@@ -200,7 +200,7 @@ class TestSignalPublishing:
         assert result is True
         mock_producer.send.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_publish_signal_not_running(self, sample_signal):
         """Testa que publicação falha quando producer não está rodando."""
         producer = KafkaSignalProducer()
@@ -211,7 +211,7 @@ class TestSignalPublishing:
 
         assert result is False
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_publish_signal_to_avro_format(self, sample_signal):
         """Testa que sinal é convertido para formato Avro."""
         producer = KafkaSignalProducer()
@@ -235,7 +235,7 @@ class TestSignalPublishing:
         assert sent_data["exploration_domain"] == "BUSINESS"
         assert sent_data["signal_type"] == "ANOMALY_POSITIVE"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_publish_signal_with_geolocation(self, signal_with_geolocation):
         """Testa publicação de sinal com geolocalização."""
         producer = KafkaSignalProducer()
@@ -252,7 +252,7 @@ class TestSignalPublishing:
 
         assert result is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_publish_signal_partition_key(self, sample_signal):
         """Testa que partition key baseia-se no domínio."""
         producer = KafkaSignalProducer()
@@ -280,7 +280,7 @@ class TestSignalPublishing:
 class TestPublishErrorHandling:
     """Testes de tratamento de erros na publicação."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_publish_signal_kafka_error(self, sample_signal):
         """Testa tratamento de erro do Kafka."""
         from aiokafka.errors import KafkaError
@@ -296,7 +296,7 @@ class TestPublishErrorHandling:
 
         assert result is False
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_publish_signal_generic_error(self, sample_signal):
         """Testa tratamento de erro genérico."""
         producer = KafkaSignalProducer()
@@ -310,7 +310,7 @@ class TestPublishErrorHandling:
 
         assert result is False
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_publish_signal_timeout(self, sample_signal):
         """Testa tratamento de timeout."""
         import asyncio
@@ -335,7 +335,7 @@ class TestPublishErrorHandling:
 class TestOpportunityPublishing:
     """Testes de publicação de oportunidades."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_publish_opportunity_success(self, opportunity_signal):
         """Testa publicação bem-sucedida de oportunidade."""
         producer = KafkaSignalProducer()
@@ -352,7 +352,7 @@ class TestOpportunityPublishing:
 
         assert result is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_publish_opportunity_not_running(self, opportunity_signal):
         """Testa que oportunidade falha quando producer não rodando."""
         producer = KafkaSignalProducer()
@@ -362,7 +362,7 @@ class TestOpportunityPublishing:
 
         assert result is False
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_publish_opportunity_uses_correct_topic(self, opportunity_signal):
         """Testa que oportunidade usa topic correto."""
         producer = KafkaSignalProducer()
@@ -392,7 +392,7 @@ class TestOpportunityPublishing:
 class TestBatchPublishing:
     """Testes de publicação em lote."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_publish_batch_empty(self):
         """Testa publicação de batch vazio."""
         producer = KafkaSignalProducer()
@@ -401,7 +401,7 @@ class TestBatchPublishing:
 
         assert result == 0
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_publish_batch_all_success(self, sample_signal):
         """Testa batch onde todos os sinais são publicados."""
         producer = KafkaSignalProducer()
@@ -438,7 +438,7 @@ class TestBatchPublishing:
 
         assert result == 5
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_publish_batch_partial_failure(self, sample_signal):
         """Testa batch com falhas parciais."""
         producer = KafkaSignalProducer()
@@ -462,7 +462,7 @@ class TestBatchPublishing:
 
             assert result == 3
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_publish_batch_with_exceptions(self, sample_signal):
         """Testa batch com exceções."""
         producer = KafkaSignalProducer()
@@ -492,7 +492,7 @@ class TestBatchPublishing:
 class TestKafkaConfiguration:
     """Testes de configuração do Kafka."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_uses_correct_bootstrap_servers(self):
         """Testa que bootstrap servers corretos são usados."""
         producer = KafkaSignalProducer()
@@ -507,7 +507,7 @@ class TestKafkaConfiguration:
             config = call_args[1] if call_args else {}
             assert "bootstrap_servers" in config
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_uses_compression_type(self):
         """Testa que compressão gzip é configurada."""
         producer = KafkaSignalProducer()
@@ -522,7 +522,7 @@ class TestKafkaConfiguration:
             config = call_args[1] if call_args else {}
             assert config.get("compression_type") == "gzip"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_enables_idempotence(self):
         """Testa que idempotência está habilitada."""
         producer = KafkaSignalProducer()
@@ -537,7 +537,7 @@ class TestKafkaConfiguration:
             config = call_args[1] if call_args else {}
             assert config.get("enable_idempotence") is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_acks_all(self):
         """Testa que acks='all' é configurado."""
         producer = KafkaSignalProducer()
@@ -631,7 +631,7 @@ class TestAvroConversion:
 class TestKafkaProducerIntegration:
     """Testes de integração."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_full_publishing_workflow(self, sample_signal):
         """Testa workflow completo de publicação."""
         producer = KafkaSignalProducer()
@@ -649,7 +649,7 @@ class TestKafkaProducerIntegration:
 
         assert result is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_publish_different_domains(self, sample_signal):
         """Testa publicação de diferentes domínios."""
         producer = KafkaSignalProducer()

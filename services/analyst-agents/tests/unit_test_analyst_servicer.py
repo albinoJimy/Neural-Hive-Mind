@@ -1,14 +1,14 @@
 """Testes unitarios para o AnalystServicer (com mocks)."""
 
-import pytest
 import uuid
 from unittest.mock import AsyncMock, MagicMock
 
+import pytest
 from src.grpc_service.analyst_servicer import AnalystServicer
 from src.proto import analyst_agent_pb2
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_mongodb_client():
     """Mock do cliente MongoDB."""
     client = AsyncMock()
@@ -28,7 +28,7 @@ def mock_mongodb_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_redis_client():
     """Mock do cliente Redis."""
     client = AsyncMock()
@@ -39,7 +39,7 @@ def mock_redis_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_query_engine():
     """Mock do query engine."""
     engine = AsyncMock()
@@ -47,7 +47,7 @@ def mock_query_engine():
     return engine
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_analytics_engine():
     """Mock do analytics engine."""
     engine = MagicMock()
@@ -59,13 +59,13 @@ def mock_analytics_engine():
     return engine
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_insight_generator():
     """Mock do gerador de insights."""
     return MagicMock()
 
 
-@pytest.fixture
+@pytest.fixture()
 def servicer(
     mock_mongodb_client,
     mock_redis_client,
@@ -83,7 +83,7 @@ def servicer(
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_grpc_context():
     """Mock do contexto gRPC."""
     context = MagicMock()
@@ -93,7 +93,7 @@ def mock_grpc_context():
     return context
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_insight_dict():
     """Dados de exemplo de um insight."""
     return {
@@ -122,7 +122,7 @@ def sample_insight_dict():
 class TestGetInsight:
     """Testes para o metodo GetInsight."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_insight_not_found(self, servicer, mock_grpc_context):
         """Testa busca de insight inexistente."""
         request = analyst_agent_pb2.GetInsightRequest(insight_id="non-existent-id")
@@ -131,7 +131,7 @@ class TestGetInsight:
 
         assert response.found is False
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_insight_cache_hit(
         self, servicer, mock_redis_client, mock_grpc_context, sample_insight_dict
     ):
@@ -146,7 +146,7 @@ class TestGetInsight:
         assert response.insight.insight_type == "ANOMALY"
         mock_redis_client.get_cached_insight.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_insight_from_mongodb(
         self,
         servicer,
@@ -170,7 +170,7 @@ class TestGetInsight:
 class TestQueryInsights:
     """Testes para o metodo QueryInsights."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_query_insights_empty(self, servicer, mock_grpc_context):
         """Testa consulta sem resultados."""
         request = analyst_agent_pb2.QueryInsightsRequest(insight_type="ANOMALY", limit=10)
@@ -180,7 +180,7 @@ class TestQueryInsights:
         assert response.total_count == 0
         assert len(response.insights) == 0
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_query_insights_with_results(
         self, servicer, mock_mongodb_client, mock_grpc_context, sample_insight_dict
     ):
@@ -194,7 +194,7 @@ class TestQueryInsights:
         assert len(response.insights) == 1
         assert response.insights[0].insight_type == "ANOMALY"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_query_insights_with_time_filter(
         self, servicer, mock_mongodb_client, mock_grpc_context
     ):
@@ -214,7 +214,7 @@ class TestQueryInsights:
 class TestExecuteAnalysis:
     """Testes para o metodo ExecuteAnalysis."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_anomaly_detection(self, servicer, mock_grpc_context):
         """Testa execucao de deteccao de anomalias."""
         request = analyst_agent_pb2.ExecuteAnalysisRequest(
@@ -228,7 +228,7 @@ class TestExecuteAnalysis:
         assert "anomaly_count" in response.results
         assert response.confidence > 0
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_trend_analysis(self, servicer, mock_grpc_context):
         """Testa execucao de analise de tendencia."""
         request = analyst_agent_pb2.ExecuteAnalysisRequest(
@@ -240,7 +240,7 @@ class TestExecuteAnalysis:
         assert response.analysis_id != ""
         assert "slope" in response.results
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_correlation_analysis(self, servicer, mock_grpc_context):
         """Testa execucao de analise de correlacao."""
         request = analyst_agent_pb2.ExecuteAnalysisRequest(
@@ -253,7 +253,7 @@ class TestExecuteAnalysis:
         assert response.analysis_id != ""
         assert "correlation" in response.results
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_invalid_analysis_type(self, servicer, mock_grpc_context):
         """Testa erro com tipo de analise invalido."""
         request = analyst_agent_pb2.ExecuteAnalysisRequest(
@@ -264,7 +264,7 @@ class TestExecuteAnalysis:
 
         mock_grpc_context.set_code.assert_called()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_missing_metric_name(self, servicer, mock_grpc_context):
         """Testa erro quando metric_name nao e fornecido."""
         request = analyst_agent_pb2.ExecuteAnalysisRequest(
@@ -279,7 +279,7 @@ class TestExecuteAnalysis:
 class TestGetStatistics:
     """Testes para o metodo GetStatistics."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_statistics_empty(self, servicer, mock_grpc_context):
         """Testa estatisticas vazias."""
         request = analyst_agent_pb2.GetStatisticsRequest()
@@ -289,7 +289,7 @@ class TestGetStatistics:
         assert response.avg_confidence == 0.0
         assert response.avg_impact == 0.0
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_statistics_with_data(self, servicer, mock_mongodb_client, mock_grpc_context):
         """Testa estatisticas com dados."""
         mock_mongodb_client.get_insight_statistics.return_value = {
@@ -308,7 +308,7 @@ class TestGetStatistics:
         assert "ANOMALY" in response.insights_by_type
         assert response.insights_by_type["ANOMALY"] == 10
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_statistics_with_time_filter(
         self, servicer, mock_mongodb_client, mock_grpc_context
     ):
@@ -325,7 +325,7 @@ class TestGetStatistics:
 class TestHealthCheck:
     """Testes para o metodo HealthCheck."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_health_check_healthy(self, servicer, mock_grpc_context):
         """Testa health check com todos os componentes saudaveis."""
         request = analyst_agent_pb2.HealthCheckRequest()
@@ -335,7 +335,7 @@ class TestHealthCheck:
         assert response.healthy is True
         assert response.status == "HEALTHY"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_health_check_mongodb_unhealthy(
         self, servicer, mock_mongodb_client, mock_grpc_context
     ):
@@ -348,7 +348,7 @@ class TestHealthCheck:
         assert response.healthy is False
         assert response.status == "DEGRADED"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_health_check_redis_unhealthy(
         self, servicer, mock_redis_client, mock_grpc_context
     ):

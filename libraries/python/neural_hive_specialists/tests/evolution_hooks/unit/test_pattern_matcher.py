@@ -2,15 +2,15 @@
 
 import pytest
 
-from neural_hive_specialists.evolution_hooks.pattern_matcher import PatternMatcher
 from neural_hive_specialists.evolution_hooks.models import (
-    Fingerprint,
     EvolutionEvaluation,
+    Fingerprint,
     TaskCountRange,
 )
+from neural_hive_specialists.evolution_hooks.pattern_matcher import PatternMatcher
 
 
-@pytest.fixture
+@pytest.fixture()
 async def matcher(mongo_client):
     """Matcher com database limpo."""
     # Limpar collection mock
@@ -22,7 +22,7 @@ async def matcher(mongo_client):
     return matcher
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 class TestPatternMatcher:
     """Testes para PatternMatcher."""
 

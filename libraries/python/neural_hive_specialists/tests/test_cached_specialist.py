@@ -6,7 +6,7 @@ from neural_hive_specialists.cached_specialist import CachedSpecialist
 from neural_hive_specialists.config import SpecialistConfig
 
 
-@pytest.fixture
+@pytest.fixture()
 def cached_config():
     """Configuração com cache habilitado."""
     return SpecialistConfig(
@@ -26,7 +26,7 @@ def cached_config():
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def uncached_config():
     """Configuração com cache desabilitado."""
     return SpecialistConfig(
@@ -45,7 +45,7 @@ def uncached_config():
     )
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestCachedSpecialistInit:
     """Testes de inicialização."""
 
@@ -65,7 +65,7 @@ class TestCachedSpecialistInit:
             assert True  # Config confirmada sem cache
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestCachedSpecialistBehavior:
     """Testes para comportamento esperado."""
 

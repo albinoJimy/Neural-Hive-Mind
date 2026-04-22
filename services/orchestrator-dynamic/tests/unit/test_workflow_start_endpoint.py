@@ -5,19 +5,20 @@ Valida o comportamento do endpoint de início de workflow Temporal,
 incluindo cenários de sucesso, erros e validações.
 """
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
-from httpx import AsyncClient, ASGITransport
+
+import pytest
+from httpx import ASGITransport, AsyncClient
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_app_state():
     """Mock do app_state para testes."""
     with patch("src.main.app_state") as mock_state:
         yield mock_state
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_settings():
     """Mock das configurações."""
     with patch("src.main.get_settings") as mock_get_settings:
@@ -31,7 +32,7 @@ def mock_settings():
 class TestWorkflowStartSuccess:
     """Testes de sucesso do endpoint /api/v1/workflows/start."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_workflow_start_basic_success(self, mock_app_state, mock_settings):
         """Testa início de workflow com sucesso básico."""
         from src.main import app
@@ -69,7 +70,7 @@ class TestWorkflowStartSuccess:
         assert call_args.kwargs["id"] == "nhm-flow-c-corr-abc"
         assert call_args.kwargs["task_queue"] == "orchestration-tasks"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_workflow_start_with_default_priority(self, mock_app_state, mock_settings):
         """Testa início de workflow com prioridade default (5)."""
         from src.main import app
@@ -96,7 +97,7 @@ class TestWorkflowStartSuccess:
         input_data = call_args.args[1]
         assert input_data["consolidated_decision"]["priority"] == 5
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_workflow_start_with_default_sla(self, mock_app_state, mock_settings):
         """Testa início de workflow com SLA default (14400s = 4h)."""
         from src.main import app
@@ -121,7 +122,7 @@ class TestWorkflowStartSuccess:
 class TestWorkflowStartTemporalUnavailable:
     """Testes de erro quando Temporal não está disponível."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_workflow_start_temporal_client_none(self, mock_app_state):
         """Testa erro 503 quando temporal_client é None."""
         from src.main import app
@@ -141,7 +142,7 @@ class TestWorkflowStartTemporalUnavailable:
 class TestWorkflowStartErrors:
     """Testes de erro ao iniciar workflow."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_workflow_start_temporal_exception(self, mock_app_state, mock_settings):
         """Testa erro 500 quando Temporal lança exceção."""
         from src.main import app
@@ -160,7 +161,7 @@ class TestWorkflowStartErrors:
         assert "Failed to start workflow" in response.json()["detail"]
         assert "Connection refused" in response.json()["detail"]
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_workflow_start_workflow_already_exists(self, mock_app_state, mock_settings):
         """Testa erro quando workflow já existe."""
         from src.main import app
@@ -182,7 +183,7 @@ class TestWorkflowStartErrors:
 class TestWorkflowStartValidation:
     """Testes de validação de request."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_workflow_start_missing_cognitive_plan(self, mock_app_state, mock_settings):
         """Testa erro 422 quando cognitive_plan está ausente."""
         from src.main import app
@@ -195,7 +196,7 @@ class TestWorkflowStartValidation:
         assert response.status_code == 422
         assert "cognitive_plan" in str(response.json())
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_workflow_start_missing_correlation_id(self, mock_app_state, mock_settings):
         """Testa erro 422 quando correlation_id está ausente."""
         from src.main import app
@@ -210,7 +211,7 @@ class TestWorkflowStartValidation:
         assert response.status_code == 422
         assert "correlation_id" in str(response.json())
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_workflow_start_priority_below_minimum(self, mock_app_state, mock_settings):
         """Testa erro 422 quando priority < 1."""
         from src.main import app
@@ -230,7 +231,7 @@ class TestWorkflowStartValidation:
         assert response.status_code == 422
         assert "priority" in str(response.json()).lower()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_workflow_start_priority_above_maximum(self, mock_app_state, mock_settings):
         """Testa erro 422 quando priority > 10."""
         from src.main import app
@@ -250,7 +251,7 @@ class TestWorkflowStartValidation:
         assert response.status_code == 422
         assert "priority" in str(response.json()).lower()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_workflow_start_empty_body(self, mock_app_state, mock_settings):
         """Testa erro 422 quando body está vazio."""
         from src.main import app
@@ -266,7 +267,7 @@ class TestWorkflowStartValidation:
 class TestWorkflowStartDecisionIdFallback:
     """Testes de fallback de decision_id."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_workflow_start_uses_decision_id_from_plan(self, mock_app_state, mock_settings):
         """Testa que decision_id é extraído do cognitive_plan."""
         from src.main import app
@@ -290,7 +291,7 @@ class TestWorkflowStartDecisionIdFallback:
         input_data = call_args.args[1]
         assert input_data["consolidated_decision"]["decision_id"] == "decision-from-plan"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_workflow_start_fallback_to_correlation_id(self, mock_app_state, mock_settings):
         """Testa fallback para correlation_id quando decision_id ausente."""
         from src.main import app
@@ -317,7 +318,7 @@ class TestWorkflowStartDecisionIdFallback:
         input_data = call_args.args[1]
         assert input_data["consolidated_decision"]["decision_id"] == "corr-fallback"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_workflow_start_fallback_with_empty_decision_id(
         self, mock_app_state, mock_settings
     ):
@@ -348,7 +349,7 @@ class TestWorkflowStartDecisionIdFallback:
 class TestWorkflowIdGeneration:
     """Testes de geração de workflow_id."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_workflow_id_format(self, mock_app_state, mock_settings):
         """Testa formato correto do workflow_id."""
         from src.main import app
@@ -371,7 +372,7 @@ class TestWorkflowIdGeneration:
         # Formato: {prefix}flow-c-{correlation_id}
         assert data["workflow_id"] == "nhm-flow-c-test-correlation-id"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_workflow_id_uses_configured_prefix(self, mock_app_state):
         """Testa que workflow_id usa prefixo configurado."""
         from src.main import app
@@ -397,7 +398,7 @@ class TestWorkflowIdGeneration:
         data = response.json()
         assert data["workflow_id"] == "custom-prefix-flow-c-corr-id"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_workflow_id_with_uuid_correlation(self, mock_app_state, mock_settings):
         """Testa workflow_id com UUID como correlation_id."""
         from src.main import app
@@ -425,7 +426,7 @@ class TestWorkflowIdGeneration:
 class TestWorkflowStartInputData:
     """Testes de construção do input_data para o workflow."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_input_data_contains_consolidated_decision(self, mock_app_state, mock_settings):
         """Testa que input_data contém consolidated_decision."""
         from src.main import app
@@ -463,7 +464,7 @@ class TestWorkflowStartInputData:
         assert consolidated_decision["priority"] == 8
         assert consolidated_decision["sla_deadline_seconds"] == 3600
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_input_data_contains_cognitive_plan(self, mock_app_state, mock_settings):
         """Testa que input_data contém cognitive_plan original."""
         from src.main import app
@@ -494,7 +495,7 @@ class TestWorkflowStartInputData:
 
         assert input_data["cognitive_plan"] == cognitive_plan
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_input_data_unknown_plan_id_fallback(self, mock_app_state, mock_settings):
         """Testa fallback para 'unknown' quando plan_id ausente."""
         from src.main import app
@@ -526,14 +527,14 @@ class TestWorkflowStartInputData:
 class TestGetTicketEndpoint:
     """Testes para o endpoint GET /api/v1/tickets/{ticket_id}."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_mongodb_client(self):
         """Mock do cliente MongoDB."""
         client = AsyncMock()
         client.get_ticket = AsyncMock()
         return client
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_ticket_success(self, mock_app_state, mock_mongodb_client):
         """Testa consulta de ticket com sucesso."""
         from src.main import app
@@ -557,7 +558,7 @@ class TestGetTicketEndpoint:
         assert data["status"] == "COMPLETED"
         assert data["cached"] is False
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_ticket_not_found(self, mock_app_state, mock_mongodb_client):
         """Testa erro 404 quando ticket não existe."""
         from src.main import app
@@ -572,7 +573,7 @@ class TestGetTicketEndpoint:
         assert response.status_code == 404
         assert "not found" in response.json()["detail"].lower()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_ticket_mongodb_unavailable(self, mock_app_state):
         """Testa erro 503 quando MongoDB não está disponível."""
         from src.main import app
@@ -595,14 +596,14 @@ class TestGetTicketEndpoint:
 class TestGetTicketsByPlanEndpoint:
     """Testes para o endpoint GET /api/v1/tickets/by-plan/{plan_id}."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_mongodb_client(self):
         """Mock do cliente MongoDB com collection de tickets."""
         client = AsyncMock()
         client.execution_tickets = MagicMock()
         return client
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_tickets_by_plan_success(self, mock_app_state, mock_mongodb_client):
         """Testa listagem de tickets com sucesso."""
         from src.main import app
@@ -633,7 +634,7 @@ class TestGetTicketsByPlanEndpoint:
         assert data["total"] == 2
         assert data["cached"] is False
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_tickets_by_plan_with_status_filter(
         self, mock_app_state, mock_mongodb_client
     ):
@@ -660,7 +661,7 @@ class TestGetTicketsByPlanEndpoint:
         data = response.json()
         assert len(data["tickets"]) == 1
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_tickets_by_plan_invalid_limit(self, mock_app_state, mock_mongodb_client):
         """Testa erro 400 quando limit > 500."""
         from src.main import app
@@ -674,7 +675,7 @@ class TestGetTicketsByPlanEndpoint:
         assert response.status_code == 400
         assert "cannot exceed 500" in response.json()["detail"].lower()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_tickets_by_plan_invalid_status(self, mock_app_state, mock_mongodb_client):
         """Testa erro 400 com status inválido."""
         from src.main import app
@@ -689,7 +690,7 @@ class TestGetTicketsByPlanEndpoint:
         assert response.status_code == 400
         assert "Invalid status" in response.json()["detail"]
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_tickets_by_plan_mongodb_unavailable(self, mock_app_state):
         """Testa erro 503 quando MongoDB não está disponível."""
         from src.main import app
@@ -712,7 +713,7 @@ class TestGetTicketsByPlanEndpoint:
 class TestGetWorkflowStatusEndpoint:
     """Testes para o endpoint GET /api/v1/workflows/{workflow_id}."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_workflow_status_success(self, mock_app_state):
         """Testa consulta de status de workflow com sucesso."""
         from src.main import app
@@ -744,7 +745,7 @@ class TestGetWorkflowStatusEndpoint:
         assert data["status"] == "RUNNING"
         assert data["cached"] is False
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_workflow_status_not_found(self, mock_app_state):
         """Testa erro 404 quando workflow não existe."""
         from src.main import app
@@ -763,7 +764,7 @@ class TestGetWorkflowStatusEndpoint:
         assert response.status_code == 404
         assert "not found" in response.json()["detail"].lower()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_workflow_status_temporal_unavailable(self, mock_app_state):
         """Testa erro 503 quando Temporal não está disponível."""
         from src.main import app

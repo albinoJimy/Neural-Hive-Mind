@@ -4,15 +4,16 @@ Risk Explainability
 Explicabilidade de decisões de risco com SHAP-like values e feature importance.
 """
 
-import structlog
-from typing import Dict, List, Optional, Tuple
-from datetime import datetime, timezone
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
+from typing import Optional
+
+import structlog
+
+from neural_hive_domain import UnifiedDomain
 
 from .config import RiskBand, RiskScoringConfig
 from .models import RiskAssessment
-from neural_hive_domain import UnifiedDomain
-
 
 logger = structlog.get_logger(__name__)
 
@@ -29,7 +30,7 @@ class FactorContribution:
     direction: str  # 'increases_risk', 'decreases_risk', 'neutral'
     description: str
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         """Converte para dicionário."""
         return {
             "name": self.name,
@@ -50,14 +51,14 @@ class RiskExplanation:
     domain: UnifiedDomain
     final_score: float
     final_band: RiskBand
-    factors: List[FactorContribution]
+    factors: list[FactorContribution]
     base_score: float  # Score base sem fatores
     total_adjustment: float  # Ajuste total dos fatores
     reasoning: str
-    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
-    metadata: Dict = field(default_factory=dict)
+    timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))
+    metadata: dict = field(default_factory=dict)
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         """Converte para dicionário."""
         return {
             "entity_id": self.entity_id,
@@ -78,14 +79,14 @@ class WhatIfScenario:
     """Resultado de análise what-if."""
 
     scenario_name: str
-    modified_factors: Dict[str, float]
+    modified_factors: dict[str, float]
     original_score: float
     new_score: float
     score_delta: float
-    band_change: Optional[Tuple[RiskBand, RiskBand]]
+    band_change: Optional[tuple[RiskBand, RiskBand]]
     impact: str  # 'significant', 'moderate', 'minimal'
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         """Converte para dicionário."""
         return {
             "scenario_name": self.scenario_name,
@@ -156,8 +157,8 @@ class RiskExplainability:
         return explanation
 
     def _calculate_factor_contributions(
-        self, factors: Dict[str, float], domain: UnifiedDomain, base_score: float
-    ) -> List[FactorContribution]:
+        self, factors: dict[str, float], domain: UnifiedDomain, base_score: float
+    ) -> list[FactorContribution]:
         """Calcula contribuição de cada fator.
 
         Args:
@@ -250,7 +251,7 @@ class RiskExplainability:
         self,
         final_score: float,
         final_band: RiskBand,
-        factors: List[FactorContribution],
+        factors: list[FactorContribution],
         total_adjustment: float,
     ) -> str:
         """Gera justificativa detalhada."""
@@ -280,9 +281,9 @@ class RiskExplainability:
         self,
         assessment: RiskAssessment,
         entity_id: str,
-        scenarios: Dict[str, Dict[str, float]],
+        scenarios: dict[str, dict[str, float]],
         base_score: float = 0.5,
-    ) -> List[WhatIfScenario]:
+    ) -> list[WhatIfScenario]:
         """Realiza análise what-if de cenários.
 
         Args:
@@ -365,7 +366,7 @@ class RiskExplainability:
 
     def compare_assessments(
         self, assessment1: RiskAssessment, assessment2: RiskAssessment, entity_id: str
-    ) -> Dict:
+    ) -> dict:
         """Compara duas avaliações da mesma entidade.
 
         Args:
@@ -422,7 +423,7 @@ class RiskExplainability:
             "timestamp2": assessment2.assessed_at.isoformat() if assessment2.assessed_at else None,
         }
 
-    def get_feature_importance(self, domain: UnifiedDomain) -> List[Tuple[str, float]]:
+    def get_feature_importance(self, domain: UnifiedDomain) -> list[tuple[str, float]]:
         """Retorna importância de features por domínio.
 
         Args:
@@ -435,7 +436,7 @@ class RiskExplainability:
         sorted_weights = sorted(weights.items(), key=lambda x: x[1], reverse=True)
         return sorted_weights
 
-    def generate_recommendations(self, explanation: RiskExplanation) -> List[str]:
+    def generate_recommendations(self, explanation: RiskExplanation) -> list[str]:
         """Gera recomendações baseado na explicação.
 
         Args:

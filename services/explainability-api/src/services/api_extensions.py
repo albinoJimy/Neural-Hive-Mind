@@ -9,8 +9,8 @@ Estende a API existente com novos endpoints e funcionalidades:
 GAPS-04 Task 5
 """
 
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from datetime import UTC, datetime
+from typing import Any, Optional
 
 import structlog
 
@@ -47,7 +47,7 @@ class ExplainabilityAPIExtensions:
         self.quality_scorer = quality_scorer
         self.reasoning_extractor = reasoning_extractor
 
-    async def get_explainability_by_decision_id(self, decision_id: str) -> Dict[str, Any]:
+    async def get_explainability_by_decision_id(self, decision_id: str) -> dict[str, Any]:
         """
         Busca explicação por decision_id com campos extendidos.
 
@@ -78,7 +78,7 @@ class ExplainabilityAPIExtensions:
 
         return explanation
 
-    async def generate_explanation(self, request: Dict[str, Any]) -> Dict[str, Any]:
+    async def generate_explanation(self, request: dict[str, Any]) -> dict[str, Any]:
         """
         Gera nova explicação sob demanda.
 
@@ -101,7 +101,7 @@ class ExplainabilityAPIExtensions:
         # Construir explicação base
         explanation = {
             "decision_id": decision_id,
-            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "generated_at": datetime.now(UTC).isoformat(),
             "format": output_format,
         }
 
@@ -149,7 +149,7 @@ class ExplainabilityAPIExtensions:
         else:
             return explanation
 
-    def format_explanation(self, explanation: Dict[str, Any], output_format: str) -> Dict[str, Any]:
+    def format_explanation(self, explanation: dict[str, Any], output_format: str) -> dict[str, Any]:
         """
         Formata explicação em diferentes formatos.
 
@@ -168,7 +168,7 @@ class ExplainabilityAPIExtensions:
             # JSON é o padrão - retorna dict
             return explanation
 
-    def _format_as_text(self, explanation: Dict[str, Any]) -> Dict[str, Any]:
+    def _format_as_text(self, explanation: dict[str, Any]) -> dict[str, Any]:
         """Formata explicação como texto narrativo."""
         narrative_lines = []
         narrative_lines.append("=== Explicação de Decisão ===\n")
@@ -207,7 +207,7 @@ class ExplainabilityAPIExtensions:
             "raw_data": explanation,
         }
 
-    def _format_as_html(self, explanation: Dict[str, Any]) -> Dict[str, Any]:
+    def _format_as_html(self, explanation: dict[str, Any]) -> dict[str, Any]:
         """Formata explicação como HTML."""
         html_parts = []
         html_parts.append("<html><head><title>Explicação de Decisão</title>")
@@ -311,7 +311,7 @@ def setup_extensions(
 
     # Endpoint POST /api/v1/explainability/generate
     @app.post("/api/v1/explainability/generate")
-    async def generate_explanation_endpoint(request: Dict[str, Any]):
+    async def generate_explanation_endpoint(request: dict[str, Any]):
         """Gera nova explicação sob demanda."""
         from pydantic import BaseModel, ConfigDict
 
@@ -321,7 +321,7 @@ def setup_extensions(
             include_shap: bool = False
             include_reasoning_extraction: bool = False
             include_quality_score: bool = True
-            specialist_votes: Optional[List[Dict]] = None
+            specialist_votes: Optional[list[dict]] = None
             reasoning_text: Optional[str] = None
             final_decision: Optional[str] = None
 

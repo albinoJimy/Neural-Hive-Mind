@@ -225,9 +225,7 @@ class TestMongoDBClient:
                 client = MongoDBClient()
                 await client.connect()
 
-                await client.update_migration_job_status(
-                    "job-123", "analyzing", error_message=None
-                )
+                await client.update_migration_job_status("job-123", "analyzing", error_message=None)
 
                 mock_collection.update_one.assert_called_once()
                 call_args = mock_collection.update_one.call_args

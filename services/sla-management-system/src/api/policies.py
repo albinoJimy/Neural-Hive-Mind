@@ -2,7 +2,8 @@
 Router FastAPI para endpoints de políticas de congelamento.
 """
 
-from typing import List, Optional
+from datetime import UTC
+from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
@@ -21,12 +22,12 @@ class PolicyCreateResponse(BaseModel):
 
 
 class PolicyListResponse(BaseModel):
-    policies: List[FreezePolicy]
+    policies: list[FreezePolicy]
     total: int
 
 
 class FreezeListResponse(BaseModel):
-    freezes: List[FreezeEvent]
+    freezes: list[FreezeEvent]
     total: int
 
 
@@ -72,7 +73,7 @@ async def create_policy(
         policy_id = await pg_client.create_policy(policy)
         return PolicyCreateResponse(policy_id=policy_id, message="Policy created successfully")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Creation failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Creation failed: {e!s}")
 
 
 @router.get("/{policy_id}", response_model=FreezePolicy)
@@ -111,7 +112,7 @@ async def update_policy(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Update failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Update failed: {e!s}")
 
 
 @router.delete("/{policy_id}")
@@ -152,16 +153,16 @@ async def resolve_freeze(
 
     # Resolver freeze (sem budget, resolve manualmente)
     # Criar budget dummy para passar para resolve_freeze
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     from ..models.error_budget import BudgetStatus, ErrorBudget
 
     dummy_budget = ErrorBudget(
         slo_id=event.slo_id,
         service_name=event.service_name,
-        calculated_at=datetime.now(timezone.utc),
-        window_start=datetime.now(timezone.utc),
-        window_end=datetime.now(timezone.utc),
+        calculated_at=datetime.now(UTC),
+        window_start=datetime.now(UTC),
+        window_end=datetime.now(UTC),
         sli_value=0.999,
         slo_target=0.999,
         error_budget_total=0.1,

@@ -10,7 +10,7 @@ Responsável por:
 
 import asyncio
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Set
+from typing import Optional
 
 import structlog
 
@@ -26,7 +26,7 @@ class Task:
         target: str,  # filepath ou directory
         task_type: str,  # 'scan_file', 'analyze_directory', 'detect_patterns'
         priority: float = 0.5,
-        metadata: Optional[Dict] = None,
+        metadata: Optional[dict] = None,
     ):
         self.task_id = task_id
         self.target = target
@@ -38,9 +38,9 @@ class Task:
         self.status = "pending"  # pending, assigned, completed, failed
         self.started_at: Optional[datetime] = None
         self.completed_at: Optional[datetime] = None
-        self.result: Optional[Dict] = None
+        self.result: Optional[dict] = None
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         """Converte para dicionário."""
         return {
             "task_id": self.task_id,
@@ -76,10 +76,10 @@ class ScoutCoordinator:
         self.task_timeout = task_timeout
 
         # Estado
-        self._tasks: Dict[str, Task] = {}
+        self._tasks: dict[str, Task] = {}
         self._task_queue: asyncio.Queue = asyncio.Queue()
-        self._active_tasks: Set[str] = set()
-        self._scouts: Dict[str, Dict] = {}  # scout_id -> {status, last_heartbeat}
+        self._active_tasks: set[str] = set()
+        self._scouts: dict[str, dict] = {}  # scout_id -> {status, last_heartbeat}
 
         # Filas por prioridade
         self._high_priority_queue: asyncio.Queue = asyncio.Queue()
@@ -94,7 +94,7 @@ class ScoutCoordinator:
             "tasks_timeout": 0,
         }
 
-    async def register_scout(self, scout_id: str, capabilities: List[str]) -> bool:
+    async def register_scout(self, scout_id: str, capabilities: list[str]) -> bool:
         """
         Registra um scout no coordendor.
 
@@ -136,7 +136,7 @@ class ScoutCoordinator:
             logger.info("scout_unregistered", scout_id=scout_id)
 
     async def create_task(
-        self, target: str, task_type: str, priority: float = 0.5, metadata: Optional[Dict] = None
+        self, target: str, task_type: str, priority: float = 0.5, metadata: Optional[dict] = None
     ) -> str:
         """
         Cria uma nova tarefa de exploração.
@@ -178,7 +178,7 @@ class ScoutCoordinator:
         else:
             await self._normal_priority_queue.put(task)
 
-    async def get_next_task(self, scout_id: str, capabilities: List[str]) -> Optional[Dict]:
+    async def get_next_task(self, scout_id: str, capabilities: list[str]) -> Optional[dict]:
         """
         Retorna próxima tarefa para um scout.
 
@@ -228,7 +228,7 @@ class ScoutCoordinator:
 
         return None
 
-    async def complete_task(self, task_id: str, result: Dict, success: bool = True):
+    async def complete_task(self, task_id: str, result: dict, success: bool = True):
         """
         Marca tarefa como completada.
 
@@ -279,7 +279,7 @@ class ScoutCoordinator:
 
             logger.warning("task_timeout", task_id=task_id)
 
-    async def get_task_status(self, task_id: str) -> Optional[Dict]:
+    async def get_task_status(self, task_id: str) -> Optional[dict]:
         """
         Retorna status de uma tarefa.
 
@@ -293,7 +293,7 @@ class ScoutCoordinator:
             return self._tasks[task_id].to_dict()
         return None
 
-    async def get_coordinator_status(self) -> Dict:
+    async def get_coordinator_status(self) -> dict:
         """
         Retorna status do coordenador.
 
@@ -322,7 +322,7 @@ class ScoutCoordinator:
             "timestamp": datetime.now().isoformat(),
         }
 
-    async def broadcast_event(self, event_type: str, payload: Dict):
+    async def broadcast_event(self, event_type: str, payload: dict):
         """
         Broadcast evento para todos os scouts registrados.
 

@@ -8,30 +8,30 @@ Cobertura:
 - Alocação paralela de múltiplos tickets
 """
 
-import pytest
-from datetime import datetime, timezone, timedelta
+from datetime import UTC, datetime, timedelta
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock
-from typing import Dict, Any
 
+import pytest
 from src.activities.ticket_generation import allocate_resources
+from src.clients.service_registry_client import ServiceRegistryClient
+from src.config.settings import OrchestratorSettings
+from src.observability.metrics import OrchestratorMetrics
+from src.policies.policy_validator import PolicyValidator
 from src.scheduler.intelligent_scheduler import IntelligentScheduler
 from src.scheduler.priority_calculator import PriorityCalculator
 from src.scheduler.resource_allocator import ResourceAllocator
-from src.clients.service_registry_client import ServiceRegistryClient
-from src.policies.policy_validator import PolicyValidator
-from src.config.settings import OrchestratorSettings
-from src.observability.metrics import OrchestratorMetrics
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_temporal_client():
     """Temporal client mock."""
     client = AsyncMock()
     return client
 
 
-@pytest.fixture
-def mock_cognitive_plan() -> Dict[str, Any]:
+@pytest.fixture()
+def mock_cognitive_plan() -> dict[str, Any]:
     """Plano cognitivo com múltiplas tarefas."""
     return {
         "plan_id": "plan-workflow-1",
@@ -56,26 +56,26 @@ def mock_cognitive_plan() -> Dict[str, Any]:
     }
 
 
-@pytest.fixture
-def mock_consolidated_decision() -> Dict[str, Any]:
+@pytest.fixture()
+def mock_consolidated_decision() -> dict[str, Any]:
     """Decisão consolidada."""
     return {
         "decision_id": "decision-workflow-1",
         "correlation_id": "corr-workflow-1",
         "trace_id": "trace-workflow-1",
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
         "selected_plan": {"plan_id": "plan-workflow-1", "confidence_score": 0.95},
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_workflow_environment():
     """Ambiente de teste para workflow Temporal."""
     env = MagicMock()
     return env
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_activity_dependencies():
     """Todas as dependências de activities."""
     # Service Registry
@@ -164,7 +164,7 @@ def mock_activity_dependencies():
 class TestOrchestrationWorkflowScheduler:
     """Testes de integração workflow + scheduler."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_workflow_c3_allocate_resources_with_scheduler(self, mock_activity_dependencies):
         """Testa step C3 com scheduler real."""
         # Importar e injetar dependências
@@ -189,14 +189,14 @@ class TestOrchestrationWorkflowScheduler:
                 "durability": "PERSISTENT",
             },
             "sla": {
-                "deadline": (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat(),
+                "deadline": (datetime.now(UTC) + timedelta(hours=1)).isoformat(),
                 "timeout_ms": 3600000,
             },
             "required_capabilities": ["python", "data-processing"],
             "namespace": "default",
             "security_level": "standard",
             "estimated_duration_ms": 1000,
-            "created_at": datetime.now(timezone.utc).isoformat(),
+            "created_at": datetime.now(UTC).isoformat(),
         }
 
         # Executar activity
@@ -207,7 +207,7 @@ class TestOrchestrationWorkflowScheduler:
         assert result["allocation_metadata"]["allocation_method"] == "intelligent_scheduler"
         assert result["allocation_metadata"]["agent_id"] == "worker-001"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_workflow_c3_scheduler_timeout_fallback(self, mock_activity_dependencies):
         """Testa fallback quando scheduler dá timeout."""
         # Criar registry client que demora muito
@@ -255,7 +255,7 @@ class TestOrchestrationWorkflowScheduler:
             "namespace": "default",
             "security_level": "standard",
             "estimated_duration_ms": 1000,
-            "created_at": datetime.now(timezone.utc).isoformat(),
+            "created_at": datetime.now(UTC).isoformat(),
         }
 
         # Executar activity (deve usar fallback)
@@ -264,7 +264,7 @@ class TestOrchestrationWorkflowScheduler:
         # Verificar fallback
         assert result["allocation_metadata"]["allocation_method"] == "fallback_stub"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_workflow_end_to_end_with_scheduler(
         self, mock_activity_dependencies, mock_cognitive_plan, mock_consolidated_decision
     ):
@@ -298,14 +298,14 @@ class TestOrchestrationWorkflowScheduler:
                     "durability": "PERSISTENT",
                 },
                 "sla": {
-                    "deadline": (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat(),
+                    "deadline": (datetime.now(UTC) + timedelta(hours=1)).isoformat(),
                     "timeout_ms": 3600000,
                 },
                 "required_capabilities": task["required_capabilities"],
                 "namespace": validated_plan["namespace"],
                 "security_level": validated_plan["security_level"],
                 "estimated_duration_ms": task["estimated_duration_ms"],
-                "created_at": datetime.now(timezone.utc).isoformat(),
+                "created_at": datetime.now(UTC).isoformat(),
             }
             tickets.append(ticket)
 
@@ -321,7 +321,7 @@ class TestOrchestrationWorkflowScheduler:
             assert "allocation_metadata" in ticket
             assert ticket["allocation_metadata"]["allocation_method"] == "intelligent_scheduler"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_workflow_multiple_tickets_parallel_allocation(self, mock_activity_dependencies):
         """Testa alocação paralela de 5 tickets no workflow."""
         # Importar activity
@@ -348,7 +348,7 @@ class TestOrchestrationWorkflowScheduler:
                 "namespace": "default",
                 "security_level": "standard",
                 "estimated_duration_ms": 1000,
-                "created_at": datetime.now(timezone.utc).isoformat(),
+                "created_at": datetime.now(UTC).isoformat(),
             }
             tickets.append(ticket)
 
@@ -362,7 +362,7 @@ class TestOrchestrationWorkflowScheduler:
         for result in results:
             assert "allocation_metadata" in result
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_workflow_c3_with_opa_rejection(self, mock_activity_dependencies):
         """Testa step C3 do workflow quando OPA rejeita ticket."""
         from src.activities import ticket_generation
@@ -402,14 +402,14 @@ class TestOrchestrationWorkflowScheduler:
                 "durability": "PERSISTENT",
             },
             "sla": {
-                "deadline": (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat(),
+                "deadline": (datetime.now(UTC) + timedelta(hours=1)).isoformat(),
                 "timeout_ms": 60000,  # 1 min (muito curto para critical)
             },
             "required_capabilities": ["python"],
             "namespace": "default",
             "security_level": "standard",
             "estimated_duration_ms": 120000,  # 2 min
-            "created_at": datetime.now(timezone.utc).isoformat(),
+            "created_at": datetime.now(UTC).isoformat(),
         }
 
         # Executar validação (simula início da activity)
@@ -423,7 +423,7 @@ class TestOrchestrationWorkflowScheduler:
         # Em um workflow real, a activity lançaria exceção ou retornaria erro
         # Aqui apenas validamos que a rejeição foi detectada
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_workflow_c3_with_feature_flag_disabled(self, mock_activity_dependencies):
         """Testa step C3 do workflow quando feature flag está desabilitada."""
         from src.activities import ticket_generation
@@ -456,7 +456,7 @@ class TestOrchestrationWorkflowScheduler:
             "namespace": "default",
             "security_level": "standard",
             "estimated_duration_ms": 1000,
-            "created_at": datetime.now(timezone.utc).isoformat(),
+            "created_at": datetime.now(UTC).isoformat(),
         }
 
         # Executar validação

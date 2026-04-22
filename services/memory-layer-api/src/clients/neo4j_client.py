@@ -4,7 +4,7 @@ Neo4j Client para grafo de conhecimento e dados semânticos
 Fornece interface assíncrona ao Neo4j para queries em grafo de conhecimento.
 """
 
-from typing import Dict, List, Optional
+from typing import Optional
 
 import structlog
 from neo4j import AsyncGraphDatabase
@@ -64,8 +64,8 @@ class Neo4jClient:
 
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=1, max=10))
     async def execute_query(
-        self, query: str, parameters: Optional[Dict] = None, timeout: Optional[float] = None
-    ) -> List[Dict]:
+        self, query: str, parameters: Optional[dict] = None, timeout: Optional[float] = None
+    ) -> list[dict]:
         """
         Executa query Cypher
 
@@ -94,7 +94,7 @@ class Neo4jClient:
                 raise
 
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=1, max=10))
-    async def execute_write(self, query: str, parameters: Optional[Dict] = None) -> Dict:
+    async def execute_write(self, query: str, parameters: Optional[dict] = None) -> dict:
         """
         Executa query de escrita
 
@@ -131,7 +131,7 @@ class Neo4jClient:
                 logger.error("Erro ao executar query de escrita", error=str(e))
                 raise
 
-    async def find_node(self, label: str, properties: Dict, limit: int = 1) -> List[Dict]:
+    async def find_node(self, label: str, properties: dict, limit: int = 1) -> list[dict]:
         """
         Busca nós por label e propriedades
 
@@ -160,7 +160,7 @@ class Neo4jClient:
             logger.error("Erro ao buscar nó", label=label, error=str(e))
             return []
 
-    async def create_node(self, label: str, properties: Dict) -> Optional[Dict]:
+    async def create_node(self, label: str, properties: dict) -> Optional[dict]:
         """
         Cria um nó
 
@@ -187,11 +187,11 @@ class Neo4jClient:
     async def create_relationship(
         self,
         from_label: str,
-        from_properties: Dict,
+        from_properties: dict,
         to_label: str,
-        to_properties: Dict,
+        to_properties: dict,
         relationship_type: str,
-        relationship_properties: Optional[Dict] = None,
+        relationship_properties: Optional[dict] = None,
     ) -> bool:
         """
         Cria relacionamento entre nós
@@ -245,7 +245,7 @@ class Neo4jClient:
 
     async def get_lineage(
         self, entity_id: str, depth: int = 3, direction: str = "both"
-    ) -> List[Dict]:
+    ) -> list[dict]:
         """
         Obtém linhagem de dados de uma entidade
 

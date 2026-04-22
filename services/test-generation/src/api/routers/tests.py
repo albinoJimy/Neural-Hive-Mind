@@ -1,17 +1,17 @@
 """Router REST para Test Generation API."""
 
-from typing import List, Optional
+from typing import Optional
+
 from fastapi import APIRouter, HTTPException, status
 from structlog import get_logger
 
 from src.models.tests import (
-    TestCase,
-    TestSuite,
-    TestType,
+    TestCoverage,
     TestFramework,
     TestGenerationRequest,
     TestGenerationResult,
-    TestCoverage,
+    TestSuite,
+    TestType,
 )
 from src.services.test_generator import TestGenerator
 
@@ -35,7 +35,7 @@ def get_test_generator() -> TestGenerator:
     "/generate",
     response_model=TestGenerationResult,
     status_code=status.HTTP_201_CREATED,
-    summary="Gerar testes automaticamente"
+    summary="Gerar testes automaticamente",
 )
 async def generate_tests(request: TestGenerationRequest) -> TestGenerationResult:
     """
@@ -76,18 +76,18 @@ async def generate_tests(request: TestGenerationRequest) -> TestGenerationResult
         logger.error("test_generation_failed", error=str(e))
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Falha na geração de testes: {str(e)}"
+            detail=f"Falha na geração de testes: {e!s}",
         )
 
 
 @router.post(
     "/generate/from-requirements",
     response_model=TestGenerationResult,
-    summary="Gerar testes a partir de requisitos"
+    summary="Gerar testes a partir de requisitos",
 )
 async def generate_from_requirements(
-    requirements: List[dict],
-    test_types: List[str] = ["unit", "integration"],
+    requirements: list[dict],
+    test_types: list[str] = ["unit", "integration"],
     framework: str = "pytest",
     language: str = "python",
     plan_id: Optional[str] = None,
@@ -102,7 +102,7 @@ async def generate_from_requirements(
         language: Linguagem do código
         plan_id: ID do plano relacionado
     """
-    from src.models.tests import TestType, TestFramework
+    from src.models.tests import TestFramework, TestType
 
     # Converter strings para enums
     test_type_enums = [TestType(t) for t in test_types]
@@ -123,10 +123,10 @@ async def generate_from_requirements(
 @router.post(
     "/generate/from-user-stories",
     response_model=TestGenerationResult,
-    summary="Gerar testes E2E a partir de user stories"
+    summary="Gerar testes E2E a partir de user stories",
 )
 async def generate_from_user_stories(
-    user_stories: List[dict],
+    user_stories: list[dict],
     framework: str = "pytest",
     language: str = "python",
     plan_id: Optional[str] = None,
@@ -151,14 +151,8 @@ async def generate_from_user_stories(
     return await generate_tests(request)
 
 
-@router.get(
-    "/coverage",
-    response_model=TestCoverage,
-    summary="Obter cobertura de testes"
-)
-async def get_coverage(
-    plan_id: Optional[str] = None
-) -> TestCoverage:
+@router.get("/coverage", response_model=TestCoverage, summary="Obter cobertura de testes")
+async def get_coverage(plan_id: Optional[str] = None) -> TestCoverage:
     """
     Retorna métricas de cobertura de testes.
 
@@ -175,15 +169,11 @@ async def get_coverage(
     )
 
 
-@router.get(
-    "/suites",
-    response_model=List[TestSuite],
-    summary="Listar suítes de testes"
-)
+@router.get("/suites", response_model=list[TestSuite], summary="Listar suítes de testes")
 async def list_test_suites(
     plan_id: Optional[str] = None,
     limit: int = 50,
-) -> List[TestSuite]:
+) -> list[TestSuite]:
     """
     Lista suítes de testes geradas.
 
@@ -195,10 +185,7 @@ async def list_test_suites(
     return []
 
 
-@router.get(
-    "/health",
-    summary="Health check"
-)
+@router.get("/health", summary="Health check")
 async def health_check() -> dict:
     """Verifica saúde do serviço."""
     return {

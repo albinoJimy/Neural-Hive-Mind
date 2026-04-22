@@ -7,7 +7,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from aioresponses import aioresponses
-
 from src.clients.mcp_exceptions import (
     MCPProtocolError,
     MCPServerError,
@@ -16,7 +15,7 @@ from src.clients.mcp_exceptions import (
 from src.clients.mcp_server_client import MCPServerClient
 
 
-@pytest.fixture
+@pytest.fixture()
 def mcp_client():
     """Cria instância de MCPServerClient para testes."""
     return MCPServerClient(
@@ -28,7 +27,7 @@ def mcp_client():
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_aiohttp():
     """Context manager para mockar requisições aiohttp."""
     with aioresponses() as m:
@@ -38,7 +37,7 @@ def mock_aiohttp():
 class TestMCPServerClientLifecycle:
     """Testes de ciclo de vida do cliente."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_start_initializes_session(self, mcp_client):
         """Verifica que start() cria sessão HTTP."""
         assert mcp_client._session is None
@@ -48,7 +47,7 @@ class TestMCPServerClientLifecycle:
         assert mcp_client._session is not None
         await mcp_client.stop()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_stop_closes_session(self, mcp_client):
         """Verifica que stop() fecha sessão."""
         await mcp_client.start()
@@ -58,7 +57,7 @@ class TestMCPServerClientLifecycle:
 
         assert mcp_client._session is None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_context_manager(self, mcp_client):
         """Verifica funcionamento como context manager."""
         async with mcp_client as client:
@@ -69,7 +68,7 @@ class TestMCPServerClientLifecycle:
 class TestListTools:
     """Testes para list_tools()."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_list_tools_success(self, mcp_client, mock_aiohttp):
         """Mock resposta com 3 ferramentas, verificar parsing."""
         mock_response = {
@@ -106,7 +105,7 @@ class TestListTools:
         assert tools[1].name == "tool2"
         assert tools[2].name == "tool3"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_list_tools_empty(self, mcp_client, mock_aiohttp):
         """Mock resposta com lista vazia, verificar retorno []."""
         mock_response = {
@@ -126,7 +125,7 @@ class TestListTools:
 class TestCallTool:
     """Testes para call_tool()."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_call_tool_success(self, mcp_client, mock_aiohttp):
         """Mock resposta com content e structuredContent, verificar parsing."""
         mock_response = {
@@ -152,7 +151,7 @@ class TestCallTool:
         assert response.structuredContent == {"status": "success", "data": {"key": "value"}}
         assert response.isError is False
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_call_tool_error(self, mcp_client, mock_aiohttp):
         """Mock resposta com isError=True, verificar lançamento de MCPServerError."""
         mock_response = {
@@ -172,7 +171,7 @@ class TestCallTool:
 
         assert "failing_tool" in str(exc_info.value)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_call_tool_empty_name_raises_valueerror(self, mcp_client):
         """Verificar que tool_name vazio lança ValueError."""
         async with mcp_client:
@@ -185,7 +184,7 @@ class TestCallTool:
 class TestGetResource:
     """Testes para get_resource()."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_resource_success(self, mcp_client, mock_aiohttp):
         """Mock resposta com uri, mimeType, text, verificar parsing."""
         mock_response = {
@@ -215,7 +214,7 @@ class TestGetResource:
 class TestListPrompts:
     """Testes para list_prompts()."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_list_prompts_success(self, mcp_client, mock_aiohttp):
         """Mock resposta com 2 prompts, verificar parsing."""
         mock_response = {
@@ -242,7 +241,7 @@ class TestListPrompts:
 class TestRetryMechanism:
     """Testes para mecanismo de retry."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_send_request_retry_on_timeout(self, mcp_client, mock_aiohttp):
         """Mock timeout na 1ª tentativa, sucesso na 2ª, verificar retry."""
 
@@ -268,7 +267,7 @@ class TestRetryMechanism:
 
         assert tools == []
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_send_request_exponential_backoff(self, mcp_client, mock_aiohttp):
         """Verificar delays de 2^attempt segundos entre retries."""
         import asyncio
@@ -301,7 +300,7 @@ class TestRetryMechanism:
 class TestCircuitBreaker:
     """Testes para circuit breaker."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_circuit_breaker_opens_after_threshold(self, mcp_client, mock_aiohttp):
         """Mock 3 falhas consecutivas, verificar circuit breaker abre."""
         # Simular 3 falhas (threshold do fixture)
@@ -319,7 +318,7 @@ class TestCircuitBreaker:
         assert mcp_client._circuit_breaker_open_until is not None
         assert mcp_client._circuit_breaker_failures >= mcp_client.circuit_breaker_threshold
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_circuit_breaker_prevents_requests(self, mcp_client):
         """Abrir circuit breaker, verificar que próxima requisição lança MCPTransportError."""
         # Abrir circuit breaker manualmente
@@ -332,7 +331,7 @@ class TestCircuitBreaker:
 
         assert "Circuit breaker open" in str(exc_info.value)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_circuit_breaker_closes_after_timeout(self, mcp_client, mock_aiohttp):
         """Abrir circuit breaker, aguardar timeout, verificar que requisição é permitida."""
         # Abrir circuit breaker mas já expirado
@@ -355,7 +354,7 @@ class TestCircuitBreaker:
 class TestProtocolErrors:
     """Testes para erros de protocolo."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_invalid_json_response_raises_protocol_error(self, mcp_client, mock_aiohttp):
         """Mock resposta com JSON inválido, verificar MCPProtocolError."""
         mock_aiohttp.post(
@@ -370,7 +369,7 @@ class TestProtocolErrors:
 
         assert "Invalid JSON" in str(exc_info.value.message)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_missing_result_field_raises_protocol_error(self, mcp_client, mock_aiohttp):
         """Mock resposta sem campo result, verificar erro."""
         mock_aiohttp.post(
@@ -384,7 +383,7 @@ class TestProtocolErrors:
 
         assert "Missing 'result'" in str(exc_info.value.message)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_jsonrpc_error_raises_mcp_server_error(self, mcp_client, mock_aiohttp):
         """Mock resposta com campo error, verificar MCPServerError com código correto."""
         mock_aiohttp.post(
@@ -406,7 +405,7 @@ class TestProtocolErrors:
 
         assert exc_info.value.code == -32601
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_invalid_jsonrpc_version_raises_protocol_error(self, mcp_client, mock_aiohttp):
         """Mock resposta com jsonrpc diferente de 2.0, verificar MCPProtocolError."""
         mock_aiohttp.post(
@@ -424,7 +423,7 @@ class TestProtocolErrors:
 
         assert "jsonrpc" in str(exc_info.value.message).lower()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_missing_jsonrpc_version_raises_protocol_error(self, mcp_client, mock_aiohttp):
         """Mock resposta sem campo jsonrpc, verificar MCPProtocolError."""
         mock_aiohttp.post(
@@ -441,7 +440,7 @@ class TestProtocolErrors:
 
         assert "jsonrpc" in str(exc_info.value.message).lower()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_mismatched_response_id_raises_protocol_error(self, mcp_client, mock_aiohttp):
         """Mock resposta com ID diferente do enviado, verificar MCPProtocolError."""
         mock_aiohttp.post(
@@ -459,7 +458,7 @@ class TestProtocolErrors:
 
         assert "mismatch" in str(exc_info.value.message).lower()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_null_response_id_raises_protocol_error(self, mcp_client, mock_aiohttp):
         """Mock resposta com ID null, verificar MCPProtocolError."""
         mock_aiohttp.post(
@@ -499,7 +498,7 @@ class TestStdioTransport:
         assert "websocket" in str(exc_info.value)
         assert "suportado" in str(exc_info.value).lower()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_empty_server_url_raises_valueerror(self):
         """Verificar que server_url vazio para stdio lança ValueError."""
         client = MCPServerClient(
@@ -510,7 +509,7 @@ class TestStdioTransport:
             await client.start()
         assert "caminho do executável" in str(exc_info.value).lower()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_stdio_subprocess_lifecycle(self):
         """Verificar ciclo de vida do subprocess."""
         # Mock subprocess
@@ -540,7 +539,7 @@ class TestStdioTransport:
             await client.stop()
             assert client._process is None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_stdio_list_tools_success(self):
         """Mock subprocess com resposta válida para list_tools."""
         # Mock subprocess
@@ -600,7 +599,7 @@ class TestStdioTransport:
             assert len(tools) == 1
             assert tools[0].name == "test_tool"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_stdio_call_tool_success(self):
         """Mock subprocess com resposta válida para call_tool."""
         mock_process = MagicMock()
@@ -652,7 +651,7 @@ class TestStdioTransport:
             assert len(result.content) == 1
             assert result.content[0].text == "Execution result"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_stdio_subprocess_terminated_raises_error(self):
         """Verificar erro quando subprocess termina inesperadamente."""
         mock_process = MagicMock()
@@ -692,7 +691,7 @@ class TestStdioTransport:
 
             assert "terminated" in str(exc_info.value.message).lower()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_stdio_timeout_raises_error(self):
         """Verificar timeout em requisição stdio."""
         mock_process = MagicMock()
@@ -740,7 +739,7 @@ class TestStdioTransport:
 
                 assert "timeout" in str(exc_info.value.message).lower()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_stdio_invalid_json_raises_protocol_error(self):
         """Verificar erro quando resposta não é JSON válido."""
         mock_process = MagicMock()
@@ -778,7 +777,7 @@ class TestStdioTransport:
 
             assert "Invalid JSON" in str(exc_info.value.message)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_stdio_circuit_breaker_opens(self):
         """Verificar que circuit breaker abre após falhas consecutivas."""
         mock_process = MagicMock()

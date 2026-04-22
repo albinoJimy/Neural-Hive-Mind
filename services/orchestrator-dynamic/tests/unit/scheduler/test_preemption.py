@@ -4,24 +4,24 @@ Testes unitários para PreemptionManager e PreemptionRules.
 Testa regras de preempção e gerenciamento de preempção de tickets.
 """
 
-import pytest
+from datetime import UTC, datetime
 from unittest.mock import Mock
-from datetime import datetime, timezone
 
-from src.scheduler.preemption_rules import PreemptionRules, PreemptionDecision
+import pytest
 from src.scheduler.preemption import PreemptionManager, PreemptionStatus
+from src.scheduler.preemption_rules import PreemptionDecision, PreemptionRules
 from src.scheduler.priority_queues import PriorityLevel
 
 
 class TestPreemptionRules:
     """Testes para PreemptionRules."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def rules(self):
         """Retorna instância de PreemptionRules."""
         return PreemptionRules()
 
-    @pytest.fixture
+    @pytest.fixture()
     def high_priority_critical_ticket(self):
         """Retorna ticket CRITICAL."""
         return {
@@ -31,7 +31,7 @@ class TestPreemptionRules:
             "task_type": "query",
         }
 
-    @pytest.fixture
+    @pytest.fixture()
     def high_priority_high_ticket(self):
         """Retorna ticket HIGH."""
         return {
@@ -41,7 +41,7 @@ class TestPreemptionRules:
             "task_type": "transform",
         }
 
-    @pytest.fixture
+    @pytest.fixture()
     def normal_priority_ticket(self):
         """Retorna ticket NORMAL."""
         return {
@@ -51,7 +51,7 @@ class TestPreemptionRules:
             "task_type": "validate",
         }
 
-    @pytest.fixture
+    @pytest.fixture()
     def low_priority_ticket(self):
         """Retorna ticket LOW."""
         return {
@@ -61,19 +61,19 @@ class TestPreemptionRules:
             "task_type": "analyze",
         }
 
-    @pytest.fixture
+    @pytest.fixture()
     def low_priority_ticket_in_progress(self, low_priority_ticket):
         """Retorna ticket LOW em execução com baixo progresso."""
         ticket = low_priority_ticket.copy()
         ticket["started_at"] = (
-            int(datetime.now(timezone.utc).timestamp() * 1000) - 10000
+            int(datetime.now(UTC).timestamp() * 1000) - 10000
         )  # 10s atrás
         ticket["sla"] = {"timeout_ms": 300000}  # 5 min
         ticket["compensatable"] = True
         ticket["execution_progress"] = 0.1  # 10%
         return ticket
 
-    @pytest.fixture
+    @pytest.fixture()
     def low_priority_ticket_far_in_progress(self, low_priority_ticket):
         """Retorna ticket LOW com progresso alto (não preemptível)."""
         ticket = low_priority_ticket.copy()
@@ -81,7 +81,7 @@ class TestPreemptionRules:
         ticket["compensatable"] = True
         return ticket
 
-    @pytest.fixture
+    @pytest.fixture()
     def non_compensatable_ticket(self):
         """Retorna ticket não compensatable."""
         return {
@@ -155,7 +155,7 @@ class TestPreemptionRules:
 
     def test_get_execution_progress_from_timestamps(self, rules):
         """Testa cálculo de progresso baseado em timestamps."""
-        started_at = int(datetime.now(timezone.utc).timestamp() * 1000) - 60000  # 60s atrás
+        started_at = int(datetime.now(UTC).timestamp() * 1000) - 60000  # 60s atrás
         ticket = {"started_at": started_at, "sla": {"timeout_ms": 300000}}  # 5 min
         # Não incluir execution_progress para forçar cálculo por timestamp
         progress = rules._get_execution_progress(ticket)
@@ -204,7 +204,7 @@ class TestPreemptionRules:
 class TestPreemptionManager:
     """Testes para PreemptionManager."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_rules(self):
         """Mock de PreemptionRules."""
         rules = Mock(spec=PreemptionRules)
@@ -216,12 +216,12 @@ class TestPreemptionManager:
         rules._is_preemption_allowed = Mock(return_value=True)
         return rules
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_queue_manager(self):
         """Mock de QueueManager."""
         return Mock()
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_metrics(self):
         """Mock de métricas."""
         metrics = Mock()
@@ -229,12 +229,12 @@ class TestPreemptionManager:
         metrics.preemption_executed_total.labels = Mock(return_value=Mock())
         return metrics
 
-    @pytest.fixture
+    @pytest.fixture()
     def manager(self, mock_rules, mock_queue_manager, mock_metrics):
         """Retorna instância de PreemptionManager."""
         return PreemptionManager(mock_rules, mock_queue_manager, mock_metrics)
 
-    @pytest.fixture
+    @pytest.fixture()
     def sample_executing_tickets(self):
         """Retorna lista de tickets em execução."""
         return [
@@ -279,7 +279,7 @@ class TestPreemptionManager:
 
         assert ticket is None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_preempt_ticket_success(self, manager):
         """Testa preempção bem-sucedida."""
         ticket = {
@@ -295,7 +295,7 @@ class TestPreemptionManager:
         assert result["ticket_id"] == "low-001"
         assert "compensation_ticket_id" in result
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_preempt_ticket_denied(self, mock_queue_manager, mock_metrics):
         """Testa preempção negada."""
         # Criar regras mock específicas para este teste

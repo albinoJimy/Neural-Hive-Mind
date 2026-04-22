@@ -10,27 +10,27 @@ import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from src.services.template_selector import TemplateSelector
-from src.services.code_composer import CodeComposer
-from src.services.validator import Validator
-from src.models.pipeline_context import PipelineContext
+from src.models.artifact import ValidationResult, ValidationStatus, ValidationType
 from src.models.execution_ticket import (
+    SLA,
+    Consistency,
+    DeliveryMode,
+    Durability,
     ExecutionTicket,
+    Priority,
+    QoS,
+    RiskBand,
+    SecurityLevel,
     TaskType,
     TicketStatus,
-    Priority,
-    RiskBand,
-    SLA,
-    QoS,
-    DeliveryMode,
-    Consistency,
-    Durability,
-    SecurityLevel,
 )
-from src.models.artifact import ValidationResult, ValidationType, ValidationStatus
+from src.models.pipeline_context import PipelineContext
+from src.services.code_composer import CodeComposer
+from src.services.template_selector import TemplateSelector
+from src.services.validator import Validator
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_execution_ticket():
     """Cria ExecutionTicket de teste."""
     return ExecutionTicket(
@@ -64,7 +64,7 @@ def sample_execution_ticket():
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def pipeline_context(sample_execution_ticket):
     """Instancia PipelineContext básico."""
     return PipelineContext(
@@ -75,14 +75,14 @@ def pipeline_context(sample_execution_ticket):
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_git_client():
     client = AsyncMock()
     client.clone_templates_repo = AsyncMock()
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_redis_client():
     client = AsyncMock()
     client.get_cached_template = AsyncMock(return_value=None)
@@ -90,7 +90,7 @@ def mock_redis_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_mcp_client():
     client = AsyncMock()
     client.request_tool_selection = AsyncMock()
@@ -116,7 +116,7 @@ def _validation_result(tool_name: str) -> ValidationResult:
     )
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_template_selector_with_mcp_success(
     pipeline_context, mock_git_client, mock_redis_client, mock_mcp_client
 ):
@@ -139,7 +139,7 @@ async def test_template_selector_with_mcp_success(
     assert pipeline_context.generation_method in ("HYBRID", "LLM", "TEMPLATE")
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_template_selector_mcp_timeout_fallback(
     pipeline_context, mock_git_client, mock_redis_client, mock_mcp_client
 ):
@@ -154,7 +154,7 @@ async def test_template_selector_mcp_timeout_fallback(
     assert pipeline_context.selected_tools == []
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_code_composer_uses_mcp_generation_method(pipeline_context):
     """CodeComposer deve usar geração LLM quando generation_method='LLM'."""
     mock_mongodb_client = AsyncMock()
@@ -179,7 +179,7 @@ async def test_code_composer_uses_mcp_generation_method(pipeline_context):
     assert pipeline_context.generated_artifacts[0].metadata.get("mcp_selection_id") == "sel-1"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_validator_uses_mcp_tools(pipeline_context):
     """Validator deve executar apenas ferramentas VALIDATION selecionadas pelo MCP."""
     sonar_client = AsyncMock()
@@ -210,7 +210,7 @@ async def test_validator_uses_mcp_tools(pipeline_context):
     assert len(pipeline_context.validation_results) == 2
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_validator_mcp_feedback_failure_non_blocking(pipeline_context):
     """Falha no feedback não deve bloquear validações."""
     sonar_client = AsyncMock()
@@ -237,7 +237,7 @@ async def test_validator_mcp_feedback_failure_non_blocking(pipeline_context):
     mcp_client.send_tool_feedback.assert_awaited_once()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_pipeline_end_to_end_with_mcp(
     pipeline_context, mock_git_client, mock_redis_client, mock_mcp_client
 ):

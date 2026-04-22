@@ -4,18 +4,18 @@ Testes para Leader Election
 Testa eleição distribuída, renovação de lease, e failover.
 """
 
-import pytest
 import asyncio
 from unittest.mock import AsyncMock, MagicMock
 
+import pytest
 from src.services.leader_election import (
+    ElectionState,
     LeaderElection,
     NodeRole,
-    ElectionState,
 )
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_redis():
     """Mock Redis client"""
     # Criar wrapper client
@@ -41,7 +41,7 @@ def mock_redis():
     return redis_wrapper
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_settings():
     """Mock settings"""
     settings = MagicMock()
@@ -51,7 +51,7 @@ def mock_settings():
     return settings
 
 
-@pytest.fixture
+@pytest.fixture()
 def leader_election(mock_redis, mock_settings):
     """Fixture para LeaderElection"""
     return LeaderElection(
@@ -77,7 +77,7 @@ class TestLeaderElectionInit:
 class TestAcquireLeadership:
     """Testes de aquisição de liderança"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_acquire_leadership_success(self, leader_election, mock_redis):
         """Testa aquisição bem-sucedida de liderança"""
         mock_redis.client.set.return_value = True
@@ -89,7 +89,7 @@ class TestAcquireLeadership:
         assert leader_election.state.term == 1
         mock_redis.client.set.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_acquire_leadership_already_exists(self, leader_election, mock_redis):
         """Testa falha quando já existe líder"""
         mock_redis.client.set.return_value = False
@@ -100,7 +100,7 @@ class TestAcquireLeadership:
         assert acquired is False
         assert leader_election.state.role == NodeRole.FOLLOWER
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_acquire_leadership_increments_term(self, leader_election, mock_redis):
         """Testa que termo é incrementado em cada aquisição"""
         mock_redis.client.set.return_value = True
@@ -115,7 +115,7 @@ class TestAcquireLeadership:
 class TestRenewLeadership:
     """Testes de renovação de liderança"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_renew_leadership_success(self, leader_election, mock_redis):
         """Testa renovação bem-sucedida"""
         leader_election.state.role = NodeRole.LEADER
@@ -126,7 +126,7 @@ class TestRenewLeadership:
         assert renewed is True
         mock_redis.client.expire.assert_called()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_renew_leadership_lost(self, leader_election, mock_redis):
         """Testa detecção de perda de liderança"""
         leader_election.state.role = NodeRole.LEADER
@@ -141,7 +141,7 @@ class TestRenewLeadership:
 class TestResignLeadership:
     """Testes de renúncia de liderança"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_resign_leadership(self, leader_election, mock_redis):
         """Testa renúncia de liderança"""
         await leader_election._resign_leadership()
@@ -154,7 +154,7 @@ class TestResignLeadership:
 class TestGetCurrentLeader:
     """Testes de obtenção do líder atual"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_current_leader_none(self, leader_election, mock_redis):
         """Testa quando não há líder"""
         mock_redis.client.get.return_value = None
@@ -163,7 +163,7 @@ class TestGetCurrentLeader:
 
         assert leader is None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_current_leader_exists(self, leader_election, mock_redis):
         """Testa quando existe líder"""
         mock_redis.client.get.return_value = b"test-leader"
@@ -176,7 +176,7 @@ class TestGetCurrentLeader:
 class TestHeartbeat:
     """Testes de heartbeat"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_send_heartbeat(self, leader_election, mock_redis):
         """Testa envio de heartbeat"""
         await leader_election._send_heartbeat()
@@ -184,7 +184,7 @@ class TestHeartbeat:
         mock_redis.client.hset.assert_called_once()
         mock_redis.client.expire.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_leader_heartbeat(self, leader_election, mock_redis):
         """Testa obtenção de heartbeat do líder"""
         mock_redis.client.hgetall.return_value = {
@@ -201,7 +201,7 @@ class TestHeartbeat:
 class TestGetLeaderMetadata:
     """Testes de obtenção de metadados do líder"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_leader_metadata_empty(self, leader_election, mock_redis):
         """Testa quando não há metadados"""
         mock_redis.client.hgetall.return_value = {}
@@ -210,7 +210,7 @@ class TestGetLeaderMetadata:
 
         assert metadata == {}
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_leader_metadata_exists(self, leader_election, mock_redis):
         """Testa quando existem metadados"""
         mock_redis.client.hgetall.return_value = {
@@ -256,7 +256,7 @@ class TestStateHelpers:
 class TestElectionCallbacks:
     """Testes de callbacks de eleição"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_on_become_leader_callback(self, leader_election, mock_redis):
         """Testa callback ao se tornar líder"""
         mock_redis.client.set.return_value = True
@@ -274,7 +274,7 @@ class TestElectionCallbacks:
 
         assert callback_called.is_set()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_on_become_follower_callback(self, leader_election, mock_redis):
         """Testa callback ao se tornar follower"""
         callback_called = asyncio.Event()
@@ -299,7 +299,7 @@ class TestElectionCallbacks:
 class TestStartStop:
     """Testes de início e parada"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_start(self, leader_election):
         """Testa início do processo de eleição"""
         await leader_election.start()
@@ -308,7 +308,7 @@ class TestStartStop:
         assert leader_election.election_task is not None
         assert leader_election.heartbeat_task is not None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_stop(self, leader_election, mock_redis):
         """Testa parada do processo de eleição"""
         await leader_election.start()
@@ -316,7 +316,7 @@ class TestStartStop:
 
         assert leader_election.is_running is False
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_stop_resigns_if_leader(self, leader_election, mock_redis):
         """Testa que parada renuncia liderança se for líder"""
         leader_election.state.role = NodeRole.LEADER
@@ -328,7 +328,7 @@ class TestStartStop:
 class TestElectionLoop:
     """Testes do loop de eleição"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_election_loop_becomes_leader(self, leader_election, mock_redis):
         """Testa loop que se torna líder"""
         mock_redis.client.get.return_value = None  # Nenhum líder
@@ -341,7 +341,7 @@ class TestElectionLoop:
             assert acquired is True
             assert leader_election.state.role == NodeRole.LEADER
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_election_loop_remains_follower(self, leader_election, mock_redis):
         """Testa loop que permanece follower"""
         mock_redis.client.get.return_value = b"other-leader"  # Outro nó é líder

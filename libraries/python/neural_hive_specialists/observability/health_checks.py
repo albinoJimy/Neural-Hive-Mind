@@ -5,15 +5,16 @@ Verifica saúde de MLflow, MongoDB, feature extraction, circuit breakers,
 e exporta status detalhado para endpoints de health check.
 """
 
-from typing import Dict, List, Any, Optional
-from datetime import datetime, timedelta, timezone
+import asyncio
+from datetime import UTC, datetime, timedelta
+from enum import Enum
+from typing import Any, Optional
+
+import mlflow
+import structlog
+from mlflow.tracking import MlflowClient
 from pymongo import MongoClient
 from pymongo.errors import PyMongoError
-import structlog
-import asyncio
-from enum import Enum
-import mlflow
-from mlflow.tracking import MlflowClient
 
 logger = structlog.get_logger(__name__)
 
@@ -35,7 +36,7 @@ class ComponentHealth:
         component_name: str,
         status: HealthStatus,
         message: Optional[str] = None,
-        details: Optional[Dict[str, Any]] = None,
+        details: Optional[dict[str, Any]] = None,
         latency_ms: Optional[float] = None,
     ):
         self.component_name = component_name
@@ -43,9 +44,9 @@ class ComponentHealth:
         self.message = message or ""
         self.details = details or {}
         self.latency_ms = latency_ms
-        self.checked_at = datetime.now(timezone.utc)
+        self.checked_at = datetime.now(UTC)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Converte para dicionário."""
         return {
             "component": self.component_name,
@@ -60,7 +61,7 @@ class ComponentHealth:
 class SpecialistHealthChecker:
     """Verificador de saúde de especialistas e dependências."""
 
-    def __init__(self, config: Dict[str, Any], specialist_type: str):
+    def __init__(self, config: dict[str, Any], specialist_type: str):
         """
         Inicializa health checker.
 
@@ -72,13 +73,13 @@ class SpecialistHealthChecker:
         self.specialist_type = specialist_type
 
         # Cache de status (TTL: 30s)
-        self._health_cache: Optional[Dict[str, Any]] = None
+        self._health_cache: Optional[dict[str, Any]] = None
         self._cache_timestamp: Optional[datetime] = None
         self._cache_ttl_seconds = 30
 
         logger.info("SpecialistHealthChecker initialized", specialist_type=specialist_type)
 
-    async def check_all_health(self) -> Dict[str, Any]:
+    async def check_all_health(self) -> dict[str, Any]:
         """
         Verifica saúde de todos os componentes.
 
@@ -124,14 +125,14 @@ class SpecialistHealthChecker:
             health_report = {
                 "specialist_type": self.specialist_type,
                 "overall_status": overall_status.value,
-                "checked_at": datetime.now(timezone.utc).isoformat(),
+                "checked_at": datetime.now(UTC).isoformat(),
                 "components": [comp.to_dict() for comp in components],
                 "summary": self._generate_summary(components),
             }
 
             # Atualizar cache
             self._health_cache = health_report
-            self._cache_timestamp = datetime.now(timezone.utc)
+            self._cache_timestamp = datetime.now(UTC)
 
             logger.info(
                 "Health check completed",
@@ -146,13 +147,13 @@ class SpecialistHealthChecker:
             return {
                 "specialist_type": self.specialist_type,
                 "overall_status": HealthStatus.UNHEALTHY.value,
-                "checked_at": datetime.now(timezone.utc).isoformat(),
+                "checked_at": datetime.now(UTC).isoformat(),
                 "error": str(e),
             }
 
     async def _check_mongodb_health(self) -> ComponentHealth:
         """Verifica saúde do MongoDB."""
-        start_time = datetime.now(timezone.utc)
+        start_time = datetime.now(UTC)
 
         try:
             client = MongoClient(self.config.get("mongodb_uri"), serverSelectionTimeoutMS=5000)
@@ -164,7 +165,7 @@ class SpecialistHealthChecker:
             db = client[self.config.get("mongodb_database", "neural_hive")]
             collections = db.list_collection_names()
 
-            latency_ms = (datetime.now(timezone.utc) - start_time).total_seconds() * 1000
+            latency_ms = (datetime.now(UTC) - start_time).total_seconds() * 1000
 
             # Verificar tamanho do ledger
             ledger_size = db["cognitive_ledger"].count_documents({})
@@ -189,18 +190,18 @@ class SpecialistHealthChecker:
             )
 
         except PyMongoError as e:
-            latency_ms = (datetime.now(timezone.utc) - start_time).total_seconds() * 1000
+            latency_ms = (datetime.now(UTC) - start_time).total_seconds() * 1000
 
             return ComponentHealth(
                 component_name="mongodb",
                 status=HealthStatus.UNHEALTHY,
-                message=f"MongoDB error: {str(e)}",
+                message=f"MongoDB error: {e!s}",
                 latency_ms=latency_ms,
             )
 
     async def _check_mlflow_health(self) -> ComponentHealth:
         """Verifica saúde do MLflow."""
-        start_time = datetime.now(timezone.utc)
+        start_time = datetime.now(UTC)
 
         try:
             mlflow_uri = self.config.get("mlflow_tracking_uri")
@@ -219,7 +220,7 @@ class SpecialistHealthChecker:
             client = MlflowClient()
             experiments = client.search_experiments()
 
-            latency_ms = (datetime.now(timezone.utc) - start_time).total_seconds() * 1000
+            latency_ms = (datetime.now(UTC) - start_time).total_seconds() * 1000
 
             # Verificar modelo registrado
             model_name = self.config.get("mlflow_model_name")
@@ -257,18 +258,18 @@ class SpecialistHealthChecker:
             )
 
         except Exception as e:
-            latency_ms = (datetime.now(timezone.utc) - start_time).total_seconds() * 1000
+            latency_ms = (datetime.now(UTC) - start_time).total_seconds() * 1000
 
             return ComponentHealth(
                 component_name="mlflow",
                 status=HealthStatus.UNHEALTHY,
-                message=f"MLflow error: {str(e)}",
+                message=f"MLflow error: {e!s}",
                 latency_ms=latency_ms,
             )
 
     async def _check_feature_extraction_health(self) -> ComponentHealth:
         """Verifica saúde do sistema de extração de features."""
-        start_time = datetime.now(timezone.utc)
+        start_time = datetime.now(UTC)
 
         try:
             # Verificar se feature extraction está habilitado
@@ -304,7 +305,7 @@ class SpecialistHealthChecker:
             )
             details["embeddings_model"] = embeddings_model
 
-            latency_ms = (datetime.now(timezone.utc) - start_time).total_seconds() * 1000
+            latency_ms = (datetime.now(UTC) - start_time).total_seconds() * 1000
 
             return ComponentHealth(
                 component_name="feature_extraction",
@@ -315,18 +316,18 @@ class SpecialistHealthChecker:
             )
 
         except Exception as e:
-            latency_ms = (datetime.now(timezone.utc) - start_time).total_seconds() * 1000
+            latency_ms = (datetime.now(UTC) - start_time).total_seconds() * 1000
 
             return ComponentHealth(
                 component_name="feature_extraction",
                 status=HealthStatus.UNHEALTHY,
-                message=f"Feature extraction error: {str(e)}",
+                message=f"Feature extraction error: {e!s}",
                 latency_ms=latency_ms,
             )
 
     async def _check_circuit_breakers_health(self) -> ComponentHealth:
         """Verifica saúde dos circuit breakers."""
-        start_time = datetime.now(timezone.utc)
+        start_time = datetime.now(UTC)
 
         try:
             enabled = self.config.get("enable_circuit_breaker", True)
@@ -351,7 +352,7 @@ class SpecialistHealthChecker:
                 "recovery_timeout_seconds": recovery_timeout,
             }
 
-            latency_ms = (datetime.now(timezone.utc) - start_time).total_seconds() * 1000
+            latency_ms = (datetime.now(UTC) - start_time).total_seconds() * 1000
 
             return ComponentHealth(
                 component_name="circuit_breakers",
@@ -362,18 +363,18 @@ class SpecialistHealthChecker:
             )
 
         except Exception as e:
-            latency_ms = (datetime.now(timezone.utc) - start_time).total_seconds() * 1000
+            latency_ms = (datetime.now(UTC) - start_time).total_seconds() * 1000
 
             return ComponentHealth(
                 component_name="circuit_breakers",
                 status=HealthStatus.UNHEALTHY,
-                message=f"Circuit breakers error: {str(e)}",
+                message=f"Circuit breakers error: {e!s}",
                 latency_ms=latency_ms,
             )
 
     async def _check_ledger_health(self) -> ComponentHealth:
         """Verifica saúde do ledger cognitivo."""
-        start_time = datetime.now(timezone.utc)
+        start_time = datetime.now(UTC)
 
         try:
             client = MongoClient(self.config.get("mongodb_uri"), serverSelectionTimeoutMS=5000)
@@ -382,7 +383,7 @@ class SpecialistHealthChecker:
             collection = db["cognitive_ledger"]
 
             # Verificar documentos recentes
-            cutoff_time = datetime.now(timezone.utc) - timedelta(hours=24)
+            cutoff_time = datetime.now(UTC) - timedelta(hours=24)
             recent_count = collection.count_documents(
                 {
                     "evaluated_at": {"$gte": cutoff_time},
@@ -409,7 +410,7 @@ class SpecialistHealthChecker:
                 status = HealthStatus.DEGRADED
                 message = f"High buffer rate: {buffered_rate:.1f}%"
 
-            latency_ms = (datetime.now(timezone.utc) - start_time).total_seconds() * 1000
+            latency_ms = (datetime.now(UTC) - start_time).total_seconds() * 1000
 
             return ComponentHealth(
                 component_name="ledger",
@@ -424,16 +425,16 @@ class SpecialistHealthChecker:
             )
 
         except Exception as e:
-            latency_ms = (datetime.now(timezone.utc) - start_time).total_seconds() * 1000
+            latency_ms = (datetime.now(UTC) - start_time).total_seconds() * 1000
 
             return ComponentHealth(
                 component_name="ledger",
                 status=HealthStatus.UNHEALTHY,
-                message=f"Ledger error: {str(e)}",
+                message=f"Ledger error: {e!s}",
                 latency_ms=latency_ms,
             )
 
-    def _determine_overall_status(self, components: List[ComponentHealth]) -> HealthStatus:
+    def _determine_overall_status(self, components: list[ComponentHealth]) -> HealthStatus:
         """
         Determina status geral baseado nos componentes.
 
@@ -466,7 +467,7 @@ class SpecialistHealthChecker:
 
         return HealthStatus.HEALTHY
 
-    def _generate_summary(self, components: List[ComponentHealth]) -> Dict[str, Any]:
+    def _generate_summary(self, components: list[ComponentHealth]) -> dict[str, Any]:
         """
         Gera resumo de saúde.
 
@@ -499,5 +500,5 @@ class SpecialistHealthChecker:
         if not self._health_cache or not self._cache_timestamp:
             return False
 
-        age = (datetime.now(timezone.utc) - self._cache_timestamp).total_seconds()
+        age = (datetime.now(UTC) - self._cache_timestamp).total_seconds()
         return age < self._cache_ttl_seconds

@@ -1,8 +1,8 @@
 """Script executor for running remediation scripts via Kubernetes Jobs"""
 
 import asyncio
-from datetime import datetime, timezone
-from typing import Any, Dict, Optional
+from datetime import UTC, datetime
+from typing import Any, Optional
 
 import structlog
 from kubernetes import client, config
@@ -91,10 +91,10 @@ class ScriptExecutor:
         script_name: str,
         namespace: Optional[str] = None,
         image: Optional[str] = None,
-        env_vars: Optional[Dict[str, str]] = None,
+        env_vars: Optional[dict[str, str]] = None,
         timeout_seconds: int = DEFAULT_TIMEOUT_SECONDS,
         incident_id: Optional[str] = None,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Executa um script via Kubernetes Job.
 
@@ -181,7 +181,7 @@ class ScriptExecutor:
 
     def _generate_job_name(self, script_name: str, incident_id: Optional[str]) -> str:
         """Gera nome único para o Job"""
-        timestamp = int(datetime.now(timezone.utc).timestamp())
+        timestamp = int(datetime.now(UTC).timestamp())
         base_name = script_name.replace("_", "-").replace(".", "-").lower()
 
         if incident_id:
@@ -195,7 +195,7 @@ class ScriptExecutor:
         script: str,
         namespace: str,
         image: str,
-        env_vars: Optional[Dict[str, str]],
+        env_vars: Optional[dict[str, str]],
         timeout_seconds: int,
         incident_id: Optional[str],
     ) -> client.V1Job:
@@ -274,7 +274,7 @@ class ScriptExecutor:
 
     async def _wait_for_job_completion(
         self, job_name: str, namespace: str, timeout_seconds: int, poll_interval: float = 2.0
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Aguarda conclusão do Job com polling"""
         start_time = asyncio.get_event_loop().time()
 
@@ -350,7 +350,7 @@ class ScriptExecutor:
 
     async def get_job_status(
         self, job_name: str, namespace: Optional[str] = None
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Obtém status de um Job.
 

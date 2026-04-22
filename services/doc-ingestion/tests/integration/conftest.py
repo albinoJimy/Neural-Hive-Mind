@@ -1,7 +1,7 @@
 """Configuração de fixtures para testes de integração."""
 
 import asyncio
-from collections.abc import AsyncGenerator, Generator
+from collections.abc import Generator
 from io import BytesIO
 from typing import Any
 
@@ -9,8 +9,6 @@ import pytest
 from fastapi.testclient import TestClient
 from moto import mock_aws
 from pymongo import MongoClient
-from pypdf import PdfReader
-from pypdf.errors import PdfReadError
 
 from src.main import app
 from src.models.document import DocumentFormat, DocumentStatus
@@ -66,8 +64,8 @@ def sample_pdf_bytes() -> bytes:
     """Cria conteúdo PDF de exemplo."""
     try:
         # Usar pypdf para criar um PDF simples
-        from reportlab.pdfgen import canvas
         from reportlab.lib.pagesizes import letter
+        from reportlab.pdfgen import canvas
 
         buffer = BytesIO()
         p = canvas.Canvas(buffer, pagesize=letter)
@@ -87,10 +85,7 @@ def sample_pdf_bytes() -> bytes:
 def sample_docx_bytes() -> bytes:
     """Cria conteúdo DOCX de exemplo."""
     # Retorna bytes dummy representando um DOCX
-    return (
-        b"PK\x03\x04\x14\x00\x00\x00\x08\x00"
-        b"Sample DOCX content placeholder"
-    )
+    return b"PK\x03\x04\x14\x00\x00\x00\x08\x00" b"Sample DOCX content placeholder"
 
 
 @pytest.fixture
@@ -130,9 +125,7 @@ def test_client(mock_mongodb, mock_s3) -> TestClient:
     from unittest.mock import AsyncMock, patch
 
     # Mock do MongoDB client
-    with patch(
-        "src.db.mongodb.get_mongodb_client", new_callable=AsyncMock
-    ) as mock_mongo_client:
+    with patch("src.db.mongodb.get_mongodb_client", new_callable=AsyncMock) as mock_mongo_client:
         # Criar mock async client
         mock_async_client = AsyncMock()
         mock_async_client.database = mock_mongodb

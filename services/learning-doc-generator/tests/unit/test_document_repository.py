@@ -1,14 +1,14 @@
 """Testes unitários para DocumentRepository"""
 
-import pytest
 from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock
 
+import pytest
+from src.models import DocumentStatus, DocumentType, LearningDocument
 from src.services.document_repository import DocumentRepository
-from src.models import DocumentFormat, DocumentStatus, DocumentType, LearningDocument
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_repository_initialization():
     """Testa inicialização do repositório"""
     with pytest.MonkeyPatch.context() as m:
@@ -29,7 +29,7 @@ async def test_repository_initialization():
         assert repo._client is not None
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_save_document():
     """Testa salvar documento"""
     repo = DocumentRepository()
@@ -52,7 +52,7 @@ async def test_save_document():
     repo._collection.insert_one.assert_called_once()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_get_by_id():
     """Testa buscar documento por ID"""
     repo = DocumentRepository()
@@ -75,7 +75,7 @@ async def test_get_by_id():
     assert document.title == "Test Document"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_get_by_id_not_found():
     """Testa buscar documento inexistente"""
     repo = DocumentRepository()
@@ -87,7 +87,7 @@ async def test_get_by_id_not_found():
     assert document is None
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_update_document():
     """Testa atualizar documento"""
     repo = DocumentRepository()
@@ -110,7 +110,7 @@ async def test_update_document():
     assert success is True
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_update_status():
     """Testa atualizar status do documento"""
     repo = DocumentRepository()
@@ -125,7 +125,7 @@ async def test_update_status():
     assert success is True
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_list_documents():
     """Testa listar documentos"""
     repo = DocumentRepository()
@@ -156,7 +156,7 @@ async def test_list_documents():
     assert len(documents) == 5
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_delete_document():
     """Testa deletar documento"""
     repo = DocumentRepository()
@@ -171,7 +171,7 @@ async def test_delete_document():
     assert success is True
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_get_by_period():
     """Testa buscar por período"""
     repo = DocumentRepository()

@@ -2,8 +2,8 @@
 Base exception class for Neural Hive-Mind.
 """
 
-from typing import Dict, Any, Optional
 from dataclasses import dataclass
+from typing import Any, Optional
 
 
 class NeuralHiveError(Exception):
@@ -24,7 +24,7 @@ class NeuralHiveError(Exception):
         self,
         message: str,
         code: str = "NHM_UNKNOWN_ERROR",
-        details: Optional[Dict[str, Any]] = None,
+        details: Optional[dict[str, Any]] = None,
         http_status: int = 500,
     ):
         self.message = message
@@ -33,7 +33,7 @@ class NeuralHiveError(Exception):
         self.http_status = http_status
         super().__init__(message)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """
         Converte exceção para dicionário serializável.
 
@@ -88,7 +88,7 @@ class ErrorContext:
     trace_id: Optional[str] = None
     timestamp: Optional[str] = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Converte para dicionário."""
         return {
             "service": self.service,

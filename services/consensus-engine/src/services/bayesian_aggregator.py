@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Tuple
+from typing import Any
 
 import numpy as np
 import structlog
@@ -14,8 +14,8 @@ class BayesianAggregator:
         self.prior_weight = config.bayesian_prior_weight
 
     def aggregate_confidence(
-        self, opinions: List[Dict[str, Any]], weights: Dict[str, float]
-    ) -> Tuple[float, float]:
+        self, opinions: list[dict[str, Any]], weights: dict[str, float]
+    ) -> tuple[float, float]:
         """Agrega scores de confiança usando Bayesian Model Averaging
 
         Args:
@@ -53,9 +53,7 @@ class BayesianAggregator:
         posterior_mean = self.prior_weight * prior_mean + (1 - self.prior_weight) * weighted_avg
 
         # Calcular variância (incerteza)
-        variance = np.average(
-            (scores_array - posterior_mean) ** 2, weights=weights_array
-        )
+        variance = np.average((scores_array - posterior_mean) ** 2, weights=weights_array)
 
         logger.debug(
             "Bayesian confidence aggregation",
@@ -69,8 +67,8 @@ class BayesianAggregator:
         return float(posterior_mean), float(variance)
 
     def aggregate_risk(
-        self, opinions: List[Dict[str, Any]], weights: Dict[str, float]
-    ) -> Tuple[float, float]:
+        self, opinions: list[dict[str, Any]], weights: dict[str, float]
+    ) -> tuple[float, float]:
         """Agrega scores de risco usando Bayesian Model Averaging"""
         scores = []
         specialist_weights = []
@@ -99,9 +97,7 @@ class BayesianAggregator:
         posterior_mean = self.prior_weight * prior_mean + (1 - self.prior_weight) * weighted_avg
 
         # Variância
-        variance = np.average(
-            (scores_array - posterior_mean) ** 2, weights=weights_array
-        )
+        variance = np.average((scores_array - posterior_mean) ** 2, weights=weights_array)
 
         logger.debug(
             "Bayesian risk aggregation",
@@ -115,7 +111,7 @@ class BayesianAggregator:
         return posterior_mean, variance
 
     def calculate_divergence(
-        self, opinions: List[Dict[str, Any]], aggregated_confidence: float, aggregated_risk: float
+        self, opinions: list[dict[str, Any]], aggregated_confidence: float, aggregated_risk: float
     ) -> float:
         """Calcula divergência entre especialistas
 

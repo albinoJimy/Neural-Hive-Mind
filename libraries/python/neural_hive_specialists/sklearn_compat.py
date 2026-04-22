@@ -10,6 +10,7 @@ This patch intercepts attribute access to gracefully handle missing attributes.
 """
 
 import sys
+
 import structlog
 
 logger = structlog.get_logger()
@@ -31,13 +32,13 @@ def _monkey_patch_sklearn_trees():
         return
 
     try:
+        from sklearn.ensemble._forest import BaseForest
         from sklearn.tree import (
             DecisionTreeClassifier,
             DecisionTreeRegressor,
             ExtraTreeClassifier,
             ExtraTreeRegressor,
         )
-        from sklearn.ensemble._forest import BaseForest
 
         # Create a closure factory to avoid late binding issues
         def create_patched_getattribute(original_getattribute):

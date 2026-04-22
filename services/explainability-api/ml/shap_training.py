@@ -12,25 +12,26 @@ Usage:
     python -m ml.shap_training --min-samples 50 --output models/shap_model_v1.joblib
 """
 
-import asyncio
 import argparse
+import asyncio
 import sys
 from pathlib import Path
-from typing import List, Dict, Any
+from typing import Any
+
 import structlog
 
 # Adicionar src ao path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from src.models.shap_model import ModelTrainer
 from src.database.mongodb_client import MongoDBClient
+from src.models.shap_model import ModelTrainer
 
 logger = structlog.get_logger(__name__)
 
 
 async def collect_historical_decisions(
     mongo_client: MongoDBClient, limit: int = 1000
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """
     Coleta decisões históricas do MongoDB.
 
@@ -58,11 +59,11 @@ async def collect_historical_decisions(
 
 
 async def train_shap_model(
-    decisions: List[Dict[str, Any]],
+    decisions: list[dict[str, Any]],
     model_type: str = "random_forest",
     target_accuracy: float = 0.7,
     output_path: str = "models/shap_model_v1.joblib",
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Treina modelo SHAP com decisões históricas.
 
@@ -110,7 +111,7 @@ async def train_shap_model(
     return result
 
 
-def generate_synthetic_decisions(n_samples: int = 100) -> List[Dict[str, Any]]:
+def generate_synthetic_decisions(n_samples: int = 100) -> list[dict[str, Any]]:
     """
     Gera decisões sintéticas para teste/demo.
 

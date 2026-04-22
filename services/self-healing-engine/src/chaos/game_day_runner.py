@@ -15,12 +15,11 @@ import argparse
 import asyncio
 import json
 import sys
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, TYPE_CHECKING
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING, Any, Optional
 
 if TYPE_CHECKING:
     from .chaos_engine import ChaosEngine
-    from ..services.playbook_executor import PlaybookExecutor
 
 import structlog
 
@@ -83,7 +82,7 @@ class GameDayRunner:
 
         self.chaos_engine = chaos_engine
         self.scenario_library = ScenarioLibrary()
-        self.reports: List[ExperimentReport] = []
+        self.reports: list[ExperimentReport] = []
 
     async def initialize(self) -> None:
         """Inicializa o ChaosEngine e dependências."""
@@ -110,7 +109,7 @@ class GameDayRunner:
             await self.chaos_engine.close()
         logger.info("game_day_runner.closed")
 
-    def list_scenarios(self) -> List[Dict[str, Any]]:
+    def list_scenarios(self) -> list[dict[str, Any]]:
         """Lista cenários disponíveis."""
         scenarios = []
         for name in self.scenario_library.list_scenarios():
@@ -125,7 +124,7 @@ class GameDayRunner:
         target_service: str,
         target_namespace: str = "default",
         playbook_to_validate: Optional[str] = None,
-        custom_parameters: Optional[Dict[str, Any]] = None,
+        custom_parameters: Optional[dict[str, Any]] = None,
         executed_by: Optional[str] = None,
     ) -> ExperimentReport:
         """
@@ -170,9 +169,9 @@ class GameDayRunner:
 
     async def run_game_day(
         self,
-        scenarios: List[Dict[str, Any]],
+        scenarios: list[dict[str, Any]],
         executed_by: Optional[str] = None,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Executa um Game Day completo com múltiplos cenários.
 
@@ -183,7 +182,7 @@ class GameDayRunner:
         Returns:
             Relatório consolidado do Game Day
         """
-        start_time = datetime.now(timezone.utc)
+        start_time = datetime.now(UTC)
         results = []
         success_count = 0
         failure_count = 0
@@ -258,7 +257,7 @@ class GameDayRunner:
                     error=str(e),
                 )
 
-        end_time = datetime.now(timezone.utc)
+        end_time = datetime.now(UTC)
         total_duration = (end_time - start_time).total_seconds()
 
         game_day_id = f"gd-{start_time.strftime('%Y%m%d-%H%M%S')}"
@@ -308,7 +307,7 @@ class GameDayRunner:
         target_service: str,
         target_namespace: str = "default",
         scenario_name: str = "pod_failure",
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Valida eficácia de um playbook usando chaos engineering.
 

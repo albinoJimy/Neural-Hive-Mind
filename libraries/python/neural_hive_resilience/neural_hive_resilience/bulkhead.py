@@ -11,15 +11,16 @@ Este módulo implementa:
 """
 
 import asyncio
+from collections.abc import Awaitable, Callable
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Awaitable, Callable, Optional, TypeVar
-from prometheus_client import Counter, Gauge, Histogram
+from typing import Any, Optional, TypeVar
+
 import structlog
+from prometheus_client import Counter, Gauge, Histogram
 
 from .exceptions import BulkheadRejectedError
-
 
 # Type variables
 T = TypeVar("T")

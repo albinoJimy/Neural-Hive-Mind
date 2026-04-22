@@ -12,18 +12,18 @@ Todos os testes usam mocks dos clientes externos para evitar
 dependencias de servicos reais.
 """
 
-import pytest
 import uuid
 from dataclasses import dataclass
 from unittest.mock import AsyncMock, MagicMock
 
+import pytest
 
 # ============================================
 # Fixtures Especificas
 # ============================================
 
 
-@pytest.fixture
+@pytest.fixture()
 def deploy_executor_with_argocd(worker_config, mock_metrics, mock_argocd_client):
     """DeployExecutor configurado com cliente ArgoCD mockado."""
     from executors.deploy_executor import DeployExecutor
@@ -42,7 +42,7 @@ def deploy_executor_with_argocd(worker_config, mock_metrics, mock_argocd_client)
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def deploy_executor_with_flux(worker_config, mock_metrics, mock_flux_client):
     """DeployExecutor configurado com cliente Flux mockado."""
     from executors.deploy_executor import DeployExecutor
@@ -59,7 +59,7 @@ def deploy_executor_with_flux(worker_config, mock_metrics, mock_flux_client):
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def deploy_executor_simulation_only(worker_config, mock_metrics):
     """DeployExecutor sem clientes externos (apenas simulacao)."""
     from executors.deploy_executor import DeployExecutor
@@ -77,7 +77,7 @@ def deploy_executor_simulation_only(worker_config, mock_metrics):
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def deploy_ticket_argocd():
     """Ticket de deploy para ArgoCD."""
     ticket_id = str(uuid.uuid4())
@@ -100,7 +100,7 @@ def deploy_ticket_argocd():
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def deploy_ticket_flux():
     """Ticket de deploy para Flux."""
     ticket_id = str(uuid.uuid4())
@@ -128,9 +128,9 @@ def deploy_ticket_flux():
 class TestDeployExecutorArgoCDSuccess:
     """Testes de deploy bem-sucedido via ArgoCD."""
 
-    @pytest.mark.asyncio
-    @pytest.mark.integration
-    @pytest.mark.executor_integration
+    @pytest.mark.asyncio()
+    @pytest.mark.integration()
+    @pytest.mark.executor_integration()
     async def test_deploy_executor_argocd_success(
         self, deploy_executor_with_argocd, deploy_ticket_argocd, mock_argocd_client
     ):
@@ -145,9 +145,9 @@ class TestDeployExecutorArgoCDSuccess:
         mock_argocd_client.create_application.assert_called_once()
         mock_argocd_client.wait_for_health.assert_called_once()
 
-    @pytest.mark.asyncio
-    @pytest.mark.integration
-    @pytest.mark.executor_integration
+    @pytest.mark.asyncio()
+    @pytest.mark.integration()
+    @pytest.mark.executor_integration()
     async def test_deploy_executor_argocd_metrics_recorded(
         self, deploy_executor_with_argocd, deploy_ticket_argocd, mock_metrics
     ):
@@ -166,9 +166,9 @@ class TestDeployExecutorArgoCDSuccess:
 class TestDeployExecutorArgoCDTimeout:
     """Testes de timeout no deploy via ArgoCD."""
 
-    @pytest.mark.asyncio
-    @pytest.mark.integration
-    @pytest.mark.executor_integration
+    @pytest.mark.asyncio()
+    @pytest.mark.integration()
+    @pytest.mark.executor_integration()
     async def test_deploy_executor_argocd_timeout(
         self, deploy_executor_with_argocd, deploy_ticket_argocd, mock_argocd_client
     ):
@@ -186,9 +186,9 @@ class TestDeployExecutorArgoCDTimeout:
         assert result["metadata"]["provider"] == "argocd"
         assert result["metadata"]["simulated"] is False
 
-    @pytest.mark.asyncio
-    @pytest.mark.integration
-    @pytest.mark.executor_integration
+    @pytest.mark.asyncio()
+    @pytest.mark.integration()
+    @pytest.mark.executor_integration()
     async def test_deploy_executor_argocd_timeout_duration(
         self, deploy_executor_with_argocd, deploy_ticket_argocd, mock_argocd_client
     ):
@@ -215,9 +215,9 @@ class TestDeployExecutorArgoCDTimeout:
 class TestDeployExecutorArgoCDAPIError:
     """Testes de erros de API do ArgoCD."""
 
-    @pytest.mark.asyncio
-    @pytest.mark.integration
-    @pytest.mark.executor_integration
+    @pytest.mark.asyncio()
+    @pytest.mark.integration()
+    @pytest.mark.executor_integration()
     async def test_deploy_executor_argocd_api_error_500(
         self, deploy_executor_with_argocd, deploy_ticket_argocd, mock_argocd_client
     ):
@@ -234,9 +234,9 @@ class TestDeployExecutorArgoCDAPIError:
         assert result["output"]["status"] == "error"
         assert result["metadata"]["error_code"] == 500
 
-    @pytest.mark.asyncio
-    @pytest.mark.integration
-    @pytest.mark.executor_integration
+    @pytest.mark.asyncio()
+    @pytest.mark.integration()
+    @pytest.mark.executor_integration()
     async def test_deploy_executor_argocd_api_error_401(
         self, deploy_executor_with_argocd, deploy_ticket_argocd, mock_argocd_client
     ):
@@ -252,9 +252,9 @@ class TestDeployExecutorArgoCDAPIError:
         assert result["success"] is False
         assert result["metadata"]["error_code"] == 401
 
-    @pytest.mark.asyncio
-    @pytest.mark.integration
-    @pytest.mark.executor_integration
+    @pytest.mark.asyncio()
+    @pytest.mark.integration()
+    @pytest.mark.executor_integration()
     async def test_deploy_executor_argocd_api_error_403(
         self, deploy_executor_with_argocd, deploy_ticket_argocd, mock_argocd_client
     ):
@@ -279,9 +279,9 @@ class TestDeployExecutorArgoCDAPIError:
 class TestDeployExecutorFluxSuccess:
     """Testes de deploy bem-sucedido via Flux."""
 
-    @pytest.mark.asyncio
-    @pytest.mark.integration
-    @pytest.mark.executor_integration
+    @pytest.mark.asyncio()
+    @pytest.mark.integration()
+    @pytest.mark.executor_integration()
     async def test_deploy_executor_flux_success(
         self, deploy_executor_with_flux, deploy_ticket_flux, mock_flux_client
     ):
@@ -296,9 +296,9 @@ class TestDeployExecutorFluxSuccess:
         mock_flux_client.create_kustomization.assert_called_once()
         mock_flux_client.wait_for_ready.assert_called_once()
 
-    @pytest.mark.asyncio
-    @pytest.mark.integration
-    @pytest.mark.executor_integration
+    @pytest.mark.asyncio()
+    @pytest.mark.integration()
+    @pytest.mark.executor_integration()
     async def test_deploy_executor_flux_revision_tracking(
         self, deploy_executor_with_flux, deploy_ticket_flux, mock_flux_client
     ):
@@ -317,9 +317,9 @@ class TestDeployExecutorFluxSuccess:
 class TestDeployExecutorFluxTimeout:
     """Testes de timeout no deploy via Flux."""
 
-    @pytest.mark.asyncio
-    @pytest.mark.integration
-    @pytest.mark.executor_integration
+    @pytest.mark.asyncio()
+    @pytest.mark.integration()
+    @pytest.mark.executor_integration()
     async def test_deploy_executor_flux_timeout(
         self, deploy_executor_with_flux, deploy_ticket_flux, mock_flux_client
     ):
@@ -345,9 +345,9 @@ class TestDeployExecutorFluxTimeout:
 class TestDeployExecutorFluxAPIError:
     """Testes de erros de API do Flux."""
 
-    @pytest.mark.asyncio
-    @pytest.mark.integration
-    @pytest.mark.executor_integration
+    @pytest.mark.asyncio()
+    @pytest.mark.integration()
+    @pytest.mark.executor_integration()
     async def test_deploy_executor_flux_api_error(
         self, deploy_executor_with_flux, deploy_ticket_flux, mock_flux_client
     ):
@@ -373,9 +373,9 @@ class TestDeployExecutorFluxAPIError:
 class TestDeployExecutorFallbackSimulation:
     """Testes de fallback para simulacao."""
 
-    @pytest.mark.asyncio
-    @pytest.mark.integration
-    @pytest.mark.executor_integration
+    @pytest.mark.asyncio()
+    @pytest.mark.integration()
+    @pytest.mark.executor_integration()
     async def test_deploy_executor_fallback_simulation(
         self, deploy_executor_simulation_only, deploy_ticket_argocd
     ):
@@ -387,9 +387,9 @@ class TestDeployExecutorFallbackSimulation:
         assert result["metadata"]["provider"] == "simulation"
         assert "deployment_id" in result["output"]
 
-    @pytest.mark.asyncio
-    @pytest.mark.integration
-    @pytest.mark.executor_integration
+    @pytest.mark.asyncio()
+    @pytest.mark.integration()
+    @pytest.mark.executor_integration()
     async def test_deploy_executor_simulation_logs(
         self, deploy_executor_simulation_only, deploy_ticket_argocd
     ):
@@ -409,9 +409,9 @@ class TestDeployExecutorFallbackSimulation:
 class TestDeployExecutorRetryLogic:
     """Testes de logica de retry."""
 
-    @pytest.mark.asyncio
-    @pytest.mark.integration
-    @pytest.mark.executor_integration
+    @pytest.mark.asyncio()
+    @pytest.mark.integration()
+    @pytest.mark.executor_integration()
     async def test_deploy_executor_retry_success_after_failures(
         self, worker_config, mock_metrics, deploy_ticket_argocd
     ):
@@ -488,9 +488,9 @@ class TestDeployExecutorRetryLogic:
 class TestDeployExecutorUnexpectedErrors:
     """Testes de erros inesperados."""
 
-    @pytest.mark.asyncio
-    @pytest.mark.integration
-    @pytest.mark.executor_integration
+    @pytest.mark.asyncio()
+    @pytest.mark.integration()
+    @pytest.mark.executor_integration()
     async def test_deploy_executor_unexpected_exception(
         self, deploy_executor_with_argocd, deploy_ticket_argocd, mock_argocd_client
     ):
@@ -502,9 +502,9 @@ class TestDeployExecutorUnexpectedErrors:
         assert result["success"] is False
         assert result["output"]["status"] == "error"
 
-    @pytest.mark.asyncio
-    @pytest.mark.integration
-    @pytest.mark.executor_integration
+    @pytest.mark.asyncio()
+    @pytest.mark.integration()
+    @pytest.mark.executor_integration()
     async def test_deploy_executor_connection_error(
         self, deploy_executor_with_argocd, deploy_ticket_argocd, mock_argocd_client
     ):
@@ -526,9 +526,9 @@ class TestDeployExecutorUnexpectedErrors:
 class TestDeployExecutorTicketValidation:
     """Testes de validacao de ticket."""
 
-    @pytest.mark.asyncio
-    @pytest.mark.integration
-    @pytest.mark.executor_integration
+    @pytest.mark.asyncio()
+    @pytest.mark.integration()
+    @pytest.mark.executor_integration()
     async def test_deploy_executor_missing_ticket_id(self, deploy_executor_with_argocd):
         """Deve falhar com ticket sem ID."""
         invalid_ticket = {"task_type": "DEPLOY", "parameters": {}}
@@ -536,9 +536,9 @@ class TestDeployExecutorTicketValidation:
         with pytest.raises(ValueError):
             await deploy_executor_with_argocd.execute(invalid_ticket)
 
-    @pytest.mark.asyncio
-    @pytest.mark.integration
-    @pytest.mark.executor_integration
+    @pytest.mark.asyncio()
+    @pytest.mark.integration()
+    @pytest.mark.executor_integration()
     async def test_deploy_executor_wrong_task_type(self, deploy_executor_with_argocd):
         """Deve falhar com task_type incorreto."""
         invalid_ticket = {"ticket_id": str(uuid.uuid4()), "task_type": "BUILD", "parameters": {}}

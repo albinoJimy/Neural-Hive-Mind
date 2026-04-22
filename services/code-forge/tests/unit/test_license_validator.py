@@ -10,18 +10,17 @@ Cobertura:
 """
 
 import pytest
-
+from src.models.artifact import ValidationStatus, ValidationType
 from src.services.license_validator import (
-    LicenseValidator,
     PERMISSIVE_LICENSES,
+    LicenseValidator,
 )
-from src.models.artifact import ValidationType, ValidationStatus
 
 
 class TestLicenseValidatorSPDX:
     """Testes de validacao de licencas em formato SPDX."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_validate_spdx_permissive_licenses(self):
         """Deve aceitar licencas permissivas em SPDX."""
         validator = LicenseValidator(require_sbom=False)
@@ -44,7 +43,7 @@ class TestLicenseValidatorSPDX:
         assert result.critical_issues == 0
         assert result.high_issues == 0
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_validate_spdx_gpl_license(self):
         """Deve falhar para licencas GPL (strong copyleft)."""
         validator = LicenseValidator(require_sbom=False)
@@ -63,7 +62,7 @@ class TestLicenseValidatorSPDX:
         assert result.high_issues >= 1  # Classificado como high issue
         assert result.metadata["license_analysis"]["strong_copyleft"]
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_validate_spdx_mixed_licenses(self):
         """Deve classificar corretamente licencas mistas."""
         validator = LicenseValidator(require_sbom=False)
@@ -90,7 +89,7 @@ class TestLicenseValidatorSPDX:
 class TestLicenseValidatorCycloneDX:
     """Testes de validacao de licencas em formato CycloneDX."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_validate_cyclonedx_permissive(self):
         """Deve aceitar licencas permissivas em CycloneDX."""
         validator = LicenseValidator(require_sbom=False)
@@ -110,7 +109,7 @@ class TestLicenseValidatorCycloneDX:
         assert result.status == ValidationStatus.PASSED
         assert result.score == 1.0
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_validate_cyclonedx_agpl(self):
         """Deve falhar para licenca AGPL."""
         validator = LicenseValidator(require_sbom=False)
@@ -131,7 +130,7 @@ class TestLicenseValidatorCycloneDX:
 class TestLicenseValidatorMissingSBOM:
     """Testes de tratamento de SBOM ausente."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_no_sbom_require_true(self):
         """Deve retornar WARNING quando SBOM obrigatorio ausente."""
         validator = LicenseValidator(require_sbom=True)
@@ -144,7 +143,7 @@ class TestLicenseValidatorMissingSBOM:
         assert result.high_issues >= 1  # Issue alto quando SBOM obrigatorio falta
         assert "SBOM não disponível" in result.metadata.get("message", "")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_no_sbom_require_false(self):
         """Deve retornar WARNING quando SBOM opcional ausente."""
         validator = LicenseValidator(require_sbom=False)
@@ -162,7 +161,7 @@ class TestLicenseValidatorMissingSBOM:
 class TestLicenseValidatorRiskClassification:
     """Testes de classificacao de risco de licencas."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_classify_permissive_licenses(self):
         """Deve classificar licencas permissivas corretamente."""
         validator = LicenseValidator()
@@ -175,7 +174,7 @@ class TestLicenseValidatorRiskClassification:
             assert not analysis["prohibited"]
             assert not analysis["strong_copyleft"]
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_classify_weak_copyleft(self):
         """Deve classificar weak copyleft corretamente."""
         validator = LicenseValidator()
@@ -186,7 +185,7 @@ class TestLicenseValidatorRiskClassification:
                 lic in l for l in analysis["weak_copyleft"]
             )
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_classify_strong_copyleft(self):
         """Deve classificar strong copyleft corretamente."""
         validator = LicenseValidator()
@@ -197,7 +196,7 @@ class TestLicenseValidatorRiskClassification:
                 lic in l for l in analysis["strong_copyleft"]
             )
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_classify_unknown_license(self):
         """Deve classificar licencas desconhecidas."""
         validator = LicenseValidator()
@@ -209,7 +208,7 @@ class TestLicenseValidatorRiskClassification:
 class TestLicenseValidatorScoreCalculation:
     """Testes de calculo de score."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_score_all_permissive(self):
         """Score maximo para todas permissivas."""
         validator = LicenseValidator()
@@ -227,7 +226,7 @@ class TestLicenseValidatorScoreCalculation:
         assert score == 1.0
         assert issues == 0
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_score_with_gpl(self):
         """Score reduzido com GPL."""
         validator = LicenseValidator()
@@ -245,7 +244,7 @@ class TestLicenseValidatorScoreCalculation:
         assert score <= 0.8  # 1.0 - 0.2 = 0.8
         assert issues >= 1
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_score_with_prohibited(self):
         """Score muito baixo com licencas proibidas."""
         validator = LicenseValidator()
@@ -263,7 +262,7 @@ class TestLicenseValidatorScoreCalculation:
         assert score < 0.4  # 1.0 - 0.7 = 0.3
         assert issues > 0
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_score_minimum_zero(self):
         """Score nunca deve ser negativo."""
         validator = LicenseValidator()
@@ -284,7 +283,7 @@ class TestLicenseValidatorScoreCalculation:
 class TestLicenseValidatorLicenseNormalization:
     """Testes de normalizacao de nomes de licenca."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_normalize_apache_variations(self):
         """Deve normalizar variacoes de Apache."""
         validator = LicenseValidator()
@@ -298,7 +297,7 @@ class TestLicenseValidatorLicenseNormalization:
         normalized3 = validator._normalize_license_name("Apache-2.0")
         assert normalized3 == "APACHE-2.0" or "APACHE-2.0" in normalized3
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_normalize_gpl_variations(self):
         """Deve normalizar variacoes de GPL."""
         validator = LicenseValidator()
@@ -315,7 +314,7 @@ class TestLicenseValidatorLicenseNormalization:
 class TestLicenseValidatorPolicy:
     """Testes de politica de licencas configuravel."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_custom_allowed_licenses(self):
         """Deve aceitar licencas customizadas permitidas."""
         custom_allowed = {"MIT", "Apache-2.0", "Custom-Permissive"}
@@ -336,7 +335,7 @@ class TestLicenseValidatorPolicy:
 
         assert result.status == ValidationStatus.PASSED
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_custom_prohibited_licenses(self):
         """Deve bloquear licencas customizadas proibidas."""
         # Usar formato exato que aparece no SBOM (case-sensitive)
@@ -362,7 +361,7 @@ class TestLicenseValidatorPolicy:
         # Status deve ser FAILED
         assert result.status == ValidationStatus.FAILED
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_license_policy(self):
         """Deve retornar politica configurada."""
         custom_allowed = {"MIT", "Apache-2.0"}

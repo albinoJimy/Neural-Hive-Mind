@@ -7,7 +7,7 @@ NOTA: Será atualizado após compilação do proto.
 import asyncio
 import socket
 import time
-from typing import Any, Optional, Tuple
+from typing import Any, Optional
 
 import grpc
 import structlog
@@ -116,7 +116,7 @@ async def _bind_port_with_retry(
             await asyncio.sleep(delay)
 
 
-async def start_grpc_server(settings) -> Tuple[Any, Optional[Any]]:
+async def start_grpc_server(settings) -> tuple[Any, Optional[Any]]:
     """
     Inicia servidor gRPC com retry logic para bind de porta.
 

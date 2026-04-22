@@ -1,36 +1,28 @@
 """Health check and metrics handlers."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import Response
-from prometheus_client import Counter, Histogram, generate_latest, REGISTRY
+from prometheus_client import REGISTRY, Counter, Histogram, generate_latest
 from prometheus_client.exposition import CONTENT_TYPE_LATEST
 
 from src.config.settings import get_settings
 
 # Metrics
 http_requests_total = Counter(
-    "http_requests_total",
-    "Total HTTP requests",
-    ["method", "endpoint", "status"]
+    "http_requests_total", "Total HTTP requests", ["method", "endpoint", "status"]
 )
 
 http_request_duration_seconds = Histogram(
-    "http_request_duration_seconds",
-    "HTTP request latency",
-    ["method", "endpoint"]
+    "http_request_duration_seconds", "HTTP request latency", ["method", "endpoint"]
 )
 
 impact_analysis_total = Counter(
-    "impact_analysis_total",
-    "Total impact analyses performed",
-    ["direction", "magnitude"]
+    "impact_analysis_total", "Total impact analyses performed", ["direction", "magnitude"]
 )
 
 impact_analysis_duration_seconds = Histogram(
-    "impact_analysis_duration_seconds",
-    "Impact analysis duration",
-    ["timeframe"]
+    "impact_analysis_duration_seconds", "Impact analysis duration", ["timeframe"]
 )
 
 
@@ -41,7 +33,7 @@ async def root_handler() -> dict:
         "service": settings.service_name,
         "version": settings.service_version,
         "status": "operational",
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
     }
 
 
@@ -52,7 +44,7 @@ async def health_handler() -> dict:
         "status": "healthy",
         "service": settings.service_name,
         "version": settings.service_version,
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
     }
 
 
@@ -72,7 +64,7 @@ async def readiness_handler() -> dict:
 
     return {
         "ready": is_ready,
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
     }
 
 

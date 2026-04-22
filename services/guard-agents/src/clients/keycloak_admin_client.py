@@ -1,7 +1,7 @@
 """Keycloak Admin Client for token revocation and user management"""
 
-from datetime import datetime, timezone
-from typing import Any, Dict, Optional
+from datetime import UTC, datetime
+from typing import Any, Optional
 
 import httpx
 import structlog
@@ -71,7 +71,7 @@ class KeycloakAdminClient:
 
     async def _ensure_token(self):
         """Garante que temos um token admin valido"""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         # Verifica se token ainda e valido (com margem de 30s)
         if (
@@ -112,7 +112,7 @@ class KeycloakAdminClient:
                 token_data.get("expires_in", self.token_cache_ttl), self.token_cache_ttl
             )
             self._token_expires_at = datetime.fromtimestamp(
-                datetime.now(timezone.utc).timestamp() + expires_in, tz=timezone.utc
+                datetime.now(UTC).timestamp() + expires_in, tz=UTC
             )
 
             logger.debug("keycloak_admin.token_refreshed", expires_in=expires_in)
@@ -128,7 +128,7 @@ class KeycloakAdminClient:
             logger.error("keycloak_admin.token_refresh_error", error=str(e))
             raise
 
-    def _get_auth_headers(self) -> Dict[str, str]:
+    def _get_auth_headers(self) -> dict[str, str]:
         """Retorna headers de autenticacao"""
         return {"Authorization": f"Bearer {self._admin_token}", "Content-Type": "application/json"}
 
@@ -137,7 +137,7 @@ class KeycloakAdminClient:
         wait=wait_exponential(multiplier=1, min=1, max=10),
         retry=retry_if_exception_type((httpx.HTTPError, httpx.TimeoutException)),
     )
-    async def revoke_user_sessions(self, user_id: str) -> Dict[str, Any]:
+    async def revoke_user_sessions(self, user_id: str) -> dict[str, Any]:
         """
         Revoga todas as sessoes ativas de um usuario
 
@@ -174,7 +174,7 @@ class KeycloakAdminClient:
                         "success": True,
                         "user_id": user_id,
                         "action": "revoke_sessions",
-                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                        "timestamp": datetime.now(UTC).isoformat(),
                     }
 
                 elif response.status_code == 404:
@@ -189,7 +189,7 @@ class KeycloakAdminClient:
                         "success": False,
                         "user_id": user_id,
                         "reason": "User not found",
-                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                        "timestamp": datetime.now(UTC).isoformat(),
                     }
 
                 else:
@@ -209,7 +209,7 @@ class KeycloakAdminClient:
                     "success": False,
                     "user_id": user_id,
                     "reason": f"HTTP error: {e.response.status_code}",
-                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "timestamp": datetime.now(UTC).isoformat(),
                 }
 
             except Exception as e:
@@ -224,7 +224,7 @@ class KeycloakAdminClient:
         wait=wait_exponential(multiplier=1, min=1, max=10),
         retry=retry_if_exception_type((httpx.HTTPError, httpx.TimeoutException)),
     )
-    async def disable_user(self, user_id: str) -> Dict[str, Any]:
+    async def disable_user(self, user_id: str) -> dict[str, Any]:
         """
         Desabilita conta de usuario temporariamente
 
@@ -258,7 +258,7 @@ class KeycloakAdminClient:
                         "success": True,
                         "user_id": user_id,
                         "action": "disable_user",
-                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                        "timestamp": datetime.now(UTC).isoformat(),
                     }
 
                 elif response.status_code == 404:
@@ -270,7 +270,7 @@ class KeycloakAdminClient:
                         "success": False,
                         "user_id": user_id,
                         "reason": "User not found",
-                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                        "timestamp": datetime.now(UTC).isoformat(),
                     }
 
                 else:
@@ -289,7 +289,7 @@ class KeycloakAdminClient:
                     "success": False,
                     "user_id": user_id,
                     "reason": f"HTTP error: {e.response.status_code}",
-                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "timestamp": datetime.now(UTC).isoformat(),
                 }
 
             except Exception as e:
@@ -304,7 +304,7 @@ class KeycloakAdminClient:
         wait=wait_exponential(multiplier=1, min=1, max=10),
         retry=retry_if_exception_type((httpx.HTTPError, httpx.TimeoutException)),
     )
-    async def logout_user(self, user_id: str) -> Dict[str, Any]:
+    async def logout_user(self, user_id: str) -> dict[str, Any]:
         """
         Forca logout de todas as sessoes de um usuario (alias para revoke_user_sessions)
 
@@ -316,7 +316,7 @@ class KeycloakAdminClient:
         """
         return await self.revoke_user_sessions(user_id)
 
-    async def get_user_sessions(self, user_id: str) -> Dict[str, Any]:
+    async def get_user_sessions(self, user_id: str) -> dict[str, Any]:
         """
         Obtem sessoes ativas de um usuario
 
@@ -349,7 +349,7 @@ class KeycloakAdminClient:
                         "user_id": user_id,
                         "sessions": sessions,
                         "session_count": len(sessions),
-                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                        "timestamp": datetime.now(UTC).isoformat(),
                     }
 
                 elif response.status_code == 404:
@@ -362,7 +362,7 @@ class KeycloakAdminClient:
                         "user_id": user_id,
                         "reason": "User not found",
                         "sessions": [],
-                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                        "timestamp": datetime.now(UTC).isoformat(),
                     }
 
                 else:
@@ -378,10 +378,10 @@ class KeycloakAdminClient:
                     "user_id": user_id,
                     "reason": str(e),
                     "sessions": [],
-                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "timestamp": datetime.now(UTC).isoformat(),
                 }
 
-    async def enable_user(self, user_id: str) -> Dict[str, Any]:
+    async def enable_user(self, user_id: str) -> dict[str, Any]:
         """
         Reabilita conta de usuario
 
@@ -412,7 +412,7 @@ class KeycloakAdminClient:
                         "success": True,
                         "user_id": user_id,
                         "action": "enable_user",
-                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                        "timestamp": datetime.now(UTC).isoformat(),
                     }
 
                 elif response.status_code == 404:
@@ -424,7 +424,7 @@ class KeycloakAdminClient:
                         "success": False,
                         "user_id": user_id,
                         "reason": "User not found",
-                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                        "timestamp": datetime.now(UTC).isoformat(),
                     }
 
                 else:
@@ -439,5 +439,5 @@ class KeycloakAdminClient:
                     "success": False,
                     "user_id": user_id,
                     "reason": str(e),
-                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "timestamp": datetime.now(UTC).isoformat(),
                 }

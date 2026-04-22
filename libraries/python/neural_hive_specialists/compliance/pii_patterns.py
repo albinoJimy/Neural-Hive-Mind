@@ -5,10 +5,11 @@ Contém patterns compilados para detecção de PII global, europeu e brasileiro.
 """
 
 import re
-import structlog
-from enum import Enum
-from typing import Dict, List, Tuple, Optional
 from dataclasses import dataclass
+from enum import Enum
+from typing import Optional
+
+import structlog
 
 logger = structlog.get_logger(__name__)
 
@@ -71,7 +72,7 @@ class PIIPattern:
 
 
 # Patterns compilados
-PII_PATTERNS: List[PIIPattern] = [
+PII_PATTERNS: list[PIIPattern] = [
     # === GLOBAL ===
     PIIPattern(
         type=PIIType.EMAIL,
@@ -214,8 +215,8 @@ class PIIPatternRegistry:
     """Registry para patterns compilados e lookup rápido."""
 
     def __init__(self):
-        self._patterns_by_type: Dict[PIIType, List[Tuple[PIIPattern, re.Pattern]]] = {}
-        self._patterns_by_category: Dict[PIICategory, List[re.Pattern]] = {}
+        self._patterns_by_type: dict[PIIType, list[tuple[PIIPattern, re.Pattern]]] = {}
+        self._patterns_by_category: dict[PIICategory, list[re.Pattern]] = {}
         self._compile_patterns()
 
     def _compile_patterns(self):
@@ -244,11 +245,11 @@ class PIIPatternRegistry:
         patterns = self._patterns_by_type.get(pii_type)
         return patterns[0][1] if patterns else None
 
-    def get_patterns(self, pii_type: PIIType) -> List[Tuple[PIIPattern, re.Pattern]]:
+    def get_patterns(self, pii_type: PIIType) -> list[tuple[PIIPattern, re.Pattern]]:
         """Obtém todos os patterns compilados por tipo."""
         return self._patterns_by_type.get(pii_type, [])
 
-    def get_patterns_by_category(self, category: PIICategory) -> List[Tuple[PIIType, re.Pattern]]:
+    def get_patterns_by_category(self, category: PIICategory) -> list[tuple[PIIType, re.Pattern]]:
         """Obtém patterns por categoria."""
         result = []
         for pii_def in PII_PATTERNS:
@@ -258,7 +259,7 @@ class PIIPatternRegistry:
                     result.append((pii_def.type, compiled))
         return result
 
-    def get_all_types(self) -> List[PIIType]:
+    def get_all_types(self) -> list[PIIType]:
         """Retorna todos os tipos suportados."""
         return list(self._patterns_by_type.keys())
 

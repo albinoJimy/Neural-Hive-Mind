@@ -6,20 +6,20 @@ no formato Avro e pode ser deserializado de volta para dict.
 """
 
 import json
-import pytest
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
+import pytest
 from src.models.consolidated_decision import (
+    ConsensusMethod,
+    ConsensusMetrics,
     ConsolidatedDecision,
     DecisionType,
-    ConsensusMethod,
     SpecialistVote,
-    ConsensusMetrics,
 )
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_cognitive_plan_for_avro():
     """Plano cognitivo completo para testes de serialização Avro."""
     return {
@@ -48,12 +48,12 @@ def sample_cognitive_plan_for_avro():
         "explainability_token": "exp-token-123",
         "reasoning_summary": "Plan approved by all specialists",
         "status": "approved",
-        "created_at": datetime.now(timezone.utc).isoformat(),
+        "created_at": datetime.now(UTC).isoformat(),
         "metadata": {"created_by": "semantic-translation-engine"},
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_specialist_votes():
     """Votos de especialistas para testes."""
     return [
@@ -78,7 +78,7 @@ def sample_specialist_votes():
     ]
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_consensus_metrics():
     """Métricas de consenso para testes."""
     return ConsensusMetrics(
@@ -92,7 +92,7 @@ def sample_consensus_metrics():
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def consolidated_decision_with_plan(
     sample_cognitive_plan_for_avro, sample_specialist_votes, sample_consensus_metrics
 ):

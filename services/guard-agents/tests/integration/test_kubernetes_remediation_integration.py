@@ -4,33 +4,33 @@ Testes de integracao para operacoes de remediacao Kubernetes
 Testa operacoes de restart de pods, scaling, rollback e NetworkPolicies
 """
 
-import pytest
 from unittest.mock import MagicMock
-from kubernetes.client.rest import ApiException
-from kubernetes import client
 
+import pytest
+from kubernetes import client
+from kubernetes.client.rest import ApiException
 from src.clients.kubernetes_client import KubernetesClient
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_core_v1_api():
     """Mock do CoreV1Api"""
     return MagicMock(spec=client.CoreV1Api)
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_apps_v1_api():
     """Mock do AppsV1Api"""
     return MagicMock(spec=client.AppsV1Api)
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_networking_v1_api():
     """Mock do NetworkingV1Api"""
     return MagicMock(spec=client.NetworkingV1Api)
 
 
-@pytest.fixture
+@pytest.fixture()
 def k8s_client(mock_core_v1_api, mock_apps_v1_api, mock_networking_v1_api):
     """Fixture do KubernetesClient com mocks"""
     k8s = KubernetesClient(in_cluster=False, namespace="test-namespace")
@@ -43,7 +43,7 @@ def k8s_client(mock_core_v1_api, mock_apps_v1_api, mock_networking_v1_api):
 class TestPodOperations:
     """Testes de operacoes com pods"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_pod_success(self, k8s_client, mock_core_v1_api):
         """Testa obtencao bem-sucedida de pod"""
         mock_pod = MagicMock()
@@ -59,7 +59,7 @@ class TestPodOperations:
         assert result["metadata"]["name"] == "test-pod"
         mock_core_v1_api.read_namespaced_pod.assert_called_once_with("test-pod", "test-namespace")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_pod_not_found(self, k8s_client, mock_core_v1_api):
         """Testa obtencao de pod nao existente"""
         mock_core_v1_api.read_namespaced_pod.side_effect = ApiException(status=404)
@@ -68,7 +68,7 @@ class TestPodOperations:
 
         assert result is None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_delete_pod_success(self, k8s_client, mock_core_v1_api):
         """Testa restart bem-sucedido de pod (delete)"""
         mock_core_v1_api.delete_namespaced_pod.return_value = MagicMock()
@@ -78,7 +78,7 @@ class TestPodOperations:
         assert result is True
         mock_core_v1_api.delete_namespaced_pod.assert_called_once_with("test-pod", "test-namespace")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_delete_pod_failure(self, k8s_client, mock_core_v1_api):
         """Testa falha ao deletar pod"""
         mock_core_v1_api.delete_namespaced_pod.side_effect = ApiException(status=500)
@@ -87,7 +87,7 @@ class TestPodOperations:
 
         assert result is False
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_patch_pod_labels_success(self, k8s_client, mock_core_v1_api):
         """Testa patch de labels em pod"""
         mock_core_v1_api.patch_namespaced_pod.return_value = MagicMock()
@@ -103,7 +103,7 @@ class TestPodOperations:
 class TestDeploymentOperations:
     """Testes de operacoes com deployments"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_scale_deployment_success(self, k8s_client, mock_apps_v1_api):
         """Testa scaling bem-sucedido de deployment"""
         mock_apps_v1_api.patch_namespaced_deployment_scale.return_value = MagicMock()
@@ -113,7 +113,7 @@ class TestDeploymentOperations:
         assert result is True
         mock_apps_v1_api.patch_namespaced_deployment_scale.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_scale_deployment_invalid_replicas(self, k8s_client):
         """Testa validacao de replicas invalidas"""
         # Replicas negativas
@@ -124,7 +124,7 @@ class TestDeploymentOperations:
         result = await k8s_client.scale_deployment("test-deployment", 100)
         assert result is False
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_scale_deployment_failure(self, k8s_client, mock_apps_v1_api):
         """Testa falha ao escalar deployment"""
         mock_apps_v1_api.patch_namespaced_deployment_scale.side_effect = ApiException(status=500)
@@ -133,7 +133,7 @@ class TestDeploymentOperations:
 
         assert result is False
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_rollback_deployment_success(self, k8s_client, mock_apps_v1_api):
         """Testa rollback bem-sucedido de deployment"""
         mock_deployment = MagicMock()
@@ -147,7 +147,7 @@ class TestDeploymentOperations:
         assert result["previous_revision"] == "5"
         mock_apps_v1_api.patch_namespaced_deployment.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_rollback_deployment_to_specific_revision(self, k8s_client, mock_apps_v1_api):
         """Testa rollback para revisao especifica"""
         mock_deployment = MagicMock()
@@ -160,7 +160,7 @@ class TestDeploymentOperations:
         assert result["success"] is True
         assert result["target_revision"] == 3
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_rollback_deployment_failure(self, k8s_client, mock_apps_v1_api):
         """Testa falha no rollback de deployment"""
         mock_apps_v1_api.read_namespaced_deployment.side_effect = ApiException(status=404)
@@ -170,7 +170,7 @@ class TestDeploymentOperations:
         assert result["success"] is False
         assert "error" in result
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_deployment_revision_history(self, k8s_client, mock_apps_v1_api):
         """Testa listagem de historico de revisoes"""
         mock_rs_list = MagicMock()
@@ -203,7 +203,7 @@ class TestDeploymentOperations:
 class TestNetworkPolicyOperations:
     """Testes de operacoes com NetworkPolicies"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_apply_network_policy_create(self, k8s_client, mock_networking_v1_api):
         """Testa criacao de NetworkPolicy"""
         mock_networking_v1_api.create_namespaced_network_policy.return_value = MagicMock()
@@ -216,7 +216,7 @@ class TestNetworkPolicyOperations:
         assert result["action"] == "created"
         mock_networking_v1_api.create_namespaced_network_policy.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_apply_network_policy_update(self, k8s_client, mock_networking_v1_api):
         """Testa atualizacao de NetworkPolicy existente"""
         # Primeira chamada lanca 409 Conflict
@@ -233,7 +233,7 @@ class TestNetworkPolicyOperations:
         assert result["action"] == "updated"
         mock_networking_v1_api.patch_namespaced_network_policy.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_apply_network_policy_isolate(self, k8s_client, mock_networking_v1_api):
         """Testa criacao de policy de isolamento"""
         mock_networking_v1_api.create_namespaced_network_policy.return_value = MagicMock()
@@ -249,7 +249,7 @@ class TestNetworkPolicyOperations:
         assert network_policy.spec.ingress == []
         assert network_policy.spec.egress == []
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_apply_network_policy_restore(self, k8s_client, mock_networking_v1_api):
         """Testa criacao de policy permissiva (restore)"""
         mock_networking_v1_api.create_namespaced_network_policy.return_value = MagicMock()
@@ -260,7 +260,7 @@ class TestNetworkPolicyOperations:
 
         assert result["success"] is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_apply_network_policy_failure(self, k8s_client, mock_networking_v1_api):
         """Testa falha ao aplicar NetworkPolicy"""
         mock_networking_v1_api.create_namespaced_network_policy.side_effect = ApiException(
@@ -274,7 +274,7 @@ class TestNetworkPolicyOperations:
         assert result["success"] is False
         assert "error" in result
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_delete_network_policy_success(self, k8s_client, mock_networking_v1_api):
         """Testa remocao de NetworkPolicy"""
         mock_networking_v1_api.delete_namespaced_network_policy.return_value = MagicMock()
@@ -284,7 +284,7 @@ class TestNetworkPolicyOperations:
         assert result is True
         mock_networking_v1_api.delete_namespaced_network_policy.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_delete_network_policy_not_found(self, k8s_client, mock_networking_v1_api):
         """Testa remocao de policy nao existente (deve ser sucesso)"""
         mock_networking_v1_api.delete_namespaced_network_policy.side_effect = ApiException(
@@ -295,7 +295,7 @@ class TestNetworkPolicyOperations:
 
         assert result is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_delete_network_policy_failure(self, k8s_client, mock_networking_v1_api):
         """Testa falha ao remover NetworkPolicy"""
         mock_networking_v1_api.delete_namespaced_network_policy.side_effect = ApiException(
@@ -334,7 +334,7 @@ class TestHealthCheck:
 class TestNamespaceHandling:
     """Testes de manipulacao de namespace"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_operations_use_custom_namespace(self, k8s_client, mock_core_v1_api):
         """Testa que operacoes podem usar namespace customizado"""
         mock_core_v1_api.delete_namespaced_pod.return_value = MagicMock()
@@ -345,7 +345,7 @@ class TestNamespaceHandling:
             "test-pod", "custom-namespace"
         )
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_operations_use_default_namespace(self, k8s_client, mock_core_v1_api):
         """Testa que operacoes usam namespace padrao quando nao especificado"""
         mock_core_v1_api.delete_namespaced_pod.return_value = MagicMock()

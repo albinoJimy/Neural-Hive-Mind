@@ -1,16 +1,15 @@
-# -*- coding: utf-8 -*-
 """
 Testes unitarios para o modulo de analise estatistica.
 """
 
-import pytest
 import numpy as np
+import pytest
 
 from src.experimentation.statistical_analysis import (
-    StatisticalAnalyzer,
-    ContinuousMetricResult,
-    BinaryMetricResult,
     BayesianResult,
+    BinaryMetricResult,
+    ContinuousMetricResult,
+    StatisticalAnalyzer,
 )
 
 

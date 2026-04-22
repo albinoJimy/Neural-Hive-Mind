@@ -1,15 +1,15 @@
-# -*- coding: utf-8 -*-
 """
 Testes unitarios para o sistema de guardrails.
 """
 
-import pytest
 from unittest.mock import AsyncMock
+
 import numpy as np
+import pytest
 
 from src.experimentation.guardrails import (
-    GuardrailMonitor,
     GuardrailCheckResult,
+    GuardrailMonitor,
     SequentialTestResult,
 )
 

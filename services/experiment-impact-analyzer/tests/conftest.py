@@ -1,21 +1,20 @@
 """Test configuration and fixtures."""
 
 import asyncio
-from datetime import datetime, timezone
-from typing import AsyncGenerator, Generator
-from unittest.mock import AsyncMock, MagicMock, patch
+from collections.abc import AsyncGenerator, Generator
+from datetime import UTC, datetime
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from motor.motor_asyncio import AsyncIOMotorClient
-
 from src.clients.mongodb_client import MongoDBClient
-from src.config.settings import Settings, get_settings
+from src.config.settings import Settings
 from src.services.impact_analyzer import ImpactAnalyzer
 
-UTC = timezone.utc
+UTC = UTC
 
 
-@pytest.fixture
+@pytest.fixture()
 def event_loop() -> Generator[asyncio.AbstractEventLoop, None, None]:
     """Create event loop for async tests."""
     loop = asyncio.new_event_loop()
@@ -23,7 +22,7 @@ def event_loop() -> Generator[asyncio.AbstractEventLoop, None, None]:
     loop.close()
 
 
-@pytest.fixture
+@pytest.fixture()
 def settings() -> Settings:
     """Get test settings."""
     return Settings(
@@ -42,13 +41,15 @@ def settings() -> Settings:
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 async def mock_mongodb_client() -> AsyncGenerator[MongoDBClient, None]:
     """Create mock MongoDB client."""
-    client = MongoDBClient(Settings(
-        mongodb_uri="mongodb://localhost:27017",
-        mongodb_database="test_db",
-    ))
+    client = MongoDBClient(
+        Settings(
+            mongodb_uri="mongodb://localhost:27017",
+            mongodb_database="test_db",
+        )
+    )
 
     # Mock the connection
     client._client = MagicMock(spec=AsyncIOMotorClient)
@@ -60,7 +61,7 @@ async def mock_mongodb_client() -> AsyncGenerator[MongoDBClient, None]:
     client._connected = False
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_experiment() -> dict:
     """Sample experiment data."""
     return {
@@ -92,7 +93,7 @@ def sample_experiment() -> dict:
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_hypothesis() -> dict:
     """Sample hypothesis data."""
     return {
@@ -112,7 +113,7 @@ def sample_hypothesis() -> dict:
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_impact() -> dict:
     """Sample impact analysis data."""
     return {
@@ -130,10 +131,8 @@ def sample_impact() -> dict:
     }
 
 
-@pytest.fixture
-def impact_analyzer(
-    settings: Settings, mock_mongodb_client: MongoDBClient
-) -> ImpactAnalyzer:
+@pytest.fixture()
+def impact_analyzer(settings: Settings, mock_mongodb_client: MongoDBClient) -> ImpactAnalyzer:
     """Create impact analyzer with mocked dependencies."""
     return ImpactAnalyzer(
         settings=settings,
@@ -141,7 +140,7 @@ def impact_analyzer(
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_experiment_data(sample_experiment: dict) -> MagicMock:
     """Create mock experiment data accessor."""
     mock = MagicMock()

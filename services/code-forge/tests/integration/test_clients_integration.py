@@ -10,10 +10,11 @@ Variáveis de ambiente necessárias:
 - REDIS_URL: URL de conexão Redis
 """
 
-import pytest
 import os
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+
+import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../.."))
 
@@ -22,14 +23,13 @@ from src.clients.postgres_client import PostgresClient
 from src.clients.redis_client import RedisClient
 from src.models.artifact import PipelineResult, PipelineStatus
 
-
 # ============================================================================
 # Testes de Integração MongoDB
 # ============================================================================
 
 
-@pytest.mark.integration
-@pytest.mark.asyncio
+@pytest.mark.integration()
+@pytest.mark.asyncio()
 async def test_mongodb_roundtrip():
     """Teste real com MongoDB (requer MongoDB rodando)"""
     mongodb_url = os.getenv("MONGODB_URL")
@@ -40,7 +40,7 @@ async def test_mongodb_roundtrip():
     await client.start()
 
     try:
-        artifact_id = f"test-art-{datetime.now(timezone.utc).timestamp()}"
+        artifact_id = f"test-art-{datetime.now(UTC).timestamp()}"
 
         # Salvar artefato
         await client.save_artifact_content(artifact_id, 'print("test")')
@@ -61,8 +61,8 @@ async def test_mongodb_roundtrip():
         await client.stop()
 
 
-@pytest.mark.integration
-@pytest.mark.asyncio
+@pytest.mark.integration()
+@pytest.mark.asyncio()
 async def test_mongodb_pipeline_logs():
     """Teste de logs de pipeline com MongoDB"""
     mongodb_url = os.getenv("MONGODB_URL")
@@ -73,7 +73,7 @@ async def test_mongodb_pipeline_logs():
     await client.start()
 
     try:
-        pipeline_id = f"test-pipe-{datetime.now(timezone.utc).timestamp()}"
+        pipeline_id = f"test-pipe-{datetime.now(UTC).timestamp()}"
         logs = [
             {"stage": "build", "status": "success", "duration_ms": 1000},
             {"stage": "test", "status": "success", "duration_ms": 2000},
@@ -91,8 +91,8 @@ async def test_mongodb_pipeline_logs():
         await client.stop()
 
 
-@pytest.mark.integration
-@pytest.mark.asyncio
+@pytest.mark.integration()
+@pytest.mark.asyncio()
 async def test_mongodb_health_check():
     """Teste de health check MongoDB"""
     mongodb_url = os.getenv("MONGODB_URL")
@@ -114,8 +114,8 @@ async def test_mongodb_health_check():
 # ============================================================================
 
 
-@pytest.mark.integration
-@pytest.mark.asyncio
+@pytest.mark.integration()
+@pytest.mark.asyncio()
 async def test_postgres_roundtrip():
     """Teste real com PostgreSQL (requer Postgres rodando)"""
     postgres_url = os.getenv("POSTGRES_URL")
@@ -126,7 +126,7 @@ async def test_postgres_roundtrip():
     await client.start()
 
     try:
-        pipeline_id = f"test-pipe-{datetime.now(timezone.utc).timestamp()}"
+        pipeline_id = f"test-pipe-{datetime.now(UTC).timestamp()}"
 
         result = PipelineResult(
             pipeline_id=pipeline_id,
@@ -139,7 +139,7 @@ async def test_postgres_roundtrip():
             pipeline_stages=[],
             total_duration_ms=1000,
             approval_required=False,
-            created_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
         )
 
         # Salvar pipeline
@@ -155,8 +155,8 @@ async def test_postgres_roundtrip():
         await client.stop()
 
 
-@pytest.mark.integration
-@pytest.mark.asyncio
+@pytest.mark.integration()
+@pytest.mark.asyncio()
 async def test_postgres_list_pipelines():
     """Teste de listagem de pipelines com filtros"""
     postgres_url = os.getenv("POSTGRES_URL")
@@ -167,12 +167,12 @@ async def test_postgres_list_pipelines():
     await client.start()
 
     try:
-        ticket_id = f"test-ticket-{datetime.now(timezone.utc).timestamp()}"
+        ticket_id = f"test-ticket-{datetime.now(UTC).timestamp()}"
 
         # Criar alguns pipelines
         for i in range(3):
             result = PipelineResult(
-                pipeline_id=f"test-pipe-list-{i}-{datetime.now(timezone.utc).timestamp()}",
+                pipeline_id=f"test-pipe-list-{i}-{datetime.now(UTC).timestamp()}",
                 ticket_id=ticket_id,
                 plan_id="test-plan-1",
                 intent_id="test-intent-1",
@@ -182,7 +182,7 @@ async def test_postgres_list_pipelines():
                 pipeline_stages=[],
                 total_duration_ms=1000,
                 approval_required=False,
-                created_at=datetime.now(timezone.utc),
+                created_at=datetime.now(UTC),
             )
             await client.save_pipeline(result)
 
@@ -194,8 +194,8 @@ async def test_postgres_list_pipelines():
         await client.stop()
 
 
-@pytest.mark.integration
-@pytest.mark.asyncio
+@pytest.mark.integration()
+@pytest.mark.asyncio()
 async def test_postgres_update_status():
     """Teste de atualização de status de pipeline"""
     postgres_url = os.getenv("POSTGRES_URL")
@@ -206,7 +206,7 @@ async def test_postgres_update_status():
     await client.start()
 
     try:
-        pipeline_id = f"test-pipe-update-{datetime.now(timezone.utc).timestamp()}"
+        pipeline_id = f"test-pipe-update-{datetime.now(UTC).timestamp()}"
 
         result = PipelineResult(
             pipeline_id=pipeline_id,
@@ -219,7 +219,7 @@ async def test_postgres_update_status():
             pipeline_stages=[],
             total_duration_ms=1000,
             approval_required=False,
-            created_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
         )
         await client.save_pipeline(result)
 
@@ -237,8 +237,8 @@ async def test_postgres_update_status():
         await client.stop()
 
 
-@pytest.mark.integration
-@pytest.mark.asyncio
+@pytest.mark.integration()
+@pytest.mark.asyncio()
 async def test_postgres_statistics():
     """Teste de estatísticas agregadas"""
     postgres_url = os.getenv("POSTGRES_URL")
@@ -258,8 +258,8 @@ async def test_postgres_statistics():
         await client.stop()
 
 
-@pytest.mark.integration
-@pytest.mark.asyncio
+@pytest.mark.integration()
+@pytest.mark.asyncio()
 async def test_postgres_health_check():
     """Teste de health check PostgreSQL"""
     postgres_url = os.getenv("POSTGRES_URL")
@@ -281,8 +281,8 @@ async def test_postgres_health_check():
 # ============================================================================
 
 
-@pytest.mark.integration
-@pytest.mark.asyncio
+@pytest.mark.integration()
+@pytest.mark.asyncio()
 async def test_redis_cache_template():
     """Teste real de cache de templates com Redis"""
     redis_url = os.getenv("REDIS_URL")
@@ -293,7 +293,7 @@ async def test_redis_cache_template():
     await client.start()
 
     try:
-        template_id = f"test-tpl-{datetime.now(timezone.utc).timestamp()}"
+        template_id = f"test-tpl-{datetime.now(UTC).timestamp()}"
         template = {"name": "test", "content": 'print("hello")'}
 
         # Cachear template
@@ -315,8 +315,8 @@ async def test_redis_cache_template():
         await client.stop()
 
 
-@pytest.mark.integration
-@pytest.mark.asyncio
+@pytest.mark.integration()
+@pytest.mark.asyncio()
 async def test_redis_pipeline_state():
     """Teste de estado de pipeline com Redis"""
     redis_url = os.getenv("REDIS_URL")
@@ -327,7 +327,7 @@ async def test_redis_pipeline_state():
     await client.start()
 
     try:
-        pipeline_id = f"test-pipe-{datetime.now(timezone.utc).timestamp()}"
+        pipeline_id = f"test-pipe-{datetime.now(UTC).timestamp()}"
         state = {"stage": "build", "progress": 50, "artifacts": ["art-1", "art-2"]}
 
         # Salvar estado
@@ -352,8 +352,8 @@ async def test_redis_pipeline_state():
         await client.stop()
 
 
-@pytest.mark.integration
-@pytest.mark.asyncio
+@pytest.mark.integration()
+@pytest.mark.asyncio()
 async def test_redis_distributed_lock():
     """Teste de lock distribuído com Redis"""
     redis_url = os.getenv("REDIS_URL")
@@ -364,7 +364,7 @@ async def test_redis_distributed_lock():
     await client.start()
 
     try:
-        resource_id = f"test-resource-{datetime.now(timezone.utc).timestamp()}"
+        resource_id = f"test-resource-{datetime.now(UTC).timestamp()}"
 
         # Adquirir lock
         acquired = await client.acquire_lock(resource_id, timeout=30, owner="test-owner")
@@ -393,8 +393,8 @@ async def test_redis_distributed_lock():
         await client.stop()
 
 
-@pytest.mark.integration
-@pytest.mark.asyncio
+@pytest.mark.integration()
+@pytest.mark.asyncio()
 async def test_redis_health_check():
     """Teste de health check Redis"""
     redis_url = os.getenv("REDIS_URL")
@@ -411,8 +411,8 @@ async def test_redis_health_check():
         await client.stop()
 
 
-@pytest.mark.integration
-@pytest.mark.asyncio
+@pytest.mark.integration()
+@pytest.mark.asyncio()
 async def test_redis_generic_values():
     """Teste de valores genéricos com Redis"""
     redis_url = os.getenv("REDIS_URL")
@@ -423,7 +423,7 @@ async def test_redis_generic_values():
     await client.start()
 
     try:
-        key = f"test-key-{datetime.now(timezone.utc).timestamp()}"
+        key = f"test-key-{datetime.now(UTC).timestamp()}"
 
         # Salvar valor com TTL
         await client.set_value(key, "test-value", ttl=60)

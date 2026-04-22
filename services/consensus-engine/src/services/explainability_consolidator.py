@@ -1,8 +1,8 @@
 import asyncio
 import uuid
 from collections import Counter
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Tuple
+from datetime import UTC, datetime
+from typing import Any
 
 import structlog
 from src.models.consolidated_decision import ConsensusMethod
@@ -18,14 +18,14 @@ class ExplainabilityConsolidator:
 
     def generate(
         self,
-        opinions: List[Dict[str, Any]],
+        opinions: list[dict[str, Any]],
         aggregated_confidence: float,
         aggregated_risk: float,
         divergence: float,
         final_decision: str,
         consensus_method: ConsensusMethod,
-        violations: List[str],
-    ) -> Tuple[str, str]:
+        violations: list[str],
+    ) -> tuple[str, str]:
         """Gera token e resumo de explicabilidade consolidada"""
         # Gerar token único
         explainability_token = str(uuid.uuid4())
@@ -67,13 +67,13 @@ class ExplainabilityConsolidator:
 
     def _generate_reasoning_summary(
         self,
-        opinions: List[Dict[str, Any]],
+        opinions: list[dict[str, Any]],
         aggregated_confidence: float,
         aggregated_risk: float,
         divergence: float,
         final_decision: str,
         consensus_method: ConsensusMethod,
-        violations: List[str],
+        violations: list[str],
     ) -> str:
         """Gera resumo narrativo da decisão"""
         # Contar recomendações
@@ -100,14 +100,14 @@ class ExplainabilityConsolidator:
 
     def _generate_detailed_explanation(
         self,
-        opinions: List[Dict[str, Any]],
+        opinions: list[dict[str, Any]],
         aggregated_confidence: float,
         aggregated_risk: float,
         divergence: float,
         final_decision: str,
         consensus_method: ConsensusMethod,
-        violations: List[str],
-    ) -> Dict[str, Any]:
+        violations: list[str],
+    ) -> dict[str, Any]:
         """Gera explicação detalhada para auditoria"""
         # Extrair campos hierárquicos das opiniões
         seniority_distribution = self._extract_seniority_distribution(opinions)
@@ -134,13 +134,13 @@ class ExplainabilityConsolidator:
                 ),
             },
             "compliance": {"is_compliant": len(violations) == 0, "violations": violations},
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "version": "1.1.0",  # Incrementado para GAPS-04
         }
 
-    def _extract_seniority_distribution(self, opinions: List[Dict[str, Any]]) -> Dict[str, int]:
+    def _extract_seniority_distribution(self, opinions: list[dict[str, Any]]) -> dict[str, int]:
         """Extrai distribuição de senioridade das opiniões"""
-        distribution: Dict[str, int] = {}
+        distribution: dict[str, int] = {}
 
         for op in opinions:
             seniority = op.get("seniority_level", "unknown")
@@ -148,7 +148,7 @@ class ExplainabilityConsolidator:
 
         return distribution
 
-    def _build_specialist_opinions(self, opinions: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def _build_specialist_opinions(self, opinions: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """Constrói lista de opiniões especialistas com campos hierárquicos"""
         result = []
 
@@ -203,7 +203,7 @@ class ExplainabilityConsolidator:
         else:  # conditional
             return f"Aprovação condicional com confiança {confidence:.2f} e risco {risk:.2f}. Requer monitoramento."
 
-    async def _persist_explanation(self, token: str, explanation: Dict):
+    async def _persist_explanation(self, token: str, explanation: dict):
         """Persiste explicação detalhada no MongoDB"""
         try:
             collection = self.mongodb.db["consensus_explainability"]
@@ -211,7 +211,7 @@ class ExplainabilityConsolidator:
                 {
                     "token": token,
                     "explanation": explanation,
-                    "timestamp": datetime.now(timezone.utc),
+                    "timestamp": datetime.now(UTC),
                 }
             )
             logger.info("Explicação consolidada persistida", token=token)

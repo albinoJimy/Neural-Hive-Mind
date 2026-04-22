@@ -1,6 +1,5 @@
 """Bootstrap service to populate catalog with 87 initial tools."""
 
-from typing import List
 
 from src.models.tool_descriptor import (
     AuthenticationMethod,
@@ -30,7 +29,7 @@ class ToolCatalogBootstrap:
         """Obtém endpoint de settings ou retorna default."""
         return getattr(self.settings, env_var, None) or default
 
-    def get_initial_tools(self) -> List[ToolDescriptor]:
+    def get_initial_tools(self) -> list[ToolDescriptor]:
         """Get initial set of 87 tools across 6 categories."""
         tools = []
 
@@ -59,7 +58,7 @@ class ToolCatalogBootstrap:
 
         return tools
 
-    def _get_analysis_tools(self) -> List[ToolDescriptor]:
+    def _get_analysis_tools(self) -> list[ToolDescriptor]:
         """Get ANALYSIS category tools."""
         return [
             ToolDescriptor(
@@ -444,7 +443,7 @@ class ToolCatalogBootstrap:
             ),
         ]
 
-    def _get_generation_tools(self) -> List[ToolDescriptor]:
+    def _get_generation_tools(self) -> list[ToolDescriptor]:
         """Get GENERATION category tools."""
         return [
             ToolDescriptor(
@@ -818,7 +817,7 @@ class ToolCatalogBootstrap:
             ),
         ]
 
-    def _get_transformation_tools(self) -> List[ToolDescriptor]:
+    def _get_transformation_tools(self) -> list[ToolDescriptor]:
         """Get TRANSFORMATION category tools."""
         return [
             ToolDescriptor(
@@ -1149,7 +1148,7 @@ class ToolCatalogBootstrap:
             ),
         ]
 
-    def _get_validation_tools(self) -> List[ToolDescriptor]:
+    def _get_validation_tools(self) -> list[ToolDescriptor]:
         """Get VALIDATION category tools."""
         return [
             ToolDescriptor(
@@ -1379,7 +1378,7 @@ class ToolCatalogBootstrap:
             ),
         ]
 
-    def _get_automation_tools(self) -> List[ToolDescriptor]:
+    def _get_automation_tools(self) -> list[ToolDescriptor]:
         """Get AUTOMATION category tools."""
         return [
             ToolDescriptor(
@@ -1617,7 +1616,7 @@ class ToolCatalogBootstrap:
             ),
         ]
 
-    def _get_integration_tools(self) -> List[ToolDescriptor]:
+    def _get_integration_tools(self) -> list[ToolDescriptor]:
         """Get INTEGRATION category tools."""
         return [
             ToolDescriptor(

@@ -9,16 +9,16 @@ Testes abrangentes para verificar consistência entre camadas de memória:
 """
 
 import json
-import pytest
-from datetime import datetime, timezone
-from unittest.mock import AsyncMock, MagicMock, patch
 import uuid
+from datetime import UTC, datetime
+from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
+from src.clients.kafka_sync_producer import KafkaSyncProducer, get_avro_schema, serialize_avro
 from src.clients.unified_memory_client import UnifiedMemoryClient
-from src.clients.kafka_sync_producer import KafkaSyncProducer, serialize_avro, get_avro_schema
 from src.consumers.sync_event_consumer import SyncEventConsumer
-from src.services.retention_policy_manager import RetentionPolicyManager
 from src.jobs.sync_mongodb_to_clickhouse import MongoToClickHouseSync
+from src.services.retention_policy_manager import RetentionPolicyManager
 
 
 class MockSettings:
@@ -43,13 +43,13 @@ class MockSettings:
         self.kafka_sasl_password = None
 
 
-@pytest.fixture
+@pytest.fixture()
 def settings():
     """Fixture de configurações"""
     return MockSettings()
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_redis():
     """Mock do cliente Redis"""
     redis = AsyncMock()
@@ -59,7 +59,7 @@ def mock_redis():
     return redis
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_mongodb():
     """Mock do cliente MongoDB"""
     mongodb = AsyncMock()
@@ -72,7 +72,7 @@ def mock_mongodb():
     return mongodb
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_neo4j():
     """Mock do cliente Neo4j"""
     neo4j = AsyncMock()
@@ -80,7 +80,7 @@ def mock_neo4j():
     return neo4j
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_clickhouse():
     """Mock do cliente ClickHouse"""
     clickhouse = MagicMock()
@@ -92,7 +92,7 @@ def mock_clickhouse():
     return clickhouse
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_kafka_producer():
     """Mock do producer Kafka"""
     producer = AsyncMock()
@@ -104,7 +104,7 @@ def mock_kafka_producer():
 class TestUnifiedMemoryClientSync:
     """Testes de sincronização via UnifiedMemoryClient"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_save_publishes_kafka_event(
         self, settings, mock_redis, mock_mongodb, mock_neo4j, mock_clickhouse, mock_kafka_producer
     ):
@@ -141,7 +141,7 @@ class TestUnifiedMemoryClientSync:
         assert call_args["data_type"] == "context"
         assert call_args["operation"] == "INSERT"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_save_continues_on_kafka_failure(
         self, settings, mock_redis, mock_mongodb, mock_neo4j, mock_clickhouse
     ):
@@ -173,7 +173,7 @@ class TestUnifiedMemoryClientSync:
 class TestSyncEventConsumer:
     """Testes do consumer de sincronização"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_process_event_inserts_to_clickhouse(self, settings, mock_clickhouse):
         """
         Testa se eventos são inseridos corretamente no ClickHouse.
@@ -186,7 +186,7 @@ class TestSyncEventConsumer:
             "data_type": "context",
             "operation": "INSERT",
             "collection": "operational_context",
-            "timestamp": int(datetime.now(timezone.utc).timestamp() * 1000),
+            "timestamp": int(datetime.now(UTC).timestamp() * 1000),
             "data": json.dumps({"content": "test data"}),
             "metadata": json.dumps({"source": "test"}),
         }
@@ -196,7 +196,7 @@ class TestSyncEventConsumer:
         # Verifica que insert_batch foi chamado
         mock_clickhouse.insert_batch.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_idempotency_skips_duplicate_events(self, settings, mock_clickhouse):
         """
         Testa que eventos duplicados são ignorados (idempotência).
@@ -212,7 +212,7 @@ class TestSyncEventConsumer:
             "data_type": "context",
             "operation": "INSERT",
             "collection": "operational_context",
-            "timestamp": int(datetime.now(timezone.utc).timestamp() * 1000),
+            "timestamp": int(datetime.now(UTC).timestamp() * 1000),
             "data": json.dumps({"content": "test data"}),
             "metadata": None,
         }
@@ -222,7 +222,7 @@ class TestSyncEventConsumer:
         # insert_batch NÃO deve ser chamado porque registro já existe
         mock_clickhouse.insert_batch.assert_not_called()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_delete_operation_ignored(self, settings, mock_clickhouse):
         """
         Testa que operações DELETE são ignoradas (dados históricos são imutáveis).
@@ -235,7 +235,7 @@ class TestSyncEventConsumer:
             "data_type": "context",
             "operation": "DELETE",
             "collection": "operational_context",
-            "timestamp": int(datetime.now(timezone.utc).timestamp() * 1000),
+            "timestamp": int(datetime.now(UTC).timestamp() * 1000),
             "data": "{}",
             "metadata": None,
         }
@@ -249,7 +249,7 @@ class TestSyncEventConsumer:
 class TestRetentionPolicyManager:
     """Testes do gerenciador de políticas de retenção"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_mongodb_cleanup_dry_run(
         self, settings, mock_mongodb, mock_clickhouse, mock_neo4j
     ):
@@ -269,7 +269,7 @@ class TestRetentionPolicyManager:
         assert mock_mongodb.count_documents.call_count >= 1
         mock_mongodb.delete_many.assert_not_called()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_mongodb_cleanup_executes_delete(
         self, settings, mock_mongodb, mock_clickhouse, mock_neo4j
     ):
@@ -288,7 +288,7 @@ class TestRetentionPolicyManager:
         # Deve chamar delete_many
         assert mock_mongodb.delete_many.call_count >= 1
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_clickhouse_cleanup_dry_run(
         self, settings, mock_mongodb, mock_clickhouse, mock_neo4j
     ):
@@ -330,7 +330,7 @@ class TestRetentionPolicyManager:
 class TestBatchSyncJob:
     """Testes do job de sincronização batch"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_prepare_row_for_context_history(self, settings):
         """
         Testa preparação de linha para tabela operational_context_history.
@@ -353,7 +353,7 @@ class TestBatchSyncJob:
         assert row[1] == "context"  # data_type
         assert isinstance(row[2], datetime)  # created_at
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_prepare_row_for_quality_metrics(self, settings):
         """
         Testa preparação de linha para tabela quality_metrics_history.
@@ -400,7 +400,7 @@ class TestBatchSyncJob:
 class TestKafkaSyncProducer:
     """Testes do producer Kafka"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_publish_sync_event_success(self, settings):
         """
         Testa publicação bem-sucedida de evento.
@@ -420,7 +420,7 @@ class TestKafkaSyncProducer:
                 "data_type": "context",
                 "operation": "INSERT",
                 "collection": "operational_context",
-                "timestamp": int(datetime.now(timezone.utc).timestamp() * 1000),
+                "timestamp": int(datetime.now(UTC).timestamp() * 1000),
                 "data": "{}",
                 "metadata": None,
             }
@@ -430,7 +430,7 @@ class TestKafkaSyncProducer:
             assert result is True
             mock_producer_instance.send_and_wait.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_publish_returns_false_when_not_started(self, settings):
         """
         Testa que publish retorna False quando producer não está rodando.
@@ -447,7 +447,7 @@ class TestKafkaSyncProducer:
 class TestAvroSerializationConsistency:
     """Testes de consistência de serialização Avro"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_avro_serialization_preserves_data(self, settings):
         """
         Testa que serialização Avro preserva dados.
@@ -460,7 +460,7 @@ class TestAvroSerializationConsistency:
             "data_type": "context",
             "operation": "INSERT",
             "collection": "operational_context",
-            "timestamp": int(datetime.now(timezone.utc).timestamp() * 1000),
+            "timestamp": int(datetime.now(UTC).timestamp() * 1000),
             "data": json.dumps({"content": "test", "nested": {"key": "value"}}),
             "metadata": json.dumps({"source": "test"}),
         }
@@ -482,7 +482,7 @@ class TestAvroSerializationConsistency:
             # Se schema não disponível, valida apenas preparação
             assert prepared_event["event_id"] == original_event["event_id"]
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_avro_handles_null_metadata(self, settings):
         """
         Testa que Avro lida corretamente com metadata nulo.
@@ -495,7 +495,7 @@ class TestAvroSerializationConsistency:
             "data_type": "context",
             "operation": "INSERT",
             "collection": "operational_context",
-            "timestamp": int(datetime.now(timezone.utc).timestamp() * 1000),
+            "timestamp": int(datetime.now(UTC).timestamp() * 1000),
             "data": "{}",
             "metadata": None,
         }
@@ -510,7 +510,7 @@ class TestAvroSerializationConsistency:
 class TestTimestampConsistency:
     """Testes de consistência de timestamps"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_timestamp_preserved_mongodb_to_clickhouse(self, settings, mock_clickhouse):
         """
         Valida que timestamps são preservados na sincronização.
@@ -539,7 +539,7 @@ class TestTimestampConsistency:
         # Verifica que insert_batch foi chamado
         assert mock_clickhouse.insert_batch.call_count == 1
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_timezone_handling_utc(self, settings):
         """
         Valida que timezones são tratados como UTC.
@@ -547,7 +547,7 @@ class TestTimestampConsistency:
         sync_job = MongoToClickHouseSync(settings)
 
         # Documento com datetime UTC
-        utc_now = datetime.now(timezone.utc)
+        utc_now = datetime.now(UTC)
         document = {
             "_id": "mongo-id-tz-test",
             "entity_id": "test-entity-tz",
@@ -566,7 +566,7 @@ class TestTimestampConsistency:
 class TestLargeBatchProcessing:
     """Testes de processamento de lotes grandes"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_batch_processing_chunks_correctly(self, settings):
         """
         Testa que lotes grandes são divididos corretamente.
@@ -580,7 +580,7 @@ class TestLargeBatchProcessing:
                 "_id": f"mongo-id-{i}",
                 "entity_id": f"entity-{i}",
                 "data_type": "context",
-                "created_at": datetime.now(timezone.utc),
+                "created_at": datetime.now(UTC),
                 "content": f"content {i}",
                 "metadata": {},
             }
@@ -610,7 +610,7 @@ class TestLargeBatchProcessing:
 class TestRetentionPolicyEnforcement:
     """Testes de enforcement de políticas de retenção"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_mongodb_retention_respects_special_collections(
         self, settings, mock_mongodb, mock_clickhouse, mock_neo4j
     ):
@@ -629,7 +629,7 @@ class TestRetentionPolicyEnforcement:
         assert manager.get_ttl_for_data_type("data_lineage", "mongodb") == 730
         assert manager.get_ttl_for_data_type("operational_context", "mongodb") == 30
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_clickhouse_retention_respects_audit_events(
         self, settings, mock_mongodb, mock_clickhouse, mock_neo4j
     ):
@@ -646,7 +646,7 @@ class TestRetentionPolicyEnforcement:
         # Verifica TTLs especiais do ClickHouse
         assert manager.get_ttl_for_data_type("audit_events", "clickhouse") == 60
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_neo4j_cleanup_removes_old_versions(
         self, settings, mock_mongodb, mock_clickhouse, mock_neo4j
     ):

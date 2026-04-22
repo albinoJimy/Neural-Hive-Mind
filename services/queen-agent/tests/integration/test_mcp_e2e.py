@@ -41,7 +41,7 @@ MCPToolOrchestrator = mcp_orchestrator_module.MCPToolOrchestrator
 # =============================================================================
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_scout_client():
     """Mock do Scout MCP Client."""
     client = AsyncMock()
@@ -55,7 +55,7 @@ def mock_scout_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_optimizer_client():
     """Mock do Optimizer MCP Client."""
     client = AsyncMock()
@@ -69,7 +69,7 @@ def mock_optimizer_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mcp_orchestrator(mock_scout_client, mock_optimizer_client):
     """Instância do MCPToolOrchestrator com clients mockados."""
     return MCPToolOrchestrator(
@@ -83,8 +83,8 @@ def mcp_orchestrator(mock_scout_client, mock_optimizer_client):
 # =============================================================================
 
 
-@pytest.mark.e2e
-@pytest.mark.asyncio
+@pytest.mark.e2e()
+@pytest.mark.asyncio()
 async def test_scout_list_files_e2e_success(mcp_orchestrator, mock_scout_client):
     """
     Teste E2E: Scout MCP list_files com sucesso.
@@ -112,8 +112,8 @@ async def test_scout_list_files_e2e_success(mcp_orchestrator, mock_scout_client)
     assert result[0]["result"]["count"] == 4
 
 
-@pytest.mark.e2e
-@pytest.mark.asyncio
+@pytest.mark.e2e()
+@pytest.mark.asyncio()
 async def test_scout_search_code_e2e_success(mcp_orchestrator, mock_scout_client):
     """
     Teste E2E: Scout MCP search_code com sucesso.
@@ -148,8 +148,8 @@ async def test_scout_search_code_e2e_success(mcp_orchestrator, mock_scout_client
     assert result[0]["result"]["matches"][0]["file"] == "src/services/worker.py"
 
 
-@pytest.mark.e2e
-@pytest.mark.asyncio
+@pytest.mark.e2e()
+@pytest.mark.asyncio()
 async def test_scout_analyze_structure_e2e_success(mcp_orchestrator, mock_scout_client):
     """
     Teste E2E: Scout MCP analyze_structure com sucesso.
@@ -189,8 +189,8 @@ async def test_scout_analyze_structure_e2e_success(mcp_orchestrator, mock_scout_
 # =============================================================================
 
 
-@pytest.mark.e2e
-@pytest.mark.asyncio
+@pytest.mark.e2e()
+@pytest.mark.asyncio()
 async def test_optimizer_suggest_refactors_e2e_success(mcp_orchestrator, mock_optimizer_client):
     """
     Teste E2E: Optimizer MCP suggest_refactors com sucesso.
@@ -233,8 +233,8 @@ async def test_optimizer_suggest_refactors_e2e_success(mcp_orchestrator, mock_op
     assert result[0]["result"]["suggestions"][1]["priority"] == "high"
 
 
-@pytest.mark.e2e
-@pytest.mark.asyncio
+@pytest.mark.e2e()
+@pytest.mark.asyncio()
 async def test_optimizer_analyze_performance_e2e_success(mcp_orchestrator, mock_optimizer_client):
     """
     Teste E2E: Optimizer MCP analyze_performance com sucesso.
@@ -271,8 +271,8 @@ async def test_optimizer_analyze_performance_e2e_success(mcp_orchestrator, mock_
     assert result[0]["result"]["bottlenecks"][0]["issue"] == "Query N+1 detectado"
 
 
-@pytest.mark.e2e
-@pytest.mark.asyncio
+@pytest.mark.e2e()
+@pytest.mark.asyncio()
 async def test_optimizer_optimize_queries_e2e_success(mcp_orchestrator, mock_optimizer_client):
     """
     Teste E2E: Optimizer MCP optimize_queries com sucesso.
@@ -311,8 +311,8 @@ async def test_optimizer_optimize_queries_e2e_success(mcp_orchestrator, mock_opt
 # =============================================================================
 
 
-@pytest.mark.e2e
-@pytest.mark.asyncio
+@pytest.mark.e2e()
+@pytest.mark.asyncio()
 async def test_parallel_tools_execution_e2e(
     mcp_orchestrator, mock_scout_client, mock_optimizer_client
 ):
@@ -351,8 +351,8 @@ async def test_parallel_tools_execution_e2e(
     assert mock_optimizer_client.execute_tool.call_count == 1
 
 
-@pytest.mark.e2e
-@pytest.mark.asyncio
+@pytest.mark.e2e()
+@pytest.mark.asyncio()
 async def test_parallel_tools_with_one_failure_e2e(mcp_orchestrator, mock_scout_client):
     """
     Teste E2E: execução paralela com uma falha.
@@ -391,8 +391,8 @@ async def test_parallel_tools_with_one_failure_e2e(mcp_orchestrator, mock_scout_
 # =============================================================================
 
 
-@pytest.mark.e2e
-@pytest.mark.asyncio
+@pytest.mark.e2e()
+@pytest.mark.asyncio()
 async def test_tool_execution_timeout_e2e(mcp_orchestrator, mock_scout_client):
     """
     Teste E2E: timeout na execução de ferramenta.
@@ -419,8 +419,8 @@ async def test_tool_execution_timeout_e2e(mcp_orchestrator, mock_scout_client):
         )
 
 
-@pytest.mark.e2e
-@pytest.mark.asyncio
+@pytest.mark.e2e()
+@pytest.mark.asyncio()
 async def test_tool_execution_with_error_e2e(mcp_orchestrator, mock_scout_client):
     """
     Teste E2E: erro na execução de ferramenta.
@@ -444,8 +444,8 @@ async def test_tool_execution_with_error_e2e(mcp_orchestrator, mock_scout_client
     assert "Path not found" in result[0]["error"]
 
 
-@pytest.mark.e2e
-@pytest.mark.asyncio
+@pytest.mark.e2e()
+@pytest.mark.asyncio()
 async def test_aggregate_results_e2e(mcp_orchestrator, mock_scout_client):
     """
     Teste E2E: agregação de resultados de múltiplas execuções.
@@ -484,8 +484,8 @@ async def test_aggregate_results_e2e(mcp_orchestrator, mock_scout_client):
 # =============================================================================
 
 
-@pytest.mark.e2e
-@pytest.mark.asyncio
+@pytest.mark.e2e()
+@pytest.mark.asyncio()
 async def test_sdk_client_list_tools_e2e():
     """Teste E2E: SDK Client lista ferramentas do MCP Server."""
     mock_server = AsyncMock()
@@ -502,8 +502,8 @@ async def test_sdk_client_list_tools_e2e():
     assert tools[0]["name"] == "list_files"
 
 
-@pytest.mark.e2e
-@pytest.mark.asyncio
+@pytest.mark.e2e()
+@pytest.mark.asyncio()
 async def test_sdk_client_execute_tool_e2e():
     """Teste E2E: SDK Client executa ferramenta no MCP Server."""
     mock_server = AsyncMock()
@@ -521,8 +521,8 @@ async def test_sdk_client_execute_tool_e2e():
 # =============================================================================
 
 
-@pytest.mark.e2e
-@pytest.mark.asyncio
+@pytest.mark.e2e()
+@pytest.mark.asyncio()
 async def test_full_workflow_e2e(mcp_orchestrator, mock_scout_client, mock_optimizer_client):
     """
     Teste E2E: fluxo completo multi-step.
@@ -574,8 +574,8 @@ async def test_full_workflow_e2e(mcp_orchestrator, mock_scout_client, mock_optim
     assert aggregated["success_count"] == 3
 
 
-@pytest.mark.e2e
-@pytest.mark.asyncio
+@pytest.mark.e2e()
+@pytest.mark.asyncio()
 async def test_get_available_tools_e2e(mcp_orchestrator):
     """Teste E2E: lista ferramentas disponíveis em todos os servidores."""
     tools = await mcp_orchestrator.get_available_tools()
@@ -586,8 +586,8 @@ async def test_get_available_tools_e2e(mcp_orchestrator):
     assert len(tools["optimizer"]) == 3
 
 
-@pytest.mark.e2e
-@pytest.mark.asyncio
+@pytest.mark.e2e()
+@pytest.mark.asyncio()
 async def test_register_client_e2e(mock_optimizer_client):
     """Teste E2E: registra novo cliente MCP dinamicamente."""
     orchestrator = MCPToolOrchestrator()

@@ -6,8 +6,8 @@ Coordena MongoDB (persistência) e Neo4j (grafo de dependências).
 """
 
 import hashlib
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from datetime import UTC, datetime
+from typing import Any, Optional
 
 import structlog
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -78,11 +78,11 @@ class LineageTracker:
         plan_id: str,
         source_type: SourceType,
         transformation_type: TransformationType,
-        data_sources: Optional[List[str]] = None,
-        source_plan_ids: Optional[List[str]] = None,
-        feature_dependencies: Optional[List[str]] = None,
-        parent_lineage_ids: Optional[List[str]] = None,
-        transformation_metadata: Optional[Dict[str, Any]] = None,
+        data_sources: Optional[list[str]] = None,
+        source_plan_ids: Optional[list[str]] = None,
+        feature_dependencies: Optional[list[str]] = None,
+        parent_lineage_ids: Optional[list[str]] = None,
+        transformation_metadata: Optional[dict[str, Any]] = None,
     ) -> FeatureLineage:
         """
         Rastreia nova feature e persiste lineage
@@ -333,7 +333,7 @@ class LineageTracker:
         )
 
     async def update_lineage(
-        self, feature_id: str, updates: Dict[str, Any]
+        self, feature_id: str, updates: dict[str, Any]
     ) -> Optional[FeatureLineage]:
         """
         Atualiza lineage existente
@@ -349,7 +349,7 @@ class LineageTracker:
             return None
 
         # Adicionar timestamp de modificação
-        updates["modified_at"] = datetime.now(timezone.utc)
+        updates["modified_at"] = datetime.now(UTC)
         updates["modified_count"] = 1  # Será incrementado pelo MongoDB
 
         result = await self.collection.update_one(
@@ -365,7 +365,7 @@ class LineageTracker:
 
     async def list_lineages(
         self, limit: int = 100, skip: int = 0, source_type: Optional[SourceType] = None
-    ) -> List[FeatureLineage]:
+    ) -> list[FeatureLineage]:
         """
         Lista lineages com filtros opcionais
 
@@ -423,11 +423,11 @@ class LineageTracker:
     def _compute_computation_hash(self) -> str:
         """Computa hash do código de computação"""
         # Hash baseado na versão do código (simplificado)
-        code_version = f"{self.computation_version}_{datetime.now(timezone.utc).strftime('%Y%m%d')}"
+        code_version = f"{self.computation_version}_{datetime.now(UTC).strftime('%Y%m%d')}"
         return hashlib.sha256(code_version.encode()).hexdigest()[:16]
 
     async def _create_neo4j_relationships(
-        self, feature_id: str, targets: List[str], relationship_type: str
+        self, feature_id: str, targets: list[str], relationship_type: str
     ):
         """Cria relacionamentos no Neo4j"""
         if not self.neo4j_client:
@@ -455,7 +455,7 @@ class LineageTracker:
 
     async def _get_neo4j_upstream(
         self, feature_id: str, max_depth: int
-    ) -> Dict[str, List[Dict[str, Any]]]:
+    ) -> dict[str, list[dict[str, Any]]]:
         """Busca upstream (pais) no Neo4j"""
         try:
             return await self.neo4j_client.get_upstream(feature_id, max_depth)
@@ -465,7 +465,7 @@ class LineageTracker:
 
     async def _get_neo4j_downstream(
         self, feature_id: str, max_depth: int
-    ) -> Dict[str, List[Dict[str, Any]]]:
+    ) -> dict[str, list[dict[str, Any]]]:
         """Busca downstream (filhos) no Neo4j"""
         try:
             return await self.neo4j_client.get_downstream(feature_id, max_depth)
@@ -475,7 +475,7 @@ class LineageTracker:
 
     async def _get_upstream_from_mongo(
         self, feature_id: str, max_depth: int
-    ) -> Dict[str, List[Dict[str, Any]]]:
+    ) -> dict[str, list[dict[str, Any]]]:
         """Busca upstream usando parent_lineage_ids (fallback)"""
         upstream = {}
 
@@ -534,7 +534,7 @@ class LineageTracker:
 
     async def _get_downstream_from_mongo(
         self, feature_id: str, max_depth: int
-    ) -> Dict[str, List[Dict[str, Any]]]:
+    ) -> dict[str, list[dict[str, Any]]]:
         """Busca downstream usando feature_dependencies (fallback)"""
         downstream = {}
 
@@ -588,7 +588,7 @@ class LineageTracker:
 
         return downstream
 
-    def _find_critical_path(self, downstream: Dict[str, List[Dict]]) -> List[str]:
+    def _find_critical_path(self, downstream: dict[str, list[dict]]) -> list[str]:
         """Encontra caminho crítico de dependências"""
         path = []
 

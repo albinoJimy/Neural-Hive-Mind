@@ -6,10 +6,10 @@ Uso:
     locust -f tests/load/locustfile.py --headless --users 100 --spawn-rate 10 --run-time 5m
 """
 
-from locust import HttpUser, task, between, events
-import time
 import random
-from datetime import datetime
+import time
+
+from locust import HttpUser, between, events, task
 
 
 class FluxoGUser(HttpUser):
@@ -31,10 +31,18 @@ class FluxoGUser(HttpUser):
         self.pipeline_id = None
         self.user_id = f"load-test-user-{random.randint(1000, 9999)}"
         self.project_names = [
-            "api-usuarios", "sistema-auth", "microservico-pagamentos",
-            "dashboard-admin", "fila-processamento", "servico-notificacoes",
-            "cache-distribuido", "api-produtos", "sistema-email",
-            "api-analytics", "servico-arquivos", "portal-clientes"
+            "api-usuarios",
+            "sistema-auth",
+            "microservico-pagamentos",
+            "dashboard-admin",
+            "fila-processamento",
+            "servico-notificacoes",
+            "cache-distribuido",
+            "api-produtos",
+            "sistema-email",
+            "api-analytics",
+            "servico-arquivos",
+            "portal-clientes",
         ]
         self.intents = [
             "Criar uma API REST de usuários com CRUD completo",
@@ -73,13 +81,12 @@ class FluxoGUser(HttpUser):
                         "summary": intent_text[:50] + "...",
                         "description": intent_text,
                         "tasks": [
-                            {"task_id": f"T{i}", "description": f"Task {i}"}
-                            for i in range(1, 4)
-                        ]
+                            {"task_id": f"T{i}", "description": f"Task {i}"} for i in range(1, 4)
+                        ],
                     },
                     "original_intent": intent_text,
                     "skip_approvals": True,  # Mais rápido para load test
-                }
+                },
             },
             name="/api/v1/workflows (POST Fluxo G)",
             timeout=30,
@@ -163,8 +170,7 @@ class FluxoGUserWithApproval(FluxoGUser):
     def start_complex_pipeline(self):
         """Inicia pipeline complexo que requer aprovação."""
         intent_text = (
-            "Criar sistema completo de e-commerce com catálogo, "
-            "carrinho, checkout e pagamentos"
+            "Criar sistema completo de e-commerce com catálogo, " "carrinho, checkout e pagamentos"
         )
         unique_suffix = random.randint(100, 999)
 
@@ -186,7 +192,7 @@ class FluxoGUserWithApproval(FluxoGUser):
                         "decision_id": f"DEC-{unique_suffix}",
                         "status": "approved",
                     },
-                }
+                },
             },
             name="/api/v1/workflows (POST Fluxo G with approval)",
             timeout=60,
@@ -197,6 +203,7 @@ class FluxoGUserWithApproval(FluxoGUser):
 
 
 # Event handlers para métricas e reporting
+
 
 @events.test_start.add_listener
 def on_test_start(environment, **kwargs):
@@ -212,7 +219,7 @@ def on_test_start(environment, **kwargs):
         name="test_start",
         response_time=0,
         response_length=0,
-        context={"message": "Fluxo G Load Test Started"}
+        context={"message": "Fluxo G Load Test Started"},
     )
 
 
@@ -253,7 +260,7 @@ def on_test_stop(environment, **kwargs):
             "pipelines_failed": failed,
             "success_rate": success_rate,
             "throughput_per_second": throughput,
-        }
+        },
     )
 
 

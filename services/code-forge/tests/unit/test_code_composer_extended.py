@@ -5,31 +5,31 @@ Este modulo testa metodos e caminhos nao cobertos pelos testes existentes,
 incluindo metodos _generate_* e fallback behavior.
 """
 
-import pytest
-from unittest.mock import AsyncMock
+import uuid
 from datetime import datetime
+from unittest.mock import AsyncMock
 
-from src.services.code_composer import CodeComposer
+import pytest
 from src.models.execution_ticket import (
+    SLA,
+    Consistency,
+    DeliveryMode,
+    Durability,
     ExecutionTicket,
+    Priority,
+    QoS,
+    RiskBand,
+    SecurityLevel,
     TaskType,
     TicketStatus,
-    Priority,
-    RiskBand,
-    SLA,
-    QoS,
-    SecurityLevel,
-    DeliveryMode,
-    Consistency,
-    Durability,
 )
-import uuid
+from src.services.code_composer import CodeComposer
 
 
 class TestGeneratePythonLibrary:
     """Testes para _generate_python_library."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def code_composer(self, mock_mongodb_client):
         """Instancia do CodeComposer para testes."""
         return CodeComposer(
@@ -74,7 +74,7 @@ class TestGeneratePythonLibrary:
 class TestGeneratePythonScript:
     """Testes para _generate_python_script."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def code_composer(self, mock_mongodb_client):
         """Instancia do CodeComposer para testes."""
         return CodeComposer(
@@ -112,7 +112,7 @@ class TestGeneratePythonScript:
 class TestGenerateJavaScriptVariants:
     """Testes para geradores JavaScript."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def code_composer(self, mock_mongodb_client):
         """Instancia do CodeComposer para testes."""
         return CodeComposer(
@@ -157,7 +157,7 @@ class TestGenerateJavaScriptVariants:
 class TestGenerateTypeScriptVariants:
     """Testes para geradores TypeScript."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def code_composer(self, mock_mongodb_client):
         """Instancia do CodeComposer para testes."""
         return CodeComposer(
@@ -191,7 +191,7 @@ class TestGenerateTypeScriptVariants:
 class TestGenerateGoVariants:
     """Testes para geradores Go."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def code_composer(self, mock_mongodb_client):
         """Instancia do CodeComposer para testes."""
         return CodeComposer(
@@ -226,7 +226,7 @@ class TestGenerateGoVariants:
 class TestGenerateJavaMicroservice:
     """Testes para _generate_java_microservice."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def code_composer(self, mock_mongodb_client):
         """Instancia do CodeComposer para testes."""
         return CodeComposer(
@@ -250,7 +250,7 @@ class TestGenerateJavaMicroservice:
 class TestGenerateRustMicroservice:
     """Testes para _generate_rust_microservice."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def code_composer(self, mock_mongodb_client):
         """Instancia do CodeComposer para testes."""
         return CodeComposer(
@@ -274,7 +274,7 @@ class TestGenerateRustMicroservice:
 class TestGenerateBashScript:
     """Testes para _generate_bash_script."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def code_composer(self, mock_mongodb_client):
         """Instancia do CodeComposer para testes."""
         return CodeComposer(
@@ -300,7 +300,7 @@ class TestGenerateBashScript:
 class TestGenerateIaCTemplates:
     """Testes para geradores de IaC."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def code_composer(self, mock_mongodb_client):
         """Instancia do CodeComposer para testes."""
         return CodeComposer(
@@ -344,7 +344,7 @@ class TestGenerateIaCTemplates:
 class TestSelectGeneratorFallback:
     """Testes para _select_generator e fallback behavior."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def code_composer(self, mock_mongodb_client):
         """Instancia do CodeComposer para testes."""
         return CodeComposer(
@@ -410,7 +410,7 @@ class TestSelectGeneratorFallback:
 class TestGenerateHeuristic:
     """Testes para _generate_heuristic."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def code_composer(self, mock_mongodb_client):
         """Instancia do CodeComposer para testes."""
         return CodeComposer(
@@ -472,7 +472,7 @@ class TestGenerateHeuristic:
 class TestBuildLLMPrompt:
     """Testes para _build_llm_prompt."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def code_composer(self, mock_mongodb_client):
         """Instancia do CodeComposer para testes."""
         return CodeComposer(
@@ -482,7 +482,7 @@ class TestBuildLLMPrompt:
             mcp_client=None,
         )
 
-    @pytest.fixture
+    @pytest.fixture()
     def sample_ticket(self):
         """Ticket para testes."""
         ticket_id = str(uuid.uuid4())
@@ -605,7 +605,7 @@ class TestBuildLLMPrompt:
 class TestBuildRAGContext:
     """Testes para _build_rag_context."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def code_composer(self, mock_mongodb_client, mock_analyst_client):
         """Instancia do CodeComposer para testes."""
         return CodeComposer(
@@ -615,7 +615,7 @@ class TestBuildRAGContext:
             mcp_client=None,
         )
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_build_rag_context_success(self, code_composer):
         """Testa construcao bem-sucedida de contexto RAG."""
         ticket_id = str(uuid.uuid4())
@@ -652,7 +652,7 @@ class TestBuildRAGContext:
         assert "similar_templates" in result
         assert "architectural_patterns" in result
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_build_rag_context_no_analyst_client(self, mock_mongodb_client):
         """Testa contexto RAG quando analyst_client nao esta disponivel."""
         code_composer = CodeComposer(
@@ -691,7 +691,7 @@ class TestBuildRAGContext:
 
         assert result == {"similar_templates": [], "architectural_patterns": []}
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_build_rag_context_embedding_failure(self, code_composer):
         """Testa contexto RAG quando geracao de embedding falha."""
         code_composer.analyst_client.get_embedding = AsyncMock(return_value=None)
@@ -727,7 +727,7 @@ class TestBuildRAGContext:
         assert result["similar_templates"] == []
         assert "architectural_patterns" in result
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_build_rag_context_exception_handling(self, code_composer):
         """Testa contexto RAG quando excecao eh lancada."""
         code_composer.analyst_client.get_embedding = AsyncMock(

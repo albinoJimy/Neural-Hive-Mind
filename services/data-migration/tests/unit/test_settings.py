@@ -1,7 +1,5 @@
 """Testes unitários para Settings."""
 
-
-
 from src.config.settings import Settings, get_settings
 
 

@@ -14,8 +14,7 @@ from confluent_kafka.serialization import MessageField, SerializationContext
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.append(str(ROOT / "src"))
 
-from clients.kafka_result_producer import KafkaResultProducer  # noqa: E402
-
+from clients.kafka_result_producer import KafkaResultProducer
 
 pytestmark = pytest.mark.skipif(
     not os.getenv("RUN_KAFKA_INTEGRATION_TESTS"),
@@ -29,7 +28,7 @@ def _avro_deserializer(schema_path: Path, registry_url: str):
     return registry, AvroDeserializer(registry, schema_str)
 
 
-@pytest.fixture
+@pytest.fixture()
 def result_config():
     return SimpleNamespace(
         kafka_bootstrap_servers=os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092"),
@@ -47,7 +46,7 @@ def result_config():
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def avro_consumer(result_config):
     schema_path = ROOT.parent / "schemas" / "execution-result" / "execution-result.avsc"
     registry, deserializer = _avro_deserializer(
@@ -67,7 +66,7 @@ def avro_consumer(result_config):
     registry.close() if hasattr(registry, "close") else None
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_publish_result_with_avro(result_config, avro_consumer):
     producer = KafkaResultProducer(result_config)
     await producer.initialize()
@@ -101,7 +100,7 @@ async def test_publish_result_with_avro(result_config, avro_consumer):
     await producer.stop()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_publish_result_fallback_json(result_config):
     producer = KafkaResultProducer(result_config)
     await producer.initialize()

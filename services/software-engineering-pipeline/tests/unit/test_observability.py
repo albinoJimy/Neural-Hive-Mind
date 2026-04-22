@@ -4,21 +4,20 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from fastapi import Request
-from starlette.datastructures import URL
-
 from src.observability.metrics import (
     MetricsHelper,
-    pipeline_runs_total,
-    pipeline_anomalies_total,
-    pipeline_anomalies_resolved,
     active_runs,
-    queue_size,
-    success_rate,
     average_duration,
     get_metrics_text,
     init_metrics_for_repo,
+    pipeline_anomalies_resolved,
+    pipeline_anomalies_total,
+    pipeline_runs_total,
+    queue_size,
+    success_rate,
 )
 from src.observability.middleware import MetricsMiddleware
+from starlette.datastructures import URL
 
 
 class TestMetricsHelper:
@@ -136,7 +135,7 @@ class TestMetricsHelper:
 class TestMetricsMiddleware:
     """Testes do middleware de métricas."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_middleware_records_request(self):
         """Testa que o middleware registra requisições."""
         middleware = MetricsMiddleware(app=None)
@@ -159,7 +158,7 @@ class TestMetricsMiddleware:
         # Verifica que a requisição foi processada
         assert response.status_code == 200
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_middleware_skips_metrics_endpoint(self):
         """Testa que o endpoint /metrics não é contabilizado."""
         middleware = MetricsMiddleware(app=None)

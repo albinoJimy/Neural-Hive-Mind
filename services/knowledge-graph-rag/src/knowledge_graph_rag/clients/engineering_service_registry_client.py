@@ -96,6 +96,7 @@ class EngineeringServiceRegistryClient:
             # Importar e criar stub dinamicamente
             if ServiceRegistryStub is not None:
                 from proto import service_registry_pb2_grpc
+
                 self.stub = service_registry_pb2_grpc.ServiceRegistryStub(self.channel)
             else:
                 logger.warning("service_registry_stub_not_available", service=self.service_name)

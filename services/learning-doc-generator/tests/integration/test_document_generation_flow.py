@@ -1,10 +1,11 @@
 """Testes de integração para fluxo de geração de documentos"""
 
 import os
-import pytest
-from datetime import datetime, utcnow
-from unittest.mock import AsyncMock, MagicMock, patch
+from datetime import datetime
+from unittest.mock import AsyncMock, MagicMock
 
+import pytest
+from src.models import DocumentStatus, DocumentType, LearningDocument
 from src.services import (
     DocumentRepository,
     ExperimentInsightExtractor,
@@ -12,11 +13,10 @@ from src.services import (
     PDFGenerator,
     PlotGenerator,
 )
-from src.models import DocumentFormat, DocumentStatus, DocumentType, LearningDocument
 
 
-@pytest.mark.asyncio
-@pytest.mark.integration
+@pytest.mark.asyncio()
+@pytest.mark.integration()
 async def test_full_document_generation_flow(mock_experiment_runs, output_dir):
     """Testa fluxo completo de geração de documento"""
     with pytest.MonkeyPatch.context() as m:
@@ -99,8 +99,8 @@ async def test_full_document_generation_flow(mock_experiment_runs, output_dir):
         assert os.path.exists(filepath)
 
 
-@pytest.mark.asyncio
-@pytest.mark.integration
+@pytest.mark.asyncio()
+@pytest.mark.integration()
 async def test_weekly_report_generation(mock_experiment_runs, output_dir):
     """Testa geração de relatório semanal"""
     with pytest.MonkeyPatch.context() as m:
@@ -112,9 +112,7 @@ async def test_weekly_report_generation(mock_experiment_runs, output_dir):
         extractor = ExperimentInsightExtractor()
         insights = await extractor.extract_insights(mock_experiment_runs)
         summary = await extractor.generate_summary(mock_experiment_runs)
-        recommendations = await extractor.generate_recommendations(
-            insights, mock_experiment_runs
-        )
+        recommendations = await extractor.generate_recommendations(insights, mock_experiment_runs)
 
         document = LearningDocument(
             title="Relatório Semanal - 2026-01-01",
@@ -136,8 +134,8 @@ async def test_weekly_report_generation(mock_experiment_runs, output_dir):
         assert summary in content
 
 
-@pytest.mark.asyncio
-@pytest.mark.integration
+@pytest.mark.asyncio()
+@pytest.mark.integration()
 async def test_promotion_report_generation(mock_experiment_runs, output_dir):
     """Testa geração de relatório de promoção"""
     with pytest.MonkeyPatch.context() as m:
@@ -172,8 +170,8 @@ async def test_promotion_report_generation(mock_experiment_runs, output_dir):
         assert best_run.name in content
 
 
-@pytest.mark.asyncio
-@pytest.mark.integration
+@pytest.mark.asyncio()
+@pytest.mark.integration()
 async def test_repository_lifecycle(output_dir):
     """Testa ciclo de vida do repositório"""
     with pytest.MonkeyPatch.context() as m:
@@ -229,8 +227,8 @@ async def test_repository_lifecycle(output_dir):
         assert success is True
 
 
-@pytest.mark.asyncio
-@pytest.mark.integration
+@pytest.mark.asyncio()
+@pytest.mark.integration()
 async def test_pdf_generation_and_download(mock_experiment_runs, output_dir):
     """Testa geração e download de PDF"""
     with pytest.MonkeyPatch.context() as m:
@@ -248,9 +246,7 @@ async def test_pdf_generation_and_download(mock_experiment_runs, output_dir):
         extractor = ExperimentInsightExtractor()
         insights = await extractor.extract_insights(mock_experiment_runs)
         summary = await extractor.generate_summary(mock_experiment_runs)
-        recommendations = await extractor.generate_recommendations(
-            insights, mock_experiment_runs
-        )
+        recommendations = await extractor.generate_recommendations(insights, mock_experiment_runs)
 
         document = LearningDocument(
             id="pdf_test_001",
@@ -282,8 +278,8 @@ async def test_pdf_generation_and_download(mock_experiment_runs, output_dir):
         assert file_size > 1000  # PDF deve ter conteúdo substancial
 
 
-@pytest.mark.asyncio
-@pytest.mark.integration
+@pytest.mark.asyncio()
+@pytest.mark.integration()
 async def test_pdf_generation_with_custom_template(output_dir):
     """Testa geração de PDF com template HTML customizado"""
     with pytest.MonkeyPatch.context() as m:
@@ -330,8 +326,8 @@ async def test_pdf_generation_with_custom_template(output_dir):
         assert os.path.getsize(pdf_path) > 0
 
 
-@pytest.mark.asyncio
-@pytest.mark.integration
+@pytest.mark.asyncio()
+@pytest.mark.integration()
 async def test_pdf_batch_generation(output_dir):
     """Testa geração em lote de PDFs"""
     with pytest.MonkeyPatch.context() as m:

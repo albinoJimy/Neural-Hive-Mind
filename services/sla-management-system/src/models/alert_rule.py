@@ -4,7 +4,7 @@ Modelos de alertas proativos para SLA Management System.
 
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -65,10 +65,10 @@ class AlertRule(BaseModel):
     severity: AlertSeverity
 
     # Canais de notificação
-    channels: List[AlertChannel]
+    channels: list[AlertChannel]
 
     # Configurações específicas por canal
-    channel_config: Dict[str, Dict[str, Any]] = Field(default_factory=dict)
+    channel_config: dict[str, dict[str, Any]] = Field(default_factory=dict)
 
     # Janela de cooldown (evitar spam)
     cooldown_minutes: int = Field(default=30, ge=0)
@@ -96,7 +96,7 @@ class Alert(BaseModel):
     severity: AlertSeverity
     title: str
     message: str
-    details: Dict[str, Any]
+    details: dict[str, Any]
 
     # Contexto
     slo_id: Optional[str] = None
@@ -111,8 +111,8 @@ class Alert(BaseModel):
     resolved_at: Optional[datetime] = None
 
     # Canais usados
-    dispatched_channels: List[AlertChannel] = Field(default_factory=list)
-    dispatch_errors: Dict[str, str] = Field(default_factory=dict)
+    dispatched_channels: list[AlertChannel] = Field(default_factory=list)
+    dispatch_errors: dict[str, str] = Field(default_factory=dict)
 
     model_config = ConfigDict(use_enum_values=True)
 
@@ -121,8 +121,8 @@ class AlertDispatchRequest(BaseModel):
     """Request para despachar alerta."""
 
     alert: Alert
-    channels: List[AlertChannel]
-    channel_config: Dict[str, Dict[str, Any]] = Field(default_factory=dict)
+    channels: list[AlertChannel]
+    channel_config: dict[str, dict[str, Any]] = Field(default_factory=dict)
 
     model_config = ConfigDict(use_enum_values=True)
 
@@ -145,9 +145,9 @@ class AlertStatistics(BaseModel):
     total_rules: int
     active_rules: int
     total_alerts: int
-    alerts_by_severity: Dict[str, int]
-    alerts_by_channel: Dict[str, int]
-    recent_alerts: List[Alert]
+    alerts_by_severity: dict[str, int]
+    alerts_by_channel: dict[str, int]
+    recent_alerts: list[Alert]
 
     model_config = ConfigDict(use_enum_values=True)
 
@@ -157,8 +157,8 @@ class SlackMessage(BaseModel):
 
     webhook_url: str
     text: str
-    blocks: Optional[List[Dict[str, Any]]] = None
-    attachments: Optional[List[Dict[str, Any]]] = None
+    blocks: Optional[list[dict[str, Any]]] = None
+    attachments: Optional[list[dict[str, Any]]] = None
 
 
 class PagerDutyEvent(BaseModel):
@@ -166,14 +166,14 @@ class PagerDutyEvent(BaseModel):
 
     routing_key: str
     event_action: str = "trigger"
-    payload: Dict[str, Any]
+    payload: dict[str, Any]
     dedup_key: Optional[str] = None
 
 
 class EmailMessage(BaseModel):
     """Mensagem de email."""
 
-    to: List[str]
+    to: list[str]
     subject: str
     body: str
     is_html: bool = True
@@ -183,8 +183,8 @@ class WebhookPayload(BaseModel):
     """Payload para webhook genérico."""
 
     url: str
-    headers: Dict[str, str] = Field(default_factory=dict)
-    payload: Dict[str, Any]
+    headers: dict[str, str] = Field(default_factory=dict)
+    payload: dict[str, Any]
     method: str = "POST"
 
     @field_validator("url")

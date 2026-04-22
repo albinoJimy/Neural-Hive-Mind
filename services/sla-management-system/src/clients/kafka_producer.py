@@ -3,7 +3,7 @@ Producer Kafka para publicar eventos de SLA.
 """
 
 import json
-from typing import Any, Dict
+from typing import Any
 
 import structlog
 from aiokafka import AIOKafkaProducer
@@ -16,7 +16,6 @@ from ..models.freeze_policy import FreezeEvent
 class KafkaPublishError(Exception):
     """Erro ao publicar evento no Kafka."""
 
-    pass
 
 
 class KafkaProducerClient:
@@ -94,7 +93,7 @@ class KafkaProducerClient:
             }
 
             headers = [
-                ("event_type", f"freeze.{action}".encode("utf-8")),
+                ("event_type", f"freeze.{action}".encode()),
                 ("policy_id", event.policy_id.encode("utf-8")),
             ]
 
@@ -112,7 +111,7 @@ class KafkaProducerClient:
             raise KafkaPublishError(f"Failed to publish freeze event: {e}")
 
     async def publish_slo_violation(
-        self, slo_id: str, service_name: str, details: Dict[str, Any]
+        self, slo_id: str, service_name: str, details: dict[str, Any]
     ) -> None:
         """Publica evento de violação de SLO."""
         try:

@@ -299,11 +299,13 @@ class TestStartCDC:
         pipeline._running = True
 
         with pytest.raises(CDCPipelineError, match="CDC já está rodando"):
-            await pipeline.start_cdc(schema_mapping=SchemaMapping(
-                legacy_connection_id="test",
-                nhm_target="test",
-                tables=[],
-            ))
+            await pipeline.start_cdc(
+                schema_mapping=SchemaMapping(
+                    legacy_connection_id="test",
+                    nhm_target="test",
+                    tables=[],
+                )
+            )
 
     @pytest.mark.asyncio
     async def test_process_cdc_event_insert(self):
@@ -350,7 +352,9 @@ class TestStartCDC:
         mock_target_client = AsyncMock()
         mock_target_client.insert = AsyncMock()
 
-        with patch.object(pipeline, "_apply_transformations", return_value={"id": 1, "name": "John Doe"}):
+        with patch.object(
+            pipeline, "_apply_transformations", return_value={"id": 1, "name": "John Doe"}
+        ):
             await pipeline._process_cdc_event(
                 event=cdc_event,
                 schema_mapping=schema_mapping,
@@ -391,7 +395,9 @@ class TestStartCDC:
         mock_target_client = AsyncMock()
         mock_target_client.update = AsyncMock()
 
-        with patch.object(pipeline, "_apply_transformations", return_value={"id": 1, "name": "New Name"}):
+        with patch.object(
+            pipeline, "_apply_transformations", return_value={"id": 1, "name": "New Name"}
+        ):
             await pipeline._process_cdc_event(
                 event=cdc_event,
                 schema_mapping=schema_mapping,
@@ -469,7 +475,9 @@ class TestStartCDC:
         mock_target_client = AsyncMock()
         mock_target_client.insert = AsyncMock()
 
-        with patch.object(pipeline, "_apply_transformations", return_value={"id": 1, "name": "Snapshot User"}):
+        with patch.object(
+            pipeline, "_apply_transformations", return_value={"id": 1, "name": "Snapshot User"}
+        ):
             await pipeline._process_cdc_event(
                 event=cdc_event,
                 schema_mapping=schema_mapping,
@@ -562,8 +570,12 @@ class TestApplyTransformations:
                     source_table="users",
                     target_table="nhm_users",
                     fields=[
-                        FieldMapping(source_field="user_id", target_field="id", data_type="integer"),
-                        FieldMapping(source_field="user_name", target_field="name", data_type="text"),
+                        FieldMapping(
+                            source_field="user_id", target_field="id", data_type="integer"
+                        ),
+                        FieldMapping(
+                            source_field="user_name", target_field="name", data_type="text"
+                        ),
                     ],
                 )
             ],

@@ -2,22 +2,22 @@
 Configuracao e fixtures compartilhadas para testes do Approval Service
 """
 
-import pytest
-from datetime import datetime, timezone
-from unittest.mock import MagicMock, AsyncMock
+from datetime import UTC, datetime
+from unittest.mock import AsyncMock, MagicMock
 
+import pytest
 from src.config.settings import Settings
 from src.models.approval import (
-    ApprovalRequest,
     ApprovalDecision,
+    ApprovalRequest,
     ApprovalResponse,
     ApprovalStats,
-    RiskBand,
     ApprovalStatus,
+    RiskBand,
 )
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_settings():
     """Mock Settings object"""
     settings = MagicMock(spec=Settings)
@@ -77,7 +77,7 @@ def mock_settings():
     return settings
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_cognitive_plan():
     """Plano cognitivo de exemplo para testes"""
     return {
@@ -95,11 +95,11 @@ def sample_cognitive_plan():
             {"task_id": "task-2", "type": "delete", "description": "Remover registros antigos"},
             {"task_id": "task-3", "type": "truncate", "description": "Limpar tabela temporaria"},
         ],
-        "created_at": datetime.now(timezone.utc).isoformat(),
+        "created_at": datetime.now(UTC).isoformat(),
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_approval_request(sample_cognitive_plan):
     """ApprovalRequest de exemplo para testes"""
     return ApprovalRequest(
@@ -112,24 +112,24 @@ def sample_approval_request(sample_cognitive_plan):
         destructive_tasks=sample_cognitive_plan["destructive_tasks"],
         risk_matrix=sample_cognitive_plan["risk_matrix"],
         status=ApprovalStatus.PENDING,
-        requested_at=datetime.now(timezone.utc),
+        requested_at=datetime.now(UTC),
         cognitive_plan=sample_cognitive_plan,
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_approval_decision():
     """ApprovalDecision de exemplo para testes"""
     return ApprovalDecision(
         plan_id="plan-001",
         decision="approved",
         approved_by="admin@example.com",
-        approved_at=datetime.now(timezone.utc),
+        approved_at=datetime.now(UTC),
         comments="Aprovado apos revisao manual",
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_approval_response():
     """ApprovalResponse de exemplo para testes"""
     return ApprovalResponse(
@@ -137,12 +137,12 @@ def sample_approval_response():
         intent_id="intent-001",
         decision="approved",
         approved_by="admin@example.com",
-        approved_at=datetime.now(timezone.utc),
+        approved_at=datetime.now(UTC),
         cognitive_plan={"plan_id": "plan-001"},
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_mongodb_client():
     """Mock MongoDBClient"""
     client = MagicMock()
@@ -164,7 +164,7 @@ def mock_mongodb_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_response_producer():
     """Mock ApprovalResponseProducer"""
     producer = MagicMock()
@@ -174,7 +174,7 @@ def mock_response_producer():
     return producer
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_metrics():
     """Mock NeuralHiveMetrics"""
     metrics = MagicMock()
@@ -187,7 +187,7 @@ def mock_metrics():
     return metrics
 
 
-@pytest.fixture
+@pytest.fixture()
 def admin_user():
     """Usuario admin autenticado para testes"""
     return {
@@ -199,7 +199,7 @@ def admin_user():
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def non_admin_user():
     """Usuario nao-admin para testes de autorizacao"""
     return {
@@ -211,7 +211,7 @@ def non_admin_user():
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_feedback_collector():
     """Mock FeedbackCollector"""
     collector = MagicMock()
@@ -220,7 +220,7 @@ def mock_feedback_collector():
     return collector
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_ledger_client():
     """Mock CognitiveLedgerClient"""
     client = MagicMock()
@@ -247,7 +247,7 @@ def mock_ledger_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_opinions():
     """Lista de opinioes de exemplo do ledger cognitivo"""
     return [

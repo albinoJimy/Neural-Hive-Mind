@@ -9,26 +9,26 @@ Valida performance sob alta concorrência:
 """
 
 import asyncio
-import pytest
-import time
 import statistics
-from datetime import datetime, timezone, timedelta
-from typing import Dict, List, Any
-from unittest.mock import AsyncMock, MagicMock
+import time
 from dataclasses import dataclass, field
+from datetime import UTC, datetime, timedelta
+from typing import Any
+from unittest.mock import AsyncMock, MagicMock
 
+import pytest
+from src.config.settings import OrchestratorSettings
+from src.observability.metrics import OrchestratorMetrics
 from src.scheduler.intelligent_scheduler import IntelligentScheduler
 from src.scheduler.priority_calculator import PriorityCalculator
 from src.scheduler.resource_allocator import ResourceAllocator
-from src.config.settings import OrchestratorSettings
-from src.observability.metrics import OrchestratorMetrics
 
 
 @dataclass
 class LoadTestMetrics:
     """Coleta métricas de performance durante testes de carga."""
 
-    latencies_ms: List[float] = field(default_factory=list)
+    latencies_ms: list[float] = field(default_factory=list)
     success_count: int = 0
     fallback_count: int = 0
     error_count: int = 0
@@ -104,7 +104,7 @@ class LoadTestMetrics:
         return 0
 
 
-@pytest.fixture
+@pytest.fixture()
 def load_test_config():
     """Config otimizada para testes de carga."""
     config = MagicMock(spec=OrchestratorSettings)
@@ -118,7 +118,7 @@ def load_test_config():
     return config
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_metrics():
     """Metrics mock que rastreia chamadas para análise."""
     metrics = MagicMock(spec=OrchestratorMetrics)
@@ -136,7 +136,7 @@ def mock_metrics():
     return metrics
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_priority_calculator():
     """PriorityCalculator mock."""
     calc = MagicMock(spec=PriorityCalculator)
@@ -144,8 +144,8 @@ def mock_priority_calculator():
     return calc
 
 
-@pytest.fixture
-def sample_workers() -> List[Dict[str, Any]]:
+@pytest.fixture()
+def sample_workers() -> list[dict[str, Any]]:
     """Lista de workers mock."""
     return [
         {
@@ -165,7 +165,7 @@ def sample_workers() -> List[Dict[str, Any]]:
 
 
 def create_mock_resource_allocator(
-    workers: List[Dict], discovery_latency_ms: float = 10
+    workers: list[dict], discovery_latency_ms: float = 10
 ) -> AsyncMock:
     """Cria ResourceAllocator mock com latência simulada."""
     allocator = AsyncMock(spec=ResourceAllocator)
@@ -181,7 +181,7 @@ def create_mock_resource_allocator(
     return allocator
 
 
-def generate_tickets(count: int, capability_patterns: int = 5) -> List[Dict[str, Any]]:
+def generate_tickets(count: int, capability_patterns: int = 5) -> list[dict[str, Any]]:
     """Gera tickets de teste com padrões variados de capabilities."""
     capabilities_options = [
         ["python", "data-processing"],
@@ -205,14 +205,14 @@ def generate_tickets(count: int, capability_patterns: int = 5) -> List[Dict[str,
                     "durability": "PERSISTENT",
                 },
                 "sla": {
-                    "deadline": (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat(),
+                    "deadline": (datetime.now(UTC) + timedelta(hours=1)).isoformat(),
                     "timeout_ms": 3600000,
                 },
                 "required_capabilities": capabilities_options[i % capability_patterns],
                 "namespace": "default",
                 "security_level": "standard",
                 "estimated_duration_ms": 1000,
-                "created_at": datetime.now(timezone.utc).isoformat(),
+                "created_at": datetime.now(UTC).isoformat(),
             }
         )
     return tickets
@@ -221,7 +221,7 @@ def generate_tickets(count: int, capability_patterns: int = 5) -> List[Dict[str,
 class TestSchedulerThroughput:
     """Testes de throughput do scheduler."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_throughput_sequential_100_tickets(
         self, load_test_config, mock_metrics, mock_priority_calculator, sample_workers
     ):
@@ -269,7 +269,7 @@ class TestSchedulerThroughput:
         print(f"  Latência P95: {metrics.latency_p95:.2f}ms")
         print(f"  Latência P99: {metrics.latency_p99:.2f}ms")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_throughput_concurrent_50_tickets(
         self, load_test_config, mock_metrics, mock_priority_calculator, sample_workers
     ):
@@ -285,7 +285,7 @@ class TestSchedulerThroughput:
         tickets = generate_tickets(50)
         metrics = LoadTestMetrics()
 
-        async def process_ticket(ticket: Dict) -> float:
+        async def process_ticket(ticket: dict) -> float:
             start = time.time()
             result = await scheduler.schedule_ticket(ticket)
             latency_ms = (time.time() - start) * 1000
@@ -319,7 +319,7 @@ class TestSchedulerThroughput:
         print(f"  Taxa de sucesso: {metrics.success_rate*100:.1f}%")
         print(f"  Latência P95: {metrics.latency_p95:.2f}ms")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_throughput_concurrent_200_tickets(
         self, load_test_config, mock_metrics, mock_priority_calculator, sample_workers
     ):
@@ -335,7 +335,7 @@ class TestSchedulerThroughput:
         tickets = generate_tickets(200)
         metrics = LoadTestMetrics()
 
-        async def process_ticket(ticket: Dict) -> tuple:
+        async def process_ticket(ticket: dict) -> tuple:
             start = time.time()
             result = await scheduler.schedule_ticket(ticket)
             latency_ms = (time.time() - start) * 1000
@@ -370,7 +370,7 @@ class TestSchedulerThroughput:
 class TestSchedulerCachePerformance:
     """Testes de performance do cache de descobertas."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_cache_effectiveness_same_capabilities(
         self, load_test_config, mock_metrics, mock_priority_calculator, sample_workers
     ):
@@ -415,7 +415,7 @@ class TestSchedulerCachePerformance:
         print(f"  Discovery calls: {discovery_calls}")
         print(f"  Cache hit rate: {cache_hit_rate*100:.1f}%")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_cache_effectiveness_varied_capabilities(
         self, load_test_config, mock_metrics, mock_priority_calculator, sample_workers
     ):
@@ -465,7 +465,7 @@ class TestSchedulerCachePerformance:
 class TestSchedulerLatencyDistribution:
     """Testes de distribuição de latência."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_latency_consistency_under_load(
         self, load_test_config, mock_metrics, mock_priority_calculator, sample_workers
     ):
@@ -481,7 +481,7 @@ class TestSchedulerLatencyDistribution:
         tickets = generate_tickets(500, capability_patterns=5)
         latencies = []
 
-        async def process_batch(batch: List[Dict]) -> List[float]:
+        async def process_batch(batch: list[dict]) -> list[float]:
             results = []
             for ticket in batch:
                 start = time.time()
@@ -522,7 +522,7 @@ class TestSchedulerLatencyDistribution:
 class TestSchedulerRiskBandPrioritization:
     """Testes de priorização por risk_band sob carga."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_priority_ordering_under_load(
         self, load_test_config, mock_metrics, sample_workers
     ):
@@ -581,7 +581,7 @@ class TestSchedulerRiskBandPrioritization:
 class TestSchedulerFallbackBehavior:
     """Testes de comportamento de fallback sob carga."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_fallback_on_discovery_timeout(
         self, load_test_config, mock_metrics, mock_priority_calculator
     ):
@@ -628,7 +628,7 @@ class TestSchedulerFallbackBehavior:
         print(f"  Tickets: {metrics.total_count}")
         print(f"  Fallbacks: {metrics.fallback_count}")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_fallback_on_no_workers(
         self, load_test_config, mock_metrics, mock_priority_calculator
     ):
@@ -666,7 +666,7 @@ class TestSchedulerFallbackBehavior:
 class TestSchedulerConcurrencySafety:
     """Testes de segurança em alta concorrência."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_concurrent_cache_updates(
         self, load_test_config, mock_metrics, mock_priority_calculator, sample_workers
     ):
@@ -683,7 +683,7 @@ class TestSchedulerConcurrencySafety:
         # Mesma capability para forçar contention no cache
         tickets = generate_tickets(100, capability_patterns=1)
 
-        async def process_ticket(ticket: Dict) -> Dict:
+        async def process_ticket(ticket: dict) -> dict:
             return await scheduler.schedule_ticket(ticket)
 
         # Processar todos concorrentemente

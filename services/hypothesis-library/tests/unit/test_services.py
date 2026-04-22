@@ -1,18 +1,17 @@
 """Unit tests para services."""
 
-import pytest
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import AsyncMock, Mock
 from uuid import uuid4
 
+import pytest
 from src.models.hypothesis import (
     Hypothesis,
     HypothesisCreate,
-    HypothesisUpdate,
-    HypothesisStatus,
-    HypothesisPriority,
     HypothesisResults,
+    HypothesisStatus,
+    HypothesisUpdate,
 )
-from src.models.workflow import TransitionError, WorkflowTransition
+from src.models.workflow import TransitionError
 from src.services.hypothesis_service import HypothesisService
 from src.services.versioning_service import VersioningService
 
@@ -20,17 +19,17 @@ from src.services.versioning_service import VersioningService
 class TestVersioningService:
     """Testes para VersioningService."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def version_repository(self):
         """Mock version repository."""
         return AsyncMock()
 
-    @pytest.fixture
+    @pytest.fixture()
     def versioning_service(self, version_repository):
         """Instância do service."""
         return VersioningService(version_repository)
 
-    @pytest.fixture
+    @pytest.fixture()
     def sample_hypothesis(self):
         """Hipótese de exemplo."""
         return Hypothesis(
@@ -42,7 +41,7 @@ class TestVersioningService:
             current_version=1,
         )
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_create_version(self, versioning_service, version_repository, sample_hypothesis):
         """Testa criação de versão."""
         from src.models.hypothesis_version import HypothesisVersion
@@ -66,12 +65,11 @@ class TestVersioningService:
         assert version.created_by == "user"
         version_repository.save.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_create_version_with_changes(
         self, versioning_service, version_repository, sample_hypothesis
     ):
         """Testa criação de versão com cálculo de mudanças."""
-        from src.models.hypothesis_version import HypothesisVersion
 
         previous_snapshot = {
             "title": "Old Title",
@@ -97,7 +95,7 @@ class TestVersioningService:
         assert "title" in saved_version.changes
         assert saved_version.changes["title"]["from"] == "Old Title"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_version_history(self, versioning_service, version_repository):
         """Testa busca de histórico de versões."""
         version_repository.list_versions.return_value = []
@@ -109,7 +107,7 @@ class TestVersioningService:
             limit=50,
         )
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_compare_versions(self, versioning_service, version_repository):
         """Testa comparação entre versões."""
         version_repository.compare_versions.return_value = Mock()
@@ -130,7 +128,7 @@ class TestVersioningService:
 class TestHypothesisService:
     """Testes para HypothesisService."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def hypothesis_repository(self):
         """Mock hypothesis repository."""
         from src.models.hypothesis import Hypothesis, HypothesisStatus
@@ -148,17 +146,17 @@ class TestHypothesisService:
         repo.get_by_id.return_value = None
         return repo
 
-    @pytest.fixture
+    @pytest.fixture()
     def versioning_service(self):
         """Mock versioning service."""
         return AsyncMock()
 
-    @pytest.fixture
+    @pytest.fixture()
     def hypothesis_service(self, hypothesis_repository, versioning_service):
         """Instância do service."""
         return HypothesisService(hypothesis_repository, versioning_service)
 
-    @pytest.fixture
+    @pytest.fixture()
     def sample_create_data(self):
         """Dados de criação de exemplo."""
         return HypothesisCreate(
@@ -168,15 +166,17 @@ class TestHypothesisService:
             author="test-user",
         )
 
-    @pytest.mark.asyncio
-    async def test_create_hypothesis(self, hypothesis_service, hypothesis_repository, sample_create_data):
+    @pytest.mark.asyncio()
+    async def test_create_hypothesis(
+        self, hypothesis_service, hypothesis_repository, sample_create_data
+    ):
         """Testa criação de hipótese."""
         created_hypothesis = await hypothesis_service.create(sample_create_data, author="user")
 
         assert created_hypothesis.status == HypothesisStatus.DRAFT
         hypothesis_repository.create.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_create_with_versioning(
         self, hypothesis_service, hypothesis_repository, versioning_service, sample_create_data
     ):
@@ -185,7 +185,7 @@ class TestHypothesisService:
 
         assert versioning_service.create_version.called
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_by_id(self, hypothesis_service, hypothesis_repository):
         """Testa busca por ID."""
         hypothesis_repository.get_by_id.return_value = Mock(
@@ -198,7 +198,7 @@ class TestHypothesisService:
         assert result is not None
         hypothesis_repository.get_by_id.assert_called_once_with("hyp-123")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_list_hypotheses(self, hypothesis_service, hypothesis_repository):
         """Testa listagem de hipóteses."""
         hypothesis_repository.list_by_filters.return_value = {
@@ -212,8 +212,10 @@ class TestHypothesisService:
 
         assert result["total"] == 10
 
-    @pytest.mark.asyncio
-    async def test_update_hypothesis(self, hypothesis_service, hypothesis_repository, versioning_service):
+    @pytest.mark.asyncio()
+    async def test_update_hypothesis(
+        self, hypothesis_service, hypothesis_repository, versioning_service
+    ):
         """Testa atualização de hipótese."""
         hypothesis = Hypothesis(
             title="Old Title",
@@ -229,12 +231,14 @@ class TestHypothesisService:
 
         update_data = HypothesisUpdate(title="New Title")
 
-        result = await hypothesis_service.update("hyp-123", update_data, "user", create_version=False)
+        result = await hypothesis_service.update(
+            "hyp-123", update_data, "user", create_version=False
+        )
 
         assert result is not None
         hypothesis_repository.update.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_propose_hypothesis(self, hypothesis_service, hypothesis_repository):
         """Testa proposta de hipótese."""
         hypothesis = Hypothesis(
@@ -253,7 +257,7 @@ class TestHypothesisService:
         assert updated is not None
         assert transition is not None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_propose_invalid_transition(self, hypothesis_service, hypothesis_repository):
         """Testa proposta com transição inválida."""
         hypothesis = Hypothesis(
@@ -269,7 +273,7 @@ class TestHypothesisService:
         with pytest.raises(TransitionError):
             await hypothesis_service.propose("hyp-123", "user")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_approve_hypothesis(self, hypothesis_service, hypothesis_repository):
         """Testa aprovação de hipótese."""
         hypothesis = Hypothesis(
@@ -287,7 +291,7 @@ class TestHypothesisService:
 
         assert updated is not None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_reject_hypothesis(self, hypothesis_service, hypothesis_repository):
         """Testa rejeição de hipótese."""
         hypothesis = Hypothesis(
@@ -305,7 +309,7 @@ class TestHypothesisService:
 
         assert updated is not None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_start_testing(self, hypothesis_service, hypothesis_repository):
         """Testa início de teste."""
         hypothesis = Hypothesis(
@@ -320,14 +324,12 @@ class TestHypothesisService:
         hypothesis_repository.set_experiment_id.return_value = True
         hypothesis_repository.transition_status.return_value = (hypothesis, Mock())
 
-        updated, transition = await hypothesis_service.start_testing(
-            "hyp-123", "exp-123", "system"
-        )
+        updated, transition = await hypothesis_service.start_testing("hyp-123", "exp-123", "system")
 
         assert updated is not None
         hypothesis_repository.set_experiment_id.assert_called_once_with("hyp-123", "exp-123")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_complete_testing(self, hypothesis_service, hypothesis_repository):
         """Testa conclusão de teste."""
         hypothesis = Hypothesis(
@@ -354,7 +356,7 @@ class TestHypothesisService:
         assert updated is not None
         hypothesis_repository.set_results.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_accept_hypothesis(self, hypothesis_service, hypothesis_repository):
         """Testa aceitação de hipótese."""
         hypothesis = Hypothesis(
@@ -372,7 +374,7 @@ class TestHypothesisService:
 
         assert updated is not None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_archive_hypothesis(self, hypothesis_service, hypothesis_repository):
         """Testa arquivamento de hipótese."""
         hypothesis = Hypothesis(
@@ -390,7 +392,7 @@ class TestHypothesisService:
 
         assert updated is not None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_delete_hypothesis(self, hypothesis_service, hypothesis_repository):
         """Testa remoção (soft delete) de hipótese."""
         hypothesis_repository.delete.return_value = True
@@ -400,7 +402,7 @@ class TestHypothesisService:
         assert result is True
         hypothesis_repository.delete.assert_called_once_with("hyp-123")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_allowed_transitions(self, hypothesis_service, hypothesis_repository):
         """Testa obtenção de transições permitidas."""
         hypothesis = Hypothesis(
@@ -418,7 +420,7 @@ class TestHypothesisService:
         assert HypothesisStatus.PROPOSED in transitions
         assert HypothesisStatus.APPROVED not in transitions
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_aggregations(self, hypothesis_service, hypothesis_repository):
         """Testa obtenção de agregações."""
         hypothesis_repository.get_aggregations.return_value = {

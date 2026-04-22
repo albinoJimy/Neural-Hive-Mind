@@ -4,25 +4,24 @@ Testes para Feature Store Service
 Testa operações CRUD, cache hit/miss e integração com MongoDB/Redis.
 """
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock
 
-# Import lineage models FIRST to resolve forward references
+import pytest
 
+# Import lineage models FIRST to resolve forward references
 # Then import feature models
 from src.models.feature import (
+    ComputationStatus,
+    FeatureComputationRequest,
     FeatureVector,
     MetadataFeatures,
-    FeatureComputationRequest,
-    ComputationStatus,
 )
-
-from src.services.feature_store import FeatureStoreService
 from src.services.cache_service import RedisCacheService
 from src.services.computation import FeatureComputationPipeline
+from src.services.feature_store import FeatureStoreService
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_settings():
     """Mock das configurações"""
     settings = MagicMock()
@@ -33,7 +32,7 @@ def mock_settings():
     return settings
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_mongo_client():
     """Mock do cliente MongoDB"""
     client = MagicMock()
@@ -41,7 +40,7 @@ def mock_mongo_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_cache_service():
     """Mock do serviço de cache"""
     cache = MagicMock(spec=RedisCacheService)
@@ -53,7 +52,7 @@ def mock_cache_service():
     return cache
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_feature_vector():
     """FeatureVector de exemplo"""
     return FeatureVector(
@@ -70,7 +69,7 @@ def sample_feature_vector():
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_cognitive_plan():
     """Plano cognitivo de exemplo"""
     return {
@@ -100,7 +99,7 @@ def sample_cognitive_plan():
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def feature_store_service(mock_settings, mock_mongo_client, mock_cache_service):
     """Instância do FeatureStoreService para testes"""
     # Mock database e collection
@@ -150,7 +149,7 @@ class TestFeatureStoreServiceInit:
 class TestGetFeatures:
     """Testes para get_features"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_features_from_cache_hit(
         self, feature_store_service, mock_cache_service, sample_feature_vector
     ):
@@ -165,7 +164,7 @@ class TestGetFeatures:
         assert result.cache_hit is True
         mock_cache_service.get.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_features_cache_miss_mongodb_hit(
         self, feature_store_service, mock_cache_service, sample_feature_vector
     ):
@@ -182,7 +181,7 @@ class TestGetFeatures:
         assert result.plan_id == "test-plan-123"
         mock_cache_service.set.assert_called_once()  # Salvo no cache após buscar do MongoDB
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_features_not_found(self, feature_store_service, mock_cache_service):
         """Testa quando features não existem"""
         mock_cache_service.get.return_value = None
@@ -192,7 +191,7 @@ class TestGetFeatures:
 
         assert result is None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_features_skip_cache(self, feature_store_service, mock_cache_service):
         """Testa skip_cache=True"""
         feature_store_service.collection.find_one = AsyncMock(return_value=None)
@@ -206,7 +205,7 @@ class TestGetFeatures:
 class TestSaveFeatures:
     """Testes para save_features"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_save_features_success(self, feature_store_service, sample_feature_vector):
         """Testa salvar features com sucesso"""
         feature_store_service.collection.update_one = AsyncMock(
@@ -218,7 +217,7 @@ class TestSaveFeatures:
         assert result is True
         feature_store_service.collection.update_one.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_save_features_with_cache_update(
         self, feature_store_service, sample_feature_vector, mock_cache_service
     ):
@@ -236,7 +235,7 @@ class TestSaveFeatures:
 class TestComputeAndSave:
     """Testes para compute_and_save"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_compute_and_save_new_features(
         self, feature_store_service, sample_cognitive_plan
     ):
@@ -262,7 +261,7 @@ class TestComputeAndSave:
         assert result.computation_status == ComputationStatus.COMPLETED
         assert result.metadata.num_tasks == 2  # 2 tarefas no plano de exemplo
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_compute_and_skip_existing(
         self, feature_store_service, sample_feature_vector, sample_cognitive_plan
     ):
@@ -281,7 +280,7 @@ class TestComputeAndSave:
         assert result.plan_id == "test-plan-123"
         # Não deve computar novamente
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_compute_with_force_recompute(self, feature_store_service, sample_cognitive_plan):
         """Testa forçar recomputação"""
         feature_store_service.cache_service.get.return_value = None
@@ -302,7 +301,7 @@ class TestComputeAndSave:
 class TestDeleteFeatures:
     """Testes para delete_features"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_delete_features_success(self, feature_store_service, mock_cache_service):
         """Testa deletar features com sucesso"""
         feature_store_service.collection.delete_one = AsyncMock(
@@ -315,7 +314,7 @@ class TestDeleteFeatures:
         assert result is True
         feature_store_service.collection.delete_one.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_delete_features_not_found(self, feature_store_service, mock_cache_service):
         """Testa deletar features inexistentes"""
         feature_store_service.collection.delete_one = AsyncMock(
@@ -331,7 +330,7 @@ class TestDeleteFeatures:
 class TestListFeatures:
     """Testes para list_features"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_list_features_default(self, feature_store_service):
         """Testa listagem com parâmetros padrão"""
         # Mock cursor
@@ -350,7 +349,7 @@ class TestListFeatures:
 class TestGetMetrics:
     """Testes para get_metrics"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_metrics(self, feature_store_service, mock_cache_service):
         """Testa obter métricas"""
         feature_store_service.collection.count_documents = AsyncMock(return_value=100)
@@ -374,7 +373,7 @@ class TestGetMetrics:
 class TestGetFeaturesByPlanIds:
     """Testes para get_features_by_plan_ids"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_features_by_multiple_plan_ids(
         self, feature_store_service, sample_feature_vector
     ):
@@ -421,7 +420,7 @@ class TestGetFeaturesByPlanIds:
 class TestCacheIntegration:
     """Testes para integração com cache"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_cache_hit_increments_counter(
         self, feature_store_service, mock_cache_service, sample_feature_vector
     ):
@@ -432,7 +431,7 @@ class TestCacheIntegration:
 
         assert feature_store_service._cache_hits == 1
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_cache_miss_increments_counter(self, feature_store_service, mock_cache_service):
         """Testa que cache miss incrementa contador"""
         mock_cache_service.get.return_value = None

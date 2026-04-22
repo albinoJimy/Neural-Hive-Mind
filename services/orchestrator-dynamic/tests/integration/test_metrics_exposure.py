@@ -5,7 +5,6 @@ Verifica que as novas métricas de compensação e segurança estão expostas co
 """
 
 
-
 class TestCompensationMetricsExposure:
     """Testes de exposição de métricas de compensação."""
 

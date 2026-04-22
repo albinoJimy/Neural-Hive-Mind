@@ -5,8 +5,9 @@ Fornece helpers para criar endpoints de health check (startup, liveness, readine
 compatíveis com Kubernetes probes, seguindo padrões consistentes entre serviços.
 """
 
-from datetime import datetime, timezone
-from typing import Awaitable, Callable, Optional
+from collections.abc import Awaitable, Callable
+from datetime import UTC, datetime
+from typing import Optional
 
 from fastapi import APIRouter
 from pydantic import BaseModel, Field
@@ -77,7 +78,7 @@ def create_startup_router(
             status="started",
             service=service_name,
             version=service_version,
-            started_at=datetime.now(timezone.utc).isoformat(),
+            started_at=datetime.now(UTC).isoformat(),
         )
 
     return router

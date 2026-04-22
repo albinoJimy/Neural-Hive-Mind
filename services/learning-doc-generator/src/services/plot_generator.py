@@ -2,12 +2,10 @@
 
 import os
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Optional
 
 import matplotlib.pyplot as plt
 import structlog
-from plotly.graph_objects import Figure
-
 from src.config import get_settings
 from src.models import ExperimentRun
 
@@ -30,7 +28,7 @@ class PlotGenerator:
 
     async def generate_experiment_comparison_plot(
         self,
-        runs: List[ExperimentRun],
+        runs: list[ExperimentRun],
         metric: str = "val_accuracy",
         format_type: str = "png",
     ) -> Optional[str]:
@@ -66,9 +64,7 @@ class PlotGenerator:
             values = [r.metrics[metric] for r in sorted_runs]
 
             # Cores baseadas em status
-            colors = [
-                "#2ecc71" if r.status == "FINISHED" else "#e74c3c" for r in sorted_runs
-            ]
+            colors = ["#2ecc71" if r.status == "FINISHED" else "#e74c3c" for r in sorted_runs]
 
             bars = ax.barh(names, values, color=colors)
             ax.set_xlabel(metric.replace("_", " ").title())
@@ -102,7 +98,7 @@ class PlotGenerator:
 
     async def generate_metric_timeline_plot(
         self,
-        runs: List[ExperimentRun],
+        runs: list[ExperimentRun],
         metric: str = "val_accuracy",
         format_type: str = "png",
     ) -> Optional[str]:
@@ -119,9 +115,7 @@ class PlotGenerator:
         try:
             # Filtrar runs com data e métrica
             valid_runs = [
-                r
-                for r in runs
-                if r.start_time and metric in r.metrics and r.status == "FINISHED"
+                r for r in runs if r.start_time and metric in r.metrics and r.status == "FINISHED"
             ]
 
             if len(valid_runs) < 2:
@@ -161,7 +155,7 @@ class PlotGenerator:
 
     async def generate_metrics_correlation_plot(
         self,
-        runs: List[ExperimentRun],
+        runs: list[ExperimentRun],
         metric_x: str = "accuracy",
         metric_y: str = "val_accuracy",
         format_type: str = "png",
@@ -179,9 +173,7 @@ class PlotGenerator:
         """
         try:
             # Filtrar runs com ambas as métricas
-            valid_runs = [
-                r for r in runs if metric_x in r.metrics and metric_y in r.metrics
-            ]
+            valid_runs = [r for r in runs if metric_x in r.metrics and metric_y in r.metrics]
 
             if len(valid_runs) < 3:
                 return None
@@ -229,7 +221,7 @@ class PlotGenerator:
 
     async def generate_training_progress_plot(
         self,
-        runs: List[ExperimentRun],
+        runs: list[ExperimentRun],
         format_type: str = "png",
     ) -> Optional[str]:
         """Gera gráfico mostrando progresso de treinamento
@@ -244,9 +236,7 @@ class PlotGenerator:
         try:
             # Buscar runs com métricas de treino/validação
             valid_runs = [
-                r
-                for r in runs
-                if "training_loss" in r.metrics or "val_loss" in r.metrics
+                r for r in runs if "training_loss" in r.metrics or "val_loss" in r.metrics
             ]
 
             if not valid_runs:
@@ -259,9 +249,7 @@ class PlotGenerator:
             if any("training_loss" in r.metrics for r in valid_runs):
                 sorted_runs = sorted(valid_runs, key=lambda r: r.start_time or datetime.min)
                 x = list(range(len(sorted_runs)))
-                train_losses = [
-                    r.metrics.get("training_loss", float("nan")) for r in sorted_runs
-                ]
+                train_losses = [r.metrics.get("training_loss", float("nan")) for r in sorted_runs]
                 val_losses = [r.metrics.get("val_loss", float("nan")) for r in sorted_runs]
 
                 ax1.plot(x, train_losses, marker="o", label="Training Loss", linewidth=2)
@@ -301,8 +289,8 @@ class PlotGenerator:
 
     async def generate_multi_metric_summary(
         self,
-        runs: List[ExperimentRun],
-        metrics: List[str] = None,
+        runs: list[ExperimentRun],
+        metrics: list[str] = None,
         format_type: str = "png",
     ) -> Optional[str]:
         """Gera gráfico resumido com múltiplas métricas
@@ -357,9 +345,7 @@ class PlotGenerator:
             logger.error("Erro ao gerar gráfico multi-métrica", error=str(e), exc_info=True)
             return None
 
-    async def _save_plot(
-        self, fig: plt.Figure, name: str, format_type: str
-    ) -> str:
+    async def _save_plot(self, fig: plt.Figure, name: str, format_type: str) -> str:
         """Salva gráfico em arquivo
 
         Args:
@@ -382,9 +368,9 @@ class PlotGenerator:
 
     async def generate_all_plots(
         self,
-        runs: List[ExperimentRun],
+        runs: list[ExperimentRun],
         format_type: str = "png",
-    ) -> List[str]:
+    ) -> list[str]:
         """Gera todos os gráficos disponíveis
 
         Args:
@@ -407,7 +393,9 @@ class PlotGenerator:
             plots.append(plot)
 
         # Correlação train/val
-        plot = await self.generate_metrics_correlation_plot(runs, "accuracy", "val_accuracy", format_type)
+        plot = await self.generate_metrics_correlation_plot(
+            runs, "accuracy", "val_accuracy", format_type
+        )
         if plot:
             plots.append(plot)
 

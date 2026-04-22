@@ -5,7 +5,7 @@ Suporta parsing de código Rust com fallback regex.
 """
 
 import logging
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -41,11 +41,11 @@ class RustParser:
             self._ts_parser.set_language(self._ts_language)
             logger.debug("rust_parser_tree_sitter_loaded")
         except Exception as e:
-            logger.warning(f"rust_parser_init_failed: {str(e)}")
+            logger.warning(f"rust_parser_init_failed: {e!s}")
             self._ts_language = None
             self._ts_parser = None
 
-    def parse(self, code: str, filename: str) -> Optional[Dict[str, Any]]:
+    def parse(self, code: str, filename: str) -> Optional[dict[str, Any]]:
         """Parse código Rust e extrair informações."""
         if not code or not code.strip():
             return self._empty_result()
@@ -54,11 +54,11 @@ class RustParser:
             try:
                 return self._parse_with_tree_sitter(code, filename)
             except Exception as e:
-                logger.warning(f"tree_sitter_parse_failed: {filename} - {str(e)}")
+                logger.warning(f"tree_sitter_parse_failed: {filename} - {e!s}")
 
         return self._parse_with_regex(code, filename)
 
-    def _empty_result(self) -> Dict[str, Any]:
+    def _empty_result(self) -> dict[str, Any]:
         """Retorna estrutura vazia."""
         return {
             "structs": [],
@@ -72,7 +72,7 @@ class RustParser:
             "complexity": 0,
         }
 
-    def _parse_with_tree_sitter(self, code: str, filename: str) -> Dict[str, Any]:
+    def _parse_with_tree_sitter(self, code: str, filename: str) -> dict[str, Any]:
         """Parse usando tree-sitter."""
         tree = self._ts_parser.parse(bytes(code, "utf8"))
         result = self._empty_result()
@@ -110,7 +110,7 @@ class RustParser:
         result["complexity"] = self._calculate_complexity_ts(tree)
         return result
 
-    def _extract_struct(self, node, code: str) -> Optional[Dict]:
+    def _extract_struct(self, node, code: str) -> Optional[dict]:
         """Extrai struct."""
         name_node = node.child_by_field_name("name")
         if not name_node:
@@ -122,7 +122,7 @@ class RustParser:
             "fields": [],
         }
 
-    def _extract_enum(self, node, code: str) -> Optional[Dict]:
+    def _extract_enum(self, node, code: str) -> Optional[dict]:
         """Extrai enum."""
         name_node = node.child_by_field_name("name")
         if not name_node:
@@ -134,7 +134,7 @@ class RustParser:
             "variants": [],
         }
 
-    def _extract_trait(self, node, code: str) -> Optional[Dict]:
+    def _extract_trait(self, node, code: str) -> Optional[dict]:
         """Extrai trait."""
         name_node = node.child_by_field_name("name")
         if not name_node:
@@ -146,7 +146,7 @@ class RustParser:
             "methods": [],
         }
 
-    def _extract_impl(self, node, code: str) -> Optional[Dict]:
+    def _extract_impl(self, node, code: str) -> Optional[dict]:
         """Extrai impl block."""
         type_node = node.child_by_field_name("type")
         trait_node = node.child_by_field_name("trait")
@@ -160,7 +160,7 @@ class RustParser:
 
         return impl_info
 
-    def _extract_function(self, node, code: str) -> Optional[Dict]:
+    def _extract_function(self, node, code: str) -> Optional[dict]:
         """Extrai função."""
         name_node = node.child_by_field_name("name")
         if not name_node:
@@ -174,7 +174,7 @@ class RustParser:
             "is_async": "async" in code[node.start_byte : name_node.start_byte],
         }
 
-    def _extract_use(self, node, code: str, result: Dict):
+    def _extract_use(self, node, code: str, result: dict):
         """Extrai use declaration."""
         # Simplificado - apenas captura que existe import
         result["imports"].append({"lineno": code[: node.start_byte].count("\n") + 1})
@@ -197,7 +197,7 @@ class RustParser:
             complexity += 1
         return complexity
 
-    def _parse_with_regex(self, code: str, filename: str) -> Dict[str, Any]:
+    def _parse_with_regex(self, code: str, filename: str) -> dict[str, Any]:
         """Parse baseado em regex (fallback)."""
         import re
 

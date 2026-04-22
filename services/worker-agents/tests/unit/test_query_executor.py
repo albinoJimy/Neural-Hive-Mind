@@ -4,13 +4,14 @@ Testes unitários para QueryExecutor.
 Testa cada tipo de query com mocks.
 """
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock
-from src.executors.query_executor import QueryExecutor
+
+import pytest
 from src.executors.base_executor import ValidationError
+from src.executors.query_executor import QueryExecutor
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_config():
     """Configuração mock para testes."""
     config = MagicMock()
@@ -19,7 +20,7 @@ def mock_config():
     return config
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_metrics():
     """Métricas mock para testes."""
     metrics = MagicMock()
@@ -30,7 +31,7 @@ def mock_metrics():
     return metrics
 
 
-@pytest.fixture
+@pytest.fixture()
 def query_executor(mock_config, mock_metrics):
     """Instância do QueryExecutor para testes."""
     executor = QueryExecutor(
@@ -85,7 +86,7 @@ class TestQueryExecutorBasics:
 class TestMongoDBQueries:
     """Testes de queries MongoDB."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_mongodb_query_success(self, query_executor, mock_config):
         """Testa query MongoDB bem-sucedida."""
         # Mock MongoDB client
@@ -125,7 +126,7 @@ class TestMongoDBQueries:
         assert result["metadata"]["query_type"] == "mongodb"
         assert result["metadata"]["collection"] == "test_collection"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_mongodb_query_no_client(self, query_executor):
         """Testa query MongoDB quando cliente não disponível."""
         ticket = {
@@ -140,7 +141,7 @@ class TestMongoDBQueries:
         assert result["success"] is False
         assert "not available" in result["metadata"]["error"].lower()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_mongodb_query_missing_collection(self, query_executor, mock_config):
         """Testa query MongoDB sem parâmetro collection - deve falhar na validação."""
         query_executor.mongodb_client = MagicMock()
@@ -160,7 +161,7 @@ class TestMongoDBQueries:
 class TestNeo4jQueries:
     """Testes de queries Neo4j."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_neo4j_query_success(self, query_executor):
         """Testa query Neo4j bem-sucedida."""
         # Mock Neo4j client
@@ -187,7 +188,7 @@ class TestNeo4jQueries:
         assert result["metadata"]["query_type"] == "neo4j"
         query_executor.neo4j_client.execute_query.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_neo4j_query_no_client(self, query_executor):
         """Testa query Neo4j quando cliente não disponível."""
         ticket = {
@@ -206,7 +207,7 @@ class TestNeo4jQueries:
 class TestRedisQueries:
     """Testes de queries Redis."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_redis_get_success(self, query_executor):
         """Testa query Redis GET bem-sucedida."""
         query_executor.redis_client = MagicMock()
@@ -226,7 +227,7 @@ class TestRedisQueries:
         assert result["output"]["exists"] is True
         assert result["output"]["value"] == {"key": "value"}
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_redis_scan_success(self, query_executor):
         """Testa query Redis SCAN bem-sucedida."""
 
@@ -256,7 +257,7 @@ class TestRedisQueries:
         assert result["output"]["count"] == 5
         assert result["output"]["pattern"] == "test:*"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_redis_no_client(self, query_executor):
         """Testa query Redis quando cliente não disponível."""
         ticket = {
@@ -275,7 +276,7 @@ class TestRedisQueries:
 class TestKafkaQueries:
     """Testes de queries Kafka."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_kafka_query_success(self, query_executor):
         """Testa query Kafka bem-sucedida."""
         # Este teste usa o mock de importação
@@ -301,7 +302,7 @@ class TestKafkaQueries:
         assert "metadata" in result
         assert result["metadata"]["query_type"] == "kafka"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_kafka_query_missing_topic(self, query_executor):
         """Testa query Kafka sem parâmetro topic."""
         ticket = {
@@ -352,7 +353,7 @@ class TestUtilityMethods:
 class TestQueryTypeDispatch:
     """Testes de dispatch por query_type."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_unsupported_query_type(self, query_executor):
         """Testa erro para query_type não suportado."""
         ticket = {
@@ -367,7 +368,7 @@ class TestQueryTypeDispatch:
         assert result["success"] is False
         assert "Unsupported query_type" in result["metadata"]["error"]
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_default_query_type_mongodb(self, query_executor):
         """Testa que query_type padrão é mongodb."""
         query_executor.mongodb_client = MagicMock()

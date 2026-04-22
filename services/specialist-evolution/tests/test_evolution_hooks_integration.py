@@ -6,23 +6,24 @@ componentes de meta-learning (FingerprintExtractor, PatternMatcher,
 WeightAdapter, PatternRegistry).
 """
 
-import pytest
-import sys
 import os
+import sys
 from unittest.mock import Mock
+
+import pytest
 
 # Adicionar biblioteca ao path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../..", "libraries/python"))
 
 from neural_hive_specialists.evolution_hooks import (
-    FingerprintExtractor,
-    WeightAdapter,
-    SyncPatternRegistry,
-    Fingerprint,
-    EvolutionEvaluation,
     DEFAULT_WEIGHTS,
-    TaskCountRange,
     DurationRange,
+    EvolutionEvaluation,
+    Fingerprint,
+    FingerprintExtractor,
+    SyncPatternRegistry,
+    TaskCountRange,
+    WeightAdapter,
 )
 
 
@@ -151,19 +152,19 @@ class MockCursor:
         return iter(self._results)
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_mongo_client():
     """Fixture para mongo client mock."""
     return MockMongoClient()
 
 
-@pytest.fixture
+@pytest.fixture()
 def fingerprint_extractor():
     """Fixture para FingerprintExtractor."""
     return FingerprintExtractor()
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_cognitive_plan():
     """Fixture para plano cognitivo de exemplo."""
     return {
@@ -193,7 +194,7 @@ def sample_cognitive_plan():
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_fingerprint():
     """Fixture para fingerprint de exemplo."""
     return Fingerprint(
@@ -208,7 +209,7 @@ def sample_fingerprint():
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_evolution_evaluation():
     """Fixture para avaliação de exemplo."""
     return EvolutionEvaluation(
@@ -355,7 +356,7 @@ class TestPatternRegistryIntegration:
 class TestWeightAdapterIntegration:
     """Testes de integração do WeightAdapter."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_adapt_weights_with_insufficient_history(self, mock_mongo_client):
         """Testa adaptação com histórico insuficiente."""
         adapter = WeightAdapter(mock_mongo_client, min_similar_patterns=5, max_adjustment=0.05)
@@ -376,7 +377,7 @@ class TestWeightAdapterIntegration:
 
         assert adapted == DEFAULT_WEIGHTS
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_adapt_weights_preserves_sum(self, mock_mongo_client):
         """Testa que pesos adaptados preservam soma = 1.0."""
         adapter = WeightAdapter(
@@ -436,7 +437,7 @@ class TestWeightAdapterIntegration:
 class TestEvolutionSpecialistIntegration:
     """Testes de integração do EvolutionSpecialist com hooks."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def specialist_config(self):
         """Config para especialista."""
         config = MockConfig()
@@ -505,7 +506,7 @@ class TestEvolutionSpecialistIntegration:
         specialist_path = (
             "/home/jimy/NHM/Neural-Hive-Mind/services/specialist-evolution/src/specialist.py"
         )
-        with open(specialist_path, "r") as f:
+        with open(specialist_path) as f:
             content = f.read()
 
         # Verificar que DEFAULT_WEIGHTS está definido com valores corretos

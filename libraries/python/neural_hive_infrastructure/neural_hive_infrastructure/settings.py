@@ -5,7 +5,7 @@ Este módulo fornece classes base para configurações de infraestrutura
 partilhadas por todos os serviços da plataforma.
 """
 
-from typing import Optional, Dict, Any
+from typing import Any, Optional
 from urllib.parse import urlparse
 
 from pydantic import Field, field_validator, model_validator
@@ -452,7 +452,7 @@ class BaseInfrastructureSettings(BaseSettings):
 
         return self
 
-    def get_kafka_config(self) -> Dict[str, Any]:
+    def get_kafka_config(self) -> dict[str, Any]:
         """Retorna configurações de Kafka como dict para uso com aiokafka."""
         config = {
             "bootstrap_servers": self.kafka_bootstrap_servers,
@@ -468,14 +468,14 @@ class BaseInfrastructureSettings(BaseSettings):
 
         return config
 
-    def get_mongodb_config(self) -> Dict[str, Any]:
+    def get_mongodb_config(self) -> dict[str, Any]:
         """Retorna configurações de MongoDB como dict."""
         return {
             "uri": self.mongodb_uri,
             "database": self.mongodb_database,
         }
 
-    def get_redis_config(self) -> Dict[str, Any]:
+    def get_redis_config(self) -> dict[str, Any]:
         """Retorna configurações de Redis como dict."""
         return {
             "nodes": self.redis_cluster_nodes,
@@ -485,7 +485,7 @@ class BaseInfrastructureSettings(BaseSettings):
 
 
 # Singleton cache
-_settings_cache: Dict[str, BaseInfrastructureSettings] = {}
+_settings_cache: dict[str, BaseInfrastructureSettings] = {}
 
 
 def get_settings(

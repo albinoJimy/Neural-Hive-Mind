@@ -8,7 +8,7 @@ de geração de código.
 import asyncio
 import uuid
 from datetime import datetime
-from typing import Dict, Optional
+from typing import Optional
 
 import structlog
 from fastapi import APIRouter, Depends, HTTPException
@@ -64,7 +64,7 @@ def set_redis_client(client: RedisClient):
     _redis_client = client
 
 
-async def _save_pipeline_state(redis_client: RedisClient, pipeline_id: str, state: Dict):
+async def _save_pipeline_state(redis_client: RedisClient, pipeline_id: str, state: dict):
     """Salva estado do pipeline no Redis."""
     key = f"{PIPELINE_STATE_PREFIX}{pipeline_id}"
     string_state = {k: _serialize_value(v) for k, v in state.items()}
@@ -72,7 +72,7 @@ async def _save_pipeline_state(redis_client: RedisClient, pipeline_id: str, stat
     await redis_client.client.expire(key, PIPELINE_TTL)
 
 
-async def _get_pipeline_state(redis_client: RedisClient, pipeline_id: str) -> Optional[Dict]:
+async def _get_pipeline_state(redis_client: RedisClient, pipeline_id: str) -> Optional[dict]:
     """Recupera estado do pipeline do Redis."""
     key = f"{PIPELINE_STATE_PREFIX}{pipeline_id}"
     state = await redis_client.client.hgetall(key)
@@ -118,7 +118,7 @@ def _normalize_pipeline_status(status: str) -> str:
 
 
 def _create_ticket_from_request(
-    artifact_id: str, parameters: Optional[Dict] = None
+    artifact_id: str, parameters: Optional[dict] = None
 ) -> ExecutionTicket:
     """Cria ExecutionTicket a partir da requisição."""
     return ExecutionTicket(
@@ -145,7 +145,7 @@ def _create_ticket_from_request(
 
 @router.post("", status_code=201)
 async def trigger_pipeline(
-    payload: Dict,
+    payload: dict,
     pipeline_engine: Optional[PipelineEngine] = Depends(get_pipeline_engine),
     redis_client: Optional[RedisClient] = Depends(get_redis_client),
 ):

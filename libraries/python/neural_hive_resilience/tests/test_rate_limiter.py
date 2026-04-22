@@ -1,25 +1,26 @@
 """Testes para módulo rate_limiter."""
 
-import pytest
 import asyncio
 import time
 
+import pytest
+
+from neural_hive_resilience.exceptions import (
+    RateLimitExceededError,
+)
 from neural_hive_resilience.rate_limiter import (
-    TokenBucketRateLimiter,
-    SlidingWindowLogRateLimiter,
     ConcurrencyLimiter,
     RateLimiterFactory,
     RateLimitResult,
-)
-from neural_hive_resilience.exceptions import (
-    RateLimitExceededError,
+    SlidingWindowLogRateLimiter,
+    TokenBucketRateLimiter,
 )
 
 
 class TestTokenBucketRateLimiter:
     """Testes para TokenBucketRateLimiter."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_initialization(self):
         """Testa inicialização com parâmetros válidos."""
         limiter = TokenBucketRateLimiter(
@@ -42,7 +43,7 @@ class TestTokenBucketRateLimiter:
         with pytest.raises(ValueError, match="refill_rate deve ser > 0"):
             TokenBucketRateLimiter(capacity=100, refill_rate=0)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_acquire_success(self):
         """Testa aquisição bem-sucedida de tokens."""
         limiter = TokenBucketRateLimiter(
@@ -56,7 +57,7 @@ class TestTokenBucketRateLimiter:
         assert result.tokens_remaining == 5
         assert result.retry_after == 0
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_acquire_insufficient_tokens_no_block(self):
         """Testa erro quando não há tokens suficientes sem bloqueio."""
         limiter = TokenBucketRateLimiter(
@@ -71,7 +72,7 @@ class TestTokenBucketRateLimiter:
         with pytest.raises(RateLimitExceededError):
             await limiter.acquire(tokens=1, block=False)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_acquire_with_wait(self):
         """Testa aquisição com espera por reabastecimento."""
         limiter = TokenBucketRateLimiter(
@@ -91,7 +92,7 @@ class TestTokenBucketRateLimiter:
         # Deve ter esperado ~0.3 segundos (3 tokens / 10 tokens/s)
         assert 0.25 < elapsed < 0.5
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_refill_over_time(self):
         """Testa reabastecimento ao longo do tempo."""
         limiter = TokenBucketRateLimiter(
@@ -108,7 +109,7 @@ class TestTokenBucketRateLimiter:
         result = await limiter.acquire(tokens=5, block=False)
         assert result.allowed is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_refill_respects_capacity(self):
         """Testa que reabastecimento não excede capacidade."""
         limiter = TokenBucketRateLimiter(
@@ -127,7 +128,7 @@ class TestTokenBucketRateLimiter:
         assert result.allowed is True
         assert result.tokens_remaining == 0
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_reserve(self):
         """Testa método reserve."""
         limiter = TokenBucketRateLimiter(
@@ -147,7 +148,7 @@ class TestTokenBucketRateLimiter:
 class TestSlidingWindowLogRateLimiter:
     """Testes para SlidingWindowLogRateLimiter."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_initialization(self):
         """Testa inicialização."""
         limiter = SlidingWindowLogRateLimiter(
@@ -158,7 +159,7 @@ class TestSlidingWindowLogRateLimiter:
         assert limiter.limit == 10
         assert limiter.window_seconds == 60
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_check_within_limit(self):
         """Testa verificação dentro do limite."""
         limiter = SlidingWindowLogRateLimiter(
@@ -175,7 +176,7 @@ class TestSlidingWindowLogRateLimiter:
         assert result.allowed is False
         assert result.tokens_remaining == 0
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_window_sliding(self):
         """Testa que janela desliza corretamente."""
         limiter = SlidingWindowLogRateLimiter(
@@ -198,7 +199,7 @@ class TestSlidingWindowLogRateLimiter:
         result = await limiter.check()
         assert result.allowed is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_acquire_blocking(self):
         """Testa aquisição com bloqueio."""
         limiter = SlidingWindowLogRateLimiter(
@@ -222,7 +223,7 @@ class TestSlidingWindowLogRateLimiter:
 class TestConcurrencyLimiter:
     """Testes para ConcurrencyLimiter."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_initialization(self):
         """Testa inicialização."""
         limiter = ConcurrencyLimiter(
@@ -233,7 +234,7 @@ class TestConcurrencyLimiter:
         assert limiter.max_concurrent == 5
         assert limiter.queue_size == 2
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_acquire_release(self):
         """Testa aquisição e liberação."""
         limiter = ConcurrencyLimiter(
@@ -250,7 +251,7 @@ class TestConcurrencyLimiter:
         limiter.release()
         assert limiter._current_concurrent == 1
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_context_manager(self):
         """Testa uso como context manager."""
         limiter = ConcurrencyLimiter(
@@ -263,7 +264,7 @@ class TestConcurrencyLimiter:
 
         assert limiter._current_concurrent == 0
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_concurrent_execution(self):
         """Testa limite de concorrência."""
         limiter = ConcurrencyLimiter(
@@ -290,7 +291,7 @@ class TestConcurrencyLimiter:
         # Nunca deve exceder max_concurrent
         assert max_active <= 2
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_queue_exceeded(self):
         """Testa erro quando fila é excedida."""
         limiter = ConcurrencyLimiter(

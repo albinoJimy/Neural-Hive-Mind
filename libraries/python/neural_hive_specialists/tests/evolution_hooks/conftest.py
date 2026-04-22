@@ -5,12 +5,13 @@ Este módulo fornece fixtures compartilhadas para todos os testes
 do sistema Evolution Hooks.
 """
 
-import pytest
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import Mock
 
+import pytest
 
-@pytest.fixture
+
+@pytest.fixture()
 async def mongo_client():
     """
     MongoDB client async mock para testes.
@@ -256,10 +257,10 @@ async def mongo_client():
             pass
 
     client = AsyncMockMongoClient()
-    yield client
+    return client
 
 
-@pytest.fixture
+@pytest.fixture()
 async def clean_registry(mongo_client):
     """
     Registry limpo para cada teste.
@@ -279,15 +280,15 @@ async def clean_registry(mongo_client):
     collection.data.clear()
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_fingerprint():
     """
     Fingerprint de exemplo para testes.
     """
     from neural_hive_specialists.evolution_hooks.models import (
+        DurationRange,
         Fingerprint,
         TaskCountRange,
-        DurationRange,
     )
 
     return Fingerprint(
@@ -302,12 +303,12 @@ def sample_fingerprint():
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_evaluation():
     """
     Avaliação de exemplo para testes.
     """
-    from neural_hive_specialists.evolution_hooks.models import EvolutionEvaluation, DEFAULT_WEIGHTS
+    from neural_hive_specialists.evolution_hooks.models import DEFAULT_WEIGHTS, EvolutionEvaluation
 
     return EvolutionEvaluation(
         confidence_score=0.75,
@@ -325,7 +326,7 @@ def sample_evaluation():
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_feedback():
     """
     Feedback de exemplo para testes.
@@ -340,11 +341,11 @@ def sample_feedback():
         outcome=FeedbackOutcome.APPROVE,
         source=FeedbackSource.HUMAN,
         reasoning="Approved after review",
-        timestamp=datetime.now(timezone.utc),
+        timestamp=datetime.now(UTC),
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_plan_dict():
     """
     Plano cognitivo de exemplo como dict.
@@ -409,7 +410,7 @@ def sample_plan_dict():
 
 
 # Mock Kafka consumer para testes de integração
-@pytest.fixture
+@pytest.fixture()
 def mock_kafka_consumer():
     """Mock Kafka consumer para testes de integração."""
 
@@ -435,7 +436,7 @@ def mock_kafka_consumer():
     return MockKafkaConsumer
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_aiokafka_consumer():
     """Mock específico para aiokafka.AIOKafkaConsumer."""
 
@@ -450,6 +451,5 @@ def mock_aiokafka_consumer():
             import asyncio
 
             await asyncio.sleep(0.01)
-            return None
 
     return MockAIOKafkaConsumer()

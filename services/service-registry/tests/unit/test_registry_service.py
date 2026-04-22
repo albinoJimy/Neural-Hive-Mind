@@ -12,7 +12,7 @@ from src.models import AgentInfo, AgentStatus, AgentTelemetry, AgentType
 from src.services.registry_service import RegistryService
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_redis_client():
     """Mock do RedisRegistryClient com métodos básicos."""
     client = AsyncMock()
@@ -29,7 +29,7 @@ def mock_redis_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def registry_service(mock_redis_client):
     """Instância do RegistryService para teste."""
     return RegistryService(etcd_client=mock_redis_client)
@@ -38,7 +38,7 @@ def registry_service(mock_redis_client):
 class TestRegistryServiceRegisterAgent:
     """Testes para o método register_agent."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_register_agent_success(self, registry_service, mock_redis_client):
         """Testa registro de agente com dados válidos."""
         agent_type = AgentType.WORKER
@@ -54,7 +54,7 @@ class TestRegistryServiceRegisterAgent:
         assert token.startswith("token-")
         mock_redis_client.put_agent.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_register_agent_empty_capabilities(self, registry_service):
         """Testa que registro com capabilities vazias levanta ValueError."""
         with pytest.raises(ValueError) as exc_info:
@@ -63,7 +63,7 @@ class TestRegistryServiceRegisterAgent:
             )
         assert "Capabilities não podem estar vazias" in str(exc_info.value)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_register_agent_none_capabilities(self, registry_service):
         """Testa que registro com capabilities None levanta ValueError."""
         with pytest.raises(ValueError) as exc_info:
@@ -72,7 +72,7 @@ class TestRegistryServiceRegisterAgent:
             )
         assert "Capabilities não podem estar vazias" in str(exc_info.value)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_register_agent_missing_namespace(self, registry_service):
         """Testa que registro sem namespace levanta ValueError."""
         with pytest.raises(ValueError) as exc_info:
@@ -84,7 +84,7 @@ class TestRegistryServiceRegisterAgent:
             )
         assert "Namespace é obrigatório" in str(exc_info.value)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_register_agent_with_metadata_namespace(
         self, registry_service, mock_redis_client
     ):
@@ -100,7 +100,7 @@ class TestRegistryServiceRegisterAgent:
         assert isinstance(agent_id, type(uuid4()))
         mock_redis_client.put_agent.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_register_agent_default_values(self, registry_service, mock_redis_client):
         """Testa que registro usa valores default corretos."""
         agent_type = AgentType.SCOUT
@@ -123,7 +123,7 @@ class TestRegistryServiceRegisterAgent:
 class TestRegistryServiceUpdateHeartbeat:
     """Testes para o método update_heartbeat."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def sample_agent(self):
         """Agente de exemplo para heartbeat."""
         return AgentInfo(
@@ -135,7 +135,7 @@ class TestRegistryServiceUpdateHeartbeat:
             telemetry=AgentTelemetry(success_rate=0.9, total_executions=100),
         )
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_update_heartbeat_success(
         self, registry_service, mock_redis_client, sample_agent
     ):
@@ -147,7 +147,7 @@ class TestRegistryServiceUpdateHeartbeat:
         assert status == AgentStatus.HEALTHY
         mock_redis_client.get_agent.assert_called_once_with(sample_agent.agent_id)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_update_heartbeat_with_telemetry(
         self, registry_service, mock_redis_client, sample_agent
     ):
@@ -165,7 +165,7 @@ class TestRegistryServiceUpdateHeartbeat:
         # Pode ser chamado múltiplas vezes (setex, sadd, publish)
         assert len(call_args) > 0
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_update_heartbeat_status_change_to_degraded(
         self, registry_service, mock_redis_client
     ):
@@ -184,7 +184,7 @@ class TestRegistryServiceUpdateHeartbeat:
 
         assert status == AgentStatus.DEGRADED
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_update_heartbeat_status_change_to_unhealthy(
         self, registry_service, mock_redis_client
     ):
@@ -203,7 +203,7 @@ class TestRegistryServiceUpdateHeartbeat:
 
         assert status == AgentStatus.UNHEALTHY
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_update_heartbeat_status_recovery_to_healthy(
         self, registry_service, mock_redis_client
     ):
@@ -222,7 +222,7 @@ class TestRegistryServiceUpdateHeartbeat:
 
         assert status == AgentStatus.HEALTHY
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_update_heartbeat_not_found(self, registry_service, mock_redis_client):
         """Testa update de agente que não existe."""
         mock_redis_client.get_agent = AsyncMock(return_value=None)
@@ -231,7 +231,7 @@ class TestRegistryServiceUpdateHeartbeat:
             await registry_service.update_heartbeat(uuid4())
         assert "não encontrado" in str(exc_info.value)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_update_heartbeat_without_telemetry_uses_default(
         self, registry_service, mock_redis_client, sample_agent
     ):
@@ -247,7 +247,7 @@ class TestRegistryServiceUpdateHeartbeat:
 class TestRegistryServiceDeregisterAgent:
     """Testes para o método deregister_agent."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_deregister_agent_success(self, registry_service, mock_redis_client):
         """Testa desregistro de agente com sucesso."""
         agent = AgentInfo(
@@ -261,7 +261,7 @@ class TestRegistryServiceDeregisterAgent:
         assert result is True
         mock_redis_client.delete_agent.assert_called_once_with(agent.agent_id)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_deregister_agent_not_found(self, registry_service, mock_redis_client):
         """Testa desregistro de agente que não existe."""
         mock_redis_client.get_agent = AsyncMock(return_value=None)
@@ -273,7 +273,7 @@ class TestRegistryServiceDeregisterAgent:
         # ou o método pode levantar exceção - aqui assumimos retorno False
         assert result is False
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_deregister_agent_already_deregistered(self, registry_service, mock_redis_client):
         """Testa desregistro de agente já desregistrado."""
         agent_id = uuid4()
@@ -288,7 +288,7 @@ class TestRegistryServiceDeregisterAgent:
 class TestRegistryServiceGetAgent:
     """Testes para o método get_agent."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_agent_success(self, registry_service, mock_redis_client):
         """Testa obter agente existente."""
         agent = AgentInfo(
@@ -302,7 +302,7 @@ class TestRegistryServiceGetAgent:
         assert result.agent_id == agent.agent_id
         assert result.agent_type == AgentType.ANALYST
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_agent_not_found(self, registry_service, mock_redis_client):
         """Testa obter agente inexistente."""
         mock_redis_client.get_agent = AsyncMock(return_value=None)
@@ -315,7 +315,7 @@ class TestRegistryServiceGetAgent:
 class TestRegistryServiceListAgents:
     """Testes para o método list_agents."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def sample_agents(self):
         """Lista de agentes de exemplo."""
         return [
@@ -342,7 +342,7 @@ class TestRegistryServiceListAgents:
             ),
         ]
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_list_agents_empty(self, registry_service, mock_redis_client):
         """Testa listagem quando não há agentes."""
         mock_redis_client.list_agents = AsyncMock(return_value=[])
@@ -351,7 +351,7 @@ class TestRegistryServiceListAgents:
 
         assert result == []
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_list_agents_returns_all(
         self, registry_service, mock_redis_client, sample_agents
     ):
@@ -362,7 +362,7 @@ class TestRegistryServiceListAgents:
 
         assert len(result) == 3
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_list_agents_filtering_by_status(
         self, registry_service, mock_redis_client, sample_agents
     ):
@@ -381,7 +381,7 @@ class TestRegistryServiceListAgents:
         assert len(result) == 1
         assert result[0].status == AgentStatus.HEALTHY
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_list_agents_filtering_by_namespace(
         self, registry_service, mock_redis_client, sample_agents
     ):
@@ -399,7 +399,7 @@ class TestRegistryServiceListAgents:
         assert len(result) == 2
         assert all(a.namespace == "default" for a in result)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_list_agents_by_type(self, registry_service, mock_redis_client, sample_agents):
         """Testa listagem por tipo de agente."""
 
@@ -415,7 +415,7 @@ class TestRegistryServiceListAgents:
         assert len(result) == 2
         assert all(a.agent_type == AgentType.WORKER for a in result)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_list_agents_by_capability(
         self, registry_service, mock_redis_client, sample_agents
     ):
@@ -429,7 +429,7 @@ class TestRegistryServiceListAgents:
         # list_agents retorna todos, o filtro por capability é no MatchingEngine
         assert len(result) == 3
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_list_agents_pagination_not_implemented(
         self, registry_service, mock_redis_client
     ):
@@ -457,7 +457,7 @@ class TestRegistryServiceListAgents:
 class TestRegistryServiceErrorHandling:
     """Testes de tratamento de erros."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_register_agent_exception_propagates(self, registry_service, mock_redis_client):
         """Testa que exceções do etcd_client são propagadas."""
         mock_redis_client.put_agent = AsyncMock(side_effect=ConnectionError("Etcd unavailable"))
@@ -467,7 +467,7 @@ class TestRegistryServiceErrorHandling:
                 agent_type=AgentType.WORKER, capabilities=["python"], metadata={"version": "1.0.0"}
             )
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_update_heartbeat_exception_propagates(self, registry_service, mock_redis_client):
         """Testa que exceções no update são propagadas."""
         mock_redis_client.get_agent = AsyncMock(side_effect=TimeoutError("Timeout"))

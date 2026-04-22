@@ -114,9 +114,7 @@ class LearningDocMetrics:
             category: Categoria do insight (performance, improvement, trend, etc)
             confidence: Nível de confiança (high, medium, low)
         """
-        self.insights_extracted_total.labels(
-            category=category, confidence=confidence
-        ).inc()
+        self.insights_extracted_total.labels(category=category, confidence=confidence).inc()
 
     def record_experiment_processed(self, status: str) -> None:
         """Registra experimento processado.

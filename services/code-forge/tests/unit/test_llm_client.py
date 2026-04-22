@@ -14,8 +14,8 @@ Cobertura:
 
 from unittest.mock import AsyncMock, MagicMock
 
-import pytest
 import httpx
+import pytest
 
 
 class TestLLMClientInitialization:
@@ -68,7 +68,7 @@ class TestLLMClientInitialization:
 class TestLLMClientOllama:
     """Testes de geracao via Ollama (local)."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_generate_via_ollama_success(self):
         """Deve gerar codigo via Ollama com sucesso."""
         from src.clients.llm_client import LLMClient, LLMProvider
@@ -90,7 +90,7 @@ class TestLLMClientOllama:
         assert "code" in result
         assert "hello" in result["code"]
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_generate_via_ollama_error(self):
         """Deve retornar None quando Ollama falha."""
         from src.clients.llm_client import LLMClient, LLMProvider
@@ -105,7 +105,7 @@ class TestLLMClientOllama:
 
         assert result is None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_ollama_streaming_not_supported_warning(self):
         """Deve logar warning quando streaming solicitado para Ollama."""
         from src.clients.llm_client import LLMClient, LLMProvider
@@ -132,7 +132,7 @@ class TestLLMClientOllama:
 class TestLLMClientOpenAI:
     """Testes de geracao via OpenAI."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_generate_via_openai_success(self):
         """Deve gerar codigo via OpenAI com sucesso."""
         from src.clients.llm_client import LLMClient, LLMProvider
@@ -156,7 +156,7 @@ class TestLLMClientOpenAI:
         assert result["prompt_tokens"] == 50
         assert result["completion_tokens"] == 20
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_openai_missing_api_key(self):
         """Deve retornar None quando api_key nao fornecida."""
         from src.clients.llm_client import LLMClient, LLMProvider
@@ -173,7 +173,7 @@ class TestLLMClientOpenAI:
 class TestLLMClientAnthropic:
     """Testes de geracao via Anthropic."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_generate_via_anthropic_success(self):
         """Deve gerar codigo via Anthropic com sucesso."""
         from src.clients.llm_client import LLMClient, LLMProvider
@@ -199,7 +199,7 @@ class TestLLMClientAnthropic:
         assert result["prompt_tokens"] == 40
         assert result["completion_tokens"] == 15
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_anthropic_missing_api_key(self):
         """Deve retornar None quando api_key nao fornecida."""
         from src.clients.llm_client import LLMClient, LLMProvider
@@ -254,7 +254,7 @@ class TestLLMClientCodeExtraction:
 class TestLLMClientConfidenceCalculation:
     """Testes de calculo de confianca."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_confidence_base_score(self):
         """Deve retornar score base para codigo minimo."""
         from src.clients.llm_client import LLMClient
@@ -268,7 +268,7 @@ class TestLLMClientConfidenceCalculation:
         assert confidence >= 0.5
         assert confidence < 0.7
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_confidence_high_for_complete_code(self):
         """Deve retornar score alto para codigo completo."""
         from src.clients.llm_client import LLMClient
@@ -292,7 +292,7 @@ def hello(name: str) -> str:
 
         assert confidence >= 0.8
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_confidence_zero_for_empty(self):
         """Deve retornar zero para codigo vazio."""
         from src.clients.llm_client import LLMClient
@@ -341,7 +341,7 @@ class TestLLMClientSystemPrompt:
 class TestLLMClientValidation:
     """Testes de validacao de codigo."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_validate_code_valid(self):
         """Deve validar codigo valido."""
         from src.clients.llm_client import LLMClient
@@ -352,7 +352,7 @@ class TestLLMClientValidation:
 
         assert is_valid is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_validate_code_too_short(self):
         """Deve rejeitar codigo muito curto."""
         from src.clients.llm_client import LLMClient
@@ -363,7 +363,7 @@ class TestLLMClientValidation:
 
         assert is_valid is False
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_validate_code_empty(self):
         """Deve rejeitar codigo vazio."""
         from src.clients.llm_client import LLMClient
@@ -378,7 +378,7 @@ class TestLLMClientValidation:
 class TestLLMClientLifecycle:
     """Testes de ciclo de vida do cliente."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_start_creates_http_client(self):
         """Deve criar HTTP client ao iniciar."""
         from src.clients.llm_client import LLMClient
@@ -389,7 +389,7 @@ class TestLLMClientLifecycle:
         assert client.client is not None
         await client.stop()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_stop_closes_all_clients(self):
         """Deve fechar todos os clients ao parar."""
         from src.clients.llm_client import LLMClient

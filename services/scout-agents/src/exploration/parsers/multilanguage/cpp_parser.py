@@ -5,7 +5,7 @@ Suporta parsing de código C/C++ com fallback regex.
 """
 
 import logging
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -40,11 +40,11 @@ class CppParser:
             self._ts_parser.set_language(self._ts_language)
             logger.debug("cpp_parser_tree_sitter_loaded")
         except Exception as e:
-            logger.warning(f"cpp_parser_init_failed: {str(e)}")
+            logger.warning(f"cpp_parser_init_failed: {e!s}")
             self._ts_language = None
             self._ts_parser = None
 
-    def parse(self, code: str, filename: str) -> Optional[Dict[str, Any]]:
+    def parse(self, code: str, filename: str) -> Optional[dict[str, Any]]:
         """Parse código C/C++ e extrair informações."""
         if not code or not code.strip():
             return self._empty_result()
@@ -53,11 +53,11 @@ class CppParser:
             try:
                 return self._parse_with_tree_sitter(code, filename)
             except Exception as e:
-                logger.warning(f"tree_sitter_parse_failed: {filename} - {str(e)}")
+                logger.warning(f"tree_sitter_parse_failed: {filename} - {e!s}")
 
         return self._parse_with_regex(code, filename)
 
-    def _empty_result(self) -> Dict[str, Any]:
+    def _empty_result(self) -> dict[str, Any]:
         """Retorna estrutura vazia."""
         return {
             "classes": [],
@@ -70,7 +70,7 @@ class CppParser:
             "complexity": 0,
         }
 
-    def _parse_with_tree_sitter(self, code: str, filename: str) -> Dict[str, Any]:
+    def _parse_with_tree_sitter(self, code: str, filename: str) -> dict[str, Any]:
         """Parse usando tree-sitter."""
         tree = self._ts_parser.parse(bytes(code, "utf8"))
         result = self._empty_result()
@@ -100,7 +100,7 @@ class CppParser:
         result["complexity"] = self._calculate_complexity_ts(tree)
         return result
 
-    def _extract_namespace(self, node, code: str, result: Dict):
+    def _extract_namespace(self, node, code: str, result: dict):
         """Extrai namespace."""
         name_node = node.child_by_field_name("name")
         if name_node:
@@ -110,7 +110,7 @@ class CppParser:
             else:
                 result["namespaces"] = name
 
-    def _extract_class(self, node, code: str) -> Optional[Dict]:
+    def _extract_class(self, node, code: str) -> Optional[dict]:
         """Extrai classe."""
         name_node = node.child_by_field_name("name")
         if not name_node:
@@ -123,7 +123,7 @@ class CppParser:
             "template_parameters": [],
         }
 
-    def _extract_struct(self, node, code: str) -> Optional[Dict]:
+    def _extract_struct(self, node, code: str) -> Optional[dict]:
         """Extrai struct."""
         name_node = node.child_by_field_name("name")
         if not name_node:
@@ -134,7 +134,7 @@ class CppParser:
             "lineno": code[: name_node.start_byte].count("\n") + 1,
         }
 
-    def _extract_function(self, node, code: str) -> Optional[Dict]:
+    def _extract_function(self, node, code: str) -> Optional[dict]:
         """Extrai função."""
         name_node = node.child_by_field_name("declarator")
         if not name_node:
@@ -154,7 +154,7 @@ class CppParser:
             "parameters": [],
         }
 
-    def _extract_include(self, node, code: str, result: Dict):
+    def _extract_include(self, node, code: str, result: dict):
         """Extrai include."""
         path_node = node.child_by_field_name("path")
         if path_node:
@@ -163,7 +163,7 @@ class CppParser:
                 {"name": path, "lineno": code[: node.start_byte].count("\n") + 1}
             )
 
-    def _extract_macro(self, node, code: str, result: Dict):
+    def _extract_macro(self, node, code: str, result: dict):
         """Extrai macro define."""
         name_node = node.child_by_field_name("name")
         if name_node:
@@ -174,7 +174,7 @@ class CppParser:
                 }
             )
 
-    def _extract_template(self, node, code: str, result: Dict):
+    def _extract_template(self, node, code: str, result: dict):
         """Extrai template declaration."""
         result["templates"].append({"lineno": code[: node.start_byte].count("\n") + 1})
 
@@ -196,7 +196,7 @@ class CppParser:
             complexity += 1
         return complexity
 
-    def _parse_with_regex(self, code: str, filename: str) -> Dict[str, Any]:
+    def _parse_with_regex(self, code: str, filename: str) -> dict[str, Any]:
         """Parse baseado em regex (fallback)."""
         import re
 

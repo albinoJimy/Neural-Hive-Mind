@@ -2,7 +2,7 @@ import asyncio
 import os
 import uuid
 from datetime import datetime
-from typing import TYPE_CHECKING, Dict, Optional
+from typing import TYPE_CHECKING, Optional
 
 import structlog
 
@@ -85,7 +85,7 @@ class PipelineEngine:
         self.metrics = metrics
 
         self._semaphore = asyncio.Semaphore(max_concurrent)
-        self._active_pipelines: Dict[str, PipelineContext] = {}
+        self._active_pipelines: dict[str, PipelineContext] = {}
 
     async def execute_pipeline(self, ticket: ExecutionTicket) -> PipelineResult:
         """
@@ -204,7 +204,7 @@ class PipelineEngine:
                 # Criar ticket de compensação
                 try:
                     await self.ticket_client.create_compensation_ticket(
-                        ticket.ticket_id, f"Pipeline falhou: {str(e)}"
+                        ticket.ticket_id, f"Pipeline falhou: {e!s}"
                     )
                 except Exception as comp_error:
                     logger.error("compensation_ticket_failed", error=str(comp_error))

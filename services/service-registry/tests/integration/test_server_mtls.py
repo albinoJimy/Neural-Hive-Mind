@@ -4,11 +4,11 @@ Testes de integracao para mTLS no Service Registry Server.
 Testa criacao de credenciais de servidor e adicao de porta segura.
 """
 
-import pytest
-from datetime import datetime, timezone, timedelta
-from unittest.mock import AsyncMock, MagicMock, patch
 from dataclasses import dataclass
+from datetime import UTC, datetime, timedelta
+from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
 
 
 @dataclass
@@ -52,7 +52,7 @@ class MockSPIFFEManager:
         self.close = AsyncMock()
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_spiffe_manager():
     """Fixture que retorna mock do SPIFFEManager"""
     manager = MockSPIFFEManager()
@@ -61,12 +61,12 @@ def mock_spiffe_manager():
         private_key=TEST_PRIVATE_KEY,
         spiffe_id="spiffe://neural-hive.local/ns/neural-hive-execution/sa/service-registry",
         ca_bundle=TEST_CA_BUNDLE,
-        expires_at=datetime.now(timezone.utc) + timedelta(hours=24),
+        expires_at=datetime.now(UTC) + timedelta(hours=24),
     )
     return manager
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_settings():
     """Fixture que retorna configuracoes mockadas"""
     settings = MagicMock()
@@ -92,7 +92,7 @@ def mock_settings():
     return settings
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_server_creates_mtls_credentials(mock_spiffe_manager, mock_settings):
     """Testa que servidor cria credenciais mTLS corretamente"""
     from src.main import ServiceRegistryServer
@@ -133,7 +133,7 @@ async def test_server_creates_mtls_credentials(mock_spiffe_manager, mock_setting
         assert credentials == mock_credentials
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_server_returns_none_when_spiffe_disabled(mock_settings):
     """Testa que servidor retorna None quando SPIFFE esta desabilitado"""
     from src.main import ServiceRegistryServer
@@ -151,7 +151,7 @@ async def test_server_returns_none_when_spiffe_disabled(mock_settings):
         assert credentials is None
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_server_returns_none_when_x509_disabled(mock_spiffe_manager, mock_settings):
     """Testa que servidor retorna None quando X.509 esta desabilitado"""
     from src.main import ServiceRegistryServer
@@ -169,7 +169,7 @@ async def test_server_returns_none_when_x509_disabled(mock_spiffe_manager, mock_
         assert credentials is None
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_server_fails_in_production_without_credentials(mock_settings):
     """Testa que servidor falha em producao se credenciais nao puderem ser criadas"""
     from src.main import ServiceRegistryServer
@@ -192,7 +192,7 @@ async def test_server_fails_in_production_without_credentials(mock_settings):
             await server._create_server_credentials()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_server_allows_failure_in_development(mock_settings):
     """Testa que servidor permite falha em desenvolvimento"""
     from src.main import ServiceRegistryServer
@@ -216,7 +216,7 @@ async def test_server_allows_failure_in_development(mock_settings):
         assert credentials is None
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_server_logs_mtls_configuration(mock_spiffe_manager, mock_settings, caplog):
     """Testa que servidor loga configuracao mTLS"""
     from src.main import ServiceRegistryServer
@@ -239,12 +239,12 @@ async def test_server_logs_mtls_configuration(mock_spiffe_manager, mock_settings
         # Este teste verifica principalmente que nao houve excecao
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_server_certificate_expiry_info(mock_spiffe_manager, mock_settings):
     """Testa que informacoes de expiracao sao obtidas corretamente"""
     from src.main import ServiceRegistryServer
 
-    expires_at = datetime.now(timezone.utc) + timedelta(hours=48)
+    expires_at = datetime.now(UTC) + timedelta(hours=48)
     mock_spiffe_manager.fetch_x509_svid.return_value = X509SVID(
         certificate=TEST_CERT,
         private_key=TEST_PRIVATE_KEY,

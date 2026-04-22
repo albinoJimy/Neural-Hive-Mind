@@ -2,16 +2,18 @@
 Testes de integração para FeedbackAPI.
 """
 
-import pytest
-from fastapi.testclient import TestClient
 from unittest.mock import Mock
-from neural_hive_specialists.feedback import create_feedback_router
-from neural_hive_specialists.config import SpecialistConfig
-from neural_hive_specialists.compliance import AuditLogger
+
+import pytest
 from fastapi import FastAPI
+from fastapi.testclient import TestClient
+
+from neural_hive_specialists.compliance import AuditLogger
+from neural_hive_specialists.config import SpecialistConfig
+from neural_hive_specialists.feedback import create_feedback_router
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_config():
     """Configuração mock."""
     return SpecialistConfig(
@@ -31,7 +33,7 @@ def mock_config():
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_feedback_collector():
     """FeedbackCollector mock."""
     collector = Mock()
@@ -52,7 +54,7 @@ def mock_feedback_collector():
     return collector
 
 
-@pytest.fixture
+@pytest.fixture()
 def test_app(mock_config, mock_feedback_collector):
     """Aplicação FastAPI de teste."""
     app = FastAPI()
@@ -61,13 +63,13 @@ def test_app(mock_config, mock_feedback_collector):
     return app
 
 
-@pytest.fixture
+@pytest.fixture()
 def test_client(test_app):
     """Cliente de teste."""
     return TestClient(test_app)
 
 
-@pytest.fixture
+@pytest.fixture()
 def valid_feedback_request():
     """Request válido de feedback."""
     return {
@@ -169,7 +171,7 @@ class TestFeedbackAPI:
 class TestFeedbackAPIAuthentication:
     """Testes de autenticação da API."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def auth_config(self):
         """Configuração com autenticação habilitada."""
         return SpecialistConfig(
@@ -187,14 +189,14 @@ class TestFeedbackAPIAuthentication:
             jwt_secret_key="test-secret-key-minimum-32-chars-long",
         )
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_audit_logger(self):
         """Mock do AuditLogger."""
         audit_logger = Mock(spec=AuditLogger)
         audit_logger.log_data_access = Mock()
         return audit_logger
 
-    @pytest.fixture
+    @pytest.fixture()
     def auth_app(self, auth_config, mock_feedback_collector, mock_audit_logger):
         """App com autenticação e audit logger."""
         app = FastAPI()
@@ -206,7 +208,7 @@ class TestFeedbackAPIAuthentication:
         app.state.audit_logger = mock_audit_logger
         return app
 
-    @pytest.fixture
+    @pytest.fixture()
     def auth_client(self, auth_app):
         """Cliente com autenticação."""
         return TestClient(auth_app)
@@ -219,8 +221,9 @@ class TestFeedbackAPIAuthentication:
 
     def test_submit_feedback_with_valid_token(self, auth_client, valid_feedback_request):
         """Teste com token JWT válido."""
-        import jwt
         from datetime import datetime, timedelta
+
+        import jwt
 
         # Gerar token válido
         payload = {
@@ -274,8 +277,9 @@ class TestFeedbackAPIAuthentication:
 
     def test_audit_log_unauthorized_role(self, auth_client, auth_app, valid_feedback_request):
         """Teste que role não autorizado é auditado."""
-        import jwt
         from datetime import datetime, timedelta
+
+        import jwt
 
         audit_logger = auth_app.state.audit_logger
 
@@ -305,8 +309,9 @@ class TestFeedbackAPIAuthentication:
 
     def test_audit_log_expired_token(self, auth_client, auth_app, valid_feedback_request):
         """Teste que token expirado é auditado."""
-        import jwt
         from datetime import datetime, timedelta
+
+        import jwt
 
         audit_logger = auth_app.state.audit_logger
 

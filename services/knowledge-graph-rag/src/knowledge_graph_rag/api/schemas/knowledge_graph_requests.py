@@ -13,8 +13,7 @@ class CreateNodeRequest(BaseModel):
     name: str = Field(..., min_length=1, max_length=200, description="Nome do nó")
     description: str = Field(..., description="Descrição detalhada")
     properties: Optional[Dict[str, Any]] = Field(
-        default_factory=dict,
-        description="Propriedades adicionais"
+        default_factory=dict, description="Propriedades adicionais"
     )
 
 
@@ -25,8 +24,7 @@ class CreateRelationRequest(BaseModel):
     target_id: str = Field(..., description="ID do nó de destino")
     relation_type: RelationType = Field(..., description="Tipo da relação")
     properties: Optional[Dict[str, Any]] = Field(
-        default_factory=dict,
-        description="Propriedades da relação"
+        default_factory=dict, description="Propriedades da relação"
     )
 
 
@@ -34,10 +32,7 @@ class SearchRequest(BaseModel):
     """Request para busca no grafo."""
 
     query_text: str = Field(..., min_length=1, description="Texto da busca")
-    node_types: Optional[List[NodeType]] = Field(
-        None,
-        description="Filtrar por tipos de nó"
-    )
+    node_types: Optional[List[NodeType]] = Field(None, description="Filtrar por tipos de nó")
     limit: int = Field(default=10, ge=1, le=100, description="Limite de resultados")
     include_relations: bool = Field(default=True, description="Incluir relações")
 

@@ -1,18 +1,19 @@
 """Detector de anomalias usando Isolation Forest/Autoencoders."""
 
-from typing import Dict, Any, Tuple, Optional
 import logging
+from typing import Any, Optional
+
 import numpy as np
 import pandas as pd
 from sklearn.ensemble import IsolationForest
+from sklearn.metrics import f1_score, precision_score, recall_score
 from sklearn.preprocessing import StandardScaler
-from sklearn.metrics import precision_score, recall_score, f1_score
 from tensorflow import keras
 
 from neural_hive_ml.predictive_models.base_predictor import BasePredictor
 from neural_hive_ml.predictive_models.feature_engineering import (
-    extract_ticket_features,
     create_feature_vector,
+    extract_ticket_features,
 )
 
 logger = logging.getLogger(__name__)
@@ -23,7 +24,7 @@ class AnomalyDetector(BasePredictor):
 
     def __init__(
         self,
-        config: Dict[str, Any],
+        config: dict[str, Any],
         model_registry: Optional[Any] = None,
         metrics: Optional[Any] = None,
     ):
@@ -48,8 +49,8 @@ class AnomalyDetector(BasePredictor):
     async def initialize(self) -> None:
         """Carrega modelo do registry com scaler e threshold."""
         try:
-            import mlflow
             import joblib
+            import mlflow
 
             model_name = f"anomaly-detector-{self.model_type}"
 
@@ -115,7 +116,7 @@ class AnomalyDetector(BasePredictor):
         except Exception as e:
             logger.error(f"Erro ao inicializar AnomalyDetector: {e}")
 
-    async def detect_anomaly(self, ticket: Dict[str, Any]) -> Dict[str, Any]:
+    async def detect_anomaly(self, ticket: dict[str, Any]) -> dict[str, Any]:
         """
         Detecta se ticket é anômalo.
 
@@ -196,7 +197,7 @@ class AnomalyDetector(BasePredictor):
 
     async def train_model(
         self, training_data: pd.DataFrame, labels: Optional[np.ndarray] = None
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Treina modelo de detecção de anomalias.
 
@@ -260,9 +261,10 @@ class AnomalyDetector(BasePredictor):
                 }
 
             # Salva modelo com scaler e threshold
-            import joblib
-            import tempfile
             import os
+            import tempfile
+
+            import joblib
 
             model_name = f"anomaly-detector-{self.model_type}"
 
@@ -321,7 +323,7 @@ class AnomalyDetector(BasePredictor):
             logger.error(f"Erro ao treinar modelo: {e}")
             raise
 
-    def _extract_features(self, data: Dict[str, Any]) -> np.ndarray:
+    def _extract_features(self, data: dict[str, Any]) -> np.ndarray:
         """Extrai features de um ticket."""
         features_dict = extract_ticket_features(data)
         return create_feature_vector(features_dict, self.feature_names)
@@ -351,7 +353,7 @@ class AnomalyDetector(BasePredictor):
             "estimated_to_sla_ratio",
         ]
 
-    def _explain_anomaly(self, features: Dict[str, Any], ticket: Dict[str, Any]) -> Tuple[str, str]:
+    def _explain_anomaly(self, features: dict[str, Any], ticket: dict[str, Any]) -> tuple[str, str]:
         """
         Identifica tipo de anomalia e gera explicação.
 
@@ -396,8 +398,8 @@ class AnomalyDetector(BasePredictor):
         return ("unknown", "Padrão anômalo detectado pelo modelo ML")
 
     def _heuristic_detection(
-        self, features: Dict[str, Any], ticket: Dict[str, Any]
-    ) -> Tuple[bool, str, str]:
+        self, features: dict[str, Any], ticket: dict[str, Any]
+    ) -> tuple[bool, str, str]:
         """
         Detecção heurística de anomalias (fallback).
 

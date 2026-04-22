@@ -4,6 +4,7 @@ Test real Redis Cluster operations with testcontainers
 """
 
 import asyncio
+
 import pytest
 
 # Skip tests if dependencies not available
@@ -20,7 +21,7 @@ from src.cache.redis_client import RedisClient
 
 
 @pytest.mark.skipif(not TESTCONTAINERS_AVAILABLE, reason="testcontainers not available")
-@pytest.mark.integration
+@pytest.mark.integration()
 class TestRedisClusterIntegration:
     """Integration tests with real Redis cluster"""
 
@@ -39,7 +40,7 @@ class TestRedisClusterIntegration:
     async def redis_client_integration(self, redis_cluster_container):
         """Create Redis client connected to test cluster"""
         # Mock settings for integration test
-        from unittest.mock import patch, Mock
+        from unittest.mock import Mock, patch
 
         test_settings = Mock()
         test_settings.redis_cluster_nodes = (
@@ -57,7 +58,7 @@ class TestRedisClusterIntegration:
             yield client
             await client.close()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_basic_operations(self, redis_client_integration):
         """Test basic Redis operations"""
         client = redis_client_integration
@@ -84,7 +85,7 @@ class TestRedisClusterIntegration:
         exists = await client.exists("test_key")
         assert exists is False
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_json_serialization(self, redis_client_integration):
         """Test JSON serialization and deserialization"""
         client = redis_client_integration
@@ -106,7 +107,7 @@ class TestRedisClusterIntegration:
         retrieved = await client.get("json_key")
         assert retrieved == test_data
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_ttl_expiration(self, redis_client_integration):
         """Test TTL expiration"""
         client = redis_client_integration
@@ -126,7 +127,7 @@ class TestRedisClusterIntegration:
         value = await client.get("ttl_key")
         assert value is None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_pipeline_single_slot(self, redis_client_integration):
         """Test pipeline operations on same hash slot"""
         client = redis_client_integration
@@ -161,7 +162,7 @@ class TestRedisClusterIntegration:
         assert name_exists is True
         assert email_exists is False
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_pipeline_mixed_operations(self, redis_client_integration):
         """Test pipeline with mixed operations"""
         client = redis_client_integration
@@ -187,7 +188,7 @@ class TestRedisClusterIntegration:
         assert results[3] == 1  # exists true
         assert results[4] == 0  # exists false
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_distributed_lock(self, redis_client_integration):
         """Test distributed lock functionality"""
         client = redis_client_integration
@@ -204,7 +205,7 @@ class TestRedisClusterIntegration:
         exists = await client.exists(lock_key)
         assert exists is False
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_circuit_breaker_recovery(self, redis_client_integration):
         """Test circuit breaker recovery behavior"""
         client = redis_client_integration
@@ -235,7 +236,7 @@ class TestRedisClusterIntegration:
         assert result is True
         assert client.circuit_breaker.state == "CLOSED"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_cache_statistics(self, redis_client_integration):
         """Test cache statistics tracking"""
         client = redis_client_integration
@@ -262,7 +263,7 @@ class TestRedisClusterIntegration:
         assert stats["hit_ratio"] == 2 / 5
         assert stats["connected"] is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_error_handling(self, redis_client_integration):
         """Test error handling for invalid operations"""
         client = redis_client_integration
@@ -283,7 +284,7 @@ class TestRedisClusterIntegration:
             # It's acceptable for this to raise an exception
             assert "invalid_operation" in str(e).lower() or "unknown" in str(e).lower()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_concurrent_operations(self, redis_client_integration):
         """Test concurrent Redis operations"""
         client = redis_client_integration
@@ -308,7 +309,7 @@ class TestRedisClusterIntegration:
         # All workers should succeed
         assert all(results)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_large_data_handling(self, redis_client_integration):
         """Test handling of large data objects"""
         client = redis_client_integration
@@ -330,7 +331,7 @@ class TestRedisClusterIntegration:
         assert len(retrieved["data"]) == 1000
         assert len(retrieved["metadata"]) == 100
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_key_patterns_and_slots(self, redis_client_integration):
         """Test different key patterns and their hash slot distribution"""
         client = redis_client_integration
@@ -360,15 +361,15 @@ class TestRedisClusterIntegration:
         assert all(result.startswith("value_for_") for result in regular_results)
 
 
-@pytest.mark.integration
+@pytest.mark.integration()
 @pytest.mark.skipif(not TESTCONTAINERS_AVAILABLE, reason="testcontainers not available")
 class TestRedisFailureScenarios:
     """Test Redis failure scenarios and recovery"""
 
-    @pytest.fixture
+    @pytest.fixture()
     async def redis_client_with_short_timeout(self, redis_cluster_container):
         """Create Redis client with short timeouts for failure testing"""
-        from unittest.mock import patch, Mock
+        from unittest.mock import Mock, patch
 
         test_settings = Mock()
         test_settings.redis_cluster_nodes = (
@@ -388,7 +389,7 @@ class TestRedisFailureScenarios:
             yield client
             await client.close()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_connection_failure_handling(self, redis_client_with_short_timeout):
         """Test handling of connection failures"""
         client = redis_client_with_short_timeout

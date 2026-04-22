@@ -3,11 +3,12 @@
 Requer LocalStack ou configuração S3 real para execução.
 """
 
-import pytest
+import json
 import os
 import sys
 import tempfile
-import json
+
+import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../.."))
 
@@ -16,13 +17,13 @@ LOCALSTACK_ENDPOINT = os.getenv("ARTIFACTS_S3_ENDPOINT", "http://localhost:4566"
 LOCALSTACK_AVAILABLE = os.getenv("LOCALSTACK_AVAILABLE", "false").lower() == "true"
 
 
-@pytest.fixture
+@pytest.fixture()
 def s3_test_bucket():
     """Nome do bucket de teste"""
     return os.getenv("ARTIFACTS_S3_BUCKET", "test-artifacts-bucket")
 
 
-@pytest.fixture
+@pytest.fixture()
 def s3_client_integration(s3_test_bucket):
     """Fixture para S3ArtifactClient com LocalStack"""
     if not LOCALSTACK_AVAILABLE:
@@ -44,7 +45,7 @@ def s3_client_integration(s3_test_bucket):
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_sbom_file():
     """Cria arquivo SBOM de exemplo"""
     sbom_content = {
@@ -62,8 +63,8 @@ def sample_sbom_file():
     os.unlink(f.name)
 
 
-@pytest.mark.asyncio
-@pytest.mark.integration
+@pytest.mark.asyncio()
+@pytest.mark.integration()
 async def test_sbom_upload_to_s3_localstack(s3_client_integration, sample_sbom_file):
     """Testar upload de SBOM para LocalStack S3"""
     sbom_uri = await s3_client_integration.upload_sbom(
@@ -76,8 +77,8 @@ async def test_sbom_upload_to_s3_localstack(s3_client_integration, sample_sbom_f
     assert "sboms/ticket-integration-test/artifact-integration-test/" in sbom_uri
 
 
-@pytest.mark.asyncio
-@pytest.mark.integration
+@pytest.mark.asyncio()
+@pytest.mark.integration()
 @pytest.mark.xfail(reason="Download S3 retorna arquivo vazio - investigar cliente")
 async def test_sbom_download_and_verify(s3_client_integration, sample_sbom_file):
     """Testar upload, download e verificação de checksum"""
@@ -97,7 +98,7 @@ async def test_sbom_download_and_verify(s3_client_integration, sample_sbom_file)
         assert success is True
 
         # Verificar conteúdo
-        with open(download_path, "r") as f:
+        with open(download_path) as f:
             downloaded_content = json.load(f)
 
         assert downloaded_content["bomFormat"] == "CycloneDX"
@@ -106,8 +107,8 @@ async def test_sbom_download_and_verify(s3_client_integration, sample_sbom_file)
             os.unlink(download_path)
 
 
-@pytest.mark.asyncio
-@pytest.mark.integration
+@pytest.mark.asyncio()
+@pytest.mark.integration()
 @pytest.mark.xfail(reason="list_sboms retorna vazio - possível timing issue com LocalStack")
 async def test_sbom_lifecycle(s3_client_integration, sample_sbom_file):
     """Testar ciclo de vida completo: upload, listar, metadata, deletar"""
@@ -138,8 +139,8 @@ async def test_sbom_lifecycle(s3_client_integration, sample_sbom_file):
     assert not any(artifact_id in sbom["key"] for sbom in sboms_after)
 
 
-@pytest.mark.asyncio
-@pytest.mark.integration
+@pytest.mark.asyncio()
+@pytest.mark.integration()
 async def test_sbom_integrity_verification(s3_client_integration, sample_sbom_file):
     """Testar verificação de integridade de SBOM"""
     # Calcular checksum antes do upload
@@ -167,8 +168,8 @@ async def test_sbom_integrity_verification(s3_client_integration, sample_sbom_fi
     assert is_invalid is False
 
 
-@pytest.mark.asyncio
-@pytest.mark.integration
+@pytest.mark.asyncio()
+@pytest.mark.integration()
 async def test_health_check(s3_client_integration):
     """Testar health check do cliente S3"""
     is_healthy = await s3_client_integration.health_check()

@@ -1,11 +1,13 @@
 """Testes para MLflowClient - Approval Models."""
 
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import patch, MagicMock
+
 from neural_hive_ml.mlflow_client import MLflowClient
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_mlflow():
     """Mock MLflow."""
     with patch("neural_hive_ml.mlflow_client.mlflow") as mock:
@@ -21,7 +23,7 @@ def mock_mlflow():
         yield mock
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_mlflow_client():
     """Mock MLflow Client."""
     with patch("neural_hive_ml.mlflow_client.MlflowClient") as mock:
@@ -45,7 +47,7 @@ def mock_mlflow_client():
         yield mock
 
 
-@pytest.fixture
+@pytest.fixture()
 def mlflow_client(mock_mlflow, mock_mlflow_client):
     """Fixture para MLflowClient."""
     return MLflowClient(tracking_uri="http://localhost:5000")

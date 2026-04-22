@@ -7,8 +7,8 @@ através dos headers Kafka.
 
 import asyncio
 
-from confluent_kafka import Producer
 from aiokafka import AIOKafkaConsumer
+from confluent_kafka import Producer
 
 from neural_hive_observability import (
     ObservabilityConfig,

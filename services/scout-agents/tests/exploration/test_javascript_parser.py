@@ -4,11 +4,10 @@ Parsing de JavaScript para análise estática.
 """
 
 import pytest
-
 from src.exploration.parsers.javascript_parser import JavaScriptParser
 
 
-@pytest.fixture
+@pytest.fixture()
 def js_parser():
     """Instância de JavaScriptParser para testes."""
     return JavaScriptParser()

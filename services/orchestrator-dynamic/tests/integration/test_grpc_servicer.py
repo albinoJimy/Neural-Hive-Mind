@@ -10,13 +10,12 @@ Valida implementação do servidor gRPC que recebe comandos estratégicos da Que
 - GetWorkflowStatus: obter status de workflow
 """
 
-import pytest
 import socket
 from unittest.mock import AsyncMock, MagicMock
 
 import grpc
+import pytest
 from grpc import aio
-
 from src.grpc_server.orchestrator_servicer import OrchestratorStrategicServicer
 from src.proto import orchestrator_strategic_pb2, orchestrator_strategic_pb2_grpc
 
@@ -28,7 +27,7 @@ def get_free_port() -> int:
         return s.getsockname()[1]
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_temporal_client():
     """Mock do cliente Temporal"""
     client = AsyncMock()
@@ -37,7 +36,7 @@ def mock_temporal_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_intelligent_scheduler():
     """Mock do IntelligentScheduler"""
     scheduler = AsyncMock()
@@ -60,7 +59,7 @@ def mock_intelligent_scheduler():
     return scheduler
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_opa_client():
     """Mock do cliente OPA"""
     client = AsyncMock()
@@ -68,7 +67,7 @@ def mock_opa_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_mongodb_client():
     """Mock do cliente MongoDB para auditoria"""
     client = AsyncMock()
@@ -78,7 +77,7 @@ def mock_mongodb_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_kafka_producer():
     """Mock do Kafka producer"""
     producer = AsyncMock()
@@ -86,7 +85,7 @@ def mock_kafka_producer():
     return producer
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_config():
     """Mock de configuração"""
     config = MagicMock()
@@ -94,7 +93,7 @@ def mock_config():
     return config
 
 
-@pytest.fixture
+@pytest.fixture()
 def servicer(
     mock_temporal_client,
     mock_intelligent_scheduler,
@@ -114,7 +113,7 @@ def servicer(
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 async def grpc_server_and_stub(
     mock_temporal_client,
     mock_intelligent_scheduler,
@@ -162,7 +161,7 @@ async def grpc_server_and_stub(
     await server.stop(grace=0)
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_context():
     """Mock do contexto gRPC com metadata"""
     context = MagicMock()
@@ -179,8 +178,8 @@ def mock_context():
 # =============================================================================
 
 
-@pytest.mark.integration
-@pytest.mark.asyncio
+@pytest.mark.integration()
+@pytest.mark.asyncio()
 async def test_adjust_priorities_success(servicer, mock_intelligent_scheduler, mock_context):
     """
     Teste: ajuste de prioridade bem-sucedido
@@ -201,8 +200,8 @@ async def test_adjust_priorities_success(servicer, mock_intelligent_scheduler, m
     mock_context.set_code.assert_not_called()
 
 
-@pytest.mark.integration
-@pytest.mark.asyncio
+@pytest.mark.integration()
+@pytest.mark.asyncio()
 async def test_adjust_priorities_opa_denied(servicer, mock_opa_client, mock_context):
     """
     Teste: ajuste negado por OPA
@@ -226,8 +225,8 @@ async def test_adjust_priorities_opa_denied(servicer, mock_opa_client, mock_cont
     mock_context.set_code.assert_called_once_with(grpc.StatusCode.PERMISSION_DENIED)
 
 
-@pytest.mark.integration
-@pytest.mark.asyncio
+@pytest.mark.integration()
+@pytest.mark.asyncio()
 async def test_adjust_priorities_via_stub(grpc_server_and_stub):
     """
     Teste E2E: ajuste de prioridade via stub
@@ -255,8 +254,8 @@ async def test_adjust_priorities_via_stub(grpc_server_and_stub):
 # =============================================================================
 
 
-@pytest.mark.integration
-@pytest.mark.asyncio
+@pytest.mark.integration()
+@pytest.mark.asyncio()
 async def test_rebalance_resources_success(servicer, mock_intelligent_scheduler, mock_context):
     """
     Teste: rebalanceamento de recursos bem-sucedido
@@ -281,8 +280,8 @@ async def test_rebalance_resources_success(servicer, mock_intelligent_scheduler,
     mock_context.set_code.assert_not_called()
 
 
-@pytest.mark.integration
-@pytest.mark.asyncio
+@pytest.mark.integration()
+@pytest.mark.asyncio()
 async def test_rebalance_resources_multiple_workflows(servicer, mock_context):
     """
     Teste: rebalanceamento para múltiplos workflows
@@ -304,8 +303,8 @@ async def test_rebalance_resources_multiple_workflows(servicer, mock_context):
     assert len(response.results) == 2
 
 
-@pytest.mark.integration
-@pytest.mark.asyncio
+@pytest.mark.integration()
+@pytest.mark.asyncio()
 async def test_rebalance_resources_via_stub(grpc_server_and_stub):
     """
     Teste E2E: rebalanceamento via stub
@@ -332,8 +331,8 @@ async def test_rebalance_resources_via_stub(grpc_server_and_stub):
 # =============================================================================
 
 
-@pytest.mark.integration
-@pytest.mark.asyncio
+@pytest.mark.integration()
+@pytest.mark.asyncio()
 async def test_pause_workflow_success(servicer, mock_temporal_client, mock_context):
     """
     Teste: pausar workflow bem-sucedido
@@ -350,8 +349,8 @@ async def test_pause_workflow_success(servicer, mock_temporal_client, mock_conte
     mock_context.set_code.assert_not_called()
 
 
-@pytest.mark.integration
-@pytest.mark.asyncio
+@pytest.mark.integration()
+@pytest.mark.asyncio()
 async def test_pause_workflow_with_duration(servicer, mock_context):
     """
     Teste: pausar workflow com duração definida
@@ -369,8 +368,8 @@ async def test_pause_workflow_with_duration(servicer, mock_context):
     assert response.scheduled_resume_at is not None
 
 
-@pytest.mark.integration
-@pytest.mark.asyncio
+@pytest.mark.integration()
+@pytest.mark.asyncio()
 async def test_pause_workflow_via_stub(grpc_server_and_stub):
     """
     Teste E2E: pausar workflow via stub
@@ -393,8 +392,8 @@ async def test_pause_workflow_via_stub(grpc_server_and_stub):
 # =============================================================================
 
 
-@pytest.mark.integration
-@pytest.mark.asyncio
+@pytest.mark.integration()
+@pytest.mark.asyncio()
 async def test_resume_workflow_success(servicer, mock_temporal_client, mock_context):
     """
     Teste: retomar workflow bem-sucedido
@@ -411,8 +410,8 @@ async def test_resume_workflow_success(servicer, mock_temporal_client, mock_cont
     mock_context.set_code.assert_not_called()
 
 
-@pytest.mark.integration
-@pytest.mark.asyncio
+@pytest.mark.integration()
+@pytest.mark.asyncio()
 async def test_resume_workflow_via_stub(grpc_server_and_stub):
     """
     Teste E2E: retomar workflow via stub
@@ -433,8 +432,8 @@ async def test_resume_workflow_via_stub(grpc_server_and_stub):
 # =============================================================================
 
 
-@pytest.mark.integration
-@pytest.mark.asyncio
+@pytest.mark.integration()
+@pytest.mark.asyncio()
 async def test_trigger_replanning_success(servicer, mock_temporal_client, mock_context):
     """
     Teste: acionar replanejamento bem-sucedido
@@ -456,8 +455,8 @@ async def test_trigger_replanning_success(servicer, mock_temporal_client, mock_c
     mock_context.set_code.assert_not_called()
 
 
-@pytest.mark.integration
-@pytest.mark.asyncio
+@pytest.mark.integration()
+@pytest.mark.asyncio()
 async def test_trigger_replanning_with_context(servicer, mock_context):
     """
     Teste: acionar replanejamento com contexto adicional
@@ -477,8 +476,8 @@ async def test_trigger_replanning_with_context(servicer, mock_context):
     assert response.success is True
 
 
-@pytest.mark.integration
-@pytest.mark.asyncio
+@pytest.mark.integration()
+@pytest.mark.asyncio()
 async def test_trigger_replanning_via_stub(grpc_server_and_stub):
     """
     Teste E2E: acionar replanejamento via stub
@@ -503,8 +502,8 @@ async def test_trigger_replanning_via_stub(grpc_server_and_stub):
 # =============================================================================
 
 
-@pytest.mark.integration
-@pytest.mark.asyncio
+@pytest.mark.integration()
+@pytest.mark.asyncio()
 async def test_get_workflow_status_success(servicer, mock_intelligent_scheduler, mock_context):
     """
     Teste: obter status de workflow bem-sucedido
@@ -518,8 +517,8 @@ async def test_get_workflow_status_success(servicer, mock_intelligent_scheduler,
     mock_context.set_code.assert_not_called()
 
 
-@pytest.mark.integration
-@pytest.mark.asyncio
+@pytest.mark.integration()
+@pytest.mark.asyncio()
 async def test_get_workflow_status_via_stub(grpc_server_and_stub):
     """
     Teste E2E: obter status via stub
@@ -540,8 +539,8 @@ async def test_get_workflow_status_via_stub(grpc_server_and_stub):
 # =============================================================================
 
 
-@pytest.mark.integration
-@pytest.mark.asyncio
+@pytest.mark.integration()
+@pytest.mark.asyncio()
 async def test_audit_logging_on_adjustment(servicer, mock_mongodb_client, mock_context):
     """
     Teste: verificar que ajustes são registrados no MongoDB
@@ -560,8 +559,8 @@ async def test_audit_logging_on_adjustment(servicer, mock_mongodb_client, mock_c
     mock_mongodb_client.db.strategic_adjustments.insert_one.assert_called()
 
 
-@pytest.mark.integration
-@pytest.mark.asyncio
+@pytest.mark.integration()
+@pytest.mark.asyncio()
 async def test_kafka_event_on_adjustment(servicer, mock_kafka_producer, mock_context):
     """
     Teste: verificar que ajustes são publicados no Kafka
@@ -585,8 +584,8 @@ async def test_kafka_event_on_adjustment(servicer, mock_kafka_producer, mock_con
 # =============================================================================
 
 
-@pytest.mark.integration
-@pytest.mark.asyncio
+@pytest.mark.integration()
+@pytest.mark.asyncio()
 async def test_full_strategic_adjustment_flow(grpc_server_and_stub):
     """
     Teste E2E: fluxo completo de ajustes estratégicos

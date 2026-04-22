@@ -5,10 +5,10 @@ Define quais casos são mais valiosos para coletar feedback manual,
 baseado em incerteza do modelo, representação no dataset e novidade.
 """
 
-from typing import Dict, Any, Optional
 from dataclasses import dataclass
-import structlog
+from typing import Any, Optional
 
+import structlog
 
 logger = structlog.get_logger()
 
@@ -57,7 +57,7 @@ class InformationValue:
             return f'{", ".join(parts)} (valor: {self.value:.2f})'
         return f"Valor informacional: {self.value:.2f}"
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Converte para dicionário."""
         return {
             "value": self.value,
@@ -117,7 +117,7 @@ class ActiveLearningStrategy:
             threshold=threshold,
         )
 
-    def calculate_information_value(self, case: Dict[str, Any]) -> float:
+    def calculate_information_value(self, case: dict[str, Any]) -> float:
         """
         Calcula valor informacional de um caso.
 
@@ -147,7 +147,7 @@ class ActiveLearningStrategy:
         return round(min(1.0, max(0.0, value)), 3)
 
     def calculate_from_prediction(
-        self, prediction: Dict[str, Any], dataset_stats: Dict[str, Any]
+        self, prediction: dict[str, Any], dataset_stats: dict[str, Any]
     ) -> float:
         """
         Calcula valor informacional a partir de predição ML.
@@ -189,7 +189,7 @@ class ActiveLearningStrategy:
         )
 
     def should_collect_feedback(
-        self, case: Dict[str, Any], threshold: Optional[float] = None
+        self, case: dict[str, Any], threshold: Optional[float] = None
     ) -> bool:
         """
         Decide se deve coletar feedback para este caso.
@@ -225,7 +225,7 @@ class ActiveLearningStrategy:
         return value >= threshold
 
     def rank_cases(
-        self, cases: list[Dict[str, Any]], dataset_stats: Dict[str, Any], limit: int = None
+        self, cases: list[dict[str, Any]], dataset_stats: dict[str, Any], limit: int = None
     ) -> list[tuple[int, float]]:
         """
         Rankeia casos por valor informacional.
@@ -253,8 +253,8 @@ class ActiveLearningStrategy:
         return scored_cases
 
     def get_top_cases(
-        self, predictions: list[Dict[str, Any]], dataset_stats: Dict[str, Any], n: int = 10
-    ) -> list[Dict[str, Any]]:
+        self, predictions: list[dict[str, Any]], dataset_stats: dict[str, Any], n: int = 10
+    ) -> list[dict[str, Any]]:
         """
         Retorna top N casos por valor informacional.
 

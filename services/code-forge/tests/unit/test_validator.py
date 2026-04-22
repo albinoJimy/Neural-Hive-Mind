@@ -18,7 +18,7 @@ import pytest
 class TestValidatorMCPIntegration:
     """Testes de integracao com MCP Tool Catalog."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_validate_with_mcp_tools(
         self,
         mock_sonarqube_client,
@@ -51,7 +51,7 @@ class TestValidatorMCPIntegration:
         mock_snyk_client.scan_dependencies.assert_called_once()
         mock_trivy_client.scan_filesystem.assert_not_called()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_validate_with_all_mcp_tools(
         self,
         mock_sonarqube_client,
@@ -87,7 +87,7 @@ class TestValidatorMCPIntegration:
 class TestValidatorFallback:
     """Testes de fallback para validacoes fixas."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_validate_fallback_without_mcp_tools(
         self, mock_sonarqube_client, mock_snyk_client, mock_trivy_client, sample_pipeline_context
     ):
@@ -108,7 +108,7 @@ class TestValidatorFallback:
         mock_snyk_client.scan_dependencies.assert_called_once()
         mock_trivy_client.scan_filesystem.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_validate_fallback_unmapped_tools(
         self,
         mock_sonarqube_client,
@@ -143,7 +143,7 @@ class TestValidatorFallback:
 class TestValidatorParallelExecution:
     """Testes de execucao paralela."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_validate_parallel_execution(
         self, mock_sonarqube_client, mock_snyk_client, mock_trivy_client, sample_pipeline_context
     ):
@@ -188,7 +188,7 @@ class TestValidatorParallelExecution:
 class TestValidatorErrorHandling:
     """Testes de tratamento de erros."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_validate_handles_single_failure(
         self,
         mock_sonarqube_client,
@@ -218,7 +218,7 @@ class TestValidatorErrorHandling:
         # Apenas 2 validacoes no contexto (as que nao falharam)
         assert len(sample_pipeline_context.validation_results) == 2
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_validate_handles_all_failures(
         self, mock_sonarqube_client, mock_snyk_client, mock_trivy_client, sample_pipeline_context
     ):
@@ -245,7 +245,7 @@ class TestValidatorErrorHandling:
 class TestValidatorMCPFeedback:
     """Testes de feedback para MCP Tool Catalog."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_send_mcp_feedback_success(
         self,
         mock_sonarqube_client,
@@ -275,7 +275,7 @@ class TestValidatorMCPFeedback:
         mock_mcp_client.send_tool_feedback.assert_called()
         mock_metrics.mcp_feedback_sent_total.labels.assert_called_with(status="success")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_mcp_feedback_timeout_non_blocking(
         self,
         mock_sonarqube_client,
@@ -306,7 +306,7 @@ class TestValidatorMCPFeedback:
 
         mock_metrics.mcp_feedback_sent_total.labels.assert_called_with(status="failure")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_no_mcp_feedback_without_selection_id(
         self,
         mock_sonarqube_client,
@@ -335,7 +335,7 @@ class TestValidatorMCPFeedback:
 class TestValidatorMetrics:
     """Testes de metricas Prometheus."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_validation_metrics_recorded(
         self,
         mock_sonarqube_client,
@@ -361,7 +361,7 @@ class TestValidatorMetrics:
         mock_metrics.validation_issues_found.labels.assert_called()
         mock_metrics.quality_score.observe.assert_called()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_issue_counts_recorded(
         self,
         mock_sonarqube_client,
@@ -392,7 +392,7 @@ class TestValidatorMetrics:
 class TestValidatorContextExtraction:
     """Testes de extracao de contexto."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_extract_language_from_ticket(
         self, mock_sonarqube_client, mock_snyk_client, mock_trivy_client, sample_pipeline_context
     ):
@@ -415,7 +415,7 @@ class TestValidatorContextExtraction:
         call_args = mock_snyk_client.scan_dependencies.call_args
         assert call_args[0][1] == "java"  # language parameter
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_extract_project_key_from_ticket(
         self, mock_sonarqube_client, mock_snyk_client, mock_trivy_client, sample_pipeline_context
     ):
@@ -438,7 +438,7 @@ class TestValidatorContextExtraction:
         call_args = mock_sonarqube_client.analyze_code.call_args
         assert call_args[0][0] == "custom-project"  # project_key parameter
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_use_workspace_path_from_context(
         self, mock_sonarqube_client, mock_snyk_client, mock_trivy_client, sample_pipeline_context
     ):
@@ -470,7 +470,7 @@ class TestValidatorContextExtraction:
 class TestValidatorResultsAggregation:
     """Testes de agregacao de resultados."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_all_results_added_to_context(
         self, mock_sonarqube_client, mock_snyk_client, mock_trivy_client, sample_pipeline_context
     ):

@@ -8,9 +8,9 @@ Suporta deserialização Avro e JSON (fallback).
 import asyncio
 import io
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 import fastavro
 import structlog
@@ -118,7 +118,7 @@ def get_avro_schema():
     return _avro_schema
 
 
-def deserialize_avro(data: bytes, schema) -> Dict[str, Any]:
+def deserialize_avro(data: bytes, schema) -> dict[str, Any]:
     """
     Deserializa dados Avro.
 
@@ -258,7 +258,7 @@ class SyncEventConsumer:
             logger.error("Erro fatal no consumer loop", error=str(e))
             raise
 
-    def _deserialize_message(self, msg) -> Dict[str, Any]:
+    def _deserialize_message(self, msg) -> dict[str, Any]:
         """
         Deserializa mensagem do Kafka usando Avro ou JSON.
 
@@ -303,7 +303,7 @@ class SyncEventConsumer:
         Args:
             msg: Mensagem do Kafka
         """
-        start_time = datetime.now(timezone.utc)
+        start_time = datetime.now(UTC)
 
         try:
             # Deserializa evento (Avro ou JSON)
@@ -330,7 +330,7 @@ class SyncEventConsumer:
                 SYNC_EVENTS_CONSUMED.labels(status="failed", data_type=data_type).inc()
 
             # Registra latência
-            latency = (datetime.now(timezone.utc) - start_time).total_seconds()
+            latency = (datetime.now(UTC) - start_time).total_seconds()
             SYNC_CONSUME_LATENCY.labels(data_type=data_type).observe(latency)
 
         except ValueError as e:
@@ -340,7 +340,7 @@ class SyncEventConsumer:
             )
             SYNC_EVENTS_CONSUMED.labels(status="decode_error", data_type="unknown").inc()
 
-    async def _process_event_with_retry(self, event: Dict[str, Any]) -> bool:
+    async def _process_event_with_retry(self, event: dict[str, Any]) -> bool:
         """
         Processa evento com retry logic.
 
@@ -367,7 +367,7 @@ class SyncEventConsumer:
 
         return False
 
-    async def _process_event(self, event: Dict[str, Any]):
+    async def _process_event(self, event: dict[str, Any]):
         """
         Processa um evento de sincronização e insere no ClickHouse.
 
@@ -403,7 +403,7 @@ class SyncEventConsumer:
         table_name = table_mapping.get(data_type, "operational_context_history")
 
         # Prepara dados para inserção
-        timestamp = event.get("timestamp", int(datetime.now(timezone.utc).timestamp() * 1000))
+        timestamp = event.get("timestamp", int(datetime.now(UTC).timestamp() * 1000))
         created_at = datetime.fromtimestamp(timestamp / 1000)
 
         # Verifica idempotência no ClickHouse
@@ -454,7 +454,7 @@ class SyncEventConsumer:
             return False
 
     async def _insert_to_clickhouse(
-        self, table: str, entity_id: str, data: Dict, created_at: datetime, event: Dict
+        self, table: str, entity_id: str, data: dict, created_at: datetime, event: dict
     ):
         """
         Insere dados no ClickHouse.
@@ -536,7 +536,7 @@ class SyncEventConsumer:
         # Insere no ClickHouse
         await self.clickhouse.insert_batch(table, [row], columns)
 
-    async def _send_to_dlq(self, event: Dict, reason: str):
+    async def _send_to_dlq(self, event: dict, reason: str):
         """
         Envia evento para Dead Letter Queue.
 
@@ -556,7 +556,7 @@ class SyncEventConsumer:
             dlq_event = {
                 "original_event": event,
                 "failure_reason": reason,
-                "failed_at": datetime.now(timezone.utc).isoformat(),
+                "failed_at": datetime.now(UTC).isoformat(),
             }
             await self.dlq_producer.publish_sync_event(dlq_event)
             DLQ_EVENTS_SENT.labels(reason=reason).inc()

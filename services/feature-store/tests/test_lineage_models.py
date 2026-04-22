@@ -4,16 +4,17 @@ Testes para Modelos de Lineage
 Valida os modelos Pydantic de rastreamento de proveniência de features.
 """
 
+from datetime import UTC, datetime
+
 import pytest
-from datetime import datetime, timezone
 from src.models.lineage import (
-    SourceType,
-    TransformationType,
-    LineageMetadata,
     FeatureLineage,
-    LineageTree,
     LineageImpact,
     LineageIntegrityReport,
+    LineageMetadata,
+    LineageTree,
+    SourceType,
+    TransformationType,
     compute_computation_hash,
 )
 
@@ -111,7 +112,7 @@ class TestFeatureLineage:
 
     def test_full_creation(self):
         """Testa criação com todos os campos"""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         lineage = FeatureLineage(
             lineage_id="lineage-789",
             feature_id="feature-123",

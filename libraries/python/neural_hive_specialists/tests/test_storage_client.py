@@ -10,9 +10,9 @@ Tests cover:
 import os
 import sys
 import tempfile
-from datetime import datetime, timezone
-from unittest.mock import Mock, patch
+from datetime import UTC, datetime
 from types import ModuleType
+from unittest.mock import Mock, patch
 
 import pytest
 
@@ -98,11 +98,10 @@ sys.modules["google.oauth2.service_account"] = mock_service_account
 
 # Now import the storage_client module
 from neural_hive_specialists.disaster_recovery.storage_client import (
-    S3StorageClient,
     GCSStorageClient,
     LocalStorageClient,
+    S3StorageClient,
 )
-
 
 # ============================================================================
 # S3StorageClient Tests
@@ -112,7 +111,7 @@ from neural_hive_specialists.disaster_recovery.storage_client import (
 class TestS3StorageClient:
     """Test S3StorageClient implementation."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_boto3_client(self):
         """Mock boto3 S3 client."""
         mock_client = Mock()
@@ -120,7 +119,7 @@ class TestS3StorageClient:
         with patch("boto3.client", return_value=mock_client):
             yield mock_client
 
-    @pytest.fixture
+    @pytest.fixture()
     def s3_client(self, mock_boto3_client):
         """S3StorageClient instance with mocked boto3."""
         with patch("boto3.client", return_value=mock_boto3_client):
@@ -181,19 +180,19 @@ class TestS3StorageClient:
                 {
                     "Key": "backups/backup-1.tar.gz",
                     "Size": 1024,
-                    "LastModified": datetime(2024, 1, 1, tzinfo=timezone.utc),
+                    "LastModified": datetime(2024, 1, 1, tzinfo=UTC),
                     "ETag": '"abc123"',
                 },
                 {
                     "Key": "backups/backup-3.tar.gz",
                     "Size": 3072,
-                    "LastModified": datetime(2024, 3, 1, tzinfo=timezone.utc),
+                    "LastModified": datetime(2024, 3, 1, tzinfo=UTC),
                     "ETag": '"ghi789"',
                 },
                 {
                     "Key": "backups/backup-2.tar.gz",
                     "Size": 2048,
-                    "LastModified": datetime(2024, 2, 1, tzinfo=timezone.utc),
+                    "LastModified": datetime(2024, 2, 1, tzinfo=UTC),
                     "ETag": '"def456"',
                 },
             ]
@@ -222,7 +221,7 @@ class TestS3StorageClient:
         mock_response = {
             "ContentLength": 2048,
             "ETag": '"abc123"',
-            "LastModified": datetime(2024, 1, 1, tzinfo=timezone.utc),
+            "LastModified": datetime(2024, 1, 1, tzinfo=UTC),
             "Metadata": {"custom": "value"},
         }
         mock_boto3_client.head_object.return_value = mock_response
@@ -306,7 +305,7 @@ class TestS3StorageClient:
 class TestGCSStorageClient:
     """Test GCSStorageClient implementation."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_gcs_client(self):
         """Mock Google Cloud Storage client."""
         mock_client = Mock()
@@ -314,7 +313,7 @@ class TestGCSStorageClient:
         mock_client.bucket.return_value = mock_bucket
         return mock_client, mock_bucket
 
-    @pytest.fixture
+    @pytest.fixture()
     def gcs_client(self, mock_gcs_client):
         """GCSStorageClient instance with mocked GCS."""
         mock_client, mock_bucket = mock_gcs_client
@@ -383,13 +382,13 @@ class TestGCSStorageClient:
         mock_blob1 = Mock()
         mock_blob1.name = "backups/backup-1.tar.gz"
         mock_blob1.size = 1024
-        mock_blob1.updated = datetime(2024, 1, 1, tzinfo=timezone.utc)
+        mock_blob1.updated = datetime(2024, 1, 1, tzinfo=UTC)
         mock_blob1.md5_hash = "abc123"
 
         mock_blob2 = Mock()
         mock_blob2.name = "backups/backup-2.tar.gz"
         mock_blob2.size = 2048
-        mock_blob2.updated = datetime(2024, 2, 1, tzinfo=timezone.utc)
+        mock_blob2.updated = datetime(2024, 2, 1, tzinfo=UTC)
         mock_blob2.md5_hash = "def456"
 
         mock_client.list_blobs.return_value = [mock_blob1, mock_blob2]
@@ -419,7 +418,7 @@ class TestGCSStorageClient:
         mock_blob = Mock()
         mock_blob.size = 2048
         mock_blob.md5_hash = "abc123"
-        mock_blob.updated = datetime(2024, 1, 1, tzinfo=timezone.utc)
+        mock_blob.updated = datetime(2024, 1, 1, tzinfo=UTC)
         mock_blob.metadata = {"custom": "value"}
         mock_bucket.blob.return_value = mock_blob
 
@@ -463,7 +462,7 @@ class TestGCSStorageClient:
 class TestLocalStorageClient:
     """Test LocalStorageClient implementation."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def local_client(self):
         """LocalStorageClient instance with temp directory."""
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -635,7 +634,7 @@ class TestStorageClientIntegration:
             assert download_result is True
 
             # Verify data matches
-            with open(download_file, "r") as f:
+            with open(download_file) as f:
                 downloaded_data = f.read()
 
             assert downloaded_data == source_data

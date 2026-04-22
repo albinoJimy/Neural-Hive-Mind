@@ -1,6 +1,5 @@
 import pytest
 
-
 pytestmark = pytest.mark.skip(reason="Contract tests require external services")
 
 

@@ -5,10 +5,11 @@ Conversão entre exceções internas e status gRPC, com adaptadores
 para HTTP REST APIs.
 """
 
-from typing import Dict, Any, Optional
+from typing import Any, Optional
+
 import grpc
 
-from .base import NeuralHiveError, ErrorContext
+from .base import ErrorContext, NeuralHiveError
 
 
 class GRPCErrorCode:
@@ -50,7 +51,7 @@ class GRPCError(NeuralHiveError):
         self,
         message: str,
         status_code: grpc.StatusCode = grpc.StatusCode.INTERNAL,
-        details: Optional[Dict[str, Any]] = None,
+        details: Optional[dict[str, Any]] = None,
         context: Optional[ErrorContext] = None,
     ):
         # Mapear status code gRPC para HTTP

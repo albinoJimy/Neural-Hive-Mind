@@ -8,17 +8,18 @@ Testa:
 - Coleta end-to-end de business metrics
 """
 
-import pytest
-from datetime import datetime, timezone
-from unittest.mock import Mock, MagicMock, patch
+from datetime import UTC, datetime
+from unittest.mock import MagicMock, Mock, patch
 
+import pytest
+
+from neural_hive_specialists.metrics import SpecialistMetrics
 from neural_hive_specialists.observability.business_metrics_collector import (
     BusinessMetricsCollector,
 )
-from neural_hive_specialists.metrics import SpecialistMetrics
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_config():
     """Config mock para testes."""
     return {
@@ -36,7 +37,7 @@ def mock_config():
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_metrics_registry():
     """Registry de métricas mock."""
     # Mock SpecialistMetrics ao invés de criar instâncias reais
@@ -88,7 +89,7 @@ def mock_metrics_registry():
     return mock_metrics
 
 
-@pytest.fixture
+@pytest.fixture()
 def collector(mock_config, mock_metrics_registry):
     """Instância de BusinessMetricsCollector para testes."""
     with patch("neural_hive_specialists.observability.business_metrics_collector.MongoClient"):
@@ -485,17 +486,17 @@ class TestCollectBusinessMetrics:
         opinions = [
             {
                 "opinion_id": "op1",
-                "evaluated_at": datetime.now(timezone.utc),
+                "evaluated_at": datetime.now(UTC),
                 "specialist_type": "technical",
             },
             {
                 "opinion_id": "op2",
-                "evaluated_at": datetime.now(timezone.utc),
+                "evaluated_at": datetime.now(UTC),
                 "specialist_type": "business",
             },
             {
                 "opinion_id": "op3",
-                "evaluated_at": datetime.now(timezone.utc),
+                "evaluated_at": datetime.now(UTC),
                 "specialist_type": "technical",
             },
         ]
@@ -503,7 +504,7 @@ class TestCollectBusinessMetrics:
         # Mock de decisões
         decisions = [
             {
-                "timestamp": datetime.now(timezone.utc),
+                "timestamp": datetime.now(UTC),
                 "final_decision": "APPROVE",
                 "specialist_votes": [
                     {
@@ -520,7 +521,7 @@ class TestCollectBusinessMetrics:
                 "plan_id": "plan1",
             },
             {
-                "timestamp": datetime.now(timezone.utc),
+                "timestamp": datetime.now(UTC),
                 "final_decision": "REJECT",
                 "specialist_votes": [
                     {
@@ -568,10 +569,10 @@ class TestCollectBusinessMetrics:
 
     def test_cache_usage(self, collector):
         """Testa uso de cache."""
-        opinions = [{"opinion_id": "op1", "evaluated_at": datetime.now(timezone.utc)}]
+        opinions = [{"opinion_id": "op1", "evaluated_at": datetime.now(UTC)}]
         decisions = [
             {
-                "timestamp": datetime.now(timezone.utc),
+                "timestamp": datetime.now(UTC),
                 "final_decision": "APPROVE",
                 "specialist_votes": [
                     {

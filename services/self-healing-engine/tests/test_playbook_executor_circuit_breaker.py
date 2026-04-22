@@ -4,17 +4,17 @@ Testes de integração entre PlaybookExecutor e CircuitBreaker.
 Verifica que chamadas externas são protegidas pelo circuit breaker.
 """
 
-import pytest
 from unittest.mock import AsyncMock, patch
 
-from src.services.playbook_executor import PlaybookExecutor
+import pytest
 from src.services.circuit_breaker import CircuitBreakerState
+from src.services.playbook_executor import PlaybookExecutor
 
 
 class TestPlaybookExecutorCircuitBreaker:
     """Testes de integração PlaybookExecutor + CircuitBreaker."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def executor_with_circuit_breaker(self, mock_tracer):
         """Executor com circuit breaker habilitado."""
         with patch("src.services.playbook_executor.get_tracer", return_value=mock_tracer):
@@ -25,7 +25,7 @@ class TestPlaybookExecutorCircuitBreaker:
                 circuit_breaker_failure_threshold=3,
             )
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_reallocate_ticket_uses_circuit_breaker(
         self, executor_with_circuit_breaker, mock_execution_ticket_client
     ):
@@ -54,7 +54,7 @@ class TestPlaybookExecutorCircuitBreaker:
         )
         assert ets_breaker.state == CircuitBreakerState.OPEN
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_reallocate_ticket_blocked_when_circuit_open(self, executor_with_circuit_breaker):
         """Testa que chamadas são bloqueadas quando circuit breaker está OPEN."""
         # Configurar executor com client mock
@@ -87,7 +87,7 @@ class TestPlaybookExecutorCircuitBreaker:
         assert result.get("circuit_breaker_open") is True
         assert "Circuit breaker is OPEN" in result.get("error", "")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_orchestrator_calls_use_circuit_breaker(
         self, executor_with_circuit_breaker, mock_orchestrator_client
     ):
@@ -114,7 +114,7 @@ class TestPlaybookExecutorCircuitBreaker:
         # Verificar estado do circuit breaker
         assert orchestrator_breaker.state == CircuitBreakerState.OPEN
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_pause_workflow_blocked_when_circuit_open(
         self, executor_with_circuit_breaker, mock_orchestrator_client
     ):
@@ -140,7 +140,7 @@ class TestPlaybookExecutorCircuitBreaker:
         assert result["success"] is False
         assert result.get("circuit_breaker_open") is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_restart_workflow_blocked_when_circuit_open(
         self, executor_with_circuit_breaker, mock_orchestrator_client
     ):
@@ -167,7 +167,7 @@ class TestPlaybookExecutorCircuitBreaker:
         assert result["success"] is False
         assert result.get("circuit_breaker_open") is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_circuit_breaker_disabled_uses_direct_calls(
         self, mock_tracer, mock_execution_ticket_client
     ):

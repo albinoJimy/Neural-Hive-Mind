@@ -1,7 +1,7 @@
 """Raw Event data model for incoming events"""
 
 from datetime import datetime
-from typing import Any, Dict, List
+from typing import Any
 
 import numpy as np
 from pydantic import BaseModel, Field
@@ -14,10 +14,10 @@ class RawEvent(BaseModel):
     event_type: str = Field(description="Type: log, metric, trace, user_action, system_event")
     source: str = Field(description="Event source identifier")
     timestamp: datetime
-    payload: Dict[str, Any] = Field(description="Raw event data")
-    metadata: Dict[str, str] = Field(default_factory=dict)
+    payload: dict[str, Any] = Field(description="Raw event data")
+    metadata: dict[str, str] = Field(default_factory=dict)
 
-    def extract_features(self) -> List[float]:
+    def extract_features(self) -> list[float]:
         """Extract numerical features from payload for analysis"""
         features = []
 
@@ -50,7 +50,7 @@ class RawEvent(BaseModel):
 
         return features
 
-    def normalize(self) -> Dict[str, Any]:
+    def normalize(self) -> dict[str, Any]:
         """Normalize event data to standard format"""
         return {
             "event_id": self.event_id,

@@ -2,16 +2,17 @@
 Testes para Dead Letter Queue (DLQ) com Rate Limiter.
 """
 
-import pytest
 import asyncio
-from unittest.mock import Mock, AsyncMock, patch
+from unittest.mock import AsyncMock, Mock
+
+import pytest
 
 from neural_hive_observability.dlq import (
-    DLQMessage,
-    TokenBucketRateLimiter,
-    SlidingWindowRateLimiter,
-    DLQProducer,
     DLQHandler,
+    DLQMessage,
+    DLQProducer,
+    SlidingWindowRateLimiter,
+    TokenBucketRateLimiter,
     create_dlq_handler,
 )
 
@@ -66,27 +67,27 @@ class TestDLQMessage:
 class TestTokenBucketRateLimiter:
     """Testes para TokenBucketRateLimiter."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_initial_tokens(self):
         """Teste 3: Rate limiter inicializado com capacidade máxima."""
         limiter = TokenBucketRateLimiter(capacity=10, refill_rate=1.0)
         assert limiter.get_available_tokens() == 10
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_acquire_single_token(self):
         """Teste 4: Adquirir token único."""
         limiter = TokenBucketRateLimiter(capacity=10, refill_rate=1.0)
         assert await limiter.acquire(1) is True
         assert limiter.get_available_tokens() < 10
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_acquire_multiple_tokens(self):
         """Teste 5: Adquirir múltiplos tokens."""
         limiter = TokenBucketRateLimiter(capacity=10, refill_rate=1.0)
         assert await limiter.acquire(5) is True
         assert await limiter.acquire(6) is False  # Só tem 5 restantes
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_refill_over_time(self):
         """Teste 6: Tokens são repostos ao longo do tempo."""
         limiter = TokenBucketRateLimiter(capacity=10, refill_rate=10.0)
@@ -101,7 +102,7 @@ class TestTokenBucketRateLimiter:
         # Deveria ter tokens disponíveis após refill
         assert limiter.get_available_tokens() >= 1
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_acquire_with_timeout_success(self):
         """Teste 7: Adquirir tokens com timeout quando refill permite."""
         limiter = TokenBucketRateLimiter(capacity=5, refill_rate=10.0)
@@ -112,7 +113,7 @@ class TestTokenBucketRateLimiter:
         # Tentar adquirir mais com timeout - deve aguardar refill
         assert await limiter.acquire_with_timeout(1, timeout=0.2) is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_acquire_with_timeout_failure(self):
         """Teste 8: Timeout quando não há tokens suficientes."""
         limiter = TokenBucketRateLimiter(capacity=5, refill_rate=0.1)  # Baixa taxa
@@ -123,7 +124,7 @@ class TestTokenBucketRateLimiter:
         # Tentar adquirir mais com timeout curto - deve falhar
         assert await limiter.acquire_with_timeout(1, timeout=0.05) is False
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_concurrent_acquires(self):
         """Teste 9: Múltiplas aquisições concorrentes são thread-safe."""
         limiter = TokenBucketRateLimiter(capacity=100, refill_rate=50.0)
@@ -140,7 +141,7 @@ class TestTokenBucketRateLimiter:
 class TestSlidingWindowRateLimiter:
     """Testes para SlidingWindowRateLimiter."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_within_limit(self):
         """Teste 10: Requisições dentro do limite são permitidas."""
         limiter = SlidingWindowRateLimiter(max_requests=10, window_seconds=60)
@@ -148,7 +149,7 @@ class TestSlidingWindowRateLimiter:
         for _ in range(10):
             assert await limiter.acquire() is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_exceeds_limit(self):
         """Teste 11: Requisições além do limite são bloqueadas."""
         limiter = SlidingWindowRateLimiter(max_requests=5, window_seconds=60)
@@ -159,7 +160,7 @@ class TestSlidingWindowRateLimiter:
         # 6ª requisição deve ser bloqueada
         assert await limiter.acquire() is False
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_window_slides(self):
         """Teste 12: Janela desliza permitindo novas requisições."""
         limiter = SlidingWindowRateLimiter(max_requests=3, window_seconds=0.2)
@@ -187,7 +188,7 @@ class TestDLQProducer:
         assert producer.get_dlq_topic("test.topic") == "test.topic.dlq"
         assert producer.get_dlq_topic("test.topic.dlq") == "test.topic.dlq"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_send_dlq_message_success(self):
         """Teste 14: Enviar mensagem para DLQ com sucesso."""
         producer = DLQProducer(bootstrap_servers="localhost:9092")
@@ -210,7 +211,7 @@ class TestDLQProducer:
         assert result is True
         producer.producer.send_and_wait.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_send_dlq_message_without_producer(self):
         """Teste 15: Enviar falha quando producer não iniciado."""
         producer = DLQProducer(bootstrap_servers="localhost:9092")
@@ -231,7 +232,7 @@ class TestDLQProducer:
 
         assert result is False
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_send_dlq_message_with_tracing_context(self):
         """Teste 16: Enviar mensagem com contexto de tracing."""
         producer = DLQProducer(bootstrap_servers="localhost:9092")
@@ -265,7 +266,7 @@ class TestDLQProducer:
 class TestDLQHandler:
     """Testes para DLQHandler."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_producer(self):
         """Producer mock para testes."""
         producer = Mock(spec=DLQProducer)
@@ -273,7 +274,7 @@ class TestDLQHandler:
         producer.get_dlq_topic = Mock(return_value="test.topic.dlq")
         return producer
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_message(self):
         """Mensagem Kafka mock."""
         message = Mock()
@@ -285,7 +286,7 @@ class TestDLQHandler:
         message.headers = [("x-trace-id", b"trace123")]
         return message
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_below_max_retries_returns_false(self, mock_producer, mock_message):
         """Teste 17: Retorna False quando abaixo do limite de retries."""
         rate_limiter = TokenBucketRateLimiter(capacity=10, refill_rate=10)
@@ -307,7 +308,7 @@ class TestDLQHandler:
         assert result is False
         mock_producer.send_dlq_message.assert_not_called()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_exceeds_max_retries_sends_to_dlq(self, mock_producer, mock_message):
         """Teste 18: Envia para DLQ quando excede limite de retries."""
         rate_limiter = TokenBucketRateLimiter(capacity=10, refill_rate=10)
@@ -335,7 +336,7 @@ class TestDLQHandler:
         assert dlq_message.failure_count == 3
         assert dlq_message.error_type == "ValueError"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_rate_limiter_blocks_dlq(self, mock_producer, mock_message):
         """Teste 19: Rate limiter bloqueia envio para DLQ."""
         # Rate limiter vazio (sem tokens)
@@ -358,7 +359,7 @@ class TestDLQHandler:
         assert result is False
         mock_producer.send_dlq_message.assert_not_called()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_calculate_backoff(self):
         """Teste 20: Calcular backoff exponencial."""
         handler = DLQHandler(
@@ -372,7 +373,7 @@ class TestDLQHandler:
         assert handler.calculate_backoff(5) == 32.0  # 2^5 (capped)
         assert handler.calculate_backoff(15) == 60.0  # Capped at 60s
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_stats(self, mock_producer):
         """Teste 21: Retornar estatísticas do handler."""
         rate_limiter = TokenBucketRateLimiter(capacity=10, refill_rate=10)

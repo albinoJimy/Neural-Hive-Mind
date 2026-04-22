@@ -3,13 +3,14 @@ Testes unitarios para PheromoneClient - foco em get_success_trails
 Formato de chave Redis unificada: pheromone:{layer}:{domain}:{pheromone_type}:{id}
 """
 
-import pytest
 import time
-import structlog
-from typing import Dict, List, Any, Optional
 from datetime import datetime
-from unittest.mock import AsyncMock, MagicMock
 from enum import Enum
+from typing import Any, Optional
+from unittest.mock import AsyncMock, MagicMock
+
+import pytest
+import structlog
 
 logger = structlog.get_logger()
 
@@ -40,7 +41,7 @@ class PheromoneClientForTest:
         self.redis_client = redis_client
         self.settings = settings
         self.prefix = settings.REDIS_PHEROMONE_PREFIX
-        self._success_trails_cache: Optional[List[Dict[str, Any]]] = None
+        self._success_trails_cache: Optional[list[dict[str, Any]]] = None
         self._cache_timestamp: float = 0
         # Mock das metricas para testes
         self._metrics_mock = None
@@ -50,7 +51,7 @@ class PheromoneClientForTest:
         pheromone_type: str,
         domain: UnifiedDomain,
         strength: float,
-        metadata: Dict[str, Any],
+        metadata: dict[str, Any],
         signal_id: str = None,
     ) -> None:
         """
@@ -93,7 +94,7 @@ class PheromoneClientForTest:
         self._success_trails_cache = None
         self._cache_timestamp = 0
 
-    async def get_success_trails(self, limit: int = 10) -> List[Dict[str, Any]]:
+    async def get_success_trails(self, limit: int = 10) -> list[dict[str, Any]]:
         """
         Obter trilhas de sucesso mais fortes.
         Formato de chave: pheromone:{layer}:{domain}:{pheromone_type}:{id}
@@ -111,7 +112,7 @@ class PheromoneClientForTest:
 
             # Novo pattern unificado: pheromone:{layer}:{domain}:SUCCESS:{id}
             pattern = "pheromone:*:*:SUCCESS:*"
-            trails: List[Dict[str, Any]] = []
+            trails: list[dict[str, Any]] = []
             keys_scanned = 0
 
             start_time = time.time()
@@ -166,7 +167,7 @@ class PheromoneClientForTest:
             return []
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_redis_client():
     """Mock do RedisClient"""
     client = AsyncMock()
@@ -174,7 +175,7 @@ def mock_redis_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_settings():
     """Mock de configuracoes"""
     settings = MagicMock()
@@ -182,7 +183,7 @@ def mock_settings():
     return settings
 
 
-@pytest.fixture
+@pytest.fixture()
 def pheromone_client(mock_redis_client, mock_settings):
     """Instancia do PheromoneClient com mocks"""
     client = PheromoneClientForTest(redis_client=mock_redis_client, settings=mock_settings)
@@ -190,7 +191,7 @@ def pheromone_client(mock_redis_client, mock_settings):
     return client
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_get_success_trails_empty_redis(pheromone_client, mock_redis_client):
     """Validar retorno de lista vazia quando nao ha trilhas"""
 
@@ -205,7 +206,7 @@ async def test_get_success_trails_empty_redis(pheromone_client, mock_redis_clien
     assert result == []
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_get_success_trails_ordering(pheromone_client, mock_redis_client):
     """Validar ordenacao por strength (criar 5 trilhas com strengths: 0.9, 0.5, 0.8, 0.3, 0.7)"""
     # Novo formato: pheromone:{layer}:{domain}:{pheromone_type}:{id}
@@ -274,7 +275,7 @@ async def test_get_success_trails_ordering(pheromone_client, mock_redis_client):
     assert result[2]["domain"] == "BEHAVIOR"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_get_success_trails_limit(pheromone_client, mock_redis_client):
     """Validar que apenas limit trilhas sao retornadas (criar 20 trilhas, limit=10)"""
     # Novo formato: pheromone:{layer}:{domain}:{pheromone_type}:{id}
@@ -315,7 +316,7 @@ async def test_get_success_trails_limit(pheromone_client, mock_redis_client):
     assert result[9]["strength"] == pytest.approx(0.5, rel=1e-9)
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_get_success_trails_domain_extraction(pheromone_client, mock_redis_client):
     """Validar extracao correta de domain das chaves unificadas"""
     # Novo formato: pheromone:{layer}:{domain}:{pheromone_type}:{id}
@@ -362,7 +363,7 @@ async def test_get_success_trails_domain_extraction(pheromone_client, mock_redis
     assert "plan:with:colons" in signal_ids
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_get_success_trails_cache_hit(pheromone_client, mock_redis_client):
     """Validar que segunda chamada usa cache"""
     # Novo formato: pheromone:{layer}:{domain}:{pheromone_type}:{id}
@@ -394,7 +395,7 @@ async def test_get_success_trails_cache_hit(pheromone_client, mock_redis_client)
     assert result1 == result2
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_get_success_trails_cache_expiry(pheromone_client, mock_redis_client):
     """Validar que cache expira apos TTL"""
     # Novo formato: pheromone:{layer}:{domain}:{pheromone_type}:{id}
@@ -434,7 +435,7 @@ async def test_get_success_trails_cache_expiry(pheromone_client, mock_redis_clie
     assert scan_call_count == initial_count + 1
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_invalidate_cache_on_publish_success(pheromone_client, mock_redis_client):
     """Validar que publicar SUCCESS invalida cache"""
     # Preparar cache
@@ -457,7 +458,7 @@ async def test_invalidate_cache_on_publish_success(pheromone_client, mock_redis_
     assert pheromone_client._cache_timestamp == 0
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_publish_failure_does_not_invalidate_cache(pheromone_client, mock_redis_client):
     """Validar que publicar FAILURE nao invalida cache"""
     # Preparar cache
@@ -478,7 +479,7 @@ async def test_publish_failure_does_not_invalidate_cache(pheromone_client, mock_
     assert pheromone_client._cache_timestamp == original_timestamp
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_get_success_trails_handles_malformed_keys(pheromone_client, mock_redis_client):
     """Validar tratamento de chaves malformadas"""
     # Novo formato requer 5 partes: pheromone:{layer}:{domain}:{pheromone_type}:{id}
@@ -513,7 +514,7 @@ async def test_get_success_trails_handles_malformed_keys(pheromone_client, mock_
     assert result[0]["domain"] == "BUSINESS"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_get_success_trails_handles_missing_data(pheromone_client, mock_redis_client):
     """Validar tratamento quando get_cached_context retorna None"""
     # Novo formato: pheromone:{layer}:{domain}:{pheromone_type}:{id}
@@ -547,7 +548,7 @@ async def test_get_success_trails_handles_missing_data(pheromone_client, mock_re
     assert result[0]["domain"] == "OPERATIONAL"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_get_success_trails_handles_exception(pheromone_client, mock_redis_client):
     """Validar tratamento de excecoes durante scan"""
 
@@ -576,7 +577,7 @@ def test_invalidate_success_trails_cache(pheromone_client):
     assert pheromone_client._cache_timestamp == 0
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_publish_pheromone_with_all_domains(pheromone_client, mock_redis_client):
     """Validar publicacao de feromonios com todos os 7 dominios unificados"""
     for domain in UnifiedDomain:

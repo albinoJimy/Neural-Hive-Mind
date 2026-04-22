@@ -5,7 +5,7 @@ Modelos Pydantic para error budgets calculados.
 import uuid
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Optional
 
 from pydantic import BaseModel, Field
 
@@ -54,10 +54,10 @@ class ErrorBudget(BaseModel):
     error_budget_consumed: float = Field(..., description="Budget consumido (%)")
     error_budget_remaining: float = Field(..., description="Budget restante (%)")
     status: BudgetStatus = Field(...)
-    burn_rates: List[BurnRate] = Field(default_factory=list)
+    burn_rates: list[BurnRate] = Field(default_factory=list)
     violations_count: int = Field(default=0)
     last_violation_at: Optional[datetime] = Field(None)
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+    metadata: dict[str, Any] = Field(default_factory=dict)
 
     def calculate_status(self) -> BudgetStatus:
         """Determina status baseado em remaining %."""
@@ -78,7 +78,7 @@ class ErrorBudget(BaseModel):
         """Serialização para JSON."""
         return self.model_dump(mode="json")
 
-    def to_prometheus_metrics(self) -> List[Tuple[str, float, dict]]:
+    def to_prometheus_metrics(self) -> list[tuple[str, float, dict]]:
         """Converte para métricas Prometheus."""
         labels = {"slo_id": self.slo_id, "service_name": self.service_name}
 

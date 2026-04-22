@@ -2,16 +2,16 @@
 Testes unitários para SLAMonitor.
 """
 
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
 from datetime import datetime
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import httpx
-
-from src.sla.sla_monitor import SLAMonitor
+import pytest
 from src.config.settings import OrchestratorSettings
+from src.sla.sla_monitor import SLAMonitor
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_config():
     """Fixture com configurações mock."""
     config = MagicMock(spec=OrchestratorSettings)
@@ -24,7 +24,7 @@ def mock_config():
     return config
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_redis():
     """Fixture com cliente Redis mock."""
     redis = AsyncMock()
@@ -33,7 +33,7 @@ def mock_redis():
     return redis
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_metrics():
     """Fixture com métricas mock."""
     metrics = MagicMock()
@@ -42,7 +42,7 @@ def mock_metrics():
     return metrics
 
 
-@pytest.fixture
+@pytest.fixture()
 def ticket_deadline_approaching():
     """Ticket com deadline próximo (>80% consumido)."""
     now = datetime.now().timestamp() * 1000
@@ -55,7 +55,7 @@ def ticket_deadline_approaching():
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def ticket_deadline_safe():
     """Ticket com deadline seguro (<80% consumido)."""
     now = datetime.now().timestamp() * 1000
@@ -68,7 +68,7 @@ def ticket_deadline_safe():
     }
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_check_ticket_deadline_approaching(
     mock_config, mock_redis, mock_metrics, ticket_deadline_approaching
 ):
@@ -85,7 +85,7 @@ async def test_check_ticket_deadline_approaching(
     mock_metrics.record_sla_check_duration.assert_called_once()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_check_ticket_deadline_safe(
     mock_config, mock_redis, mock_metrics, ticket_deadline_safe
 ):
@@ -100,7 +100,7 @@ async def test_check_ticket_deadline_safe(
     mock_metrics.record_sla_check_duration.assert_called_once()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_check_ticket_deadline_missing_fields(mock_config, mock_redis, mock_metrics):
     """Testa ticket sem campos SLA."""
     monitor = SLAMonitor(mock_config, mock_redis, mock_metrics)
@@ -114,7 +114,7 @@ async def test_check_ticket_deadline_missing_fields(mock_config, mock_redis, moc
     assert result["sla_deadline"] is None
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_check_workflow_sla_multiple_tickets(
     mock_config, mock_redis, mock_metrics, ticket_deadline_approaching, ticket_deadline_safe
 ):
@@ -134,7 +134,7 @@ async def test_check_workflow_sla_multiple_tickets(
     assert result["ticket_deadline_data"]["ticket-1"]["sla_deadline"] is not None
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_check_workflow_sla_no_critical_tickets(
     mock_config, mock_redis, mock_metrics, ticket_deadline_safe
 ):
@@ -149,7 +149,7 @@ async def test_check_workflow_sla_no_critical_tickets(
     assert len(result["critical_tickets"]) == 0
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_get_service_budget_success(mock_config, mock_redis, mock_metrics):
     """Testa consulta bem-sucedida de budget via API."""
     monitor = SLAMonitor(mock_config, mock_redis, mock_metrics)
@@ -170,7 +170,7 @@ async def test_get_service_budget_success(mock_config, mock_redis, mock_metrics)
     await monitor.close()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_get_service_budget_cached(mock_config, mock_redis, mock_metrics):
     """Testa uso de cache Redis."""
     import json
@@ -189,7 +189,7 @@ async def test_get_service_budget_cached(mock_config, mock_redis, mock_metrics):
     await monitor.close()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_get_service_budget_api_failure(mock_config, mock_redis, mock_metrics):
     """Testa fail-open em caso de falha na API."""
     monitor = SLAMonitor(mock_config, mock_redis, mock_metrics)
@@ -206,7 +206,7 @@ async def test_get_service_budget_api_failure(mock_config, mock_redis, mock_metr
     await monitor.close()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_check_budget_threshold_critical(mock_config, mock_redis, mock_metrics):
     """Testa detecção de budget crítico (<20%)."""
     monitor = SLAMonitor(mock_config, mock_redis, mock_metrics)
@@ -223,7 +223,7 @@ async def test_check_budget_threshold_critical(mock_config, mock_redis, mock_met
     await monitor.close()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_check_budget_threshold_healthy(mock_config, mock_redis, mock_metrics):
     """Testa budget saudável (>20%)."""
     monitor = SLAMonitor(mock_config, mock_redis, mock_metrics)
@@ -240,7 +240,7 @@ async def test_check_budget_threshold_healthy(mock_config, mock_redis, mock_metr
     await monitor.close()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_check_budget_threshold_no_data(mock_config, mock_redis, mock_metrics):
     """Testa comportamento quando não há dados de budget."""
     monitor = SLAMonitor(mock_config, mock_redis, mock_metrics)
@@ -255,7 +255,7 @@ async def test_check_budget_threshold_no_data(mock_config, mock_redis, mock_metr
     await monitor.close()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_initialize_and_close(mock_config, mock_redis, mock_metrics):
     """Testa lifecycle de inicialização e cleanup."""
     monitor = SLAMonitor(mock_config, mock_redis, mock_metrics)

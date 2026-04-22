@@ -11,26 +11,25 @@ Testa o pipeline end-to-end de treinamento de modelos ML incluindo:
 - Integração com MLPredictor (predict_and_enrich)
 """
 
+from datetime import UTC, datetime, timedelta
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
+
+import numpy as np
 import pytest
 import pytest_asyncio
-from unittest.mock import Mock, AsyncMock, patch, MagicMock
-from datetime import datetime, timezone, timedelta
-import numpy as np
-
-from src.ml.training_pipeline import TrainingPipeline
-from src.ml.model_registry import ModelRegistry
-from src.ml.duration_predictor import DurationPredictor
 from src.ml.anomaly_detector import AnomalyDetector
+from src.ml.duration_predictor import DurationPredictor
 from src.ml.ml_predictor import MLPredictor
+from src.ml.model_registry import ModelRegistry
+from src.ml.training_pipeline import TrainingPipeline
 from src.observability.metrics import OrchestratorMetrics
-
 
 # =============================================================================
 # Fixtures
 # =============================================================================
 
 
-@pytest.fixture
+@pytest.fixture()
 def test_config():
     """Test configuration with appropriate ML settings."""
     config = Mock()
@@ -55,7 +54,7 @@ async def test_mongodb_client(test_config):
 
     # Create sample tickets (150+ for sufficient data)
     sample_tickets = []
-    base_time = datetime.now(timezone.utc) - timedelta(days=5)
+    base_time = datetime.now(UTC) - timedelta(days=5)
 
     task_types = ["BUILD", "TEST", "DEPLOY", "VALIDATE", "EXECUTE"]
     risk_bands = ["low", "medium", "high", "critical"]
@@ -170,7 +169,7 @@ async def model_registry(test_config, mock_mlflow):
     return registry
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_metrics():
     """Mock Prometheus metrics."""
     metrics = Mock(spec=OrchestratorMetrics)
@@ -240,7 +239,7 @@ async def training_pipeline(
 # =============================================================================
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_training_cycle_success(training_pipeline):
     """
     Test successful training cycle with sufficient data.
@@ -271,7 +270,7 @@ async def test_training_cycle_success(training_pipeline):
     assert result["samples_used"] >= 50
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_model_promotion(training_pipeline, model_registry):
     """
     Test model promotion with good metrics.
@@ -319,7 +318,7 @@ async def test_model_promotion(training_pipeline, model_registry):
             assert "anomaly-detector" in result.get("models_promoted", [])
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_insufficient_data(
     test_config,
     test_mongodb_client,
@@ -357,7 +356,7 @@ async def test_insufficient_data(
     assert result["samples"] < 50
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_feature_baseline(training_pipeline, test_mongodb_client):
     """
     Test feature baseline saved after training.
@@ -385,7 +384,7 @@ async def test_feature_baseline(training_pipeline, test_mongodb_client):
         assert "timestamp" in baseline_doc
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_backfill_errors(training_pipeline, test_mongodb_client, mock_metrics):
     """
     Test backfill of historical prediction errors.
@@ -413,7 +412,7 @@ async def test_backfill_errors(training_pipeline, test_mongodb_client, mock_metr
         backfill_collection.insert_one.assert_called()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_model_cache(model_registry, mock_mlflow):
     """
     Test model cache behavior.
@@ -446,7 +445,7 @@ async def test_model_cache(model_registry, mock_mlflow):
     # Simulate TTL expiry
     model_registry._model_cache[cache_key] = (
         model1,
-        datetime.now(timezone.utc).timestamp() - 4000,
+        datetime.now(UTC).timestamp() - 4000,
     )  # Old timestamp
 
     # Load after expiry (should fetch again)
@@ -456,7 +455,7 @@ async def test_model_cache(model_registry, mock_mlflow):
     assert model3 is not None
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_integration_with_predictor(
     test_config, test_mongodb_client, model_registry, mock_metrics
 ):

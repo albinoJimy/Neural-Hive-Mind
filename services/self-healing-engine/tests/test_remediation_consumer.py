@@ -1,5 +1,4 @@
 import pytest
-
 from src.consumers.remediation_consumer import RemediationConsumer
 
 
@@ -29,7 +28,7 @@ class FakeKafkaConsumer:
         raise StopAsyncIteration
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_remediation_consumer_start_and_stop(monkeypatch):
     monkeypatch.setattr(
         "src.consumers.remediation_consumer.AIOKafkaConsumer",

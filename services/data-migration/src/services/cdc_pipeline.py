@@ -751,7 +751,6 @@ class CDCPipeline:
         """
         return self._reconnection_stats.to_dict()
 
-
     async def stop_cdc(self) -> None:
         """
         Para consumo de eventos CDC.

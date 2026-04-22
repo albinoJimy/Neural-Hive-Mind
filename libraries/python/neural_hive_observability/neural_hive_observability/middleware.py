@@ -20,16 +20,16 @@ app.add_middleware(TraceContextMiddleware)
 
 import logging
 import re
-from typing import Callable, Optional, Tuple
+from collections.abc import Callable
+from typing import Optional
 
 from fastapi import Request, Response
+from opentelemetry import context, trace
+from opentelemetry.baggage import set_baggage
+from opentelemetry.context import attach
+from opentelemetry.propagate import extract
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import ASGIApp
-
-from opentelemetry import trace, context
-from opentelemetry.propagate import extract
-from opentelemetry.context import attach
-from opentelemetry.baggage import set_baggage
 
 from .metrics import NeuralHiveMetrics
 
@@ -37,13 +37,10 @@ logger = logging.getLogger(__name__)
 
 # Regex para validar formato W3C traceparent
 # version (2 hex digits) - trace_id (32 hex digits) - span_id (16 hex digits) - trace_flags (2 hex digits)
-TRACEPARENT_PATTERN = re.compile(
-    r'^00-([0-9a-f]{32})-([0-9a-f]{16})-([0-9a-f]{2})$',
-    re.IGNORECASE
-)
+TRACEPARENT_PATTERN = re.compile(r"^00-([0-9a-f]{32})-([0-9a-f]{16})-([0-9a-f]{2})$", re.IGNORECASE)
 
 
-def parse_traceparent(traceparent: str) -> Optional[Tuple[str, str, str]]:
+def parse_traceparent(traceparent: str) -> Optional[tuple[str, str, str]]:
     """
     Parse W3C traceparent header.
 
@@ -140,7 +137,7 @@ class TraceContextMiddleware(BaseHTTPMiddleware):
 
         # Store default labels for metrics (from config if available)
         self._metric_labels = {}
-        if metrics and hasattr(metrics, 'config') and hasattr(metrics.config, 'common_labels'):
+        if metrics and hasattr(metrics, "config") and hasattr(metrics.config, "common_labels"):
             self._metric_labels = metrics.config.common_labels
 
         logger.info("TraceContextMiddleware initialized")
@@ -192,16 +189,14 @@ class TraceContextMiddleware(BaseHTTPMiddleware):
                     # Métrica: extração bem-sucedida
                     if self.metrics:
                         self.metrics.trace_context_extraction_success_total.labels(
-                            **self._metric_labels,
-                            source="http"
+                            **self._metric_labels, source="http"
                         ).inc()
 
                 except Exception as e:
                     logger.warning(f"Failed to extract OTEL context: {e}")
                     if self.metrics:
                         self.metrics.trace_context_extraction_failure_total.labels(
-                            **self._metric_labels,
-                            reason="otel_extract_error"
+                            **self._metric_labels, reason="otel_extract_error"
                         ).inc()
 
                 # Definir baggage items
@@ -212,16 +207,14 @@ class TraceContextMiddleware(BaseHTTPMiddleware):
                 )
                 if self.metrics:
                     self.metrics.trace_context_extraction_failure_total.labels(
-                        **self._metric_labels,
-                        reason="invalid_format"
+                        **self._metric_labels, reason="invalid_format"
                     ).inc()
         else:
             # Métrica: traceparent ausente
             logger.debug(f"No traceparent header in request, path: {request.url.path}")
             if self.metrics:
                 self.metrics.trace_parent_missing_total.labels(
-                    **self._metric_labels,
-                    source="http"
+                    **self._metric_labels, source="http"
                 ).inc()
 
         # Processar request
@@ -261,15 +254,11 @@ class TraceContextMiddleware(BaseHTTPMiddleware):
             if value:
                 try:
                     set_baggage(baggage_key, value)
-                    logger.debug(
-                        f"Baggage item set: key={baggage_key}, value={value[:50]}"
-                    )
+                    logger.debug(f"Baggage item set: key={baggage_key}, value={value[:50]}")
                 except Exception as e:
                     logger.warning(f"Failed to set baggage {baggage_key}: {e}")
 
-    def _inject_trace_headers(
-        self, response: Response, trace_valid: bool
-    ) -> Response:
+    def _inject_trace_headers(self, response: Response, trace_valid: bool) -> Response:
         """
         Injeta headers de tracing na response HTTP.
 
@@ -296,7 +285,7 @@ class TraceContextMiddleware(BaseHTTPMiddleware):
         return response
 
 
-def validate_trace_context(request: Request) -> Tuple[bool, Optional[str]]:
+def validate_trace_context(request: Request) -> tuple[bool, Optional[str]]:
     """
     Valida trace context em request HTTP.
 

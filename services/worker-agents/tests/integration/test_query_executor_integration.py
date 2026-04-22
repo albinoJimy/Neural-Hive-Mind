@@ -5,17 +5,18 @@ Testa queries reais contra MongoDB/Redis em docker-compose.
 Valida timeout e retry logic.
 """
 
-import pytest
 import asyncio
-from src.executors.query_executor import QueryExecutor
+
+import pytest
 from src.config.settings import get_settings
+from src.executors.query_executor import QueryExecutor
 
 
-@pytest.mark.integration
+@pytest.mark.integration()
 class TestMongoDBIntegration:
     """Testes de integração com MongoDB."""
 
-    @pytest.fixture
+    @pytest.fixture()
     async def mongodb_client(self):
         """Cliente MongoDB real para testes."""
         from src.clients.mongodb_client import MongoDBClient
@@ -41,7 +42,7 @@ class TestMongoDBIntegration:
         await test_collection.delete_many({})
         await client.close()
 
-    @pytest.fixture
+    @pytest.fixture()
     def query_executor(self, mongodb_client):
         """QueryExecutor com cliente MongoDB real."""
         config = get_settings()
@@ -56,7 +57,7 @@ class TestMongoDBIntegration:
             kafka_consumer=None,
         )
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_mongodb_find_query(self, query_executor):
         """Testa query FIND no MongoDB."""
         ticket = {
@@ -78,7 +79,7 @@ class TestMongoDBIntegration:
         assert result["output"]["documents"][0]["name"] in ["test1", "test2"]
         assert "_id" in result["output"]["documents"][0]
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_mongodb_query_with_limit(self, query_executor):
         """Testa query com limite no MongoDB."""
         ticket = {
@@ -98,7 +99,7 @@ class TestMongoDBIntegration:
         assert result["success"] is True
         assert result["output"]["count"] == 2
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_mongodb_query_with_sort(self, query_executor):
         """Testa query com ordenação no MongoDB."""
         ticket = {
@@ -120,11 +121,11 @@ class TestMongoDBIntegration:
         assert result["output"]["documents"][0]["value"] == 300
 
 
-@pytest.mark.integration
+@pytest.mark.integration()
 class TestRedisIntegration:
     """Testes de integração com Redis."""
 
-    @pytest.fixture
+    @pytest.fixture()
     async def redis_client(self):
         """Cliente Redis real para testes."""
         from src.clients.redis_client import get_redis_client
@@ -145,7 +146,7 @@ class TestRedisIntegration:
         # Cleanup
         await client.delete("test:query:1", "test:query:2", "test:other:1")
 
-    @pytest.fixture
+    @pytest.fixture()
     def query_executor(self, redis_client):
         """QueryExecutor com cliente Redis real."""
         config = get_settings()
@@ -160,7 +161,7 @@ class TestRedisIntegration:
             kafka_consumer=None,
         )
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_redis_get_existing_key(self, query_executor):
         """Testa GET de chave existente no Redis."""
         ticket = {
@@ -176,7 +177,7 @@ class TestRedisIntegration:
         assert result["output"]["exists"] is True
         assert result["output"]["value"]["name"] == "test1"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_redis_get_nonexistent_key(self, query_executor):
         """Testa GET de chave inexistente no Redis."""
         ticket = {
@@ -192,7 +193,7 @@ class TestRedisIntegration:
         assert result["output"]["exists"] is False
         assert result["output"]["value"] is None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_redis_scan_with_pattern(self, query_executor):
         """Testa SCAN com padrão no Redis."""
         ticket = {
@@ -213,7 +214,7 @@ class TestRedisIntegration:
         assert result["output"]["count"] == 2
         assert set(result["output"]["keys"]) == {"test:query:1", "test:query:2"}
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_redis_keys_with_pattern(self, query_executor):
         """Testa KEYS com padrão no Redis."""
         ticket = {
@@ -230,12 +231,12 @@ class TestRedisIntegration:
         assert "test:query:1" in result["output"]["keys"]
 
 
-@pytest.mark.integration
+@pytest.mark.integration()
 @pytest.mark.skip(reason="Neo4j não disponível em todos os ambientes")
 class TestNeo4jIntegration:
     """Testes de integração com Neo4j."""
 
-    @pytest.fixture
+    @pytest.fixture()
     async def neo4j_client(self):
         """Cliente Neo4j real para testes."""
         from src.clients.neo4j_client import Neo4jClient
@@ -268,7 +269,7 @@ class TestNeo4jIntegration:
         await client.execute_write("MATCH (n:TestNode) DETACH DELETE n")
         await client.close()
 
-    @pytest.fixture
+    @pytest.fixture()
     def query_executor(self, neo4j_client):
         """QueryExecutor com cliente Neo4j real."""
         config = get_settings()
@@ -283,7 +284,7 @@ class TestNeo4jIntegration:
             kafka_consumer=None,
         )
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_neo4j_simple_query(self, query_executor):
         """Testa query Cypher simples."""
         ticket = {
@@ -301,7 +302,7 @@ class TestNeo4jIntegration:
         assert result["success"] is True
         assert result["output"]["count"] == 2
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_neo4j_query_with_parameters(self, query_executor):
         """Testa query Cypher com parâmetros."""
         ticket = {
@@ -321,11 +322,11 @@ class TestNeo4jIntegration:
         assert result["output"]["count"] == 1
 
 
-@pytest.mark.integration
+@pytest.mark.integration()
 class TestTimeoutAndRetry:
     """Testes de timeout e lógica de retry."""
 
-    @pytest.fixture
+    @pytest.fixture()
     async def mongodb_client(self):
         """Cliente MongoDB real."""
         from src.clients.mongodb_client import MongoDBClient
@@ -347,7 +348,7 @@ class TestTimeoutAndRetry:
         await test_collection.delete_many({})
         await client.close()
 
-    @pytest.fixture
+    @pytest.fixture()
     def query_executor(self, mongodb_client):
         """QueryExecutor para testes de timeout."""
         config = get_settings()
@@ -362,7 +363,7 @@ class TestTimeoutAndRetry:
             kafka_consumer=None,
         )
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_query_completes_within_timeout(self, query_executor):
         """Testa que query completa dentro do timeout."""
         ticket = {
@@ -385,11 +386,11 @@ class TestTimeoutAndRetry:
         assert elapsed < 30  # Deve completar em menos de 30 segundos
 
 
-@pytest.mark.integration
+@pytest.mark.integration()
 class TestComplexQueries:
     """Testes de queries complexas (joins, aggregations)."""
 
-    @pytest.fixture
+    @pytest.fixture()
     async def mongodb_client(self):
         """Cliente MongoDB com dados complexos."""
         from src.clients.mongodb_client import MongoDBClient
@@ -415,7 +416,7 @@ class TestComplexQueries:
         await orders_collection.delete_many({})
         await client.close()
 
-    @pytest.fixture
+    @pytest.fixture()
     def query_executor(self, mongodb_client):
         """QueryExecutor para queries complexas."""
         config = get_settings()
@@ -430,7 +431,7 @@ class TestComplexQueries:
             kafka_consumer=None,
         )
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_mongodb_complex_filter(self, query_executor):
         """Testa filtro complexo com múltiplas condições."""
         ticket = {

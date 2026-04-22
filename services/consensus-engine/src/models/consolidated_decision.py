@@ -3,7 +3,7 @@ import json
 import uuid
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -77,7 +77,7 @@ class ConsensusMetrics(BaseModel):
     weighted_by_seniority: bool = Field(
         default=False, description="Indica se o consenso foi ponderado por senioridade"
     )
-    seniority_distribution: Dict[str, int] = Field(
+    seniority_distribution: dict[str, int] = Field(
         default_factory=dict,
         description="Distribuição de votos por nível de senioridade (ex: {senior: 2, expert: 1})",
     )
@@ -163,7 +163,7 @@ class ConsolidatedDecision(BaseModel):
     aggregated_risk: float = Field(..., ge=0.0, le=1.0, description="Risco agregado")
 
     # Votos dos especialistas
-    specialist_votes: List[SpecialistVote] = Field(..., description="Votos individuais")
+    specialist_votes: list[SpecialistVote] = Field(..., description="Votos individuais")
 
     # Métricas de consenso
     consensus_metrics: ConsensusMetrics = Field(..., description="Métricas do consenso")
@@ -173,23 +173,23 @@ class ConsolidatedDecision(BaseModel):
     reasoning_summary: str = Field(..., description="Resumo da decisão")
 
     # Compliance e guardrails
-    compliance_checks: Dict[str, bool] = Field(
+    compliance_checks: dict[str, bool] = Field(
         default_factory=dict, description="Verificações de compliance"
     )
-    guardrails_triggered: List[str] = Field(
+    guardrails_triggered: list[str] = Field(
         default_factory=list, description="Guardrails acionados"
     )
     requires_human_review: bool = Field(default=False, description="Requer revisão humana")
 
     # Plano cognitivo original (para downstream consumers como Orchestrator)
-    cognitive_plan: Optional[Dict[str, Any]] = Field(
+    cognitive_plan: Optional[dict[str, Any]] = Field(
         default=None, description="Plano cognitivo original que gerou esta decisão"
     )
 
     # Metadados
     created_at: datetime = Field(default_factory=datetime.utcnow, description="Data de criação")
     valid_until: Optional[datetime] = Field(default=None, description="Validade da decisão")
-    metadata: Dict[str, Any] = Field(default_factory=dict, description="Metadados adicionais")
+    metadata: dict[str, Any] = Field(default_factory=dict, description="Metadados adicionais")
 
     # Auditoria
     hash: Optional[str] = Field(default=None, description="Hash SHA-256 para integridade")
@@ -210,7 +210,7 @@ class ConsolidatedDecision(BaseModel):
         json_str = json.dumps(data, sort_keys=True, ensure_ascii=False)
         return hashlib.sha256(json_str.encode("utf-8")).hexdigest()
 
-    def to_avro_dict(self) -> Dict[str, Any]:
+    def to_avro_dict(self) -> dict[str, Any]:
         """Converter para formato Avro compatível"""
         # Converter metadata para map<string> (todos valores como string)
         metadata_str = {k: str(v) for k, v in self.metadata.items()}

@@ -17,7 +17,7 @@ Otimizações de Performance:
 import sys
 import time
 from contextlib import contextmanager
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 import structlog
 
@@ -119,8 +119,8 @@ class BusinessSpecialist(BaseSpecialist):
             return None
 
     def _evaluate_plan_internal(
-        self, cognitive_plan: Dict[str, Any], context: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, cognitive_plan: dict[str, Any], context: dict[str, Any]
+    ) -> dict[str, Any]:
         """
         Avalia plano sob perspectiva de negócios.
 
@@ -243,7 +243,7 @@ class BusinessSpecialist(BaseSpecialist):
             },
         }
 
-    def _analyze_workflow(self, tasks: List[Dict]) -> float:
+    def _analyze_workflow(self, tasks: list[dict]) -> float:
         """
         Analisa eficiência do workflow.
 
@@ -298,7 +298,7 @@ class BusinessSpecialist(BaseSpecialist):
 
         return max(0.0, min(1.0, workflow_score))
 
-    def _analyze_kpis(self, cognitive_plan: Dict, context: Dict) -> float:
+    def _analyze_kpis(self, cognitive_plan: dict, context: dict) -> float:
         """
         Analisa alinhamento com KPIs de negócio.
 
@@ -322,7 +322,7 @@ class BusinessSpecialist(BaseSpecialist):
 
         return kpi_score
 
-    def _analyze_costs(self, tasks: List[Dict]) -> float:
+    def _analyze_costs(self, tasks: list[dict]) -> float:
         """
         Analisa custo-efetividade.
 
@@ -359,7 +359,7 @@ class BusinessSpecialist(BaseSpecialist):
         return max(0.0, min(1.0, cost_score))
 
     def _calculate_business_risk(
-        self, cognitive_plan: Dict, workflow_score: float, kpi_score: float, cost_score: float
+        self, cognitive_plan: dict, workflow_score: float, kpi_score: float, cost_score: float
     ) -> float:
         """
         Calcula risco de negócio.
@@ -426,7 +426,7 @@ class BusinessSpecialist(BaseSpecialist):
 
     def _generate_mitigations(
         self, workflow_score: float, kpi_score: float, cost_score: float
-    ) -> List[Dict]:
+    ) -> list[dict]:
         """Gera sugestões de mitigação de riscos."""
         mitigations = []
 

@@ -1,7 +1,8 @@
 """Kafka consumer for tool selection requests."""
 
 import asyncio
-from typing import AsyncGenerator, Optional
+from collections.abc import AsyncGenerator
+from typing import Optional
 
 import structlog
 from aiokafka import AIOKafkaConsumer

@@ -1,6 +1,6 @@
 """Service Registry gRPC client for Self-Healing Engine (fail-open) com suporte a mTLS via SPIFFE."""
 
-from typing import Dict, List, Optional, Tuple
+from typing import Optional
 
 import grpc
 import structlog
@@ -94,7 +94,7 @@ class ServiceRegistryClient:
             logger.warning("service_registry_client.init_failed", error=str(e))
             # Fail-open: continuar sem Service Registry
 
-    async def _get_grpc_metadata(self) -> List[Tuple[str, str]]:
+    async def _get_grpc_metadata(self) -> list[tuple[str, str]]:
         """Obter metadata gRPC com JWT-SVID para autenticação."""
         if not self.spiffe_enabled or not self.spiffe_manager:
             return []
@@ -113,7 +113,7 @@ class ServiceRegistryClient:
                 raise
             return []
 
-    async def notify_agent(self, agent_id: str, notification: Dict) -> bool:
+    async def notify_agent(self, agent_id: str, notification: dict) -> bool:
         """Envia notificacao para agente via gRPC (best-effort)."""
         if not self.stub:
             logger.warning(
@@ -153,7 +153,7 @@ class ServiceRegistryClient:
             )
             return False
 
-    async def get_agent_info(self, agent_id: str) -> Optional[Dict]:
+    async def get_agent_info(self, agent_id: str) -> Optional[dict]:
         """Obtem informacoes de um agente (best-effort)."""
         if not self.stub:
             logger.warning("service_registry_client.stub_unavailable", agent_id=agent_id)

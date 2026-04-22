@@ -16,15 +16,15 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "src"))
 
 from engine.parallel_executor import (
-    ParallelExecutor,
     ParallelExecutionConfig,
+    ParallelExecutor,
     TaskPriority,
     TicketWrapper,
     execute_parallel_tickets,
 )
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_execution_engine():
     """Mock ExecutionEngine."""
     engine = AsyncMock()
@@ -32,7 +32,7 @@ def mock_execution_engine():
     return engine
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_metrics():
     """Mock metrics."""
     metrics = MagicMock()
@@ -53,7 +53,7 @@ def mock_metrics():
     return metrics
 
 
-@pytest.fixture
+@pytest.fixture()
 def parallel_config():
     """Configuração padrão para testes."""
     return ParallelExecutionConfig(
@@ -126,7 +126,7 @@ class TestParallelExecutorInit:
 class TestSubmitTicket:
     """Testes de submissão de tickets."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_submit_ticket_default_priority(self, parallel_config, mock_execution_engine):
         """Testa submissão com prioridade padrão."""
         executor = ParallelExecutor(parallel_config, mock_execution_engine)
@@ -147,7 +147,7 @@ class TestSubmitTicket:
         queue = executor.queues[TaskPriority.MEDIUM]
         assert not queue.empty()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_submit_ticket_with_priority(self, parallel_config, mock_execution_engine):
         """Testa submissão com prioridade específica."""
         executor = ParallelExecutor(parallel_config, mock_execution_engine)
@@ -165,7 +165,7 @@ class TestSubmitTicket:
         queue = executor.queues[TaskPriority.CRITICAL]
         assert not queue.empty()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_submit_ticket_with_dependencies(self, parallel_config, mock_execution_engine):
         """Testa submissão com dependências."""
         executor = ParallelExecutor(parallel_config, mock_execution_engine)
@@ -186,7 +186,7 @@ class TestSubmitTicket:
 
         assert wrapper.dependencies == dependencies
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_submit_ticket_disabled_priority(self, mock_execution_engine):
         """Testa submissão com fila de prioridade desabilitada."""
         config = ParallelExecutionConfig(enable_priority_queue=False)
@@ -212,7 +212,7 @@ class TestSubmitTicket:
 class TestSubmitBatch:
     """Testes de submissão em lote."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_submit_batch_tickets(self, parallel_config, mock_execution_engine):
         """Testa submissão de múltiplos tickets."""
         executor = ParallelExecutor(parallel_config, mock_execution_engine)
@@ -232,7 +232,7 @@ class TestSubmitBatch:
         assert len(correlation_ids) == 5
         assert all(cid is not None for cid in correlation_ids)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_submit_batch_grouped_by_type(self, parallel_config, mock_execution_engine):
         """Testa que tickets são agrupados por tipo quando batching habilitado."""
         executor = ParallelExecutor(parallel_config, mock_execution_engine)
@@ -252,7 +252,7 @@ class TestSubmitBatch:
         size = medium_queue.qsize()
         assert size == 3
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_submit_batch_no_batching(self, mock_execution_engine):
         """Testa submissão em lote com batching desabilitado."""
         config = ParallelExecutionConfig(enable_batching=False)
@@ -270,7 +270,7 @@ class TestSubmitBatch:
 class TestExecuteParallelIndependent:
     """Testes de execução paralela de tickets independentes."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_empty_list(self, parallel_config, mock_execution_engine):
         """Testa execução de lista vazia."""
         executor = ParallelExecutor(parallel_config, mock_execution_engine)
@@ -279,7 +279,7 @@ class TestExecuteParallelIndependent:
 
         assert results == []
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_single_ticket(self, parallel_config, mock_execution_engine):
         """Testa execução de único ticket."""
         executor = ParallelExecutor(parallel_config, mock_execution_engine)
@@ -293,7 +293,7 @@ class TestExecuteParallelIndependent:
         assert results[0]["success"] is True
         mock_execution_engine.process_ticket.assert_called_once_with(ticket)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_multiple_tickets(self, parallel_config, mock_execution_engine):
         """Testa execução de múltiplos tickets em paralelo."""
         executor = ParallelExecutor(parallel_config, mock_execution_engine)
@@ -310,7 +310,7 @@ class TestExecuteParallelIndependent:
         # Verificar que todos foram processados
         assert mock_execution_engine.process_ticket.call_count == 5
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_with_failure(self, parallel_config, mock_execution_engine):
         """Testa execução com falha em um ticket."""
         executor = ParallelExecutor(parallel_config, mock_execution_engine)
@@ -319,7 +319,6 @@ class TestExecuteParallelIndependent:
         async def failing_process(ticket):
             if ticket["ticket_id"] == "test-fail":
                 raise ValueError("Simulated failure")
-            return None
 
         mock_execution_engine.process_ticket = AsyncMock(side_effect=failing_process)
 
@@ -337,7 +336,7 @@ class TestExecuteParallelIndependent:
         assert results[1]["error"] == "Simulated failure"
         assert results[2]["success"] is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_with_timeout(self, parallel_config, mock_execution_engine):
         """Testa execução com timeout."""
         executor = ParallelExecutor(parallel_config, mock_execution_engine)
@@ -345,7 +344,6 @@ class TestExecuteParallelIndependent:
         # Configurar mock para ser lento
         async def slow_process(ticket):
             await asyncio.sleep(10)
-            return None
 
         mock_execution_engine.process_ticket = AsyncMock(side_effect=slow_process)
 
@@ -361,7 +359,7 @@ class TestExecuteParallelIndependent:
 class TestExecuteWithDependencies:
     """Testes de execução com dependências."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_empty_dependencies(self, parallel_config, mock_execution_engine):
         """Testa execução sem dependências."""
         executor = ParallelExecutor(parallel_config, mock_execution_engine)
@@ -376,7 +374,7 @@ class TestExecuteWithDependencies:
         assert len(results) == 3
         assert all(r["success"] for r in results)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_with_simple_dependencies(self, parallel_config, mock_execution_engine):
         """Testa execução com dependências simples (sequencial)."""
         executor = ParallelExecutor(parallel_config, mock_execution_engine)
@@ -406,7 +404,7 @@ class TestExecuteWithDependencies:
         # test-2 deve vir antes de test-3
         assert call_order.index("test-2") < call_order.index("test-3")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_with_parallel_dependencies(self, parallel_config, mock_execution_engine):
         """Testa execução com dependências paralelas."""
         executor = ParallelExecutor(parallel_config, mock_execution_engine)
@@ -429,7 +427,7 @@ class TestExecuteWithDependencies:
         assert len(results) == 4
         assert all(r["success"] for r in results)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_with_failed_dependency(self, parallel_config, mock_execution_engine):
         """Testa execução quando dependência falha."""
         executor = ParallelExecutor(parallel_config, mock_execution_engine)
@@ -437,7 +435,6 @@ class TestExecuteWithDependencies:
         async def failing_process(ticket):
             if ticket["ticket_id"] == "base":
                 raise ValueError("Base failed")
-            return None
 
         mock_execution_engine.process_ticket = AsyncMock(side_effect=failing_process)
 
@@ -472,7 +469,7 @@ class TestGetStatus:
         assert "queue_sizes" in status
         assert status["processor_tasks"] == 0
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_status_with_tickets(self, parallel_config, mock_execution_engine):
         """Testa status com tickets nas filas."""
         executor = ParallelExecutor(parallel_config, mock_execution_engine)
@@ -490,7 +487,7 @@ class TestGetStatus:
 class TestConvenienceFunction:
     """Testes da função de conveniência execute_parallel_tickets."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_convenience_function(self, mock_execution_engine):
         """Testa função de conveniência."""
         tickets = [
@@ -530,7 +527,7 @@ class TestTicketWrapper:
         assert wrapper.dependencies == {"dep-1"}
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 class TestParallelExecutorLifecycle:
     """Testes de ciclo de vida do executor."""
 

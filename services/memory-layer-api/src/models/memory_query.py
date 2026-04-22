@@ -4,7 +4,7 @@ Memory Query Models
 
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Optional
 
 from pydantic import BaseModel, Field
 
@@ -24,7 +24,7 @@ class MemoryQueryRequest(BaseModel):
 
     query_type: QueryType
     entity_id: str
-    time_range: Optional[Tuple[datetime, datetime]] = None
+    time_range: Optional[tuple[datetime, datetime]] = None
     use_cache: bool = True
     max_results: int = Field(default=100, le=1000)
     include_metadata: bool = True
@@ -35,11 +35,11 @@ class MemoryQueryResponse(BaseModel):
 
     query_id: str
     entity_id: str
-    data: Dict[str, Any]
+    data: dict[str, Any]
     source_layer: str  # 'redis', 'mongodb', 'clickhouse', 'neo4j'
     cache_hit: bool
     latency_ms: int
-    metadata: Dict[str, Any]
+    metadata: dict[str, Any]
 
 
 class LineageNode(BaseModel):
@@ -47,10 +47,10 @@ class LineageNode(BaseModel):
 
     entity_id: str
     entity_type: str
-    sources: List[str] = Field(default_factory=list)
-    transformations: List[str] = Field(default_factory=list)
+    sources: list[str] = Field(default_factory=list)
+    transformations: list[str] = Field(default_factory=list)
     timestamp: datetime
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+    metadata: dict[str, Any] = Field(default_factory=dict)
 
 
 class DataQualityMetrics(BaseModel):
@@ -64,4 +64,4 @@ class DataQualityMetrics(BaseModel):
     uniqueness_score: float = Field(ge=0.0, le=100.0)
     consistency_score: float = Field(ge=0.0, le=100.0)
     overall_score: float = Field(ge=0.0, le=100.0)
-    violations: List[str] = Field(default_factory=list)
+    violations: list[str] = Field(default_factory=list)

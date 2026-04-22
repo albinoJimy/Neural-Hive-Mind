@@ -2,14 +2,15 @@
 Camada de compliance que orquestra PII detection, encryption e audit logging.
 """
 
-import structlog
-import time
 import copy
-from typing import Dict, Any, Tuple
+import time
+from typing import Any
 
-from .pii_detector import PIIDetector
-from .field_encryptor import FieldEncryptor
+import structlog
+
 from .audit_logger import AuditLogger
+from .field_encryptor import FieldEncryptor
+from .pii_detector import PIIDetector
 
 logger = structlog.get_logger(__name__)
 
@@ -78,8 +79,8 @@ class ComplianceLayer:
             self.enabled = False
 
     def sanitize_cognitive_plan(
-        self, plan: Dict[str, Any], language: str = "pt"
-    ) -> Tuple[Dict[str, Any], Dict[str, Any]]:
+        self, plan: dict[str, Any], language: str = "pt"
+    ) -> tuple[dict[str, Any], dict[str, Any]]:
         """
         Detecta e anonimiza PII em plano cognitivo.
 
@@ -221,7 +222,7 @@ class ComplianceLayer:
 
             return plan, {}
 
-    def encrypt_opinion_fields(self, opinion_doc: Dict[str, Any]) -> Dict[str, Any]:
+    def encrypt_opinion_fields(self, opinion_doc: dict[str, Any]) -> dict[str, Any]:
         """
         Criptografa campos sensíveis em documento de opinião.
 
@@ -301,7 +302,7 @@ class ComplianceLayer:
 
             return opinion_doc
 
-    def decrypt_opinion_fields(self, opinion_doc: Dict[str, Any]) -> Dict[str, Any]:
+    def decrypt_opinion_fields(self, opinion_doc: dict[str, Any]) -> dict[str, Any]:
         """
         Descriptografa campos de documento de opinião (para auditoria).
 
@@ -356,7 +357,7 @@ class ComplianceLayer:
 
             return opinion_doc
 
-    def get_compliance_metadata(self) -> Dict[str, Any]:
+    def get_compliance_metadata(self) -> dict[str, Any]:
         """
         Retorna metadados de configuração de compliance.
 

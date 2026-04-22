@@ -1,16 +1,16 @@
 """Testes unitários para ApprovalService."""
 
-import pytest
-from unittest.mock import Mock, AsyncMock, patch
 from datetime import datetime
+from unittest.mock import AsyncMock, Mock, patch
+
+import pytest
 from pymongo.errors import DuplicateKeyError
-
-from src.services.approval_service import ApprovalService
-from src.models.approval import ApprovalRequest, ApprovalDecision
 from src.config.settings import Settings
+from src.models.approval import ApprovalDecision, ApprovalRequest
+from src.services.approval_service import ApprovalService
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_settings():
     """Mock Settings."""
     settings = Mock(spec=Settings)
@@ -22,7 +22,7 @@ def mock_settings():
     return settings
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_mongodb_client():
     """Mock MongoDBClient."""
     client = AsyncMock()
@@ -35,7 +35,7 @@ def mock_mongodb_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_response_producer():
     """Mock ApprovalResponseProducer."""
     producer = AsyncMock()
@@ -43,7 +43,7 @@ def mock_response_producer():
     return producer
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_metrics():
     """Mock NeuralHiveMetrics."""
     metrics = Mock()
@@ -54,7 +54,7 @@ def mock_metrics():
     return metrics
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_ledger_client():
     """Mock CognitiveLedgerClient."""
     ledger = AsyncMock()
@@ -71,7 +71,7 @@ def mock_ledger_client():
     return ledger
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_feedback_collector():
     """Mock FeedbackCollector."""
     collector = Mock()
@@ -79,7 +79,7 @@ def mock_feedback_collector():
     return collector
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_ml_predictor():
     """Mock MLPredictor."""
     predictor = AsyncMock()
@@ -93,7 +93,7 @@ def mock_ml_predictor():
     return predictor
 
 
-@pytest.fixture
+@pytest.fixture()
 def approval_service(
     mock_settings,
     mock_mongodb_client,
@@ -115,7 +115,7 @@ def approval_service(
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_approval_request():
     """ApprovalRequest de exemplo."""
     return ApprovalRequest(
@@ -132,7 +132,7 @@ def sample_approval_request():
 class TestProcessApprovalRequest:
     """Testes para process_approval_request."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_process_approval_request_success(
         self, approval_service, sample_approval_request, mock_mongodb_client, mock_metrics
     ):
@@ -143,7 +143,7 @@ class TestProcessApprovalRequest:
         mock_mongodb_client.save_approval_request.assert_called_once_with(sample_approval_request)
         mock_metrics.increment_approval_requests_received.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_process_approval_request_duplicate(
         self, approval_service, sample_approval_request, mock_mongodb_client
     ):
@@ -153,7 +153,7 @@ class TestProcessApprovalRequest:
         with pytest.raises(DuplicateKeyError):
             await approval_service.process_approval_request(sample_approval_request)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_process_approval_request_missing_fields(
         self, approval_service, mock_mongodb_client
     ):
@@ -176,7 +176,7 @@ class TestProcessApprovalRequest:
 class TestGetMLPrediction:
     """Testes para get_ml_prediction."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_ml_prediction_success(
         self, approval_service, mock_mongodb_client, mock_ml_predictor
     ):
@@ -191,7 +191,7 @@ class TestGetMLPrediction:
         assert result["decision"] == "approve"
         assert result["confidence"] == 0.75
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_ml_prediction_no_approval(self, approval_service, mock_mongodb_client):
         """Testa quando approval não é encontrado."""
         mock_mongodb_client.get_approval_by_plan_id.return_value = None
@@ -200,7 +200,7 @@ class TestGetMLPrediction:
 
         assert result is None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_ml_prediction_no_intent_text(self, approval_service, mock_mongodb_client):
         """Testa quando approval não tem intent_text."""
         mock_approval = Mock()
@@ -211,7 +211,7 @@ class TestGetMLPrediction:
 
         assert result is None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_ml_prediction_disabled(
         self, mock_settings, mock_mongodb_client, mock_response_producer, mock_metrics
     ):
@@ -235,7 +235,7 @@ class TestGetMLPrediction:
 class TestGetAutoDecision:
     """Testes para get_auto_decision."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_auto_decision_success(
         self, approval_service, mock_mongodb_client, mock_ml_predictor
     ):
@@ -251,7 +251,7 @@ class TestGetAutoDecision:
         assert result["auto_decision"] == "approve"
         assert result["confidence"] == 0.75
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_auto_decision_not_found(self, approval_service, mock_mongodb_client):
         """Testa quando approval não é encontrado."""
         mock_mongodb_client.get_approval_by_plan_id.return_value = None
@@ -264,7 +264,7 @@ class TestGetAutoDecision:
 class TestSubmitFeedbackForPlan:
     """Testes para _submit_feedback_for_plan."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_submit_feedback_success(
         self, approval_service, mock_mongodb_client, mock_ledger_client, mock_feedback_collector
     ):
@@ -283,7 +283,7 @@ class TestSubmitFeedbackForPlan:
 
         mock_feedback_collector.submit_feedback.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_submit_feedback_disabled(
         self, mock_settings, mock_mongodb_client, mock_response_producer, mock_metrics
     ):
@@ -302,7 +302,7 @@ class TestSubmitFeedbackForPlan:
             plan_id="plan-123", human_decision="approve", human_rating=0.8, user_id="user-123"
         )
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_submit_feedback_no_opinions(
         self, approval_service, mock_mongodb_client, mock_ledger_client
     ):
@@ -317,7 +317,7 @@ class TestSubmitFeedbackForPlan:
             plan_id="plan-123", human_decision="approve", human_rating=0.8, user_id="user-123"
         )
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_submit_feedback_from_active_learning(
         self, approval_service, mock_mongodb_client, mock_ledger_client, mock_feedback_collector
     ):
@@ -343,7 +343,7 @@ class TestSubmitFeedbackForPlan:
 class TestExtractDomainFromText:
     """Testes para _extract_domain_from_text."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_extract_domain_success(self, approval_service):
         """Testa extração de domínio com sucesso."""
         with patch.object(approval_service, "_nlp_extractor") as mock_extractor:
@@ -355,14 +355,14 @@ class TestExtractDomainFromText:
 
             assert result == "security"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_extract_domain_no_text(self, approval_service):
         """Testa quando não há texto de intenção."""
         result = approval_service._extract_domain_from_text(None)
 
         assert result is None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_extract_domain_no_extractor(
         self, mock_settings, mock_mongodb_client, mock_response_producer, mock_metrics
     ):
@@ -379,7 +379,7 @@ class TestExtractDomainFromText:
 
         assert result is None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_extract_domain_extractor_error(self, approval_service):
         """Testa erro na extração de domínio."""
         with patch.object(approval_service, "_nlp_extractor") as mock_extractor:
@@ -417,7 +417,7 @@ class TestGetPriorityReason:
 class TestMaybeEnqueueForActiveLearning:
     """Testes para _maybe_enqueue_for_active_learning."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_enqueue_disabled(self, approval_service, sample_approval_request):
         """Testa quando active learning está desabilitado."""
         approval_service.active_learning_enabled = False
@@ -426,7 +426,7 @@ class TestMaybeEnqueueForActiveLearning:
 
         # Não deve levantar erro
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_enqueue_high_information_value(self, approval_service, sample_approval_request):
         """Testa enfileiramento quando valor informacional é alto."""
         approval_service.active_learning_enabled = True
@@ -438,7 +438,7 @@ class TestMaybeEnqueueForActiveLearning:
 
         approval_service.priority_queue.enqueue_plan_for_review.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_enqueue_below_threshold(self, approval_service, sample_approval_request):
         """Testa quando valor informacional está abaixo do threshold."""
         approval_service.active_learning_enabled = True
@@ -453,7 +453,7 @@ class TestMaybeEnqueueForActiveLearning:
 class TestGetApprovalStats:
     """Testes para get_approval_stats."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_approval_stats_success(self, approval_service, mock_mongodb_client):
         """Testa obtenção de estatísticas com sucesso."""
         result = await approval_service.get_approval_stats()
@@ -467,7 +467,7 @@ class TestGetApprovalStats:
 class TestProcessApprovalDecision:
     """Testes para process_approval_decision."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_process_approval_decision_approve(
         self,
         approval_service,
@@ -497,7 +497,7 @@ class TestProcessApprovalDecision:
         mock_response_producer.publish_approval_response.assert_called_once()
         mock_feedback_collector.submit_feedback.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_process_approval_decision_reject(
         self,
         approval_service,

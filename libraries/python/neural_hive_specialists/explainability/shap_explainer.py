@@ -5,12 +5,13 @@ Integra com FeatureExtractor para usar features estruturadas e gera
 valores SHAP com background dataset representativo.
 """
 
+import time
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
+from typing import Any, Optional
+
 import numpy as np
 import pandas as pd
-from typing import Dict, List, Any, Optional
 import structlog
-from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
-import time
 
 logger = structlog.get_logger(__name__)
 
@@ -18,7 +19,7 @@ logger = structlog.get_logger(__name__)
 class SHAPExplainer:
     """Explainer SHAP para modelos de especialistas."""
 
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, config: dict[str, Any]):
         """
         Inicializa explainer SHAP.
 
@@ -27,7 +28,7 @@ class SHAPExplainer:
         """
         self.config = config
         self.background_data: Optional[pd.DataFrame] = None
-        self.feature_names: List[str] = []
+        self.feature_names: list[str] = []
         self.timeout_seconds = config.get("shap_timeout_seconds", 5.0)
 
         self._load_background_dataset()
@@ -62,8 +63,8 @@ class SHAPExplainer:
             logger.warning("No background dataset configured for SHAP")
 
     def explain(
-        self, model: Any, features: Dict[str, Any], feature_names: List[str]
-    ) -> Dict[str, Any]:
+        self, model: Any, features: dict[str, Any], feature_names: list[str]
+    ) -> dict[str, Any]:
         """
         Gera explicação SHAP para predição do modelo.
 
@@ -168,8 +169,8 @@ class SHAPExplainer:
             }
 
     def _compute_shap(
-        self, model: Any, features: Dict[str, Any], feature_names: List[str]
-    ) -> Dict[str, Any]:
+        self, model: Any, features: dict[str, Any], feature_names: list[str]
+    ) -> dict[str, Any]:
         """
         Computa valores SHAP (método auxiliar para timeout).
 
@@ -279,11 +280,11 @@ class SHAPExplainer:
 
     def get_top_features(
         self,
-        shap_result: Dict[str, Any],
+        shap_result: dict[str, Any],
         top_n: int = 5,
         positive_only: bool = False,
         negative_only: bool = False,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Retorna top N features mais importantes.
 

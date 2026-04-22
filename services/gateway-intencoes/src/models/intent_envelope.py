@@ -3,14 +3,14 @@ Modelos Pydantic para Intent Envelope baseados no schema JSON-LD
 """
 
 import uuid
-from datetime import datetime, timezone
-
+from datetime import datetime
 from enum import Enum
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from neural_hive_domain import UnifiedDomain
+
 
 # Python 3.10 compatibility: StrEnum was added in 3.11
 class StrEnum(str, Enum):

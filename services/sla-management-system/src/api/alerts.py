@@ -2,7 +2,8 @@
 API de alertas proativos para SLA Management System.
 """
 
-from typing import List, Optional
+from datetime import UTC
+from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Query, status
 from pydantic import BaseModel
@@ -74,7 +75,7 @@ class CreateAlertRuleRequest(BaseModel):
     service_name: Optional[str] = None
     slo_id: Optional[str] = None
     severity: AlertSeverity
-    channels: List[AlertChannel]
+    channels: list[AlertChannel]
     channel_config: dict = {}
     cooldown_minutes: int = 30
 
@@ -91,7 +92,7 @@ class UpdateAlertRuleRequest(BaseModel):
     service_name: Optional[str] = None
     slo_id: Optional[str] = None
     severity: Optional[AlertSeverity] = None
-    channels: Optional[List[AlertChannel]] = None
+    channels: Optional[list[AlertChannel]] = None
     channel_config: Optional[dict] = None
     cooldown_minutes: Optional[int] = None
 
@@ -122,7 +123,7 @@ async def create_alert_rule(request: CreateAlertRuleRequest):
     Quando a condição for atendida, alertas serão disparados
     para os canais configurados.
     """
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     condition = AlertCondition(
         condition_type=request.condition_type,
@@ -142,7 +143,7 @@ async def create_alert_rule(request: CreateAlertRuleRequest):
         channels=request.channels,
         channel_config=request.channel_config,
         cooldown_minutes=request.cooldown_minutes,
-        created_at=datetime.now(timezone.utc),
+        created_at=datetime.now(UTC),
     )
 
     engine = get_alert_engine()
@@ -150,7 +151,7 @@ async def create_alert_rule(request: CreateAlertRuleRequest):
     return created
 
 
-@router.get("/rules", response_model=List[AlertRule])
+@router.get("/rules", response_model=list[AlertRule])
 async def list_alert_rules():
     """Lista todas as regras de alerta."""
     engine = get_alert_engine()
@@ -219,7 +220,7 @@ async def delete_alert_rule(rule_id: str):
 # -------------------------------------------------------------------------
 
 
-@router.get("", response_model=List[Alert])
+@router.get("", response_model=list[Alert])
 async def list_alerts(
     limit: int = Query(default=100, ge=1, le=1000),
     offset: int = Query(default=0, ge=0),

@@ -5,25 +5,22 @@ Testa o fluxo completo desde o consumo de mensagens Kafka até
 o envio de notificações para Slack e PagerDuty.
 """
 
-import asyncio
 import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from aiokafka import AIOKafkaProducer
-
-from src.clients.slack_client import SlackClient
 from src.clients.pagerduty_client import PagerDutyClient
+from src.clients.slack_client import SlackClient
 from src.consumers.sla_alert_consumer import SLAAlertConsumer
 
 
-@pytest.fixture
+@pytest.fixture()
 def kafka_bootstrap_servers():
     """Servidores Kafka para testes."""
     return ["localhost:9092"]
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_slack_client():
     """Mock SlackClient."""
     client = AsyncMock(spec=SlackClient)
@@ -33,7 +30,7 @@ def mock_slack_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_pagerduty_client():
     """Mock PagerDutyClient."""
     client = AsyncMock(spec=PagerDutyClient)
@@ -43,7 +40,7 @@ def mock_pagerduty_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def sla_alert_consumer(kafka_bootstrap_servers, mock_slack_client, mock_pagerduty_client):
     """Consumer SLA Alert para testes."""
     return SLAAlertConsumer(
@@ -59,7 +56,7 @@ def sla_alert_consumer(kafka_bootstrap_servers, mock_slack_client, mock_pagerdut
 class TestSLAAlertsIntegrationE2E:
     """Testes E2E para integração de alertas SLA."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     @patch("src.consumers.sla_alert_consumer.AIOKafkaConsumer")
     async def test_critical_alert_flow_to_pagerduty_and_slack(
         self, mock_kafka_consumer, sla_alert_consumer
@@ -135,11 +132,9 @@ class TestSLAAlertsIntegrationE2E:
         # Cleanup
         await sla_alert_consumer.stop()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     @patch("src.consumers.sla_alert_consumer.AIOKafkaConsumer")
-    async def test_warning_alert_flow_to_slack_only(
-        self, mock_kafka_consumer, sla_alert_consumer
-    ):
+    async def test_warning_alert_flow_to_slack_only(self, mock_kafka_consumer, sla_alert_consumer):
         """
         Testa E2E: alerta warning → Slack apenas.
 
@@ -190,11 +185,9 @@ class TestSLAAlertsIntegrationE2E:
         # Cleanup
         await sla_alert_consumer.stop()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     @patch("src.consumers.sla_alert_consumer.AIOKafkaConsumer")
-    async def test_emergency_alert_flow(
-        self, mock_kafka_consumer, sla_alert_consumer
-    ):
+    async def test_emergency_alert_flow(self, mock_kafka_consumer, sla_alert_consumer):
         """
         Testa E2E: alerta emergency → PagerDuty + Slack.
 
@@ -236,7 +229,7 @@ class TestSLAAlertsIntegrationE2E:
         # Cleanup
         await sla_alert_consumer.stop()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_retry_on_slack_send_failure(self, sla_alert_consumer):
         """
         Testa retry em falha de envio Slack.
@@ -251,6 +244,7 @@ class TestSLAAlertsIntegrationE2E:
             call_count += 1
             if call_count == 1:
                 from httpx import HTTPStatusError
+
                 raise HTTPStatusError(
                     "503 Service Unavailable",
                     request=MagicMock(),
@@ -281,11 +275,9 @@ class TestSLAAlertsIntegrationE2E:
         # Assert - Slack foi chamado pelo menos 2 vezes (original + retry)
         assert sla_alert_consumer.slack_client.send_sla_alert.call_count >= 1
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     @patch("src.consumers.sla_alert_consumer.AIOKafkaConsumer")
-    async def test_slack_blocks_formatting_critical(
-        self, mock_kafka_consumer, sla_alert_consumer
-    ):
+    async def test_slack_blocks_formatting_critical(self, mock_kafka_consumer, sla_alert_consumer):
         """
         Testa formatação de blocks Slack para alerta crítico.
 
@@ -343,11 +335,9 @@ class TestSLAAlertsIntegrationE2E:
         # Cleanup
         await sla_alert_consumer.stop()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     @patch("src.consumers.sla_alert_consumer.AIOKafkaConsumer")
-    async def test_multiple_alerts_batch_processing(
-        self, mock_kafka_consumer, sla_alert_consumer
-    ):
+    async def test_multiple_alerts_batch_processing(self, mock_kafka_consumer, sla_alert_consumer):
         """
         Testa processamento em lote de múltiplos alertas.
 
@@ -403,7 +393,7 @@ class TestSLAAlertsIntegrationE2E:
 class TestKafkaIntegration:
     """Testes específicos de integração Kafka."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     @patch("src.consumers.sla_alert_consumer.AIOKafkaConsumer")
     async def test_consumer_lifecycle(self, mock_kafka_consumer, sla_alert_consumer):
         """
@@ -428,7 +418,7 @@ class TestKafkaIntegration:
         # Assert - Stopped
         assert sla_alert_consumer.is_running is False
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     @patch("src.consumers.sla_alert_consumer.AIOKafkaConsumer")
     async def test_health_check(self, mock_kafka_consumer, sla_alert_consumer):
         """Testa health check do consumer."""
@@ -453,7 +443,7 @@ class TestKafkaIntegration:
 class TestErrorHandling:
     """Testes de handling de erros."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_malformed_json_message(self, sla_alert_consumer):
         """Testa handling de mensagem JSON malformado."""
         mock_message = MagicMock()
@@ -467,7 +457,7 @@ class TestErrorHandling:
         sla_alert_consumer.slack_client.send_sla_alert.assert_not_called()
         sla_alert_consumer.pagerduty_client.send_sla_alert.assert_not_called()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_missing_required_fields(self, sla_alert_consumer):
         """Testa handling de mensagem com campos obrigatórios em falta."""
         # Falta severity
@@ -488,7 +478,7 @@ class TestErrorHandling:
         sla_alert_consumer.slack_client.send_sla_alert.assert_not_called()
         sla_alert_consumer.pagerduty_client.send_sla_alert.assert_not_called()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_both_slack_and_pagerduty_failure(self, sla_alert_consumer):
         """
         Testa comportamento quando ambos os canais falham.
@@ -497,9 +487,7 @@ class TestErrorHandling:
         """
         # Setup - Ambos falham
         sla_alert_consumer.slack_client.send_sla_alert.side_effect = Exception("Slack down")
-        sla_alert_consumer.pagerduty_client.send_sla_alert.side_effect = Exception(
-            "PagerDuty down"
-        )
+        sla_alert_consumer.pagerduty_client.send_sla_alert.side_effect = Exception("PagerDuty down")
 
         critical_alert = {
             "alert_id": "sla-fail-001",
@@ -516,7 +504,7 @@ class TestErrorHandling:
         sla_alert_consumer.slack_client.send_sla_alert.assert_called_once()
         sla_alert_consumer.pagerduty_client.send_sla_alert.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_empty_message_value(self, sla_alert_consumer):
         """Testa handling de mensagem com valor vazio."""
         mock_message = MagicMock()

@@ -2,11 +2,12 @@
 Testes para modelos Pydantic: RiskFactor, RiskAssessment, RiskMatrix
 """
 
-import pytest
 from datetime import datetime
+
+import pytest
 from pydantic import ValidationError
 
-from neural_hive_risk_scoring import RiskFactor, RiskAssessment, RiskMatrix, RiskBand, UnifiedDomain
+from neural_hive_risk_scoring import RiskAssessment, RiskBand, RiskFactor, RiskMatrix, UnifiedDomain
 
 
 class TestRiskFactor:

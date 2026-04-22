@@ -6,8 +6,8 @@ import hashlib
 import hmac
 import json
 import os
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from datetime import UTC, datetime
+from typing import Any, Optional
 
 import structlog
 from fastapi import APIRouter, Header, HTTPException, Request
@@ -55,7 +55,7 @@ class SBOM(BaseModel):
 
     format: str  # cyclonedx, spdx
     version: str
-    components: List[Dict[str, Any]]
+    components: list[dict[str, Any]]
 
 
 class PipelineCompletedPayload(BaseModel):
@@ -66,11 +66,11 @@ class PipelineCompletedPayload(BaseModel):
     ticket_id: Optional[str] = None
     status: str  # completed, failed, cancelled
     duration_ms: int
-    artifacts: List[PipelineArtifact] = []
+    artifacts: list[PipelineArtifact] = []
     sbom: Optional[SBOM] = None
     signature: Optional[str] = None
     logs_url: Optional[str] = None
-    metadata: Dict[str, Any] = {}
+    metadata: dict[str, Any] = {}
 
 
 class WebhookHandler:
@@ -164,7 +164,7 @@ class WebhookHandler:
         payload: PipelineCompletedPayload,
         payload_bytes: bytes,
         signature: Optional[str] = None,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Processar webhook de pipeline completo.
 
@@ -283,8 +283,8 @@ class WebhookHandler:
                     ),
                     git_mr_url=payload.metadata.get("git_mr_url"),
                     metadata={k: str(v) for k, v in payload.metadata.items()},
-                    created_at=datetime.now(timezone.utc),
-                    completed_at=datetime.now(timezone.utc),
+                    created_at=datetime.now(UTC),
+                    completed_at=datetime.now(UTC),
                 )
 
                 await self.postgres_client.save_pipeline(pipeline_result)

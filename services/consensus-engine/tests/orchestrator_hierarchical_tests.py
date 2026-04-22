@@ -4,13 +4,14 @@ Testes de integração do ConsensusOrchestrator com consenso hierárquico.
 TDD: Testes escritos antes da implementação (RED phase).
 """
 
-import pytest
 import sys
-from pathlib import Path
-from unittest.mock import Mock, MagicMock
 
 # Mock neural_hive_domain before imports
 from enum import Enum
+from pathlib import Path
+from unittest.mock import MagicMock, Mock
+
+import pytest
 
 
 class UnifiedDomain(str, Enum):
@@ -91,7 +92,7 @@ class TestConsensusOrchestratorInitialization:
 class TestCalculateDynamicWeightsWithHierarchical:
     """Testes de _calculate_dynamic_weights com pesos hierárquicos."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_uses_hierarchical_weights_when_enabled(self):
         """Quando habilitado, deve usar HierarchicalWeightCalculator."""
         from services.consensus_orchestrator import ConsensusOrchestrator
@@ -142,7 +143,7 @@ class TestCalculateDynamicWeightsWithHierarchical:
         # business (senior, 1.5x) > technical (junior, 0.75x)
         assert weights["business"] > weights["technical"]
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_uses_only_pheromones_when_hierarchical_disabled(self):
         """Quando hierarquia desabilitada, usa apenas feromônios."""
         from services.consensus_orchestrator import ConsensusOrchestrator
@@ -261,7 +262,7 @@ class TestBuildSpecialistVotesWithSeniority:
 class TestProcessConsensusSeniorityDistribution:
     """Testes de distribuição de senioridade no process_consensus."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_populates_seniority_distribution_in_metrics(self):
         """Métricas devem incluir distribuição de senioridade."""
         from services.consensus_orchestrator import ConsensusOrchestrator

@@ -5,7 +5,7 @@ Responsável por monitorar eventos de SLO violations e budget changes,
 acionando workflows de remediação e avaliação de políticas.
 """
 
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 import structlog
 
@@ -62,7 +62,7 @@ class SLAEventHandler:
 
         return None
 
-    async def on_slo_violation(self, violation: Dict[str, Any]) -> Optional[str]:
+    async def on_slo_violation(self, violation: dict[str, Any]) -> Optional[str]:
         """
         Handler para evento de violação de SLO.
 
@@ -168,7 +168,7 @@ class SLAEventHandler:
             self.logger.error("policy_evaluation_failed", slo_id=slo_id, error=str(e))
             return None
 
-    async def _trigger_remediation_workflow(self, violation: Dict[str, Any]) -> Optional[str]:
+    async def _trigger_remediation_workflow(self, violation: dict[str, Any]) -> Optional[str]:
         """
         Dispara workflow de remediação.
 
@@ -209,7 +209,7 @@ class SLAEventHandler:
             self.logger.error("remediation_trigger_failed", violation=violation, error=str(e))
             return None
 
-    async def create_default_schedules(self) -> Dict[str, str]:
+    async def create_default_schedules(self) -> dict[str, str]:
         """
         Cria schedules padrão do sistema.
 

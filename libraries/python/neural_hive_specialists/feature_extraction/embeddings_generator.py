@@ -8,7 +8,7 @@ representações vetoriais densas, substituindo análise de keywords.
 import hashlib
 import time
 from collections import OrderedDict
-from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Optional
 
 import numpy as np
 import structlog
@@ -50,8 +50,8 @@ class EmbeddingsGenerator:
         self.metrics = metrics
         self.cache_ttl_seconds = cache_ttl_seconds
         self.cache_enabled = cache_enabled
-        self._embedding_cache: "OrderedDict[str, Tuple[np.ndarray, float]]" = OrderedDict()
-        self._cache_stats: Dict[str, int] = {"hits": 0, "misses": 0}
+        self._embedding_cache: "OrderedDict[str, tuple[np.ndarray, float]]" = OrderedDict()
+        self._cache_stats: dict[str, int] = {"hits": 0, "misses": 0}
         self._load_model()
         logger.info(
             "Embeddings cache initialized",
@@ -154,7 +154,7 @@ class EmbeddingsGenerator:
                 hit_ratio=hit_ratio,
             )
 
-    def _get_embeddings_for_descriptions(self, descriptions: List[str]) -> List[np.ndarray]:
+    def _get_embeddings_for_descriptions(self, descriptions: list[str]) -> list[np.ndarray]:
         """
         Retorna embeddings preservando ordem, utilizando cache e batch único para misses.
         """
@@ -165,10 +165,10 @@ class EmbeddingsGenerator:
             )
             return [np.zeros(self.embedding_dim) for _ in descriptions]
 
-        embeddings_result: List[Optional[np.ndarray]] = [None] * len(descriptions)
-        descriptions_to_encode: List[str] = []
-        hashes_to_encode: List[str] = []
-        indices_to_encode: List[int] = []
+        embeddings_result: list[Optional[np.ndarray]] = [None] * len(descriptions)
+        descriptions_to_encode: list[str] = []
+        hashes_to_encode: list[str] = []
+        indices_to_encode: list[int] = []
 
         for idx, desc in enumerate(descriptions):
             desc_hash = self._hash_description(desc)
@@ -232,7 +232,7 @@ class EmbeddingsGenerator:
         self._log_cache_stats_if_needed()
         return embeddings_result
 
-    def get_embeddings(self, descriptions: List[str]) -> List[np.ndarray]:
+    def get_embeddings(self, descriptions: list[str]) -> list[np.ndarray]:
         """
         Interface pública para obtenção de embeddings em batch preservando ordem.
 
@@ -240,7 +240,7 @@ class EmbeddingsGenerator:
         """
         return self._get_embeddings_for_descriptions(descriptions)
 
-    def generate_task_embeddings(self, tasks: List[Dict[str, Any]]) -> np.ndarray:
+    def generate_task_embeddings(self, tasks: list[dict[str, Any]]) -> np.ndarray:
         """
         Gera embeddings para descrições de tarefas.
 
@@ -260,7 +260,7 @@ class EmbeddingsGenerator:
         logger.debug("Task embeddings generated", shape=stacked.shape)
         return stacked
 
-    def generate_plan_embedding(self, tasks: List[Dict[str, Any]]) -> np.ndarray:
+    def generate_plan_embedding(self, tasks: list[dict[str, Any]]) -> np.ndarray:
         """
         Gera embedding agregado do plano inteiro.
 
@@ -306,12 +306,12 @@ class EmbeddingsGenerator:
             logger.error("Failed to calculate similarity", error=str(e))
             return 0.0
 
-    def generate_embeddings_batch(self, plans: List[Dict[str, Any]]) -> List[np.ndarray]:
+    def generate_embeddings_batch(self, plans: list[dict[str, Any]]) -> list[np.ndarray]:
         """
         Gera embeddings em lote para múltiplos planos em uma única chamada ao modelo.
         """
-        flattened_descriptions: List[str] = []
-        plan_task_counts: List[int] = []
+        flattened_descriptions: list[str] = []
+        plan_task_counts: list[int] = []
 
         for plan in plans:
             tasks = plan.get("tasks", [])
@@ -320,7 +320,7 @@ class EmbeddingsGenerator:
 
         embeddings = self._get_embeddings_for_descriptions(flattened_descriptions)
 
-        results: List[np.ndarray] = []
+        results: list[np.ndarray] = []
         cursor = 0
         for task_count in plan_task_counts:
             slice_embeddings = embeddings[cursor : cursor + task_count]
@@ -334,7 +334,7 @@ class EmbeddingsGenerator:
         )
         return results
 
-    def extract_statistical_features(self, embeddings: np.ndarray) -> Dict[str, float]:
+    def extract_statistical_features(self, embeddings: np.ndarray) -> dict[str, float]:
         """
         Extrai features estatísticas de embeddings.
 
@@ -373,7 +373,7 @@ class EmbeddingsGenerator:
 
         return features
 
-    def get_cache_stats(self) -> Dict[str, Any]:
+    def get_cache_stats(self) -> dict[str, Any]:
         """Retorna estatísticas de cache."""
         hits = self._cache_stats["hits"]
         misses = self._cache_stats["misses"]

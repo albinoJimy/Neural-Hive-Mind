@@ -3,20 +3,20 @@ Testes unitarios para ContainerBuilder.
 """
 
 import asyncio
-import pytest
 from unittest.mock import AsyncMock, patch
 
+import pytest
 from src.services.container_builder import (
-    ContainerBuilder,
     BuilderType,
     BuildResult,
+    ContainerBuilder,
 )
 
 
 class TestContainerBuilder:
     """Testes para ContainerBuilder."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_docker_build_success(self):
         """Testa build Docker com sucesso."""
         builder = ContainerBuilder(builder_type=BuilderType.DOCKER)
@@ -42,7 +42,7 @@ class TestContainerBuilder:
                     assert result.image_tag == "test:latest"
                     assert result.size_bytes == 123456789
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_docker_build_failure(self):
         """Testa build Docker com falha."""
         builder = ContainerBuilder()
@@ -63,7 +63,7 @@ class TestContainerBuilder:
             assert result.success is False
             assert "error" in result.error_message.lower()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_docker_build_with_build_args(self):
         """Testa build Docker com build args."""
         builder = ContainerBuilder()
@@ -91,7 +91,7 @@ class TestContainerBuilder:
                     assert "VERSION=1.0" in call_args_str
                     assert "ENV=prod" in call_args_str
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_docker_build_with_target_stage(self):
         """Testa build Docker com target stage."""
         builder = ContainerBuilder()
@@ -116,7 +116,7 @@ class TestContainerBuilder:
                     assert "--target" in call_args_str
                     assert "builder" in call_args_str
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_docker_build_multi_platform(self):
         """Testa build Docker multi-plataforma."""
         builder = ContainerBuilder()
@@ -141,7 +141,7 @@ class TestContainerBuilder:
                     assert "--platform" in call_args_str
                     assert "linux/amd64,linux/arm64" in call_args_str
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_docker_build_timeout(self):
         """Testa timeout de build Docker."""
         builder = ContainerBuilder(timeout_seconds=1)
@@ -162,7 +162,7 @@ class TestContainerBuilder:
             assert result.success is False
             assert "timeout" in result.error_message.lower()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_kaniko_not_implemented(self):
         """Testa que Kaniko retorna erro de nao implementado."""
         builder = ContainerBuilder(builder_type=BuilderType.KANIKO)
@@ -176,7 +176,7 @@ class TestContainerBuilder:
         assert result.success is False
         assert "Kaniko" in result.error_message
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_push_to_registry_success(self):
         """Testa push para registry com sucesso."""
         builder = ContainerBuilder()
@@ -213,7 +213,7 @@ class TestContainerBuilder:
             # O digest deve ser encontrado no output do push
             assert "sha256:abc123" in digest or "sha256:ab" in digest
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_push_to_registry_with_auth(self):
         """Testa push com autenticacao."""
         builder = ContainerBuilder()
@@ -253,7 +253,7 @@ class TestContainerBuilder:
             # Verifica que o processo foi executado
             assert digest is not None or call_count["count"] > 0
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_push_login_failure(self):
         """Testa push com falha de login."""
         builder = ContainerBuilder()
@@ -296,7 +296,7 @@ class TestContainerBuilder:
         assert result.error_message is None
         assert result.build_logs == []
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_image_digest_success(self):
         """Testa obter digest de imagem com sucesso."""
         builder = ContainerBuilder()
@@ -314,7 +314,7 @@ class TestContainerBuilder:
             # O metodo retorna apenas o hash (depois do @)
             assert digest == "sha256:abc123def456"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_image_digest_failure(self):
         """Testa obter digest quando comando falha."""
         builder = ContainerBuilder()
@@ -329,7 +329,7 @@ class TestContainerBuilder:
             digest = await builder._get_image_digest("test:latest")
             assert digest is None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_image_size_success(self):
         """Testa obter tamanho de imagem com sucesso."""
         builder = ContainerBuilder()
@@ -344,7 +344,7 @@ class TestContainerBuilder:
             size = await builder._get_image_size("test:latest")
             assert size == 123456789
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_image_size_success(self):
         """Testa obter tamanho com sucesso via docker inspect."""
         builder = ContainerBuilder()
@@ -360,7 +360,7 @@ class TestContainerBuilder:
             size = await builder._get_image_size("test:latest")
             assert size == 123456789
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_image_size_failure(self):
         """Testa obter tamanho quando comandos falham."""
         builder = ContainerBuilder()

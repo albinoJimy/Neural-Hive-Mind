@@ -1,19 +1,19 @@
 """Testes de integracao para o Kubernetes Client."""
 
-import pytest
 from unittest.mock import MagicMock, patch
+
+import pytest
 from kubernetes.client.rest import ApiException
+from src.clients.kubernetes_client import CRD_GROUP, CRD_PLURAL, CRD_VERSION, KubernetesClient
 
-from src.clients.kubernetes_client import KubernetesClient, CRD_GROUP, CRD_VERSION, CRD_PLURAL
 
-
-@pytest.fixture
+@pytest.fixture()
 def mock_custom_objects_api():
     """Fixture com mock do CustomObjectsApi."""
     return MagicMock()
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_crd():
     """Fixture com CRD de exemplo."""
     return {
@@ -43,12 +43,12 @@ def sample_crd():
     }
 
 
-@pytest.mark.integration
-@pytest.mark.k8s
+@pytest.mark.integration()
+@pytest.mark.k8s()
 class TestKubernetesClientListSloDefinitions:
     """Testes de integracao para listagem de SLODefinitions."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_list_slo_definitions_returns_crds(self, mock_custom_objects_api, sample_crd):
         """Verifica que list_slo_definitions retorna CRDs do cluster."""
         # Configurar mock
@@ -75,7 +75,7 @@ class TestKubernetesClientListSloDefinitions:
                     group=CRD_GROUP, version=CRD_VERSION, plural=CRD_PLURAL
                 )
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_list_slo_definitions_with_namespace(self, mock_custom_objects_api, sample_crd):
         """Verifica listagem filtrada por namespace."""
         mock_custom_objects_api.list_namespaced_custom_object.return_value = {"items": [sample_crd]}
@@ -95,7 +95,7 @@ class TestKubernetesClientListSloDefinitions:
                     group=CRD_GROUP, version=CRD_VERSION, namespace="neural-hive", plural=CRD_PLURAL
                 )
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_list_slo_definitions_handles_api_error(self, mock_custom_objects_api):
         """Verifica tratamento de erro da API."""
         mock_custom_objects_api.list_cluster_custom_object.side_effect = ApiException(
@@ -116,12 +116,12 @@ class TestKubernetesClientListSloDefinitions:
                 assert crds == []
 
 
-@pytest.mark.integration
-@pytest.mark.k8s
+@pytest.mark.integration()
+@pytest.mark.k8s()
 class TestKubernetesClientUpdateSloStatus:
     """Testes de integracao para atualizacao de status."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_update_slo_status_success(self, mock_custom_objects_api, sample_crd):
         """Verifica atualizacao de status do CRD."""
         # get_namespaced_custom_object retorna CRD atual
@@ -149,7 +149,7 @@ class TestKubernetesClientUpdateSloStatus:
                 assert result is True
                 mock_custom_objects_api.patch_namespaced_custom_object_status.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_update_slo_status_not_found(self, mock_custom_objects_api):
         """Verifica tratamento quando CRD nao existe."""
         mock_custom_objects_api.get_namespaced_custom_object.side_effect = ApiException(
@@ -171,12 +171,12 @@ class TestKubernetesClientUpdateSloStatus:
                 assert result is False
 
 
-@pytest.mark.integration
-@pytest.mark.k8s
+@pytest.mark.integration()
+@pytest.mark.k8s()
 class TestKubernetesClientConnection:
     """Testes de integracao para conexao."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_connect_out_of_cluster(self, mock_custom_objects_api):
         """Verifica conexao fora do cluster."""
         with patch("src.clients.kubernetes_client.config") as mock_config:
@@ -190,7 +190,7 @@ class TestKubernetesClientConnection:
                 mock_config.load_kube_config.assert_called_once()
                 assert k8s_client.is_healthy() is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_connect_in_cluster(self, mock_custom_objects_api):
         """Verifica conexao dentro do cluster."""
         with patch("src.clients.kubernetes_client.config") as mock_config:
@@ -204,7 +204,7 @@ class TestKubernetesClientConnection:
                 mock_config.load_incluster_config.assert_called_once()
                 assert k8s_client.is_healthy() is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_is_healthy_before_connect(self):
         """Verifica que is_healthy retorna False antes de conectar."""
         k8s_client = KubernetesClient(in_cluster=False)

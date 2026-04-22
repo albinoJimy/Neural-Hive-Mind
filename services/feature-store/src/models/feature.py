@@ -7,7 +7,7 @@ Define os modelos Pydantic para armazenamento e computação de features.
 import uuid
 from datetime import datetime
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Dict, List, Literal, Optional
+from typing import TYPE_CHECKING, Any, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -140,7 +140,7 @@ class FeatureComputationRequest(BaseModel):
     """Request para computar features de um plano"""
 
     plan_id: str = Field(..., description="ID do plano")
-    cognitive_plan: Dict[str, Any] = Field(..., description="Dados do plano cognitivo")
+    cognitive_plan: dict[str, Any] = Field(..., description="Dados do plano cognitivo")
     force_recompute: bool = Field(default=False, description="Forçar recomputação")
     skip_cache: bool = Field(default=False, description="Pular cache")
 
@@ -151,7 +151,7 @@ class FeatureResponse(BaseModel):
 
     success: bool
     message: str
-    data: Optional[Dict[str, Any]] = None
+    data: Optional[dict[str, Any]] = None
     error: Optional[str] = None
 
 
@@ -160,7 +160,7 @@ class FeatureListResponse(BaseModel):
 
     success: bool
     count: int
-    features: List[Dict[str, Any]]
+    features: list[dict[str, Any]]
     message: str
 
 
@@ -172,7 +172,7 @@ class HealthResponse(BaseModel):
     service: str
     version: str
     timestamp: datetime
-    dependencies: Dict[str, Literal["healthy", "unhealthy", "unknown"]]
+    dependencies: dict[str, Literal["healthy", "unhealthy", "unknown"]]
 
 
 # Métricas

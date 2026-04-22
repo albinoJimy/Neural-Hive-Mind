@@ -9,19 +9,18 @@ incluindo:
 - Sincronização de resultados
 """
 
-import pytest
 from unittest.mock import AsyncMock, Mock, patch
 from uuid import uuid4
 
+import pytest
+
+from src.clients.hypothesis_library_client import HypothesisLibraryClient
 from src.models.optimization_hypothesis import (
     OptimizationHypothesis,
     OptimizationType,
-    ProposedAdjustment,
 )
-from src.services.hypothesis_converter import HypothesisConverter
-from src.clients.hypothesis_library_client import HypothesisLibraryClient
 from src.services.experiment_manager import ExperimentManager
-
+from src.services.hypothesis_converter import HypothesisConverter
 
 # ============================================================================
 # Testes do HypothesisConverter
@@ -68,7 +67,10 @@ class TestHypothesisConverter:
         assert "auto-generated" in result["tags"]
 
         # Verificar metadata
-        assert result["metadata"]["optimizer_hypothesis_id"] == sample_optimization_hypothesis.hypothesis_id
+        assert (
+            result["metadata"]["optimizer_hypothesis_id"]
+            == sample_optimization_hypothesis.hypothesis_id
+        )
         assert result["metadata"]["optimizer_source"] == "optimizer-agents"
         assert result["metadata"]["optimization_type"] == "WEIGHT_RECALIBRATION"
 
@@ -196,7 +198,9 @@ class TestHypothesisConverter:
         assert metadata["optimization_type"] == "WEIGHT_RECALIBRATION"
         assert metadata["confidence_score"] == sample_optimization_hypothesis.confidence_score
         assert metadata["risk_score"] == sample_optimization_hypothesis.risk_score
-        assert metadata["expected_improvement"] == sample_optimization_hypothesis.expected_improvement
+        assert (
+            metadata["expected_improvement"] == sample_optimization_hypothesis.expected_improvement
+        )
 
     def test_validation_missing_hypothesis_text(self):
         """Testa validação com hypothesis_text vazio."""
@@ -305,8 +309,7 @@ class TestHypothesisLibraryClient:
             mock_post.return_value = mock_response
 
             result = await mock_client.start_testing(
-                hypothesis_id="hyp-001",
-                experiment_id="exp-001"
+                hypothesis_id="hyp-001", experiment_id="exp-001"
             )
 
             assert result is not None
@@ -336,10 +339,7 @@ class TestHypothesisLibraryClient:
             }
             mock_post.return_value = mock_response
 
-            result = await mock_client.complete_testing(
-                hypothesis_id="hyp-001",
-                results=results
-            )
+            result = await mock_client.complete_testing(hypothesis_id="hyp-001", results=results)
 
             assert result is not None
             assert result["hypothesis"]["status"] == "COMPLETED"
@@ -389,22 +389,30 @@ class TestExperimentManagerHypothesisIntegration:
     def mock_hypothesis_client(self):
         """Mock do HypothesisLibraryClient."""
         client = AsyncMock()
-        client.create_hypothesis = AsyncMock(return_value={
-            "hypothesis_id": "lib-hyp-001",
-            "title": "Test Hypothesis",
-            "status": "DRAFT",
-        })
-        client.start_testing = AsyncMock(return_value={
-            "hypothesis": {"hypothesis_id": "lib-hyp-001", "status": "IN_TESTING"},
-            "transition": {"from_status": "APPROVED", "to_status": "IN_TESTING"},
-        })
-        client.complete_testing = AsyncMock(return_value={
-            "hypothesis": {"hypothesis_id": "lib-hyp-001", "status": "COMPLETED"},
-            "transition": {"from_status": "IN_TESTING", "to_status": "COMPLETED"},
-        })
-        client.get_hypothesis = AsyncMock(return_value={
-            "hypothesis": {"hypothesis_id": "lib-hyp-001", "status": "IN_TESTING"},
-        })
+        client.create_hypothesis = AsyncMock(
+            return_value={
+                "hypothesis_id": "lib-hyp-001",
+                "title": "Test Hypothesis",
+                "status": "DRAFT",
+            }
+        )
+        client.start_testing = AsyncMock(
+            return_value={
+                "hypothesis": {"hypothesis_id": "lib-hyp-001", "status": "IN_TESTING"},
+                "transition": {"from_status": "APPROVED", "to_status": "IN_TESTING"},
+            }
+        )
+        client.complete_testing = AsyncMock(
+            return_value={
+                "hypothesis": {"hypothesis_id": "lib-hyp-001", "status": "COMPLETED"},
+                "transition": {"from_status": "IN_TESTING", "to_status": "COMPLETED"},
+            }
+        )
+        client.get_hypothesis = AsyncMock(
+            return_value={
+                "hypothesis": {"hypothesis_id": "lib-hyp-001", "status": "IN_TESTING"},
+            }
+        )
         client.health_check = AsyncMock(return_value=True)
         return client
 
@@ -427,9 +435,7 @@ class TestExperimentManagerHypothesisIntegration:
         # Verificar chamadas
         mock_hypothesis_client.create_hypothesis.assert_called_once()
         mock_hypothesis_client.start_testing.assert_called_once_with(
-            hypothesis_id="lib-hyp-001",
-            experiment_id="exp-001",
-            started_by="optimizer-agents"
+            hypothesis_id="lib-hyp-001", experiment_id="exp-001", started_by="optimizer-agents"
         )
 
     @pytest.mark.asyncio
@@ -471,9 +477,7 @@ class TestExperimentManagerHypothesisIntegration:
         }
 
         result = await manager.complete_experiment_with_hypothesis(
-            experiment_id="exp-001",
-            hypothesis_id="lib-hyp-001",
-            analysis=analysis
+            experiment_id="exp-001", hypothesis_id="lib-hyp-001", analysis=analysis
         )
 
         assert result is not None
@@ -501,9 +505,7 @@ class TestExperimentManagerHypothesisIntegration:
         }
 
         result = await manager.complete_experiment_with_hypothesis(
-            experiment_id="exp-001",
-            hypothesis_id="lib-hyp-001",
-            analysis=analysis
+            experiment_id="exp-001", hypothesis_id="lib-hyp-001", analysis=analysis
         )
 
         assert result is not None
@@ -525,9 +527,7 @@ class TestExperimentManagerHypothesisIntegration:
         }
 
         result = await manager.complete_experiment_with_hypothesis(
-            experiment_id="exp-001",
-            hypothesis_id="lib-hyp-001",
-            analysis=analysis
+            experiment_id="exp-001", hypothesis_id="lib-hyp-001", analysis=analysis
         )
 
         assert result is not None
@@ -545,9 +545,7 @@ class TestExperimentManagerHypothesisIntegration:
         analysis = {"recommendation": "APPLY", "success": True}
 
         result = await manager.complete_experiment_with_hypothesis(
-            experiment_id="exp-001",
-            hypothesis_id="lib-hyp-001",
-            analysis=analysis
+            experiment_id="exp-001", hypothesis_id="lib-hyp-001", analysis=analysis
         )
 
         assert result is not None

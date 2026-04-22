@@ -2,11 +2,13 @@
 Interceptor gRPC para autenticação JWT.
 """
 
+import time
+from collections.abc import Callable
+from typing import Any, Optional
+
 import grpc
 import jwt
 import structlog
-import time
-from typing import Callable, Any, Optional
 
 from .config import SpecialistConfig
 from .metrics import SpecialistMetrics
@@ -168,7 +170,7 @@ class AuthInterceptor(grpc.ServerInterceptor):
             return self._create_abort_handler(
                 continuation(handler_call_details),
                 grpc.StatusCode.UNAUTHENTICATED,
-                f"Invalid token: {str(e)}",
+                f"Invalid token: {e!s}",
             )
 
     def _create_abort_handler(self, handler: Any, code: grpc.StatusCode, details: str) -> Any:

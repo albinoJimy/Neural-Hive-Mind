@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_kafka():
     """Mock do módulo Kafka."""
     with (
@@ -126,7 +126,7 @@ class TestAutocuraEventProducer:
 class TestHealthCheckManagerIntegration:
     """Testes de integração com HealthCheckManager."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_notify_autocura_with_producer(self):
         """Testa notificação de autocura com produtor."""
         from src.clients.autocura_producer import AutocuraEventProducer
@@ -160,7 +160,7 @@ class TestHealthCheckManagerIntegration:
                 # Não deve lançar exceção
                 await manager._notify_autocura(agent)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_notify_autocura_without_producer(self):
         """Testa notificação de autocura sem produtor (fallback)."""
         from src.services.health_check_manager import HealthCheckManager

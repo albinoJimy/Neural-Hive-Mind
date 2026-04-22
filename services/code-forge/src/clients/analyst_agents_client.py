@@ -1,6 +1,6 @@
 """Cliente REST para integração com o serviço Analyst Agents"""
 
-from typing import Dict, List, Optional
+from typing import Optional
 
 import httpx
 import structlog
@@ -34,7 +34,7 @@ class AnalystAgentsClient:
             await self.client.aclose()
             self.logger.info("analyst_agents_client_stopped")
 
-    async def get_embedding(self, text: str) -> Optional[List[float]]:
+    async def get_embedding(self, text: str) -> Optional[list[float]]:
         """
         Gerar embedding de texto
 
@@ -63,7 +63,7 @@ class AnalystAgentsClient:
             self.logger.error("embedding_failed", error=str(e), text_length=len(text))
             return None
 
-    async def find_similar_templates(self, embedding: List[float], top_k: int = 5) -> List[Dict]:
+    async def find_similar_templates(self, embedding: list[float], top_k: int = 5) -> list[dict]:
         """
         Buscar templates similares via busca semântica usando embedding
 
@@ -104,7 +104,7 @@ class AnalystAgentsClient:
             )
             return []
 
-    async def get_architectural_patterns(self, domain: str) -> List[str]:
+    async def get_architectural_patterns(self, domain: str) -> list[str]:
         """
         Buscar padrões arquiteturais para um domínio
 
@@ -141,7 +141,7 @@ class AnalystAgentsClient:
             )
             return self._get_fallback_patterns(domain)
 
-    def _get_fallback_patterns(self, domain: str) -> List[str]:
+    def _get_fallback_patterns(self, domain: str) -> list[str]:
         """
         Padrões arquiteturais fallback baseados no domínio
 

@@ -4,7 +4,6 @@ Modelos Pydantic e funções para geração/validação de tokens JWT.
 
 import time
 import uuid
-from typing import List
 
 import jwt as pyjwt
 from pydantic import BaseModel, Field
@@ -42,8 +41,8 @@ class JWTTokenPayload(BaseModel):
     intent_id: str = Field(..., description="ID da intenção")
     task_type: str = Field(..., description="Tipo de tarefa")
     security_level: str = Field(..., description="Nível de segurança")
-    required_capabilities: List[str] = Field(..., description="Capacidades necessárias")
-    scopes: List[str] = Field(..., description="Escopos de autorização")
+    required_capabilities: list[str] = Field(..., description="Capacidades necessárias")
+    scopes: list[str] = Field(..., description="Escopos de autorização")
 
 
 class JWTToken(BaseModel):
@@ -54,7 +53,7 @@ class JWTToken(BaseModel):
     expires_in: int = Field(..., description="Segundos até expiração")
     expires_at: int = Field(..., description="Timestamp de expiração")
     ticket_id: str = Field(..., description="ID do ticket")
-    scopes: List[str] = Field(..., description="Escopos do token")
+    scopes: list[str] = Field(..., description="Escopos do token")
 
 
 def generate_token(

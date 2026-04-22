@@ -1,18 +1,17 @@
 """Testes de integração para funcionalidades de histórico de budget."""
 
-import pytest
-from datetime import datetime, timezone, timedelta
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock
 
-from fastapi.testclient import TestClient
+import pytest
 from fastapi import FastAPI
+from fastapi.testclient import TestClient
+from src.api.budgets import get_postgresql_client, router
+from src.models.error_budget import BudgetStatus, BurnRate, BurnRateLevel, ErrorBudget
+from src.models.slo_definition import SLIQuery, SLODefinition, SLOType
 
-from src.api.budgets import router, get_postgresql_client
-from src.models.error_budget import ErrorBudget, BudgetStatus, BurnRate, BurnRateLevel
-from src.models.slo_definition import SLODefinition, SLOType, SLIQuery
 
-
-@pytest.fixture
+@pytest.fixture()
 def mock_slo():
     """Fixture com SLO válido."""
     return SLODefinition(
@@ -34,11 +33,11 @@ def mock_slo():
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_budget_history_data():
     """Fixture com dados de histórico de budgets simulando cenário real."""
     budgets = []
-    base_time = datetime.now(timezone.utc)
+    base_time = datetime.now(UTC)
 
     # Simular 50 budgets ao longo de 7 dias
     for i in range(50):
@@ -68,7 +67,7 @@ def mock_budget_history_data():
     return budgets
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_pg_client(mock_slo, mock_budget_history_data):
     """Fixture com mock completo do PostgreSQL client."""
     client = MagicMock()
@@ -88,7 +87,7 @@ def mock_pg_client(mock_slo, mock_budget_history_data):
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def test_app(mock_pg_client):
     """Fixture com aplicação FastAPI de teste."""
     app = FastAPI()
@@ -97,7 +96,7 @@ def test_app(mock_pg_client):
     return app
 
 
-@pytest.fixture
+@pytest.fixture()
 def client(test_app):
     """Fixture com cliente de teste."""
     return TestClient(test_app)
@@ -130,9 +129,9 @@ class TestBudgetHistoryEndToEnd:
                 budget_id=f"daily-{i}",
                 slo_id="slo-test-001",
                 service_name="test-service",
-                calculated_at=datetime.now(timezone.utc) - timedelta(days=i),
-                window_start=datetime.now(timezone.utc) - timedelta(days=i),
-                window_end=datetime.now(timezone.utc) - timedelta(days=i - 1),
+                calculated_at=datetime.now(UTC) - timedelta(days=i),
+                window_start=datetime.now(UTC) - timedelta(days=i),
+                window_end=datetime.now(UTC) - timedelta(days=i - 1),
                 sli_value=99.0,
                 slo_target=99.0,
                 error_budget_total=1.0,
@@ -163,9 +162,9 @@ class TestBudgetHistoryEndToEnd:
                 budget_id=f"hourly-{i}",
                 slo_id="slo-test-001",
                 service_name="test-service",
-                calculated_at=datetime.now(timezone.utc) - timedelta(hours=i),
-                window_start=datetime.now(timezone.utc) - timedelta(hours=i),
-                window_end=datetime.now(timezone.utc) - timedelta(hours=i - 1),
+                calculated_at=datetime.now(UTC) - timedelta(hours=i),
+                window_start=datetime.now(UTC) - timedelta(hours=i),
+                window_end=datetime.now(UTC) - timedelta(hours=i - 1),
                 sli_value=99.0,
                 slo_target=99.0,
                 error_budget_total=1.0,

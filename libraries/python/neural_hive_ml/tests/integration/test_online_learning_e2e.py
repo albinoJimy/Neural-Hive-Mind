@@ -12,16 +12,17 @@ Valida o fluxo completo:
 Nota: API tests estão em approval-service/tests/api/test_ml_management.py
 """
 
-import pytest
-from datetime import datetime, timezone
-from unittest.mock import Mock, AsyncMock, patch
+from datetime import UTC, datetime
+from unittest.mock import AsyncMock, Mock, patch
 
+import pytest
+
+from neural_hive_ml.drift_detector import CanaryDeployer, DriftDetector
 from neural_hive_ml.model_version_repository import ModelVersionRepository
 from neural_hive_ml.retraining_job import RetrainingJob
-from neural_hive_ml.drift_detector import DriftDetector, CanaryDeployer
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_db():
     """Mock MongoDB database connection."""
     db = Mock()
@@ -43,7 +44,7 @@ def mock_db():
     return db
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_kafka_producer():
     """Mock Kafka producer."""
     producer = AsyncMock()
@@ -51,7 +52,7 @@ def mock_kafka_producer():
     return producer
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_mlflow_client():
     """Mock MLflow client."""
     client = Mock()
@@ -64,8 +65,8 @@ def mock_mlflow_client():
     return client
 
 
-@pytest.mark.e2e
-@pytest.mark.asyncio
+@pytest.mark.e2e()
+@pytest.mark.asyncio()
 class TestOnlineLearningE2E:
     """Testes E2E do fluxo de Online Learning."""
 
@@ -164,8 +165,8 @@ class TestOnlineLearningE2E:
         assert final_result["status"] == "promoted"
 
 
-@pytest.mark.e2e
-@pytest.mark.asyncio
+@pytest.mark.e2e()
+@pytest.mark.asyncio()
 class TestOnlineLearningIntegration:
     """Testes de integração entre componentes."""
 
@@ -182,7 +183,7 @@ class TestOnlineLearningIntegration:
                 "stage": "production",
                 "f1_score": 0.75,
                 "is_active": True,
-                "created_at": datetime.now(timezone.utc),
+                "created_at": datetime.now(UTC),
             }
         )
 
@@ -234,11 +235,11 @@ class TestOnlineLearningIntegration:
         assert "alerts" in drift_result
 
 
-@pytest.mark.e2e
+@pytest.mark.e2e()
 class TestOnlineLearningScenarios:
     """Cenários realistas de Online Learning."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_gradual_model_degradation_scenario(self, mock_db, mock_kafka_producer):
         """Cenário: Degradação gradual do modelo."""
         drift_detector = DriftDetector(
@@ -255,7 +256,7 @@ class TestOnlineLearningScenarios:
         result_week1 = await drift_detector.detect_drift()
         assert result_week1["drift_detected"] is False
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_sudden_model_breakage_scenario(self, mock_db, mock_kafka_producer):
         """Cenário: Quebra repentina do modelo."""
         # Setup aggregate simples - teste de integração básico
@@ -281,8 +282,8 @@ class TestOnlineLearningScenarios:
 # =============================================================================
 
 
-@pytest.mark.e2e
-@pytest.mark.asyncio
+@pytest.mark.e2e()
+@pytest.mark.asyncio()
 class TestOnlineLearningExtended:
     """Testes estendidos de Online Learning."""
 

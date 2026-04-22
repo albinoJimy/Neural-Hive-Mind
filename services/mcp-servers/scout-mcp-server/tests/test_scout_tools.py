@@ -5,16 +5,17 @@ TDD: Testes escritos antes da implementação.
 Espec: @.agent-os/specs/2026-03-18-gaps-06-mcp-integration/
 """
 
-import pytest
-from pathlib import Path
-import tempfile
 import shutil
+import tempfile
+from pathlib import Path
+
+import pytest
 
 
 class TestListFilesTool:
     """Testes da ferramenta list_files."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def temp_dir(self):
         """Diretório temporário para testes."""
         temp = tempfile.mkdtemp()
@@ -83,7 +84,7 @@ class TestListFilesTool:
 class TestSearchCodeTool:
     """Testes da ferramenta search_code."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def code_dir(self):
         """Diretório com código para testes."""
         temp = tempfile.mkdtemp()
@@ -178,7 +179,7 @@ def process_data():
 class TestAnalyzeStructureTool:
     """Testes da ferramenta analyze_structure."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def structure_dir(self):
         """Diretório com estrutura complexa."""
         temp = tempfile.mkdtemp()
@@ -266,7 +267,7 @@ class TestScoutMCPServerIntegration:
 
     def test_tools_have_metadata(self):
         """Testa que ferramentas têm metadata descritiva."""
-        from scout_mcp_server.tools import list_files, search_code, analyze_structure
+        from scout_mcp_server.tools import analyze_structure, list_files, search_code
 
         # Verificar que funções de tools existem e têm docstrings
         assert list_files.__doc__

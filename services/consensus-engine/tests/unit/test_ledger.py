@@ -9,11 +9,12 @@ Cobertura de:
 - Configuração e inicialização
 """
 
-import pytest
 import sys
+from datetime import UTC, datetime
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
-from datetime import datetime, timezone
+
+import pytest
 from pymongo.errors import DuplicateKeyError, ServerSelectionTimeoutError
 
 # Adicionar src ao path
@@ -57,7 +58,7 @@ MongoDBClient = mongodb_client_module.MongoDBClient
 # ===========================
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_mongodb_config():
     """Configuração mock para MongoDBClient."""
     config = MagicMock()
@@ -67,7 +68,7 @@ def mock_mongodb_config():
     return config
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_consolidated_decision():
     """Decisão consolidada válida para testes."""
     votes = [
@@ -128,7 +129,7 @@ def sample_consolidated_decision():
     return decision
 
 
-@pytest.fixture
+@pytest.fixture()
 def mongodb_client(mock_mongodb_config):
     """Cliente MongoDB para testes."""
     return MongoDBClient(mock_mongodb_config)
@@ -175,7 +176,7 @@ class TestMongoDBClientInitialization:
 class TestMongoDBClientConnection:
     """Testes de conexão com MongoDB."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_initialize_creates_motor_client(self, mongodb_client):
         """initialize() deve criar cliente Motor."""
         with patch("motor.motor_asyncio.AsyncIOMotorClient") as mock_motor:
@@ -195,7 +196,7 @@ class TestMongoDBClientConnection:
                 w="majority",
             )
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_initialize_sets_database_and_collections(self, mongodb_client):
         """initialize() deve configurar database e coleções."""
         mock_client = MagicMock()
@@ -213,7 +214,7 @@ class TestMongoDBClientConnection:
             assert mongodb_client.consensus_collection == mock_collection
             assert mongodb_client.explainability_collection == mock_collection
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_initialize_calls_create_indexes(self, mongodb_client):
         """initialize() deve criar índices."""
         mock_client = MagicMock()
@@ -231,7 +232,7 @@ class TestMongoDBClientConnection:
             # Verificar que create_index foi chamado para os índices de consensus
             assert mock_collection.create_index.call_count >= 6
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_initialize_verifies_connectivity_with_ping(self, mongodb_client):
         """initialize() deve verificar conectividade com ping."""
         mock_client = MagicMock()
@@ -257,7 +258,7 @@ class TestMongoDBClientConnection:
 class TestMongoDBClientIndexes:
     """Testes de criação de índices."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_create_consensus_indexes(self, mongodb_client):
         """Deve criar todos os índices para consensus_collection."""
         mock_client = MagicMock()
@@ -286,7 +287,7 @@ class TestMongoDBClientIndexes:
                     expected in str(call) for call in index_calls
                 ), f"Índice {expected} não encontrado"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_create_explainability_indexes(self, mongodb_client):
         """Deve criar índices para explainability_collection."""
         mock_client = MagicMock()
@@ -306,7 +307,7 @@ class TestMongoDBClientIndexes:
             # 6 para consensus + 2 para explainability = 8 mínimo
             assert mock_collection.create_index.call_count >= 8
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_create_indexes_handles_existing_indexes_gracefully(self, mongodb_client):
         """Deve lidar com índices já existentes sem erro."""
         mock_client = MagicMock()
@@ -333,7 +334,7 @@ class TestMongoDBClientIndexes:
 class TestMongoDBClientPersistence:
     """Testes de persistência de decisões no ledger."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_save_consensus_decision_inserts_document(
         self, mongodb_client, sample_consolidated_decision
     ):
@@ -354,7 +355,7 @@ class TestMongoDBClientPersistence:
         assert call_args["immutable"] is True
         assert call_args["hash"] == sample_consolidated_decision.hash
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_save_converts_enums_to_json_mode(self, mongodb_client):
         """Deve converter enums para valores JSON ao salvar."""
         decision = ConsolidatedDecision(
@@ -389,7 +390,7 @@ class TestMongoDBClientPersistence:
         assert call_args["final_decision"] == "approve"
         assert call_args["consensus_method"] == "bayesian"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_save_with_duplicate_key_raises_error(
         self, mongodb_client, sample_consolidated_decision
     ):
@@ -403,7 +404,7 @@ class TestMongoDBClientPersistence:
         with pytest.raises(DuplicateKeyError):
             await mongodb_client.save_consensus_decision(sample_consolidated_decision)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_save_includes_all_required_fields(
         self, mongodb_client, sample_consolidated_decision
     ):
@@ -436,7 +437,7 @@ class TestMongoDBClientPersistence:
         for field in required_fields:
             assert field in call_args, f"Campo obrigatório {field} não encontrado"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_save_preserves_hierarchical_fields(self, mongodb_client):
         """Deve preservar campos hierárquicos ao salvar."""
         mock_collection = AsyncMock()
@@ -503,7 +504,7 @@ class TestMongoDBClientPersistence:
 class TestMongoDBClientQueries:
     """Testes de consulta ao ledger."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_decision_by_id(self, mongodb_client):
         """Deve buscar decisão por decision_id."""
         mock_collection = AsyncMock()
@@ -520,7 +521,7 @@ class TestMongoDBClientQueries:
         assert result == mock_decision
         mock_collection.find_one.assert_called_once_with({"decision_id": "decision-123"})
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_decision_returns_none_for_not_found(self, mongodb_client):
         """Deve retornar None quando decisão não existe."""
         mock_collection = AsyncMock()
@@ -531,7 +532,7 @@ class TestMongoDBClientQueries:
 
         assert result is None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_decision_by_plan_id(self, mongodb_client):
         """Deve buscar decisão por plan_id."""
         mock_collection = AsyncMock()
@@ -548,7 +549,7 @@ class TestMongoDBClientQueries:
         assert result == mock_decision
         mock_collection.find_one.assert_called_once_with({"plan_id": "plan-456"})
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_decision_by_plan_returns_none_for_not_found(self, mongodb_client):
         """Deve retornar None quando plan_id não existe."""
         mock_collection = AsyncMock()
@@ -559,7 +560,7 @@ class TestMongoDBClientQueries:
 
         assert result is None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_decision_query_with_correct_filter(self, mongodb_client):
         """Deve usar filtro correto para buscar decisão."""
         mock_collection = AsyncMock()
@@ -572,7 +573,7 @@ class TestMongoDBClientQueries:
         call_args = mock_collection.find_one.call_args[0][0]
         assert call_args == {"decision_id": "test-123"}
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_decision_by_plan_query_with_correct_filter(self, mongodb_client):
         """Deve usar filtro correto para buscar por plan_id."""
         mock_collection = AsyncMock()
@@ -594,7 +595,7 @@ class TestMongoDBClientQueries:
 class TestMongoDBClientIntegrity:
     """Testes de validação de integridade do ledger."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_verify_integrity_with_valid_decision(
         self, mongodb_client, sample_consolidated_decision
     ):
@@ -608,7 +609,7 @@ class TestMongoDBClientIntegrity:
 
         assert result is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_verify_integrity_with_invalid_decision(
         self, mongodb_client, sample_consolidated_decision
     ):
@@ -624,7 +625,7 @@ class TestMongoDBClientIntegrity:
 
         assert result is False
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_verify_integrity_returns_false_for_nonexistent_decision(self, mongodb_client):
         """Deve retornar False para decisão inexistente."""
         mock_collection = AsyncMock()
@@ -635,7 +636,7 @@ class TestMongoDBClientIntegrity:
 
         assert result is False
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_verify_integrity_recovers_from_malformed_data(self, mongodb_client):
         """Deve retornar False para dados malformados."""
         mock_collection = AsyncMock()
@@ -665,7 +666,7 @@ class TestMongoDBClientIntegrity:
 class TestMongoDBClientClose:
     """Testes de fechamento do cliente."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_close_closes_client_connection(self, mongodb_client):
         """Deve fechar a conexão do cliente."""
         mock_client = MagicMock()
@@ -676,7 +677,7 @@ class TestMongoDBClientClose:
 
         mock_client.close.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_close_with_none_client_does_not_raise(self, mongodb_client):
         """Não deve levantar erro quando client é None."""
         mongodb_client.client = None
@@ -693,7 +694,7 @@ class TestMongoDBClientClose:
 class TestMongoDBClientErrorHandling:
     """Testes de tratamento de erros."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_initialize_handles_connection_timeout(self, mock_mongodb_config):
         """Deve tratar timeout de conexão."""
         with patch("motor.motor_asyncio.AsyncIOMotorClient") as mock_motor:
@@ -708,7 +709,7 @@ class TestMongoDBClientErrorHandling:
             with pytest.raises(ServerSelectionTimeoutError):
                 await client.initialize()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_initialize_handles_connection_error(self, mock_mongodb_config):
         """Deve tratar erro de conexão."""
         with patch("motor.motor_asyncio.AsyncIOMotorClient") as mock_motor:
@@ -719,7 +720,7 @@ class TestMongoDBClientErrorHandling:
             with pytest.raises(ConnectionError):
                 await client.initialize()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_save_handles_database_error(self, mongodb_client, sample_consolidated_decision):
         """Deve propagar erro do banco de dados."""
         mock_collection = AsyncMock()
@@ -729,7 +730,7 @@ class TestMongoDBClientErrorHandling:
         with pytest.raises(Exception, match="Database error"):
             await mongodb_client.save_consensus_decision(sample_consolidated_decision)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_decision_handles_query_error(self, mongodb_client):
         """Deve tratar erro na consulta."""
         mock_collection = AsyncMock()
@@ -783,7 +784,7 @@ class TestMongoDBClientConfiguration:
 class TestMongoDBClientImmutability:
     """Testes de imutabilidade do ledger."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_saved_decision_has_immutable_flag(
         self, mongodb_client, sample_consolidated_decision
     ):
@@ -796,7 +797,7 @@ class TestMongoDBClientImmutability:
         call_args = mock_collection.insert_one.call_args[0][0]
         assert call_args["immutable"] is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_saved_decision_preserves_id(self, mongodb_client, sample_consolidated_decision):
         """Decisão salva deve preservar _id igual ao decision_id."""
         mock_collection = AsyncMock()
@@ -816,7 +817,7 @@ class TestMongoDBClientImmutability:
 class TestMongoDBClientOptionalFields:
     """Testes de campos opcionais nas decisões."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_save_decision_with_all_optional_fields(self, mongodb_client):
         """Deve salvar decisão com todos os campos opcionais."""
         mock_collection = AsyncMock()
@@ -848,7 +849,7 @@ class TestMongoDBClientOptionalFields:
             compliance_checks={"gdpr": True, "sox": False},
             guardrails_triggered=["rate_limit", "data_volume"],
             requires_human_review=True,
-            valid_until=datetime(2026, 12, 31, tzinfo=timezone.utc),
+            valid_until=datetime(2026, 12, 31, tzinfo=UTC),
             metadata={"key1": "value1", "key2": 42},
         )
 
@@ -865,7 +866,7 @@ class TestMongoDBClientOptionalFields:
         assert "valid_until" in call_args
         assert call_args["metadata"] == {"key1": "value1", "key2": 42}
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_save_decision_with_minimal_fields(self, mongodb_client):
         """Deve salvar decisão apenas com campos obrigatórios."""
         mock_collection = AsyncMock()

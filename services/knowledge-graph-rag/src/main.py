@@ -1,6 +1,5 @@
 """Aplicação FastAPI para Knowledge Graph RAG."""
 
-import asyncio
 from contextlib import asynccontextmanager
 from typing import Optional
 
@@ -42,7 +41,7 @@ structlog.configure(
         structlog.processors.StackInfoRenderer(),
         structlog.processors.format_exc_info,
         structlog.processors.UnicodeDecoder(),
-        structlog.processors.JSONRenderer()
+        structlog.processors.JSONRenderer(),
     ],
     context_class=dict,
     logger_factory=structlog.stdlib.LoggerFactory(),
@@ -61,7 +60,7 @@ async def lifespan(app: FastAPI):
         "starting_service",
         service=settings.service_name,
         version=settings.service_version,
-        port=settings.port
+        port=settings.port,
     )
 
     # Registrar no Service Registry
@@ -115,11 +114,7 @@ async def lifespan(app: FastAPI):
             logger.error("service_deregister_failed", error=str(e))
 
 
-app = FastAPI(
-    title=settings.api_title,
-    version=settings.api_version,
-    lifespan=lifespan
-)
+app = FastAPI(title=settings.api_title, version=settings.api_version, lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -140,25 +135,17 @@ async def root():
     return {
         "service": settings.service_name,
         "version": settings.service_version,
-        "status": "running"
+        "status": "running",
     }
 
 
 @app.get("/health")
 async def health_check():
     """Health check endpoint."""
-    return {
-        "service": "knowledge-graph-rag",
-        "status": "healthy",
-        "version": settings.api_version
-    }
+    return {"service": "knowledge-graph-rag", "status": "healthy", "version": settings.api_version}
 
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(
-        "main:app",
-        host=settings.host,
-        port=settings.port,
-        reload=False
-    )
+
+    uvicorn.run("main:app", host=settings.host, port=settings.port, reload=False)

@@ -2,7 +2,7 @@
 
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 from uuid import uuid4
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -45,17 +45,17 @@ class ToolDescriptor(BaseModel):
     tool_id: str = Field(default_factory=lambda: str(uuid4()))
     tool_name: str
     category: ToolCategory
-    capabilities: List[str]
+    capabilities: list[str]
     version: str
     reputation_score: float = Field(ge=0.0, le=1.0)
     average_execution_time_ms: int = Field(ge=0)
     cost_score: float = Field(ge=0.0, le=1.0)
-    required_parameters: Dict[str, str] = Field(default_factory=dict)
+    required_parameters: dict[str, str] = Field(default_factory=dict)
     output_format: str
     integration_type: IntegrationType
     endpoint_url: Optional[str] = None
     authentication_method: AuthenticationMethod
-    metadata: Dict[str, Any] = Field(default_factory=dict)  # Accept any value types from MongoDB
+    metadata: dict[str, Any] = Field(default_factory=dict)  # Accept any value types from MongoDB
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
     trace_id: Optional[str] = None
@@ -90,7 +90,7 @@ class ToolDescriptor(BaseModel):
         )
         return max(0.0, min(fitness, 1.0))
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         """Convert to dictionary for serialization."""
         data = self.model_dump()
         data["created_at"] = int(self.created_at.timestamp() * 1000)
@@ -101,7 +101,7 @@ class ToolDescriptor(BaseModel):
         return data
 
     @classmethod
-    def from_avro(cls, avro_data: Dict) -> "ToolDescriptor":
+    def from_avro(cls, avro_data: dict) -> "ToolDescriptor":
         """Create from Avro deserialized data."""
         avro_data["created_at"] = datetime.fromtimestamp(avro_data["created_at"] / 1000.0)
         avro_data["updated_at"] = datetime.fromtimestamp(avro_data["updated_at"] / 1000.0)

@@ -1,10 +1,18 @@
 """Configuração pytest para Test Generation."""
 
-import pytest
+import sys
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
+import pytest
 
-@pytest.fixture
+# Add project root to Python path for "from src.xyz import" imports
+project_root = Path(__file__).parent.parent
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
+
+
+@pytest.fixture()
 def mock_openai_client():
     """Mock do cliente OpenAI."""
     client = AsyncMock()
@@ -29,12 +37,12 @@ def test_example_feature():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_settings():
     """Mock das configurações."""
     from unittest.mock import patch
 
-    from config.settings import Settings
+    from src.config.settings import Settings
 
     settings = Settings(
         openai_api_key="test-key",
@@ -42,5 +50,5 @@ def mock_settings():
         mongodb_url="mongodb://localhost:27017",
     )
 
-    with patch("config.settings.get_settings", return_value=settings):
+    with patch("src.config.settings.get_settings", return_value=settings):
         yield settings

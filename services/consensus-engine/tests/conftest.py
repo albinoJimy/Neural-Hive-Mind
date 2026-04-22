@@ -6,13 +6,13 @@ estabelecido em libraries/python/neural_hive_specialists/tests/conftest.py.
 """
 
 import sys
-import logging
-from pathlib import Path
 from enum import Enum
+from pathlib import Path
 from unittest.mock import MagicMock
 
 # Configurar structlog para usar standard logging (compatível com caplog)
 import structlog
+
 structlog.configure(
     processors=[
         structlog.stdlib.filter_by_level,
@@ -65,6 +65,7 @@ mock_domain.DomainMapper = DomainMapper
 try:
     # Tentar importar módulo real primeiro
     from neural_hive_observability import get_tracer
+
     # Mockar apenas as funções de tracing que causam problemas
     mock_tracer = MagicMock()
     mock_span = MagicMock()
@@ -74,6 +75,7 @@ try:
 
     # Patch get_tracer para retornar mock tracer
     import neural_hive_observability
+
     neural_hive_observability.get_tracer = MagicMock(return_value=mock_tracer)
 except ImportError:
     # Se módulo real não disponível, mock completo
@@ -91,11 +93,11 @@ src_path = Path(__file__).parent.resolve() / "src"
 if str(src_path) not in sys.path:
     sys.path.insert(0, str(src_path))
 
-import pytest
-from unittest.mock import Mock, MagicMock, AsyncMock
-from datetime import datetime, timezone
 import uuid
+from datetime import UTC, datetime
+from unittest.mock import AsyncMock, MagicMock, Mock
 
+import pytest
 
 # ===========================
 # Autouse Fixtures
@@ -126,7 +128,6 @@ def clear_settings_and_env(monkeypatch):
     except ImportError:
         pass
 
-    yield
 
 
 # ===========================
@@ -136,6 +137,7 @@ def clear_settings_and_env(monkeypatch):
 # Imports opcionais - permitem rodar testes sem todas as dependências
 try:
     from google.protobuf.timestamp_pb2 import Timestamp
+
     from neural_hive_specialists.proto_gen import specialist_pb2, specialist_pb2_grpc
 
     PROTOBUF_AVAILABLE = True
@@ -152,7 +154,7 @@ except ImportError:
 # ===========================
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_consensus_config():
     """Configuração mock para o consensus-engine."""
     config = MagicMock()
@@ -186,7 +188,7 @@ def mock_consensus_config():
     return config
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_consensus_config_with_specific_timeouts():
     """Configuração mock com timeouts específicos por specialist."""
     config = MagicMock()
@@ -226,7 +228,7 @@ def mock_consensus_config_with_specific_timeouts():
 # ===========================
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_cognitive_plan():
     """Plano cognitivo válido para testes."""
     return {
@@ -252,13 +254,13 @@ def sample_cognitive_plan():
         "risk_band": "medium",
         "requires_human_approval": False,
         "metadata": {
-            "created_at": datetime.now(timezone.utc).isoformat(),
+            "created_at": datetime.now(UTC).isoformat(),
             "created_by": "semantic-translation-engine",
         },
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def cognitive_plan_without_correlation_id(sample_cognitive_plan):
     """Plano cognitivo sem correlation_id para testes de fallback."""
     plan = sample_cognitive_plan.copy()
@@ -266,7 +268,7 @@ def cognitive_plan_without_correlation_id(sample_cognitive_plan):
     return plan
 
 
-@pytest.fixture
+@pytest.fixture()
 def cognitive_plan_with_empty_correlation_id(sample_cognitive_plan):
     """Plano cognitivo com correlation_id vazio."""
     plan = sample_cognitive_plan.copy()
@@ -274,17 +276,17 @@ def cognitive_plan_with_empty_correlation_id(sample_cognitive_plan):
     return plan
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_trace_context():
     """Contexto de trace válido para testes."""
     return {"trace_id": str(uuid.uuid4()), "span_id": str(uuid.uuid4())}
 
 
-@pytest.fixture
+@pytest.fixture()
 def valid_timestamp_protobuf():
     """Timestamp protobuf válido."""
     timestamp = Timestamp()
-    timestamp.FromDatetime(datetime.now(timezone.utc))
+    timestamp.FromDatetime(datetime.now(UTC))
 
     # Validar que timestamp está no formato correto
     assert timestamp.seconds > 0, "Timestamp seconds deve ser positivo"
@@ -293,7 +295,7 @@ def valid_timestamp_protobuf():
     return timestamp
 
 
-@pytest.fixture
+@pytest.fixture()
 def valid_evaluate_plan_response(valid_timestamp_protobuf):
     """Response protobuf válida de EvaluatePlan."""
     response = specialist_pb2.EvaluatePlanResponse(
@@ -325,13 +327,13 @@ def valid_evaluate_plan_response(valid_timestamp_protobuf):
     return response
 
 
-@pytest.fixture
+@pytest.fixture()
 def invalid_timestamp_dict():
     """Dict simulando desserialização incorreta de timestamp."""
     return {"seconds": 123, "nanos": 456}
 
 
-@pytest.fixture
+@pytest.fixture()
 def invalid_timestamp_negative_seconds():
     """Timestamp com seconds negativos."""
     timestamp = Timestamp()
@@ -340,7 +342,7 @@ def invalid_timestamp_negative_seconds():
     return timestamp
 
 
-@pytest.fixture
+@pytest.fixture()
 def invalid_timestamp_out_of_range_nanos():
     """Timestamp com nanos fora do range válido."""
     timestamp = Timestamp()
@@ -354,14 +356,14 @@ def invalid_timestamp_out_of_range_nanos():
 # ===========================
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_grpc_channel():
     """Mock de canal gRPC."""
     channel = AsyncMock()
     return channel
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_grpc_stub():
     """Mock de stub gRPC."""
     stub = AsyncMock(spec=specialist_pb2_grpc.SpecialistServiceStub)
@@ -370,7 +372,7 @@ def mock_grpc_stub():
     return stub
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_specialists_grpc_client(mock_consensus_config):
     """Cliente gRPC mock para testes."""
     from src.clients.specialists_grpc_client import SpecialistsGrpcClient
@@ -387,7 +389,7 @@ def mock_specialists_grpc_client(mock_consensus_config):
 # ===========================
 
 
-@pytest.fixture
+@pytest.fixture()
 def multiple_valid_responses(valid_timestamp_protobuf):
     """Lista de responses válidas de múltiplos specialists."""
     specialist_types = ["business", "technical", "behavior", "evolution", "architecture"]
@@ -406,7 +408,7 @@ def multiple_valid_responses(valid_timestamp_protobuf):
 
         # Adicionar timestamp válido
         timestamp = Timestamp()
-        timestamp.FromDatetime(datetime.now(timezone.utc))
+        timestamp.FromDatetime(datetime.now(UTC))
         response.evaluated_at.CopyFrom(timestamp)
 
         responses.append(response)
@@ -419,7 +421,7 @@ def multiple_valid_responses(valid_timestamp_protobuf):
 # ===========================
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_consensus_orchestrator_config():
     """Configuração mock para o ConsensusOrchestrator."""
     config = MagicMock()
@@ -441,7 +443,7 @@ def mock_consensus_orchestrator_config():
     return config
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_pheromone_client():
     """Cliente de feromônios mock."""
     client = AsyncMock()
@@ -451,7 +453,7 @@ def mock_pheromone_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_specialist_opinions():
     """Lista de 5 opiniões válidas de especialistas para testes de consenso."""
     return [
@@ -493,7 +495,7 @@ def sample_specialist_opinions():
 # ===========================
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_config_with_resilience():
     """Configuração mock com parâmetros de resiliência para testes rápidos."""
     config = MagicMock()
@@ -533,7 +535,7 @@ def mock_config_with_resilience():
     return config
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_kafka_message_success():
     """Mock de mensagem Kafka com sucesso."""
     msg = MagicMock()
@@ -545,7 +547,7 @@ def mock_kafka_message_success():
     return msg
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_kafka_message_with_error():
     """Mock de mensagem Kafka com erro."""
     from confluent_kafka import KafkaError
@@ -560,7 +562,7 @@ def mock_kafka_message_with_error():
     return msg
 
 
-@pytest.fixture
+@pytest.fixture()
 def systemic_error_examples():
     """Lista de erros sistêmicos para testes."""
     return [
@@ -570,7 +572,7 @@ def systemic_error_examples():
     ]
 
 
-@pytest.fixture
+@pytest.fixture()
 def business_error_examples():
     """Lista de erros de negócio para testes."""
     return [

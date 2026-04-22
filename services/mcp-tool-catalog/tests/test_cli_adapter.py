@@ -2,18 +2,19 @@
 Testes unitários para CLIAdapter.
 """
 
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
-from unittest.mock import AsyncMock, patch, MagicMock
 from src.adapters.cli_adapter import CLIAdapter
 
 
-@pytest.fixture
+@pytest.fixture()
 def cli_adapter():
     """Fixture do adapter."""
     return CLIAdapter(timeout_seconds=10)
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_execute_success(cli_adapter):
     """Testa execução CLI bem-sucedida."""
     # Mock subprocess
@@ -32,7 +33,7 @@ async def test_execute_success(cli_adapter):
         assert result.execution_time_ms > 0
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_execute_failure(cli_adapter):
     """Testa execução CLI com falha."""
     mock_process = MagicMock()
@@ -49,7 +50,7 @@ async def test_execute_failure(cli_adapter):
         assert "Error message" in result.error
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_execute_timeout(cli_adapter):
     """Testa timeout de execução."""
     import asyncio
@@ -68,7 +69,7 @@ async def test_execute_timeout(cli_adapter):
         mock_process.kill.assert_called_once()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_build_command(cli_adapter):
     """Testa construção de comando CLI."""
     command = cli_adapter._build_command(
@@ -82,7 +83,7 @@ async def test_build_command(cli_adapter):
     assert command.strip().endswith("nginx:latest")
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_validate_tool_availability_success(cli_adapter):
     """Testa validação de ferramenta disponível."""
     mock_process = MagicMock()
@@ -94,7 +95,7 @@ async def test_validate_tool_availability_success(cli_adapter):
         assert is_available is True
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_validate_tool_availability_failure(cli_adapter):
     """Testa validação de ferramenta não disponível."""
     mock_process = MagicMock()

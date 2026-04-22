@@ -7,9 +7,9 @@ Envia alertas para sistemas externos quando incidentes são detectados:
 """
 
 import asyncio
-from enum import Enum
-from typing import Any, Dict, List, Optional
 from dataclasses import dataclass
+from enum import Enum
+from typing import Optional
 
 import httpx
 import structlog
@@ -46,8 +46,8 @@ class Alert:
     severity: AlertSeverity
     summary: str
     description: str
-    labels: Dict[str, str]
-    annotations: Dict[str, str]
+    labels: dict[str, str]
+    annotations: dict[str, str]
     fingerprint: Optional[str] = None
     generator_url: Optional[str] = None
 
@@ -262,7 +262,7 @@ class AlertManagerClient:
             logger.error("alert_client.pagerduty_error", alert_name=alert.alert_name, error=str(e))
             return False
 
-    async def send_batch_alerts(self, alerts: List[Alert]) -> Dict[str, int]:
+    async def send_batch_alerts(self, alerts: list[Alert]) -> dict[str, int]:
         """Envia múltiplos alertas em batch.
 
         Args:
@@ -301,7 +301,7 @@ class AlertManagerClient:
 async def alert_deadlock_detected(
     workflow_id: str,
     stuck_duration_seconds: int,
-    suspected_tickets: List[str],
+    suspected_tickets: list[str],
     alert_client: AlertManagerClient,
 ):
     """Envia alerta de deadlock detectado."""

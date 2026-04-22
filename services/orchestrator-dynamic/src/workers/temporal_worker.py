@@ -338,6 +338,9 @@ class TemporalWorkerManager:
             logger.warning("ML Predictions desabilitado - MongoDB não disponível")
 
         # Import workflows e activities
+        # Injetar dependências do Fluxo G (HTTP client)
+        import httpx
+
         from src.activities.data_migration import (
             analyze_legacy_schema,
             approve_mapping,
@@ -348,6 +351,14 @@ class TemporalWorkerManager:
             run_batch_migration,
             start_cdc,
             validate_data,
+        )
+        from src.activities.fluxo_g_integration import (
+            generate_documentation,
+            generate_requirements,
+            query_knowledge_graph,
+            request_approval,
+            set_fluxo_g_dependencies,
+            update_knowledge_graph,
         )
         from src.activities.plan_validation import (
             audit_validation,
@@ -370,24 +381,14 @@ class TemporalWorkerManager:
             set_activity_dependencies as set_generation_deps,
         )
         from src.workflows.data_migration_workflow import DataMigrationWorkflow
-        from src.workflows.orchestration_workflow import OrchestrationWorkflow
         from src.workflows.fluxo_g_workflow import FluxoGWorkflow
-        from src.activities.fluxo_g_integration import (
-            generate_requirements,
-            generate_documentation,
-            update_knowledge_graph,
-            request_approval,
-            query_knowledge_graph,
-            set_fluxo_g_dependencies,
-        )
+        from src.workflows.orchestration_workflow import OrchestrationWorkflow
 
-        # Injetar dependências do Fluxo G (HTTP client)
-        import httpx
         fluxo_g_http_client = None
         try:
             fluxo_g_http_client = httpx.AsyncClient(
                 timeout=httpx.Timeout(60.0, connect=10.0),
-                limits=httpx.Limits(max_keepalive_connections=20, max_connections=100)
+                limits=httpx.Limits(max_keepalive_connections=20, max_connections=100),
             )
             set_fluxo_g_dependencies(http_client=fluxo_g_http_client)
             logger.info("HTTP client injetado para Fluxo G activities")
@@ -569,6 +570,7 @@ class TemporalWorkerManager:
         # Fechar HTTP client do Fluxo G se existir
         try:
             from src.activities.fluxo_g_integration import _http_client as fluxo_g_http_client
+
             if fluxo_g_http_client:
                 logger.info("Fechando HTTP client do Fluxo G")
                 await fluxo_g_http_client.aclose()

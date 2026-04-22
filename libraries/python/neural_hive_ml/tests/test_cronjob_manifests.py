@@ -1,9 +1,9 @@
 """Testes para manifests Kubernetes CronJob."""
 
 import os
-import yaml
 from pathlib import Path
 
+import yaml
 
 CRONJOB_DIR = Path(__file__).parent.parent / "k8s"
 

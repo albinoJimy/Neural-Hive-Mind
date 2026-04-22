@@ -13,20 +13,21 @@ Cenários cobertos:
 """
 
 import os
-import pytest
 from datetime import datetime, timedelta
 from unittest.mock import AsyncMock, Mock
 
-from src.activities.plan_validation import validate_cognitive_plan as validate_plan_activity
-from src.activities.plan_validation import set_activity_dependencies as set_plan_deps
+import pytest
+from src.activities.plan_validation import (
+    set_activity_dependencies as set_plan_deps,
+    validate_cognitive_plan as validate_plan_activity,
+)
 from src.activities.ticket_generation import (
-    generate_execution_tickets,
     allocate_resources,
+    generate_execution_tickets,
     set_activity_dependencies as set_ticket_deps,
 )
-from src.policies.policy_validator import ValidationResult, PolicyViolation
 from src.policies.opa_client import OPAClient
-
+from src.policies.policy_validator import PolicyViolation, ValidationResult
 
 # Flag para testes com servidor OPA real
 REAL_OPA_E2E = os.getenv("RUN_OPA_E2E", "").lower() == "true"
@@ -67,7 +68,7 @@ def _config(opa_enabled=True, fail_open=False):
     return cfg
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_orchestration_flow_c1_c2_c3_with_opa():
     policy_validator = AsyncMock()
     policy_validator.validate_cognitive_plan.return_value = ValidationResult(valid=True)
@@ -108,7 +109,7 @@ async def test_orchestration_flow_c1_c2_c3_with_opa():
     assert allocated["allocation_metadata"]["agent_id"] == "agent-e2e"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_orchestration_flow_c3_violation_blocks_allocation():
     violation = PolicyViolation(
         policy_name="resource_limits",
@@ -143,7 +144,7 @@ async def test_orchestration_flow_c3_violation_blocks_allocation():
     _reset_ticket_dependencies()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_orchestration_flow_with_feature_flags():
     policy_validator = AsyncMock()
     policy_validator.validate_cognitive_plan.return_value = ValidationResult(valid=True)
@@ -177,7 +178,7 @@ async def test_orchestration_flow_with_feature_flags():
     policy_validator.validate_resource_allocation.assert_called_once()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_orchestration_flow_opa_unavailable_fail_open():
     policy_validator = AsyncMock()
     policy_validator.validate_cognitive_plan.side_effect = Exception("OPA down")
@@ -210,7 +211,7 @@ async def test_orchestration_flow_opa_unavailable_fail_open():
 # ============================================================================
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_orchestration_flow_deadline_violation():
     """Testa rejeição de ticket com deadline expirado."""
     violation = PolicyViolation(
@@ -239,7 +240,7 @@ async def test_orchestration_flow_deadline_violation():
     _reset_ticket_dependencies()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_orchestration_flow_capability_violation():
     """Testa rejeição por capability não permitida."""
     violation = PolicyViolation(
@@ -263,7 +264,7 @@ async def test_orchestration_flow_capability_violation():
     _reset_plan_dependencies()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_orchestration_flow_security_tenant_isolation():
     """Testa rejeição por violação de isolamento de tenant."""
     violation = PolicyViolation(
@@ -304,7 +305,7 @@ async def test_orchestration_flow_security_tenant_isolation():
     _reset_ticket_dependencies()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_orchestration_flow_rate_limit_exceeded():
     """Testa rejeição por rate limit excedido."""
     violation = PolicyViolation(
@@ -328,7 +329,7 @@ async def test_orchestration_flow_rate_limit_exceeded():
     _reset_plan_dependencies()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_orchestration_flow_batch_tickets():
     """Testa processamento em batch de múltiplos tickets."""
     policy_validator = AsyncMock()
@@ -385,7 +386,7 @@ async def test_orchestration_flow_batch_tickets():
     assert policy_validator.validate_resource_allocation.call_count == 5
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_orchestration_flow_circuit_breaker_open():
     """Testa comportamento quando circuit breaker está aberto."""
     policy_validator = AsyncMock()
@@ -408,7 +409,7 @@ async def test_orchestration_flow_circuit_breaker_open():
     _reset_plan_dependencies()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_orchestration_flow_circuit_breaker_fail_open():
     """Testa fail-open quando circuit breaker está aberto."""
     policy_validator = AsyncMock()
@@ -444,7 +445,7 @@ async def test_orchestration_flow_circuit_breaker_fail_open():
     assert allocated["allocation_metadata"]["agent_id"] == "agent-fallback"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_orchestration_flow_multiple_violations():
     """Testa cenário com múltiplas violações de diferentes políticas."""
     violations = [
@@ -477,7 +478,7 @@ async def test_orchestration_flow_multiple_violations():
     _reset_plan_dependencies()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_orchestration_flow_warnings_only():
     """Testa cenário com warnings mas sem violações (allow=True)."""
     policy_validator = AsyncMock()
@@ -524,7 +525,7 @@ async def test_orchestration_flow_warnings_only():
 # ============================================================================
 
 
-@pytest.fixture
+@pytest.fixture()
 def opa_real_config():
     """Configuração para testes com OPA real."""
     config = Mock()
@@ -540,7 +541,7 @@ def opa_real_config():
     return config
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_metrics():
     """Mock de métricas para testes."""
     metrics = Mock()
@@ -554,7 +555,7 @@ def mock_metrics():
 
 
 @pytest.mark.skipif(not REAL_OPA_E2E, reason="RUN_OPA_E2E not enabled")
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_real_opa_resource_limits_valid(opa_real_config, mock_metrics):
     """Testa avaliação de resource_limits com servidor OPA real."""
     client = OPAClient(opa_real_config, metrics=mock_metrics)
@@ -584,7 +585,7 @@ async def test_real_opa_resource_limits_valid(opa_real_config, mock_metrics):
 
 
 @pytest.mark.skipif(not REAL_OPA_E2E, reason="RUN_OPA_E2E not enabled")
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_real_opa_sla_enforcement_deadline_valid(opa_real_config, mock_metrics):
     """Testa sla_enforcement com deadline válido no servidor OPA real."""
     client = OPAClient(opa_real_config, metrics=mock_metrics)
@@ -615,7 +616,7 @@ async def test_real_opa_sla_enforcement_deadline_valid(opa_real_config, mock_met
 
 
 @pytest.mark.skipif(not REAL_OPA_E2E, reason="RUN_OPA_E2E not enabled")
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_real_opa_sla_enforcement_deadline_expired(opa_real_config, mock_metrics):
     """Testa sla_enforcement com deadline expirado no servidor OPA real."""
     client = OPAClient(opa_real_config, metrics=mock_metrics)
@@ -649,7 +650,7 @@ async def test_real_opa_sla_enforcement_deadline_expired(opa_real_config, mock_m
 
 
 @pytest.mark.skipif(not REAL_OPA_E2E, reason="RUN_OPA_E2E not enabled")
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_real_opa_feature_flags_evaluation(opa_real_config, mock_metrics):
     """Testa feature_flags no servidor OPA real."""
     client = OPAClient(opa_real_config, metrics=mock_metrics)
@@ -689,7 +690,7 @@ async def test_real_opa_feature_flags_evaluation(opa_real_config, mock_metrics):
 
 
 @pytest.mark.skipif(not REAL_OPA_E2E, reason="RUN_OPA_E2E not enabled")
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_real_opa_security_constraints_valid_tenant(opa_real_config, mock_metrics):
     """Testa security_constraints com tenant válido no servidor OPA real."""
     client = OPAClient(opa_real_config, metrics=mock_metrics)
@@ -730,7 +731,7 @@ async def test_real_opa_security_constraints_valid_tenant(opa_real_config, mock_
 
 
 @pytest.mark.skipif(not REAL_OPA_E2E, reason="RUN_OPA_E2E not enabled")
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_real_opa_batch_evaluation(opa_real_config, mock_metrics):
     """Testa batch evaluation com servidor OPA real."""
     client = OPAClient(opa_real_config, metrics=mock_metrics)

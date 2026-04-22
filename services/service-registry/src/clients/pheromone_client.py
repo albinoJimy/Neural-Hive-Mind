@@ -1,4 +1,4 @@
-from typing import Dict, Optional
+from typing import Optional
 
 import redis
 import structlog
@@ -125,7 +125,7 @@ class PheromoneClient:
 
     async def get_aggregated_pheromones(
         self, agent_type: AgentType, domain: str = "default"
-    ) -> Dict[str, float]:
+    ) -> dict[str, float]:
         """
         Retorna feromônios agregados para todos os agentes de um tipo.
 

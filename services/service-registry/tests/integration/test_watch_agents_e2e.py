@@ -7,38 +7,39 @@ Testa o fluxo completo de streaming de eventos:
 3. Cliente recebe eventos em tempo real
 """
 
-import pytest
-import grpc
 import asyncio
 import os
 import sys
 
+import grpc
+import pytest
+
 # Reutilizar fixtures e helpers de test_discover_e2e.py
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../src"))
+
+from proto import service_registry_pb2, service_registry_pb2_grpc
 
 from .test_discover_e2e import (
     MockEtcdClient,
     MockPheromoneClient,
-    create_grpc_server,
     create_grpc_channel,
+    create_grpc_server,
 )
-
-from proto import service_registry_pb2, service_registry_pb2_grpc
 
 
 class TestWatchAgentsE2E:
     """Testes E2E para WatchAgents streaming"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def etcd_client(self):
         return MockEtcdClient()
 
-    @pytest.fixture
+    @pytest.fixture()
     def pheromone_client(self):
         return MockPheromoneClient()
 
-    @pytest.mark.asyncio
-    @pytest.mark.integration
+    @pytest.mark.asyncio()
+    @pytest.mark.integration()
     async def test_watch_receives_register_events(self, etcd_client, pheromone_client):
         """Testa que watch recebe eventos de registro"""
         async with create_grpc_server(etcd_client, pheromone_client) as (server, port):
@@ -93,8 +94,8 @@ class TestWatchAgentsE2E:
                     assert event.agent.agent_type == service_registry_pb2.WORKER
                     assert event.timestamp > 0
 
-    @pytest.mark.asyncio
-    @pytest.mark.integration
+    @pytest.mark.asyncio()
+    @pytest.mark.integration()
     async def test_watch_receives_deregister_events(self, etcd_client, pheromone_client):
         """Testa que watch recebe eventos de deregistro"""
         async with create_grpc_server(etcd_client, pheromone_client) as (server, port):
@@ -155,8 +156,8 @@ class TestWatchAgentsE2E:
                 assert len(deregister_events) == 1
                 assert deregister_events[0].agent.agent_id == agent_id
 
-    @pytest.mark.asyncio
-    @pytest.mark.integration
+    @pytest.mark.asyncio()
+    @pytest.mark.integration()
     async def test_watch_filters_by_agent_type(self, etcd_client, pheromone_client):
         """Testa que watch filtra por tipo de agente"""
         async with create_grpc_server(etcd_client, pheromone_client) as (server, port):
@@ -218,8 +219,8 @@ class TestWatchAgentsE2E:
                 for event in events:
                     assert event.agent.agent_type == service_registry_pb2.WORKER
 
-    @pytest.mark.asyncio
-    @pytest.mark.integration
+    @pytest.mark.asyncio()
+    @pytest.mark.integration()
     async def test_watch_handles_client_disconnect(self, etcd_client, pheromone_client):
         """Testa que watch lida com desconexão do cliente"""
         async with create_grpc_server(etcd_client, pheromone_client) as (server, port):
@@ -247,12 +248,11 @@ class TestWatchAgentsE2E:
                 if isinstance(e, grpc.aio.AioRpcError):
                     assert e.code() == grpc.StatusCode.CANCELLED
                 # CancelledError é esperado quando a stream é cancelada
-                pass
 
             await channel.close()
 
-    @pytest.mark.asyncio
-    @pytest.mark.integration
+    @pytest.mark.asyncio()
+    @pytest.mark.integration()
     async def test_watch_receives_heartbeat_updates(self, etcd_client, pheromone_client):
         """Testa que watch recebe eventos de atualização via heartbeat"""
         async with create_grpc_server(etcd_client, pheromone_client) as (server, port):
@@ -320,8 +320,8 @@ class TestWatchAgentsE2E:
                 ]
                 assert len(update_events) >= 1
 
-    @pytest.mark.asyncio
-    @pytest.mark.integration
+    @pytest.mark.asyncio()
+    @pytest.mark.integration()
     async def test_watch_all_agent_types(self, etcd_client, pheromone_client):
         """Testa watch sem filtro de tipo recebe todos os agentes"""
         async with create_grpc_server(etcd_client, pheromone_client) as (server, port):

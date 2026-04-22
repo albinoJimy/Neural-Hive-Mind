@@ -11,6 +11,7 @@ from confluent_kafka.serialization import MessageField, SerializationContext
 # W3C Trace Context support
 try:
     from neural_hive_observability.context import extract_context_from_headers, set_baggage
+
     OBSERVABILITY_AVAILABLE = True
 except ImportError:
     OBSERVABILITY_AVAILABLE = False

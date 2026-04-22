@@ -7,18 +7,18 @@ Estes testes verificam o fluxo completo de:
 - Detecção de incidente → trigger de playbook
 """
 
-import pytest
 from unittest.mock import AsyncMock, patch
 
-from src.services.playbook_executor import PlaybookExecutor
-from src.services.health_monitor import HealthMonitor
+import pytest
 from src.services.circuit_breaker import CircuitBreaker, CircuitBreakerState
+from src.services.health_monitor import HealthMonitor
+from src.services.playbook_executor import PlaybookExecutor
 
 
 class TestRemediationFlow:
     """Testes de fluxo de remediação ponta a ponta."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_kafka_message_triggers_playbook(self, sample_playbook_path, mock_tracer):
         """Testa que mensagem Kafka executa playbook."""
         # Criar executor
@@ -37,7 +37,7 @@ class TestRemediationFlow:
         assert result["success"] is True
         assert "actions" in result
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_circuit_breaker_opens_on_failures(self):
         """Testa que circuit breaker abre após falhas consecutivas."""
         cb = CircuitBreaker("test-service", failure_threshold=3)
@@ -59,7 +59,7 @@ class TestRemediationFlow:
         with pytest.raises(Exception):  # CircuitBreakerOpenError
             cb.call(lambda: "result")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_health_monitor_detects_unhealthy_service(self):
         """Testa que health monitor detecta serviço não saudável."""
         monitor = HealthMonitor(
@@ -77,7 +77,7 @@ class TestRemediationFlow:
         assert status.healthy is False
         assert status.error_message is not None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_remediation_flow_end_to_end(self, sample_playbook_path, mock_tracer):
         """Teste fluxo completo: incidente → detecção → remediação."""
         # 1. Simular incidente (detecção)
@@ -107,7 +107,7 @@ class TestRemediationFlow:
 class TestOPAValidation:
     """Testes de validação OPA para ações de remediação."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_opa_validation_allows_safe_action(self, mock_opa_client):
         """Testa que OPA permite ação segura."""
         mock_opa_client.validate_action = AsyncMock(
@@ -121,7 +121,7 @@ class TestOPAValidation:
 
         assert result["allowed"] is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_opa_validation_blocks_unsafe_action(self, mock_opa_client):
         """Testa que OPA bloqueia ação insegura."""
         mock_opa_client.validate_action = AsyncMock(
@@ -138,7 +138,7 @@ class TestOPAValidation:
 class TestChaosToRemediation:
     """Testes de integração entre Chaos Engineering e Remediação."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_chaos_experiment_triggers_remediation(self, mock_tracer):
         """Testa que experimento de chaos pode disparar playbook de recuperação."""
         from src.chaos.chaos_models import (
@@ -168,7 +168,7 @@ class TestChaosToRemediation:
 class TestMultiServiceCoordination:
     """Testes de coordenação entre múltiplos serviços."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_service_registry_integration(self):
         """Testa integração com Service Registry."""
         mock_client = AsyncMock()
@@ -180,7 +180,7 @@ class TestMultiServiceCoordination:
         address = await mock_client.get_service_address("worker-agents")
         assert address == "http://worker-agents:8000"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_orchestrator_workflow_pause(self):
         """Testa pausa de workflow via Orchestrator."""
         mock_client = AsyncMock()

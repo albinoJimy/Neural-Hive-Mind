@@ -5,14 +5,15 @@ Cobertura: orquestração de componentes, sanitize_cognitive_plan usa deepcopy,
 encrypt_opinion_fields adiciona metadados, audit logging, métricas.
 """
 
-import pytest
 import copy
 from unittest.mock import Mock, patch
+
+import pytest
 
 from neural_hive_specialists.compliance.compliance_layer import ComplianceLayer
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_config():
     """Cria configuração mockada para testes."""
     config = Mock()
@@ -30,7 +31,7 @@ def mock_config():
     return config
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_metrics():
     """Cria mock de SpecialistMetrics."""
     metrics = Mock()
@@ -44,7 +45,7 @@ def mock_metrics():
     return metrics
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_cognitive_plan():
     """Cria plano cognitivo de exemplo para testes."""
     return {
@@ -60,7 +61,7 @@ def sample_cognitive_plan():
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_opinion_doc():
     """Cria documento de opinião de exemplo."""
     return {
@@ -71,7 +72,7 @@ def sample_opinion_doc():
     }
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestComplianceLayerInitialization:
     """Testes de inicialização da ComplianceLayer."""
 
@@ -127,11 +128,11 @@ class TestComplianceLayerInitialization:
         assert compliance.enabled is False
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestSanitizeCognitivePlan:
     """Testes do método sanitize_cognitive_plan."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def compliance(self, mock_config, mock_metrics):
         """Cria ComplianceLayer com componentes mockados."""
         with (
@@ -295,11 +296,11 @@ class TestSanitizeCognitivePlan:
         mock_metrics.increment_pii_detection_error.assert_called_once_with("sanitization_error")
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestEncryptOpinionFields:
     """Testes do método encrypt_opinion_fields."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def compliance(self, mock_config, mock_metrics):
         """Cria ComplianceLayer com componentes mockados."""
         with (
@@ -388,11 +389,11 @@ class TestEncryptOpinionFields:
         mock_metrics.increment_encryption_error.assert_called_once_with("encryption_error")
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestDecryptOpinionFields:
     """Testes do método decrypt_opinion_fields."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def compliance(self, mock_config, mock_metrics):
         """Cria ComplianceLayer com componentes mockados."""
         with (
@@ -486,7 +487,7 @@ class TestDecryptOpinionFields:
         mock_metrics.increment_encryption_error.assert_called_once_with("decryption_error")
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestGetComplianceMetadata:
     """Testes do método get_compliance_metadata."""
 

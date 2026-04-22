@@ -6,9 +6,9 @@ baseado em dados históricos de 18 meses do ClickHouse.
 """
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
-UTC = timezone.utc  # type: ignore, timedelta
+UTC = UTC  # type: ignore, timedelta
 
 import holidays
 import numpy as np

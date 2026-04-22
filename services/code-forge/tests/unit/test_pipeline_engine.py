@@ -18,7 +18,7 @@ import pytest
 class TestPipelineEngineExecution:
     """Testes de execução do pipeline."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_pipeline_success(self, mock_pipeline_engine, sample_execution_ticket):
         """Deve executar pipeline completo com sucesso."""
         from src.models.artifact import PipelineStage, StageStatus
@@ -54,7 +54,7 @@ class TestPipelineEngineExecution:
         assert result.status == "COMPLETED"
         assert len(result.pipeline_stages) == 8
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_pipeline_stage_failure(
         self, mock_pipeline_engine, sample_execution_ticket
     ):
@@ -72,7 +72,7 @@ class TestPipelineEngineExecution:
 class TestPipelineEngineStageExecution:
     """Testes de execução de stages."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_stage_success(self, mock_pipeline_engine, sample_pipeline_context):
         """Deve executar stage com sucesso e marcar como completado."""
         stage_name = "test_stage"
@@ -90,7 +90,7 @@ class TestPipelineEngineStageExecution:
         )
         assert stage.status.value == "COMPLETED"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_stage_timeout(self, mock_pipeline_engine, sample_pipeline_context):
         """Deve falhar quando stage excede timeout."""
         stage_name = "timeout_stage"
@@ -105,7 +105,7 @@ class TestPipelineEngineStageExecution:
                 sample_pipeline_context, stage_name, slow_stage
             )
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_stage_exception(self, mock_pipeline_engine, sample_pipeline_context):
         """Deve falhar quando stage lança exceção."""
         stage_name = "error_stage"
@@ -122,7 +122,7 @@ class TestPipelineEngineStageExecution:
 class TestPipelineEngineMetrics:
     """Testes de métricas do pipeline."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_stage_emits_duration_metric(
         self, mock_pipeline_engine_with_metrics, sample_pipeline_context
     ):
@@ -140,7 +140,7 @@ class TestPipelineEngineMetrics:
             stage=stage_name
         )
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_stage_emits_failure_metric_on_error(
         self, mock_pipeline_engine_with_metrics, sample_pipeline_context
     ):
@@ -161,7 +161,7 @@ class TestPipelineEngineMetrics:
 class TestPipelineEngineActivePipelines:
     """Testes de tracking de pipelines ativos."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_pipeline_added_to_active_tracking(
         self, mock_pipeline_engine, sample_execution_ticket
     ):
@@ -186,7 +186,7 @@ class TestPipelineEngineActivePipelines:
 class TestPipelineEngineErrorHandling:
     """Testes de tratamento de erros."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_creates_compensation_ticket_on_failure(
         self, mock_pipeline_engine, sample_execution_ticket
     ):

@@ -1,14 +1,12 @@
 """Testes unitários para PlotGenerator"""
 
 import os
+
 import pytest
-from datetime import datetime
-
 from src.services.plot_generator import PlotGenerator
-from src.models import ExperimentRun
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_plot_generator_initialization(output_dir):
     """Testa inicialização do gerador de plots"""
     with pytest.MonkeyPatch.context() as m:
@@ -20,7 +18,7 @@ async def test_plot_generator_initialization(output_dir):
         assert os.path.exists(output_dir)
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_generate_experiment_comparison_plot(output_dir, mock_experiment_runs):
     """Testa geração de gráfico de comparação"""
     with pytest.MonkeyPatch.context() as m:
@@ -40,7 +38,7 @@ async def test_generate_experiment_comparison_plot(output_dir, mock_experiment_r
             assert os.path.exists(filepath)
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_generate_metric_timeline_plot(output_dir, mock_experiment_runs):
     """Testa geração de gráfico de timeline"""
     with pytest.MonkeyPatch.context() as m:
@@ -58,7 +56,7 @@ async def test_generate_metric_timeline_plot(output_dir, mock_experiment_runs):
             assert filepath.endswith(".png")
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_generate_metrics_correlation_plot(output_dir, mock_experiment_runs):
     """Testa geração de gráfico de correlação"""
     with pytest.MonkeyPatch.context() as m:
@@ -77,7 +75,7 @@ async def test_generate_metrics_correlation_plot(output_dir, mock_experiment_run
             assert filepath.endswith(".png")
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_generate_training_progress_plot(output_dir, mock_experiment_runs):
     """Testa geração de gráfico de progresso de treinamento"""
     with pytest.MonkeyPatch.context() as m:
@@ -94,7 +92,7 @@ async def test_generate_training_progress_plot(output_dir, mock_experiment_runs)
             assert filepath.endswith(".png")
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_generate_multi_metric_summary(output_dir, mock_experiment_runs):
     """Testa geração de resumo multi-métrica"""
     with pytest.MonkeyPatch.context() as m:
@@ -112,7 +110,7 @@ async def test_generate_multi_metric_summary(output_dir, mock_experiment_runs):
             assert filepath.endswith(".png")
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_generate_all_plots(output_dir, mock_experiment_runs):
     """Testa geração de todos os plots"""
     with pytest.MonkeyPatch.context() as m:

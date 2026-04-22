@@ -1,7 +1,7 @@
 import os
 import urllib.parse
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 import git
 import httpx
@@ -194,7 +194,7 @@ class GitClient:
 
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10))
     async def commit_artifacts(
-        self, repo_url: str, branch: str, artifacts: List[Dict[str, Any]], message: str
+        self, repo_url: str, branch: str, artifacts: list[dict[str, Any]], message: str
     ) -> str:
         """
         Commit de artefatos gerados
@@ -254,7 +254,7 @@ class GitClient:
         project_path: str,
         repo_name: str,
         branch: str,
-        artifacts: List[Dict[str, Any]],
+        artifacts: list[dict[str, Any]],
         message: str,
     ) -> str:
         """Commit artefatos no GitLab"""
@@ -284,7 +284,7 @@ class GitClient:
         return commit_sha
 
     async def _commit_github_artifacts(
-        self, owner: str, repo_name: str, branch: str, artifacts: List[Dict[str, Any]], message: str
+        self, owner: str, repo_name: str, branch: str, artifacts: list[dict[str, Any]], message: str
     ) -> str:
         """Commit artefatos no GitHub usando Git Data API"""
         import base64
@@ -434,7 +434,7 @@ class GitClient:
         logger.info("github_pr_created", branch=branch, url=pr_url)
         return pr_url
 
-    async def list_tags(self) -> List[Dict[str, str]]:
+    async def list_tags(self) -> list[dict[str, str]]:
         """
         Lista todas as tags disponíveis no repositório de templates.
 

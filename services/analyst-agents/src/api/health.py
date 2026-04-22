@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import structlog
 from fastapi import APIRouter, Request
@@ -139,5 +139,5 @@ async def startup_check():
         "status": "started",
         "service": "analyst-agents",
         "version": "1.0.0",
-        "started_at": datetime.now(timezone.utc).isoformat(),
+        "started_at": datetime.now(UTC).isoformat(),
     }

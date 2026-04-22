@@ -5,8 +5,8 @@ Implementa injeção de falhas de recursos como stress de CPU, memória,
 preenchimento de disco e esgotamento de file descriptors.
 """
 
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from datetime import UTC, datetime
+from typing import Any, Optional
 
 import structlog
 
@@ -28,7 +28,7 @@ class ResourceFaultInjector(BaseFaultInjector):
     """
 
     @property
-    def supported_fault_types(self) -> List[FaultType]:
+    def supported_fault_types(self) -> list[FaultType]:
         return [
             FaultType.CPU_STRESS,
             FaultType.MEMORY_STRESS,
@@ -38,7 +38,7 @@ class ResourceFaultInjector(BaseFaultInjector):
 
     async def inject(self, injection: FaultInjection) -> InjectionResult:
         """Injeta falha de recursos no sistema."""
-        start_time = datetime.now(timezone.utc)
+        start_time = datetime.now(UTC)
 
         if injection.fault_type not in self.supported_fault_types:
             return InjectionResult(
@@ -165,7 +165,7 @@ class ResourceFaultInjector(BaseFaultInjector):
             fault_type=injection.fault_type,
             affected_resources=affected_pods,
             blast_radius=len(affected_pods),
-            start_time=datetime.now(timezone.utc),
+            start_time=datetime.now(UTC),
             rollback_data={
                 "type": "cpu_stress",
                 "pods": affected_pods,
@@ -237,7 +237,7 @@ class ResourceFaultInjector(BaseFaultInjector):
             fault_type=injection.fault_type,
             affected_resources=affected_pods,
             blast_radius=len(affected_pods),
-            start_time=datetime.now(timezone.utc),
+            start_time=datetime.now(UTC),
             rollback_data={
                 "type": "memory_stress",
                 "pods": affected_pods,
@@ -313,7 +313,7 @@ class ResourceFaultInjector(BaseFaultInjector):
             fault_type=injection.fault_type,
             affected_resources=affected_pods,
             blast_radius=len(affected_pods),
-            start_time=datetime.now(timezone.utc),
+            start_time=datetime.now(UTC),
             rollback_data={
                 "type": "disk_fill",
                 "pods": affected_pods,
@@ -382,7 +382,7 @@ class ResourceFaultInjector(BaseFaultInjector):
             fault_type=injection.fault_type,
             affected_resources=affected_pods,
             blast_radius=len(affected_pods),
-            start_time=datetime.now(timezone.utc),
+            start_time=datetime.now(UTC),
             rollback_data={
                 "type": "fd_exhaust",
                 "pods": affected_pods,
@@ -487,7 +487,7 @@ class ResourceFaultInjector(BaseFaultInjector):
             )
 
     async def _cleanup_disk_files(
-        self, injection_id: str, rollback_data: Dict[str, Any]
+        self, injection_id: str, rollback_data: dict[str, Any]
     ) -> InjectionResult:
         """Remove arquivos criados para disk fill."""
         files = rollback_data.get("files", {})
@@ -521,18 +521,18 @@ class ResourceFaultInjector(BaseFaultInjector):
                 injection_id=injection_id,
                 fault_type=FaultType.DISK_FILL,
                 error_message=f"Cleanup falhou em pods: {failed_pods}",
-                end_time=datetime.now(timezone.utc),
+                end_time=datetime.now(UTC),
             )
 
         return InjectionResult(
             success=True,
             injection_id=injection_id,
             fault_type=FaultType.DISK_FILL,
-            end_time=datetime.now(timezone.utc),
+            end_time=datetime.now(UTC),
         )
 
     async def _kill_stress_processes(
-        self, injection_id: str, rollback_data: Dict[str, Any]
+        self, injection_id: str, rollback_data: dict[str, Any]
     ) -> InjectionResult:
         """Mata processos de stress em execução."""
         pods = rollback_data.get("pods", [])
@@ -579,14 +579,14 @@ class ResourceFaultInjector(BaseFaultInjector):
                 injection_id=injection_id,
                 fault_type=fault_type,
                 error_message=f"Kill falhou em pods: {failed_pods}",
-                end_time=datetime.now(timezone.utc),
+                end_time=datetime.now(UTC),
             )
 
         return InjectionResult(
             success=True,
             injection_id=injection_id,
             fault_type=fault_type,
-            end_time=datetime.now(timezone.utc),
+            end_time=datetime.now(UTC),
         )
 
     async def get_blast_radius(self, target: TargetSelector) -> int:
@@ -631,7 +631,7 @@ class ResourceFaultInjector(BaseFaultInjector):
 
     async def _exec_in_pod(
         self, pod_name: str, namespace: str, command: str, container: Optional[str] = None
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Executa comando em um pod via Kubernetes API."""
         if not self.k8s_core_v1:
             return {"success": False, "error": "K8s client não disponível"}
@@ -663,7 +663,7 @@ class ResourceFaultInjector(BaseFaultInjector):
 
     async def _exec_in_pod_background(
         self, pod_name: str, namespace: str, command: str, container: Optional[str] = None
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Executa comando em background em um pod.
 

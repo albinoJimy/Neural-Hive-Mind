@@ -266,7 +266,7 @@ class Settings(BaseSettings):
         return self
 
 
-@lru_cache()
+@lru_cache
 def get_settings() -> Settings:
     """Retorna instância singleton das configurações"""
     return Settings()

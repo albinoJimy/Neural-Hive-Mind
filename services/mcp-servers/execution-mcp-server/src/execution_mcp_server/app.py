@@ -42,7 +42,7 @@ server = ExecutionMCPServer(
 
 
 @asynccontextmanager
-async def lifespan(_: FastAPI) -> AsyncGenerator[None, None]:  # noqa: ARG001
+async def lifespan(_: FastAPI) -> AsyncGenerator[None, None]:
     """Gerencia ciclo de vida da aplicação."""
     # Startup
     await server.initialize()

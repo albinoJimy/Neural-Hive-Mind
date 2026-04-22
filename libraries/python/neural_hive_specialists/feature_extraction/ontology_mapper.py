@@ -7,12 +7,13 @@ baseado em ontologias JSON carregadas de `/ontologies/`.
 
 import json
 import os
-from typing import Dict, List, Any, Optional
+from pathlib import Path
+from typing import Any, Optional
+
 import numpy as np
 import structlog
-from pathlib import Path
 
-from neural_hive_domain import UnifiedDomain, DomainMapper
+from neural_hive_domain import DomainMapper, UnifiedDomain
 
 logger = structlog.get_logger(__name__)
 
@@ -68,11 +69,11 @@ class OntologyMapper:
         logger.warning("Ontology path not found; using fallback", fallback_ontology_path=fallback)
         return fallback
 
-    def _load_taxonomy(self, filename: str) -> Dict[str, Any]:
+    def _load_taxonomy(self, filename: str) -> dict[str, Any]:
         """Carrega arquivo de taxonomia JSON."""
         filepath = os.path.join(self.ontology_path, filename)
         try:
-            with open(filepath, "r", encoding="utf-8") as f:
+            with open(filepath, encoding="utf-8") as f:
                 taxonomy = json.load(f)
             logger.debug("Loaded taxonomy", filename=filename, version=taxonomy.get("version"))
             return taxonomy
@@ -179,7 +180,7 @@ class OntologyMapper:
         # Fallback: usar DomainMapper
         return self.get_unified_domain(domain)
 
-    def get_taxonomy_entry(self, domain: str) -> Optional[Dict[str, Any]]:
+    def get_taxonomy_entry(self, domain: str) -> Optional[dict[str, Any]]:
         """
         Retorna entrada completa de taxonomia para um domínio.
 
@@ -204,7 +205,7 @@ class OntologyMapper:
         logger.warning("Domain not found in taxonomy", domain=domain)
         return None
 
-    def map_task_type_to_taxonomy(self, task_type: str) -> Optional[Dict[str, Any]]:
+    def map_task_type_to_taxonomy(self, task_type: str) -> Optional[dict[str, Any]]:
         """
         Mapeia tipo de tarefa para taxonomia.
 
@@ -221,7 +222,7 @@ class OntologyMapper:
         logger.warning("Task type not found in taxonomy", task_type=task_type)
         return None
 
-    def detect_architecture_patterns(self, task_descriptions: List[str]) -> List[Dict[str, Any]]:
+    def detect_architecture_patterns(self, task_descriptions: list[str]) -> list[dict[str, Any]]:
         """
         Detecta padrões arquiteturais em descrições de tarefas.
 
@@ -268,7 +269,7 @@ class OntologyMapper:
         logger.debug("Architecture patterns detected", count=len(detected))
         return detected
 
-    def detect_anti_patterns(self, task_descriptions: List[str]) -> List[Dict[str, Any]]:
+    def detect_anti_patterns(self, task_descriptions: list[str]) -> list[dict[str, Any]]:
         """
         Detecta anti-padrões em descrições de tarefas.
 
@@ -316,7 +317,7 @@ class OntologyMapper:
         return detected
 
     def _calculate_semantic_matches(
-        self, task_descriptions: List[str], indicators: List[str]
+        self, task_descriptions: list[str], indicators: list[str]
     ) -> int:
         """
         Calcula matches usando similaridade semântica com batch processing otimizado.
@@ -391,6 +392,6 @@ class OntologyMapper:
             )
             return 0
 
-    def get_risk_patterns(self) -> Dict[str, Any]:
+    def get_risk_patterns(self) -> dict[str, Any]:
         """Retorna padrões de risco da taxonomia."""
         return self.intents_taxonomy.get("risk_patterns", {})

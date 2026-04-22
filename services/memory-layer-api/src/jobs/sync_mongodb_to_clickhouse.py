@@ -9,8 +9,7 @@ Roda como CronJob diariamente às 2h UTC.
 import asyncio
 import os
 import sys
-from datetime import datetime, timedelta, timezone
-from typing import Dict, List
+from datetime import UTC, datetime, timedelta
 
 import structlog
 
@@ -71,7 +70,7 @@ class MongoToClickHouseSync:
         logger.info(f"Sincronizando {collection_name} -> {table_name}...")
 
         # Calcula range de datas
-        end_date = datetime.now(timezone.utc)
+        end_date = datetime.now(UTC)
         start_date = end_date - timedelta(days=self.date_range_days)
 
         # Query MongoDB
@@ -109,7 +108,7 @@ class MongoToClickHouseSync:
 
         return total_synced
 
-    async def _insert_batch(self, table_name: str, documents: List[Dict]):
+    async def _insert_batch(self, table_name: str, documents: list[dict]):
         """
         Insere batch de documentos no ClickHouse
 
@@ -131,7 +130,7 @@ class MongoToClickHouseSync:
             column_names = self._get_column_names(table_name)
             await self.clickhouse_client.insert_batch(table_name, rows, column_names)
 
-    def _get_column_names(self, table_name: str) -> List[str]:
+    def _get_column_names(self, table_name: str) -> list[str]:
         """
         Retorna nomes das colunas para a tabela.
 
@@ -222,7 +221,7 @@ class MongoToClickHouseSync:
         }
         return table_columns.get(table_name, ["entity_id", "created_at", "data", "metadata"])
 
-    def _prepare_row(self, document: Dict, table_name: str = None) -> List:
+    def _prepare_row(self, document: dict, table_name: str = None) -> list:
         """
         Prepara documento MongoDB para inserção no ClickHouse
 
@@ -240,7 +239,7 @@ class MongoToClickHouseSync:
         doc.pop("_id", None)
 
         # Extrai timestamp
-        created_at = doc.get("created_at") or doc.get("timestamp") or datetime.now(timezone.utc)
+        created_at = doc.get("created_at") or doc.get("timestamp") or datetime.now(UTC)
         if isinstance(created_at, str):
             created_at = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
 

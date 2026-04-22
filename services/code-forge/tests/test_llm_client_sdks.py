@@ -11,7 +11,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from src.clients.llm_client import LLMClient, LLMProvider
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_openai_response():
     """Mock de resposta OpenAI."""
     response = MagicMock()
@@ -22,7 +22,7 @@ def mock_openai_response():
     return response
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_anthropic_response():
     """Mock de resposta Anthropic."""
     response = MagicMock()
@@ -33,7 +33,7 @@ def mock_anthropic_response():
     return response
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_openai_sdk_call_success(mock_openai_response):
     """Testar chamada OpenAI SDK com sucesso."""
     with patch("src.clients.llm_client.AsyncOpenAI") as MockOpenAI:
@@ -63,7 +63,7 @@ async def test_openai_sdk_call_success(mock_openai_response):
         await llm_client.stop()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_anthropic_sdk_call_success(mock_anthropic_response):
     """Testar chamada Anthropic SDK com sucesso."""
     with patch("src.clients.llm_client.AsyncAnthropic") as MockAnthropic:
@@ -95,7 +95,7 @@ async def test_anthropic_sdk_call_success(mock_anthropic_response):
         await llm_client.stop()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_openai_rate_limit_retry():
     """Testar retry em rate limit OpenAI."""
     with patch("src.clients.llm_client.AsyncOpenAI") as MockOpenAI:
@@ -132,7 +132,7 @@ async def test_openai_rate_limit_retry():
         await llm_client.stop()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_missing_api_key():
     """Testar comportamento sem API key."""
     llm_client = LLMClient(
@@ -148,7 +148,7 @@ async def test_missing_api_key():
     await llm_client.stop()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_streaming_mode():
     """Testar modo streaming (OpenAI)."""
     with patch("src.clients.llm_client.AsyncOpenAI") as MockOpenAI:

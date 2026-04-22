@@ -3,7 +3,7 @@ Configurações do Execution Ticket Service usando Pydantic Settings.
 """
 
 from functools import lru_cache
-from typing import List, Optional
+from typing import Optional
 
 from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -214,7 +214,7 @@ class TicketServiceSettings(BaseSettings):
         return self
 
     @property
-    def CORS_ORIGINS(self) -> List[str]:
+    def CORS_ORIGINS(self) -> list[str]:
         """
         CORS origins dinâmicas por ambiente usando neural_hive_security.
         """
@@ -227,7 +227,7 @@ class TicketServiceSettings(BaseSettings):
     )
 
 
-@lru_cache()
+@lru_cache
 def get_settings() -> TicketServiceSettings:
     """Retorna singleton de configurações."""
     return TicketServiceSettings()

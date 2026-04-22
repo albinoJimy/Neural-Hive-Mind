@@ -5,11 +5,11 @@ Aplica mascaramento parcial baseado em regras por tipo de PII.
 """
 
 import hashlib
-from typing import Dict, List, Optional
 from dataclasses import dataclass
 from enum import Enum
+from typing import Optional
 
-from .pii_patterns import PIIType, PIICategory, get_pattern_registry, PII_PATTERNS
+from .pii_patterns import PII_PATTERNS, PIICategory, PIIType, get_pattern_registry
 
 
 class MaskStrategy(str, Enum):
@@ -39,8 +39,8 @@ class MaskResult:
     """Resultado de mascaramento."""
 
     text: str
-    entities: List[PIIEntity]
-    metadata: Dict[str, int]
+    entities: list[PIIEntity]
+    metadata: dict[str, int]
 
 
 class PIIMasker:
@@ -79,7 +79,7 @@ class PIIMasker:
         self.pattern_registry = get_pattern_registry()
 
         # Mapear estratégias por tipo (override)
-        self.type_strategies: Dict[PIIType, dict] = {}
+        self.type_strategies: dict[PIIType, dict] = {}
         for pii_def in PII_PATTERNS:
             self.type_strategies[pii_def.type] = {
                 "strategy": pii_def.mask_strategy,
@@ -110,7 +110,7 @@ class PIIMasker:
     def mask(
         self,
         text: str,
-        types_to_mask: Optional[List[PIIType]] = None,
+        types_to_mask: Optional[list[PIIType]] = None,
         strategy: Optional[MaskStrategy] = None,
     ) -> MaskResult:
         """
@@ -157,8 +157,8 @@ class PIIMasker:
         return MaskResult(text=masked_text, entities=entities_sorted, metadata=stats)
 
     def _detect_entities(
-        self, text: str, types_to_mask: Optional[List[PIIType]]
-    ) -> List[PIIEntity]:
+        self, text: str, types_to_mask: Optional[list[PIIType]]
+    ) -> list[PIIEntity]:
         """Detecta entidades PII via regex e spaCy."""
         entities = []
 
@@ -191,8 +191,8 @@ class PIIMasker:
         return entities
 
     def _detect_with_spacy(
-        self, text: str, types_to_mask: Optional[List[PIIType]]
-    ) -> List[PIIEntity]:
+        self, text: str, types_to_mask: Optional[list[PIIType]]
+    ) -> list[PIIEntity]:
         """Detecta entidades usando spaCy NER."""
         if not self._nlp:
             return []

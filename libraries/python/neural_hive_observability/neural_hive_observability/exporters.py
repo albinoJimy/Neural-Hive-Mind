@@ -8,10 +8,10 @@ exceções durante export sem bloquear operações principais.
 import logging
 import os
 import time
-from typing import Optional, Sequence, Dict, TYPE_CHECKING
+from collections.abc import Sequence
+from typing import TYPE_CHECKING, Optional
 
 import grpc
-
 from opentelemetry.sdk.trace import ReadableSpan
 from opentelemetry.sdk.trace.export import SpanExporter, SpanExportResult
 
@@ -86,7 +86,7 @@ def _sanitize_header_value(value: str, max_length: int = 100) -> str:
     return sanitized
 
 
-def create_sanitized_headers(headers: Optional[Dict[str, str]]) -> Dict[str, str]:
+def create_sanitized_headers(headers: Optional[dict[str, str]]) -> dict[str, str]:
     """
     Cria dicionário de headers com valores sanitizados.
 
@@ -133,7 +133,7 @@ class ResilientOTLPSpanExporter(SpanExporter):
         endpoint: str,
         service_name: str = "unknown",
         insecure: bool = True,
-        headers: Optional[Dict[str, str]] = None,
+        headers: Optional[dict[str, str]] = None,
         timeout: Optional[int] = None,
         tls_enabled: bool = False,
         tls_cert_path: Optional[str] = None,
@@ -212,7 +212,7 @@ class ResilientOTLPSpanExporter(SpanExporter):
 
             # Verificar se OTLPSpanExporter está disponível
             if not _OTLP_EXPORTER_AVAILABLE:
-                logger.warning(f"OTLPSpanExporter não disponível. Usando fallback sem exportação.")
+                logger.warning("OTLPSpanExporter não disponível. Usando fallback sem exportação.")
                 self._inner_exporter = None
                 self._tls_enabled = False
                 return

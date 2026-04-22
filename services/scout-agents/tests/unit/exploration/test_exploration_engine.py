@@ -4,11 +4,11 @@ Unit tests for ExplorationEngine service (scout-agents).
 Tests codebase exploration, curiosity scoring, and signal processing.
 """
 
-import pytest
-from unittest.mock import AsyncMock, patch
-from datetime import datetime, timezone, timedelta
 from collections import deque
+from datetime import UTC, datetime, timedelta
+from unittest.mock import AsyncMock, patch
 
+import pytest
 from src.engine.exploration_engine import ExplorationEngine
 from src.models.scout_signal import ChannelType, SignalSource, SignalType, UnifiedDomain
 
@@ -49,7 +49,7 @@ class TestExplorationEngineInitialization:
 class TestEngineStartStop:
     """Test engine lifecycle."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_start(self):
         """Test engine starts successfully."""
         engine = ExplorationEngine("scout-agent-001")
@@ -58,7 +58,7 @@ class TestEngineStartStop:
 
         assert engine._is_running is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_start_clients_initialized(self):
         """Test start initializes all clients."""
         engine = ExplorationEngine("scout-agent-001")
@@ -70,7 +70,7 @@ class TestEngineStartStop:
         engine.memory_client.start.assert_called_once()
         engine.pheromone_client.start.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_stop(self):
         """Test engine stops gracefully."""
         engine = ExplorationEngine("scout-agent-001")
@@ -80,7 +80,7 @@ class TestEngineStartStop:
 
         assert engine._is_running is False
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_stop_processes_remaining_signals(self):
         """Test stop processes signals in queue."""
         engine = ExplorationEngine("scout-agent-001")
@@ -113,7 +113,7 @@ class TestEngineStartStop:
 class TestEventProcessing:
     """Test event processing pipeline."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_process_event_not_running(self, sample_raw_event, business_domain):
         """Test processing when engine not running returns None."""
         engine = ExplorationEngine("scout-agent-001")
@@ -123,7 +123,7 @@ class TestEventProcessing:
 
         assert result is None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_process_event_successful(self, sample_raw_event, business_domain):
         """Test successful event processing."""
         engine = ExplorationEngine("scout-agent-001")
@@ -131,10 +131,10 @@ class TestEventProcessing:
 
         # Mock detection to return signal
         from src.models.scout_signal import (
+            ChannelType,
             ScoutSignal,
             SignalSource,
             UnifiedDomain,
-            ChannelType,
         )
 
         source = SignalSource(channel=ChannelType.CORE)
@@ -162,7 +162,7 @@ class TestEventProcessing:
             assert result is None or hasattr(result, "signal_id")
             assert engine.stats["processed"] == 1
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_process_event_no_detection(self, sample_raw_event, business_domain):
         """Test processing when no signal detected."""
         engine = ExplorationEngine("scout-agent-001")
@@ -174,7 +174,7 @@ class TestEventProcessing:
             assert result is None
             assert engine.stats["detected"] == 0
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_process_event_exception_handling(self, sample_raw_event, business_domain):
         """Test processing handles exceptions gracefully."""
         engine = ExplorationEngine("scout-agent-001")
@@ -203,7 +203,7 @@ class TestRateLimiting:
 
         # Add some timestamps under limit
         for _ in range(10):
-            engine.published_signals.append(datetime.now(timezone.utc))
+            engine.published_signals.append(datetime.now(UTC))
 
         result = engine._check_rate_limit()
 
@@ -215,7 +215,7 @@ class TestRateLimiting:
 
         # Fill to max
         for _ in range(engine.max_signals_per_minute + 10):
-            engine.published_signals.append(datetime.now(timezone.utc))
+            engine.published_signals.append(datetime.now(UTC))
 
         result = engine._check_rate_limit()
 
@@ -226,7 +226,7 @@ class TestRateLimiting:
         engine = ExplorationEngine("scout-agent-001")
 
         # Add old timestamps
-        old_time = datetime.now(timezone.utc) - timedelta(minutes=2)
+        old_time = datetime.now(UTC) - timedelta(minutes=2)
         for _ in range(10):
             engine.published_signals.append(old_time)
 
@@ -239,7 +239,7 @@ class TestRateLimiting:
 class TestSignalPublishing:
     """Test signal publishing."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_publish_signal_success(self):
         """Test successful signal publishing."""
         from src.models.scout_signal import ScoutSignal, UnifiedDomain
@@ -264,7 +264,7 @@ class TestSignalPublishing:
 
         assert result is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_publish_signal_kafka_failure(self):
         """Test signal publishing handles Kafka failure."""
         from src.models.scout_signal import ScoutSignal, UnifiedDomain
@@ -290,7 +290,7 @@ class TestSignalPublishing:
 
         assert result is False
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_publish_signal_memory_failure_continues(self):
         """Test publishing continues if memory storage fails."""
         from src.models.scout_signal import ScoutSignal, UnifiedDomain
@@ -321,7 +321,7 @@ class TestSignalPublishing:
 class TestQueueProcessing:
     """Test signal queue processing."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_process_queue_empty(self):
         """Test processing empty queue."""
         engine = ExplorationEngine("scout-agent-001")
@@ -330,7 +330,7 @@ class TestQueueProcessing:
 
         # Should not raise any errors
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_process_queue_signals(self):
         """Test processing queued signals."""
         from src.models.scout_signal import ScoutSignal, UnifiedDomain
@@ -408,7 +408,7 @@ class TestStatistics:
 class TestFeedbackHandling:
     """Test feedback handling for adaptive learning."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_handle_feedback_valid(self):
         """Test handling valid feedback."""
         engine = ExplorationEngine("scout-agent-001")
@@ -419,7 +419,7 @@ class TestFeedbackHandling:
 
         # Should not raise any errors
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_handle_feedback_updates_prior(self):
         """Test feedback updates Bayesian prior."""
         engine = ExplorationEngine("scout-agent-001")
@@ -433,7 +433,7 @@ class TestFeedbackHandling:
         # Prior should be updated
         # (actual verification depends on BayesianFilter implementation)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_handle_feedback_with_feature_mean(self):
         """Test feedback with feature mean updates likelihood."""
         engine = ExplorationEngine("scout-agent-001")
@@ -447,7 +447,7 @@ class TestFeedbackHandling:
 
         # Should not raise any errors
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_handle_feedback_domain_retrieval(self):
         """Test feedback attempts domain retrieval if not provided."""
         engine = ExplorationEngine("scout-agent-001")
@@ -463,7 +463,7 @@ class TestFeedbackHandling:
 class TestCodebaseExploration:
     """Test codebase exploration methods."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_scan_codebase(self, tmp_path):
         """Test codebase scanning."""
         engine = ExplorationEngine("scout-agent-001")
@@ -476,7 +476,7 @@ class TestCodebaseExploration:
 
         assert isinstance(results, list)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_curiosity_scores(self, tmp_path):
         """Test getting curiosity scores."""
         engine = ExplorationEngine("scout-agent-001")
@@ -489,7 +489,7 @@ class TestCodebaseExploration:
 
         assert isinstance(results, list)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_exploration_summary(self, tmp_path):
         """Test getting exploration summary."""
         engine = ExplorationEngine("scout-agent-001")
@@ -502,7 +502,7 @@ class TestCodebaseExploration:
         assert isinstance(summary, dict)
         assert "directory" in summary
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_rank_directories_by_interest(self, tmp_path):
         """Test ranking directories by interest."""
         engine = ExplorationEngine("scout-agent-001")
@@ -515,7 +515,7 @@ class TestCodebaseExploration:
 
         assert isinstance(rankings, dict)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_mark_file_visited(self):
         """Test marking file as visited."""
         engine = ExplorationEngine("scout-agent-001")
@@ -528,7 +528,7 @@ class TestCodebaseExploration:
 class TestSignalRetrieval:
     """Test signal retrieval from memory."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_retrieve_signal_domain_found(self):
         """Test retrieving signal domain when found."""
         engine = ExplorationEngine("scout-agent-001")
@@ -541,7 +541,7 @@ class TestSignalRetrieval:
         assert domain is not None
         assert domain.value == "TECHNICAL"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_retrieve_signal_domain_not_found(self):
         """Test retrieving signal domain when not found."""
         engine = ExplorationEngine("scout-agent-001")
@@ -551,7 +551,7 @@ class TestSignalRetrieval:
 
         assert domain is None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_retrieve_signal_domain_invalid_json(self):
         """Test retrieving signal domain with invalid JSON."""
         engine = ExplorationEngine("scout-agent-001")
@@ -565,7 +565,7 @@ class TestSignalRetrieval:
 class TestPriorityHandling:
     """Test high-priority signal handling."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_high_priority_queued_when_rate_limited(self):
         """Test high priority signals are queued when rate limited."""
         from src.models.scout_signal import ScoutSignal, UnifiedDomain
@@ -575,7 +575,7 @@ class TestPriorityHandling:
 
         # Fill rate limit
         for _ in range(engine.max_signals_per_minute + 1):
-            engine.published_signals.append(datetime.now(timezone.utc))
+            engine.published_signals.append(datetime.now(UTC))
 
         # Mock signal with high priority
 
@@ -604,7 +604,7 @@ class TestPriorityHandling:
                         "event_type": "test",
                         "payload": {},
                         "metadata": {},
-                        "extract_features": lambda: [],
+                        "extract_features": list,
                     },
                 )(),
                 UnifiedDomain.SECURITY,
@@ -617,7 +617,7 @@ class TestPriorityHandling:
 class TestChannelTypes:
     """Test different channel types."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_process_event_core_channel(self, sample_raw_event, business_domain):
         """Test processing with CORE channel."""
         engine = ExplorationEngine("scout-agent-001")
@@ -627,7 +627,7 @@ class TestChannelTypes:
         with patch.object(engine.detector, "detect", return_value=None):
             await engine.process_event(sample_raw_event, business_domain, ChannelType.CORE)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_process_event_extended_channel(self, sample_raw_event, business_domain):
         """Test processing with EXTENDED channel."""
         engine = ExplorationEngine("scout-agent-001")
@@ -637,7 +637,7 @@ class TestChannelTypes:
         with patch.object(engine.detector, "detect", return_value=None):
             await engine.process_event(sample_raw_event, business_domain, ChannelType.EXTENDED)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_process_event_experimental_channel(self, sample_raw_event, business_domain):
         """Test processing with EXPERIMENTAL channel."""
         engine = ExplorationEngine("scout-agent-001")

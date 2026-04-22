@@ -1,7 +1,8 @@
 """Kafka consumer for Guard Agents"""
 
 import asyncio
-from typing import Callable, Optional
+from collections.abc import Callable
+from typing import Optional
 
 import structlog
 from aiokafka import AIOKafkaConsumer

@@ -11,17 +11,17 @@ Testa:
 - Casos edge
 """
 
-import pytest
 import time
 
-from src.services.dag_generator import DAGGenerator, ConflictInfo
+import pytest
 from src.models.cognitive_plan import TaskNode
+from src.services.dag_generator import ConflictInfo, DAGGenerator
 
 
 class TestEntityDependencyBasics:
     """Testes básicos de dependências por entidades"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def dag_generator(self):
         """DAGGenerator padrão sem componentes avançados"""
         return DAGGenerator()
@@ -121,12 +121,12 @@ class TestEntityDependencyBasics:
 class TestConflictDetection:
     """Testes de detecção de conflitos"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def dag_generator(self):
         """DAGGenerator com resolução sequencial"""
         return DAGGenerator(conflict_resolution_strategy="sequential")
 
-    @pytest.fixture
+    @pytest.fixture()
     def dag_generator_notify(self):
         """DAGGenerator com estratégia notify (não resolve)"""
         return DAGGenerator(conflict_resolution_strategy="notify")
@@ -234,14 +234,14 @@ class TestConflictDetection:
 class TestAdvancedEntityMatching:
     """Testes de matching avançado de entidades"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def dag_generator_fuzzy(self):
         """DAGGenerator com fuzzy matching habilitado"""
         return DAGGenerator(
             entity_matching_fuzzy_enabled=True, entity_matching_fuzzy_threshold=0.85
         )
 
-    @pytest.fixture
+    @pytest.fixture()
     def dag_generator_no_fuzzy(self):
         """DAGGenerator sem fuzzy matching"""
         return DAGGenerator(entity_matching_fuzzy_enabled=False)
@@ -334,7 +334,7 @@ class TestAdvancedEntityMatching:
 class TestComplexScenarios:
     """Testes de cenários complexos"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def dag_generator(self):
         """DAGGenerator padrão"""
         return DAGGenerator()
@@ -410,7 +410,7 @@ class TestComplexScenarios:
 class TestVisualization:
     """Testes de geração de visualizações"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def dag_generator(self):
         """DAGGenerator padrão"""
         return DAGGenerator()
@@ -570,7 +570,7 @@ class TestVisualization:
 class TestEdgeCases:
     """Testes de casos edge"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def dag_generator(self):
         """DAGGenerator padrão"""
         return DAGGenerator()

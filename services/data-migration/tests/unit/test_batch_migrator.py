@@ -216,10 +216,19 @@ class TestBatchMigrator:
         )
 
         # Simular batches
-        batch1 = [{"id": f"id-{i}", "name": f"User {i}", "email": f"user{i}@test.com"} for i in range(100)]
-        batch2 = [{"id": f"id-{i}", "name": f"User {i}", "email": f"user{i}@test.com"} for i in range(100, 200)]
+        batch1 = [
+            {"id": f"id-{i}", "name": f"User {i}", "email": f"user{i}@test.com"} for i in range(100)
+        ]
+        batch2 = [
+            {"id": f"id-{i}", "name": f"User {i}", "email": f"user{i}@test.com"}
+            for i in range(100, 200)
+        ]
 
-        mock_legacy_client.fetch_batch.side_effect = [batch1, batch2, []]  # Ultimo vazio sinaliza fim
+        mock_legacy_client.fetch_batch.side_effect = [
+            batch1,
+            batch2,
+            [],
+        ]  # Ultimo vazio sinaliza fim
 
         stats = await migrator.run_batch_migration(
             legacy_client=mock_legacy_client,
@@ -478,9 +487,7 @@ class TestBatchMigrator:
         assert migrator.is_paused() is False
 
     @pytest.mark.asyncio
-    async def test_apply_transformations(
-        self, sample_migration_job, sample_schema_mapping
-    ):
+    async def test_apply_transformations(self, sample_migration_job, sample_schema_mapping):
         """Verifica aplicação de transformações de dados."""
         migrator = BatchMigrator(
             job_id=sample_migration_job.job_id,
@@ -509,9 +516,7 @@ class TestBatchMigrator:
         assert "created_at" in transformed[0]
 
     @pytest.mark.asyncio
-    async def test_apply_transformations_with_default_values(
-        self, sample_migration_job
-    ):
+    async def test_apply_transformations_with_default_values(self, sample_migration_job):
         """Verifica aplicação de valores default."""
         migrator = BatchMigrator(
             job_id=sample_migration_job.job_id,

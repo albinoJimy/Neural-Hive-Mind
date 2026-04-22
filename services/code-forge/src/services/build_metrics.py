@@ -11,10 +11,10 @@ Este módulo fornece funcionalidades para:
 import json
 import statistics
 from dataclasses import asdict, dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 import structlog
 
@@ -50,7 +50,7 @@ class BuildMetric:
     has_error: bool = False
     error_type: Optional[str] = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Converte para dicionário."""
         return asdict(self)
 
@@ -69,7 +69,7 @@ class MetricStats:
     p99: float  # 99º percentil
     std_dev: float
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Converte para dicionário."""
         return asdict(self)
 
@@ -92,7 +92,7 @@ class BuildMetricsCollector:
         Args:
             storage_path: Caminho para armazenar métricas persistidas
         """
-        self.metrics: List[BuildMetric] = []
+        self.metrics: list[BuildMetric] = []
         self.storage_path = storage_path or "metrics/build_metrics.jsonl"
         self._load_metrics()
 
@@ -101,7 +101,7 @@ class BuildMetricsCollector:
         try:
             path = Path(self.storage_path)
             if path.exists():
-                with open(path, "r") as f:
+                with open(path) as f:
                     for line in f:
                         if line.strip():
                             data = json.loads(line)
@@ -121,7 +121,7 @@ class BuildMetricsCollector:
         duration_seconds: float,
         size_bytes: Optional[int] = None,
         cache_hit: bool = False,
-        platforms: Optional[List[str]] = None,
+        platforms: Optional[list[str]] = None,
         error_type: Optional[str] = None,
     ) -> BuildMetric:
         """
@@ -144,7 +144,7 @@ class BuildMetricsCollector:
             BuildMetric registrada
         """
         metric = BuildMetric(
-            timestamp=datetime.now(timezone.utc).isoformat(),
+            timestamp=datetime.now(UTC).isoformat(),
             language=language,
             framework=framework,
             artifact_type=artifact_type,
@@ -188,8 +188,8 @@ class BuildMetricsCollector:
         self,
         metric_type: MetricType = MetricType.DURATION,
         group_by: Optional[str] = None,
-        filter_by: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, MetricStats]:
+        filter_by: Optional[dict[str, Any]] = None,
+    ) -> dict[str, MetricStats]:
         """
         Calcula estatísticas agregadas.
 
@@ -216,7 +216,7 @@ class BuildMetricsCollector:
 
         return stats
 
-    def _filter_metrics(self, filters: Optional[Dict[str, Any]]) -> List[BuildMetric]:
+    def _filter_metrics(self, filters: Optional[dict[str, Any]]) -> list[BuildMetric]:
         """Filtra métricas baseado em critérios."""
         if not filters:
             return self.metrics
@@ -235,8 +235,8 @@ class BuildMetricsCollector:
         return filtered
 
     def _group_metrics(
-        self, metrics: List[BuildMetric], group_by: str
-    ) -> Dict[str, List[BuildMetric]]:
+        self, metrics: list[BuildMetric], group_by: str
+    ) -> dict[str, list[BuildMetric]]:
         """Agrupa métricas por um campo."""
         groups = {}
         for metric in metrics:
@@ -247,8 +247,8 @@ class BuildMetricsCollector:
         return groups
 
     def _extract_metric_values(
-        self, metrics: List[BuildMetric], metric_type: MetricType
-    ) -> List[float]:
+        self, metrics: list[BuildMetric], metric_type: MetricType
+    ) -> list[float]:
         """Extrai valores numéricos baseado no tipo de métrica."""
         values = []
         for metric in metrics:
@@ -263,7 +263,7 @@ class BuildMetricsCollector:
                 values.append(1.0 if metric.success else 0.0)
         return values
 
-    def _calculate_stats(self, values: List[float], metric_type: MetricType) -> MetricStats:
+    def _calculate_stats(self, values: list[float], metric_type: MetricType) -> MetricStats:
         """Calcula estatísticas descritivas."""
         sorted_values = sorted(values)
         n = len(sorted_values)
@@ -280,7 +280,7 @@ class BuildMetricsCollector:
             std_dev=statistics.stdev(sorted_values) if n > 1 else 0.0,
         )
 
-    def _percentile(self, sorted_values: List[float], p: int) -> float:
+    def _percentile(self, sorted_values: list[float], p: int) -> float:
         """Calcula percentil."""
         n = len(sorted_values)
         if n == 0:
@@ -296,7 +296,7 @@ class BuildMetricsCollector:
         self,
         metric_type: MetricType = MetricType.DURATION,
         dimension: str = "language",
-    ) -> Dict[str, Dict[str, float]]:
+    ) -> dict[str, dict[str, float]]:
         """
         Compara performance entre grupos.
 
@@ -322,7 +322,7 @@ class BuildMetricsCollector:
 
         return sorted_comparison
 
-    def get_performance_report(self) -> Dict[str, Any]:
+    def get_performance_report(self) -> dict[str, Any]:
         """
         Gera relatório completo de performance.
 
@@ -385,7 +385,7 @@ class BuildMetricsCollector:
                 "single_arch_count": len(single_arch),
                 "multi_arch_count": len(multi_arch),
             },
-            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "generated_at": datetime.now(UTC).isoformat(),
         }
 
     def export_metrics(self, output_path: str, format: str = "json"):
@@ -418,7 +418,7 @@ class BuildMetricsCollector:
 
         logger.info("metrics_exported", path=output_path, format=format, count=len(self.metrics))
 
-    def get_slowest_builds(self, n: int = 10) -> List[Dict[str, Any]]:
+    def get_slowest_builds(self, n: int = 10) -> list[dict[str, Any]]:
         """
         Retorna os N builds mais lentos.
 
@@ -443,7 +443,7 @@ class BuildMetricsCollector:
             for m in sorted_by_duration[:n]
         ]
 
-    def get_error_summary(self) -> Dict[str, Any]:
+    def get_error_summary(self) -> dict[str, Any]:
         """
         Resumo de erros de build.
 

@@ -15,15 +15,14 @@ import pytest
 
 from tests.fixtures.client_fixtures import MockOPAServer
 from tests.fixtures.executor_fixtures import (
-    create_mock_sonarqube_client,
-    create_mock_snyk_client,
     create_mock_checkov_client,
+    create_mock_snyk_client,
+    create_mock_sonarqube_client,
 )
 from tests.helpers.integration_helpers import (
     ExecutorTestHelper,
     ResultValidator,
 )
-
 
 pytestmark = [pytest.mark.integration]
 
@@ -31,7 +30,7 @@ pytestmark = [pytest.mark.integration]
 class TestValidateExecutorWithMockOPA:
     """Tests for ValidateExecutor with mocked OPA API."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_validate_executor_opa_policy_allow(
         self, worker_config, mock_vault_client, mock_metrics
     ):
@@ -73,7 +72,7 @@ class TestValidateExecutorWithMockOPA:
         ResultValidator.assert_output_value(result, "validation_passed", True)
         ResultValidator.assert_output_value(result, "validation_type", "policy")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_validate_executor_opa_policy_deny(
         self, worker_config, mock_vault_client, mock_metrics
     ):
@@ -111,7 +110,7 @@ class TestValidateExecutorWithMockOPA:
         ResultValidator.assert_output_value(result, "validation_passed", False)
         assert len(result["output"]["violations"]) > 0
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_validate_executor_opa_custom_policy(
         self, worker_config, mock_vault_client, mock_metrics
     ):
@@ -160,7 +159,7 @@ class TestValidateExecutorWithMockOPA:
         ResultValidator.assert_failure(result)
         ResultValidator.assert_log_contains(result, "OPA")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_validate_executor_opa_connection_error(
         self, worker_config, mock_vault_client, mock_metrics
     ):
@@ -195,7 +194,7 @@ class TestValidateExecutorWithMockOPA:
 class TestValidateExecutorWithMockTrivy:
     """Tests for ValidateExecutor with mocked Trivy."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_validate_executor_trivy_no_vulnerabilities(
         self, worker_config, mock_vault_client, mock_metrics
     ):
@@ -236,7 +235,7 @@ class TestValidateExecutorWithMockTrivy:
         ResultValidator.assert_output_value(result, "validation_passed", True)
         assert len(result["output"]["violations"]) == 0
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_validate_executor_trivy_critical_findings(
         self, worker_config, mock_vault_client, mock_metrics
     ):
@@ -290,7 +289,7 @@ class TestValidateExecutorWithMockTrivy:
         ResultValidator.assert_output_value(result, "validation_passed", False)
         assert len(result["output"]["violations"]) == 1  # Only CRITICAL
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_validate_executor_trivy_timeout(
         self, worker_config, mock_vault_client, mock_metrics
     ):
@@ -322,7 +321,7 @@ class TestValidateExecutorWithMockTrivy:
 class TestValidateExecutorWithMockSonarQube:
     """Tests for ValidateExecutor with mocked SonarQube."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_validate_executor_sonarqube_success(
         self, worker_config, mock_vault_client, mock_metrics
     ):
@@ -354,7 +353,7 @@ class TestValidateExecutorWithMockSonarQube:
         ResultValidator.assert_simulated(result, expected=False)
         ResultValidator.assert_output_value(result, "validation_type", "sonarqube")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_validate_executor_sonarqube_with_issues(
         self, worker_config, mock_vault_client, mock_metrics
     ):
@@ -394,7 +393,7 @@ class TestValidateExecutorWithMockSonarQube:
 class TestValidateExecutorWithMockSnyk:
     """Tests for ValidateExecutor with mocked Snyk."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_validate_executor_snyk_success(
         self, worker_config, mock_vault_client, mock_metrics
     ):
@@ -424,7 +423,7 @@ class TestValidateExecutorWithMockSnyk:
         ResultValidator.assert_simulated(result, expected=False)
         ResultValidator.assert_output_value(result, "validation_type", "snyk")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_validate_executor_snyk_with_vulnerabilities(
         self, worker_config, mock_vault_client, mock_metrics
     ):
@@ -462,7 +461,7 @@ class TestValidateExecutorWithMockSnyk:
 class TestValidateExecutorWithMockCheckov:
     """Tests for ValidateExecutor with mocked Checkov."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_validate_executor_checkov_success(
         self, worker_config, mock_vault_client, mock_metrics
     ):
@@ -491,7 +490,7 @@ class TestValidateExecutorWithMockCheckov:
         ResultValidator.assert_simulated(result, expected=False)
         ResultValidator.assert_output_value(result, "validation_type", "iac")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_validate_executor_checkov_with_findings(
         self, worker_config, mock_vault_client, mock_metrics
     ):
@@ -529,7 +528,7 @@ class TestValidateExecutorWithMockCheckov:
 class TestValidateExecutorSimulation:
     """Tests for ValidateExecutor simulation mode."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_validate_executor_simulation_mode(
         self, worker_config_minimal, mock_vault_client, mock_metrics
     ):
@@ -555,7 +554,7 @@ class TestValidateExecutorSimulation:
         )
         ResultValidator.assert_log_contains(result, "simulated")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_validate_executor_fallback_simulation(
         self, worker_config, mock_vault_client, mock_metrics
     ):
@@ -586,7 +585,7 @@ class TestValidateExecutorSimulation:
 class TestValidateExecutorValidation:
     """Tests for ValidateExecutor input validation."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_validate_executor_missing_ticket_id(self, validate_executor):
         """Test that missing ticket_id raises ValidationError."""
         from executors.base_executor import ValidationError
@@ -602,7 +601,7 @@ class TestValidateExecutorValidation:
 
         assert "ticket_id" in str(exc_info.value)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_validate_executor_wrong_task_type(self, validate_executor):
         """Test that wrong task_type raises ValidationError."""
         from executors.base_executor import ValidationError
@@ -620,12 +619,12 @@ class TestValidateExecutorValidation:
         assert "task type mismatch" in str(exc_info.value).lower()
 
 
-@pytest.mark.real_integration
-@pytest.mark.opa
+@pytest.mark.real_integration()
+@pytest.mark.opa()
 class TestValidateExecutorRealOPA:
     """Tests that require a real OPA instance."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_validate_executor_with_real_opa(
         self, worker_config, mock_vault_client, mock_metrics
     ):
@@ -659,18 +658,19 @@ class TestValidateExecutorRealOPA:
         assert "metadata" in result
 
 
-@pytest.mark.real_integration
-@pytest.mark.trivy
+@pytest.mark.real_integration()
+@pytest.mark.trivy()
 class TestValidateExecutorRealTrivy:
     """Tests that require real Trivy installation."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_validate_executor_with_real_trivy(
         self, worker_config, mock_vault_client, mock_metrics
     ):
         """Test with real Trivy (requires trivy in PATH)."""
-        from executors.validate_executor import ValidateExecutor
         import shutil
+
+        from executors.validate_executor import ValidateExecutor
 
         if not shutil.which("trivy"):
             pytest.skip("Trivy not installed")
@@ -697,12 +697,12 @@ class TestValidateExecutorRealTrivy:
         assert "metadata" in result
 
 
-@pytest.mark.real_integration
-@pytest.mark.sonarqube
+@pytest.mark.real_integration()
+@pytest.mark.sonarqube()
 class TestValidateExecutorRealSonarQube:
     """Tests that require a real SonarQube instance."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_validate_executor_with_real_sonarqube(
         self, worker_config, mock_vault_client, mock_metrics
     ):

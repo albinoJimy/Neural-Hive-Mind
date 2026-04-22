@@ -7,9 +7,8 @@ MODELO_TESTE_WORKER_AGENT.md seção D3.
 
 import json
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 from unittest.mock import MagicMock
-
 
 from src.models.artifact import (
     ArtifactCategory,
@@ -17,12 +16,11 @@ from src.models.artifact import (
     PipelineResult,
     PipelineStatus,
     StageStatus,
-    ValidationType,
     ValidationStatus,
+    ValidationType,
 )
-from src.types.artifact_types import ArtifactCategory
 from src.models.pipeline_context import PipelineContext
-
+from src.types.artifact_types import ArtifactCategory
 
 # ============================================================================
 # Verificações de Pipeline
@@ -328,7 +326,7 @@ def verify_mongodb_artifact_persisted(mock_mongodb: MagicMock, ticket_id: str) -
     return True
 
 
-def verify_mongodb_document_structure(document: Dict[str, Any]) -> bool:
+def verify_mongodb_document_structure(document: dict[str, Any]) -> bool:
     """
     Verifica estrutura do documento MongoDB.
     """
@@ -364,7 +362,7 @@ def verify_postgres_pipeline_persisted(mock_postgres: MagicMock, pipeline_id: st
     return True
 
 
-def verify_postgres_pipeline_record(record: Dict[str, Any]) -> bool:
+def verify_postgres_pipeline_record(record: dict[str, Any]) -> bool:
     """
     Verifica estrutura do registro PostgreSQL.
     """
@@ -445,7 +443,7 @@ def verify_api_metrics_emitted(
 
 
 def verify_expected_logs_present(
-    log_records: List[Dict[str, Any]], expected_messages: List[str]
+    log_records: list[dict[str, Any]], expected_messages: list[str]
 ) -> bool:
     """
     Verifica se mensagens de log esperadas estão presentes.
@@ -465,7 +463,7 @@ def verify_expected_logs_present(
     return True
 
 
-def verify_no_error_logs(log_records: List[Dict[str, Any]]) -> bool:
+def verify_no_error_logs(log_records: list[dict[str, Any]]) -> bool:
     """
     Verifica que não há logs de erro.
     """
@@ -490,7 +488,7 @@ def verify_d3_conformance(
     mock_postgres: Optional[MagicMock] = None,
     mock_mongodb: Optional[MagicMock] = None,
     mock_metrics: Optional[MagicMock] = None,
-) -> Dict[str, bool]:
+) -> dict[str, bool]:
     """
     Executa todas as verificações de conformidade D3.
 
@@ -583,7 +581,7 @@ def verify_d3_conformance(
     return results
 
 
-def assert_d3_conformance(conformance_results: Dict[str, bool]) -> None:
+def assert_d3_conformance(conformance_results: dict[str, bool]) -> None:
     """
     Falha o teste se qualquer verificação de conformidade falhar.
 

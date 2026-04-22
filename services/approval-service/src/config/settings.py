@@ -4,7 +4,7 @@ Configuracao do Approval Service
 Gerencia todas as configuracoes usando Pydantic Settings com suporte a variaveis de ambiente.
 """
 
-from typing import List, Optional
+from typing import Optional
 
 from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings
@@ -26,7 +26,7 @@ class Settings(BaseSettings):
     is_public_api: bool = Field(default=True, description="API pública requer CORS")
 
     @property
-    def cors_origins(self) -> List[str]:
+    def cors_origins(self) -> list[str]:
         """CORS origins dinâmicas por ambiente."""
         return CORSConfig.get_origins_for_environment(
             self.environment, is_public_api=self.is_public_api

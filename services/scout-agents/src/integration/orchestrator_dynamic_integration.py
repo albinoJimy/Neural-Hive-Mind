@@ -8,7 +8,7 @@ Responsável por:
 - Sinalizar conclusão/falha de workflows
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 import structlog
 
@@ -35,9 +35,9 @@ class OrchestratorDynamicIntegration:
         self,
         plan_id: str,
         intent_text: str,
-        scouts: Optional[List[str]] = None,
+        scouts: Optional[list[str]] = None,
         timeout_ms: Optional[int] = None,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Solicita uma exploração ao Scout Orchestrator.
 
@@ -62,7 +62,7 @@ class OrchestratorDynamicIntegration:
 
         return exploration
 
-    async def get_exploration_results(self, exploration_id: str) -> Dict[str, Any]:
+    async def get_exploration_results(self, exploration_id: str) -> dict[str, Any]:
         """
         Obtém resultados de uma exploração.
 
@@ -80,8 +80,8 @@ class OrchestratorDynamicIntegration:
         return await self.scout_orchestrator.get_exploration_status(exploration_id)
 
     def translate_to_workflow_activities(
-        self, scout_results: Dict[str, Any]
-    ) -> List[Dict[str, Any]]:
+        self, scout_results: dict[str, Any]
+    ) -> list[dict[str, Any]]:
         """
         Traduz resultados de scouts para atividades Temporal.
 
@@ -121,7 +121,7 @@ class OrchestratorDynamicIntegration:
 
         return activities
 
-    def translate_to_tickets(self, scout_results: Dict[str, Any]) -> List[Dict[str, Any]]:
+    def translate_to_tickets(self, scout_results: dict[str, Any]) -> list[dict[str, Any]]:
         """
         Traduz recomendações em tickets de execução.
 
@@ -152,7 +152,7 @@ class OrchestratorDynamicIntegration:
 
     async def signal_workflow_completion(
         self, workflow_id: str, exploration_id: str
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Sinaliza conclusão do workflow com dados da exploração.
 
@@ -171,7 +171,7 @@ class OrchestratorDynamicIntegration:
         # Para testes, retornamos mock
         return {"signaled": True, "workflow_id": workflow_id, "exploration_id": exploration_id}
 
-    async def signal_workflow_failure(self, workflow_id: str, error: str) -> Dict[str, Any]:
+    async def signal_workflow_failure(self, workflow_id: str, error: str) -> dict[str, Any]:
         """
         Sinaliza falha no workflow.
 
@@ -188,8 +188,8 @@ class OrchestratorDynamicIntegration:
         return {"signaled": True, "workflow_id": workflow_id, "error": error}
 
     def enrich_context(
-        self, base_context: Dict[str, Any], scout_data: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, base_context: dict[str, Any], scout_data: dict[str, Any]
+    ) -> dict[str, Any]:
         """
         Enriquece o contexto base com descobertas dos scouts.
 

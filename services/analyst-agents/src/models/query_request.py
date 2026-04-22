@@ -1,6 +1,6 @@
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from pydantic import BaseModel, Field
 
@@ -19,21 +19,21 @@ class QueryRequest(BaseModel):
 
     query_id: str
     plan_id: Optional[str] = None
-    analyst_types: List[str] = Field(default_factory=list)
-    time_window: Optional[Dict[str, datetime]] = None
-    filters: Dict[str, Any] = Field(default_factory=dict)
+    analyst_types: list[str] = Field(default_factory=list)
+    time_window: Optional[dict[str, datetime]] = None
+    filters: dict[str, Any] = Field(default_factory=dict)
     limit: int = Field(default=100, ge=1, le=1000)
 
 
 class MultiSourceQueryRequest(BaseModel):
     """Request para query multi-source com fusão."""
 
-    sources: List[str] = Field(
+    sources: list[str] = Field(
         ..., description="Fontes de dados (mongodb, postgresql, clickhouse, neo4j)"
     )
     query_type: Optional[str] = Field(default="insights", description="Tipo de query")
-    time_window: Optional[Dict[str, datetime]] = None
-    filters: Dict[str, Any] = Field(default_factory=dict)
+    time_window: Optional[dict[str, datetime]] = None
+    filters: dict[str, Any] = Field(default_factory=dict)
     limit: int = Field(default=100, ge=1, le=1000)
     enable_fusion: bool = Field(default=True, description="Aplicar fusão de dados")
     use_cache: bool = Field(default=True)
@@ -42,10 +42,10 @@ class MultiSourceQueryRequest(BaseModel):
 class CorrelationRequest(BaseModel):
     """Request para calcular correlação entre métricas."""
 
-    sources: List[str] = Field(..., description="Fontes de dados")
+    sources: list[str] = Field(..., description="Fontes de dados")
     metric_x: str = Field(..., description="Nome da métrica X")
     metric_y: str = Field(..., description="Nome da métrica Y")
-    time_window: Optional[Dict[str, datetime]] = None
+    time_window: Optional[dict[str, datetime]] = None
 
 
 class SourceStatus(BaseModel):
@@ -67,14 +67,14 @@ class InsightQueryRequest(BaseModel):
     end_timestamp: Optional[int] = None
     entity_type: Optional[str] = None
     entity_id: Optional[str] = None
-    tags: Optional[List[str]] = None
+    tags: Optional[list[str]] = None
     limit: int = Field(default=100, ge=1, le=1000)
     offset: int = Field(default=0, ge=0)
     include_expired: bool = Field(default=False)
 
 
 class InsightQueryResponse(BaseModel):
-    insights: List[dict]
+    insights: list[dict]
     total_count: int
     query_time_ms: float
     cached: bool = False

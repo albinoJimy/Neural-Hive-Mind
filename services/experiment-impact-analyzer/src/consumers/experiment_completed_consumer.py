@@ -2,7 +2,6 @@
 
 import asyncio
 import json
-from datetime import datetime, timezone
 from typing import Any
 
 import structlog
@@ -36,7 +35,9 @@ class ExperimentCompletedConsumer:
             producer: ImpactAnalyzedProducer opcional para publicar eventos
         """
         settings = get_settings()
-        self._bootstrap_servers = bootstrap_servers or getattr(settings, "kafka_bootstrap_servers", "localhost:9092")
+        self._bootstrap_servers = bootstrap_servers or getattr(
+            settings, "kafka_bootstrap_servers", "localhost:9092"
+        )
         self._topic = topic
         self._group_id = group_id
         self._consumer: AIOKafkaConsumer | None = None
@@ -151,8 +152,10 @@ class ExperimentCompletedConsumer:
             self._logger.info(
                 "experiment_impact_analyzed",
                 experiment_id=experiment_id,
-                short_term_impacts=len(impact.short_term.metric_impacts) if impact.short_term else 0,
-                long_term_available = impact.long_term is not None,
+                short_term_impacts=(
+                    len(impact.short_term.metric_impacts) if impact.short_term else 0
+                ),
+                long_term_available=impact.long_term is not None,
             )
 
             # Publicar evento impact.analyzed
@@ -160,9 +163,13 @@ class ExperimentCompletedConsumer:
                 await self._producer.publish_impact_analyzed(
                     experiment_id=experiment_id,
                     variant=variant,
-                    short_term_impacts=len(impact.short_term.metric_impacts) if impact.short_term else 0,
+                    short_term_impacts=(
+                        len(impact.short_term.metric_impacts) if impact.short_term else 0
+                    ),
                     long_term_available=impact.long_term is not None,
-                    overall_impact_score=impact.short_term.overall_impact if impact.short_term else 0.0,
+                    overall_impact_score=(
+                        impact.short_term.overall_impact if impact.short_term else 0.0
+                    ),
                     key_metrics=[],
                 )
 

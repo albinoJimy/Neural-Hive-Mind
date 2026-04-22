@@ -1,5 +1,5 @@
-from typing import Dict, List, Optional, Tuple
 import uuid
+from typing import Optional
 
 import numpy as np
 import structlog
@@ -8,10 +8,10 @@ from sklearn.ensemble import IsolationForest
 
 from ..models.insight import (
     AnalystInsight,
-    TimeWindow,
     InsightType,
     Priority,
     Recommendation,
+    TimeWindow,
 )
 
 logger = structlog.get_logger()
@@ -23,7 +23,7 @@ class AnalyticsEngine:
         self.insight_generator = insight_generator
 
     async def analyze_telemetry_window(
-        self, telemetry_data: List[dict], window: TimeWindow
+        self, telemetry_data: list[dict], window: TimeWindow
     ) -> Optional[AnalystInsight]:
         """Analisar janela de telemetria e gerar insight se houver anomalias."""
         try:
@@ -116,7 +116,7 @@ class AnalyticsEngine:
             logger.error("analyze_telemetry_window_failed", error=str(e))
             return None
 
-    def _detect_metric_anomalies(self, metric_name: str, values: List[float]) -> List[dict]:
+    def _detect_metric_anomalies(self, metric_name: str, values: list[float]) -> list[dict]:
         """Detectar anomalias em uma métrica específica."""
         anomalies = []
 
@@ -225,8 +225,8 @@ class AnalyticsEngine:
         return anomalies
 
     def _generate_recommendations(
-        self, anomalies: List[dict], metrics: Dict[str, List[float]]
-    ) -> List[Recommendation]:
+        self, anomalies: list[dict], metrics: dict[str, list[float]]
+    ) -> list[Recommendation]:
         """Gerar recomendações baseadas nas anomalias detectadas."""
         recommendations = []
 
@@ -262,8 +262,8 @@ class AnalyticsEngine:
         return recommendations
 
     def detect_anomalies(
-        self, metric_name: str, values: List[float], method: str = "zscore", threshold: float = 3.0
-    ) -> List[dict]:
+        self, metric_name: str, values: list[float], method: str = "zscore", threshold: float = 3.0
+    ) -> list[dict]:
         """Detectar anomalias"""
         try:
             if not values or len(values) < 3:
@@ -307,7 +307,7 @@ class AnalyticsEngine:
             logger.error("detect_anomalies_failed", error=str(e))
             return []
 
-    def calculate_trend(self, metric_name: str, time_series: List[Tuple[int, float]]) -> Dict:
+    def calculate_trend(self, metric_name: str, time_series: list[tuple[int, float]]) -> dict:
         """Calcular tendência"""
         try:
             if not time_series or len(time_series) < 2:
@@ -332,7 +332,7 @@ class AnalyticsEngine:
             logger.error("calculate_trend_failed", error=str(e))
             return {"trend": "error"}
 
-    def calculate_correlation(self, metric1: List[float], metric2: List[float]) -> float:
+    def calculate_correlation(self, metric1: list[float], metric2: list[float]) -> float:
         """Calcular correlação de Pearson"""
         try:
             if len(metric1) != len(metric2) or len(metric1) < 2:
@@ -345,8 +345,8 @@ class AnalyticsEngine:
             return 0.0
 
     def aggregate_by_dimension(
-        self, data: List[dict], dimensions: List[str], metrics: List[str]
-    ) -> Dict:
+        self, data: list[dict], dimensions: list[str], metrics: list[str]
+    ) -> dict:
         """Agregar por dimensões"""
         try:
             aggregated = {}
@@ -379,7 +379,7 @@ class AnalyticsEngine:
             logger.error("aggregate_by_dimension_failed", error=str(e))
             return {}
 
-    def _extract_metrics(self, telemetry_data: List[dict]) -> Dict[str, List[float]]:
+    def _extract_metrics(self, telemetry_data: list[dict]) -> dict[str, list[float]]:
         """Extrair métricas de telemetria"""
         metrics = {"latency_values": [], "error_rate_values": [], "throughput_values": []}
 

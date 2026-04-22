@@ -6,20 +6,20 @@ feedbacks de forma estratégica, maximizando o valor informacional de
 cada amostra coletada.
 """
 
-from .balance_analyzer import DatasetBalanceAnalyzer, BalanceMetrics, PriorityRecommendation
-from .learning_strategy import (
-    ActiveLearningStrategy,
-    InformationValue,
-    DEFAULT_CONFIDENCE_WEIGHT,
-    DEFAULT_REPRESENTATION_WEIGHT,
-    DEFAULT_NOVELTY_WEIGHT,
-    DEFAULT_THRESHOLD,
-)
+from .balance_analyzer import BalanceMetrics, DatasetBalanceAnalyzer, PriorityRecommendation
 from .feedback_queue import (
+    DEFAULT_CLAIM_EXPIRY_HOURS,
     PriorityFeedbackQueue,
     QueuedCase,
     QueueStatus,
-    DEFAULT_CLAIM_EXPIRY_HOURS,
+)
+from .learning_strategy import (
+    DEFAULT_CONFIDENCE_WEIGHT,
+    DEFAULT_NOVELTY_WEIGHT,
+    DEFAULT_REPRESENTATION_WEIGHT,
+    DEFAULT_THRESHOLD,
+    ActiveLearningStrategy,
+    InformationValue,
 )
 
 __all__ = [

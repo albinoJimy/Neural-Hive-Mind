@@ -6,11 +6,11 @@ transições de estado, sampling em half-open, fechamento após sucesso
 e abertura após falhas consecutivas.
 """
 
-import pytest
 import asyncio
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
 
+import pytest
 
 # ============================================================================
 # Circuit Breaker Implementation (para testes)
@@ -48,7 +48,7 @@ class SimpleCircuitBreaker:
     def record_failure(self):
         """Registra falha."""
         self.failure_count += 1
-        self.last_failure_time = datetime.now(timezone.utc).timestamp()
+        self.last_failure_time = datetime.now(UTC).timestamp()
 
         if self.failure_count >= self.failure_threshold:
             self.state = CircuitState.OPEN
@@ -60,7 +60,7 @@ class SimpleCircuitBreaker:
 
         if self.state == CircuitState.OPEN:
             if self.last_failure_time:
-                elapsed = datetime.now(timezone.utc).timestamp() - self.last_failure_time
+                elapsed = datetime.now(UTC).timestamp() - self.last_failure_time
                 if elapsed >= self.timeout:
                     self.state = CircuitState.HALF_OPEN
                     self.success_count = 0
@@ -82,7 +82,7 @@ class SimpleCircuitBreaker:
 # ============================================================================
 
 
-@pytest.fixture
+@pytest.fixture()
 def circuit_breaker():
     """Circuit breaker para testes."""
     return SimpleCircuitBreaker(failure_threshold=3, timeout=0.5)
@@ -157,10 +157,10 @@ class TestCircuitOpen:
 
     def test_circuit_open_tracks_failure_time(self, circuit_breaker):
         """Testa que tempo de falha é registrado."""
-        before_failure = datetime.now(timezone.utc).timestamp()
+        before_failure = datetime.now(UTC).timestamp()
         for _ in range(circuit_breaker.failure_threshold):
             circuit_breaker.record_failure()
-        after_failure = datetime.now(timezone.utc).timestamp()
+        after_failure = datetime.now(UTC).timestamp()
 
         assert circuit_breaker.last_failure_time is not None
         assert before_failure <= circuit_breaker.last_failure_time <= after_failure
@@ -174,7 +174,7 @@ class TestCircuitOpen:
 class TestCircuitHalfOpen:
     """Testes do estado HALF_OPEN do circuit breaker."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_circuit_half_open_after_timeout(self, circuit_breaker):
         """Testa transição para HALF_OPEN após timeout."""
         for _ in range(circuit_breaker.failure_threshold):
@@ -193,7 +193,7 @@ class TestCircuitHalfOpen:
         circuit_breaker.last_failure_time = 0
         assert circuit_breaker.can_attempt() is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_circuit_close_after_success_in_half_open(self, circuit_breaker):
         """Testa que sucesso em HALF_OPEN fecha circuito."""
         for _ in range(circuit_breaker.failure_threshold):
@@ -203,7 +203,7 @@ class TestCircuitHalfOpen:
         circuit_breaker.record_success()
         assert circuit_breaker.get_state() == CircuitState.CLOSED
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_circuit_reopen_after_failure_in_half_open(self, circuit_breaker):
         """Testa que falha em HALF_OPEN reabre circuito."""
         for _ in range(circuit_breaker.failure_threshold):
@@ -229,7 +229,7 @@ class TestCircuitTransitions:
             circuit_breaker.record_failure()
         assert circuit_breaker.get_state() == CircuitState.OPEN
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_transition_open_to_half_open(self, circuit_breaker):
         """Testa transição OPEN -> HALF_OPEN."""
         for _ in range(circuit_breaker.failure_threshold):
@@ -239,7 +239,7 @@ class TestCircuitTransitions:
         circuit_breaker.can_attempt()
         assert circuit_breaker.get_state() == CircuitState.HALF_OPEN
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_transition_half_open_to_closed(self, circuit_breaker):
         """Testa transição HALF_OPEN -> CLOSED."""
         for _ in range(circuit_breaker.failure_threshold):
@@ -249,7 +249,7 @@ class TestCircuitTransitions:
         circuit_breaker.record_success()
         assert circuit_breaker.get_state() == CircuitState.CLOSED
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_transition_half_open_to_open(self, circuit_breaker):
         """Testa transição HALF_OPEN -> OPEN."""
         for _ in range(circuit_breaker.failure_threshold):
@@ -284,7 +284,7 @@ class TestCircuitBreakerConfig:
         cb.record_failure()
         assert cb.get_state() == CircuitState.OPEN
         # Simular que o tempo passou (last_failure_time no passado)
-        cb.last_failure_time = datetime.now(timezone.utc).timestamp() - 10
+        cb.last_failure_time = datetime.now(UTC).timestamp() - 10
         # Agora deve poder tentar (transiciona para HALF_OPEN)
         assert cb.can_attempt() is True
 

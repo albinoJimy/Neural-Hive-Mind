@@ -5,16 +5,17 @@ Cobertura: inicialização, encrypt/decrypt roundtrip, prefixo 'enc:', dict encr
 invalid ciphertext, file permissions 0600, auto key generation.
 """
 
-import pytest
 import os
 import tempfile
 from unittest.mock import Mock, patch
+
+import pytest
 from cryptography.fernet import Fernet
 
 from neural_hive_specialists.compliance.field_encryptor import FieldEncryptor
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_config():
     """Cria configuração mockada para testes."""
     config = Mock()
@@ -25,7 +26,7 @@ def mock_config():
     return config
 
 
-@pytest.fixture
+@pytest.fixture()
 def temp_key_file():
     """Cria arquivo temporário para chave de criptografia."""
     with tempfile.NamedTemporaryFile(mode="wb", delete=False) as f:
@@ -40,7 +41,7 @@ def temp_key_file():
         os.remove(temp_path)
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestFieldEncryptorInitialization:
     """Testes de inicialização do FieldEncryptor."""
 
@@ -117,11 +118,11 @@ class TestFieldEncryptorInitialization:
                 os.remove(invalid_key_path)
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestEncryptField:
     """Testes do método encrypt_field."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def encryptor(self, mock_config):
         """Cria encryptor com chave válida."""
         return FieldEncryptor(mock_config)
@@ -179,11 +180,11 @@ class TestEncryptField:
             assert encrypted == value
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestDecryptField:
     """Testes do método decrypt_field."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def encryptor(self, mock_config):
         """Cria encryptor com chave válida."""
         return FieldEncryptor(mock_config)
@@ -247,11 +248,11 @@ class TestDecryptField:
             assert decrypted == "some_encrypted_data"
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestEncryptDecryptRoundtrip:
     """Testes de roundtrip encrypt/decrypt."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def encryptor(self, mock_config):
         """Cria encryptor com chave válida."""
         return FieldEncryptor(mock_config)
@@ -293,11 +294,11 @@ class TestEncryptDecryptRoundtrip:
         assert decrypted == original
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestEncryptDict:
     """Testes do método encrypt_dict."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def encryptor(self, mock_config):
         """Cria encryptor com chave válida."""
         return FieldEncryptor(mock_config)
@@ -372,11 +373,11 @@ class TestEncryptDict:
         assert encrypted_data == data
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestDecryptDict:
     """Testes do método decrypt_dict."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def encryptor(self, mock_config):
         """Cria encryptor com chave válida."""
         return FieldEncryptor(mock_config)
@@ -434,7 +435,7 @@ class TestDecryptDict:
         assert decrypted_data == data
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestKeyManagement:
     """Testes de gerenciamento de chaves."""
 

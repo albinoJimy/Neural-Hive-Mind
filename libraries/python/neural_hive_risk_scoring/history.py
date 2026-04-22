@@ -4,17 +4,18 @@ Risk History
 Histórico de scores para análise de tendências e padrões temporais.
 """
 
-import structlog
-from typing import Dict, List, Optional, Tuple
-from datetime import datetime, timedelta, timezone
 from collections import defaultdict
 from dataclasses import dataclass, field
+from datetime import UTC, datetime, timedelta
 from enum import Enum
+from typing import Optional
+
+import structlog
+
+from neural_hive_domain import UnifiedDomain
 
 from .config import RiskBand
 from .models import RiskAssessment, RiskMatrix
-from neural_hive_domain import UnifiedDomain
-
 
 logger = structlog.get_logger(__name__)
 
@@ -37,10 +38,10 @@ class RiskSnapshot:
     band: RiskBand
     domain: UnifiedDomain
     entity_id: str
-    factors: Dict[str, float] = field(default_factory=dict)
-    metadata: Dict = field(default_factory=dict)
+    factors: dict[str, float] = field(default_factory=dict)
+    metadata: dict = field(default_factory=dict)
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         """Converte para dicionário."""
         return {
             "timestamp": self.timestamp.isoformat(),
@@ -74,7 +75,7 @@ class AnomalyDetection:
 
     is_anomaly: bool
     score: float
-    expected_range: Tuple[float, float]
+    expected_range: tuple[float, float]
     deviation_std: float
     severity: str  # 'low', 'medium', 'high'
     timestamp: datetime
@@ -94,14 +95,14 @@ class RiskHistory:
         self.retention_days = retention_days
 
         # Histórico: entity_id -> lista de snapshots ordenada por timestamp
-        self._history: Dict[str, List[RiskSnapshot]] = defaultdict(list)
+        self._history: dict[str, list[RiskSnapshot]] = defaultdict(list)
 
         # Índices para consultas rápidas
-        self._by_domain: Dict[UnifiedDomain, List[str]] = defaultdict(list)
-        self._by_time: Dict[Tuple[datetime, str], RiskSnapshot] = {}
+        self._by_domain: dict[UnifiedDomain, list[str]] = defaultdict(list)
+        self._by_time: dict[tuple[datetime, str], RiskSnapshot] = {}
 
     def record_assessment(
-        self, assessment: RiskAssessment, entity_id: str, metadata: Optional[Dict] = None
+        self, assessment: RiskAssessment, entity_id: str, metadata: Optional[dict] = None
     ) -> RiskSnapshot:
         """Registra avaliação no histórico.
 
@@ -114,7 +115,7 @@ class RiskHistory:
             RiskSnapshot criado
         """
         snapshot = RiskSnapshot(
-            timestamp=assessment.assessed_at or datetime.now(timezone.utc),
+            timestamp=assessment.assessed_at or datetime.now(UTC),
             score=assessment.score,
             band=assessment.band,
             domain=assessment.domain,
@@ -152,8 +153,8 @@ class RiskHistory:
         return snapshot
 
     def record_matrix(
-        self, matrix: RiskMatrix, metadata: Optional[Dict] = None
-    ) -> List[RiskSnapshot]:
+        self, matrix: RiskMatrix, metadata: Optional[dict] = None
+    ) -> list[RiskSnapshot]:
         """Registra matriz de risco (múltiplos domínios).
 
         Args:
@@ -180,7 +181,7 @@ class RiskHistory:
         start: Optional[datetime] = None,
         end: Optional[datetime] = None,
         limit: Optional[int] = None,
-    ) -> List[RiskSnapshot]:
+    ) -> list[RiskSnapshot]:
         """Retorna histórico filtrado.
 
         Args:
@@ -243,7 +244,7 @@ class RiskHistory:
             TrendAnalysis ou None se dados insuficientes
         """
         # Buscar snapshots na janela
-        end_time = datetime.now(timezone.utc)
+        end_time = datetime.now(UTC)
         start_time = end_time - timedelta(hours=window_hours)
 
         snapshots = self.get_history(
@@ -293,7 +294,7 @@ class RiskHistory:
         )
 
     def _calculate_trend_direction(
-        self, scores: List[float], timestamps: List[datetime]
+        self, scores: list[float], timestamps: list[datetime]
     ) -> TrendDirection:
         """Calcula direção da tendência."""
         if len(scores) < 2:
@@ -323,7 +324,7 @@ class RiskHistory:
         else:
             return TrendDirection.IMPROVING  # Risco diminuindo
 
-    def _calculate_trend_strength(self, scores: List[float], timestamps: List[datetime]) -> float:
+    def _calculate_trend_strength(self, scores: list[float], timestamps: list[datetime]) -> float:
         """Calcula força da tendência (correlação de Pearson).
 
         Returns:
@@ -352,7 +353,7 @@ class RiskHistory:
 
         return abs(correlation)
 
-    def _calculate_volatility(self, scores: List[float]) -> float:
+    def _calculate_volatility(self, scores: list[float]) -> float:
         """Calcula volatilidade normalizada.
 
         Returns:
@@ -387,7 +388,7 @@ class RiskHistory:
             AnomalyDetection ou None se não for anomalia
         """
         # Buscar histórico
-        end_time = datetime.now(timezone.utc)
+        end_time = datetime.now(UTC)
         start_time = end_time - timedelta(hours=lookback_hours)
 
         snapshots = self.get_history(
@@ -481,7 +482,7 @@ class RiskHistory:
         domain: Optional[UnifiedDomain] = None,
         start: Optional[datetime] = None,
         end: Optional[datetime] = None,
-    ) -> Dict:
+    ) -> dict:
         """Retorna estatísticas do histórico.
 
         Args:
@@ -520,7 +521,7 @@ class RiskHistory:
 
     def _cleanup_old_snapshots(self, entity_id: str):
         """Remove snapshots antigos além da retenção."""
-        cutoff = datetime.now(timezone.utc) - timedelta(days=self.retention_days)
+        cutoff = datetime.now(UTC) - timedelta(days=self.retention_days)
         snapshots = self._history.get(entity_id, [])
 
         # Manter apenas snapshots recentes
@@ -533,7 +534,7 @@ class RiskHistory:
 
         logger.info("risk_history_cleanup_completed")
 
-    def get_entity_ids(self, domain: Optional[UnifiedDomain] = None) -> List[str]:
+    def get_entity_ids(self, domain: Optional[UnifiedDomain] = None) -> list[str]:
         """Retorna IDs de entidades com histórico.
 
         Args:

@@ -5,19 +5,20 @@ Testa geração de narrativas estruturadas em português.
 """
 
 import pytest
+
 from neural_hive_specialists.explainability.narrative_generator import (
     NarrativeGenerator,
 )
 
 
-@pytest.fixture
+@pytest.fixture()
 def generator():
     """Cria generator com configuração padrão."""
     config = {}
     return NarrativeGenerator(config)
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_shap_importances():
     """Importâncias SHAP de exemplo."""
     return [
@@ -52,7 +53,7 @@ def sample_shap_importances():
     ]
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestNarrativeGeneration:
     """Testes de geração de narrativas."""
 
@@ -127,7 +128,7 @@ class TestNarrativeGeneration:
         assert len(narrative_top_4) >= len(narrative_top_2)
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestSummaryGeneration:
     """Testes de geração de resumos."""
 
@@ -155,7 +156,7 @@ class TestSummaryGeneration:
         assert "influenciada" in summary_positive.lower() or "principal" in summary_positive.lower()
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestFeatureDescription:
     """Testes de descrição de features."""
 
@@ -206,7 +207,7 @@ class TestFeatureDescription:
         assert isinstance(desc_light, str)
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestQualitativeLevels:
     """Testes de conversão para níveis qualitativos."""
 
@@ -232,7 +233,7 @@ class TestQualitativeLevels:
         assert isinstance(level_low, str)
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestTimeFormatting:
     """Testes de formatação de tempo."""
 

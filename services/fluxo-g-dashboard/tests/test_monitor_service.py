@@ -8,14 +8,14 @@ src_path = str(Path(__file__).parent.parent / "src")
 if src_path not in sys.path:
     sys.path.insert(0, src_path)
 
-import pytest
 from unittest.mock import AsyncMock, patch
 
+import pytest
+
 from services.monitor_service import FluxoGMonitorService
-from models.dashboard import WorkflowStatus, FluxoGStage, StageStatus
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 class TestFluxoGMonitorService:
     """Testes para FluxoGMonitorService."""
 

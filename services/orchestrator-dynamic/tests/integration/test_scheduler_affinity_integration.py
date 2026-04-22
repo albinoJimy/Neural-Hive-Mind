@@ -8,11 +8,12 @@ Cobertura:
 - Validação de métricas
 """
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock
 
+import pytest
 
-@pytest.fixture
+
+@pytest.fixture()
 def mock_redis_client():
     """Mock do cliente Redis para testes sem Redis real."""
     client = AsyncMock()
@@ -76,7 +77,7 @@ def mock_redis_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_config():
     """Mock das configurações."""
     config = MagicMock()
@@ -92,7 +93,7 @@ def mock_config():
     return config
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_metrics():
     """Mock das métricas com tracking."""
     metrics = MagicMock()
@@ -122,7 +123,7 @@ def mock_metrics():
     return metrics
 
 
-@pytest.fixture
+@pytest.fixture()
 def affinity_tracker(mock_redis_client, mock_config, mock_metrics):
     """Instância do AffinityTracker."""
     from src.scheduler.affinity_tracker import AffinityTracker
@@ -130,7 +131,7 @@ def affinity_tracker(mock_redis_client, mock_config, mock_metrics):
     return AffinityTracker(redis_client=mock_redis_client, config=mock_config, metrics=mock_metrics)
 
 
-@pytest.fixture
+@pytest.fixture()
 def resource_allocator(mock_config, mock_metrics, affinity_tracker):
     """Instância do ResourceAllocator com affinity."""
     from src.scheduler.resource_allocator import ResourceAllocator
@@ -148,7 +149,7 @@ def resource_allocator(mock_config, mock_metrics, affinity_tracker):
 class TestAffinityCoLocation:
     """Testes de co-location de tickets."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_sequential_tickets_same_plan_co_located(
         self, resource_allocator, affinity_tracker
     ):
@@ -189,7 +190,7 @@ class TestAffinityCoLocation:
         # Maioria dos tickets deve ir para o mesmo worker
         assert co_location_rate >= 0.6, f"Co-location rate {co_location_rate} abaixo de 60%"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_critical_tickets_distributed(self, resource_allocator, affinity_tracker):
         """Valida que tickets críticos são distribuídos entre workers."""
         workers = [
@@ -226,7 +227,7 @@ class TestAffinityCoLocation:
             unique_workers >= 2
         ), f"Apenas {unique_workers} worker(s) usado(s) para tickets críticos"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_mixed_critical_and_normal_tickets(self, resource_allocator, affinity_tracker):
         """Valida comportamento com mix de tickets críticos e normais."""
         workers = [
@@ -289,7 +290,7 @@ class TestAffinityCoLocation:
 class TestAffinityMetrics:
     """Testes de métricas de affinity."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_affinity_metrics_recorded(self, resource_allocator, mock_metrics):
         """Valida que métricas são registradas corretamente."""
         workers = [
@@ -312,7 +313,7 @@ class TestAffinityMetrics:
         assert mock_metrics.record_affinity_score.called
         assert mock_metrics.cache_ops["success"] > 0
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_anti_affinity_metrics_for_critical(self, resource_allocator, mock_metrics):
         """Valida que métricas de anti-affinity são registradas para tickets críticos."""
         workers = [
@@ -338,7 +339,7 @@ class TestAffinityMetrics:
 class TestAffinityCleanup:
     """Testes de cleanup de tickets completados."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_cleanup_removes_allocation(self, affinity_tracker, mock_redis_client):
         """Valida que cleanup remove ticket do cache."""
         # Primeiro, registrar uma alocação

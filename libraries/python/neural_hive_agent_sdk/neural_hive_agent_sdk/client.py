@@ -1,25 +1,26 @@
-import grpc
 import asyncio
-import structlog
-from typing import Dict, List, Optional
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
+from typing import Optional
+
+import grpc
+import structlog
 
 from .config import AgentConfig
 
 # F3: Importar stubs gRPC gerados (ou usar fallback se não disponível)
 try:
     from proto.agent_service_pb2 import (
-        AgentType as ProtoAgentType,
         AgentTelemetry as ProtoAgentTelemetry,
-        RegisterRequest,
-        RegisterResponse,
-        HeartbeatRequest,
-        HeartbeatResponse,
+        AgentType as ProtoAgentType,
         DeregisterRequest,
         DeregisterResponse,
         GetStatusRequest,
         GetStatusResponse,
+        HeartbeatRequest,
+        HeartbeatResponse,
+        RegisterRequest,
+        RegisterResponse,
     )
     from proto.agent_service_pb2_grpc import AgentServiceStub
 
@@ -74,7 +75,7 @@ class AgentTelemetry:
         self.avg_duration_ms = avg_duration_ms
         self.total_executions = total_executions
         self.failed_executions = failed_executions
-        self.last_execution_at = int(datetime.now(timezone.utc).timestamp())
+        self.last_execution_at = int(datetime.now(UTC).timestamp())
 
     def to_proto(self):
         """F3: Converte para formato protobuf (proto gerado)"""
@@ -150,8 +151,8 @@ class AgentClient:
     async def register(
         self,
         agent_type: AgentType,
-        capabilities: List[str],
-        metadata: Optional[Dict[str, str]] = None,
+        capabilities: list[str],
+        metadata: Optional[dict[str, str]] = None,
     ) -> str:
         """
         Registra o agente no Service Registry.

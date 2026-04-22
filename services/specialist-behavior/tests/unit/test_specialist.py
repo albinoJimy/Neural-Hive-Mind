@@ -1,9 +1,9 @@
 """Testes unitários para BehaviorSpecialist - Métodos de Análise."""
 
-import sys
 import os
+import sys
+
 import pytest
-from typing import Dict, List
 
 # Configurar paths
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "src"))
@@ -13,7 +13,7 @@ class BehaviorAnalysisTestHelper:
     """Helper class para testar métodos de análise comportamental."""
 
     @staticmethod
-    def analyze_usability(tasks: List[Dict], cognitive_plan: Dict) -> float:
+    def analyze_usability(tasks: list[dict], cognitive_plan: dict) -> float:
         """Implementação do método de análise de usabilidade."""
         num_tasks = len(tasks)
 
@@ -36,7 +36,7 @@ class BehaviorAnalysisTestHelper:
         return max(0.0, min(1.0, usability_score))
 
     @staticmethod
-    def _estimate_feedback_quality(tasks: List[Dict]) -> float:
+    def _estimate_feedback_quality(tasks: list[dict]) -> float:
         """Estima qualidade do feedback."""
         if not tasks:
             return 0.5
@@ -53,7 +53,7 @@ class BehaviorAnalysisTestHelper:
             return 0.5
 
     @staticmethod
-    def analyze_accessibility(cognitive_plan: Dict, context: Dict) -> float:
+    def analyze_accessibility(cognitive_plan: dict, context: dict) -> float:
         """Implementação do método de análise de acessibilidade."""
         context_mentions_a11y = any(
             keyword in str(context).lower()
@@ -73,7 +73,7 @@ class BehaviorAnalysisTestHelper:
             return 0.7
 
     @staticmethod
-    def analyze_response_time(tasks: List[Dict]) -> float:
+    def analyze_response_time(tasks: list[dict]) -> float:
         """Implementação do método de análise de tempo de resposta."""
         if not tasks:
             return 0.5
@@ -92,7 +92,7 @@ class BehaviorAnalysisTestHelper:
             return 0.3
 
     @staticmethod
-    def analyze_interaction_cost(tasks: List[Dict]) -> float:
+    def analyze_interaction_cost(tasks: list[dict]) -> float:
         """Implementação do método de análise de custo de interação."""
         num_tasks = len(tasks)
 
@@ -124,7 +124,7 @@ class BehaviorAnalysisTestHelper:
             return "conditional"
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_cognitive_plan():
     return {
         "plan_id": "behavior-plan-123",

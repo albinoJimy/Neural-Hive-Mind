@@ -5,9 +5,10 @@ Cobertura: inicialização, detecção de PII em pt/en, fallback de idioma não 
 estratégias de anonimização (replace, mask, redact, hash), metadados de detecção.
 """
 
-import pytest
 import sys
-from unittest.mock import Mock, MagicMock, patch, ANY
+from unittest.mock import ANY, MagicMock, Mock, patch
+
+import pytest
 
 # Mock Presidio modules antes de qualquer import
 presidio_analyzer_mock = MagicMock()
@@ -47,7 +48,7 @@ def ensure_presidio_mocks():
         sys.modules["presidio_anonymizer.entities"] = original_entities
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_config():
     """Cria configuração mockada para testes."""
     config = Mock()
@@ -63,7 +64,7 @@ def mock_config():
     return config
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_analyzer_result():
     """Cria resultado mockado do Presidio Analyzer."""
     result = Mock()
@@ -74,7 +75,7 @@ def mock_analyzer_result():
     return result
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_anonymized_result():
     """Cria resultado mockado do Presidio Anonymizer."""
     result = Mock()
@@ -82,7 +83,7 @@ def mock_anonymized_result():
     return result
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestPIIDetectorInitialization:
     """Testes de inicialização do PIIDetector."""
 
@@ -190,11 +191,11 @@ class TestPIIDetectorInitialization:
                 sys.modules["presidio_anonymizer.entities"] = original_entities
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestDetectPII:
     """Testes do método detect_pii."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def detector(self, mock_config):
         """Cria detector com Presidio mockado."""
         with (
@@ -281,11 +282,11 @@ class TestDetectPII:
         assert results == []
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestAnonymizeText:
     """Testes do método anonymize_text."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def detector(self, mock_config):
         """Cria detector com Presidio mockado."""
         with (
@@ -379,11 +380,11 @@ class TestAnonymizeText:
         assert call_args[1]["language"] == "en"
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestAnonymizeDict:
     """Testes do método anonymize_dict."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def detector(self, mock_config):
         """Cria detector com Presidio mockado."""
         with (
@@ -461,7 +462,7 @@ class TestAnonymizeDict:
         assert metadata == []
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestAnonymizationStrategies:
     """Testes das estratégias de anonimização."""
 
@@ -565,7 +566,7 @@ class TestAnonymizationStrategies:
             assert operators is None
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestNestedValueHelpers:
     """Testes dos métodos auxiliares de valores aninhados."""
 

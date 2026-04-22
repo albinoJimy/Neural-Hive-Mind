@@ -4,7 +4,7 @@ import io
 import json
 import os
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Optional
 
 import structlog
 
@@ -51,7 +51,7 @@ class AvroCodec:
                         schema_registry_path = str(Path(__file__).resolve().parents[2] / "schemas")
 
         self.schema_registry_path = Path(schema_registry_path)
-        self.schemas: Dict[str, any] = {}
+        self.schemas: dict[str, any] = {}
         self.avro_enabled = AVRO_AVAILABLE
 
         if self.avro_enabled:
@@ -72,7 +72,7 @@ class AvroCodec:
                 / "mcp-tool-selection-request.avsc"
             )
             if request_schema_path.exists():
-                with open(request_schema_path, "r") as f:
+                with open(request_schema_path) as f:
                     self.schemas["request"] = avro.schema.parse(f.read())
                     logger.info(
                         "avro_request_schema_loaded", path=str(request_schema_path.absolute())
@@ -90,7 +90,7 @@ class AvroCodec:
                 / "mcp-tool-selection-response.avsc"
             )
             if response_schema_path.exists():
-                with open(response_schema_path, "r") as f:
+                with open(response_schema_path) as f:
                     self.schemas["response"] = avro.schema.parse(f.read())
                     logger.info(
                         "avro_response_schema_loaded", path=str(response_schema_path.absolute())
@@ -110,7 +110,7 @@ class AvroCodec:
             logger.warning("avro_schema_loading_failed_using_json", error=str(e))
             self.avro_enabled = False
 
-    def serialize(self, record: Dict, schema_type: str) -> bytes:
+    def serialize(self, record: dict, schema_type: str) -> bytes:
         """
         Serializa record para bytes Avro ou JSON.
 
@@ -142,7 +142,7 @@ class AvroCodec:
             # Fallback para JSON
             return json.dumps(record).encode("utf-8")
 
-    def deserialize(self, data: bytes, schema_type: str) -> Optional[Dict]:
+    def deserialize(self, data: bytes, schema_type: str) -> Optional[dict]:
         """
         Desserializa bytes Avro ou JSON para dict.
 

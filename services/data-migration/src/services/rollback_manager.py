@@ -8,6 +8,7 @@ Suporta estratégias S3 e shadow tables.
 import asyncio
 import gzip
 import json
+import tempfile
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
@@ -15,7 +16,6 @@ from enum import Enum
 from typing import Any, Dict, List, Optional
 
 import structlog
-import tempfile
 
 from src.config.settings import get_settings
 from src.db.postgresql import get_postgresql_client
@@ -271,9 +271,7 @@ class RollbackManager:
 
         # BUG-H-003: Incluir snapshot_id no nome para evitar conflitos em snapshots concorrentes
         with tempfile.NamedTemporaryFile(
-            mode="wb",
-            suffix=f"_{snapshot_id}.json.gz",
-            delete=False
+            mode="wb", suffix=f"_{snapshot_id}.json.gz", delete=False
         ) as tmp_file:
             tmp_path = tmp_file.name
 
@@ -539,7 +537,9 @@ class RollbackManager:
         tmp_path = None
         try:
             # Salvar dados comprimidos em arquivo temporário
-            with tempfile.NamedTemporaryFile(mode="wb", suffix=".json.gz", delete=False) as tmp_file:
+            with tempfile.NamedTemporaryFile(
+                mode="wb", suffix=".json.gz", delete=False
+            ) as tmp_file:
                 tmp_path = tmp_file.name
                 tmp_file.write(compressed_data)
 
@@ -829,8 +829,7 @@ class RollbackManager:
         # BUG-H-003: Lock para leitura atômica da lista
         async with self._snapshots_lock:
             to_remove = [
-                sid for sid, snap in self._snapshots.items()
-                if snap.created_at < cutoff_time
+                sid for sid, snap in self._snapshots.items() if snap.created_at < cutoff_time
             ]
 
         for snapshot_id in to_remove:

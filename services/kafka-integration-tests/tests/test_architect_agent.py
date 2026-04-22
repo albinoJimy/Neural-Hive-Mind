@@ -1,14 +1,12 @@
 """Testes de integração Kafka para Architect Agent."""
 
 import asyncio
-from datetime import datetime, timezone
 from uuid import uuid4
 
 import pytest
-from aiokafka import AIOKafkaConsumer
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_architect_agent_consumes_cognitive_plans(
     kafka_producer,
     consume_from_topic,
@@ -16,15 +14,13 @@ async def test_architect_agent_consumes_cognitive_plans(
 ):
     """Testa se Architect Agent consome cognitive.plans.created."""
     # Publicar plano cognitivo
-    await kafka_producer.send_and_wait(
-        "cognitive.plans.created", sample_cognitive_plan
-    )
+    await kafka_producer.send_and_wait("cognitive.plans.created", sample_cognitive_plan)
 
     # Aguardar processamento (simulado - em produção consumiria o tópico de saída)
     await asyncio.sleep(0.5)
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_architect_agent_produces_architecture_plans(
     publish_to_topic,
     consume_from_topic,
@@ -48,7 +44,7 @@ async def test_architect_agent_produces_architecture_plans(
     # Este é um teste de integração que assumiria o serviço rodando
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_architecture_plan_schema_validation(consume_from_topic):
     """Testa se plano de arquitetura segue schema esperado."""
     # Schema esperado
@@ -75,7 +71,7 @@ async def test_architecture_plan_schema_validation(consume_from_topic):
     }
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_architecture_types_supported():
     """Testa que diferentes tipos de arquitetura são suportados."""
     from src.models.architecture import ArchitectureType
@@ -87,20 +83,18 @@ async def test_architecture_types_supported():
     assert hasattr(ArchitectureType, "HYBRID")
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_architecture_plan_has_bounded_contexts():
     """Testa que planos de arquitetura incluem bounded contexts (DDD)."""
-    from src.models.bounded_context import BoundedContext
     from src.models.architecture import ArchitecturePlan, ArchitectureType, Component
+    from src.models.bounded_context import BoundedContext
 
     # Criar plano com bounded contexts
     plan = ArchitecturePlan(
         plan_id=str(uuid4()),
         cognitive_plan_id=str(uuid4()),
         architecture_type=ArchitectureType.MICROSERVICES,
-        components=[
-            Component(name="user-api", stack="python/fastapi", replicas=3, ha=True)
-        ],
+        components=[Component(name="user-api", stack="python/fastapi", replicas=3, ha=True)],
         patterns=["repository", "api_gateway"],
         rationale="Separação por domínio para escala independente",
         bounded_contexts=[
@@ -117,20 +111,18 @@ async def test_architecture_plan_has_bounded_contexts():
     assert plan.bounded_contexts[0].name == "User Management"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_architecture_plan_has_tech_stack():
     """Testa que planos de arquitetura incluem stack tecnológico."""
-    from src.models.tech_stack import TechChoice, TechCategory
     from src.models.architecture import ArchitecturePlan, ArchitectureType, Component
+    from src.models.tech_stack import TechCategory, TechChoice
 
     # Criar plano com tech stack
     plan = ArchitecturePlan(
         plan_id=str(uuid4()),
         cognitive_plan_id=str(uuid4()),
         architecture_type=ArchitectureType.MICROSERVICES,
-        components=[
-            Component(name="user-api", stack="python/fastapi", replicas=3, ha=True)
-        ],
+        components=[Component(name="user-api", stack="python/fastapi", replicas=3, ha=True)],
         patterns=["repository"],
         rationale="API Python moderna",
         tech_stack=[
@@ -148,7 +140,7 @@ async def test_architecture_plan_has_tech_stack():
     assert plan.tech_stack[0].name == "Python"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_diagram_generation():
     """Testa geração de diagramas de arquitetura."""
     from src.generators.architecture_diagram_generator import (
@@ -168,11 +160,11 @@ async def test_diagram_generation():
     assert "E-Commerce System" in diagram.content
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_design_planner_integration():
     """Testa integração do DesignPlanner com novos módulos Fluxo G."""
-    from src.planners.design_planner import DesignPlanner
     from src.models.architecture import ArchitectureType
+    from src.planners.design_planner import DesignPlanner
 
     planner = DesignPlanner()
 

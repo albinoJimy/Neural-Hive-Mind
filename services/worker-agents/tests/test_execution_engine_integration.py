@@ -8,7 +8,7 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.append(str(ROOT / "src"))
 
-from engine.execution_engine import ExecutionEngine, TaskExecutionError  # noqa: E402
+from engine.execution_engine import ExecutionEngine, TaskExecutionError
 
 
 class StubTicketClient:
@@ -100,7 +100,7 @@ class RegistryWrapper:
         return self.executor
 
 
-@pytest.fixture
+@pytest.fixture()
 def config():
     return SimpleNamespace(
         max_concurrent_tasks=5,
@@ -111,7 +111,7 @@ def config():
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_ticket():
     return {
         "ticket_id": "ticket-123",
@@ -123,7 +123,7 @@ def sample_ticket():
     }
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_execute_ticket_success(config, sample_ticket):
     ticket_client = StubTicketClient()
     result_producer = StubResultProducer()
@@ -143,7 +143,7 @@ async def test_execute_ticket_success(config, sample_ticket):
     assert dependency_coordinator.called
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_execute_ticket_with_retry(config, sample_ticket):
     ticket_client = StubTicketClient()
     result_producer = StubResultProducer()
@@ -162,7 +162,7 @@ async def test_execute_ticket_with_retry(config, sample_ticket):
     assert result_producer.published[-1]["status"] == "COMPLETED"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_execute_ticket_timeout(config, sample_ticket):
     ticket_client = StubTicketClient()
     result_producer = StubResultProducer()
@@ -184,7 +184,7 @@ async def test_execute_ticket_timeout(config, sample_ticket):
     assert result_producer.published[-1]["status"] == "FAILED"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_execute_ticket_executor_error_marks_failed(config, sample_ticket):
     class BadRegistry:
         def get_executor(self, task_type: str):

@@ -14,7 +14,7 @@ GAPS-04 Enhanced Version:
 
 import os
 from contextlib import asynccontextmanager
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Optional
 
 import structlog
@@ -200,7 +200,7 @@ async def health_check():
         "status": "healthy",
         "service": "explainability-api",
         "version": "2.0.0",
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
     }
 
 
@@ -270,7 +270,7 @@ async def get_explainability_by_token(token: str):
         except Exception as e:
             explainability_queries.labels(query_type="by_token", status="error").inc()
             logger.error("explainability_query_error", token=token, error=str(e))
-            raise HTTPException(status_code=500, detail=f"Internal error: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Internal error: {e!s}")
 
 
 # ========== GAPS-04 EXTENDED ENDPOINTS ==========
@@ -320,7 +320,7 @@ async def get_explanation_extended(decision_id: str):
         except Exception as e:
             explainability_queries.labels(query_type="extended", status="error").inc()
             logger.error("explanation_retrieval_error", decision_id=decision_id, error=str(e))
-            raise HTTPException(status_code=500, detail=f"Internal error: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Internal error: {e!s}")
 
 
 @app.post("/api/v2/explainability/generate")
@@ -353,7 +353,7 @@ async def generate_explanation_endpoint(request: GenerateExplanationRequest):
             logger.error(
                 "explanation_generation_error", decision_id=request.decision_id, error=str(e)
             )
-            raise HTTPException(status_code=500, detail=f"Internal error: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Internal error: {e!s}")
 
 
 @app.get("/api/v2/explainability/{decision_id}/format/{output_format}")
@@ -396,7 +396,7 @@ async def get_explanation_formatted(decision_id: str, output_format: str):
                 format=output_format,
                 error=str(e),
             )
-            raise HTTPException(status_code=500, detail=f"Internal error: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Internal error: {e!s}")
 
 
 # ========== STATS ENDPOINT ==========
@@ -448,13 +448,13 @@ async def get_explainability_stats(
             return {
                 "total_explanations": total,
                 "by_method": {item["_id"]: item["count"] for item in method_stats},
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
             }
 
         except Exception as e:
             explainability_queries.labels(query_type="stats", status="error").inc()
             logger.error("explainability_stats_query_error", error=str(e))
-            raise HTTPException(status_code=500, detail=f"Internal error: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Internal error: {e!s}")
 
 
 # ========== EXCEPTION HANDLER ==========

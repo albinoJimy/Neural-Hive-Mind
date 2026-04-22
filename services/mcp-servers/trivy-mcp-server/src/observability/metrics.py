@@ -21,7 +21,6 @@ TRIVY_VULNERABILITIES_FOUND = Counter(
 
 def setup_metrics() -> None:
     """Inicializa métricas (registra no registry default)."""
-    pass
 
 
 def record_scan(scan_type: str, status: str) -> None:

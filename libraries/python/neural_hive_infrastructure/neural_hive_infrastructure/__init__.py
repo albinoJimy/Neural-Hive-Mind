@@ -7,14 +7,14 @@ Elimina duplicação de código e garante consistência em toda a plataforma.
 
 from .settings import (
     BaseInfrastructureSettings,
+    GRPCSettings,
     KafkaSettings,
     MongoDBSettings,
-    RedisSettings,
+    ObservabilitySettings,
     OpenTelemetrySettings,
-    GRPCSettings,
+    RedisSettings,
     SPIFFESettings,
     VaultSettings,
-    ObservabilitySettings,
     get_settings,
 )
 

@@ -1,24 +1,24 @@
 """Testes unitários para funcionalidades de histórico de budget."""
 
-import pytest
-from datetime import datetime, timezone, timedelta
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock
 
-from src.models.error_budget import ErrorBudget, BudgetStatus, BurnRate, BurnRateLevel
+import pytest
+from src.api.budgets import BudgetHistoryResponse, BudgetTrends
 from src.clients.postgresql_client import PostgreSQLClient
-from src.api.budgets import BudgetTrends, BudgetHistoryResponse
+from src.models.error_budget import BudgetStatus, BurnRate, BurnRateLevel, ErrorBudget
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_error_budget():
     """Fixture com ErrorBudget válido."""
     return ErrorBudget(
         budget_id="budget-123",
         slo_id="slo-test-001",
         service_name="test-service",
-        calculated_at=datetime.now(timezone.utc),
-        window_start=datetime.now(timezone.utc) - timedelta(days=7),
-        window_end=datetime.now(timezone.utc),
+        calculated_at=datetime.now(UTC),
+        window_start=datetime.now(UTC) - timedelta(days=7),
+        window_end=datetime.now(UTC),
         sli_value=99.5,
         slo_target=99.0,
         error_budget_total=1.0,
@@ -34,11 +34,11 @@ def mock_error_budget():
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_budget_list(mock_error_budget):
     """Fixture com lista de ErrorBudgets."""
     budgets = []
-    base_time = datetime.now(timezone.utc)
+    base_time = datetime.now(UTC)
     for i in range(10):
         budget = ErrorBudget(
             budget_id=f"budget-{i}",
@@ -61,7 +61,7 @@ def mock_budget_list(mock_error_budget):
     return budgets
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_postgresql_client():
     """Fixture com mock do PostgreSQL client."""
     client = MagicMock(spec=PostgreSQLClient)
@@ -73,7 +73,7 @@ def mock_postgresql_client():
 class TestGetBudgetHistoryNoAggregation:
     """Testes para get_budget_history sem agregação."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_budget_history_returns_list(self, mock_postgresql_client, mock_budget_list):
         """Verifica que get_budget_history retorna lista de ErrorBudget."""
         # Configurar mock para retornar dados
@@ -119,7 +119,7 @@ class TestGetBudgetHistoryNoAggregation:
         assert all(isinstance(b, ErrorBudget) for b in result)
         mock_conn.fetch.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_budget_history_orders_by_calculated_at_desc(
         self, mock_postgresql_client, mock_budget_list
     ):
@@ -166,7 +166,7 @@ class TestGetBudgetHistoryNoAggregation:
 class TestGetBudgetHistoryDailyAggregation:
     """Testes para get_budget_history com agregação diária."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_budget_history_daily_uses_materialized_view(self, mock_postgresql_client):
         """Verifica que agregação diária usa view materializada."""
         mock_conn = AsyncMock()
@@ -188,7 +188,7 @@ class TestGetBudgetHistoryDailyAggregation:
 class TestGetBudgetHistoryHourlyAggregation:
     """Testes para get_budget_history com agregação por hora."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_budget_history_hourly_uses_window_functions(self, mock_postgresql_client):
         """Verifica que agregação horária usa window functions."""
         mock_conn = AsyncMock()
@@ -211,7 +211,7 @@ class TestGetBudgetHistoryHourlyAggregation:
 class TestGetBudgetTrendsCalculation:
     """Testes para cálculo de tendências."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_budget_trends_returns_correct_structure(self, mock_postgresql_client):
         """Verifica estrutura do retorno de trends."""
         mock_conn = AsyncMock()
@@ -244,7 +244,7 @@ class TestGetBudgetTrendsCalculation:
         assert result["violations_frequency"] == 0.5
         assert result["burn_rate_avg"] == 1.8
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_budget_trends_improving(self, mock_postgresql_client):
         """Verifica detecção de tendência de melhoria."""
         mock_conn = AsyncMock()
@@ -271,7 +271,7 @@ class TestGetBudgetTrendsCalculation:
 
         assert result["trend_direction"] == "improving"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_budget_trends_stable(self, mock_postgresql_client):
         """Verifica detecção de tendência estável."""
         mock_conn = AsyncMock()
@@ -298,7 +298,7 @@ class TestGetBudgetTrendsCalculation:
 
         assert result["trend_direction"] == "stable"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_budget_trends_no_data(self, mock_postgresql_client):
         """Verifica comportamento com dados insuficientes."""
         mock_conn = AsyncMock()
@@ -376,7 +376,7 @@ class TestBudgetHistoryApiEndpoint:
 class TestBudgetHistoryErrorHandling:
     """Testes para tratamento de erros."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_budget_history_handles_db_error(self, mock_postgresql_client):
         """Verifica tratamento de erro do banco de dados."""
         mock_conn = AsyncMock()
@@ -394,7 +394,7 @@ class TestBudgetHistoryErrorHandling:
 
         assert "Database error" in str(exc_info.value)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_budget_trends_handles_db_error(self, mock_postgresql_client):
         """Verifica tratamento de erro ao calcular trends."""
         mock_conn = AsyncMock()

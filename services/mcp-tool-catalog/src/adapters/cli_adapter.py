@@ -5,7 +5,7 @@ Adapter para ferramentas executadas via CLI (Command Line Interface).
 import asyncio
 import shlex
 import time
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 import structlog
 
@@ -26,8 +26,8 @@ class CLIAdapter(BaseToolAdapter):
         tool_id: str,
         tool_name: str,
         command: str,
-        parameters: Dict[str, Any],
-        context: Dict[str, Any],
+        parameters: dict[str, Any],
+        context: dict[str, Any],
     ) -> ExecutionResult:
         """
         Executa ferramenta CLI.
@@ -147,7 +147,7 @@ class CLIAdapter(BaseToolAdapter):
             self.logger.warning("cli_tool_validation_failed", tool_name=tool_name, error=str(e))
             return False
 
-    def _build_command(self, base_command: str, parameters: Dict[str, Any]) -> str:
+    def _build_command(self, base_command: str, parameters: dict[str, Any]) -> str:
         """
         Constrói comando CLI completo a partir de parâmetros.
 

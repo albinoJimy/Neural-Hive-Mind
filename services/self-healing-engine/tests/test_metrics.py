@@ -5,10 +5,9 @@ NOTA: As metrics Prometheus são definidas e registradas nos serviços individua
 Este módulo testa apenas o MTTRTracker e a função get_metrics_text().
 """
 
-import pytest
 import time
 
-from src.metrics import mttr_tracker, get_metrics_text, MTTRTracker
+from src.metrics import MTTRTracker, get_metrics_text, mttr_tracker
 
 
 class TestMTTRTracker:

@@ -8,8 +8,9 @@ IncrementalLearner para aprendizado online incremental.
 import asyncio
 import json
 from collections import deque
-from datetime import datetime, timezone
-from typing import Any, Awaitable, Callable, Dict, List, Optional
+from collections.abc import Awaitable, Callable
+from datetime import UTC, datetime
+from typing import Any, Optional
 
 import structlog
 from confluent_kafka import Consumer, KafkaError, Message
@@ -86,7 +87,7 @@ class FeedbackBuffer:
         """Retorna se buffer esta cheio."""
         return len(self._buffer) >= self._max_size
 
-    async def add(self, feedback: Dict[str, Any]) -> bool:
+    async def add(self, feedback: dict[str, Any]) -> bool:
         """
         Adiciona feedback ao buffer.
 
@@ -102,7 +103,7 @@ class FeedbackBuffer:
             self._buffer.append(feedback)
             return True
 
-    async def get_batch(self, batch_size: Optional[int] = None) -> List[Dict[str, Any]]:
+    async def get_batch(self, batch_size: Optional[int] = None) -> list[dict[str, Any]]:
         """
         Retorna um lote de feedbacks do buffer.
 
@@ -123,7 +124,7 @@ class FeedbackBuffer:
                         batch.append(self._buffer.popleft())
             return batch
 
-    async def peek(self, count: int = 1) -> List[Dict[str, Any]]:
+    async def peek(self, count: int = 1) -> list[dict[str, Any]]:
         """
         Espia feedbacks sem remove-los do buffer.
 
@@ -224,7 +225,7 @@ class FeedbackConsumer:
 
     async def start_consuming(
         self,
-        process_callback: Callable[[List[Dict[str, Any]]], Awaitable[Any]],
+        process_callback: Callable[[list[dict[str, Any]]], Awaitable[Any]],
         poll_timeout: float = 1.0,
     ):
         """
@@ -243,7 +244,7 @@ class FeedbackConsumer:
             try:
                 # Poll com timeout
                 msg: Optional[Message] = self.consumer.poll(timeout=poll_timeout)
-                self._last_poll_time = datetime.now(timezone.utc)
+                self._last_poll_time = datetime.now(UTC)
 
                 if msg is None:
                     await asyncio.sleep(0.1)
@@ -290,8 +291,8 @@ class FeedbackConsumer:
 
     async def _process_batch(
         self,
-        batch: List[Dict[str, Any]],
-        process_callback: Callable[[List[Dict[str, Any]]], Awaitable[Any]],
+        batch: list[dict[str, Any]],
+        process_callback: Callable[[list[dict[str, Any]]], Awaitable[Any]],
     ):
         """
         Processa lote de feedbacks.
@@ -312,7 +313,7 @@ class FeedbackConsumer:
             logger.error("erro_ao_processar_lote_feedbacks", batch_size=len(batch), error=str(e))
             raise
 
-    async def _deserialize_message(self, msg: Message) -> Optional[Dict[str, Any]]:
+    async def _deserialize_message(self, msg: Message) -> Optional[dict[str, Any]]:
         """
         Deserializa mensagem Kafka para dicionario de feedback.
 
@@ -358,7 +359,7 @@ class FeedbackConsumer:
             logger.error("falha_ao_deserializar_feedback", error=str(e), offset=msg.offset())
             return None
 
-    async def _enrich_from_mongodb(self, feedback_data: Dict[str, Any]) -> Dict[str, Any]:
+    async def _enrich_from_mongodb(self, feedback_data: dict[str, Any]) -> dict[str, Any]:
         """
         Enriquece feedback com features adicionais do MongoDB.
 
@@ -406,7 +407,7 @@ class FeedbackConsumer:
             return {}
 
     async def flush_buffer(
-        self, process_callback: Callable[[List[Dict[str, Any]]], Awaitable[Any]]
+        self, process_callback: Callable[[list[dict[str, Any]]], Awaitable[Any]]
     ):
         """
         Forca processamento do buffer atual.
@@ -419,7 +420,7 @@ class FeedbackConsumer:
             await self._process_batch(batch, process_callback)
             logger.info("buffer_flushed", items_processed=len(batch))
 
-    async def get_buffer_stats(self) -> Dict[str, Any]:
+    async def get_buffer_stats(self) -> dict[str, Any]:
         """
         Retorna estatisticas do buffer.
 
@@ -450,7 +451,7 @@ class FeedbackConsumer:
             return False, "Consumer nao inicializado"
 
         if self._last_poll_time:
-            age = (datetime.now(timezone.utc) - self._last_poll_time).total_seconds()
+            age = (datetime.now(UTC) - self._last_poll_time).total_seconds()
             if age > max_poll_age_seconds:
                 return False, f"Ultimo poll ha {age:.1f}s (max: {max_poll_age_seconds}s)"
 

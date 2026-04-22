@@ -5,18 +5,19 @@ Implementa políticas de data retention, mascaramento de campos sensíveis,
 e conformidade com GDPR/LGPD para o ledger cognitivo.
 """
 
-from typing import Dict, List, Any, Optional
-from datetime import datetime, timedelta, timezone
+import hashlib
+from datetime import UTC, datetime, timedelta
+from typing import Any, Optional
+
+import structlog
 from pymongo import MongoClient
 from pymongo.errors import PyMongoError
-import structlog
-import hashlib
 
 logger = structlog.get_logger(__name__)
 
 # Imports para compliance (optional, lazy loaded)
 try:
-    from ..compliance import PIIDetector, FieldEncryptor
+    from ..compliance import FieldEncryptor, PIIDetector
 
     HAS_COMPLIANCE = True
 except ImportError:
@@ -32,7 +33,7 @@ class RetentionPolicy:
         self,
         name: str,
         retention_days: int,
-        apply_to_recommendations: Optional[List[str]] = None,
+        apply_to_recommendations: Optional[list[str]] = None,
         mask_sensitive_fields: bool = True,
         delete_after_retention: bool = False,
     ):
@@ -52,7 +53,7 @@ class RetentionPolicy:
         self.mask_sensitive_fields = mask_sensitive_fields
         self.delete_after_retention = delete_after_retention
 
-    def applies_to(self, document: Dict[str, Any]) -> bool:
+    def applies_to(self, document: dict[str, Any]) -> bool:
         """
         Verifica se política se aplica ao documento.
 
@@ -77,7 +78,7 @@ class RetentionManager:
 
     def __init__(
         self,
-        config: Dict[str, Any],
+        config: dict[str, Any],
         pii_detector: Optional["PIIDetector"] = None,
         field_encryptor: Optional["FieldEncryptor"] = None,
     ):
@@ -121,7 +122,7 @@ class RetentionManager:
         db = self.mongo_client[self.mongodb_database]
         return db["cognitive_ledger"]
 
-    def _load_policies(self) -> List[RetentionPolicy]:
+    def _load_policies(self) -> list[RetentionPolicy]:
         """
         Carrega políticas de retenção da configuração.
 
@@ -170,7 +171,7 @@ class RetentionManager:
 
         return policies
 
-    def apply_retention_policies(self) -> Dict[str, int]:
+    def apply_retention_policies(self) -> dict[str, int]:
         """
         Aplica todas as políticas de retenção configuradas.
 
@@ -201,7 +202,7 @@ class RetentionManager:
             stats["errors"] += 1
             return stats
 
-    def _apply_policy(self, policy: RetentionPolicy) -> Dict[str, int]:
+    def _apply_policy(self, policy: RetentionPolicy) -> dict[str, int]:
         """
         Aplica política específica de retenção.
 
@@ -214,10 +215,10 @@ class RetentionManager:
         stats = {"processed": 0, "masked": 0, "deleted": 0, "errors": 0}
 
         try:
-            cutoff_date = datetime.now(timezone.utc) - timedelta(days=policy.retention_days)
+            cutoff_date = datetime.now(UTC) - timedelta(days=policy.retention_days)
 
             # Query documentos que excedem período de retenção
-            query: Dict[str, Any] = {"evaluated_at": {"$lt": cutoff_date}}
+            query: dict[str, Any] = {"evaluated_at": {"$lt": cutoff_date}}
 
             if policy.apply_to_recommendations:
                 query["opinion.recommendation"] = {"$in": policy.apply_to_recommendations}
@@ -259,7 +260,7 @@ class RetentionManager:
 
         return stats
 
-    def _mask_sensitive_data(self, document: Dict[str, Any]) -> bool:
+    def _mask_sensitive_data(self, document: dict[str, Any]) -> bool:
         """
         Mascara campos sensíveis em um documento usando PIIDetector quando disponível.
 
@@ -328,7 +329,7 @@ class RetentionManager:
 
             # Adicionar metadados de mascaramento
             document["masked_fields"] = masked_fields
-            document["masked_at"] = datetime.now(timezone.utc)
+            document["masked_at"] = datetime.now(UTC)
             document["retention_policy"] = "gdpr_compliant_masking"
             document["compliance_enhanced"] = (
                 self.pii_detector is not None or self.field_encryptor is not None
@@ -441,7 +442,7 @@ class RetentionManager:
 
             audit_record = {
                 "correlation_id": correlation_id,
-                "deleted_at": datetime.now(timezone.utc),
+                "deleted_at": datetime.now(UTC),
                 "reason": reason,
                 "documents_count": count,
             }
@@ -463,7 +464,7 @@ class RetentionManager:
 
     def export_user_data(
         self, correlation_id: str, include_masked: bool = False
-    ) -> Optional[List[Dict[str, Any]]]:
+    ) -> Optional[list[dict[str, Any]]]:
         """
         Exporta dados de um usuário (GDPR data portability).
 
@@ -475,7 +476,7 @@ class RetentionManager:
             Lista de documentos ou None se erro
         """
         try:
-            query: Dict[str, Any] = {"correlation_id": correlation_id}
+            query: dict[str, Any] = {"correlation_id": correlation_id}
 
             if not include_masked:
                 query["masked_fields"] = {"$exists": False}
@@ -502,7 +503,7 @@ class RetentionManager:
             )
             return None
 
-    def get_retention_status(self) -> Dict[str, Any]:
+    def get_retention_status(self) -> dict[str, Any]:
         """
         Retorna status atual das políticas de retenção.
 
@@ -516,8 +517,8 @@ class RetentionManager:
             # Contar documentos por política
             policy_stats = {}
             for policy in self.policies:
-                cutoff_date = datetime.now(timezone.utc) - timedelta(days=policy.retention_days)
-                query: Dict[str, Any] = {"evaluated_at": {"$lt": cutoff_date}}
+                cutoff_date = datetime.now(UTC) - timedelta(days=policy.retention_days)
+                query: dict[str, Any] = {"evaluated_at": {"$lt": cutoff_date}}
 
                 if policy.apply_to_recommendations:
                     query["opinion.recommendation"] = {"$in": policy.apply_to_recommendations}
@@ -548,7 +549,7 @@ class RetentionManager:
             return {}
 
     @staticmethod
-    def _get_nested_value(data: Dict, path: str) -> Any:
+    def _get_nested_value(data: dict, path: str) -> Any:
         """
         Obtém valor de path aninhado (ex: 'opinion.reasoning_summary').
 
@@ -569,7 +570,7 @@ class RetentionManager:
         return value
 
     @staticmethod
-    def _set_nested_value(data: Dict, path: str, value: Any) -> None:
+    def _set_nested_value(data: dict, path: str, value: Any) -> None:
         """
         Define valor de path aninhado.
 

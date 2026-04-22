@@ -1,7 +1,7 @@
 """Pydantic model for Tool Combination used in genetic algorithm."""
 
 import random
-from typing import Dict, List, Optional
+from typing import Optional
 from uuid import uuid4
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -14,10 +14,10 @@ class ToolCombination(BaseModel):
     """Tool combination representing an individual in genetic algorithm."""
 
     combination_id: str = Field(default_factory=lambda: str(uuid4()))
-    tools: List[ToolDescriptor]
+    tools: list[ToolDescriptor]
     fitness_score: float = 0.0
     generation: int = 0
-    parent_ids: List[str] = Field(default_factory=list)
+    parent_ids: list[str] = Field(default_factory=list)
     mutation_applied: bool = False
     crossover_applied: bool = False
 
@@ -79,7 +79,7 @@ class ToolCombination(BaseModel):
         return self.fitness_score
 
     def mutate(
-        self, mutation_rate: float, available_tools: List[ToolDescriptor]
+        self, mutation_rate: float, available_tools: list[ToolDescriptor]
     ) -> "ToolCombination":
         """Apply mutation by randomly replacing a tool."""
         if random.random() > mutation_rate or not self.tools:
@@ -152,7 +152,7 @@ class ToolCombination(BaseModel):
 
         return True
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         """Convert to dictionary for serialization."""
         return {
             "combination_id": self.combination_id,

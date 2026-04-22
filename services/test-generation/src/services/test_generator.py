@@ -1,20 +1,20 @@
 """Serviço de geração de testes automatizados."""
 
 import uuid
-from typing import Any, Dict, List, Optional
-from openai import AsyncOpenAI
-import structlog
+from typing import Any, Optional
 
+import structlog
+from openai import AsyncOpenAI
+
+from src.config.settings import Settings, get_settings
 from src.models.tests import (
     TestCase,
-    TestSuite,
-    TestType,
     TestFramework,
     TestGenerationRequest,
     TestGenerationResult,
-    TestCoverage,
+    TestSuite,
+    TestType,
 )
-from src.config.settings import get_settings, Settings
 
 logger = structlog.get_logger(__name__)
 
@@ -33,10 +33,7 @@ class TestGenerator:
         self._llm_temperature = settings.llm_temperature
         self._logger = logger
 
-    async def generate_tests(
-        self,
-        request: TestGenerationRequest
-    ) -> TestGenerationResult:
+    async def generate_tests(self, request: TestGenerationRequest) -> TestGenerationResult:
         """
         Gera testes baseado em requisitos/user stories.
 
@@ -46,9 +43,7 @@ class TestGenerator:
         Returns:
             Resultado da geração com suíte de testes
         """
-        start_time = structlog.get_logger().bind(
-            request_id=request.source_type
-        )
+        start_time = structlog.get_logger().bind(request_id=request.source_type)
 
         self._logger.info(
             "generating_tests",
@@ -124,11 +119,11 @@ class TestGenerator:
 
     async def _generate_from_requirements(
         self,
-        requirements: Dict[str, Any],
+        requirements: dict[str, Any],
         framework: TestFramework,
         language: str,
-        test_types: List[TestType],
-    ) -> List[TestCase]:
+        test_types: list[TestType],
+    ) -> list[TestCase]:
         """Gera testes a partir de requisitos."""
         test_cases = []
         req_list = requirements.get("requirements", [])
@@ -156,11 +151,11 @@ class TestGenerator:
 
     async def _generate_from_user_stories(
         self,
-        user_stories: Dict[str, Any],
+        user_stories: dict[str, Any],
         framework: TestFramework,
         language: str,
-        test_types: List[TestType],
-    ) -> List[TestCase]:
+        test_types: list[TestType],
+    ) -> list[TestCase]:
         """Gera testes a partir de user stories."""
         test_cases = []
         stories = user_stories.get("user_stories", [])
@@ -175,19 +170,17 @@ class TestGenerator:
             scenario = self._story_to_scenario(role, action, benefit)
 
             if TestType.E2E in test_types:
-                e2e_test = await self._generate_e2e_test(
-                    story_id, scenario, framework, language
-                )
+                e2e_test = await self._generate_e2e_test(story_id, scenario, framework, language)
                 test_cases.append(e2e_test)
 
         return test_cases
 
     async def _generate_from_acceptance_criteria(
         self,
-        criteria: Dict[str, Any],
+        criteria: dict[str, Any],
         framework: TestFramework,
         language: str,
-    ) -> List[TestCase]:
+    ) -> list[TestCase]:
         """Gera testes a partir de critérios de aceitação."""
         test_cases = []
         ac_list = criteria.get("acceptance_criteria", [])
@@ -200,9 +193,7 @@ class TestGenerator:
             then = ac.get("then", "")
 
             # Gerar teste Given-When-Then
-            test_code = await self._generate_gwt_test(
-                ac_id, given, when, then, framework, language
-            )
+            test_code = await self._generate_gwt_test(ac_id, given, when, then, framework, language)
 
             test_cases.append(test_code)
 
@@ -210,11 +201,11 @@ class TestGenerator:
 
     async def _generate_from_code(
         self,
-        code_data: Dict[str, Any],
-        code_snippets: Dict[str, str],
+        code_data: dict[str, Any],
+        code_snippets: dict[str, str],
         framework: TestFramework,
         language: str,
-    ) -> List[TestCase]:
+    ) -> list[TestCase]:
         """Gera testes a partir de código existente."""
         # TODO: Implementar análise de código e geração de testes
         return []
@@ -254,9 +245,7 @@ class TestGenerator:
         language: str,
     ) -> TestCase:
         """Gera teste de integração."""
-        prompt = self._build_integration_test_prompt(
-            req_id, title, description, language
-        )
+        prompt = self._build_integration_test_prompt(req_id, title, description, language)
 
         test_code = await self._call_llm(prompt)
 
@@ -276,7 +265,7 @@ class TestGenerator:
     async def _generate_e2e_test(
         self,
         story_id: str,
-        scenario: Dict[str, str],
+        scenario: dict[str, str],
         framework: TestFramework,
         language: str,
     ) -> TestCase:
@@ -380,9 +369,7 @@ The integration test should:
 Return only the test code without explanation.
 """
 
-    def _build_e2e_test_prompt(
-        self, story_id: str, scenario: Dict[str, str], language: str
-    ) -> str:
+    def _build_e2e_test_prompt(self, story_id: str, scenario: dict[str, str], language: str) -> str:
         """Constrói prompt para geração de teste E2E."""
         return f"""
 Generate an end-to-end test for the following user story scenario:
@@ -404,9 +391,7 @@ The E2E test should:
 Return only the test code without explanation.
 """
 
-    def _story_to_scenario(
-        self, role: str, action: str, benefit: str
-    ) -> Dict[str, str]:
+    def _story_to_scenario(self, role: str, action: str, benefit: str) -> dict[str, str]:
         """Converte user story em cenário de teste."""
         return {
             "scenario": f"{role} wants to {action}",
@@ -438,9 +423,7 @@ Return only the test code without explanation.
             # Retornar stub
             return "# Test generation failed\n# TODO: Manual implementation required"
 
-    def _estimate_coverage(
-        self, test_suite: TestSuite, request: TestGenerationRequest
-    ) -> float:
+    def _estimate_coverage(self, test_suite: TestSuite, request: TestGenerationRequest) -> float:
         """Estima cobertura de testes."""
         if test_suite.total_tests == 0:
             return 0.0
@@ -453,6 +436,7 @@ Return only the test code without explanation.
     def _sanitize(self, text: str) -> str:
         """Sanitiza texto para nome de arquivo."""
         import re
+
         # Remove caracteres especiais, substitui por underscore
         return re.sub(r"[^a-zA-Z0-9_]", "_", text.lower())[:50]
 

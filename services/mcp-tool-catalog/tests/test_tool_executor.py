@@ -12,18 +12,16 @@ Cobertura:
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-
-from src.services.tool_executor import ToolExecutor
-from src.models.tool_descriptor import ToolDescriptor, ToolCategory, IntegrationType
 from src.adapters.base_adapter import ExecutionResult
-
+from src.models.tool_descriptor import IntegrationType, ToolCategory, ToolDescriptor
+from src.services.tool_executor import ToolExecutor
 
 # ============================================================================
 # Fixtures
 # ============================================================================
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_settings():
     """Mock de configuracoes completas para ToolExecutor."""
     settings = MagicMock()
@@ -38,7 +36,7 @@ def mock_settings():
     return settings
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_settings_with_mcp():
     """Mock de configuracoes com MCP servers configurados."""
     settings = MagicMock()
@@ -56,7 +54,7 @@ def mock_settings_with_mcp():
     return settings
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_metrics():
     """Mock de MCPToolCatalogMetrics."""
     metrics = MagicMock()
@@ -66,7 +64,7 @@ def mock_metrics():
     return metrics
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_tool_registry():
     """Mock de ToolRegistry."""
     registry = MagicMock()
@@ -74,7 +72,7 @@ def mock_tool_registry():
     return registry
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_mcp_client():
     """Mock de MCPServerClient."""
     client = MagicMock()
@@ -90,7 +88,7 @@ def mock_mcp_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def tool_executor(mock_settings):
     """ToolExecutor basico sem MCP servers."""
     with patch("src.services.tool_executor.get_settings", return_value=mock_settings):
@@ -98,7 +96,7 @@ def tool_executor(mock_settings):
         return executor
 
 
-@pytest.fixture
+@pytest.fixture()
 def tool_executor_with_mcp(mock_settings_with_mcp, mock_metrics, mock_tool_registry):
     """ToolExecutor com MCP servers configurados."""
     with patch("src.services.tool_executor.get_settings", return_value=mock_settings_with_mcp):
@@ -108,7 +106,7 @@ def tool_executor_with_mcp(mock_settings_with_mcp, mock_metrics, mock_tool_regis
         return executor
 
 
-@pytest.fixture
+@pytest.fixture()
 def cli_tool():
     """Fixture de ferramenta CLI."""
     return ToolDescriptor(
@@ -127,7 +125,7 @@ def cli_tool():
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def rest_tool():
     """Fixture de ferramenta REST API."""
     return ToolDescriptor(
@@ -147,7 +145,7 @@ def rest_tool():
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def container_tool():
     """Fixture de ferramenta Container."""
     return ToolDescriptor(
@@ -166,7 +164,7 @@ def container_tool():
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def mcp_tool():
     """Fixture de ferramenta com MCP Server configurado."""
     return ToolDescriptor(
@@ -188,7 +186,7 @@ def mcp_tool():
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_execution_result():
     """ExecutionResult de exemplo bem-sucedido."""
     return ExecutionResult(
@@ -201,7 +199,7 @@ def mock_execution_result():
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_mcp_tool_call_response():
     """MCPToolCallResponse de exemplo."""
     response = MagicMock()
@@ -253,13 +251,13 @@ class TestToolExecutorInitialization:
 class TestToolExecutorLifecycle:
     """Testes de lifecycle do ToolExecutor."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_start_without_mcp_servers(self, tool_executor):
         """Verifica que start() funciona sem MCP servers configurados."""
         await tool_executor.start()
         assert tool_executor.mcp_clients == {}
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_start_initializes_mcp_clients(self, tool_executor_with_mcp):
         """Verifica que start() cria clientes MCP."""
         mock_client = MagicMock()
@@ -273,7 +271,7 @@ class TestToolExecutorLifecycle:
             assert mock_client.start.call_count == 2
             assert mock_client.list_tools.call_count == 2
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_start_graceful_degradation_on_connection_failure(self, tool_executor_with_mcp):
         """Verifica que falha de conexao nao bloqueia startup."""
         from src.clients.mcp_exceptions import MCPTransportError
@@ -299,7 +297,7 @@ class TestToolExecutorLifecycle:
             # Apenas 1 cliente deve estar conectado
             assert len(tool_executor_with_mcp.mcp_clients) == 1
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_stop_closes_mcp_clients(self, tool_executor_with_mcp, mock_mcp_client):
         """Verifica que stop() fecha clientes MCP."""
         # Simular clientes conectados
@@ -314,7 +312,7 @@ class TestToolExecutorLifecycle:
         assert mock_mcp_client.stop.call_count == 2
         assert tool_executor_with_mcp.mcp_clients == {}
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_stop_without_clients(self, tool_executor):
         """Verifica que stop() funciona sem clientes."""
         await tool_executor.stop()  # Nao deve levantar excecao
@@ -329,7 +327,7 @@ class TestToolExecutorLifecycle:
 class TestHybridRouting:
     """Testes de roteamento hibrido (MCP Server vs Adapter)."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_tool_via_mcp_success(
         self, tool_executor_with_mcp, mcp_tool, mock_mcp_client, mock_mcp_tool_call_response
     ):
@@ -351,7 +349,7 @@ class TestHybridRouting:
             tool_name="trivy", arguments={"image": "nginx:latest"}
         )
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_tool_via_adapter_success(
         self, tool_executor, cli_tool, mock_execution_result
     ):
@@ -370,7 +368,7 @@ class TestHybridRouting:
                 assert result.output == "All tests passed - 42 tests in 3.5s"
                 assert result.metadata.get("execution_route") == "adapter"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_tool_mcp_fallback_to_adapter(
         self, tool_executor_with_mcp, mcp_tool, mock_mcp_client
     ):
@@ -408,7 +406,7 @@ class TestHybridRouting:
                 # Verifica que metricas de fallback foram registradas
                 tool_executor_with_mcp.metrics.record_mcp_fallback.assert_called()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_tool_no_executor_available(self, tool_executor):
         """Verifica erro quando nenhum executor disponivel."""
         # Ferramenta com tipo nao implementado
@@ -441,7 +439,7 @@ class TestHybridRouting:
 class TestAdapterExecution:
     """Testes de execucao via adapters locais."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_cli_tool(self, tool_executor, cli_tool, mock_execution_result):
         """Testa execucao de ferramenta CLI."""
         with patch.object(tool_executor.cli_adapter, "execute", return_value=mock_execution_result):
@@ -457,7 +455,7 @@ class TestAdapterExecution:
                 assert result.success is True
                 assert result.execution_time_ms == 3500.0
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_rest_tool(self, tool_executor, rest_tool):
         """Testa execucao de ferramenta REST API."""
         rest_result = ExecutionResult(
@@ -481,7 +479,7 @@ class TestAdapterExecution:
                 assert result.success is True
                 assert "issues" in result.output
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_container_tool(self, tool_executor, container_tool):
         """Testa execucao de ferramenta Container."""
         container_result = ExecutionResult(
@@ -504,7 +502,7 @@ class TestAdapterExecution:
                 assert result.success is True
                 assert "0 vulnerabilities" in result.output
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_tool_adapter_failure(self, tool_executor, cli_tool):
         """Testa tratamento de falha do adapter."""
         with patch.object(
@@ -522,7 +520,7 @@ class TestAdapterExecution:
                 assert result.success is False
                 assert "Adapter execution failed" in result.error
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_tool_not_available(self, tool_executor, cli_tool):
         """Testa quando ferramenta nao esta disponivel."""
         with patch.object(
@@ -544,7 +542,7 @@ class TestAdapterExecution:
 class TestMetricsRecording:
     """Testes de registro de metricas Prometheus."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_record_execution_metrics_mcp(
         self, tool_executor_with_mcp, mcp_tool, mock_mcp_client, mock_mcp_tool_call_response
     ):
@@ -562,7 +560,7 @@ class TestMetricsRecording:
         assert call_args.kwargs["tool_id"] == "trivy-001"
         assert call_args.kwargs["mcp_server"] == "http://test-mcp:3000"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_record_execution_metrics_adapter(
         self, tool_executor_with_mcp, cli_tool, mock_execution_result
     ):
@@ -584,7 +582,7 @@ class TestMetricsRecording:
                 assert call_args.kwargs["execution_route"] == "adapter"
                 assert call_args.kwargs["adapter_type"] == "CLI"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_record_execution_metrics_fallback(
         self, tool_executor_with_mcp, mcp_tool, mock_mcp_client
     ):
@@ -626,7 +624,7 @@ class TestMetricsRecording:
 class TestFeedbackLoop:
     """Testes de atualizacao de reputacao via feedback loop."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_feedback_updates_tool_registry(
         self, tool_executor_with_mcp, cli_tool, mock_execution_result
     ):
@@ -657,7 +655,7 @@ class TestFeedbackLoop:
 class TestBatchExecution:
     """Testes de execucao em batch."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_tools_batch_parallel(
         self, tool_executor, cli_tool, mock_execution_result
     ):
@@ -692,7 +690,7 @@ class TestBatchExecution:
                 assert len(results) == 3
                 assert all(r.success for r in results.values())
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_tools_batch_mixed_routes(
         self,
         tool_executor_with_mcp,
@@ -725,7 +723,7 @@ class TestBatchExecution:
                 # Container tool via MCP
                 assert results["trivy-001"].metadata.get("execution_route") == "mcp"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_tools_batch_exception_handling(self, tool_executor, cli_tool):
         """Testa que excecoes nao bloqueiam outras execucoes."""
         tools = [cli_tool]
@@ -841,7 +839,7 @@ class TestBuildCommand:
 class TestMCPExecution:
     """Testes de execucao via MCP Server."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_via_mcp_converts_response(
         self, tool_executor_with_mcp, mcp_tool, mock_mcp_client
     ):
@@ -868,7 +866,7 @@ class TestMCPExecution:
         # Metadata inclui structured content
         assert result.metadata.get("structured_content") == {"extra": "data"}
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_via_mcp_handles_error(
         self, tool_executor_with_mcp, mcp_tool, mock_mcp_client
     ):

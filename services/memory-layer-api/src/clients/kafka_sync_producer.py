@@ -8,9 +8,9 @@ Utiliza serialização Avro conforme schema em schemas/memory-sync-event/memory-
 import asyncio
 import io
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 import fastavro
 import structlog
@@ -49,7 +49,7 @@ def get_avro_schema():
     return _avro_schema
 
 
-def serialize_avro(event: Dict[str, Any], schema) -> bytes:
+def serialize_avro(event: dict[str, Any], schema) -> bytes:
     """
     Serializa evento usando Avro.
 
@@ -162,7 +162,7 @@ class KafkaSyncProducer:
         except Exception as e:
             logger.error("Erro ao parar Kafka sync producer", error=str(e))
 
-    def _prepare_avro_event(self, event: Dict[str, Any]) -> Dict[str, Any]:
+    def _prepare_avro_event(self, event: dict[str, Any]) -> dict[str, Any]:
         """
         Prepara evento para serialização Avro, garantindo conformidade com o schema.
 
@@ -179,13 +179,13 @@ class KafkaSyncProducer:
             "operation": str(event.get("operation", "INSERT")),
             "collection": str(event.get("collection", "")),
             "timestamp": int(
-                event.get("timestamp", int(datetime.now(timezone.utc).timestamp() * 1000))
+                event.get("timestamp", int(datetime.now(UTC).timestamp() * 1000))
             ),
             "data": str(event.get("data", "{}")),
             "metadata": event.get("metadata") if event.get("metadata") else None,
         }
 
-    async def publish_sync_event(self, event: Dict[str, Any]) -> bool:
+    async def publish_sync_event(self, event: dict[str, Any]) -> bool:
         """
         Publica evento de sincronização no Kafka.
 
@@ -210,7 +210,7 @@ class KafkaSyncProducer:
             return False
 
         data_type = event.get("data_type", "unknown")
-        start_time = datetime.now(timezone.utc)
+        start_time = datetime.now(UTC)
 
         for attempt in range(self._retry_attempts):
             try:
@@ -229,7 +229,7 @@ class KafkaSyncProducer:
                 )
 
                 # Registra métricas
-                latency = (datetime.now(timezone.utc) - start_time).total_seconds()
+                latency = (datetime.now(UTC) - start_time).total_seconds()
                 SYNC_EVENTS_PUBLISHED.labels(status="success", data_type=data_type).inc()
                 SYNC_PUBLISH_LATENCY.labels(data_type=data_type).observe(latency)
 

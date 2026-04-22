@@ -15,7 +15,6 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-
 # ============================================
 # Event Loop Configuration
 # ============================================
@@ -35,7 +34,7 @@ def event_loop():
 # ============================================
 
 
-@pytest.fixture
+@pytest.fixture()
 def code_forge_settings():
     """Configuracoes do Code Forge para testes."""
     settings = MagicMock()
@@ -65,7 +64,7 @@ def code_forge_settings():
 # ============================================
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_metrics():
     """Mock para metricas Prometheus do Code Forge."""
     metrics = MagicMock()
@@ -124,7 +123,7 @@ def mock_metrics():
 # ============================================
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_git_client():
     """Mock para GitClient."""
     client = AsyncMock()
@@ -136,7 +135,7 @@ def mock_git_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_redis_client():
     """Mock para RedisClient."""
     client = AsyncMock()
@@ -148,7 +147,7 @@ def mock_redis_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_mongodb_client():
     """Mock para MongoDBClient."""
     client = AsyncMock()
@@ -159,7 +158,7 @@ def mock_mongodb_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_mcp_client():
     """Mock para MCPToolCatalogClient."""
     client = AsyncMock()
@@ -188,7 +187,7 @@ def mock_mcp_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_llm_client():
     """Mock para LLMClient."""
     client = AsyncMock()
@@ -209,7 +208,7 @@ def mock_llm_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_analyst_client():
     """Mock para AnalystAgentsClient."""
     client = AsyncMock()
@@ -226,10 +225,10 @@ def mock_analyst_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_sonarqube_client():
     """Mock para SonarQubeClient."""
-    from src.models.artifact import ValidationResult, ValidationType, ValidationStatus
+    from src.models.artifact import ValidationResult, ValidationStatus, ValidationType
 
     client = AsyncMock()
     client.analyze_code = AsyncMock(
@@ -251,10 +250,10 @@ def mock_sonarqube_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_snyk_client():
     """Mock para SnykClient."""
-    from src.models.artifact import ValidationResult, ValidationType, ValidationStatus
+    from src.models.artifact import ValidationResult, ValidationStatus, ValidationType
 
     client = AsyncMock()
     client.scan_dependencies = AsyncMock(
@@ -276,10 +275,10 @@ def mock_snyk_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_trivy_client():
     """Mock para TrivyClient."""
-    from src.models.artifact import ValidationResult, ValidationType, ValidationStatus
+    from src.models.artifact import ValidationResult, ValidationStatus, ValidationType
 
     client = AsyncMock()
     client.scan_filesystem = AsyncMock(
@@ -301,7 +300,7 @@ def mock_trivy_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_sigstore_client():
     """Mock para SigstoreClient."""
     client = AsyncMock()
@@ -311,7 +310,7 @@ def mock_sigstore_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_s3_client():
     """Mock para S3ArtifactClient."""
     client = AsyncMock()
@@ -321,7 +320,7 @@ def mock_s3_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_artifact_registry_client():
     """Mock para ArtifactRegistryClient."""
     client = AsyncMock()
@@ -330,7 +329,7 @@ def mock_artifact_registry_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_postgres_client():
     """Mock para PostgresClient."""
     client = AsyncMock()
@@ -343,7 +342,7 @@ def mock_postgres_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_ticket_client():
     """Mock para ExecutionTicketClient."""
     client = AsyncMock()
@@ -355,7 +354,7 @@ def mock_ticket_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_kafka_producer():
     """Mock para KafkaResultProducer."""
     client = AsyncMock()
@@ -370,7 +369,7 @@ def mock_kafka_producer():
 # ============================================
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_pipeline_engine(
     mock_git_client,
     mock_mongodb_client,
@@ -416,7 +415,7 @@ def mock_pipeline_engine(
     return engine
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_pipeline_engine_with_metrics(
     mock_git_client,
     mock_mongodb_client,
@@ -463,21 +462,21 @@ def mock_pipeline_engine_with_metrics(
     return engine
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_execution_ticket():
     """Ticket de execução BUILD sample."""
     from src.models.execution_ticket import (
+        SLA,
+        Consistency,
+        DeliveryMode,
+        Durability,
         ExecutionTicket,
+        Priority,
+        QoS,
+        RiskBand,
+        SecurityLevel,
         TaskType,
         TicketStatus,
-        Priority,
-        RiskBand,
-        SLA,
-        QoS,
-        SecurityLevel,
-        DeliveryMode,
-        Consistency,
-        Durability,
     )
 
     ticket_id = str(uuid.uuid4())
@@ -516,21 +515,21 @@ def sample_execution_ticket():
 # ============================================
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_ticket():
     """Ticket de execucao sample."""
     from src.models.execution_ticket import (
+        SLA,
+        Consistency,
+        DeliveryMode,
+        Durability,
         ExecutionTicket,
+        Priority,
+        QoS,
+        RiskBand,
+        SecurityLevel,
         TaskType,
         TicketStatus,
-        Priority,
-        RiskBand,
-        SLA,
-        QoS,
-        SecurityLevel,
-        DeliveryMode,
-        Consistency,
-        Durability,
     )
 
     ticket_id = str(uuid.uuid4())
@@ -569,21 +568,21 @@ def sample_ticket():
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_ticket_llm():
     """Ticket configurado para geracao LLM."""
     from src.models.execution_ticket import (
+        SLA,
+        Consistency,
+        DeliveryMode,
+        Durability,
         ExecutionTicket,
+        Priority,
+        QoS,
+        RiskBand,
+        SecurityLevel,
         TaskType,
         TicketStatus,
-        Priority,
-        RiskBand,
-        SLA,
-        QoS,
-        SecurityLevel,
-        DeliveryMode,
-        Consistency,
-        Durability,
     )
 
     ticket_id = str(uuid.uuid4())
@@ -619,21 +618,21 @@ def sample_ticket_llm():
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_ticket_library():
     """Ticket para geracao de biblioteca."""
     from src.models.execution_ticket import (
+        SLA,
+        Consistency,
+        DeliveryMode,
+        Durability,
         ExecutionTicket,
+        Priority,
+        QoS,
+        RiskBand,
+        SecurityLevel,
         TaskType,
         TicketStatus,
-        Priority,
-        RiskBand,
-        SLA,
-        QoS,
-        SecurityLevel,
-        DeliveryMode,
-        Consistency,
-        Durability,
     )
 
     ticket_id = str(uuid.uuid4())
@@ -661,21 +660,21 @@ def sample_ticket_library():
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_ticket_script():
     """Ticket para geracao de script."""
     from src.models.execution_ticket import (
+        SLA,
+        Consistency,
+        DeliveryMode,
+        Durability,
         ExecutionTicket,
+        Priority,
+        QoS,
+        RiskBand,
+        SecurityLevel,
         TaskType,
         TicketStatus,
-        Priority,
-        RiskBand,
-        SLA,
-        QoS,
-        SecurityLevel,
-        DeliveryMode,
-        Consistency,
-        Durability,
     )
 
     ticket_id = str(uuid.uuid4())
@@ -708,7 +707,7 @@ def sample_ticket_script():
 # ============================================
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_pipeline_context(sample_ticket):
     """PipelineContext sample."""
     from src.models.pipeline_context import PipelineContext
@@ -744,7 +743,7 @@ def sample_pipeline_context(sample_ticket):
     return context
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_pipeline_context_with_mcp(sample_pipeline_context):
     """PipelineContext com selecao MCP."""
     sample_pipeline_context.mcp_selection_id = str(uuid.uuid4())
@@ -766,7 +765,7 @@ def sample_pipeline_context_with_mcp(sample_pipeline_context):
     return sample_pipeline_context
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_pipeline_context_with_artifacts(sample_pipeline_context):
     """PipelineContext com artefatos gerados."""
     from src.models.artifact import CodeForgeArtifact, GenerationMethod
@@ -795,10 +794,10 @@ def sample_pipeline_context_with_artifacts(sample_pipeline_context):
     return sample_pipeline_context
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_pipeline_context_with_validations(sample_pipeline_context_with_artifacts):
     """PipelineContext com validacoes."""
-    from src.models.artifact import ValidationResult, ValidationType, ValidationStatus
+    from src.models.artifact import ValidationResult, ValidationStatus, ValidationType
 
     validation = ValidationResult(
         validation_type=ValidationType.SAST,
@@ -824,7 +823,7 @@ def sample_pipeline_context_with_validations(sample_pipeline_context_with_artifa
 # ============================================
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_template():
     """Template sample."""
     from src.models.template import Template, TemplateMetadata, TemplateType
@@ -847,7 +846,7 @@ def sample_template():
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def cached_template(sample_template):
     """Template cacheado no Redis."""
     return sample_template
@@ -858,7 +857,7 @@ def cached_template(sample_template):
 # ============================================
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_mcp_response():
     """Resposta MCP Tool Catalog sample."""
     return {
@@ -882,7 +881,7 @@ def sample_mcp_response():
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_mcp_response_llm_tools():
     """Resposta MCP com ferramentas LLM."""
     return {
@@ -900,7 +899,7 @@ def sample_mcp_response_llm_tools():
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_mcp_response_hybrid_tools():
     """Resposta MCP com ferramentas hibridas (LLM + Template)."""
     return {
@@ -929,10 +928,10 @@ def sample_mcp_response_hybrid_tools():
 # ============================================
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_validation_result():
     """ValidationResult sample."""
-    from src.models.artifact import ValidationResult, ValidationType, ValidationStatus
+    from src.models.artifact import ValidationResult, ValidationStatus, ValidationType
 
     return ValidationResult(
         validation_type=ValidationType.SAST,
@@ -950,10 +949,10 @@ def sample_validation_result():
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_validation_result_failed():
     """ValidationResult com falha."""
-    from src.models.artifact import ValidationResult, ValidationType, ValidationStatus
+    from src.models.artifact import ValidationResult, ValidationStatus, ValidationType
 
     return ValidationResult(
         validation_type=ValidationType.SAST,

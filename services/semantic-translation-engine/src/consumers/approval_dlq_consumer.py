@@ -9,9 +9,9 @@ import asyncio
 import json
 import time
 from collections.abc import Callable
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
-UTC = timezone.utc  # type: ignore
+UTC = UTC  # type: ignore
 
 import structlog
 from confluent_kafka import Consumer, KafkaError, TopicPartition

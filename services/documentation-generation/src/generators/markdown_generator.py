@@ -1,7 +1,7 @@
 """Gerador de documentos Markdown."""
 
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import structlog
@@ -87,7 +87,7 @@ class MarkdownGenerator:
             content += "---\n\n"
 
         content += (
-            f"\n*Generated on {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')} UTC*\n"
+            f"\n*Generated on {datetime.now(UTC).strftime('%Y-%m-%d %H:%M:%S')} UTC*\n"
         )
 
         return Document(
@@ -171,7 +171,7 @@ class MarkdownGenerator:
                     content += f"```{lang}\n{ex_code}\n```\n\n"
 
         content += (
-            f"\n*Generated on {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')} UTC*\n"
+            f"\n*Generated on {datetime.now(UTC).strftime('%Y-%m-%d %H:%M:%S')} UTC*\n"
         )
 
         return Document(
@@ -226,7 +226,7 @@ MIT License - see LICENSE file for details.
 """
 
         content += (
-            f"\n*Generated on {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')} UTC*\n"
+            f"\n*Generated on {datetime.now(UTC).strftime('%Y-%m-%d %H:%M:%S')} UTC*\n"
         )
 
         return Document(
@@ -266,7 +266,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
         for version in versions:
             ver = version.get("version", "Unreleased")
-            date = version.get("date", datetime.now(timezone.utc).strftime("%Y-%m-%d"))
+            date = version.get("date", datetime.now(UTC).strftime("%Y-%m-%d"))
             changes = version.get("changes", [])
 
             content += f"## [{ver}] - {date}\n\n"
@@ -293,7 +293,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
                     content += "\n"
 
         content += (
-            f"\n*Generated on {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')} UTC*\n"
+            f"\n*Generated on {datetime.now(UTC).strftime('%Y-%m-%d %H:%M:%S')} UTC*\n"
         )
 
         return Document(

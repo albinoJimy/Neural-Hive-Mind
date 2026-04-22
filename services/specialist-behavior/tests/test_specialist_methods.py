@@ -4,19 +4,20 @@ Testes de métodos privados do BehaviorSpecialist - código real.
 Estes testes validam métodos internos de análise comportamental.
 """
 
-import sys
 import os
-import pytest
+import sys
 from unittest.mock import MagicMock, patch
+
+import pytest
 
 # Configurar path para importar código real
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
-from src.specialist import BehaviorSpecialist
 from src.config import BehaviorSpecialistConfig
+from src.specialist import BehaviorSpecialist
 
 
-@pytest.fixture
+@pytest.fixture()
 def config():
     """Configuração para testes."""
     config = BehaviorSpecialistConfig()
@@ -26,7 +27,7 @@ def config():
     return config
 
 
-@pytest.fixture
+@pytest.fixture()
 def specialist(config):
     """Instância do especialista para testes."""
     with patch("neural_hive_specialists.BaseSpecialist.__init__", return_value=None):

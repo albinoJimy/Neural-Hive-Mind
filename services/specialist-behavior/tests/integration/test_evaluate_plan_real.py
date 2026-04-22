@@ -4,10 +4,11 @@ Testes de integração para BehaviorSpecialist - código real.
 Estes testes validam o fluxo completo de avaliação de planos.
 """
 
-import sys
 import os
-import pytest
+import sys
 from unittest.mock import MagicMock, patch
+
+import pytest
 
 # Configurar path para importar código real
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
@@ -46,7 +47,7 @@ def env_setup():
     os.environ.update(original_env)
 
 
-@pytest.fixture
+@pytest.fixture()
 def real_config(env_setup):
     """Configuração para testes de integração."""
     from config import BehaviorSpecialistConfig
@@ -54,7 +55,7 @@ def real_config(env_setup):
     return BehaviorSpecialistConfig()
 
 
-@pytest.fixture
+@pytest.fixture()
 def real_specialist(real_config):
     """Instância do especialista para integração."""
     from specialist import BehaviorSpecialist
@@ -73,7 +74,7 @@ def real_specialist(real_config):
             return spec
 
 
-@pytest.fixture
+@pytest.fixture()
 def complete_ux_plan():
     """Plano UX completo para testes."""
     return {
@@ -110,7 +111,7 @@ def complete_ux_plan():
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def poor_ux_plan():
     """Plano UX ruim para testes."""
     return {

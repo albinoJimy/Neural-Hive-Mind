@@ -1,6 +1,6 @@
 import json
-from datetime import datetime, timedelta, timezone
-from typing import Dict, Optional, Union
+from datetime import UTC, datetime, timedelta
+from typing import Optional, Union
 
 import structlog
 from src.models.pheromone_signal import PheromoneSignal, PheromoneType
@@ -37,7 +37,7 @@ class PheromoneClient:
             plan_id=plan_id,
             intent_id=intent_id,
             decision_id=decision_id,
-            expires_at=datetime.now(timezone.utc) + timedelta(seconds=self.config.pheromone_ttl),
+            expires_at=datetime.now(UTC) + timedelta(seconds=self.config.pheromone_ttl),
             decay_rate=self.config.pheromone_decay_rate,
         )
 
@@ -117,7 +117,7 @@ class PheromoneClient:
 
     async def get_aggregated_pheromone(
         self, specialist_type: str, domain: Union[str, UnifiedDomain]
-    ) -> Dict[str, float]:
+    ) -> dict[str, float]:
         """Agrega feromônios de todos os tipos para um especialista + domínio"""
         success_strength = await self.get_pheromone_strength(
             specialist_type, domain, PheromoneType.SUCCESS
@@ -167,4 +167,3 @@ class PheromoneClient:
     async def cleanup_expired_pheromones(self):
         """Limpa feromônios expirados (executar periodicamente)"""
         # Redis TTL já cuida da expiração automática
-        pass

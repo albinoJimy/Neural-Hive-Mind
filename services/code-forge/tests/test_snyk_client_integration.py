@@ -13,17 +13,17 @@ from src.clients.snyk_client import SnykClient
 from src.models.artifact import ValidationStatus
 
 
-@pytest.fixture
+@pytest.fixture()
 def client():
     return SnykClient(token="test-token", enabled=True, timeout=300)
 
 
-@pytest.fixture
+@pytest.fixture()
 def disabled_client():
     return SnykClient(token="test-token", enabled=False)
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_snyk_scan_disabled(disabled_client):
     """Testa que scan retorna SKIPPED quando disabled"""
     result = await disabled_client.scan_dependencies("/tmp/project", "python")
@@ -33,7 +33,7 @@ async def test_snyk_scan_disabled(disabled_client):
     assert result.duration_ms == 0
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_snyk_scan_success_no_vulnerabilities(client):
     """Testa scan Snyk com resultado sem vulnerabilidades"""
     mock_result = MagicMock()
@@ -52,7 +52,7 @@ async def test_snyk_scan_success_no_vulnerabilities(client):
     assert result.high_issues == 0
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_snyk_scan_success_with_vulnerabilities(client):
     """Testa scan Snyk com vulnerabilidades encontradas"""
     mock_result = MagicMock()
@@ -82,7 +82,7 @@ async def test_snyk_scan_success_with_vulnerabilities(client):
     assert result.low_issues == 2
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_snyk_scan_critical_vulnerability(client):
     """Testa scan Snyk com vulnerabilidade crítica"""
     mock_result = MagicMock()
@@ -105,7 +105,7 @@ async def test_snyk_scan_critical_vulnerability(client):
     assert result.critical_issues == 1
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_snyk_scan_timeout(client):
     """Testa timeout do Snyk"""
     with patch("subprocess.run", side_effect=subprocess.TimeoutExpired("snyk", 300)):
@@ -115,7 +115,7 @@ async def test_snyk_scan_timeout(client):
     assert result.score == 0.0
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_snyk_scan_cli_error(client):
     """Testa erro de CLI do Snyk"""
     mock_result = MagicMock()
@@ -129,7 +129,7 @@ async def test_snyk_scan_cli_error(client):
     assert result.status == ValidationStatus.FAILED
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_snyk_scan_invalid_json(client):
     """Testa parsing de JSON inválido"""
     mock_result = MagicMock()
@@ -143,7 +143,7 @@ async def test_snyk_scan_invalid_json(client):
     assert result.status == ValidationStatus.FAILED
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_snyk_scan_python_language(client):
     """Testa que Python usa requirements.txt"""
     mock_result = MagicMock()
@@ -159,7 +159,7 @@ async def test_snyk_scan_python_language(client):
     assert "--file=requirements.txt" in cmd
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_snyk_scan_javascript_language(client):
     """Testa que JavaScript usa package.json"""
     mock_result = MagicMock()
@@ -175,7 +175,7 @@ async def test_snyk_scan_javascript_language(client):
     assert "--file=package.json" in cmd
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_snyk_scan_go_language(client):
     """Testa que Go usa go.mod"""
     mock_result = MagicMock()

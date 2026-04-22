@@ -1,20 +1,21 @@
 """Teste E2E para geração de código com LLM + RAG"""
 
-import pytest
-from unittest.mock import AsyncMock, MagicMock
-import sys
 import os
+import sys
 import uuid
+from unittest.mock import AsyncMock, MagicMock
+
+import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from src.clients.llm_client import LLMProvider
-from src.services.code_composer import CodeComposer
 from src.models.artifact import ArtifactCategory, GenerationMethod
+from src.services.code_composer import CodeComposer
 from src.types.artifact_types import ArtifactCategory, CodeLanguage
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_all_clients():
     """Mock de todos os clientes necessários"""
     llm_mock = AsyncMock()
@@ -36,11 +37,12 @@ def mock_all_clients():
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_execution_ticket():
     """Criar execution ticket de exemplo"""
-    from src.models.execution_ticket import ExecutionTicket, TaskType, Priority, QoS, SLA
     from datetime import datetime, timedelta
+
+    from src.models.execution_ticket import SLA, ExecutionTicket, Priority, QoS, TaskType
 
     ticket_id = str(uuid.uuid4())
     ticket = ExecutionTicket(
@@ -72,7 +74,7 @@ def sample_execution_ticket():
     return ticket
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_context(sample_execution_ticket):
     """Criar contexto de pipeline"""
     context = MagicMock()
@@ -92,7 +94,7 @@ def sample_context(sample_execution_ticket):
     return context
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_e2e_llm_rag_generation(mock_all_clients, sample_context):
     """Testar fluxo E2E completo: ticket → RAG → LLM → artifact"""
 
@@ -177,7 +179,7 @@ async def list_users():
     print(f"✅ E2E Test Passed: Artifact generated with confidence {artifact.confidence_score}")
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_e2e_fallback_to_heuristic(mock_all_clients, sample_context):
     """Testar fallback para heurística quando LLM falha"""
 
@@ -216,7 +218,7 @@ async def test_e2e_fallback_to_heuristic(mock_all_clients, sample_context):
     print("✅ Fallback Test Passed: Used HEURISTIC generation")
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_e2e_no_analyst_client(mock_all_clients, sample_context):
     """Testar geração sem Analyst Client (RAG desabilitado)"""
 
@@ -250,23 +252,23 @@ async def test_e2e_no_analyst_client(mock_all_clients, sample_context):
     print("✅ No RAG Test Passed: Generated code without RAG context")
 
 
-@pytest.mark.asyncio
-@pytest.mark.e2e
+@pytest.mark.asyncio()
+@pytest.mark.e2e()
 async def test_e2e_pipeline_engine_complete_flow(mock_all_clients, sample_execution_ticket):
     """Testar fluxo E2E completo usando PipelineEngine: ticket → pipeline → result"""
-    import sys
     import os
+    import sys
 
     sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
+    from src.models.artifact import GenerationMethod
+    from src.services.approval_gate import ApprovalGate
+    from src.services.code_composer import CodeComposer
+    from src.services.packager import Packager
     from src.services.pipeline_engine import PipelineEngine
     from src.services.template_selector import TemplateSelector
-    from src.services.code_composer import CodeComposer
-    from src.services.validator import Validator
     from src.services.test_runner import TestRunner
-    from src.services.packager import Packager
-    from src.services.approval_gate import ApprovalGate
-    from src.models.artifact import GenerationMethod
+    from src.services.validator import Validator
 
     clients = mock_all_clients
 
@@ -342,8 +344,9 @@ async def health():
     redis_client.set = AsyncMock()
 
     # Mock validation clients
-    from src.models.artifact import ValidationResult, ValidationType, ValidationStatus
     from datetime import datetime
+
+    from src.models.artifact import ValidationResult, ValidationStatus, ValidationType
 
     mock_validation_result = ValidationResult(
         validation_type=ValidationType.SAST,

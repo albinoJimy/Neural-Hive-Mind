@@ -4,7 +4,7 @@ Health Check Endpoint
 Endpoint para verificar saúde do serviço e dependências.
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Literal
 
 import structlog
@@ -68,7 +68,7 @@ async def health_check():
         status=overall_status,
         service="feature-store",
         version="1.0.0",
-        timestamp=datetime.now(timezone.utc),
+        timestamp=datetime.now(UTC),
         dependencies={"mongodb": mongo_healthy, "redis": redis_healthy},
     )
 

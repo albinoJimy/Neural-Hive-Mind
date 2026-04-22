@@ -5,7 +5,7 @@ Suporta parsing de código C# com fallback regex.
 """
 
 import logging
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -43,11 +43,11 @@ class CSharpParser:
             self._ts_parser.set_language(self._ts_language)
             logger.debug("csharp_parser_tree_sitter_loaded")
         except Exception as e:
-            logger.warning(f"csharp_parser_init_failed: {str(e)}")
+            logger.warning(f"csharp_parser_init_failed: {e!s}")
             self._ts_language = None
             self._ts_parser = None
 
-    def parse(self, code: str, filename: str) -> Optional[Dict[str, Any]]:
+    def parse(self, code: str, filename: str) -> Optional[dict[str, Any]]:
         """
         Parse código C# e extrair informações.
 
@@ -66,12 +66,12 @@ class CSharpParser:
             try:
                 return self._parse_with_tree_sitter(code, filename)
             except Exception as e:
-                logger.warning(f"tree_sitter_parse_failed: {filename} - {str(e)}")
+                logger.warning(f"tree_sitter_parse_failed: {filename} - {e!s}")
 
         # Fallback para regex
         return self._parse_with_regex(code, filename)
 
-    def _empty_result(self) -> Dict[str, Any]:
+    def _empty_result(self) -> dict[str, Any]:
         """Retorna estrutura vazia de resultado."""
         return {
             "classes": [],
@@ -86,7 +86,7 @@ class CSharpParser:
             "complexity": 0,
         }
 
-    def _parse_with_tree_sitter(self, code: str, filename: str) -> Dict[str, Any]:
+    def _parse_with_tree_sitter(self, code: str, filename: str) -> dict[str, Any]:
         """Parse usando tree-sitter."""
         tree = self._ts_parser.parse(bytes(code, "utf8"))
         result = self._empty_result()
@@ -122,7 +122,7 @@ class CSharpParser:
 
         return result
 
-    def _extract_namespace(self, root_node, code: str, result: Dict):
+    def _extract_namespace(self, root_node, code: str, result: dict):
         """Extrai namespace."""
         for node in root_node.children:
             if node.type == "namespace_declaration":
@@ -130,7 +130,7 @@ class CSharpParser:
                 if name_node:
                     result["namespaces"] = code[name_node.start_byte : name_node.end_byte]
 
-    def _extract_usings(self, root_node, code: str, result: Dict):
+    def _extract_usings(self, root_node, code: str, result: dict):
         """Extrai using directives."""
         for node in root_node.children:
             if node.type == "using_directive":
@@ -145,7 +145,7 @@ class CSharpParser:
                         }
                     )
 
-    def _extract_class_declaration(self, node, code: str) -> Optional[Dict]:
+    def _extract_class_declaration(self, node, code: str) -> Optional[dict]:
         """Extrai informações de uma classe."""
         info = {
             "name": "",
@@ -213,7 +213,7 @@ class CSharpParser:
 
         return info
 
-    def _extract_record_declaration(self, node, code: str) -> Optional[Dict]:
+    def _extract_record_declaration(self, node, code: str) -> Optional[dict]:
         """Extrai informações de um record."""
         info = {
             "name": "",
@@ -259,7 +259,7 @@ class CSharpParser:
 
         return info
 
-    def _extract_interface_declaration(self, node, code: str) -> Optional[Dict]:
+    def _extract_interface_declaration(self, node, code: str) -> Optional[dict]:
         """Extrai informações de uma interface."""
         info = {
             "name": "",
@@ -313,7 +313,7 @@ class CSharpParser:
 
         return info
 
-    def _extract_enum_declaration(self, node, code: str) -> Optional[Dict]:
+    def _extract_enum_declaration(self, node, code: str) -> Optional[dict]:
         """Extrai informações de um enum."""
         info = {
             "name": "",
@@ -354,7 +354,7 @@ class CSharpParser:
 
         return info
 
-    def _extract_method_declaration(self, node, code: str) -> Optional[Dict]:
+    def _extract_method_declaration(self, node, code: str) -> Optional[dict]:
         """Extrai informações de um método."""
         info = {
             "name": "",
@@ -468,7 +468,7 @@ class CSharpParser:
 
         return complexity
 
-    def _parse_with_regex(self, code: str, filename: str) -> Dict[str, Any]:
+    def _parse_with_regex(self, code: str, filename: str) -> dict[str, Any]:
         """Parse baseado em regex (fallback)."""
         import re
 
@@ -622,7 +622,7 @@ class CSharpParser:
         return result
 
     def _extract_methods_from_class_body(
-        self, class_body: str, full_code: str, class_start: int, result: Dict, class_name: str
+        self, class_body: str, full_code: str, class_start: int, result: dict, class_name: str
     ):
         """Extrai métodos do corpo de uma classe/interface."""
         import re

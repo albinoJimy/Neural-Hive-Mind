@@ -2,10 +2,11 @@
 Testes unitários para OpinionCache.
 """
 
-import pytest
 import json
 from unittest.mock import Mock, patch
-from redis.exceptions import RedisError, ConnectionError as RedisConnectionError
+
+import pytest
+from redis.exceptions import ConnectionError as RedisConnectionError, RedisError
 
 from neural_hive_specialists.opinion_cache import OpinionCache
 
@@ -60,7 +61,7 @@ class TestOpinionCacheInitialization:
 class TestCacheKeyGeneration:
     """Testes de geração de chave de cache."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def cache(self):
         with patch("neural_hive_specialists.opinion_cache.RedisCluster"):
             return OpinionCache(
@@ -111,7 +112,7 @@ class TestCacheKeyGeneration:
 class TestCacheOperations:
     """Testes de operações de cache (get/set)."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def cache(self):
         with patch("neural_hive_specialists.opinion_cache.RedisCluster") as mock_redis:
             mock_redis.return_value.ping.return_value = True
@@ -197,7 +198,7 @@ class TestCacheOperations:
 class TestCacheInvalidation:
     """Testes de invalidação de cache."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def cache(self):
         with patch("neural_hive_specialists.opinion_cache.RedisCluster") as mock_redis:
             mock_redis.return_value.ping.return_value = True

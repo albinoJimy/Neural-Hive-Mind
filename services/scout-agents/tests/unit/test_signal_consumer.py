@@ -5,16 +5,16 @@ Testa o consumer que processa exploration-signals do Scout Agents,
 implementando feedback loop para ajuste de parâmetros de exploração.
 """
 
-import pytest
 import asyncio
-from unittest.mock import AsyncMock, MagicMock, patch
-from datetime import datetime, timezone
 from collections import defaultdict
+from datetime import UTC, datetime
+from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
 from src.consumers.signal_consumer import SignalFeedbackConsumer
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_settings():
     """Settings mock para testes."""
     settings = MagicMock()
@@ -24,21 +24,21 @@ def mock_settings():
     return settings
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_exploration_engine():
     """Exploration engine mock."""
     engine = AsyncMock()
     return engine
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_pheromone_client():
     """Pheromone client mock."""
     client = AsyncMock()
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_metrics():
     """Metrics mock."""
     metrics = MagicMock()
@@ -48,7 +48,7 @@ def mock_metrics():
     return metrics
 
 
-@pytest.fixture
+@pytest.fixture()
 def consumer(mock_settings, mock_exploration_engine, mock_pheromone_client, mock_metrics):
     """Consumer instance para testes."""
     return SignalFeedbackConsumer(
@@ -72,7 +72,7 @@ class TestSignalFeedbackConsumerInitialization:
         assert consumer.running is False
         assert isinstance(consumer.signal_stats, defaultdict)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_consumer_initialize(self, consumer):
         """Consumer deve inicializar corretamente."""
         mock_producer = MagicMock()
@@ -90,7 +90,7 @@ class TestSignalFeedbackConsumerInitialization:
 class TestProcessMessage:
     """Testes de processamento de mensagens."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_process_signal_feedback(self, consumer):
         """Deve processar feedback de sinal."""
         signal_data = {
@@ -124,7 +124,7 @@ class TestProcessMessage:
         assert consumer.signal_stats[key]["acted_upon"] == 1
         assert consumer.signal_stats[key]["ignored"] == 0
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_process_ignored_signal(self, consumer):
         """Deve processar sinal ignorado (não utilizado)."""
         signal_data = {
@@ -152,7 +152,7 @@ class TestProcessMessage:
         assert consumer.signal_stats[key]["ignored"] == 1
         assert consumer.signal_stats[key]["acted_upon"] == 0
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_update_signal_stats_rolling_average(self, consumer):
         """Deve calcular média móvel de curiosity score."""
         # Primeiro sinal
@@ -196,7 +196,7 @@ class TestProcessMessage:
 class TestAdjustExplorationParameters:
     """Testes de ajuste de parâmetros de exploração."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_reduce_thresholds_low_utilization(self, consumer):
         """Deve reduzir thresholds quando utilização é baixa."""
         # Preparar estatísticas
@@ -206,7 +206,7 @@ class TestAdjustExplorationParameters:
             "acted_upon": 3,  # 15% utilização (baixa)
             "ignored": 17,
             "avg_curiosity": 0.8,  # Alta curiosidade
-            "last_updated": datetime.now(timezone.utc),
+            "last_updated": datetime.now(UTC),
         }
 
         signal = {
@@ -222,7 +222,7 @@ class TestAdjustExplorationParameters:
             # Deve reduzir thresholds
             mock_adjust.assert_called_once_with("BUSINESS", "lower", 0.05)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_increase_thresholds_high_utilization(self, consumer):
         """Deve aumentar thresholds quando utilização é alta."""
         # Preparar estatísticas
@@ -232,7 +232,7 @@ class TestAdjustExplorationParameters:
             "acted_upon": 18,  # 90% utilização (alta)
             "ignored": 2,
             "avg_curiosity": 0.4,  # Baixa curiosidade
-            "last_updated": datetime.now(timezone.utc),
+            "last_updated": datetime.now(UTC),
         }
 
         signal = {
@@ -248,7 +248,7 @@ class TestAdjustExplorationParameters:
             # Deve aumentar thresholds
             mock_adjust.assert_called_once_with("BUSINESS", "higher", 0.05)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_wait_for_minimum_samples(self, consumer):
         """Deve esperar por amostragem mínima antes de ajustar."""
         # Estatísticas insuficientes
@@ -258,7 +258,7 @@ class TestAdjustExplorationParameters:
             "acted_upon": 1,
             "ignored": 4,
             "avg_curiosity": 0.8,
-            "last_updated": datetime.now(timezone.utc),
+            "last_updated": datetime.now(UTC),
         }
 
         signal = {
@@ -274,7 +274,7 @@ class TestAdjustExplorationParameters:
             # Não deve ajustar
             mock_adjust.assert_not_called()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_reinforce_pheromone_high_relevance(self, consumer):
         """Deve reforçar feromônio para sinal de alta relevância."""
         key = "BUSINESS:PATTERN_EMERGING"
@@ -283,7 +283,7 @@ class TestAdjustExplorationParameters:
             "acted_upon": 10,
             "ignored": 10,
             "avg_curiosity": 0.7,
-            "last_updated": datetime.now(timezone.utc),
+            "last_updated": datetime.now(UTC),
         }
 
         signal = {
@@ -321,14 +321,14 @@ class TestGetFeedbackStats:
             "acted_upon": 7,
             "ignored": 3,
             "avg_curiosity": 0.75,
-            "last_updated": datetime.now(timezone.utc),
+            "last_updated": datetime.now(UTC),
         }
         consumer.signal_stats["TECHNICAL:ANOMALY_POSITIVE"] = {
             "total": 5,
             "acted_upon": 2,
             "ignored": 3,
             "avg_curiosity": 0.6,
-            "last_updated": datetime.now(timezone.utc),
+            "last_updated": datetime.now(UTC),
         }
 
         stats = consumer.get_feedback_stats()
@@ -342,7 +342,7 @@ class TestGetFeedbackStats:
 class TestConsumerLifecycle:
     """Testes de ciclo de vida do consumer."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_start_stop_consumer(self, consumer):
         """Deve iniciar e parar consumer corretamente."""
         mock_producer = MagicMock()

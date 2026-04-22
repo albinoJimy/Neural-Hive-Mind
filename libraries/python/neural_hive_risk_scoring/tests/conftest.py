@@ -1,15 +1,16 @@
 """Configuração pytest para neural_hive_risk_scoring."""
 
-import pytest
 import sys
 from pathlib import Path
+
+import pytest
 
 # Adicionar bibliotecas ao path
 lib_path = Path(__file__).parent.parent.parent.parent.parent / "libraries" / "python"
 sys.path.insert(0, str(lib_path))
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_entity():
     """Entidade de exemplo para testes."""
     return {

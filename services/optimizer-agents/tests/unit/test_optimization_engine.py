@@ -11,12 +11,13 @@ Cobre:
 - Funções helper de estado
 """
 
-import pytest
-from unittest.mock import Mock, AsyncMock, patch
 from collections import defaultdict
+from unittest.mock import AsyncMock, Mock, patch
 
-from src.services.optimization_engine import OptimizationEngine
+import pytest
+
 from src.models.optimization_hypothesis import OptimizationHypothesis, OptimizationType
+from src.services.optimization_engine import OptimizationEngine
 
 
 @pytest.fixture

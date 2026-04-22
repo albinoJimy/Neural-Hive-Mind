@@ -15,20 +15,16 @@ from temporalio.exceptions import ApplicationError
 
 # Import activities
 with workflow.unsafe.imports_passed_through():
-    from opentelemetry import trace
 
     from neural_hive_observability import get_tracer
     from neural_hive_observability.context import set_baggage
     from src.activities.fluxo_g_integration import (
-        generate_requirements,
         generate_documentation,
-        update_knowledge_graph,
-        request_approval,
+        generate_requirements,
         query_knowledge_graph,
+        request_approval,
+        update_knowledge_graph,
     )
-    from src.activities.plan_validation import validate_cognitive_plan
-    from src.activities.result_consolidation import consolidate_results
-    from src.config.settings import get_settings
 
 
 @workflow.defn
@@ -192,8 +188,7 @@ class FluxoGWorkflow:
 
                     # Verificar se alguma aprovação requer intervenção humana
                     human_review_required = any(
-                        a.get("result", {}).get("requires_human_review")
-                        for a in self._approvals
+                        a.get("result", {}).get("requires_human_review") for a in self._approvals
                     )
 
                     if human_review_required:
@@ -254,6 +249,6 @@ class FluxoGWorkflow:
                 # Re-raise ApplicationError (não retryable)
                 raise
             except Exception as e:
-                workflow.logger.exception(f"Fluxo G workflow failed: {str(e)}")
+                workflow.logger.exception(f"Fluxo G workflow failed: {e!s}")
                 self._status = "failed"
                 raise

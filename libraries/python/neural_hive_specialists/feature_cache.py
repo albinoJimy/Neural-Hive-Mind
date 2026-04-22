@@ -6,8 +6,9 @@ caching distribuído das features extraídas.
 """
 
 import json
+from typing import Any, Optional
+
 import structlog
-from typing import Dict, Any, Optional
 from redis import RedisCluster
 from redis.exceptions import RedisError
 
@@ -77,7 +78,7 @@ class FeatureCache:
         """Gera chave de cache para features."""
         return f"features:{self.specialist_type}:{plan_hash}"
 
-    def get(self, plan_hash: str) -> Optional[Dict[str, Any]]:
+    def get(self, plan_hash: str) -> Optional[dict[str, Any]]:
         """
         Busca features no cache.
 
@@ -120,7 +121,7 @@ class FeatureCache:
             )
             return None
 
-    def set(self, plan_hash: str, features: Dict[str, Any]) -> bool:
+    def set(self, plan_hash: str, features: dict[str, Any]) -> bool:
         """
         Armazena features no cache.
 
@@ -171,7 +172,7 @@ class FeatureCache:
             )
             return False
 
-    def _serialize_ontology_features(self, ontology_features: Dict[str, Any]) -> Dict[str, Any]:
+    def _serialize_ontology_features(self, ontology_features: dict[str, Any]) -> dict[str, Any]:
         """
         Serializa features de ontologia, convertendo objetos não-serializáveis.
 

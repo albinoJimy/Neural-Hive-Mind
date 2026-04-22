@@ -2,8 +2,8 @@
 Serviço para enforcement de políticas de congelamento.
 """
 
-from datetime import datetime, timezone
-from typing import List, Optional
+from datetime import UTC, datetime
+from typing import Optional
 
 import structlog
 from kubernetes import client as k8s_client
@@ -36,7 +36,7 @@ class PolicyEnforcer:
         self.k8s_core_v1 = k8s_client.CoreV1Api()
         self.k8s_apps_v1 = k8s_client.AppsV1Api()
 
-    async def evaluate_policies(self, budget: ErrorBudget) -> List[FreezeEvent]:
+    async def evaluate_policies(self, budget: ErrorBudget) -> list[FreezeEvent]:
         """Avalia políticas para um budget."""
         events_created = []
 
@@ -121,13 +121,13 @@ class PolicyEnforcer:
         await self.redis_client.cache_freeze_status(event.service_name, False)
 
         # Passo 4: Publicar evento Kafka
-        event.resolved_at = datetime.now(timezone.utc)
+        event.resolved_at = datetime.now(UTC)
         event.active = False
         await self.kafka_producer.publish_freeze_event(event, "resolved")
 
         return True
 
-    async def get_active_freezes(self, service_name: Optional[str] = None) -> List[FreezeEvent]:
+    async def get_active_freezes(self, service_name: Optional[str] = None) -> list[FreezeEvent]:
         """Busca freezes ativos."""
         return await self.postgresql_client.get_active_freezes(service_name)
 

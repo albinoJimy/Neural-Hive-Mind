@@ -9,17 +9,17 @@ Estes testes verificam:
 REQUISITO: Docker daemon deve estar rodando.
 """
 
-import pytest
-import tempfile
 import subprocess
+import tempfile
 from pathlib import Path
 
+import pytest
+from src.services.container_builder import BuilderType, ContainerBuilder
 from src.services.dockerfile_generator import DockerfileGenerator
-from src.types.artifact_types import CodeLanguage, ArtifactCategory
-from src.services.container_builder import ContainerBuilder, BuilderType
+from src.types.artifact_types import ArtifactCategory, CodeLanguage
 
 
-@pytest.mark.e2e
+@pytest.mark.e2e()
 class TestContainerBuildE2E:
     """Testes E2E para builds de container."""
 
@@ -30,7 +30,7 @@ class TestContainerBuildE2E:
                 ["docker", "--version"],
                 capture_output=True,
                 text=True,
-                timeout=5,
+                timeout=5, check=False,
             )
             if result.returncode != 0:
                 pytest.skip("Docker não está disponível")
@@ -39,7 +39,7 @@ class TestContainerBuildE2E:
         except Exception as e:
             pytest.skip(f"Docker não disponível: {e}")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_python_container_build_e2e(self):
         """Teste E2E completo de build Python."""
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -102,10 +102,10 @@ uvicorn[standard]==0.24.0
             # Limpar imagem
             subprocess.run(
                 ["docker", "rmi", "test-python:latest", "--force"],
-                capture_output=True,
+                capture_output=True, check=False,
             )
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_nodejs_container_build_e2e(self):
         """Teste E2E de build Node.js."""
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -196,10 +196,10 @@ CMD ["node", "index.js"]
             # Limpar
             subprocess.run(
                 ["docker", "rmi", "test-nodejs:latest", "--force"],
-                capture_output=True,
+                capture_output=True, check=False,
             )
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_golang_container_build_e2e(self):
         """Teste E2E de build Go."""
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -255,10 +255,10 @@ go 1.21
             # Limpar
             subprocess.run(
                 ["docker", "rmi", "test-golang:latest", "--force"],
-                capture_output=True,
+                capture_output=True, check=False,
             )
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_typescript_nestjs_build_e2e(self):
         """Teste E2E de build TypeScript com NestJS."""
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -398,10 +398,10 @@ CMD ["node", "dist/main.js"]
             # Limpar
             subprocess.run(
                 ["docker", "rmi", "test-nestjs:latest", "--force"],
-                capture_output=True,
+                capture_output=True, check=False,
             )
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_csharp_aspnet_build_e2e(self):
         """Teste E2E de build C#/ASP.NET."""
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -454,7 +454,7 @@ app.Run();
                 # Limpar
                 subprocess.run(
                     ["docker", "rmi", "test-aspnet:latest", "--force"],
-                    capture_output=True,
+                    capture_output=True, check=False,
                 )
             else:
                 # Se falhar, verificar se é por falta do .NET SDK
@@ -463,7 +463,7 @@ app.Run();
                 else:
                     pytest.fail(f"Build falhou: {result.error_message}")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_custom_dockerfile_build_e2e(self):
         """Teste E2E com Dockerfile customizado."""
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -490,10 +490,10 @@ CMD echo "Hello from custom container"
             # Limpar
             subprocess.run(
                 ["docker", "rmi", "test-custom:latest", "--force"],
-                capture_output=True,
+                capture_output=True, check=False,
             )
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_dockerfile_with_lambda_function_e2e(self):
         """Teste E2E de Dockerfile para Lambda Function."""
         generator = DockerfileGenerator()
@@ -506,7 +506,7 @@ CMD echo "Hello from custom container"
         assert "FROM python:3.11-slim" in dockerfile
         assert "awslambdaric" in dockerfile
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_multi_stage_dockerfile_e2e(self):
         """Teste E2E que Dockerfile é multi-stage."""
         generator = DockerfileGenerator()
@@ -520,7 +520,7 @@ CMD echo "Hello from custom container"
         assert "as builder" in dockerfile.lower()
         assert "COPY --from=builder" in dockerfile
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_non_root_user_e2e(self):
         """Teste E2E que todas as imagens têm usuário não-root."""
         languages = [
@@ -540,7 +540,7 @@ CMD echo "Hello from custom container"
             has_user = "USER" in dockerfile or "useradd" in dockerfile or "adduser" in dockerfile
             assert has_user, f"Template {language} não tem usuário não-root"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_healthcheck_in_all_templates_e2e(self):
         """Teste E2E que todos os templates têm HEALTHCHECK."""
         generator = DockerfileGenerator()

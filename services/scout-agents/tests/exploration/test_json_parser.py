@@ -4,11 +4,10 @@ Parsing de JSON para análise de configurações.
 """
 
 import pytest
-
 from src.exploration.parsers.json_parser import JSONParser
 
 
-@pytest.fixture
+@pytest.fixture()
 def json_parser():
     """Instância de JSONParser para testes."""
     return JSONParser()

@@ -14,7 +14,7 @@ def mock_structlog(monkeypatch):
     return mock_logger
 
 
-@pytest.fixture
+@pytest.fixture()
 def all_domains():
     """Return all valid UnifiedDomain values."""
     from neural_hive_domain import UnifiedDomain
@@ -22,19 +22,19 @@ def all_domains():
     return list(UnifiedDomain)
 
 
-@pytest.fixture
+@pytest.fixture()
 def valid_sources():
     """Return all valid source values for normalization."""
     return ["intent_envelope", "scout_signal", "risk_scoring", "ontology"]
 
 
-@pytest.fixture
+@pytest.fixture()
 def valid_layers():
     """Return all valid pheromone layers."""
     return ["strategic", "exploration", "consensus", "specialist"]
 
 
-@pytest.fixture
+@pytest.fixture()
 def valid_pheromone_types():
     """Return all valid pheromone types."""
     return [

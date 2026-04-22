@@ -2,48 +2,49 @@
 Classe base abstrata para todos os especialistas neurais.
 """
 
-from abc import ABC, abstractmethod
-from typing import Dict, Any, Optional
-import time
-import json
+import asyncio
 import hashlib
+import json
+import os
+import time
 import uuid
-from datetime import datetime, timezone
+from abc import ABC, abstractmethod
 from contextlib import nullcontext
-import structlog
+from datetime import UTC, datetime
+from typing import Any, Optional
+
 import numpy as np
+import structlog
 from opentelemetry import trace
 from opentelemetry.trace import Status, StatusCode
-
-from .config import SpecialistConfig
-from .mlflow_client import MLflowClient
-from .ledger_client import LedgerClient
-from .explainability_generator import ExplainabilityGenerator
-from .metrics import SpecialistMetrics
-from .feature_extraction import FeatureExtractor
-from .semantic_pipeline import SemanticPipeline
-from .feature_store import FeatureStore
-from .opinion_cache import OpinionCache
-from .compliance import ComplianceLayer
-from .feature_cache import FeatureCache
-from .gpu_inference import GPUInferenceWrapper
-from .batch_evaluator import BatchEvaluator
-from .pheromone_client import PheromoneType
 from pydantic import ValidationError
+from tenacity import (
+    retry,
+    retry_if_exception_type,
+    stop_after_attempt,
+    wait_exponential,
+)
+
+from .batch_evaluator import BatchEvaluator
+from .compliance import ComplianceLayer
+from .config import SpecialistConfig
+from .explainability_generator import ExplainabilityGenerator
+from .feature_cache import FeatureCache
+from .feature_extraction import FeatureExtractor
+from .feature_store import FeatureStore
+from .gpu_inference import GPUInferenceWrapper
+from .ledger_client import LedgerClient
+from .metrics import SpecialistMetrics
+from .mlflow_client import MLflowClient
+from .opinion_cache import OpinionCache
+from .pheromone_client import PheromoneType
 from .schemas import (
     CognitivePlanSchema,
     PlanValidationError,
     PlanVersionIncompatibleError,
     is_version_compatible,
 )
-import asyncio
-from tenacity import (
-    retry,
-    stop_after_attempt,
-    wait_exponential,
-    retry_if_exception_type,
-)
-import os
+from .semantic_pipeline import SemanticPipeline
 
 logger = structlog.get_logger()
 
@@ -104,7 +105,7 @@ class BaseSpecialist(ABC):
         self.metrics = SpecialistMetrics(config, self.specialist_type)
 
         # Cache de health status para evitar chamadas bloqueantes frequentes
-        self._health_cache: Dict[str, Any] | None = None
+        self._health_cache: dict[str, Any] | None = None
         self._health_cache_time: float = 0.0
         self._health_cache_ttl: float = getattr(config, "health_check_cache_ttl_seconds", 15.0)
 
@@ -279,9 +280,9 @@ class BaseSpecialist(ABC):
         self.evidently_monitor = None
         if config.enable_drift_monitoring:
             try:
-                from .drift_monitoring.evidently_monitor import EvidentlyMonitor
-                from .drift_monitoring.drift_detector import DriftDetector
                 from .drift_monitoring.drift_alerts import DriftAlerter
+                from .drift_monitoring.drift_detector import DriftDetector
+                from .drift_monitoring.evidently_monitor import EvidentlyMonitor
 
                 # Construir EvidentlyMonitor com config dict contendo drift_reference_dataset_path
                 self.evidently_monitor = EvidentlyMonitor(
@@ -358,7 +359,7 @@ class BaseSpecialist(ABC):
         self.tracer = None
         if config.enable_tracing:
             try:
-                from neural_hive_observability import init_tracing, get_tracer
+                from neural_hive_observability import get_tracer, init_tracing
                 from neural_hive_observability.config import ObservabilityConfig
 
                 # Criar config de observabilidade
@@ -487,7 +488,6 @@ class BaseSpecialist(ABC):
     @abstractmethod
     def _get_specialist_type(self) -> str:
         """Retorna tipo do especialista (business, technical, etc.)."""
-        pass
 
     @abstractmethod
     def _load_model(self) -> Any:
@@ -506,12 +506,11 @@ class BaseSpecialist(ABC):
                 return model
             return None
         """
-        pass
 
     @abstractmethod
     def _evaluate_plan_internal(
-        self, cognitive_plan: Dict[str, Any], context: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, cognitive_plan: dict[str, Any], context: dict[str, Any]
+    ) -> dict[str, Any]:
         """
         Lógica específica de avaliação do especialista.
 
@@ -524,11 +523,10 @@ class BaseSpecialist(ABC):
         - mitigations: List[Dict] (opcional)
         - metadata: Dict (opcional)
         """
-        pass
 
     def _predict_with_model(
-        self, cognitive_plan: Dict[str, Any], timeout_ms: Optional[int] = None
-    ) -> Optional[Dict[str, Any]]:
+        self, cognitive_plan: dict[str, Any], timeout_ms: Optional[int] = None
+    ) -> Optional[dict[str, Any]]:
         """
         Executa inferência de modelo com timeout e fallback.
 
@@ -730,8 +728,8 @@ class BaseSpecialist(ABC):
 
             def _run_inference():
                 # Converter features para DataFrame com schema consistente
-                import pandas as pd
                 import numpy as np
+                import pandas as pd
 
                 # Importar definições centralizadas de features
                 try:
@@ -957,7 +955,7 @@ class BaseSpecialist(ABC):
             return metadata.get("version", "unknown")
         return "unknown"
 
-    def _parse_model_prediction(self, prediction: Any, features: Dict[str, Any]) -> Dict[str, Any]:
+    def _parse_model_prediction(self, prediction: Any, features: dict[str, Any]) -> dict[str, Any]:
         """
         Converte predição do modelo para formato padronizado.
 
@@ -1206,7 +1204,7 @@ class BaseSpecialist(ABC):
             "metadata": metadata,
         }
 
-    def _hash_plan(self, cognitive_plan: Dict[str, Any]) -> str:
+    def _hash_plan(self, cognitive_plan: dict[str, Any]) -> str:
         """
         Gera hash normalizado do plano cognitivo para cache.
 
@@ -1254,7 +1252,7 @@ class BaseSpecialist(ABC):
 
         return plan_hash
 
-    def evaluate_plan(self, request) -> Dict[str, Any]:
+    def evaluate_plan(self, request) -> dict[str, Any]:
         """
         Método público para avaliar plano (chamado pelo gRPC handler).
 
@@ -1274,7 +1272,7 @@ class BaseSpecialist(ABC):
         else:
             return self._evaluate_plan_impl(request, start_time, None)
 
-    def _evaluate_plan_with_tracing(self, request, start_time: float) -> Dict[str, Any]:
+    def _evaluate_plan_with_tracing(self, request, start_time: float) -> dict[str, Any]:
         """Executa evaluate_plan com root span OpenTelemetry."""
         plan_id = request.plan_id
         intent_id = request.intent_id
@@ -1316,7 +1314,7 @@ class BaseSpecialist(ABC):
                 root_span.set_status(Status(StatusCode.ERROR, str(e)))
                 raise
 
-    def _evaluate_plan_impl(self, request, start_time: float, root_span) -> Dict[str, Any]:
+    def _evaluate_plan_impl(self, request, start_time: float, root_span) -> dict[str, Any]:
         """Implementação interna de evaluate_plan."""
         plan_id = request.plan_id
         intent_id = request.intent_id
@@ -1441,7 +1439,7 @@ class BaseSpecialist(ABC):
 
                         # Retornar resposta cacheada com flag indicando cache hit
                         cached_opinion["cached"] = True
-                        cached_opinion["cache_hit_at"] = datetime.now(timezone.utc).isoformat()
+                        cached_opinion["cache_hit_at"] = datetime.now(UTC).isoformat()
 
                         # Atualizar processing_time_ms para refletir tempo atual de cache hit
                         # Preservar tempo original em metadata
@@ -1461,7 +1459,7 @@ class BaseSpecialist(ABC):
                             cached_opinion["opinion"]["metadata"]["evaluated_at_original"] = (
                                 cached_opinion["evaluated_at"]
                             )
-                            cached_opinion["evaluated_at"] = datetime.now(timezone.utc).isoformat()
+                            cached_opinion["evaluated_at"] = datetime.now(UTC).isoformat()
 
                         return cached_opinion
                     else:
@@ -1792,7 +1790,7 @@ class BaseSpecialist(ABC):
                 "specialist_version": self.version,
                 "opinion": opinion,
                 "processing_time_ms": int(processing_time * 1000),
-                "evaluated_at": datetime.now(timezone.utc).isoformat(),
+                "evaluated_at": datetime.now(UTC).isoformat(),
                 "buffered": buffered,
             }
 
@@ -1857,7 +1855,7 @@ class BaseSpecialist(ABC):
             )
             raise
 
-    def _deserialize_plan(self, plan_bytes: bytes) -> Dict[str, Any]:
+    def _deserialize_plan(self, plan_bytes: bytes) -> dict[str, Any]:
         """
         Deserializa e valida plano cognitivo.
 
@@ -1930,7 +1928,7 @@ class BaseSpecialist(ABC):
             )
             raise ValueError(f"Formato de plano cognitivo inválido: {e}")
 
-    def _validate_evaluation_result(self, result: Dict[str, Any]):
+    def _validate_evaluation_result(self, result: dict[str, Any]):
         """Valida estrutura do resultado de avaliação."""
         required_fields = [
             "confidence_score",
@@ -1964,7 +1962,7 @@ class BaseSpecialist(ABC):
         intent_id: str,
         domain: str,
         decision_id: Optional[str] = None,
-        metadata: Optional[Dict[str, Any]] = None,
+        metadata: Optional[dict[str, Any]] = None,
     ) -> None:
         """
         Publica feromônio de forma assíncrona (fire-and-forget).
@@ -2012,7 +2010,7 @@ class BaseSpecialist(ABC):
 
     def _publish_result_pheromones(
         self,
-        opinion: Dict[str, Any],
+        opinion: dict[str, Any],
         plan_id: str,
         intent_id: str,
         domain: str,
@@ -2085,7 +2083,7 @@ class BaseSpecialist(ABC):
 
     async def evaluate_plans_batch(
         self, requests: list, max_concurrency: Optional[int] = None
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Avalia múltiplos planos em paralelo com controle de concorrência.
 
@@ -2293,7 +2291,7 @@ class BaseSpecialist(ABC):
         }
 
     async def evaluate_plans_batch_optimized(
-        self, cognitive_plans: list, context: Optional[Dict[str, Any]] = None
+        self, cognitive_plans: list, context: Optional[dict[str, Any]] = None
     ) -> list:
         """
         Avalia múltiplos planos em batch otimizado.
@@ -2333,7 +2331,7 @@ class BaseSpecialist(ABC):
             return await self._evaluate_plans_sequentially(cognitive_plans, context)
 
     async def _evaluate_plans_sequentially(
-        self, cognitive_plans: list, context: Optional[Dict[str, Any]] = None
+        self, cognitive_plans: list, context: Optional[dict[str, Any]] = None
     ) -> list:
         """
         Avalia planos sequencialmente (fallback).
@@ -2361,14 +2359,14 @@ class BaseSpecialist(ABC):
                         "confidence_score": 0.5,
                         "risk_score": 0.5,
                         "recommendation": "review_required",
-                        "reasoning_summary": f"Avaliação falhou: {str(e)}",
+                        "reasoning_summary": f"Avaliação falhou: {e!s}",
                         "reasoning_factors": [],
                         "metadata": {"error": str(e)},
                     }
                 )
         return results
 
-    def warmup(self) -> Dict[str, Any]:
+    def warmup(self) -> dict[str, Any]:
         """
         Pre-carrega modelo e executa inferência dummy para eliminar cold start.
 
@@ -2470,7 +2468,7 @@ class BaseSpecialist(ABC):
                     "duration_seconds": duration,
                 }
 
-    def _create_dummy_plan(self) -> Dict[str, Any]:
+    def _create_dummy_plan(self) -> dict[str, Any]:
         """
         Cria plano cognitivo dummy para warmup.
 
@@ -2495,7 +2493,7 @@ class BaseSpecialist(ABC):
             ],
         }
 
-    def health_check(self, force_refresh: bool = False) -> Dict[str, Any]:
+    def health_check(self, force_refresh: bool = False) -> dict[str, Any]:
         """
         Verifica saúde do especialista.
 
@@ -2663,7 +2661,7 @@ class BaseSpecialist(ABC):
 
         return result
 
-    def get_capabilities(self) -> Dict[str, Any]:
+    def get_capabilities(self) -> dict[str, Any]:
         """Retorna capacidades do especialista."""
         metrics_summary = self.metrics.get_summary()
 
@@ -2738,8 +2736,8 @@ class BaseSpecialist(ABC):
         try:
             # Importar cliente do service-registry
             from neural_hive_integration.clients.service_registry_client import (
-                ServiceRegistryClient,
                 AgentInfo,
+                ServiceRegistryClient,
             )
 
             # Executar registro assíncrono em thread separada
@@ -2784,9 +2782,10 @@ class BaseSpecialist(ABC):
             Exception: Se registro falhar após todas as tentativas
         """
         import asyncio
+
         from neural_hive_integration.clients.service_registry_client import (
-            ServiceRegistryClient,
             AgentInfo,
+            ServiceRegistryClient,
         )
 
         async def _do_register():
@@ -2845,6 +2844,7 @@ class BaseSpecialist(ABC):
 
         try:
             import asyncio
+
             from neural_hive_integration.clients.service_registry_client import (
                 ServiceRegistryClient,
             )

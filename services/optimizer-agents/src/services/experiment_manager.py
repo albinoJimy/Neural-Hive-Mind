@@ -1,7 +1,7 @@
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
-UTC = timezone.utc  # type: ignore
+UTC = UTC  # type: ignore
 
 import structlog
 
@@ -332,8 +332,7 @@ class ExperimentManager:
                         # Salvar associacao experiment_id <-> hypothesis_library_id
                         if self.mongodb_client:
                             await self.mongodb_client.set_hypothesis_library_id(
-                                experiment_id=experiment_id,
-                                hypothesis_library_id=hypothesis_id
+                                experiment_id=experiment_id, hypothesis_library_id=hypothesis_id
                             )
                     else:
                         logger.warning(
@@ -774,9 +773,13 @@ class ExperimentManager:
         # Outcome principal
         recommendation = analysis.get("recommendation")
         if recommendation == "APPLY":
-            lessons_parts.append("**Outcome:** Hipotese validada. Recomendado aplicar a otimizacao.")
+            lessons_parts.append(
+                "**Outcome:** Hipotese validada. Recomendado aplicar a otimizacao."
+            )
         elif recommendation == "REJECT":
-            lessons_parts.append("**Outcome:** Hipotese refutada. Otimizacao nao apresentou resultados positivos.")
+            lessons_parts.append(
+                "**Outcome:** Hipotese refutada. Otimizacao nao apresentou resultados positivos."
+            )
         else:
             lessons_parts.append("**Outcome:** Resultados inconclusivos. Mais dados necessarios.")
 
@@ -797,7 +800,9 @@ class ExperimentManager:
                 treatment_mean = metric_analysis.get("treatment_mean", 0)
                 if control_mean > 0:
                     pct_change = ((treatment_mean - control_mean) / control_mean) * 100
-                    lessons_parts.append(f"- {metric_name}: {control_mean:.3f} -> {treatment_mean:.3f} ({pct_change:+.1f}%)")
+                    lessons_parts.append(
+                        f"- {metric_name}: {control_mean:.3f} -> {treatment_mean:.3f} ({pct_change:+.1f}%)"
+                    )
 
         # Violacoes de guardrails
         guardrail_details = analysis.get("guardrail_details", {})

@@ -7,7 +7,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from pymongo.errors import PyMongoError
-
 from src.clients.mongodb_client import MongoDBClient
 
 
@@ -20,7 +19,7 @@ class FakeCollection:
         self.create_index = AsyncMock()
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_config():
     """Configuração mínima para MongoDBClient."""
     return types.SimpleNamespace(
@@ -37,7 +36,7 @@ def mock_config():
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def client(mock_config):
     """Instância do MongoDBClient com coleções mockadas."""
     mongo_client = MongoDBClient(mock_config)
@@ -51,7 +50,7 @@ def client(mock_config):
     return mongo_client
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_save_validation_audit_success(client):
     """Deve persistir validação com hash e workflow_id."""
     await client.save_validation_audit("plan-1", {"valid": True}, "wf-1")
@@ -64,7 +63,7 @@ async def test_save_validation_audit_success(client):
     assert "timestamp" in saved_doc
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_save_validation_audit_retry(client):
     """Deve tentar novamente em erro transitório e completar."""
     client.validation_audit.insert_one.side_effect = [PyMongoError("boom"), None]
@@ -74,7 +73,7 @@ async def test_save_validation_audit_retry(client):
     assert client.validation_audit.insert_one.await_count == 2
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_save_validation_audit_fail_open(client):
     """Erros permanentes não devem propagar exceção."""
     client.validation_audit.insert_one.side_effect = PyMongoError("down")
@@ -84,7 +83,7 @@ async def test_save_validation_audit_fail_open(client):
     assert client.validation_audit.insert_one.await_count >= 1
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_validation_audit_hash_consistency(client):
     """Hash deve ser determinístico para o mesmo resultado."""
     validation_result = {"valid": True, "errors": [], "warnings": []}
@@ -100,7 +99,7 @@ async def test_validation_audit_hash_consistency(client):
     assert first_hash == second_hash
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_save_workflow_result_upsert(client):
     """Deve fazer upsert com _id = workflow_id."""
     workflow_result = {"workflow_id": "wf-10", "status": "SUCCESS", "metrics": {"total_tickets": 1}}
@@ -113,7 +112,7 @@ async def test_save_workflow_result_upsert(client):
     assert kwargs["upsert"] is True
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_save_workflow_result_retry(client):
     """Deve fazer retry em falha temporária."""
     client.workflow_results.replace_one.side_effect = [PyMongoError("retry"), None]
@@ -123,7 +122,7 @@ async def test_save_workflow_result_retry(client):
     assert client.workflow_results.replace_one.await_count == 2
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_save_incident_fail_open(client):
     """Persistência de incidentes é fail-open."""
     client.incidents.insert_one.side_effect = PyMongoError("incident failure")
@@ -133,7 +132,7 @@ async def test_save_incident_fail_open(client):
     assert client.incidents.insert_one.await_count >= 1
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_save_telemetry_buffer_success(client):
     """Deve persistir frame de telemetria em buffer."""
     frame = {"correlation": {"workflow_id": "wf-40"}, "source": "orchestrator"}
@@ -143,7 +142,7 @@ async def test_save_telemetry_buffer_success(client):
     client.telemetry_buffer.insert_one.assert_awaited_once_with(frame)
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_create_indexes(client):
     """Cria índices esperados para coleções novas."""
     await client._create_indexes()
@@ -162,7 +161,7 @@ async def test_create_indexes(client):
 # ======================================================
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_ensure_collection_exists_creates_new_collection(mock_config):
     """Deve criar coleção se não existir."""
     client = MongoDBClient(mock_config)
@@ -176,7 +175,7 @@ async def test_ensure_collection_exists_creates_new_collection(mock_config):
     client.db.create_collection.assert_awaited_once_with("new_collection")
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_ensure_collection_exists_skips_existing(mock_config):
     """Não deve criar coleção se já existir."""
     client = MongoDBClient(mock_config)
@@ -190,7 +189,7 @@ async def test_ensure_collection_exists_skips_existing(mock_config):
     client.db.create_collection.assert_not_awaited()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_ensure_collection_exists_propagates_error(mock_config):
     """Erros na criação de coleção devem propagar exceção."""
     client = MongoDBClient(mock_config)
@@ -207,7 +206,7 @@ async def test_ensure_collection_exists_propagates_error(mock_config):
 # ======================================================
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_save_execution_ticket_success(client):
     """Deve salvar ticket e registrar métricas de duração."""
     ticket = {"ticket_id": "ticket-success-1", "plan_id": "plan-1", "status": "PENDING"}
@@ -227,7 +226,7 @@ async def test_save_execution_ticket_success(client):
         assert call_args[0][1] == "insert"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_save_execution_ticket_records_error_metrics(client):
     """Deve registrar métricas de erro em falhas de persistência (fail-closed)."""
     client.execution_tickets.insert_one.side_effect = PyMongoError("Test error")
@@ -252,7 +251,7 @@ async def test_save_execution_ticket_records_error_metrics(client):
         )
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_save_execution_ticket_propagates_critical_errors(client):
     """Erros críticos devem propagar exceção (encapsulada em RuntimeError)."""
     from pymongo.errors import ServerSelectionTimeoutError

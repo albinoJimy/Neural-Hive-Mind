@@ -26,8 +26,10 @@ for module_name in [
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from src.clients.queen_agent_grpc_client import QueenAgentGrpcClient  # noqa: E402
-from src.clients.queen_agent_grpc_client import queen_agent_pb2  # noqa: E402
+from src.clients.queen_agent_grpc_client import (
+    QueenAgentGrpcClient,  # noqa: E402
+    queen_agent_pb2,  # noqa: E402
+)
 
 
 @pytest.fixture

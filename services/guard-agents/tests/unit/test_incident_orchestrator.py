@@ -1,12 +1,13 @@
 """Unit tests for IncidentOrchestrator"""
 
-import pytest
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock
-from datetime import datetime, timezone
+
+import pytest
 from src.services.incident_orchestrator import IncidentOrchestrator
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_threat_detector():
     """Mock ThreatDetector"""
     detector = MagicMock()
@@ -16,7 +17,7 @@ def mock_threat_detector():
     return detector
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_incident_classifier():
     """Mock IncidentClassifier"""
     classifier = MagicMock()
@@ -31,7 +32,7 @@ def mock_incident_classifier():
     return classifier
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_policy_enforcer():
     """Mock PolicyEnforcer"""
     enforcer = MagicMock()
@@ -41,7 +42,7 @@ def mock_policy_enforcer():
     return enforcer
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_remediation_coordinator():
     """Mock RemediationCoordinator"""
     coordinator = MagicMock()
@@ -55,7 +56,7 @@ def mock_remediation_coordinator():
     return coordinator
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_mongodb_client():
     """Mock MongoDB client"""
     client = MagicMock()
@@ -68,7 +69,7 @@ def mock_mongodb_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_kafka_producer():
     """Mock Kafka producer"""
     producer = MagicMock()
@@ -77,7 +78,7 @@ def mock_kafka_producer():
     return producer
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_itsm_client():
     """Mock ITSM client"""
     client = MagicMock()
@@ -88,7 +89,7 @@ def mock_itsm_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def incident_orchestrator(
     mock_threat_detector,
     mock_incident_classifier,
@@ -111,7 +112,7 @@ def incident_orchestrator(
 class TestOpenCriticalIncident:
     """Tests for _open_critical_incident method"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_open_critical_incident_with_itsm(
         self, incident_orchestrator, mock_itsm_client, mock_mongodb_client
     ):
@@ -133,7 +134,7 @@ class TestOpenCriticalIncident:
         assert call_kwargs["priority"] == "critical"
         assert call_kwargs["original_incident_id"] == "INC-001"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_open_critical_incident_itsm_not_available(
         self, incident_orchestrator, mock_mongodb_client
     ):
@@ -151,7 +152,7 @@ class TestOpenCriticalIncident:
         # Should still try to persist
         mock_mongodb_client.critical_incidents_collection.insert_one.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_open_critical_incident_itsm_failure(
         self, incident_orchestrator, mock_itsm_client
     ):
@@ -171,7 +172,7 @@ class TestOpenCriticalIncident:
 class TestPublishIncidentOutcome:
     """Tests for _publish_incident_outcome method"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_publish_incident_outcome_success(
         self, incident_orchestrator, mock_kafka_producer
     ):
@@ -188,7 +189,7 @@ class TestPublishIncidentOutcome:
             remediation_id="INC-001", result=result
         )
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_publish_incident_outcome_no_producer(self, incident_orchestrator):
         """Test outcome publishing when Kafka producer is not available"""
         incident_orchestrator.kafka_producer = None
@@ -198,7 +199,7 @@ class TestPublishIncidentOutcome:
         # Should not raise error
         await incident_orchestrator._publish_incident_outcome(result)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_publish_incident_outcome_failure(
         self, incident_orchestrator, mock_kafka_producer
     ):
@@ -214,12 +215,12 @@ class TestPublishIncidentOutcome:
 class TestE5ValidateSLARestoration:
     """Tests for _e5_validate_sla_restoration method"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_validate_sla_met(self, incident_orchestrator):
         """Test SLA validation when all targets are met"""
         incident = {"incident_id": "INC-001", "affected_resources": []}
         remediation_result = {"status": "completed"}
-        flow_start_time = datetime.now(timezone.utc)
+        flow_start_time = datetime.now(UTC)
 
         result = await incident_orchestrator._e5_validate_sla_restoration(
             incident, remediation_result, flow_start_time
@@ -228,7 +229,7 @@ class TestE5ValidateSLARestoration:
         assert result["sla_met"] is True
         assert len(result["issues"]) == 0
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_validate_sla_not_met_mttr_exceeded(self, incident_orchestrator):
         """Test SLA validation when MTTR is exceeded"""
         incident = {"incident_id": "INC-001", "affected_resources": []}
@@ -236,7 +237,7 @@ class TestE5ValidateSLARestoration:
         # Set start time to simulate long running remediation
         from datetime import timedelta
 
-        flow_start_time = datetime.now(timezone.utc) - timedelta(seconds=100)
+        flow_start_time = datetime.now(UTC) - timedelta(seconds=100)
 
         result = await incident_orchestrator._e5_validate_sla_restoration(
             incident, remediation_result, flow_start_time
@@ -245,12 +246,12 @@ class TestE5ValidateSLARestoration:
         assert result["sla_met"] is False
         assert any("MTTR exceeded" in issue for issue in result["issues"])
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_validate_sla_not_met_remediation_failed(self, incident_orchestrator):
         """Test SLA validation when remediation failed"""
         incident = {"incident_id": "INC-001", "affected_resources": []}
         remediation_result = {"status": "failed"}
-        flow_start_time = datetime.now(timezone.utc)
+        flow_start_time = datetime.now(UTC)
 
         result = await incident_orchestrator._e5_validate_sla_restoration(
             incident, remediation_result, flow_start_time
@@ -263,7 +264,7 @@ class TestE5ValidateSLARestoration:
 class TestE6DocumentLessons:
     """Tests for _e6_document_lessons method"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_document_lessons_success(self, incident_orchestrator, mock_mongodb_client):
         """Test successful lessons documentation"""
         incident = {
@@ -285,7 +286,7 @@ class TestE6DocumentLessons:
         assert "summary" in result
         mock_mongodb_client.postmortems_collection.insert_one.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_document_lessons_mongodb_failure(
         self, incident_orchestrator, mock_mongodb_client
     ):
@@ -315,7 +316,7 @@ class TestE6DocumentLessons:
 class TestProcessIncidentFlow:
     """Tests for process_incident_flow method"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_full_flow_success(self, incident_orchestrator):
         """Test successful complete E1-E6 flow"""
         event = {"type": "security_event", "event_id": "EVT-001"}
@@ -331,7 +332,7 @@ class TestProcessIncidentFlow:
         assert "e5_sla_validation" in result
         assert "e6_lessons_learned" in result
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_flow_no_anomaly_detected(self, incident_orchestrator, mock_threat_detector):
         """Test flow when no anomaly is detected"""
         mock_threat_detector.detect_anomaly = AsyncMock(return_value=None)

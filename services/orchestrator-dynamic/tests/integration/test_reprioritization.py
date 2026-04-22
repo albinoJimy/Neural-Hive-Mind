@@ -5,52 +5,52 @@ Testa a integração entre RePrioritizer, SLARePrioritizer,
 PreemptionManager e AdaptivePriorityCalculator.
 """
 
-import pytest
+from datetime import UTC, datetime
 from unittest.mock import Mock
-from datetime import datetime, timezone
 
+import pytest
+from src.scheduler.adaptive_priority import AdaptivePriorityCalculator
+from src.scheduler.preemption import PreemptionManager
+from src.scheduler.preemption_rules import PreemptionDecision, PreemptionRules
 from src.scheduler.reprioritizer import RePrioritizer
 from src.scheduler.sla_reprioritizer import SLARePrioritizer
-from src.scheduler.preemption import PreemptionManager
-from src.scheduler.preemption_rules import PreemptionRules, PreemptionDecision
-from src.scheduler.adaptive_priority import AdaptivePriorityCalculator
 
 
 class TestRePrioritizationIntegration:
     """Testes de integração de re-prioritização."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_config(self):
         """Configuração mock."""
         config = Mock()
         config.scheduler_priority_weights = {"risk": 0.4, "qos": 0.3, "sla": 0.3}
         return config
 
-    @pytest.fixture
+    @pytest.fixture()
     def priority_calculator(self, mock_config):
         """Calculador de prioridade."""
         from src.scheduler.priority_calculator import PriorityCalculator
 
         return PriorityCalculator(mock_config)
 
-    @pytest.fixture
+    @pytest.fixture()
     def queue_manager(self, mock_config):
         """Gerenciador de filas."""
         from src.scheduler.queue_manager import QueueManager
 
         return QueueManager(mock_config)
 
-    @pytest.fixture
+    @pytest.fixture()
     def reprioritizer(self, priority_calculator, queue_manager):
         """RePrioritizer."""
         return RePrioritizer(priority_calculator, queue_manager)
 
-    @pytest.fixture
+    @pytest.fixture()
     def sla_reprioritizer(self, reprioritizer, queue_manager):
         """SLARePrioritizer."""
         return SLARePrioritizer(reprioritizer, queue_manager)
 
-    @pytest.fixture
+    @pytest.fixture()
     def adaptive_calculator(self):
         """AdaptivePriorityCalculator."""
         config = Mock()
@@ -60,10 +60,10 @@ class TestRePrioritizationIntegration:
         config.adaptive_failure_rate_threshold = 0.20
         return AdaptivePriorityCalculator(config)
 
-    @pytest.fixture
+    @pytest.fixture()
     def sample_ticket(self):
         """Ticket de exemplo."""
-        now_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
+        now_ms = int(datetime.now(UTC).timestamp() * 1000)
         return {
             "ticket_id": "ticket-001",
             "task_type": "query",
@@ -81,7 +81,7 @@ class TestRePrioritizationIntegration:
         """Testa mudança de prioridade de ticket."""
         # Simular ticket criado há algum tempo (consumiu parte do SLA)
 
-        now_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
+        now_ms = int(datetime.now(UTC).timestamp() * 1000)
         # Ticket criado há 2 minutos (120000ms), deadline em 5 minutos
         sample_ticket["created_at"] = now_ms - 120000  # 40% decorrido
         sample_ticket["sla"]["deadline"] = now_ms + 180000  # 3min restantes
@@ -140,7 +140,7 @@ class TestRePrioritizationIntegration:
         # E verificar que o ticket foi actualizado
         assert sample_ticket["risk_band"] == "critical"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_sla_reprioritizer_on_warning(self, sla_reprioritizer, sample_ticket):
         """Testa re-priorização em SLA warning."""
         event = {"ticket_id": "ticket-001", "sla_urgency": 0.85, "deadline_remaining_pct": 0.2}
@@ -150,7 +150,7 @@ class TestRePrioritizationIntegration:
         assert result["action"] == "reprioritize"
         assert result["new_priority"] == "CRITICAL"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_sla_reprioritizer_on_risk_band_changed(self, sla_reprioritizer):
         """Testa re-priorização em mudança de risk_band."""
         event = {
@@ -165,12 +165,12 @@ class TestRePrioritizationIntegration:
         assert result["action"] == "reprioritize"
         assert result["new_priority"] == "CRITICAL"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_sla_reprioritizer_on_deadline_approaching(self, sla_reprioritizer):
         """Testa re-priorização quando deadline se aproxima."""
         event = {
             "ticket_id": "ticket-003",
-            "deadline_timestamp": int(datetime.now(timezone.utc).timestamp() * 1000) + 30000,
+            "deadline_timestamp": int(datetime.now(UTC).timestamp() * 1000) + 30000,
             "remaining_ms": 30000,  # 30 segundos restantes
         }
 
@@ -179,7 +179,7 @@ class TestRePrioritizationIntegration:
         assert result["action"] == "reprioritize"
         assert result["new_priority"] in ["HIGH", "CRITICAL"]
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_sla_reprioritizer_on_breach(self, sla_reprioritizer):
         """Testa re-priorização em SLA breach."""
         event = {
@@ -267,21 +267,21 @@ class TestRePrioritizationIntegration:
 class TestPriorityCalculatorWithAdaptive:
     """Testes integração PriorityCalculator + AdaptivePriority."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_config(self):
         """Configuração mock."""
         config = Mock()
         config.scheduler_priority_weights = {"risk": 0.4, "qos": 0.3, "sla": 0.3}
         return config
 
-    @pytest.fixture
+    @pytest.fixture()
     def priority_calculator(self, mock_config):
         """PriorityCalculator."""
         from src.scheduler.priority_calculator import PriorityCalculator
 
         return PriorityCalculator(mock_config)
 
-    @pytest.fixture
+    @pytest.fixture()
     def adaptive_calculator(self):
         """AdaptivePriorityCalculator."""
         config = Mock()
@@ -291,7 +291,7 @@ class TestPriorityCalculatorWithAdaptive:
         config.adaptive_failure_rate_threshold = 0.20
         return AdaptivePriorityCalculator(config)
 
-    @pytest.fixture
+    @pytest.fixture()
     def sample_ticket(self):
         """Ticket de exemplo."""
         return {

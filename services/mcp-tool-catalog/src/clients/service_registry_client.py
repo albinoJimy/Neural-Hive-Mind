@@ -2,7 +2,7 @@
 
 import asyncio
 import time
-from typing import Dict, List, Optional, Tuple
+from typing import Optional
 
 import grpc
 import structlog
@@ -111,7 +111,7 @@ class ServiceRegistryClient:
 
             self.stub = service_registry_pb2_grpc.ServiceRegistryStub(self.channel)
 
-    async def _get_grpc_metadata(self) -> List[Tuple[str, str]]:
+    async def _get_grpc_metadata(self) -> list[tuple[str, str]]:
         """Obter metadata gRPC com JWT-SVID para autenticação."""
         if not self.spiffe_enabled or not self.spiffe_manager:
             return []
@@ -133,8 +133,8 @@ class ServiceRegistryClient:
     async def register(
         self,
         service_name: str,
-        capabilities: List[str],
-        metadata: Dict,
+        capabilities: list[str],
+        metadata: dict,
         max_retries: int = 5,
         initial_delay: float = 1.0,
     ):
@@ -222,7 +222,7 @@ class ServiceRegistryClient:
                     logger.error("service_registration_exhausted_retries")
                     raise
 
-    async def send_heartbeat(self, health_data: Dict):
+    async def send_heartbeat(self, health_data: dict):
         """Send heartbeat to Service Registry."""
         if not self.service_id:
             return

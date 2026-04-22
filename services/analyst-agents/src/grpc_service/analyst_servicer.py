@@ -1,5 +1,4 @@
 import uuid
-from typing import Dict, List
 
 import grpc
 import structlog
@@ -166,7 +165,7 @@ class AnalystServicer(analyst_agent_pb2_grpc.AnalystAgentServiceServicer):
                 context.set_details(str(e))
                 return analyst_agent_pb2.QueryInsightsResponse(insights=[], total_count=0)
 
-    async def _get_related_insights_from_neo4j(self, entity_id: str) -> List[str]:
+    async def _get_related_insights_from_neo4j(self, entity_id: str) -> list[str]:
         """Buscar IDs de insights relacionados a uma entidade via Neo4j"""
         try:
             query = """
@@ -198,7 +197,7 @@ class AnalystServicer(analyst_agent_pb2_grpc.AnalystAgentServiceServicer):
                     analysis_id=analysis_id,
                 )
 
-                results: Dict[str, float] = {}
+                results: dict[str, float] = {}
                 confidence = 0.85
 
                 if analysis_type == "anomaly_detection":

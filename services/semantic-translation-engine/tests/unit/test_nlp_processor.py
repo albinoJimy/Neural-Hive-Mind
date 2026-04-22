@@ -4,14 +4,15 @@ Testes unitários para o NLP Processor
 Testa extração de keywords, objectives e entidades usando spaCy.
 """
 
-import pytest
 from unittest.mock import AsyncMock
+
+import pytest
 
 
 class TestNLPProcessorExtractKeywords:
     """Testes para extração de keywords"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def nlp_processor(self):
         """Fixture que cria NLPProcessor sem Redis"""
         from src.services.nlp_processor import NLPProcessor
@@ -19,13 +20,13 @@ class TestNLPProcessorExtractKeywords:
         processor = NLPProcessor(redis_client=None)
         return processor
 
-    @pytest.fixture
+    @pytest.fixture()
     async def initialized_nlp_processor(self, nlp_processor):
         """Fixture que inicializa o NLPProcessor"""
         await nlp_processor.initialize()
         return nlp_processor
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_extract_keywords_portuguese(self, initialized_nlp_processor):
         """Testa extração de keywords para texto em português"""
         text = "Criar API REST para gerenciar produtos com operações CRUD"
@@ -40,7 +41,7 @@ class TestNLPProcessorExtractKeywords:
             for k in ["api", "rest", "produto", "operação", "crud", "criar", "gerenciar"]
         )
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_extract_keywords_english(self, initialized_nlp_processor):
         """Testa extração de keywords para texto em inglês"""
         text = "Build GraphQL API for user management with authentication"
@@ -55,7 +56,7 @@ class TestNLPProcessorExtractKeywords:
             for k in ["graphql", "api", "user", "management", "authentication", "build"]
         )
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_extract_keywords_respects_max_limit(self, initialized_nlp_processor):
         """Testa que max_keywords é respeitado"""
         text = "Criar sistema completo de gerenciamento de usuários com autenticação, autorização, perfis, preferências e configurações avançadas"
@@ -63,7 +64,7 @@ class TestNLPProcessorExtractKeywords:
 
         assert len(keywords) <= 3
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_extract_keywords_empty_text(self, initialized_nlp_processor):
         """Testa extração com texto vazio"""
         keywords = initialized_nlp_processor.extract_keywords("", max_keywords=5)
@@ -81,7 +82,7 @@ class TestNLPProcessorExtractKeywords:
 class TestNLPProcessorExtractObjectives:
     """Testes para extração de objectives"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def nlp_processor(self):
         """Fixture que cria NLPProcessor sem Redis"""
         from src.services.nlp_processor import NLPProcessor
@@ -89,13 +90,13 @@ class TestNLPProcessorExtractObjectives:
         processor = NLPProcessor(redis_client=None)
         return processor
 
-    @pytest.fixture
+    @pytest.fixture()
     async def initialized_nlp_processor(self, nlp_processor):
         """Fixture que inicializa o NLPProcessor"""
         await nlp_processor.initialize()
         return nlp_processor
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_extract_objectives_create(self, initialized_nlp_processor):
         """Testa extração de objective 'create'"""
         text = "Criar novo endpoint REST para cadastro de usuários"
@@ -103,7 +104,7 @@ class TestNLPProcessorExtractObjectives:
 
         assert "create" in objectives
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_extract_objectives_update(self, initialized_nlp_processor):
         """Testa extração de objective 'update'"""
         text = "Atualizar configurações do sistema de cache"
@@ -111,7 +112,7 @@ class TestNLPProcessorExtractObjectives:
 
         assert "update" in objectives
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_extract_objectives_delete(self, initialized_nlp_processor):
         """Testa extração de objective 'delete'"""
         text = "Remover registros antigos da base de dados"
@@ -119,7 +120,7 @@ class TestNLPProcessorExtractObjectives:
 
         assert "delete" in objectives
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_extract_objectives_query(self, initialized_nlp_processor):
         """Testa extração de objective 'query'"""
         text = "Buscar todos os pedidos do último mês"
@@ -127,7 +128,7 @@ class TestNLPProcessorExtractObjectives:
 
         assert "query" in objectives
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_extract_objectives_transform(self, initialized_nlp_processor):
         """Testa extração de objective 'transform'"""
         text = "Converter dados CSV para formato JSON"
@@ -135,7 +136,7 @@ class TestNLPProcessorExtractObjectives:
 
         assert "transform" in objectives
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_extract_objectives_multiple(self, initialized_nlp_processor):
         """Testa extração de múltiplos objectives"""
         text = "Atualizar os registros e depois deletar os duplicados"
@@ -144,7 +145,7 @@ class TestNLPProcessorExtractObjectives:
         assert "update" in objectives
         assert "delete" in objectives
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_extract_objectives_fallback_to_query(self, initialized_nlp_processor):
         """Testa fallback para 'query' quando nenhum objective identificado"""
         text = "Analisar a performance do sistema atual"
@@ -166,7 +167,7 @@ class TestNLPProcessorExtractObjectives:
 class TestNLPProcessorExtractEntities:
     """Testes para extração avançada de entidades"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def nlp_processor(self):
         """Fixture que cria NLPProcessor sem Redis"""
         from src.services.nlp_processor import NLPProcessor
@@ -174,13 +175,13 @@ class TestNLPProcessorExtractEntities:
         processor = NLPProcessor(redis_client=None)
         return processor
 
-    @pytest.fixture
+    @pytest.fixture()
     async def initialized_nlp_processor(self, nlp_processor):
         """Fixture que inicializa o NLPProcessor"""
         await nlp_processor.initialize()
         return nlp_processor
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_extract_entities_technology(self, initialized_nlp_processor):
         """Testa extração de entidades de tecnologia"""
         text = "Implementar API REST usando FastAPI e MongoDB"
@@ -190,7 +191,7 @@ class TestNLPProcessorExtractEntities:
         tech_values = [e["value"] for e in entities if e["type"] == "TECHNOLOGY"]
         assert any(t in ["REST", "FastAPI", "MongoDB"] for t in tech_values)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_extract_entities_resource(self, initialized_nlp_processor):
         """Testa extração de entidades de recurso"""
         text = "Criar sistema de gerenciamento de produtos para e-commerce"
@@ -204,7 +205,7 @@ class TestNLPProcessorExtractEntities:
             assert "value" in entity
             assert "confidence" in entity
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_extract_entities_empty_text(self, initialized_nlp_processor):
         """Testa extração com texto vazio"""
         entities = initialized_nlp_processor.extract_entities_advanced("")
@@ -221,27 +222,27 @@ class TestNLPProcessorExtractEntities:
 class TestNLPProcessorLanguageDetection:
     """Testes para detecção de idioma"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def nlp_processor(self):
         """Fixture que cria NLPProcessor"""
         from src.services.nlp_processor import NLPProcessor
 
         return NLPProcessor(redis_client=None)
 
-    @pytest.fixture
+    @pytest.fixture()
     async def initialized_nlp_processor(self, nlp_processor):
         """Fixture que inicializa o NLPProcessor"""
         await nlp_processor.initialize()
         return nlp_processor
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_detect_portuguese(self, initialized_nlp_processor):
         """Testa detecção de português"""
         text = "Criar uma API para gerenciar os usuários do sistema"
         lang = initialized_nlp_processor._detect_language(text)
         assert lang == "pt"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_detect_english(self, initialized_nlp_processor):
         """Testa detecção de inglês"""
         text = "Create an API to manage the users of the system"
@@ -252,7 +253,7 @@ class TestNLPProcessorLanguageDetection:
 class TestNLPProcessorCache:
     """Testes para cache Redis"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_redis_client(self):
         """Fixture que cria mock do RedisClient"""
         mock = AsyncMock()
@@ -260,7 +261,7 @@ class TestNLPProcessorCache:
         mock.cache_query_result = AsyncMock()
         return mock
 
-    @pytest.fixture
+    @pytest.fixture()
     def nlp_processor_with_cache(self, mock_redis_client):
         """Fixture que cria NLPProcessor com mock de Redis"""
         from src.services.nlp_processor import NLPProcessor
@@ -292,7 +293,7 @@ class TestNLPProcessorCache:
 class TestNLPProcessorInitialization:
     """Testes para inicialização do processador"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def nlp_processor(self):
         """Fixture que cria NLPProcessor"""
         from src.services.nlp_processor import NLPProcessor
@@ -303,13 +304,13 @@ class TestNLPProcessorInitialization:
         """Testa que is_ready retorna False antes de inicialização"""
         assert nlp_processor.is_ready() is False
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_is_ready_after_initialization(self, nlp_processor):
         """Testa que is_ready retorna True após inicialização"""
         await nlp_processor.initialize()
         assert nlp_processor.is_ready() is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_double_initialization_safe(self, nlp_processor):
         """Testa que inicialização dupla não causa erro"""
         await nlp_processor.initialize()

@@ -1,9 +1,10 @@
 """Testes para ProbabilisticModelWrapper."""
 
-import pytest
+from unittest.mock import MagicMock, Mock, patch
+
 import numpy as np
 import pandas as pd
-from unittest.mock import Mock, MagicMock, patch
+import pytest
 
 try:
     import mlflow
@@ -17,11 +18,11 @@ from neural_hive_specialists.probabilistic_wrapper import ProbabilisticModelWrap
 
 
 @pytest.mark.skipif(not MLFLOW_AVAILABLE, reason="mlflow not available")
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestProbabilisticModelWrapper:
     """Testes para ProbabilisticModelWrapper."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_sklearn_model(self):
         """Mock de modelo sklearn."""
         model = MagicMock()
@@ -112,7 +113,7 @@ class TestProbabilisticModelWrapper:
             assert wrapper.sklearn_model is mock_sklearn_model
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestProbabilisticModelWrapperNoMlflow:
     """Testes que não dependem de mlflow estar instalado."""
 

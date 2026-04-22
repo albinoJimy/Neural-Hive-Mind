@@ -10,7 +10,7 @@ Analisa planos cognitivos sob perspectiva comportamental:
 """
 
 import sys
-from typing import Any, Dict, List
+from typing import Any
 
 import structlog
 
@@ -58,8 +58,8 @@ class BehaviorSpecialist(BaseSpecialist):
             return None
 
     def _evaluate_plan_internal(
-        self, cognitive_plan: Dict[str, Any], context: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, cognitive_plan: dict[str, Any], context: dict[str, Any]
+    ) -> dict[str, Any]:
         """
         Avalia plano sob perspectiva comportamental e UX.
 
@@ -181,7 +181,7 @@ class BehaviorSpecialist(BaseSpecialist):
             },
         }
 
-    def _analyze_usability(self, tasks: List[Dict], cognitive_plan: Dict) -> float:
+    def _analyze_usability(self, tasks: list[dict], cognitive_plan: dict) -> float:
         """
         Analisa usabilidade da interface/fluxo.
 
@@ -230,7 +230,7 @@ class BehaviorSpecialist(BaseSpecialist):
 
         return max(0.0, min(1.0, usability_score))
 
-    def _estimate_feedback_quality(self, tasks: List[Dict]) -> float:
+    def _estimate_feedback_quality(self, tasks: list[dict]) -> float:
         """Estima qualidade do feedback baseado em tempos de resposta."""
         if not tasks:
             return 0.5
@@ -248,7 +248,7 @@ class BehaviorSpecialist(BaseSpecialist):
         else:
             return 0.5
 
-    def _analyze_accessibility(self, cognitive_plan: Dict, context: Dict) -> float:
+    def _analyze_accessibility(self, cognitive_plan: dict, context: dict) -> float:
         """
         Analisa conformidade com acessibilidade (WCAG).
 
@@ -291,7 +291,7 @@ class BehaviorSpecialist(BaseSpecialist):
 
         return accessibility_score
 
-    def _analyze_response_time(self, tasks: List[Dict]) -> float:
+    def _analyze_response_time(self, tasks: list[dict]) -> float:
         """
         Analisa tempos de resposta percebidos.
 
@@ -333,7 +333,7 @@ class BehaviorSpecialist(BaseSpecialist):
 
         return response_time_score
 
-    def _analyze_interaction_cost(self, tasks: List[Dict]) -> float:
+    def _analyze_interaction_cost(self, tasks: list[dict]) -> float:
         """
         Analisa custo de interação (esforço cognitivo e físico).
 
@@ -378,7 +378,7 @@ class BehaviorSpecialist(BaseSpecialist):
 
     def _calculate_behavioral_risk(
         self,
-        cognitive_plan: Dict,
+        cognitive_plan: dict,
         usability_score: float,
         accessibility_score: float,
         response_time_score: float,
@@ -467,7 +467,7 @@ class BehaviorSpecialist(BaseSpecialist):
         accessibility_score: float,
         response_time_score: float,
         interaction_cost_score: float,
-    ) -> List[Dict]:
+    ) -> list[dict]:
         """Gera sugestões de mitigação de riscos."""
         mitigations = []
 

@@ -2,8 +2,8 @@
 
 import asyncio
 import logging
-from datetime import datetime, timezone
-from typing import List, Optional
+from datetime import UTC, datetime
+from typing import Optional
 
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorCollection
 
@@ -134,7 +134,7 @@ class MongoDBClient:
     async def save_ticket_audit(self, ticket: ExecutionTicket):
         """Salva snapshot completo do ticket para auditoria."""
         document = ticket.to_avro_dict()
-        document["_audit_timestamp"] = datetime.now(timezone.utc)
+        document["_audit_timestamp"] = datetime.now(UTC)
 
         await self.tickets_collection.update_one(
             {"ticket_id": ticket.ticket_id}, {"$set": document}, upsert=True
@@ -150,7 +150,7 @@ class MongoDBClient:
             "old_status": old_status,
             "new_status": new_status,
             "changed_by": changed_by,
-            "timestamp": datetime.now(timezone.utc),
+            "timestamp": datetime.now(UTC),
             "metadata": metadata,
         }
 
@@ -160,7 +160,7 @@ class MongoDBClient:
             extra={"ticket_id": ticket_id, "status": f"{old_status}->{new_status}"},
         )
 
-    async def get_ticket_history(self, ticket_id: str) -> List[dict]:
+    async def get_ticket_history(self, ticket_id: str) -> list[dict]:
         """Obtém histórico completo de um ticket."""
         cursor = self.audit_collection.find({"ticket_id": ticket_id}).sort("timestamp", -1)
 

@@ -6,7 +6,6 @@ Remove wildcards inseguros de produção enquanto mantém desenvolvedores produt
 """
 
 import warnings
-from typing import List
 
 
 class CORSConfig:
@@ -18,7 +17,7 @@ class CORSConfig:
     """
 
     # Ambiente de desenvolvimento - localhost e portas comuns
-    DEV_ORIGINS: List[str] = [
+    DEV_ORIGINS: list[str] = [
         "http://localhost:3000",
         "http://localhost:3001",
         "http://localhost:8000",
@@ -30,7 +29,7 @@ class CORSConfig:
     ]
 
     # Ambiente de staging - domínios de staging
-    STAGING_ORIGINS: List[str] = [
+    STAGING_ORIGINS: list[str] = [
         "https://staging.neural-hive.local",
         "https://staging-app.neural-hive.local",
         "https://gateway-staging.neural-hive.local",
@@ -39,7 +38,7 @@ class CORSConfig:
     ]
 
     # Ambiente de produção - domínios reais
-    PROD_ORIGINS: List[str] = [
+    PROD_ORIGINS: list[str] = [
         "https://neural-hive.com",
         "https://app.neural-hive.com",
         "https://gateway.neural-hive.com",
@@ -49,12 +48,12 @@ class CORSConfig:
     ]
 
     # Serviços internos não usam CORS
-    INTERNAL_SERVICES: List[str] = []
+    INTERNAL_SERVICES: list[str] = []
 
     @classmethod
     def get_origins_for_environment(
         cls, environment: str, is_public_api: bool = False
-    ) -> List[str]:
+    ) -> list[str]:
         """
         Retorna origens CORS permitidas para o ambiente.
 
@@ -95,7 +94,7 @@ class CORSConfig:
             return cls.DEV_ORIGINS
 
     @classmethod
-    def validate_no_wildcard(cls, origins: List[str], environment: str) -> bool:
+    def validate_no_wildcard(cls, origins: list[str], environment: str) -> bool:
         """
         Valida que não existe wildcard (*) nas origens em produção.
 
@@ -129,7 +128,7 @@ class CORSConfig:
         return True
 
     @classmethod
-    def warn_if_wildcard_in_production(cls, origins: List[str], environment: str) -> None:
+    def warn_if_wildcard_in_production(cls, origins: list[str], environment: str) -> None:
         """
         Emite aviso se detectar wildcard CORS em produção.
 
@@ -189,7 +188,7 @@ class CORSConfig:
 
 
 # Função auxiliar para compatibilidade
-def get_cors_origins(environment: str, is_public_api: bool = False) -> List[str]:
+def get_cors_origins(environment: str, is_public_api: bool = False) -> list[str]:
     """
     Alias simplificado para CORSConfig.get_origins_for_environment().
 

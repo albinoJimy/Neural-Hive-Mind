@@ -4,12 +4,13 @@ Unit tests for ExperimentManager service (optimizer-agents).
 Tests experiment creation, monitoring, and analysis.
 """
 
-import pytest
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, patch
-from datetime import datetime, timezone
 
-from src.services.experiment_manager import ExperimentManager
+import pytest
+
 from src.models.experiment_request import ExperimentType
+from src.services.experiment_manager import ExperimentManager
 
 
 class TestExperimentManagerInitialization:
@@ -153,7 +154,7 @@ class TestExperimentMonitoring:
         experiment_doc = {
             "experiment_id": sample_experiment_request.experiment_id,
             "status": "RUNNING",
-            "created_at": int(datetime.now(timezone.utc).timestamp() * 1000),
+            "created_at": int(datetime.now(UTC).timestamp() * 1000),
             "target_component": "consensus-engine",
         }
 
@@ -181,7 +182,7 @@ class TestExperimentMonitoring:
         experiment_doc = {
             "experiment_id": "test-001",
             "status": "RUNNING",
-            "created_at": int(datetime.now(timezone.utc).timestamp() * 1000),
+            "created_at": int(datetime.now(UTC).timestamp() * 1000),
             "target_component": "test-component",
         }
 

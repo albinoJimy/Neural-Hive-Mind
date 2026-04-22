@@ -10,13 +10,12 @@ Requisitos:
 - Registry Docker acessível (37.60.241.150:30500)
 """
 
-import pytest
-import tempfile
 import os
+import tempfile
 import time
 
-from src.services.container_builder import ContainerBuilder, BuilderType, BuildResult
-
+import pytest
+from src.services.container_builder import BuilderType, BuildResult, ContainerBuilder
 
 # URL do registry Docker
 # Usar localhost como destino para builds locais (sem push)
@@ -31,11 +30,11 @@ REGISTRY_NAMESPACE = "codeforge-test"
 USE_NO_PUSH = True  # Defina como False se tiver um registry configurado
 
 
-@pytest.mark.e2e
+@pytest.mark.e2e()
 class TestKanikoRealBuild:
     """Testes E2E para builds reais com Kaniko."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_registry_accessible(self):
         """Verifica se o registry Docker está acessível."""
         try:
@@ -51,7 +50,7 @@ class TestKanikoRealBuild:
         except Exception as e:
             pytest.skip(f"Registry não acessível: {e}")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_kaniko_simple_alpine_build(self):
         """Executa build real de uma imagem Alpine simples."""
         # Gerar nome único para a imagem
@@ -106,7 +105,7 @@ CMD ["/bin/sh"]
                 # mas o fluxo deve ter executado completamente
                 assert result.duration_seconds > 0
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_kaniko_python_microservice_build(self):
         """Executa build real de um microserviço Python simples."""
         timestamp = int(time.time())
@@ -168,7 +167,7 @@ CMD ["python", "-c", "import uvicorn; uvicorn.run('main:app', host='0.0.0.0', po
                 print(f"⚠️ Python build falhou: {result.error_message}")
                 assert result.duration_seconds > 0
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_kaniko_with_build_args(self):
         """Testa build com argumentos customizados."""
         timestamp = int(time.time())
@@ -207,7 +206,7 @@ CMD cat /tmp/build-info.txt
             else:
                 print(f"⚠️ Build com args falhou: {result.error_message}")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_kaniko_multi_stage_build(self):
         """Testa build multi-stage com Kaniko."""
         timestamp = int(time.time())
@@ -256,7 +255,7 @@ CMD ["/bin/sh", "-c", "python /app/code.py"]
             else:
                 print(f"⚠️ Multi-stage build falhou: {result.error_message}")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_kaniko_with_target_stage(self):
         """Testa build especificando um stage alvo."""
         timestamp = int(time.time())
@@ -305,7 +304,7 @@ CMD cat /tmp/stage.txt
             else:
                 print(f"⚠️ Target stage build falhou: {result.error_message}")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_kaniko_cache_enabled(self):
         """Testa build com cache habilitado."""
         timestamp = int(time.time())
@@ -349,11 +348,11 @@ CMD ["/bin/sh"]
                 print(f"⚠️ Cache build falhou: {result.error_message}")
 
 
-@pytest.mark.e2e
+@pytest.mark.e2e()
 class TestKanikoBuildMetrics:
     """Testes para coleta de métricas de build."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_build_duration_tracking(self):
         """Verifica se a duração do build é rastreada."""
         timestamp = int(time.time())
@@ -387,7 +386,7 @@ CMD ["/bin/sh"]
                 assert 0 < result.duration_seconds < total_time + 5
                 print(f"✅ Duração rastreada: {result.duration_seconds:.2f}s")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_build_logs_capture(self):
         """Verifica se os logs do build são capturados."""
         timestamp = int(time.time())

@@ -1,7 +1,7 @@
 """Settings configuration using Pydantic BaseSettings."""
 
 from functools import lru_cache
-from typing import Dict, List, Optional
+from typing import Optional
 
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -86,7 +86,7 @@ class Settings(BaseSettings):
     MAX_CONNECTION_RETRIES: int = 5
     INITIAL_RETRY_DELAY_SECONDS: float = 1.0
 
-    MCP_SERVERS: Dict[str, str] = Field(
+    MCP_SERVERS: dict[str, str] = Field(
         default_factory=dict,
         description="Mapeamento tool_id → MCP server URL (ex: {'trivy-001': 'http://trivy-mcp-server:3000'})",
     )
@@ -207,7 +207,7 @@ class Settings(BaseSettings):
     )
 
     @property
-    def CORS_ORIGINS(self) -> List[str]:
+    def CORS_ORIGINS(self) -> list[str]:
         """CORS origins dinâmicas por ambiente."""
         return CORSConfig.get_origins_for_environment(
             self.ENVIRONMENT.lower(), is_public_api=self.IS_PUBLIC_API

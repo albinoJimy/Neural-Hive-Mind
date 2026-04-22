@@ -15,14 +15,13 @@ from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-
 from src.clients.checkov_client import (
     CheckovClient,
-    CheckovReport,
     CheckovFinding,
-    CheckovSummary,
-    CheckovSeverity,
     CheckovNotFoundError,
+    CheckovReport,
+    CheckovSeverity,
+    CheckovSummary,
 )
 
 
@@ -60,7 +59,7 @@ class TestCheckovClientInitialization:
 class TestCheckovClientScan:
     """Testes de scan IaC via CLI."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_scan_iac_success(self):
         """Deve executar scan com sucesso."""
         client = CheckovClient()
@@ -94,7 +93,7 @@ resource "aws_s3_bucket" "example2" {
         assert isinstance(report.findings, list)
         assert report.duration_seconds >= 0
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_scan_iac_directory_not_found(self):
         """Deve retornar erro quando diretorio nao existe."""
         client = CheckovClient()
@@ -105,7 +104,7 @@ resource "aws_s3_bucket" "example2" {
         assert report.error is not None
         assert "not found" in report.error.lower()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_scan_iac_timeout(self):
         """Deve lidar com timeout do scan."""
         client = CheckovClient(timeout=1)
@@ -122,7 +121,7 @@ resource "aws_s3_bucket" "example2" {
         assert report.passed is False
         assert "timeout" in report.error.lower()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_scan_iac_with_framework(self):
         """Deve aceitar parametro de framework."""
         client = CheckovClient()
@@ -146,7 +145,7 @@ resource "aws_s3_bucket" "example2" {
 class TestCheckovClientVersion:
     """Testes de verificacao de instalacao."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_verify_checkov_installed_success(self):
         """Deve retornar versao quando Checkov instalado."""
         client = CheckovClient()
@@ -160,7 +159,7 @@ class TestCheckovClientVersion:
         assert "Checkov" in version
         assert "2.3" in version
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_verify_checkov_not_installed(self):
         """Deve levantar erro quando Checkov nao instalado."""
         client = CheckovClient()
@@ -339,7 +338,7 @@ class TestCheckovSummary:
 
 
 # Factory test
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_create_checkov_client():
     """Test factory function."""
     client = await create_checkov_client()

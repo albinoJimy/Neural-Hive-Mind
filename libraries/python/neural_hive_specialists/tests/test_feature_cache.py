@@ -1,14 +1,15 @@
 """Testes para FeatureCache."""
 
 import json
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import patch, MagicMock
 from redis.exceptions import RedisError
 
 from neural_hive_specialists.feature_cache import FeatureCache
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_redis():
     """Mock de RedisCluster."""
     with patch("neural_hive_specialists.feature_cache.RedisCluster") as mock:
@@ -22,7 +23,7 @@ def mock_redis():
         yield redis_instance
 
 
-@pytest.fixture
+@pytest.fixture()
 def feature_cache(mock_redis):
     """FeatureCache para testes."""
     return FeatureCache(
@@ -33,7 +34,7 @@ def feature_cache(mock_redis):
     )
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestFeatureCacheInit:
     """Testes de inicialização."""
 
@@ -98,7 +99,7 @@ class TestFeatureCacheInit:
         assert cache.redis is None
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestGenerateCacheKey:
     """Testes para _generate_cache_key."""
 
@@ -124,7 +125,7 @@ class TestGenerateCacheKey:
         assert key == "features:business:plan123"
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestGet:
     """Testes para get."""
 
@@ -175,7 +176,7 @@ class TestGet:
         assert result is None
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestSet:
     """Testes para set."""
 
@@ -229,7 +230,7 @@ class TestSet:
         assert result is True
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestIsConnected:
     """Testes para is_connected."""
 
@@ -259,7 +260,7 @@ class TestIsConnected:
         assert feature_cache._connected is False
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestDelete:
     """Testes para delete."""
 
@@ -297,7 +298,7 @@ class TestDelete:
         assert result is False
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestClearAll:
     """Testes para clear_all."""
 
@@ -339,7 +340,7 @@ class TestClearAll:
         assert result == 0
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestSerializeOntologyFeatures:
     """Testes para _serialize_ontology_features."""
 

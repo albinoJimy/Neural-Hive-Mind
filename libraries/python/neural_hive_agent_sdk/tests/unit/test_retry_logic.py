@@ -6,19 +6,19 @@ limite máximo de tentativas, backoff exponencial, retry idempotente
 e métricas de retry.
 """
 
-import pytest
 import time
-from unittest.mock import MagicMock, AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
-from neural_hive_agent_sdk import AgentClient, AgentType, AgentConfig
+import pytest
 
+from neural_hive_agent_sdk import AgentClient, AgentConfig, AgentType
 
 # ============================================================================
 # Fixtures
 # ============================================================================
 
 
-@pytest.fixture
+@pytest.fixture()
 def retry_config():
     """Configuração para testes de retry."""
     return AgentConfig(
@@ -29,7 +29,7 @@ def retry_config():
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_channel_for_retry():
     """Mock de canal funcional."""
     channel = MagicMock()
@@ -46,7 +46,7 @@ def mock_channel_for_retry():
 class TestRetryTransientErrors:
     """Testes de retry em erros transitórios."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_retry_on_channel_ready_failure(self, retry_config, mock_channel_for_retry):
         """Testa retry quando há falha em channel_ready."""
         call_count = 0
@@ -57,7 +57,6 @@ class TestRetryTransientErrors:
             call_count += 1
             if call_count < 3:
                 raise Exception("Connection refused")
-            return None
 
         mock_channel_for_retry.channel_ready = failing_channel_ready
 
@@ -76,7 +75,7 @@ class TestRetryTransientErrors:
             assert agent_id is not None
             assert call_count == 3
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_retry_success_after_transient_error(self, retry_config, mock_channel_for_retry):
         """Testa sucesso após erro transitório."""
         attempt = 0
@@ -86,7 +85,6 @@ class TestRetryTransientErrors:
             attempt += 1
             if attempt == 1:
                 raise Exception("Temporary failure")
-            return None
 
         mock_channel_for_retry.channel_ready = failing_once_channel_ready
 
@@ -104,7 +102,7 @@ class TestRetryTransientErrors:
             assert agent_id is not None
             assert attempt == 2
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_retry_multiple_transient_errors(self, retry_config, mock_channel_for_retry):
         """Testa múltiplos erros transitórios antes do sucesso."""
         attempt = 0
@@ -114,7 +112,6 @@ class TestRetryTransientErrors:
             attempt += 1
             if attempt < 3:
                 raise Exception(f"Temporary failure {attempt}")
-            return None
 
         mock_channel_for_retry.channel_ready = failing_multiple_times_channel_ready
 
@@ -142,7 +139,7 @@ class TestRetryTransientErrors:
 class TestNoRetryConfigErrors:
     """Testes de ausência de retry em erros de configuração."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_invalid_endpoint_fails_after_retries(self, retry_config):
         """Testa que endpoint inválido falha após retries."""
         retry_config.REGISTRY_GRPC_ENDPOINT = "invalid-host:99999"
@@ -169,7 +166,7 @@ class TestNoRetryConfigErrors:
 class TestMaxRetries:
     """Testes de limite máximo de tentativas."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_max_retries_respected(self, retry_config):
         """Testa que limite máximo de retries é respeitado."""
         call_count = 0
@@ -196,7 +193,7 @@ class TestMaxRetries:
 
             assert call_count == max_retries
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_custom_max_retries(self, retry_config):
         """Testa configuração customizada de máximo de retries."""
         call_count = 0
@@ -225,7 +222,7 @@ class TestMaxRetries:
 
             assert call_count == custom_max
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_success_before_max_retries(self, retry_config, mock_channel_for_retry):
         """Testa sucesso antes de atingir máximo de retries."""
         call_count = 0
@@ -235,7 +232,6 @@ class TestMaxRetries:
             call_count += 1
             if call_count < 2:
                 raise Exception("Temporary failure")
-            return None
 
         mock_channel_for_retry.channel_ready = eventually_succeeds_channel_ready
 
@@ -262,7 +258,7 @@ class TestMaxRetries:
 class TestExponentialBackoff:
     """Testes de backoff exponencial."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_backoff_occurs_between_retries(self, retry_config):
         """Testa que há delays entre tentativas de retry."""
         call_count = 0
@@ -304,7 +300,7 @@ class TestExponentialBackoff:
 class TestRetryIdempotent:
     """Testes de retry em operações idempotentes."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_register_can_be_retried(self, retry_config, mock_channel_for_retry):
         """Testa que register pode ter retry (idempotente)."""
         call_count = 0
@@ -314,7 +310,6 @@ class TestRetryIdempotent:
             call_count += 1
             if call_count == 1:
                 raise Exception("Transient error")
-            return None
 
         mock_channel_for_retry.channel_ready = failing_once_channel_ready
 
@@ -332,7 +327,7 @@ class TestRetryIdempotent:
             assert agent_id is not None
             assert call_count == 2
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_deregister_completes_once(self, retry_config, mock_channel_for_retry):
         """Testa que deregister completa uma única vez."""
         with patch(
@@ -355,7 +350,7 @@ class TestRetryIdempotent:
 class TestRetryMetrics:
     """Testes de coleta de métricas de retry."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_retry_attempts_counted(self, retry_config, mock_channel_for_retry):
         """Testa que tentativas de retry são contadas."""
         attempt_count = 0
@@ -365,7 +360,6 @@ class TestRetryMetrics:
             attempt_count += 1
             if attempt_count < 3:
                 raise Exception("Transient error")
-            return None
 
         mock_channel_for_retry.channel_ready = failing_multiple_times_channel_ready
 
@@ -383,7 +377,7 @@ class TestRetryMetrics:
             assert agent_id is not None
             assert attempt_count == 3
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_backoff_time_accumulated(self, retry_config):
         """Testa que tempo de backoff é acumulado."""
         call_count = 0
@@ -414,7 +408,7 @@ class TestRetryMetrics:
             assert elapsed >= 0
             assert call_count == 3
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_success_without_retry(self, retry_config, mock_channel_for_retry):
         """Testa sucesso sem necessidade de retry."""
         with patch(

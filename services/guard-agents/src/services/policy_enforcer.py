@@ -1,8 +1,8 @@
 """Policy enforcement service with OPA and Istio integration (Fluxo E3)"""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, Dict, List
+from typing import Any
 
 import structlog
 
@@ -72,7 +72,7 @@ class PolicyEnforcer:
         self.policies = self._load_policies()
         self.enforcement_history = []
 
-    def _load_policies(self) -> Dict[str, Any]:
+    def _load_policies(self) -> dict[str, Any]:
         """Carrega políticas (OPA, Gatekeeper, Istio)"""
         return {
             "security_policies": {
@@ -112,7 +112,7 @@ class PolicyEnforcer:
             },
         }
 
-    async def enforce_policy(self, incident: Dict[str, Any]) -> Dict[str, Any]:
+    async def enforce_policy(self, incident: dict[str, Any]) -> dict[str, Any]:
         """
         Enforça política para incidente (E3: Selecionar playbook & Executar políticas)
 
@@ -179,7 +179,7 @@ class PolicyEnforcer:
 
     async def _select_enforcement_plan(
         self, threat_type: str, severity: str, runbook_id: str
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """E3: Selecionar playbook baseado em impacto e risco"""
         # Buscar política para o tipo de ameaça
         policy = None
@@ -207,8 +207,8 @@ class PolicyEnforcer:
         }
 
     async def _validate_with_opa(
-        self, incident: Dict[str, Any], enforcement_plan: Dict[str, Any]
-    ) -> Dict[str, bool]:
+        self, incident: dict[str, Any], enforcement_plan: dict[str, Any]
+    ) -> dict[str, bool]:
         """Valida enforcement com OPA"""
         opa_policy = enforcement_plan.get("opa_policy")
 
@@ -277,13 +277,13 @@ class PolicyEnforcer:
             return {
                 "allowed": False,
                 "policy": opa_policy,
-                "reason": f"OPA validation error: {str(e)}",
+                "reason": f"OPA validation error: {e!s}",
                 "error": True,
             }
 
     async def _execute_enforcement_actions(
-        self, incident: Dict[str, Any], enforcement_plan: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, incident: dict[str, Any], enforcement_plan: dict[str, Any]
+    ) -> dict[str, Any]:
         """E3: Executar ações atomicamente"""
         actions_executed = []
         errors = []
@@ -330,12 +330,12 @@ class PolicyEnforcer:
             "success": True,
             "actions": actions_executed,
             "enforcement_plan": enforcement_plan,
-            "executed_at": datetime.now(timezone.utc).isoformat(),
+            "executed_at": datetime.now(UTC).isoformat(),
         }
 
     async def _execute_action(
-        self, action: EnforcementAction, incident: Dict[str, Any], plan: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, action: EnforcementAction, incident: dict[str, Any], plan: dict[str, Any]
+    ) -> dict[str, Any]:
         """Executa ação específica de enforcement"""
         logger.info(
             "policy_enforcer.executing_action",
@@ -361,7 +361,7 @@ class PolicyEnforcer:
             logger.warning("policy_enforcer.unknown_action", action=action)
             return {"success": False, "action": action, "reason": "Unknown action"}
 
-    async def _block_ip(self, incident: Dict[str, Any], plan: Dict[str, Any]) -> Dict[str, Any]:
+    async def _block_ip(self, incident: dict[str, Any], plan: dict[str, Any]) -> dict[str, Any]:
         """Bloqueia IP usando Istio/NetworkPolicy"""
         source_ip = incident.get("anomaly", {}).get("details", {}).get("source_ip")
 
@@ -410,8 +410,8 @@ class PolicyEnforcer:
         }
 
     async def _revoke_access(
-        self, incident: Dict[str, Any], plan: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, incident: dict[str, Any], plan: dict[str, Any]
+    ) -> dict[str, Any]:
         """Revoga acesso de usuario/servico via Keycloak"""
         user_id = incident.get("anomaly", {}).get("details", {}).get("user_id")
 
@@ -474,7 +474,7 @@ class PolicyEnforcer:
                     "incident_id": incident.get("incident_id"),
                     "success": success,
                     "details": details,
-                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "timestamp": datetime.now(UTC).isoformat(),
                 }
                 await self.mongodb.remediation_collection.insert_one(audit_record)
                 logger.debug(
@@ -490,8 +490,8 @@ class PolicyEnforcer:
         }
 
     async def _quarantine_resource(
-        self, incident: Dict[str, Any], plan: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, incident: dict[str, Any], plan: dict[str, Any]
+    ) -> dict[str, Any]:
         """
         Quarentena recurso suspeito aplicando labels e NetworkPolicy de isolamento.
 
@@ -557,7 +557,7 @@ class PolicyEnforcer:
                         logger.error(
                             "policy_enforcer.quarantine_label_failed", pod=pod_name, error=str(e)
                         )
-                        errors.append(f"Error labeling {pod_name}: {str(e)}")
+                        errors.append(f"Error labeling {pod_name}: {e!s}")
 
             # Aplicar NetworkPolicy de isolamento se tiver pods quarentined
             if quarantined_pods:
@@ -594,7 +594,7 @@ class PolicyEnforcer:
 
                 except Exception as e:
                     logger.error("policy_enforcer.quarantine_policy_failed", error=str(e))
-                    errors.append(f"NetworkPolicy error: {str(e)}")
+                    errors.append(f"NetworkPolicy error: {e!s}")
         else:
             logger.warning("policy_enforcer.k8s_not_available", action="quarantine")
             # Graceful degradation - nao bloquear fluxo
@@ -646,7 +646,7 @@ class PolicyEnforcer:
 
         return (None, None)
 
-    async def _isolate_pod(self, incident: Dict[str, Any], plan: Dict[str, Any]) -> Dict[str, Any]:
+    async def _isolate_pod(self, incident: dict[str, Any], plan: dict[str, Any]) -> dict[str, Any]:
         """
         Isola pod usando NetworkPolicy para bloquear todo tráfego ingress/egress.
 
@@ -728,7 +728,7 @@ class PolicyEnforcer:
                             namespace=namespace,
                             error=str(e),
                         )
-                        errors.append(f"Error isolating {pod_name}: {str(e)}")
+                        errors.append(f"Error isolating {pod_name}: {e!s}")
         else:
             return {
                 "success": False,
@@ -748,8 +748,8 @@ class PolicyEnforcer:
         }
 
     async def _scale_down_resource(
-        self, incident: Dict[str, Any], plan: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, incident: dict[str, Any], plan: dict[str, Any]
+    ) -> dict[str, Any]:
         """
         Reduz escala de recurso abusivo (deployment para 0 replicas).
 
@@ -813,7 +813,7 @@ class PolicyEnforcer:
                             namespace=namespace,
                             error=str(e),
                         )
-                        errors.append(f"Error scaling down {resource_name}: {str(e)}")
+                        errors.append(f"Error scaling down {resource_name}: {e!s}")
         else:
             return {
                 "success": False,
@@ -832,8 +832,8 @@ class PolicyEnforcer:
         }
 
     async def _apply_rate_limit(
-        self, incident: Dict[str, Any], plan: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, incident: dict[str, Any], plan: dict[str, Any]
+    ) -> dict[str, Any]:
         """Aplica rate limiting via Istio"""
         source = incident.get("anomaly", {}).get("details", {}).get("source")
 
@@ -869,7 +869,7 @@ class PolicyEnforcer:
             "istio_rule": plan.get("istio_rule"),
         }
 
-    async def _deny_request(self, incident: Dict[str, Any], plan: Dict[str, Any]) -> Dict[str, Any]:
+    async def _deny_request(self, incident: dict[str, Any], plan: dict[str, Any]) -> dict[str, Any]:
         """Nega requisição específica"""
         logger.info("policy_enforcer.denying_request")
 
@@ -878,7 +878,7 @@ class PolicyEnforcer:
             "action": "deny",
         }
 
-    def _get_fallback_actions(self, severity: str) -> List[EnforcementAction]:
+    def _get_fallback_actions(self, severity: str) -> list[EnforcementAction]:
         """Retorna ações de fallback por severidade"""
         fallback_map = {
             "critical": [EnforcementAction.QUARANTINE, EnforcementAction.DENY],
@@ -890,7 +890,7 @@ class PolicyEnforcer:
 
     def _create_stub_playbook(
         self, threat_type: str, severity: str, runbook_id: str
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """E3: Cria stub de playbook quando inexistente"""
         logger.warning(
             "policy_enforcer.creating_stub_playbook", threat_type=threat_type, runbook_id=runbook_id
@@ -906,7 +906,7 @@ class PolicyEnforcer:
         }
 
     async def _record_enforcement(
-        self, incident: Dict[str, Any], plan: Dict[str, Any], result: Dict[str, Any]
+        self, incident: dict[str, Any], plan: dict[str, Any], result: dict[str, Any]
     ):
         """Registra enforcement no histórico"""
         record = {
@@ -914,7 +914,7 @@ class PolicyEnforcer:
             "runbook_id": plan.get("runbook_id"),
             "enforcement_plan": plan,
             "result": result,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
         }
 
         self.enforcement_history.append(record)
@@ -924,13 +924,13 @@ class PolicyEnforcer:
             self.enforcement_history = self.enforcement_history[-1000:]
 
     def _create_enforcement_result(
-        self, incident: Dict[str, Any], plan: Dict[str, Any], success: bool, reason: str
-    ) -> Dict[str, Any]:
+        self, incident: dict[str, Any], plan: dict[str, Any], success: bool, reason: str
+    ) -> dict[str, Any]:
         """Cria resultado de enforcement"""
         return {
             "success": success,
             "incident_id": incident.get("incident_id"),
             "runbook_id": plan.get("runbook_id"),
             "reason": reason,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
         }

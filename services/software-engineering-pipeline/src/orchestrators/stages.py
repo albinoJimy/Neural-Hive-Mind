@@ -30,12 +30,10 @@ class BaseStage(ABC):
     @abstractmethod
     async def execute(self, run: PipelineRun, context: dict) -> StageResult:
         """Executa a lógica do estágio."""
-        pass
 
     @abstractmethod
     def get_name(self) -> PipelineStage:
         """Retorna o valor do enum do estágio."""
-        pass
 
 
 class PreFlightStage(BaseStage):

@@ -10,19 +10,19 @@ Valida comportamento em condições extremas:
 """
 
 import asyncio
-import pytest
-import time
 import random
-from datetime import datetime, timezone, timedelta
-from typing import Dict, List, Any
-from unittest.mock import AsyncMock, MagicMock
+import time
 from dataclasses import dataclass, field
+from datetime import UTC, datetime, timedelta
+from typing import Any
+from unittest.mock import AsyncMock, MagicMock
 
+import pytest
+from src.config.settings import OrchestratorSettings
+from src.observability.metrics import OrchestratorMetrics
 from src.scheduler.intelligent_scheduler import IntelligentScheduler
 from src.scheduler.priority_calculator import PriorityCalculator
 from src.scheduler.resource_allocator import ResourceAllocator
-from src.config.settings import OrchestratorSettings
-from src.observability.metrics import OrchestratorMetrics
 
 
 @dataclass
@@ -33,10 +33,10 @@ class StressTestMetrics:
     success_count: int = 0
     fallback_count: int = 0
     error_count: int = 0
-    latencies_ms: List[float] = field(default_factory=list)
+    latencies_ms: list[float] = field(default_factory=list)
     start_time: float = 0
     end_time: float = 0
-    memory_samples: List[int] = field(default_factory=list)
+    memory_samples: list[int] = field(default_factory=list)
 
     @property
     def duration_seconds(self) -> float:
@@ -61,7 +61,7 @@ class StressTestMetrics:
         return 0
 
 
-@pytest.fixture
+@pytest.fixture()
 def stress_test_config():
     """Config para testes de stress."""
     config = MagicMock(spec=OrchestratorSettings)
@@ -74,14 +74,14 @@ def stress_test_config():
     return config
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_metrics():
     """Metrics mock."""
     metrics = MagicMock(spec=OrchestratorMetrics)
     return metrics
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_priority_calculator():
     """PriorityCalculator mock."""
     calc = MagicMock(spec=PriorityCalculator)
@@ -89,8 +89,8 @@ def mock_priority_calculator():
     return calc
 
 
-@pytest.fixture
-def sample_workers() -> List[Dict[str, Any]]:
+@pytest.fixture()
+def sample_workers() -> list[dict[str, Any]]:
     """Workers mock."""
     return [
         {
@@ -104,7 +104,7 @@ def sample_workers() -> List[Dict[str, Any]]:
     ]
 
 
-def generate_tickets(count: int) -> List[Dict[str, Any]]:
+def generate_tickets(count: int) -> list[dict[str, Any]]:
     """Gera tickets de teste."""
     risk_bands = ["low", "normal", "high", "critical"]
     return [
@@ -117,14 +117,14 @@ def generate_tickets(count: int) -> List[Dict[str, Any]]:
                 "durability": "PERSISTENT",
             },
             "sla": {
-                "deadline": (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat(),
+                "deadline": (datetime.now(UTC) + timedelta(hours=1)).isoformat(),
                 "timeout_ms": 3600000,
             },
             "required_capabilities": ["python", "data-processing"],
             "namespace": "default",
             "security_level": "standard",
             "estimated_duration_ms": 1000,
-            "created_at": datetime.now(timezone.utc).isoformat(),
+            "created_at": datetime.now(UTC).isoformat(),
         }
         for i in range(count)
     ]
@@ -133,7 +133,7 @@ def generate_tickets(count: int) -> List[Dict[str, Any]]:
 class TestServiceRegistryDown:
     """Testes com Service Registry completamente indisponível."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_100_percent_fallback_when_registry_down(
         self, stress_test_config, mock_metrics, mock_priority_calculator
     ):
@@ -186,7 +186,7 @@ class TestServiceRegistryDown:
         print(f"  Fallback rate: {metrics.fallback_rate*100:.1f}%")
         print(f"  Throughput: {metrics.throughput:.2f} t/s")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_graceful_degradation_no_exceptions_to_caller(
         self, stress_test_config, mock_metrics, mock_priority_calculator
     ):
@@ -230,7 +230,7 @@ class TestServiceRegistryDown:
 class TestIntermittentFailures:
     """Testes com falhas intermitentes do Service Registry."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_50_percent_failure_rate(
         self, stress_test_config, mock_metrics, mock_priority_calculator, sample_workers
     ):
@@ -280,7 +280,7 @@ class TestIntermittentFailures:
         print(f"  Fallback: {metrics.fallback_count}")
         print(f"  Taxa de sucesso: {metrics.success_rate*100:.1f}%")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_random_failure_rate(
         self, stress_test_config, mock_metrics, mock_priority_calculator, sample_workers
     ):
@@ -329,7 +329,7 @@ class TestIntermittentFailures:
 class TestWorkerPoolExhaustion:
     """Testes com pool de workers esgotado."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_no_workers_available(
         self, stress_test_config, mock_metrics, mock_priority_calculator
     ):
@@ -365,7 +365,7 @@ class TestWorkerPoolExhaustion:
         print("  Tickets: 50")
         print(f"  Fallback: {fallback_count}")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_all_workers_unhealthy(
         self, stress_test_config, mock_metrics, mock_priority_calculator
     ):
@@ -414,7 +414,7 @@ class TestWorkerPoolExhaustion:
 class TestSustainedLoad:
     """Testes de carga sustentada."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_sustained_load_60_seconds(
         self, stress_test_config, mock_metrics, mock_priority_calculator, sample_workers
     ):
@@ -488,7 +488,7 @@ class TestSustainedLoad:
 class TestBurstTraffic:
     """Testes de rajadas de tráfego."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_burst_followed_by_silence(
         self, stress_test_config, mock_metrics, mock_priority_calculator, sample_workers
     ):
@@ -538,7 +538,7 @@ class TestBurstTraffic:
         print(f"  Rajada 1: média {burst1_avg:.2f}ms")
         print(f"  Rajada 2: média {burst2_avg:.2f}ms")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_concurrent_burst_500_tickets(
         self, stress_test_config, mock_metrics, mock_priority_calculator, sample_workers
     ):
@@ -557,7 +557,7 @@ class TestBurstTraffic:
         tickets = generate_tickets(500)
         metrics = StressTestMetrics()
 
-        async def process_ticket(ticket: Dict) -> tuple:
+        async def process_ticket(ticket: dict) -> tuple:
             start = time.time()
             result = await scheduler.schedule_ticket(ticket)
             latency_ms = (time.time() - start) * 1000
@@ -598,7 +598,7 @@ class TestBurstTraffic:
 class TestCacheUnderStress:
     """Testes de cache sob stress."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_cache_large_entries(
         self, stress_test_config, mock_metrics, mock_priority_calculator, sample_workers
     ):
@@ -656,7 +656,7 @@ class TestCacheUnderStress:
 class TestRecoveryAfterFailure:
     """Testes de recuperação após falhas."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_recovery_after_registry_returns(
         self, stress_test_config, mock_metrics, mock_priority_calculator, sample_workers
     ):

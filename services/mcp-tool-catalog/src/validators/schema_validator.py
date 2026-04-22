@@ -5,7 +5,7 @@ Valida schemas de entrada/saída conforme especificação JSON Schema Draft 7.
 """
 
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 import structlog
 from jsonschema import (
@@ -42,11 +42,11 @@ class SchemaValidationResult(BaseModel):
 
     is_valid: bool = Field(..., description="Se o schema é válido")
     schema_type: str = Field(..., description="Tipo de schema validado (input/output)")
-    issues: List[SchemaValidationIssue] = Field(default_factory=list, description="Lista de issues")
-    validation_errors: List[Dict[str, Any]] = Field(
+    issues: list[SchemaValidationIssue] = Field(default_factory=list, description="Lista de issues")
+    validation_errors: list[dict[str, Any]] = Field(
         default_factory=list, description="Erros JSON Schema"
     )
-    recommendations: List[str] = Field(
+    recommendations: list[str] = Field(
         default_factory=list, description="Recomendações de melhoria"
     )
 
@@ -86,7 +86,7 @@ class SchemaValidator:
         self.format_checker = FormatChecker()
 
     def validate_input_schema(
-        self, schema: Dict[str, Any], tool_name: str
+        self, schema: dict[str, Any], tool_name: str
     ) -> SchemaValidationResult:
         """
         Valida schema de entrada de ferramenta MCP.
@@ -101,7 +101,7 @@ class SchemaValidator:
         return self._validate_schema(schema, tool_name, "input")
 
     def validate_output_schema(
-        self, schema: Dict[str, Any], tool_name: str
+        self, schema: dict[str, Any], tool_name: str
     ) -> SchemaValidationResult:
         """
         Valida schema de saída de ferramenta MCP.
@@ -115,7 +115,7 @@ class SchemaValidator:
         """
         return self._validate_schema(schema, tool_name, "output")
 
-    def validate_schema_draft7(self, schema: Dict[str, Any]) -> List[Dict[str, Any]]:
+    def validate_schema_draft7(self, schema: dict[str, Any]) -> list[dict[str, Any]]:
         """
         Valida se o schema está conforme JSON Schema Draft 7.
 
@@ -136,7 +136,7 @@ class SchemaValidator:
         return errors
 
     def validate_sample_data(
-        self, schema: Dict[str, Any], sample: Dict[str, Any]
+        self, schema: dict[str, Any], sample: dict[str, Any]
     ) -> SchemaValidationResult:
         """
         Valida dados de exemplo contra schema.
@@ -176,7 +176,7 @@ class SchemaValidator:
         return result
 
     def _validate_schema(
-        self, schema: Dict[str, Any], tool_name: str, schema_type: str
+        self, schema: dict[str, Any], tool_name: str, schema_type: str
     ) -> SchemaValidationResult:
         """
         Valida schema genérico.
@@ -278,7 +278,7 @@ class SchemaValidator:
         return result
 
     def _validate_descriptions(
-        self, schema: Dict[str, Any], result: SchemaValidationResult, path: str = "$"
+        self, schema: dict[str, Any], result: SchemaValidationResult, path: str = "$"
     ):
         """Valida presença de descrições em campos."""
         if isinstance(schema, dict):
@@ -314,7 +314,7 @@ class SchemaValidator:
                 self._validate_descriptions(schema["items"], result, f"{path}.items")
 
     def _validate_formats(
-        self, schema: Dict[str, Any], result: SchemaValidationResult, path: str = "$"
+        self, schema: dict[str, Any], result: SchemaValidationResult, path: str = "$"
     ):
         """Valida formatos de string."""
         if isinstance(schema, dict):
@@ -340,7 +340,7 @@ class SchemaValidator:
                 self._validate_formats(schema["items"], result, f"{path}.items")
 
     def _validate_required_fields(
-        self, schema: Dict[str, Any], result: SchemaValidationResult, path: str = "$"
+        self, schema: dict[str, Any], result: SchemaValidationResult, path: str = "$"
     ):
         """Valida lista de required."""
         if isinstance(schema, dict):
@@ -371,7 +371,7 @@ class SchemaValidator:
                         )
 
     def _validate_enums(
-        self, schema: Dict[str, Any], result: SchemaValidationResult, path: str = "$"
+        self, schema: dict[str, Any], result: SchemaValidationResult, path: str = "$"
     ):
         """Valida definições de enum."""
         if isinstance(schema, dict):
@@ -407,10 +407,10 @@ class SchemaValidator:
 
 def validate_tool_descriptor(
     tool_name: str,
-    input_schema: Optional[Dict[str, Any]] = None,
-    output_schema: Optional[Dict[str, Any]] = None,
+    input_schema: Optional[dict[str, Any]] = None,
+    output_schema: Optional[dict[str, Any]] = None,
     strict_mode: bool = False,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Valida descritor completo de ferramenta.
 

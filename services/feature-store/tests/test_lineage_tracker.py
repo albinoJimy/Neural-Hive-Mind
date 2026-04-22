@@ -2,27 +2,26 @@
 Testes para LineageTracker do Feature Store.
 """
 
-import pytest
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock
-from datetime import datetime, timezone
 
+import pytest
 from src.models.lineage import (
-    SourceType,
-    TransformationType,
     FeatureLineage,
-    LineageTree,
     LineageImpact,
     LineageIntegrityReport,
+    LineageTree,
+    SourceType,
+    TransformationType,
 )
 from src.services.lineage_tracker import LineageTracker
-
 
 # =============================================================================
 # Fixtures
 # =============================================================================
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_settings():
     """Mock das configurações."""
     settings = MagicMock()
@@ -31,7 +30,7 @@ def mock_settings():
     return settings
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_mongodb_client():
     """Mock do cliente MongoDB."""
     client = MagicMock()
@@ -52,7 +51,7 @@ def mock_mongodb_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_neo4j_client():
     """Mock do cliente Neo4j."""
     client = MagicMock()
@@ -63,7 +62,7 @@ def mock_neo4j_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def lineage_tracker(mock_settings, mock_mongodb_client):
     """Instância do LineageTracker para testes."""
     return LineageTracker(
@@ -73,7 +72,7 @@ def lineage_tracker(mock_settings, mock_mongodb_client):
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def lineage_tracker_with_neo4j(mock_settings, mock_mongodb_client, mock_neo4j_client):
     """Instância do LineageTracker com Neo4j para testes."""
     return LineageTracker(
@@ -83,7 +82,7 @@ def lineage_tracker_with_neo4j(mock_settings, mock_mongodb_client, mock_neo4j_cl
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_lineage():
     """Lineage de exemplo."""
     return FeatureLineage(
@@ -152,7 +151,7 @@ class TestLineageTrackerInit:
 class TestCreateIndexes:
     """Testes de criação de índices."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_create_indexes_success(self, lineage_tracker):
         """Testa criação bem-sucedida de índices."""
         await lineage_tracker.create_indexes()
@@ -160,7 +159,7 @@ class TestCreateIndexes:
         # Verificar que create_index foi chamado para os índices esperados
         assert lineage_tracker.collection.create_index.call_count == 7
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_create_indexes_without_mongodb(self, mock_settings):
         """Testa criação de índices sem MongoDB (não deve dar erro)."""
         tracker = LineageTracker(
@@ -180,7 +179,7 @@ class TestCreateIndexes:
 class TestTrackFeature:
     """Testes de rastreamento de features."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_track_feature_success(self, lineage_tracker):
         """Testa rastreamento bem-sucedido de feature."""
         result = await lineage_tracker.track_feature(
@@ -198,7 +197,7 @@ class TestTrackFeature:
         assert result.source_type == SourceType.COGNITIVE_PLAN
         assert result.transformation_type == TransformationType.COMPUTED
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_track_feature_saves_to_mongodb(self, lineage_tracker):
         """Testa que track_feature salva no MongoDB."""
         await lineage_tracker.track_feature(
@@ -210,7 +209,7 @@ class TestTrackFeature:
 
         lineage_tracker.collection.update_one.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_track_feature_with_neo4j(self, lineage_tracker_with_neo4j):
         """Testa que track_feature cria relacionamentos no Neo4j."""
         await lineage_tracker_with_neo4j.track_feature(
@@ -225,7 +224,7 @@ class TestTrackFeature:
         # Verificar que create_relationship foi chamado
         assert lineage_tracker_with_neo4j.neo4j_client.create_relationship.call_count == 3
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_track_feature_computes_hash(self, lineage_tracker):
         """Testa que track_feature computa hash de computação."""
         result = await lineage_tracker.track_feature(
@@ -239,7 +238,7 @@ class TestTrackFeature:
         assert len(result.computation_hash) == 16  # SHA256[:16]
         assert result.computation_version == "v1.0.0"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_track_feature_with_metadata(self, lineage_tracker):
         """Testa track_feature com metadados de transformação."""
         metadata = {
@@ -267,7 +266,7 @@ class TestTrackFeature:
 class TestGetLineage:
     """Testes de recuperação de lineage."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_lineage_found(self, lineage_tracker, sample_lineage):
         """Testa recuperação de lineage existente."""
         # Mock find_one para retornar lineage
@@ -280,7 +279,7 @@ class TestGetLineage:
         assert isinstance(result, FeatureLineage)
         assert result.feature_id == "feature-123"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_lineage_not_found(self, lineage_tracker):
         """Testa recuperação de lineage inexistente."""
         lineage_tracker.collection.find_one = AsyncMock(return_value=None)
@@ -289,7 +288,7 @@ class TestGetLineage:
 
         assert result is None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_lineage_by_plan(self, lineage_tracker, sample_lineage):
         """Testa recuperação de lineage por plan_id."""
         document = sample_lineage.model_dump(mode="json")
@@ -301,7 +300,7 @@ class TestGetLineage:
         assert isinstance(result, FeatureLineage)
         assert result.plan_id == "plan-123"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_lineage_without_mongodb(self, mock_settings):
         """Testa get_lineage sem MongoDB."""
         tracker = LineageTracker(
@@ -323,7 +322,7 @@ class TestGetLineage:
 class TestGetLineageTree:
     """Testes de recuperação de árvore de lineage."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_lineage_tree_basic(self, lineage_tracker, sample_lineage):
         """Testa recuperação básica de árvore de lineage."""
         document = sample_lineage.model_dump(mode="json")
@@ -336,7 +335,7 @@ class TestGetLineageTree:
         assert result.feature_id == "feature-123"
         assert result.lineage is not None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_lineage_tree_with_upstream(self, lineage_tracker):
         """Testa árvore de lineage com upstream."""
         # Mock para buscar lineage principal
@@ -378,7 +377,7 @@ class TestGetLineageTree:
         assert "depth_1" in result.upstream
         assert len(result.upstream["depth_1"]) == 2
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_lineage_tree_with_downstream(self, lineage_tracker):
         """Testa árvore de lineage com downstream."""
         main_lineage = FeatureLineage(
@@ -416,7 +415,7 @@ class TestGetLineageTree:
 
         assert "depth_1" in result.downstream
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_lineage_tree_max_depth(self, lineage_tracker):
         """Testa árvore de lineage com profundidade máxima."""
         main_lineage = FeatureLineage(
@@ -483,7 +482,7 @@ class TestGetLineageTree:
 class TestImpactAnalysis:
     """Testes de análise de impacto."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_impact_analysis_basic(self, lineage_tracker):
         """Testa análise básica de impacto."""
         main_lineage = FeatureLineage(
@@ -522,7 +521,7 @@ class TestImpactAnalysis:
         assert result.direct_dependencies == 1
         assert result.total_downstream >= 1
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_impact_analysis_score_calculation(self, lineage_tracker):
         """Testa cálculo de score de impacto."""
         # Criar 10 filhos diretos
@@ -573,7 +572,7 @@ class TestImpactAnalysis:
 class TestValidateIntegrity:
     """Testes de validação de integridade."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_validate_integrity_valid(self, lineage_tracker):
         """Testa validação de lineage válido."""
         main_lineage = FeatureLineage(
@@ -606,7 +605,7 @@ class TestValidateIntegrity:
         # Deve ser válido (sem ciclos, timestamps OK, etc.)
         assert result.valid is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_validate_integrity_no_datasources(self, lineage_tracker):
         """Testa validação detecta falta de datasources."""
         main_lineage = FeatureLineage(
@@ -638,7 +637,7 @@ class TestValidateIntegrity:
         assert len(result.warnings) > 0
         assert "datasources" in str(result.warnings).lower()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_validate_integrity_with_cycle(self, lineage_tracker):
         """Testa validação detecta ciclo (simulado)."""
         # Criar lineage que referencia a si mesmo
@@ -680,7 +679,7 @@ class TestValidateIntegrity:
 class TestUpdateLineage:
     """Testes de atualização de lineage."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_update_lineage_success(self, lineage_tracker, sample_lineage):
         """Testa atualização bem-sucedida de lineage."""
         # Mock update_one para retornar modified_count=1
@@ -701,7 +700,7 @@ class TestUpdateLineage:
 
         assert result is not None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_update_lineage_not_found(self, lineage_tracker):
         """Testa atualização de lineage inexistente."""
         lineage_tracker.collection.update_one = AsyncMock(return_value=MagicMock(modified_count=0))
@@ -711,7 +710,7 @@ class TestUpdateLineage:
 
         assert result is None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_update_lineage_adds_modified_at(self, lineage_tracker):
         """Testa que update adiciona timestamp de modificação."""
         lineage_tracker.collection.update_one = AsyncMock(return_value=MagicMock(modified_count=1))
@@ -733,7 +732,7 @@ class TestUpdateLineage:
 class TestListLineages:
     """Testes de listagem de lineages."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_list_lineages_basic(self, lineage_tracker, sample_lineage):
         """Testa listagem básica de lineages."""
 
@@ -755,7 +754,7 @@ class TestListLineages:
         assert len(result) == 1
         assert isinstance(result[0], FeatureLineage)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_list_lineages_with_source_type_filter(self, lineage_tracker):
         """Testa listagem com filtro por source_type."""
 
@@ -772,7 +771,7 @@ class TestListLineages:
                 "transformation_metadata": {},
                 "computation_version": "v1.0.0",
                 "computation_hash": "abc123",
-                "created_at": datetime.now(timezone.utc).isoformat(),
+                "created_at": datetime.now(UTC).isoformat(),
                 "_id": "id-1",
             }
 
@@ -791,7 +790,7 @@ class TestListLineages:
         call_args = lineage_tracker.collection.find.call_args
         assert "source_type" in call_args[0][0]
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_list_lineages_with_pagination(self, lineage_tracker):
         """Testa listagem com paginação."""
 
@@ -809,7 +808,7 @@ class TestListLineages:
                     "transformation_metadata": {},
                     "computation_version": "v1.0.0",
                     "computation_hash": "abc123",
-                    "created_at": datetime.now(timezone.utc).isoformat(),
+                    "created_at": datetime.now(UTC).isoformat(),
                     "_id": f"id-{i}",
                 }
 
@@ -836,7 +835,7 @@ class TestListLineages:
 class TestDeleteLineage:
     """Testes de deleção de lineage."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_delete_lineage_success(self, lineage_tracker):
         """Testa deleção bem-sucedida de lineage."""
         lineage_tracker.collection.delete_one = AsyncMock(return_value=MagicMock(deleted_count=1))
@@ -846,7 +845,7 @@ class TestDeleteLineage:
         assert result is True
         lineage_tracker.collection.delete_one.assert_called_once_with({"feature_id": "feature-123"})
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_delete_lineage_not_found(self, lineage_tracker):
         """Testa deleção de lineage inexistente."""
         lineage_tracker.collection.delete_one = AsyncMock(return_value=MagicMock(deleted_count=0))
@@ -855,7 +854,7 @@ class TestDeleteLineage:
 
         assert result is False
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_delete_lineage_with_neo4j(self, lineage_tracker_with_neo4j):
         """Testa que deleção remove relacionamentos do Neo4j."""
         lineage_tracker_with_neo4j.collection.delete_one = AsyncMock(

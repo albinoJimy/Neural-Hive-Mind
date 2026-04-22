@@ -4,21 +4,21 @@ ReasoningExtractor - Extrator de fatores de raciocínio.
 Stub - expandir em iteração futura.
 """
 
-from typing import Any, Dict, List
+from typing import Any
 
 
 class ReasoningExtractor:
     """Stub - expandir em iteração futura."""
 
-    def extract_reasoning_factors(self, opinion: Dict[str, Any]) -> List[str]:
+    def extract_reasoning_factors(self, opinion: dict[str, Any]) -> list[str]:
         """Extrai fatores de raciocínio de uma opinião."""
         return []
 
-    def extract_from_text(self, text: str) -> List[str]:
+    def extract_from_text(self, text: str) -> list[str]:
         """Extrai fatores de raciocínio de texto livre."""
         return []
 
-    def extract(self, decision: Dict[str, Any]) -> Dict[str, Any]:
+    def extract(self, decision: dict[str, Any]) -> dict[str, Any]:
         """
         Extrai fatores de raciocínio de uma decisão.
 
@@ -36,7 +36,7 @@ class ReasoningExtractor:
             "decision_id": decision.get("decision_id", "unknown"),
         }
 
-    def format_as_text(self, reasoning_data: Dict[str, Any]) -> str:
+    def format_as_text(self, reasoning_data: dict[str, Any]) -> str:
         """
         Formata fatores de raciocínio como texto legível.
 

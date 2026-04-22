@@ -5,20 +5,20 @@ Test Redis operations, circuit breaker, and cluster-aware pipeline functionality
 
 import asyncio
 import json
-import pytest
-from unittest.mock import Mock, AsyncMock, patch
-from redis.exceptions import ConnectionError, TimeoutError, RedisClusterException
+from unittest.mock import AsyncMock, Mock, patch
 
+import pytest
+from redis.exceptions import ConnectionError, RedisClusterException, TimeoutError
 from src.cache.redis_client import (
-    RedisClient,
     CircuitBreaker,
     CircuitBreakerError,
-    get_redis_client,
+    RedisClient,
     close_redis_client,
+    get_redis_client,
 )
 
 
-@pytest.fixture
+@pytest.fixture()
 async def mock_redis_cluster():
     """Mock RedisCluster for testing"""
     mock = AsyncMock()
@@ -41,7 +41,7 @@ async def mock_redis_cluster():
     return mock
 
 
-@pytest.fixture
+@pytest.fixture()
 async def redis_client(mock_redis_cluster):
     """Create RedisClient with mocked cluster connection"""
     with patch("src.cache.redis_client.RedisCluster", return_value=mock_redis_cluster):
@@ -89,7 +89,7 @@ class TestCircuitBreaker:
         assert cb.state == "CLOSED"
         assert cb.last_failure_time is None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_circuit_breaker_decorator(self):
         """Test circuit breaker as decorator"""
         cb = CircuitBreaker(failure_threshold=2, recovery_timeout=0.1)
@@ -128,7 +128,7 @@ class TestCircuitBreaker:
 class TestRedisClient:
     """Test RedisClient operations"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_cache_hit(self, redis_client, mock_redis_cluster):
         """Test successful cache get (hit)"""
         test_value = {"key": "value", "nested": {"data": 123}}
@@ -141,7 +141,7 @@ class TestRedisClient:
         assert redis_client.miss_count == 0
         mock_redis_cluster.get.assert_called_once_with("test_key")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_cache_miss(self, redis_client, mock_redis_cluster):
         """Test cache get when key doesn't exist (miss)"""
         mock_redis_cluster.get.return_value = None
@@ -153,7 +153,7 @@ class TestRedisClient:
         assert redis_client.miss_count == 1
         mock_redis_cluster.get.assert_called_once_with("missing_key")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_with_plain_string(self, redis_client, mock_redis_cluster):
         """Test get with plain string value (not JSON)"""
         mock_redis_cluster.get.return_value = "plain_string_value"
@@ -163,7 +163,7 @@ class TestRedisClient:
         assert result == "plain_string_value"
         assert redis_client.hit_count == 1
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_set_with_json_serialization(self, redis_client, mock_redis_cluster):
         """Test set with automatic JSON serialization"""
         test_value = {"key": "value", "number": 42}
@@ -174,7 +174,7 @@ class TestRedisClient:
         expected_json = json.dumps(test_value, ensure_ascii=False)
         mock_redis_cluster.setex.assert_called_once_with("test_key", 3600, expected_json)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_set_with_default_ttl(self, redis_client, mock_redis_cluster):
         """Test set uses default TTL when not specified"""
         redis_client.settings.redis_default_ttl = 300
@@ -184,7 +184,7 @@ class TestRedisClient:
         assert result is True
         mock_redis_cluster.setex.assert_called_once_with("test_key", 300, "test_value")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_delete(self, redis_client, mock_redis_cluster):
         """Test delete operation"""
         mock_redis_cluster.delete.return_value = 1
@@ -194,7 +194,7 @@ class TestRedisClient:
         assert result is True
         mock_redis_cluster.delete.assert_called_once_with("test_key")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_delete_non_existent(self, redis_client, mock_redis_cluster):
         """Test delete of non-existent key"""
         mock_redis_cluster.delete.return_value = 0
@@ -204,7 +204,7 @@ class TestRedisClient:
         assert result is False
         mock_redis_cluster.delete.assert_called_once_with("missing_key")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_exists(self, redis_client, mock_redis_cluster):
         """Test exists operation"""
         mock_redis_cluster.exists.return_value = 1
@@ -214,7 +214,7 @@ class TestRedisClient:
         assert result is True
         mock_redis_cluster.exists.assert_called_once_with("test_key")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_exists_missing_key(self, redis_client, mock_redis_cluster):
         """Test exists for missing key"""
         mock_redis_cluster.exists.return_value = 0
@@ -223,7 +223,7 @@ class TestRedisClient:
 
         assert result is False
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_pipeline_single_slot(self, redis_client, mock_redis_cluster):
         """Test pipeline with all operations in same slot"""
         # Mock keyslot to return same slot for all keys
@@ -247,7 +247,7 @@ class TestRedisClient:
         mock_redis_cluster.pipeline.assert_called_once()
         mock_pipe.execute.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_pipeline_multi_slot(self, redis_client, mock_redis_cluster):
         """Test pipeline with operations across different slots"""
         # Mock keyslot to return different slots
@@ -279,7 +279,7 @@ class TestRedisClient:
         assert mock_redis_cluster.keyslot.call_count == 3
         assert mock_redis_cluster.pipeline.call_count == 2
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_pipeline_with_keyless_operations(self, redis_client, mock_redis_cluster):
         """Test pipeline with keyless operations like PING"""
         mock_redis_cluster.keyslot.return_value = 12345
@@ -305,7 +305,7 @@ class TestRedisClient:
         assert results == ["value1", "PONG", True]
         assert mock_redis_cluster.pipeline.call_count == 2
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_pipeline_error_handling(self, redis_client, mock_redis_cluster):
         """Test pipeline error handling"""
         mock_redis_cluster.keyslot.return_value = 12345
@@ -323,7 +323,7 @@ class TestRedisClient:
 
         assert results == []  # Should return empty list on error
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_circuit_breaker_integration(self, redis_client, mock_redis_cluster):
         """Test circuit breaker integration with Redis operations"""
         # Make operations fail to trigger circuit breaker
@@ -337,7 +337,7 @@ class TestRedisClient:
         # Circuit should now be open
         assert redis_client.circuit_breaker.state == "OPEN"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_cache_stats(self, redis_client, mock_redis_cluster):
         """Test cache statistics retrieval"""
         redis_client.hit_count = 10
@@ -353,7 +353,7 @@ class TestRedisClient:
         assert stats["connected"] is True
         assert len(stats["cluster_nodes"]) == 3
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_acquire_lock(self, redis_client, mock_redis_cluster):
         """Test distributed lock acquisition"""
         mock_redis_cluster.set.return_value = True
@@ -366,7 +366,7 @@ class TestRedisClient:
         # Lock released
         mock_redis_cluster.delete.assert_called_with("test_lock")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_acquire_lock_already_held(self, redis_client, mock_redis_cluster):
         """Test lock acquisition when already held"""
         # First attempt fails, subsequent attempts succeed
@@ -377,7 +377,7 @@ class TestRedisClient:
 
         assert mock_redis_cluster.set.call_count >= 2
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_acquire_lock_timeout(self, redis_client, mock_redis_cluster):
         """Test lock acquisition timeout"""
         mock_redis_cluster.set.return_value = False  # Lock never available
@@ -386,7 +386,7 @@ class TestRedisClient:
             async with redis_client.acquire_lock("test_lock", timeout=10, wait_timeout=1):
                 pass
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_extract_key(self, redis_client):
         """Test key extraction from operation arguments"""
         # Test with positional argument
@@ -413,7 +413,7 @@ class TestRedisClient:
 class TestRedisClientSingleton:
     """Test singleton pattern for Redis client"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_redis_client_singleton(self):
         """Test that get_redis_client returns the same instance"""
         with patch("src.cache.redis_client.RedisClient") as MockRedisClient:
@@ -433,7 +433,7 @@ class TestRedisClientSingleton:
             MockRedisClient.assert_called_once()
             mock_instance.initialize.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_close_redis_client(self):
         """Test closing the global Redis client"""
         with patch("src.cache.redis_client.RedisClient") as MockRedisClient:
@@ -454,7 +454,7 @@ class TestRedisClientSingleton:
             assert src.cache.redis_client._redis_client is None
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_initialization_with_settings(monkeypatch):
     """Test Redis client initialization with settings"""
     from src.config.settings import Settings
@@ -487,7 +487,7 @@ async def test_initialization_with_settings(monkeypatch):
             assert call_kwargs["skip_full_coverage_check"] is False
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_initialization_with_ssl(monkeypatch):
     """Test Redis client initialization with SSL"""
     from src.config.settings import Settings

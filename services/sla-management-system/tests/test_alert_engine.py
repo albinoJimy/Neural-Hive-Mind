@@ -2,28 +2,28 @@
 Testes para Alert Engine do SLA Management System.
 """
 
-import pytest
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock
-from datetime import datetime, timezone, timedelta
 
+import pytest
 from src.models.alert_rule import (
-    AlertSeverity,
     AlertChannel,
-    AlertConditionType,
     AlertCondition,
+    AlertConditionType,
     AlertRule,
+    AlertSeverity,
 )
 from src.models.error_budget import (
-    ErrorBudget,
     BudgetStatus,
     BurnRate,
     BurnRateLevel,
+    ErrorBudget,
 )
-from src.services.alert_engine import AlertEngine
 from src.services.alert_dispatcher import AlertDispatcher
+from src.services.alert_engine import AlertEngine
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_postgresql_client():
     """Mock do PostgreSQL client."""
     client = MagicMock()
@@ -43,7 +43,7 @@ def mock_postgresql_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_redis_client():
     """Mock do Redis client."""
     client = MagicMock()
@@ -52,7 +52,7 @@ def mock_redis_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_alert_dispatcher():
     """Mock do AlertDispatcher."""
     dispatcher = MagicMock(spec=AlertDispatcher)
@@ -62,16 +62,16 @@ def mock_alert_dispatcher():
     return dispatcher
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_budget():
     """Budget de exemplo."""
     return ErrorBudget(
         budget_id="budget-123",
         slo_id="slo-123",
         service_name="test-service",
-        calculated_at=datetime.now(timezone.utc),
-        window_start=datetime.now(timezone.utc) - timedelta(days=1),
-        window_end=datetime.now(timezone.utc),
+        calculated_at=datetime.now(UTC),
+        window_start=datetime.now(UTC) - timedelta(days=1),
+        window_end=datetime.now(UTC),
         sli_value=0.95,
         slo_target=0.99,
         error_budget_total=1.0,
@@ -90,7 +90,7 @@ def sample_budget():
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def alert_engine(mock_postgresql_client, mock_redis_client, mock_alert_dispatcher):
     """Instância do AlertEngine para testes."""
     engine = AlertEngine(
@@ -153,7 +153,7 @@ class TestDefaultRules:
 class TestConditionEvaluation:
     """Testes para avaliação de condições."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_budget_below_threshold(self, alert_engine, sample_budget):
         """Testa condição de budget abaixo do threshold."""
         condition = AlertCondition(
@@ -164,7 +164,7 @@ class TestConditionEvaluation:
         result = await alert_engine._evaluate_condition(condition, sample_budget)
         assert result is True  # 60% < 70%
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_budget_above_threshold(self, alert_engine, sample_budget):
         """Testa condição de budget acima do threshold."""
         condition = AlertCondition(
@@ -175,7 +175,7 @@ class TestConditionEvaluation:
         result = await alert_engine._evaluate_condition(condition, sample_budget)
         assert result is False  # 60% > 50%
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_burn_rate_exceeds(self, alert_engine, sample_budget):
         """Testa condição de burn rate alto."""
         condition = AlertCondition(
@@ -187,7 +187,7 @@ class TestConditionEvaluation:
         result = await alert_engine._evaluate_condition(condition, sample_budget)
         assert result is True  # 1.5 > 1.0
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_slo_violation_count(self, alert_engine, sample_budget):
         """Testa condição de contagem de violações."""
         condition = AlertCondition(
@@ -198,7 +198,7 @@ class TestConditionEvaluation:
         result = await alert_engine._evaluate_condition(condition, sample_budget)
         assert result is True  # 2 > 1
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_status_change_critical(self, alert_engine, sample_budget):
         """Testa condição de mudança de status."""
         # Alterar status para CRITICAL
@@ -213,7 +213,7 @@ class TestConditionEvaluation:
         result = await alert_engine._evaluate_condition(condition, sample_budget)
         assert result is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_predictive_exhaustion(self, alert_engine):
         """Testa condição de exaustão preditiva."""
         # Budget com burn rate alto que vai esgotar em breve
@@ -221,9 +221,9 @@ class TestConditionEvaluation:
             budget_id="budget-456",
             slo_id="slo-456",
             service_name="test-service",
-            calculated_at=datetime.now(timezone.utc),
-            window_start=datetime.now(timezone.utc) - timedelta(days=1),
-            window_end=datetime.now(timezone.utc),
+            calculated_at=datetime.now(UTC),
+            window_start=datetime.now(UTC) - timedelta(days=1),
+            window_end=datetime.now(UTC),
             sli_value=0.90,
             slo_target=0.99,
             error_budget_total=1.0,
@@ -253,7 +253,7 @@ class TestConditionEvaluation:
 class TestCooldown:
     """Testes para cooldown de alertas."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_cooldown_active(self, alert_engine):
         """Testa que cooldown evita spam de alertas."""
         alert_engine._rules["test-rule"] = AlertRule(
@@ -266,11 +266,11 @@ class TestCooldown:
             severity=AlertSeverity.WARNING,
             channels=[AlertChannel.SLACK],
             cooldown_minutes=30,
-            created_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
         )
 
         # Simular último alerta há 5 minutos
-        alert_engine._last_alert_times["test-rule"] = datetime.now(timezone.utc) - timedelta(
+        alert_engine._last_alert_times["test-rule"] = datetime.now(UTC) - timedelta(
             minutes=5
         )
 
@@ -278,7 +278,7 @@ class TestCooldown:
         in_cooldown = await alert_engine._is_in_cooldown("test-rule")
         assert in_cooldown is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_cooldown_expired(self, alert_engine):
         """Testa que cooldown expira após o tempo."""
         alert_engine._rules["test-rule"] = AlertRule(
@@ -291,11 +291,11 @@ class TestCooldown:
             severity=AlertSeverity.WARNING,
             channels=[AlertChannel.SLACK],
             cooldown_minutes=30,
-            created_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
         )
 
         # Simular último alerta há 31 minutos
-        alert_engine._last_alert_times["test-rule"] = datetime.now(timezone.utc) - timedelta(
+        alert_engine._last_alert_times["test-rule"] = datetime.now(UTC) - timedelta(
             minutes=31
         )
 
@@ -319,7 +319,7 @@ class TestAlertMessageCreation:
             severity=AlertSeverity.CRITICAL,
             channels=[AlertChannel.SLACK],
             cooldown_minutes=30,
-            created_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
         )
 
         title, message, details = alert_engine._create_alert_message(rule, sample_budget)
@@ -341,7 +341,7 @@ class TestAlertMessageCreation:
             severity=AlertSeverity.CRITICAL,
             channels=[AlertChannel.SLACK],
             cooldown_minutes=30,
-            created_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
         )
 
         title, message, details = alert_engine._create_alert_message(rule, sample_budget)
@@ -354,7 +354,7 @@ class TestAlertMessageCreation:
 class TestAlertCRUD:
     """Testes para CRUD de regras de alerta."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_create_rule(self, alert_engine):
         """Testa criação de nova regra."""
         rule = AlertRule(
@@ -366,7 +366,7 @@ class TestAlertCRUD:
             ),
             severity=AlertSeverity.WARNING,
             channels=[AlertChannel.SLACK],
-            created_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
         )
 
         created = await alert_engine.create_rule(rule)
@@ -375,7 +375,7 @@ class TestAlertCRUD:
         assert created.name == "Nova Regra"
         assert created.rule_id in alert_engine._rules
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_list_rules(self, alert_engine):
         """Testa listagem de regras."""
         alert_engine._create_default_rules()
@@ -385,7 +385,7 @@ class TestAlertCRUD:
         assert len(rules) > 0
         assert any(r.rule_id == "budget-critical" for r in rules)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_rule(self, alert_engine):
         """Testa busca de regra por ID."""
         alert_engine._create_default_rules()
@@ -395,7 +395,7 @@ class TestAlertCRUD:
         assert rule is not None
         assert rule.name == "Error Budget Crítico"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_update_rule(self, alert_engine):
         """Testa atualização de regra."""
         alert_engine._create_default_rules()
@@ -407,7 +407,7 @@ class TestAlertCRUD:
         assert updated is not None
         assert updated.severity == AlertSeverity.EMERGENCY
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_delete_rule(self, alert_engine):
         """Testa deleção de regra."""
         alert_engine._create_default_rules()
@@ -417,7 +417,7 @@ class TestAlertCRUD:
         assert success is True
         assert "budget-critical" not in alert_engine._rules
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_delete_nonexistent_rule(self, alert_engine):
         """Testa deleção de regra inexistente."""
         success = await alert_engine.delete_rule("nonexistent")

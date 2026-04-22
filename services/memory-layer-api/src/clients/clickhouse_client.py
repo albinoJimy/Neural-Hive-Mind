@@ -2,8 +2,8 @@
 ClickHouse Client for historical analytics
 """
 
-from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List, Optional
+from datetime import UTC, datetime, timedelta
+from typing import Any, Optional
 
 import clickhouse_connect
 import structlog
@@ -127,7 +127,7 @@ class ClickHouseClient:
         )
 
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10))
-    async def insert_cognitive_plan(self, plan: Dict) -> bool:
+    async def insert_cognitive_plan(self, plan: dict) -> bool:
         """Insert cognitive plan into history"""
         try:
             self.client.insert(
@@ -137,7 +137,7 @@ class ClickHouseClient:
                         plan.get("plan_id"),
                         plan.get("intent_id"),
                         plan.get("domain"),
-                        plan.get("created_at", datetime.now(timezone.utc)),
+                        plan.get("created_at", datetime.now(UTC)),
                         plan.get("risk_score", 0.0),
                         plan.get("complexity_score", 0.0),
                         str(plan.get("plan_data", {})),
@@ -164,7 +164,7 @@ class ClickHouseClient:
             raise
 
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10))
-    async def insert_consensus_decision(self, decision: Dict) -> bool:
+    async def insert_consensus_decision(self, decision: dict) -> bool:
         """Insert consensus decision into history"""
         try:
             self.client.insert(
@@ -175,7 +175,7 @@ class ClickHouseClient:
                         decision.get("plan_id"),
                         decision.get("aggregated_confidence", 0.0),
                         decision.get("consensus_type"),
-                        decision.get("created_at", datetime.now(timezone.utc)),
+                        decision.get("created_at", datetime.now(UTC)),
                         str(decision.get("decision_data", {})),
                         str(decision.get("metadata", {})),
                     ]
@@ -200,7 +200,7 @@ class ClickHouseClient:
 
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10))
     async def insert_batch(
-        self, table: str, rows: List[List[Any]], column_names: List[str]
+        self, table: str, rows: list[list[Any]], column_names: list[str]
     ) -> bool:
         """
         Insere batch de linhas em uma tabela.
@@ -230,7 +230,7 @@ class ClickHouseClient:
         end_date: datetime,
         domain: Optional[str] = None,
         limit: int = 100,
-    ) -> List[Dict]:
+    ) -> list[dict]:
         """Query historical plans with time range"""
         query = f"""
             SELECT *
@@ -259,12 +259,12 @@ class ClickHouseClient:
         granularity: str = "hour",
         start_date: datetime = None,
         end_date: datetime = None,
-    ) -> List[Dict]:
+    ) -> list[dict]:
         """Get aggregated metrics with specified granularity"""
         if not start_date:
-            start_date = datetime.now(timezone.utc) - timedelta(days=7)
+            start_date = datetime.now(UTC) - timedelta(days=7)
         if not end_date:
-            end_date = datetime.now(timezone.utc)
+            end_date = datetime.now(UTC)
 
         interval_func = {
             "hour": "toStartOfHour",
@@ -296,7 +296,7 @@ class ClickHouseClient:
 
     async def cleanup_old_data(self, retention_months: int = 18) -> int:
         """Delete data older than retention period"""
-        cutoff_date = datetime.now(timezone.utc) - timedelta(days=retention_months * 30)
+        cutoff_date = datetime.now(UTC) - timedelta(days=retention_months * 30)
 
         try:
             # ClickHouse TTL handles automatic cleanup, but we can manually trigger
@@ -325,7 +325,7 @@ class ClickHouseClient:
     # ========================================
 
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10))
-    async def insert_execution_log(self, log: Dict) -> bool:
+    async def insert_execution_log(self, log: dict) -> bool:
         """
         Insere log de execução de ticket para forecasting de carga.
 
@@ -340,7 +340,7 @@ class ClickHouseClient:
                 f"{self.database}.execution_logs",
                 [
                     [
-                        log.get("timestamp", datetime.now(timezone.utc)),
+                        log.get("timestamp", datetime.now(UTC)),
                         log.get("ticket_id", ""),
                         log.get("task_type", ""),
                         log.get("risk_band", "medium"),
@@ -388,7 +388,7 @@ class ClickHouseClient:
             raise
 
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10))
-    async def insert_execution_logs_batch(self, logs: List[Dict]) -> bool:
+    async def insert_execution_logs_batch(self, logs: list[dict]) -> bool:
         """
         Insere batch de logs de execução.
 
@@ -405,7 +405,7 @@ class ClickHouseClient:
         for log in logs:
             rows.append(
                 [
-                    log.get("timestamp", datetime.now(timezone.utc)),
+                    log.get("timestamp", datetime.now(UTC)),
                     log.get("ticket_id", ""),
                     log.get("task_type", ""),
                     log.get("risk_band", "medium"),
@@ -450,7 +450,7 @@ class ClickHouseClient:
         )
 
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10))
-    async def insert_telemetry_metric(self, metric: Dict) -> bool:
+    async def insert_telemetry_metric(self, metric: dict) -> bool:
         """
         Insere métrica de telemetria para análise de tendências.
 
@@ -471,7 +471,7 @@ class ClickHouseClient:
                 f"{self.database}.telemetry_metrics",
                 [
                     [
-                        metric.get("timestamp", datetime.now(timezone.utc)),
+                        metric.get("timestamp", datetime.now(UTC)),
                         metric.get("service", ""),
                         metric.get("metric_name", ""),
                         float(metric.get("metric_value", 0.0)),
@@ -495,7 +495,7 @@ class ClickHouseClient:
             raise
 
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10))
-    async def insert_telemetry_metrics_batch(self, metrics: List[Dict]) -> bool:
+    async def insert_telemetry_metrics_batch(self, metrics: list[dict]) -> bool:
         """
         Insere batch de métricas de telemetria.
 
@@ -518,7 +518,7 @@ class ClickHouseClient:
 
             rows.append(
                 [
-                    metric.get("timestamp", datetime.now(timezone.utc)),
+                    metric.get("timestamp", datetime.now(UTC)),
                     metric.get("service", ""),
                     metric.get("metric_name", ""),
                     float(metric.get("metric_value", 0.0)),
@@ -541,7 +541,7 @@ class ClickHouseClient:
         )
 
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10))
-    async def insert_worker_utilization(self, util: Dict) -> bool:
+    async def insert_worker_utilization(self, util: dict) -> bool:
         """
         Insere dados de utilização de worker.
 
@@ -556,7 +556,7 @@ class ClickHouseClient:
                 f"{self.database}.worker_utilization",
                 [
                     [
-                        util.get("timestamp", datetime.now(timezone.utc)),
+                        util.get("timestamp", datetime.now(UTC)),
                         util.get("worker_id", ""),
                         util.get("active_tasks", 0),
                         float(util.get("cpu_usage", 0.0)),
@@ -586,7 +586,7 @@ class ClickHouseClient:
             raise
 
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10))
-    async def insert_worker_utilization_batch(self, utils: List[Dict]) -> bool:
+    async def insert_worker_utilization_batch(self, utils: list[dict]) -> bool:
         """
         Insere batch de dados de utilização de workers.
 
@@ -603,7 +603,7 @@ class ClickHouseClient:
         for util in utils:
             rows.append(
                 [
-                    util.get("timestamp", datetime.now(timezone.utc)),
+                    util.get("timestamp", datetime.now(UTC)),
                     util.get("worker_id", ""),
                     util.get("active_tasks", 0),
                     float(util.get("cpu_usage", 0.0)),
@@ -632,7 +632,7 @@ class ClickHouseClient:
         )
 
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10))
-    async def insert_queue_snapshot(self, snapshot: Dict) -> bool:
+    async def insert_queue_snapshot(self, snapshot: dict) -> bool:
         """
         Insere snapshot da fila de tickets.
 
@@ -647,7 +647,7 @@ class ClickHouseClient:
                 f"{self.database}.queue_snapshots",
                 [
                     [
-                        snapshot.get("timestamp", datetime.now(timezone.utc)),
+                        snapshot.get("timestamp", datetime.now(UTC)),
                         snapshot.get("queue_depth", 0),
                         snapshot.get("avg_wait_time_ms", 0),
                         snapshot.get("tickets_by_priority", {}),
@@ -675,7 +675,7 @@ class ClickHouseClient:
             raise
 
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10))
-    async def insert_ml_model_performance(self, perf: Dict) -> bool:
+    async def insert_ml_model_performance(self, perf: dict) -> bool:
         """
         Insere dados de performance de modelo ML.
 
@@ -690,7 +690,7 @@ class ClickHouseClient:
                 f"{self.database}.ml_model_performance",
                 [
                     [
-                        perf.get("timestamp", datetime.now(timezone.utc)),
+                        perf.get("timestamp", datetime.now(UTC)),
                         perf.get("model_name", ""),
                         perf.get("model_version", ""),
                         perf.get("metric_name", ""),
@@ -720,7 +720,7 @@ class ClickHouseClient:
             raise
 
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10))
-    async def insert_scheduling_decision(self, decision: Dict) -> bool:
+    async def insert_scheduling_decision(self, decision: dict) -> bool:
         """
         Insere decisão de agendamento para análise de política RL.
 
@@ -735,7 +735,7 @@ class ClickHouseClient:
                 f"{self.database}.scheduling_decisions",
                 [
                     [
-                        decision.get("timestamp", datetime.now(timezone.utc)),
+                        decision.get("timestamp", datetime.now(UTC)),
                         decision.get("decision_id", ""),
                         decision.get("state_hash", ""),
                         decision.get("action", ""),

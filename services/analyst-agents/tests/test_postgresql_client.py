@@ -2,10 +2,11 @@
 Testes para PostgreSQL Client.
 """
 
-import pytest
 import os
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
-from datetime import datetime, timedelta, timezone
+
+import pytest
 
 # Set environment variables antes dos imports
 os.environ.setdefault("POSTGRESQL_HOST", "localhost")
@@ -17,7 +18,7 @@ os.environ.setdefault("POSTGRESQL_MIN_POOL_SIZE", "5")
 os.environ.setdefault("POSTGRESQL_MAX_POOL_SIZE", "20")
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_asyncpg_pool():
     """Mock do pool asyncpg."""
     pool = AsyncMock()
@@ -28,17 +29,11 @@ def mock_asyncpg_pool():
     mock_conn.fetch = AsyncMock(
         return_value=[
             MagicMock(
-                **{
-                    "id": "1",
-                    "plan_id": "plan-123",
-                    "analyst_type": "text",
-                    "insight_data": {},
-                    "created_at": datetime.now(timezone.utc),
-                }
+                id="1", plan_id="plan-123", analyst_type="text", insight_data={}, created_at=datetime.now(UTC)
             )
         ]
     )
-    mock_conn.fetchrow = AsyncMock(return_value=MagicMock(**{"id": "1"}))
+    mock_conn.fetchrow = AsyncMock(return_value=MagicMock(id="1"))
     mock_conn.fetchval = AsyncMock(return_value=1)
     mock_conn.execute = AsyncMock(return_value="SELECT 1")
 
@@ -59,7 +54,7 @@ def mock_asyncpg_pool():
     return mock_create_pool, pool, mock_conn
 
 
-@pytest.fixture
+@pytest.fixture()
 async def postgresql_client(mock_asyncpg_pool):
     """Cliente PostgreSQL para testes."""
     from src.clients.postgresql_client import PostgreSQLClient
@@ -114,7 +109,7 @@ class TestPostgreSQLClient:
         assert "testuser@" in client.dsn
         assert ":****" not in client.dsn
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_connect(self, mock_asyncpg_pool):
         """Testa conexão com PostgreSQL."""
         from src.clients.postgresql_client import PostgreSQLClient
@@ -128,7 +123,7 @@ class TestPostgreSQLClient:
             assert client._connected is True
             assert client.pool is not None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_connect_failure(self):
         """Testa falha de conexão."""
         from src.clients.postgresql_client import PostgreSQLClient
@@ -142,18 +137,18 @@ class TestPostgreSQLClient:
             with pytest.raises(ConnectionError):
                 await client.connect()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_disconnect(self, postgresql_client):
         """Testa desconexão."""
         await postgresql_client.disconnect()
         assert postgresql_client._connected is False
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_is_connected(self, postgresql_client):
         """Testa verificação de conexão."""
         assert await postgresql_client.is_connected() is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_query_fetch_all(self, postgresql_client):
         """Testa execute_query com fetch='all'."""
         results = await postgresql_client.execute_query("SELECT 1", fetch="all")
@@ -161,7 +156,7 @@ class TestPostgreSQLClient:
         assert isinstance(results, list)
         assert len(results) == 1
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_query_fetch_one(self, postgresql_client):
         """Testa execute_query com fetch='one'."""
         result = await postgresql_client.execute_query("SELECT 1", fetch="one")
@@ -170,21 +165,21 @@ class TestPostgreSQLClient:
         # fetchrow retorna dict com 'id' no mock
         assert isinstance(result, dict) or result is None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_query_fetch_val(self, postgresql_client):
         """Testa execute_query com fetch='val'."""
         result = await postgresql_client.execute_query("SELECT 1", fetch="val")
 
         assert result == 1
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_query_fetch_none(self, postgresql_client):
         """Testa execute_query com fetch='none'."""
         result = await postgresql_client.execute_query("SELECT 1", fetch="none")
 
         assert result == []
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_query_not_connected(self):
         """Testa execute_query sem conexão."""
         from src.clients.postgresql_client import PostgreSQLClient
@@ -195,7 +190,7 @@ class TestPostgreSQLClient:
         with pytest.raises(RuntimeError, match="PostgreSQL não está conectado"):
             await client.execute_query("SELECT 1")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_insights_basic(self, postgresql_client):
         """Testa get_insights básico."""
         results = await postgresql_client.get_insights(limit=10)
@@ -204,32 +199,32 @@ class TestPostgreSQLClient:
         # Mock retorna 1 resultado
         assert len(results) == 1
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_insights_with_plan_id(self, postgresql_client):
         """Testa get_insights filtrando por plan_id."""
         results = await postgresql_client.get_insights(plan_id="plan-123", limit=10)
 
         assert isinstance(results, list)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_insights_with_analyst_type(self, postgresql_client):
         """Testa get_insights filtrando por analyst_type."""
         results = await postgresql_client.get_insights(analyst_type="text", limit=10)
 
         assert isinstance(results, list)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_insights_with_time_range(self, postgresql_client):
         """Testa get_insights com filtro de tempo."""
         time_range = {
-            "start": datetime.now(timezone.utc) - timedelta(hours=24),
-            "end": datetime.now(timezone.utc),
+            "start": datetime.now(UTC) - timedelta(hours=24),
+            "end": datetime.now(UTC),
         }
         results = await postgresql_client.get_insights(time_range=time_range, limit=10)
 
         assert isinstance(results, list)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_analyst_actions(self, postgresql_client):
         """Testa get_analyst_actions."""
         with patch.object(
@@ -241,7 +236,7 @@ class TestPostgreSQLClient:
 
             assert isinstance(results, list)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_feature_usage(self, postgresql_client):
         """Testa get_feature_usage."""
         with patch.object(
@@ -253,7 +248,7 @@ class TestPostgreSQLClient:
 
             assert isinstance(results, list)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_insight_by_id(self, postgresql_client):
         """Testa get_insight_by_id."""
         result = await postgresql_client.get_insight_by_id("insight-123")
@@ -261,14 +256,14 @@ class TestPostgreSQLClient:
         assert result is not None
         assert isinstance(result, dict)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_insights_by_plan(self, postgresql_client):
         """Testa get_insights_by_plan."""
         results = await postgresql_client.get_insights_by_plan("plan-456", limit=50)
 
         assert isinstance(results, list)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_count_insights(self, postgresql_client):
         """Testa count_insights."""
         count = await postgresql_client.count_insights()
@@ -277,7 +272,7 @@ class TestPostgreSQLClient:
         # Mock retorna 0 ou 1
         assert count >= 0
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_count_insights_with_filters(self, postgresql_client):
         """Testa count_insights com filtros."""
         with patch.object(postgresql_client, "execute_query", return_value=5):
@@ -285,7 +280,7 @@ class TestPostgreSQLClient:
 
             assert count == 5
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_insights_statistics(self, postgresql_client):
         """Testa get_insights_statistics."""
         with patch.object(
@@ -304,14 +299,14 @@ class TestPostgreSQLClient:
             assert stats["total_insights"] == 15
             assert "text" in stats["by_type"]
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_create_tables(self, postgresql_client, mock_asyncpg_pool):
         """Testa create_tables."""
         await postgresql_client.create_tables()
         # Verifica se execute foi chamado
         assert True  # Se não levantar exceção, passou
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_insert_insight(self, postgresql_client):
         """Testa insert_insight."""
         with patch.object(postgresql_client, "execute_query", return_value="new-uuid"):
@@ -321,7 +316,7 @@ class TestPostgreSQLClient:
 
             assert insight_id == "new-uuid"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_update_insight(self, postgresql_client):
         """Testa update_insight."""
         with patch.object(postgresql_client, "execute_query", return_value="UPDATE 1"):
@@ -345,7 +340,7 @@ class TestPostgreSQLClient:
         assert "****" in masked
         assert "testuser" in masked
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_health_check_healthy(self, postgresql_client):
         """Testa health_check quando saudável."""
         result = await postgresql_client.health_check()
@@ -354,7 +349,7 @@ class TestPostgreSQLClient:
         assert "latency_ms" in result
         assert result["connected"] is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_health_check_unhealthy(self):
         """Testa health_check quando não saudável."""
         from src.clients.postgresql_client import PostgreSQLClient
@@ -367,7 +362,7 @@ class TestPostgreSQLClient:
         assert result["status"] == "unhealthy"
         assert result["connected"] is False
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_context_manager(self, mock_asyncpg_pool):
         """Testa uso como context manager."""
         from src.clients.postgresql_client import PostgreSQLClient
@@ -381,8 +376,8 @@ class TestPostgreSQLClient:
 class TestPostgreSQLClientIntegration:
     """Testes de integração para PostgreSQLClient."""
 
-    @pytest.mark.asyncio
-    @pytest.mark.integration
+    @pytest.mark.asyncio()
+    @pytest.mark.integration()
     async def test_full_workflow(self):
         """Testa fluxo completo de trabalho (requer PostgreSQL real)."""
         from src.clients.postgresql_client import PostgreSQLClient

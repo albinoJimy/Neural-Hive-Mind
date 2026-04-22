@@ -10,17 +10,17 @@ Testes cobrem:
 - Métricas Prometheus de duração de verificação
 """
 
-import pytest
 from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
 from src.activities.sla_monitoring import (
-    check_workflow_sla_proactive,
     _default_response,
+    check_workflow_sla_proactive,
 )
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_activity_info():
     """Mock activity.info() para contexto de workflow."""
     with patch("src.activities.sla_monitoring.activity") as mock_activity:
@@ -31,7 +31,7 @@ def mock_activity_info():
         yield mock_activity
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_config():
     """Criar mock de configuração."""
     config = MagicMock()
@@ -40,7 +40,7 @@ def mock_config():
     return config
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_metrics():
     """Criar mock de métricas."""
     metrics = MagicMock()
@@ -51,7 +51,7 @@ def mock_metrics():
     return metrics
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_sla_monitor():
     """Criar mock de SLAMonitor."""
     monitor = AsyncMock()
@@ -68,7 +68,7 @@ def mock_sla_monitor():
     return monitor
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_tickets():
     """Lista de tickets de exemplo para verificação de SLA."""
     return [
@@ -92,7 +92,7 @@ def sample_tickets():
 class TestCheckWorkflowSlaProactive:
     """Testes para check_workflow_sla_proactive activity."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_returns_deadline_approaching_true(
         self, mock_activity_info, sample_tickets, mock_config, mock_metrics, mock_sla_monitor
     ):
@@ -117,7 +117,7 @@ class TestCheckWorkflowSlaProactive:
                     assert "ticket-1" in result["critical_tickets"]
                     mock_metrics.record_deadline_approaching.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_returns_deadline_approaching_false_when_ok(
         self, mock_activity_info, sample_tickets, mock_config, mock_metrics, mock_sla_monitor
     ):
@@ -135,7 +135,7 @@ class TestCheckWorkflowSlaProactive:
                     assert len(result["critical_tickets"]) == 0
                     mock_metrics.record_deadline_approaching.assert_not_called()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_checks_budget_on_post_ticket_publishing_checkpoint(
         self, mock_activity_info, sample_tickets, mock_config, mock_metrics, mock_sla_monitor
     ):
@@ -158,7 +158,7 @@ class TestCheckWorkflowSlaProactive:
                     assert result["budget_data"]["status"] == "CRITICAL"
                     mock_sla_monitor.check_budget_threshold.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_does_not_check_budget_on_generation_checkpoint(
         self, mock_activity_info, sample_tickets, mock_config, mock_metrics, mock_sla_monitor
     ):
@@ -175,7 +175,7 @@ class TestCheckWorkflowSlaProactive:
                     assert "budget_critical" not in result
                     mock_sla_monitor.check_budget_threshold.assert_not_called()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_fail_open_when_sla_system_unavailable(
         self, mock_activity_info, sample_tickets, mock_config, mock_metrics
     ):
@@ -198,7 +198,7 @@ class TestCheckWorkflowSlaProactive:
                     assert result["checkpoint"] == "post_ticket_generation"
                     mock_metrics.record_sla_monitor_error.assert_called_once_with("proactive_check")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_closes_sla_monitor_in_finally_block(
         self, mock_activity_info, sample_tickets, mock_config, mock_metrics, mock_sla_monitor
     ):
@@ -214,7 +214,7 @@ class TestCheckWorkflowSlaProactive:
 
                     mock_sla_monitor.close.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_records_sla_check_duration_metric(
         self, mock_activity_info, sample_tickets, mock_config, mock_metrics, mock_sla_monitor
     ):
@@ -232,7 +232,7 @@ class TestCheckWorkflowSlaProactive:
                     call_args = mock_metrics.record_sla_check_duration.call_args
                     assert "proactive_post_ticket_generation" in call_args[0][0]
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_skips_when_sla_management_disabled(
         self, mock_activity_info, sample_tickets, mock_metrics
     ):

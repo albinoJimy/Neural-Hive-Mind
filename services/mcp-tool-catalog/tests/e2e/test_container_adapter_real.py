@@ -2,12 +2,11 @@ import os
 import tempfile
 
 import pytest
-
 from src.adapters.container_adapter import ContainerAdapter
 
 
-@pytest.mark.e2e
-@pytest.mark.asyncio
+@pytest.mark.e2e()
+@pytest.mark.asyncio()
 async def test_trivy_container_scan_real():
     """Test Trivy container adapter with real Docker execution."""
     adapter = ContainerAdapter(timeout_seconds=120)
@@ -25,8 +24,8 @@ async def test_trivy_container_scan_real():
     assert "nginx:alpine" in result.output
 
 
-@pytest.mark.e2e
-@pytest.mark.asyncio
+@pytest.mark.e2e()
+@pytest.mark.asyncio()
 async def test_hadolint_container_real():
     """Test Hadolint container adapter."""
     adapter = ContainerAdapter(timeout_seconds=30)

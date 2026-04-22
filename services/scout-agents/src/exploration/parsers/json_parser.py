@@ -6,7 +6,7 @@ Suporta package.json, tsconfig.json, configs genéricas.
 
 import json
 import re
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 import structlog
 
@@ -47,10 +47,10 @@ class JSONParser:
 
     def __init__(self):
         """Inicializa o JSONParser."""
-        self._parsed_cache: Dict[str, Dict] = {}
+        self._parsed_cache: dict[str, dict] = {}
         self._parse_errors: set = set()
 
-    def parse(self, code: str, filename: str) -> Optional[Dict[str, Any]]:
+    def parse(self, code: str, filename: str) -> Optional[dict[str, Any]]:
         """
         Faz parsing de arquivo JSON.
 
@@ -157,7 +157,7 @@ class JSONParser:
 
         return None
 
-    def _extract_file_specific_info(self, data: Dict, filename: str) -> Dict[str, Any]:
+    def _extract_file_specific_info(self, data: dict, filename: str) -> dict[str, Any]:
         """Extrai informações específicas do tipo de arquivo."""
         info = {}
         file_type = self._detect_file_type(filename)
@@ -190,7 +190,7 @@ class JSONParser:
 
         return info
 
-    def _detect_secrets(self, code: str) -> tuple[bool, List[str]]:
+    def _detect_secrets(self, code: str) -> tuple[bool, list[str]]:
         """Detecta possíveis segredos no código JSON."""
         secret_keys = []
 
@@ -223,7 +223,7 @@ class JSONParser:
         """Verifica se arquivo tem erros de parsing."""
         return filename in self._parse_errors
 
-    def get_stats(self) -> Dict[str, int]:
+    def get_stats(self) -> dict[str, int]:
         """Retorna estatísticas do parser."""
         return {
             "parsed_files": len(self._parsed_cache),

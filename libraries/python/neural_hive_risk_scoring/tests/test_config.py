@@ -2,8 +2,7 @@
 Testes para RiskScoringConfig e RiskBand
 """
 
-
-from neural_hive_risk_scoring import RiskScoringConfig, RiskBand, UnifiedDomain
+from neural_hive_risk_scoring import RiskBand, RiskScoringConfig, UnifiedDomain
 
 
 class TestRiskBand:

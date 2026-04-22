@@ -1,9 +1,9 @@
 # MCP Execution Repository
 
 import asyncio
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
-UTC = timezone.utc  # type: ignore, timedelta
+UTC = UTC  # type: ignore, timedelta
 from typing import Any
 
 from neural_hive_observability import get_logger

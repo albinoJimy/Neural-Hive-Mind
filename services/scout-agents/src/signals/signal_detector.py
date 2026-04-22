@@ -12,7 +12,7 @@ import hashlib
 from collections import defaultdict
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, Optional
 
 import structlog
 
@@ -23,7 +23,7 @@ class FileSignal:
     """Representa um sinal detectado em um arquivo."""
 
     def __init__(
-        self, filepath: str, signal_type: str, intensity: float, metadata: Optional[Dict] = None
+        self, filepath: str, signal_type: str, intensity: float, metadata: Optional[dict] = None
     ):
         self.filepath = filepath
         self.signal_type = signal_type  # 'created', 'modified', 'deleted', 'high_activity'
@@ -31,7 +31,7 @@ class FileSignal:
         self.metadata = metadata or {}
         self.timestamp = datetime.now()
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         """Converte para dicionário."""
         return {
             "filepath": self.filepath,
@@ -55,18 +55,18 @@ class SignalDetector:
         self.window_minutes = window_minutes
 
         # Rastreamento de estado
-        self._file_hashes: Dict[str, str] = {}
-        self._file_timestamps: Dict[str, datetime] = {}
+        self._file_hashes: dict[str, str] = {}
+        self._file_timestamps: dict[str, datetime] = {}
 
         # Sinais detectados
-        self._signals: List[FileSignal] = []
+        self._signals: list[FileSignal] = []
 
         # Contagem de atividade por arquivo
-        self._activity_counts: Dict[str, int] = defaultdict(int)
+        self._activity_counts: dict[str, int] = defaultdict(int)
 
     def scan_directory(
-        self, directory: str, extensions: Optional[Set[str]] = None
-    ) -> List[FileSignal]:
+        self, directory: str, extensions: Optional[set[str]] = None
+    ) -> list[FileSignal]:
         """
         Escaneia diretório em busca de sinais.
 
@@ -122,7 +122,7 @@ class SignalDetector:
     def _check_file(self, filepath: str) -> Optional[FileSignal]:
         """Verifica arquivo e detecta sinais."""
         try:
-            with open(filepath, "r", encoding="utf-8", errors="ignore") as f:
+            with open(filepath, encoding="utf-8", errors="ignore") as f:
                 content = f.read()
 
             # Calcular hash do conteúdo
@@ -197,7 +197,7 @@ class SignalDetector:
 
         return min(1.0, intensity)
 
-    def get_high_activity_files(self, threshold: int = 5) -> List[Tuple[str, int]]:
+    def get_high_activity_files(self, threshold: int = 5) -> list[tuple[str, int]]:
         """
         Retorna arquivos com alta atividade.
 
@@ -212,7 +212,7 @@ class SignalDetector:
         ]
         return sorted(high_activity, key=lambda x: x[1], reverse=True)
 
-    def get_signals_in_window(self, minutes: Optional[int] = None) -> List[FileSignal]:
+    def get_signals_in_window(self, minutes: Optional[int] = None) -> list[FileSignal]:
         """
         Retorna sinais dentro de uma janela de tempo.
 
@@ -227,7 +227,7 @@ class SignalDetector:
 
         return [signal for signal in self._signals if signal.timestamp >= cutoff]
 
-    def get_signal_summary(self, minutes: Optional[int] = None) -> Dict[str, Any]:
+    def get_signal_summary(self, minutes: Optional[int] = None) -> dict[str, Any]:
         """
         Retorna resumo de sinais.
 
@@ -260,7 +260,7 @@ class SignalDetector:
 
         return summary
 
-    def get_hotspots(self, limit: int = 10) -> List[Dict]:
+    def get_hotspots(self, limit: int = 10) -> list[dict]:
         """
         Retorna os "hotspots" - arquivos com mais atividade recente.
 
@@ -295,7 +295,7 @@ class SignalDetector:
         hotspots.sort(key=lambda x: x["activity_count"], reverse=True)
         return hotspots[:limit]
 
-    def detect_burst_activity(self, threshold: float = 3.0) -> List[str]:
+    def detect_burst_activity(self, threshold: float = 3.0) -> list[str]:
         """
         Detecta "burst" de atividade - mudanças rápidas em um arquivo.
 

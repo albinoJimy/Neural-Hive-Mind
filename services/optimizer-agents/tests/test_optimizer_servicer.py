@@ -4,8 +4,9 @@ Testes unitarios para OptimizerServicer.
 Testa os metodos gRPC do servicer principal do Optimizer Agent.
 """
 
-import pytest
 from unittest.mock import AsyncMock, Mock
+
+import pytest
 
 from src.grpc_service.optimizer_servicer import OptimizerServicer
 

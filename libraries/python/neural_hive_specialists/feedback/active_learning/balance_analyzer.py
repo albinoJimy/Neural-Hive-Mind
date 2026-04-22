@@ -5,11 +5,11 @@ Identifica classes, confianças e domínios sub-representados para
 priorizar coleta de feedback via Active Learning.
 """
 
-from typing import Dict, Any, List
-from dataclasses import dataclass
 from collections import Counter
-import structlog
+from dataclasses import dataclass
+from typing import Any
 
+import structlog
 from pydantic import BaseModel, Field
 
 logger = structlog.get_logger()
@@ -29,7 +29,7 @@ class PriorityRecommendation:
         if not self.reason:
             self.reason = f"{self.value} está sub-representado em {self.gap:.1f}pp"
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Converte para dicionário."""
         return {"type": self.type, "value": self.value, "gap": self.gap, "reason": self.reason}
 
@@ -38,13 +38,13 @@ class BalanceMetrics(BaseModel):
     """Métricas de balanceamento do dataset."""
 
     total_feedbacks: int = Field(default=0, description="Total de feedbacks no dataset")
-    balance: Dict[str, Dict[str, Any]] = Field(
+    balance: dict[str, dict[str, Any]] = Field(
         default_factory=dict, description="Distribuição por classe (approve/reject/review_required)"
     )
-    confidence_distribution: Dict[str, Dict[str, Any]] = Field(
+    confidence_distribution: dict[str, dict[str, Any]] = Field(
         default_factory=dict, description="Distribuição por faixa de confiança (low/medium/high)"
     )
-    domain_distribution: Dict[str, Dict[str, Any]] = Field(
+    domain_distribution: dict[str, dict[str, Any]] = Field(
         default_factory=dict, description="Distribuição por domínio NLP"
     )
     semantic_features_count: int = Field(
@@ -53,7 +53,7 @@ class BalanceMetrics(BaseModel):
     semantic_features_percentage: float = Field(
         default=0.0, description="Porcentagem de feedbacks com features semânticas"
     )
-    priority_recommendations: List[Dict[str, Any]] = Field(
+    priority_recommendations: list[dict[str, Any]] = Field(
         default_factory=list, description="Lista de recomendações de prioridade"
     )
     last_updated: str = Field(
@@ -136,7 +136,7 @@ class DatasetBalanceAnalyzer:
 
         return metrics
 
-    def get_priority_recommendations(self, limit: int = 10) -> List[PriorityRecommendation]:
+    def get_priority_recommendations(self, limit: int = 10) -> list[PriorityRecommendation]:
         """
         Retorna lista de recomendações priorizadas.
 
@@ -164,7 +164,7 @@ class DatasetBalanceAnalyzer:
             logger.error("Failed to count total feedbacks", error=str(e))
             return 0
 
-    def _calculate_class_distribution(self, total: int) -> Dict[str, Dict[str, Any]]:
+    def _calculate_class_distribution(self, total: int) -> dict[str, dict[str, Any]]:
         """Calcula distribuição por classe (approve/reject/review_required)."""
         distribution = {}
 
@@ -197,7 +197,7 @@ class DatasetBalanceAnalyzer:
 
         return distribution
 
-    def _calculate_confidence_distribution(self, total: int) -> Dict[str, Dict[str, Any]]:
+    def _calculate_confidence_distribution(self, total: int) -> dict[str, dict[str, Any]]:
         """Calcula distribuição por faixa de confiança."""
         distribution = {key: {"count": 0, "percentage": 0.0} for key in self.CONFIDENCE_RANGES}
 
@@ -229,7 +229,7 @@ class DatasetBalanceAnalyzer:
 
         return distribution
 
-    def _calculate_domain_distribution(self, total: int) -> Dict[str, Dict[str, Any]]:
+    def _calculate_domain_distribution(self, total: int) -> dict[str, dict[str, Any]]:
         """Calcula distribuição por domínio NLP."""
         distribution = {}
 
@@ -286,11 +286,11 @@ class DatasetBalanceAnalyzer:
 
     def _generate_priority_recommendations(
         self,
-        class_dist: Dict[str, Dict[str, Any]],
-        confidence_dist: Dict[str, Dict[str, Any]],
-        domain_dist: Dict[str, Dict[str, Any]],
+        class_dist: dict[str, dict[str, Any]],
+        confidence_dist: dict[str, dict[str, Any]],
+        domain_dist: dict[str, dict[str, Any]],
         total: int,
-    ) -> List[PriorityRecommendation]:
+    ) -> list[PriorityRecommendation]:
         """Gera recomendações de prioridade baseado em gaps."""
         recommendations = []
 

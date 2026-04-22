@@ -1,16 +1,17 @@
 """Testes de integração para Exactly-Once Semantics (EOS) no Kafka"""
 
-import pytest
 import asyncio
-import uuid
-from datetime import datetime, timezone
-from unittest.mock import patch
 import os
+import uuid
+from datetime import UTC, datetime
+from unittest.mock import patch
+
+import pytest
 
 # Testcontainers para Kafka
 try:
-    from testcontainers.kafka import KafkaContainer
     from testcontainers.compose import DockerCompose
+    from testcontainers.kafka import KafkaContainer
 
     TESTCONTAINERS_AVAILABLE = True
 except ImportError:
@@ -21,7 +22,7 @@ from models.intent_envelope import IntentEnvelope
 
 
 @pytest.mark.skipif(not TESTCONTAINERS_AVAILABLE, reason="Testcontainers not available")
-@pytest.mark.integration
+@pytest.mark.integration()
 class TestKafkaEOS:
     """Testes de integração para Exactly-Once Semantics"""
 
@@ -50,7 +51,7 @@ class TestKafkaEOS:
 
         compose.stop()
 
-    @pytest.fixture
+    @pytest.fixture()
     async def kafka_producer(self, kafka_cluster):
         """Fixture para producer Kafka configurado"""
         producer = KafkaIntentProducer(
@@ -76,7 +77,7 @@ class TestKafkaEOS:
 
         await producer.close()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_exactly_once_delivery(self, kafka_producer):
         """Teste de exactly-once delivery básico"""
         # Create test intent
@@ -89,7 +90,7 @@ class TestKafkaEOS:
         # we would consume and verify the message was received exactly once)
         assert True  # Producer didn't raise an exception
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_idempotency_collision(self, kafka_producer):
         """Teste de colisão de idempotência"""
         # Create multiple intents with same ID (should be idempotent)
@@ -106,7 +107,7 @@ class TestKafkaEOS:
         # In real scenario, only one message should be delivered to consumer
         assert True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_transaction_rollback(self, kafka_producer):
         """Teste de rollback de transação em caso de erro"""
         intent_envelope = self._create_test_intent("rollback-test")
@@ -129,7 +130,7 @@ class TestKafkaEOS:
         # Producer should still be in working state
         assert kafka_producer.is_ready()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_concurrent_producers_eos(self, kafka_cluster):
         """Teste de múltiplos producers concorrentes com EOS"""
         num_producers = 3
@@ -183,7 +184,7 @@ class TestKafkaEOS:
             for producer in producers:
                 await producer.close()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_producer_recovery_after_failure(self, kafka_cluster):
         """Teste de recuperação do producer após falha"""
         producer = KafkaIntentProducer(
@@ -238,7 +239,7 @@ class TestKafkaEOS:
         finally:
             await producer.close()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_stable_transactional_id_generation(self, kafka_cluster):
         """Teste da geração estável de transactional ID"""
         # Test with environment variables
@@ -286,30 +287,27 @@ class TestKafkaEOS:
             },
             confidence=0.9,
             context={"userId": "test-user", "sessionId": "test-session"},
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
         )
 
 
-@pytest.mark.integration
+@pytest.mark.integration()
 class TestKafkaEOSNegativeCases:
     """Testes de casos negativos para EOS"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_duplicate_transactional_id_error(self):
         """Teste de erro com transactional IDs duplicados"""
         # This test would require more complex setup with actual Kafka
         # to simulate the scenario where two producers try to use
         # the same transactional ID simultaneously
-        pass
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_transaction_timeout(self):
         """Teste de timeout de transação"""
         # Mock scenario where transaction takes too long
-        pass
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_broker_restart_during_transaction(self):
         """Teste de restart do broker durante transação"""
         # Test resilience when Kafka broker restarts mid-transaction
-        pass

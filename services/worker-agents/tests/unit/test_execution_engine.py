@@ -20,7 +20,7 @@ mock_tracer_module = MagicMock()
 mock_tracer_module.get_tracer = MagicMock()
 sys.modules["neural_hive_observability"] = mock_tracer_module
 
-from engine.execution_engine import ExecutionEngine  # noqa: E402
+from engine.execution_engine import ExecutionEngine
 
 
 class StubTicketClient:
@@ -100,7 +100,7 @@ class RegistryWrapper:
         return self.executor
 
 
-@pytest.fixture
+@pytest.fixture()
 def config():
     """Configuração básica para testes."""
     return SimpleNamespace(
@@ -112,7 +112,7 @@ def config():
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_ticket():
     """Ticket de exemplo para testes."""
     return {
@@ -127,7 +127,7 @@ def sample_ticket():
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_metrics():
     """Métricas mock para validação de chamadas."""
     metrics = MagicMock()
@@ -159,7 +159,7 @@ def mock_metrics():
     return metrics
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_tracer():
     """Mock do tracer para evitar dependências externas."""
     mock_span = MagicMock()
@@ -176,7 +176,7 @@ def mock_tracer():
     return tracer
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_process_ticket_increments_tickets_processing_total(
     config, sample_ticket, mock_metrics, mock_tracer
 ):
@@ -204,7 +204,7 @@ async def test_process_ticket_increments_tickets_processing_total(
     mock_metrics.tickets_processing_total.labels.return_value.inc.assert_called()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_process_ticket_sets_active_tasks(config, sample_ticket, mock_metrics, mock_tracer):
     """Verifica se active_tasks.set() é chamado corretamente."""
     ticket_client = StubTicketClient()
@@ -229,7 +229,7 @@ async def test_process_ticket_sets_active_tasks(config, sample_ticket, mock_metr
     assert mock_metrics.active_tasks.set.called
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_process_ticket_success_increments_completed_total(
     config, sample_ticket, mock_metrics, mock_tracer
 ):
@@ -257,7 +257,7 @@ async def test_process_ticket_success_increments_completed_total(
     mock_metrics.tickets_completed_total.labels.return_value.inc.assert_called()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_process_ticket_success_observes_duration(
     config, sample_ticket, mock_metrics, mock_tracer
 ):
@@ -285,7 +285,7 @@ async def test_process_ticket_success_observes_duration(
     mock_metrics.task_duration_seconds.labels.return_value.observe.assert_called()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_process_ticket_failure_increments_failed_total(
     config, sample_ticket, mock_metrics, mock_tracer
 ):
@@ -313,7 +313,7 @@ async def test_process_ticket_failure_increments_failed_total(
     mock_metrics.tickets_failed_total.labels.return_value.inc.assert_called()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_process_ticket_timeout_increments_failed_total(
     config, sample_ticket, mock_metrics, mock_tracer
 ):
@@ -345,7 +345,7 @@ async def test_process_ticket_timeout_increments_failed_total(
     mock_metrics.tickets_failed_total.labels.return_value.inc.assert_called()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_active_tasks_reset_after_completion(
     config, sample_ticket, mock_metrics, mock_tracer
 ):

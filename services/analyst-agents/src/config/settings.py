@@ -1,5 +1,5 @@
 from functools import lru_cache
-from typing import List, Optional
+from typing import Optional
 
 from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings
@@ -22,7 +22,7 @@ class Settings(BaseSettings):
     IS_PUBLIC_API: bool = Field(default=False)
 
     @property
-    def CORS_ORIGINS(self) -> List[str]:
+    def CORS_ORIGINS(self) -> list[str]:
         """CORS origins dinâmicas por ambiente."""
         return CORSConfig.get_origins_for_environment(
             self.ENVIRONMENT, is_public_api=self.IS_PUBLIC_API
@@ -82,7 +82,7 @@ class Settings(BaseSettings):
     POSTGRESQL_MAX_POOL_SIZE: int = 100
 
     # Elasticsearch
-    ELASTICSEARCH_HOSTS: List[str] = Field(default=["http://localhost:9200"])
+    ELASTICSEARCH_HOSTS: list[str] = Field(default=["http://localhost:9200"])
     ELASTICSEARCH_USER: Optional[str] = None
     ELASTICSEARCH_PASSWORD: Optional[str] = None
 
@@ -146,6 +146,6 @@ class Settings(BaseSettings):
         case_sensitive = True
 
 
-@lru_cache()
+@lru_cache
 def get_settings() -> Settings:
     return Settings()

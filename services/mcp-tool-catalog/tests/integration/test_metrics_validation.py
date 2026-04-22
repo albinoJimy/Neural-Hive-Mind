@@ -10,22 +10,20 @@ Cobertura:
 
 import pytest
 from prometheus_client import CollectorRegistry
-
 from src.observability.metrics import MCPToolCatalogMetrics
-
 
 # ============================================================================
 # Fixtures
 # ============================================================================
 
 
-@pytest.fixture
+@pytest.fixture()
 def fresh_registry():
     """Registry Prometheus limpo para cada teste."""
     return CollectorRegistry()
 
 
-@pytest.fixture
+@pytest.fixture()
 def metrics():
     """MCPToolCatalogMetrics com registry padrao."""
     # Nota: Em testes reais, usar registry isolado

@@ -8,20 +8,21 @@ Este arquivo contém testes unitários para validar:
 - Funções utilitárias de log (log_intent_start, log_plan_execution, etc.)
 """
 
-import logging
-import pytest
 import json
+import logging
+
+import pytest
 
 from neural_hive_observability.config import ObservabilityConfig
 from neural_hive_observability.logging import (
     CorrelationFormatter,
     NeuralHiveLoggerAdapter,
-    init_logging,
     get_logger,
-    log_intent_start,
+    init_logging,
     log_intent_completion,
-    log_plan_execution_start,
+    log_intent_start,
     log_plan_execution_completion,
+    log_plan_execution_start,
 )
 
 

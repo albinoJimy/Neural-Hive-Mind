@@ -1,7 +1,8 @@
 """Cliente HTTP para integração com Self-Healing Engine"""
 
+from datetime import UTC
 from enum import Enum
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 import httpx
 import structlog
@@ -63,8 +64,8 @@ class SelfHealingClient:
         remediation_id: str,
         incident_id: str,
         playbook_id: str,
-        parameters: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, Any]:
+        parameters: Optional[dict[str, Any]] = None,
+    ) -> dict[str, Any]:
         """
         Solicita execução de playbook de remediação.
 
@@ -121,7 +122,7 @@ class SelfHealingClient:
             )
             raise
 
-    async def get_remediation_status(self, remediation_id: str) -> Dict[str, Any]:
+    async def get_remediation_status(self, remediation_id: str) -> dict[str, Any]:
         """
         Consulta status de execução de remediação.
 
@@ -172,7 +173,7 @@ class SelfHealingClient:
 
     async def wait_for_completion(
         self, remediation_id: str, poll_interval: float = 2.0, max_wait: float = 300.0
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Aguarda conclusão de remediação com polling.
 
@@ -185,9 +186,9 @@ class SelfHealingClient:
             Dict com resultado final
         """
         import asyncio
-        from datetime import datetime, timezone
+        from datetime import datetime
 
-        start_time = datetime.now(timezone.utc)
+        start_time = datetime.now(UTC)
 
         logger.info(
             "self_healing_client.waiting_completion",
@@ -196,7 +197,7 @@ class SelfHealingClient:
         )
 
         while True:
-            elapsed = (datetime.now(timezone.utc) - start_time).total_seconds()
+            elapsed = (datetime.now(UTC) - start_time).total_seconds()
 
             if elapsed >= max_wait:
                 logger.warning(
@@ -237,7 +238,7 @@ class SelfHealingClient:
 
     async def cancel_remediation(
         self, remediation_id: str, reason: Optional[str] = None
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Cancela execução de remediação em andamento.
 

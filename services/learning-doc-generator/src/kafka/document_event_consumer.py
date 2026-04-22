@@ -8,20 +8,19 @@ e rollback de deployments para gerar documentação automaticamente.
 import asyncio
 import json
 import uuid
-from datetime import datetime, timezone
-from typing import Any, Dict, Optional
+from datetime import UTC, datetime
+from typing import Any, Optional
 
+import structlog
 from aiokafka import AIOKafkaConsumer
 from aiokafka.errors import KafkaConnectionError, KafkaError
-import structlog
-
 from src.config.settings import get_settings
-from src.models.document import DocumentType, DocumentStatus
+from src.models.document import DocumentStatus, DocumentType
 from src.services.document_repository import DocumentRepository
 from src.services.experiment_insight_extractor import ExperimentInsightExtractor
 from src.services.markdown_report_generator import MarkdownReportGenerator
 
-UTC = timezone.utc
+UTC = UTC
 logger = structlog.get_logger()
 
 
@@ -227,7 +226,7 @@ class DocumentEventConsumer:
         self,
         handler,
         event_type: str,
-        data: Dict[str, Any],
+        data: dict[str, Any],
         event_id: str,
     ):
         """
@@ -271,7 +270,7 @@ class DocumentEventConsumer:
                         error=str(e),
                     )
 
-    async def _handle_experiment_completed(self, data: Dict[str, Any]):
+    async def _handle_experiment_completed(self, data: dict[str, Any]):
         """
         Handler para evento experiment.completed.
 
@@ -349,7 +348,7 @@ class DocumentEventConsumer:
             doc_id=doc_id,
         )
 
-    async def _handle_model_promoted(self, data: Dict[str, Any]):
+    async def _handle_model_promoted(self, data: dict[str, Any]):
         """
         Handler para evento model.promoted.
 
@@ -414,7 +413,7 @@ class DocumentEventConsumer:
             doc_id=doc_id,
         )
 
-    async def _handle_deployment_rolled_back(self, data: Dict[str, Any]):
+    async def _handle_deployment_rolled_back(self, data: dict[str, Any]):
         """
         Handler para evento deployment.rolled_back.
 

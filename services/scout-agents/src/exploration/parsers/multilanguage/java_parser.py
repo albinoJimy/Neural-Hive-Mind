@@ -4,7 +4,7 @@ Java Parser - Análise de código Java usando tree-sitter.
 Extrai classes, interfaces, métodos, campos, annotations, generics.
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 import structlog
 
@@ -24,7 +24,7 @@ class JavaParser:
 
     def __init__(self):
         """Inicializa o JavaParser."""
-        self._parsed_cache: Dict[str, Dict] = {}
+        self._parsed_cache: dict[str, dict] = {}
         self._parse_errors: set = set()
         self._parser = None
         self._language = None
@@ -54,7 +54,7 @@ class JavaParser:
             self._language = None
             self._parser = None
 
-    def parse(self, code: str, filename: str) -> Optional[Dict[str, Any]]:
+    def parse(self, code: str, filename: str) -> Optional[dict[str, Any]]:
         """
         Faz parsing de código Java.
 
@@ -84,7 +84,7 @@ class JavaParser:
             self._parse_errors.add(filename)
             return None
 
-    def _empty_result(self) -> Dict[str, Any]:
+    def _empty_result(self) -> dict[str, Any]:
         """Retorna resultado vazio padrão."""
         return {
             "classes": [],
@@ -99,7 +99,7 @@ class JavaParser:
             "has_errors": False,
         }
 
-    def _parse_with_tree_sitter(self, code: str, filename: str) -> Dict[str, Any]:
+    def _parse_with_tree_sitter(self, code: str, filename: str) -> dict[str, Any]:
         """Parse usando tree-sitter."""
         tree = self._parser.parse(bytes(code, "utf8"))
 
@@ -127,7 +127,7 @@ class JavaParser:
 
         return None
 
-    def _extract_imports_ts(self, code: str, tree) -> List[Dict]:
+    def _extract_imports_ts(self, code: str, tree) -> list[dict]:
         """Extrai imports."""
         imports = []
         query = self._language.query("(import_declaration (scoped_identifier_name) @name)")
@@ -148,7 +148,7 @@ class JavaParser:
 
         return imports
 
-    def _extract_declarations_ts(self, node, code: str, result: Dict):
+    def _extract_declarations_ts(self, node, code: str, result: dict):
         """Extrai declarações recursivamente."""
         if node.type == "class_declaration":
             class_info = self._extract_class_declaration(node, code)
@@ -181,7 +181,7 @@ class JavaParser:
         for child in node.children:
             self._extract_declarations_ts(child, code, result)
 
-    def _extract_class_declaration(self, node, code: str) -> Dict:
+    def _extract_class_declaration(self, node, code: str) -> dict:
         """Extrai informações de uma classe."""
         info = {
             "name": "",
@@ -262,7 +262,7 @@ class JavaParser:
 
         return info
 
-    def _extract_interface_declaration(self, node, code: str) -> Dict:
+    def _extract_interface_declaration(self, node, code: str) -> dict:
         """Extrai informações de uma interface."""
         info = {
             "name": "",
@@ -308,7 +308,7 @@ class JavaParser:
 
         return info
 
-    def _extract_enum_declaration(self, node, code: str) -> Dict:
+    def _extract_enum_declaration(self, node, code: str) -> dict:
         """Extrai informações de um enum."""
         info = {
             "name": "",
@@ -351,7 +351,7 @@ class JavaParser:
 
         return info
 
-    def _extract_method_declaration(self, node, code: str) -> Dict:
+    def _extract_method_declaration(self, node, code: str) -> dict:
         """Extrai informações de um método."""
         info = {
             "name": "",
@@ -422,7 +422,7 @@ class JavaParser:
 
         return info
 
-    def _extract_constructor_declaration(self, node, code: str) -> Dict:
+    def _extract_constructor_declaration(self, node, code: str) -> dict:
         """Extrai informações de um construtor."""
         info = {
             "name": "<constructor>",
@@ -466,7 +466,7 @@ class JavaParser:
 
         return info
 
-    def _extract_formal_parameter(self, node, code: str) -> Optional[Dict]:
+    def _extract_formal_parameter(self, node, code: str) -> Optional[dict]:
         """Extrai informações de um parâmetro."""
         info = {"name": "", "type": None, "is_varargs": False}
 
@@ -486,7 +486,7 @@ class JavaParser:
 
         return info
 
-    def _extract_field_declaration(self, node, code: str) -> List[Dict]:
+    def _extract_field_declaration(self, node, code: str) -> list[dict]:
         """Extrai informações de campos (pode ter declaração múltipla)."""
         fields = []
 
@@ -508,7 +508,7 @@ class JavaParser:
 
         return fields
 
-    def _extract_annotation(self, node, code: str) -> Dict:
+    def _extract_annotation(self, node, code: str) -> dict:
         """Extrai informações de uma annotation."""
         info = {"name": "", "arguments": []}
 
@@ -546,7 +546,7 @@ class JavaParser:
 
         return complexity
 
-    def _parse_with_regex(self, code: str, filename: str) -> Dict[str, Any]:
+    def _parse_with_regex(self, code: str, filename: str) -> dict[str, Any]:
         """Parse baseado em regex (fallback)."""
         import re
 
@@ -687,7 +687,7 @@ class JavaParser:
         return result
 
     def _extract_methods_from_class_body(
-        self, class_body: str, full_code: str, class_start: int, result: Dict, class_name: str
+        self, class_body: str, full_code: str, class_start: int, result: dict, class_name: str
     ):
         """Extrai métodos do corpo de uma classe/interface."""
         import re
@@ -796,7 +796,7 @@ class JavaParser:
         """Verifica se arquivo tem erros de parsing."""
         return filename in self._parse_errors
 
-    def get_stats(self) -> Dict[str, int]:
+    def get_stats(self) -> dict[str, int]:
         """Retorna estatísticas do parser."""
         return {
             "parsed_files": len(self._parsed_cache),

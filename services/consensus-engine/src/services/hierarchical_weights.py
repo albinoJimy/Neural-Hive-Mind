@@ -5,7 +5,7 @@ Combina feromônios, senioridade e domínio para calcular
 o peso final de cada especialista no processo de consenso.
 """
 
-from typing import Dict, List, Optional
+from typing import Optional
 
 import structlog
 
@@ -121,10 +121,10 @@ class HierarchicalWeightCalculator:
 
     def calculate_batch_weights(
         self,
-        specialist_opinions: List[Dict[str, any]],
+        specialist_opinions: list[dict[str, any]],
         domain: UnifiedDomain,
-        base_pheromone_weights: Dict[str, float],
-    ) -> Dict[str, float]:
+        base_pheromone_weights: dict[str, float],
+    ) -> dict[str, float]:
         """
         Calcula pesos para múltiplos especialistas em lote.
 

@@ -2,7 +2,7 @@
 
 import inspect
 from enum import Enum
-from typing import Dict, Optional
+from typing import Optional
 
 import httpx
 import structlog
@@ -88,8 +88,8 @@ class LLMClient:
         logger.info("llm_client_stopped", provider=self.provider)
 
     async def generate_code(
-        self, prompt: str, constraints: Dict, temperature: float = 0.2, stream: bool = False
-    ) -> Optional[Dict]:
+        self, prompt: str, constraints: dict, temperature: float = 0.2, stream: bool = False
+    ) -> Optional[dict]:
         """Generate code using LLM.
 
         Args:
@@ -150,7 +150,7 @@ class LLMClient:
             logger.error("llm_generation_failed", error=str(e))
             return None
 
-    def _build_system_prompt(self, constraints: Dict) -> str:
+    def _build_system_prompt(self, constraints: dict) -> str:
         """Build system prompt with constraints."""
         language = constraints.get("language", "python")
         framework = constraints.get("framework", "")
@@ -173,7 +173,7 @@ Return ONLY valid code without markdown formatting or explanations unless reques
 
     async def _call_ollama(
         self, system_prompt: str, user_prompt: str, temperature: float
-    ) -> Optional[Dict]:
+    ) -> Optional[dict]:
         """Call Ollama local LLM."""
         try:
             payload = {
@@ -204,7 +204,7 @@ Return ONLY valid code without markdown formatting or explanations unless reques
     )
     async def _call_openai_sdk(
         self, system_prompt: str, user_prompt: str, temperature: float, stream: bool = False
-    ) -> Optional[Dict]:
+    ) -> Optional[dict]:
         """Call OpenAI API using official SDK with retry logic."""
         try:
             # Lazy import para evitar erro se SDK não instalado
@@ -275,7 +275,7 @@ Return ONLY valid code without markdown formatting or explanations unless reques
     )
     async def _call_anthropic_sdk(
         self, system_prompt: str, user_prompt: str, temperature: float, stream: bool = False
-    ) -> Optional[Dict]:
+    ) -> Optional[dict]:
         """Call Anthropic API using official SDK with retry logic."""
         try:
             # Lazy import
@@ -339,7 +339,7 @@ Return ONLY valid code without markdown formatting or explanations unless reques
             logger.error("anthropic_call_failed", error=str(e))
             return None
 
-    def _extract_code_from_response(self, response: Dict) -> str:
+    def _extract_code_from_response(self, response: dict) -> str:
         """Extract code from LLM response."""
         code = response.get("code", "")
 
@@ -355,7 +355,7 @@ Return ONLY valid code without markdown formatting or explanations unless reques
 
         return code.strip()
 
-    def _calculate_confidence(self, code: str, constraints: Dict) -> float:
+    def _calculate_confidence(self, code: str, constraints: dict) -> float:
         """Calculate confidence score based on validations."""
         if not code:
             return 0.0
@@ -390,7 +390,7 @@ Return ONLY valid code without markdown formatting or explanations unless reques
         # For Python: compile(code, '<string>', 'exec')
         return bool(code and len(code) > 10)
 
-    async def calculate_confidence(self, code: str, constraints: Dict) -> float:
+    async def calculate_confidence(self, code: str, constraints: dict) -> float:
         """
         Calcula confiança final do código gerado.
 

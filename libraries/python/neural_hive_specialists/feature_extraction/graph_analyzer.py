@@ -5,8 +5,9 @@ Extrai features estruturadas do DAG de tarefas: métricas de centralidade,
 caminhos críticos, paralelização potencial, complexidade ciclomática.
 """
 
+from typing import Any, Optional
+
 import networkx as nx
-from typing import Dict, List, Any, Optional
 import structlog
 
 logger = structlog.get_logger(__name__)
@@ -18,7 +19,7 @@ class GraphAnalyzer:
     def __init__(self):
         self.graph: Optional[nx.DiGraph] = None
 
-    def build_graph(self, tasks: List[Dict[str, Any]]) -> nx.DiGraph:
+    def build_graph(self, tasks: list[dict[str, Any]]) -> nx.DiGraph:
         """
         Constrói grafo direcionado de dependências.
 
@@ -51,7 +52,7 @@ class GraphAnalyzer:
         logger.debug("Graph built", nodes=G.number_of_nodes(), edges=G.number_of_edges())
         return G
 
-    def extract_graph_features(self) -> Dict[str, Any]:
+    def extract_graph_features(self) -> dict[str, Any]:
         """
         Extrai features estruturadas do grafo.
 
@@ -135,7 +136,7 @@ class GraphAnalyzer:
             logger.error("Failed to calculate max_parallelism", error=str(e))
             return 1
 
-    def identify_bottlenecks(self) -> List[str]:
+    def identify_bottlenecks(self) -> list[str]:
         """
         Identifica tarefas que são gargalos (alta centralidade de intermediação).
 

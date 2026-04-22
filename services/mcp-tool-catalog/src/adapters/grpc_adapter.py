@@ -7,7 +7,7 @@ Permite comunicação com serviços gRPC do Neural Hive-Mind.
 import asyncio
 import socket
 import time
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 from unittest.mock import Mock
 
 import grpc
@@ -57,8 +57,8 @@ class GRPCAdapter(BaseToolAdapter):
         tool_id: str,
         tool_name: str,
         command: str,
-        parameters: Dict[str, Any],
-        context: Dict[str, Any],
+        parameters: dict[str, Any],
+        context: dict[str, Any],
     ) -> ExecutionResult:
         """
         Executa uma ferramenta via gRPC.
@@ -236,7 +236,7 @@ class GRPCAdapter(BaseToolAdapter):
             self.logger.warning("health_check_failed", tool=tool_name, error=str(e))
             return False
 
-    async def _discover_service(self, service_name: str) -> Optional[Dict[str, Any]]:
+    async def _discover_service(self, service_name: str) -> Optional[dict[str, Any]]:
         """
         Descobre informações do serviço via Service Registry ou DNS.
 
@@ -340,7 +340,7 @@ class GRPCAdapter(BaseToolAdapter):
             channel = self._channel_cache.pop(service_key)
             await channel.close()
 
-    def _prepare_grpc_metadata(self, context: Dict[str, Any]) -> list:
+    def _prepare_grpc_metadata(self, context: dict[str, Any]) -> list:
         """
         Prepara metadata gRPC a partir do contexto.
 
@@ -371,7 +371,7 @@ class GRPCAdapter(BaseToolAdapter):
 
         return metadata
 
-    def _create_request(self, parameters: Dict[str, Any]) -> Any:
+    def _create_request(self, parameters: dict[str, Any]) -> Any:
         """
         Cria objeto request para chamada gRPC.
 
@@ -410,6 +410,6 @@ class GRPCAdapter(BaseToolAdapter):
         elif isinstance(error, asyncio.TimeoutError):
             return "gRPC call timeout"
         elif isinstance(error, Exception):
-            return f"gRPC error: {str(error)}"
+            return f"gRPC error: {error!s}"
         else:
             return "Unknown gRPC error"

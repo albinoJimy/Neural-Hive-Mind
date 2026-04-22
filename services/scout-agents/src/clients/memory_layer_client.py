@@ -1,7 +1,7 @@
 """HTTP client for Memory Layer API"""
 
 import asyncio
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 import httpx
 import structlog
@@ -116,7 +116,7 @@ class MemoryLayerClient:
 
     async def query_historical_signals(
         self, domain: Optional[UnifiedDomain] = None, limit: int = 100
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Query historical signals for pattern analysis
 
@@ -145,7 +145,7 @@ class MemoryLayerClient:
             logger.error("historical_signals_query_failed", error=str(e))
             return []
 
-    async def get_signal_by_id(self, signal_id: str) -> Optional[Dict[str, Any]]:
+    async def get_signal_by_id(self, signal_id: str) -> Optional[dict[str, Any]]:
         """
         Retrieve specific signal by ID
 

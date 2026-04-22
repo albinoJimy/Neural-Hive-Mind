@@ -9,7 +9,7 @@ import asyncio
 import json
 import time
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 import aiohttp
 import structlog
@@ -185,7 +185,7 @@ class MCPServerClient:
             )
         except Exception as e:
             raise MCPTransportError(
-                message=f"Failed to start MCP server subprocess: {str(e)}",
+                message=f"Failed to start MCP server subprocess: {e!s}",
                 data={"command": command, "error": type(e).__name__},
             )
 
@@ -249,7 +249,7 @@ class MCPServerClient:
             self._stdout_reader = None
             self._stderr_task = None
 
-    async def list_tools(self) -> List[MCPToolDescriptor]:
+    async def list_tools(self) -> list[MCPToolDescriptor]:
         """
         Lista ferramentas disponíveis no servidor MCP.
 
@@ -288,7 +288,7 @@ class MCPServerClient:
     async def call_tool(
         self,
         tool_name: str,
-        arguments: Dict[str, Any],
+        arguments: dict[str, Any],
     ) -> MCPToolCallResponse:
         """
         Executa ferramenta no servidor MCP.
@@ -404,7 +404,7 @@ class MCPServerClient:
 
         return response
 
-    async def list_prompts(self) -> List[MCPPrompt]:
+    async def list_prompts(self) -> list[MCPPrompt]:
         """
         Lista prompts reutilizáveis disponíveis.
 
@@ -442,8 +442,8 @@ class MCPServerClient:
     async def _send_request(
         self,
         method: str,
-        params: Dict[str, Any],
-    ) -> Dict[str, Any]:
+        params: dict[str, Any],
+    ) -> dict[str, Any]:
         """
         Envia requisição JSON-RPC 2.0 com retry e circuit breaker.
 
@@ -466,8 +466,8 @@ class MCPServerClient:
     async def _send_request_stdio(
         self,
         method: str,
-        params: Dict[str, Any],
-    ) -> Dict[str, Any]:
+        params: dict[str, Any],
+    ) -> dict[str, Any]:
         """
         Envia requisição JSON-RPC 2.0 via transporte stdio com retry e circuit breaker.
 
@@ -685,8 +685,8 @@ class MCPServerClient:
     async def _send_request_http(
         self,
         method: str,
-        params: Dict[str, Any],
-    ) -> Dict[str, Any]:
+        params: dict[str, Any],
+    ) -> dict[str, Any]:
         """
         Envia requisição JSON-RPC 2.0 via HTTP com retry e circuit breaker.
 

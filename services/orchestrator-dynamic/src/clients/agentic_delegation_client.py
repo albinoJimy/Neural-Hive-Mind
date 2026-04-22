@@ -9,10 +9,8 @@ Provê uma interface unificada para delegar tarefas a diferentes agentes:
 - Outros agentes conforme necessário
 """
 
-import asyncio
 import uuid
-from datetime import datetime, timezone
-from typing import Any
+from datetime import UTC, datetime
 
 import httpx
 import structlog
@@ -138,7 +136,7 @@ class AgenticDelegationClient:
 
             if response.status_code == 200:
                 task.status = TaskStatus.ASSIGNED
-                task.assigned_at = datetime.now(timezone.utc)
+                task.assigned_at = datetime.now(UTC)
             else:
                 task.status = TaskStatus.FAILED
                 task.error = f"HTTP {response.status_code}: {response.text}"
@@ -195,12 +193,12 @@ class AgenticDelegationClient:
                         # Atualizar status
                         task.status = TaskStatus(data.get("status", task.status.value))
                         if task.status == TaskStatus.COMPLETED:
-                            task.completed_at = datetime.now(timezone.utc)
+                            task.completed_at = datetime.now(UTC)
                             task.result = data.get("result")
                         elif task.status == TaskStatus.FAILED:
                             task.error = data.get("error")
-                            task.completed_at = datetime.now(timezone.utc)
-                        task.updated_at = datetime.now(timezone.utc)
+                            task.completed_at = datetime.now(UTC)
+                        task.updated_at = datetime.now(UTC)
 
                 except httpx.HTTPError as e:
                     self.logger.warning("task_status_check_failed", task_id=task_id, error=str(e))
@@ -236,7 +234,7 @@ class AgenticDelegationClient:
 
             if response.status_code == 200:
                 task.status = TaskStatus.CANCELLED
-                task.updated_at = datetime.now(timezone.utc)
+                task.updated_at = datetime.now(UTC)
                 return True
 
         except httpx.HTTPError as e:
@@ -260,9 +258,7 @@ class AgenticDelegationClient:
         # Calcular duração média das tarefas completadas
         completed_tasks = [t for t in self._tasks.values() if t.completed_at and t.started_at]
         if completed_tasks:
-            durations = [
-                (t.completed_at - t.started_at).total_seconds() for t in completed_tasks
-            ]
+            durations = [(t.completed_at - t.started_at).total_seconds() for t in completed_tasks]
             avg_duration = sum(durations) / len(durations)
         else:
             avg_duration = 0.0

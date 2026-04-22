@@ -4,9 +4,9 @@ Testes de integração para DAG Generation avançado
 Testa integração do DAGGenerator com PatternMatcher e TaskSplitter.
 """
 
-import pytest
 from unittest.mock import MagicMock, patch
 
+import pytest
 from src.services.dag_generator import DAGGenerator
 from src.services.pattern_matcher import PatternMatcher
 from src.services.task_splitter import TaskSplitter
@@ -15,7 +15,7 @@ from src.services.task_splitter import TaskSplitter
 class TestPatternBasedDecomposition:
     """Testes de decomposição baseada em padrões"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_settings(self):
         """Fixture de configurações mock"""
         settings = MagicMock()
@@ -28,7 +28,7 @@ class TestPatternBasedDecomposition:
         settings.pattern_min_confidence = 0.7
         return settings
 
-    @pytest.fixture
+    @pytest.fixture()
     def pattern_matcher_with_onboarding(self):
         """PatternMatcher com padrão de onboarding configurado"""
         # Criar PatternMatcher com patterns mock
@@ -82,7 +82,7 @@ class TestPatternBasedDecomposition:
             }
             return PatternMatcher()
 
-    @pytest.fixture
+    @pytest.fixture()
     def intermediate_repr_onboarding(self):
         """Representação intermediária para onboarding"""
         return {
@@ -177,7 +177,7 @@ class TestPatternBasedDecomposition:
 class TestTaskSplittingIntegration:
     """Testes de integração do TaskSplitter com DAGGenerator"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_settings(self):
         """Fixture de configurações mock"""
         settings = MagicMock()
@@ -188,12 +188,12 @@ class TestTaskSplittingIntegration:
         settings.task_splitting_description_length_threshold = 50
         return settings
 
-    @pytest.fixture
+    @pytest.fixture()
     def task_splitter(self, mock_settings):
         """TaskSplitter configurado para splitting agressivo"""
         return TaskSplitter(settings=mock_settings, pattern_matcher=None)
 
-    @pytest.fixture
+    @pytest.fixture()
     def intermediate_repr_complex(self):
         """Representação intermediária complexa"""
         return {
@@ -269,7 +269,7 @@ class TestTaskSplittingIntegration:
 class TestEntityBasedDependencies:
     """Testes de dependências baseadas em entidades"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def dag_generator(self):
         """DAGGenerator sem componentes avançados"""
         return DAGGenerator()
@@ -332,7 +332,7 @@ class TestEntityBasedDependencies:
 class TestParallelismDetection:
     """Testes de detecção de paralelismo"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def dag_generator(self):
         """DAGGenerator sem componentes avançados"""
         return DAGGenerator()
@@ -400,7 +400,7 @@ class TestParallelismDetection:
 class TestEndToEndAdvancedDecomposition:
     """Testes end-to-end de decomposição avançada"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_settings(self):
         """Settings para testes"""
         settings = MagicMock()
@@ -411,7 +411,7 @@ class TestEndToEndAdvancedDecomposition:
         settings.task_splitting_description_length_threshold = 100
         return settings
 
-    @pytest.fixture
+    @pytest.fixture()
     def pattern_matcher(self):
         """PatternMatcher com múltiplos padrões"""
         with patch.object(PatternMatcher, "_load_patterns") as mock_load:
@@ -590,7 +590,7 @@ class TestLegacyCompatibility:
 class TestEntityDependencyIntegration:
     """Testes de integração para análise de dependências de entidades"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_settings(self):
         """Settings para testes"""
         settings = MagicMock()

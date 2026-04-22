@@ -4,7 +4,8 @@ Validation exceptions for Neural Hive-Mind.
 Erros de validação de dados, schema e entrada de usuário.
 """
 
-from typing import Dict, Any, Optional, List
+from typing import Any, Optional
+
 from .base import NeuralHiveError, error_code
 
 
@@ -46,7 +47,7 @@ class ValidationError(NeuralHiveError):
         value: Optional[Any] = None,
         reason: Optional[str] = None,
         code: Optional[str] = None,
-        details: Optional[Dict[str, Any]] = None,
+        details: Optional[dict[str, Any]] = None,
     ):
         code = code or ValidationErrorCode.INVALID_INPUT
 
@@ -109,7 +110,7 @@ class SchemaValidationError(ValidationError):
     """Erro específico para validação de schema."""
 
     def __init__(
-        self, message: str, schema_name: str, errors: Optional[List[Dict[str, Any]]] = None
+        self, message: str, schema_name: str, errors: Optional[list[dict[str, Any]]] = None
     ):
         super().__init__(
             message=message,

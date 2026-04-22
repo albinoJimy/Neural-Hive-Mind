@@ -4,9 +4,10 @@ Testes unitarios para metricas do Approval Service
 Testa atualizacao de gauges e contadores.
 """
 
-import pytest
 import asyncio
-from unittest.mock import MagicMock, AsyncMock
+from unittest.mock import AsyncMock, MagicMock
+
+import pytest
 from src.observability.metrics import NeuralHiveMetrics
 
 
@@ -29,7 +30,7 @@ class TestNeuralHiveMetricsGauge:
 
         assert metrics._mongodb_client == mock_client
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_update_pending_gauge_queries_mongodb(self):
         """Teste que gauge update faz query no MongoDB"""
         mock_client = MagicMock()
@@ -57,7 +58,7 @@ class TestNeuralHiveMetricsGauge:
         assert call_args[0] == {"$match": {"status": "pending"}}
         assert call_args[1] == {"$group": {"_id": "$risk_band", "count": {"$sum": 1}}}
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_update_pending_gauge_handles_empty_results(self):
         """Teste que gauge update lida com resultados vazios"""
         mock_client = MagicMock()
@@ -77,7 +78,7 @@ class TestNeuralHiveMetricsGauge:
         # Aguarda task async completar
         await asyncio.sleep(0.1)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_update_pending_gauge_handles_exception(self):
         """Teste que gauge update lida com excecoes gracefully"""
         mock_client = MagicMock()

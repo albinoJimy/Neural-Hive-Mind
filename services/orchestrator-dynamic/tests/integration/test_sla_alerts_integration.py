@@ -10,7 +10,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from aiokafka import AIOKafkaConsumer
 from prometheus_client import REGISTRY
-
 from src.clients.pagerduty_client import PagerDutyClient
 from src.clients.slack_client import SlackClient
 from src.consumers.sla_alert_consumer import SLAAlertConsumer
@@ -29,7 +28,7 @@ def clear_prometheus_registry():
         REGISTRY.unregister(collector)
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_settings():
     """Configurações de teste para SLA alerts."""
     settings = MagicMock()
@@ -41,19 +40,19 @@ def mock_settings():
     return settings
 
 
-@pytest.fixture
+@pytest.fixture()
 def slack_client():
     """Cliente Slack mockado."""
     return AsyncMock(spec=SlackClient)
 
 
-@pytest.fixture
+@pytest.fixture()
 def pagerduty_client():
     """Cliente PagerDuty mockado."""
     return AsyncMock(spec=PagerDutyClient)
 
 
-@pytest.fixture
+@pytest.fixture()
 def sla_consumer(slack_client, pagerduty_client):
     """Consumer SLA com clientes mockados."""
     consumer = SLAAlertConsumer(
@@ -63,7 +62,7 @@ def sla_consumer(slack_client, pagerduty_client):
     return consumer
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 class TestSLAAlertConsumerIntegration:
     """Testes de integração do consumer de alertas SLA."""
 
@@ -317,7 +316,7 @@ class TestSLAAlertConsumerIntegration:
                 slack_client.send_message.assert_not_called()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 class TestSLAAlertsE2EFlow:
     """Testes E2E do fluxo de alertas SLA."""
 

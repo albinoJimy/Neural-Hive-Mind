@@ -1,10 +1,11 @@
 """Testes unitários para PostgresClient"""
 
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
-from datetime import datetime, timezone
-import sys
 import os
+import sys
+from datetime import UTC, datetime
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
@@ -12,7 +13,7 @@ from src.clients.postgres_client import PostgresClient
 from src.models.artifact import PipelineResult, PipelineStatus
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_engine():
     """Mock do SQLAlchemy engine"""
     engine = MagicMock()
@@ -21,7 +22,7 @@ def mock_engine():
     return engine
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_session():
     """Mock da sessão SQLAlchemy"""
     session = AsyncMock()
@@ -33,7 +34,7 @@ def mock_session():
     return session
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_pipeline_result():
     """PipelineResult de exemplo para testes"""
     return PipelineResult(
@@ -47,11 +48,11 @@ def sample_pipeline_result():
         pipeline_stages=[],
         total_duration_ms=5000,
         approval_required=False,
-        created_at=datetime.now(timezone.utc),
+        created_at=datetime.now(UTC),
     )
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_start_success(mock_engine, mock_session):
     """Testar inicialização bem-sucedida do cliente"""
     mock_session_maker = MagicMock()
@@ -79,7 +80,7 @@ async def test_start_success(mock_engine, mock_session):
         assert client.session_factory is not None
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_stop_disposes_engine(mock_engine, mock_session):
     """Testar fechamento da conexão"""
     mock_session_maker = MagicMock()
@@ -108,7 +109,7 @@ async def test_stop_disposes_engine(mock_engine, mock_session):
         assert client.session_factory is None
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_save_pipeline_success(mock_engine, mock_session, sample_pipeline_result):
     """Testar salvamento de pipeline"""
     mock_session_maker = MagicMock()
@@ -137,7 +138,7 @@ async def test_save_pipeline_success(mock_engine, mock_session, sample_pipeline_
         mock_session.commit.assert_awaited_once()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_get_pipeline_found(mock_engine, mock_session):
     """Testar busca de pipeline existente"""
     mock_session_maker = MagicMock()
@@ -160,7 +161,7 @@ async def test_get_pipeline_found(mock_engine, mock_session):
     mock_orm.error_message = None
     mock_orm.git_mr_url = None
     mock_orm.metadata = {}
-    mock_orm.created_at = datetime.now(timezone.utc)
+    mock_orm.created_at = datetime.now(UTC)
     mock_orm.completed_at = None
     mock_orm.schema_version = 1
     mock_orm.correlation_id = None
@@ -190,7 +191,7 @@ async def test_get_pipeline_found(mock_engine, mock_session):
         assert result.pipeline_id == "pipe-123"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_get_pipeline_not_found(mock_engine, mock_session):
     """Testar busca de pipeline não existente"""
     mock_session_maker = MagicMock()
@@ -219,7 +220,7 @@ async def test_get_pipeline_not_found(mock_engine, mock_session):
         assert result is None
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_list_pipelines_with_filters(mock_engine, mock_session):
     """Testar listagem de pipelines com filtros"""
     mock_session_maker = MagicMock()
@@ -254,7 +255,7 @@ async def test_list_pipelines_with_filters(mock_engine, mock_session):
         assert isinstance(results, list)
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_update_pipeline_status(mock_engine, mock_session):
     """Testar atualização de status de pipeline"""
     mock_session_maker = MagicMock()
@@ -288,7 +289,7 @@ async def test_update_pipeline_status(mock_engine, mock_session):
         assert updated is True
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_health_check_success(mock_engine, mock_session):
     """Testar health check bem-sucedido"""
     mock_session_maker = MagicMock()
@@ -316,7 +317,7 @@ async def test_health_check_success(mock_engine, mock_session):
         assert healthy is True
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_operations_raise_when_not_started():
     """Testar que operações falham quando cliente não iniciado"""
     client = PostgresClient("postgresql://user:pass@localhost/db")

@@ -8,7 +8,7 @@ import importlib
 import inspect
 import json
 import time
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 from .base_adapter import BaseToolAdapter, ExecutionResult
 
@@ -51,15 +51,15 @@ class LIBRARYAdapter(BaseToolAdapter):
         super().__init__()
         self.block_dangerous_modules = block_dangerous_modules
         self.cache_imports = cache_imports
-        self._import_cache: Dict[str, Any] = {}
+        self._import_cache: dict[str, Any] = {}
 
     async def execute(
         self,
         tool_id: str,
         tool_name: str,
         command: str,
-        parameters: Dict[str, Any],
-        context: Dict[str, Any],
+        parameters: dict[str, Any],
+        context: dict[str, Any],
     ) -> ExecutionResult:
         """
         Executa uma ferramenta via import dinâmico.
@@ -119,7 +119,7 @@ class LIBRARYAdapter(BaseToolAdapter):
             return ExecutionResult(
                 success=False,
                 output="",
-                error=f"Module not found: {str(e)}",
+                error=f"Module not found: {e!s}",
                 execution_time_ms=execution_time_ms,
                 metadata={
                     "error_type": "ImportError",
@@ -132,7 +132,7 @@ class LIBRARYAdapter(BaseToolAdapter):
             return ExecutionResult(
                 success=False,
                 output="",
-                error=f"Function not found: {str(e)}",
+                error=f"Function not found: {e!s}",
                 execution_time_ms=execution_time_ms,
                 metadata={
                     "error_type": "AttributeError",
@@ -152,7 +152,7 @@ class LIBRARYAdapter(BaseToolAdapter):
             return ExecutionResult(
                 success=False,
                 output="",
-                error=f"{type(e).__name__}: {str(e)}",
+                error=f"{type(e).__name__}: {e!s}",
                 execution_time_ms=execution_time_ms,
                 metadata={
                     "error_type": type(e).__name__,
@@ -246,7 +246,7 @@ class LIBRARYAdapter(BaseToolAdapter):
 
         return func
 
-    async def _execute_function(self, func, parameters: Dict[str, Any]) -> Any:
+    async def _execute_function(self, func, parameters: dict[str, Any]) -> Any:
         """
         Executa função síncrona ou assíncrona com parâmetros.
 

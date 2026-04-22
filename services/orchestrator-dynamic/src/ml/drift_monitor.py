@@ -8,21 +8,25 @@ com janela deslizante, e dispara alertas quando drift detectado.
 import asyncio
 import contextlib
 from collections import deque
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
-UTC = timezone.utc  # type: ignore, timedelta
-from enum import Enum
+UTC = UTC  # type: ignore, timedelta
 import sys
+from enum import Enum
 
 # Python 3.10 compatibility: StrEnum was added in Python 3.11
 if sys.version_info >= (3, 11):
     from enum import StrEnum as _StrEnum
 else:
+
     class _StrEnum(str, Enum):
         """Polyfill for StrEnum on Python 3.10"""
+
         @staticmethod
         def _generate_next_value_(name, start, count, last_values):
             return name
+
+
 from typing import Any
 
 import numpy as np

@@ -5,25 +5,23 @@ Este módulo testa a gestão de estado de remediações e métricas Prometheus.
 """
 
 import asyncio
-import pytest
 from unittest.mock import MagicMock
-from datetime import datetime, timezone
 
+import pytest
+from src.models.remediation_models import RemediationRequest
 from src.services.remediation_manager import (
     RemediationManager,
-    RemediationState,
     RemediationStatus,
 )
-from src.models.remediation_models import RemediationRequest
 
 
-@pytest.fixture
+@pytest.fixture()
 def remediation_manager():
     """Fixture do RemediationManager."""
     return RemediationManager(redis_client=None, default_timeout_seconds=300)
 
 
-@pytest.fixture
+@pytest.fixture()
 def remediation_request():
     """Fixture de uma request de remediação."""
     return RemediationRequest(
@@ -47,7 +45,7 @@ class TestRemediationManagerMetrics:
         assert hasattr(remediation_manager, "_remediations_total")
         assert hasattr(remediation_manager, "_remediation_duration_seconds")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_start_remediation_increments_pending_metric(
         self, remediation_manager, remediation_request
     ):
@@ -58,7 +56,7 @@ class TestRemediationManagerMetrics:
         assert state.total_actions == 5
         assert state.remediation_id is not None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_remediation_increments_started_metric(
         self, remediation_manager, remediation_request
     ):
@@ -82,7 +80,7 @@ class TestRemediationManagerMetrics:
 
         assert state.status == RemediationStatus.COMPLETED
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_remediation_success_increments_completed_metric(
         self, remediation_manager, remediation_request
     ):
@@ -105,7 +103,7 @@ class TestRemediationManagerMetrics:
 
         assert state.status == RemediationStatus.COMPLETED
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_remediation_success_increments_completed_metric(
         self, remediation_manager, remediation_request
     ):
@@ -137,7 +135,7 @@ class TestRemediationManagerMetrics:
 
         assert state.status == RemediationStatus.COMPLETED
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_remediation_timeout_increments_timeout_metric(
         self, remediation_manager, remediation_request
     ):
@@ -153,7 +151,7 @@ class TestRemediationManagerMetrics:
 
         assert state.status == RemediationStatus.TIMEOUT
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_remediation_timeout_increments_timeout_metric(
         self, remediation_manager, remediation_request
     ):
@@ -169,7 +167,7 @@ class TestRemediationManagerMetrics:
 
         assert state.status == RemediationStatus.TIMEOUT
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_remediation_failure_increments_failed_metric(
         self, remediation_manager, remediation_request
     ):
@@ -187,7 +185,7 @@ class TestRemediationManagerMetrics:
 class TestRemediationManager:
     """Testes para o RemediationManager."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_start_remediation_creates_state(self, remediation_manager, remediation_request):
         """Verifica que start_remediation cria estado inicial."""
         state = remediation_manager.start_remediation(remediation_request, total_actions=5)
@@ -198,7 +196,7 @@ class TestRemediationManager:
         assert state.incident_id == "incident-123"
         assert state.playbook_name == "deadlock_recovery"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_status(self, remediation_manager, remediation_request):
         """Verifica que get_status retorna estado correto."""
         state = remediation_manager.start_remediation(remediation_request)
@@ -215,7 +213,7 @@ class TestRemediationManager:
 
         assert retrieved is None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_update_status(self, remediation_manager, remediation_request):
         """Verifica que update_status atualiza atributos."""
         state = remediation_manager.start_remediation(remediation_request)
@@ -228,7 +226,7 @@ class TestRemediationManager:
         assert updated.progress == 0.5
         assert updated.actions_completed == 2
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_cancel_remediation(self, remediation_manager, remediation_request):
         """Verifica que cancel_remediation marca como cancelada."""
         state = remediation_manager.start_remediation(remediation_request)
@@ -239,7 +237,7 @@ class TestRemediationManager:
         assert cancelled.status == RemediationStatus.CANCELLED
         assert cancelled.completed_at is not None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_remediation_updates_progress(
         self, remediation_manager, remediation_request
     ):

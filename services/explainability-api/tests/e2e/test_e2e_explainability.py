@@ -6,22 +6,22 @@ incluindo integração com MongoDB e todos os componentes.
 """
 
 import sys
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Dict, Any
+from typing import Any
+from unittest.mock import AsyncMock
+
 import pytest
-from unittest.mock import AsyncMock, MagicMock
-from datetime import datetime, timezone
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
 from api.routes.v3.hierarchical import V3ExplanationService
 
-
 # ========== FIXTURES ==========
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_decision_votes() -> list:
     """Votos de decisão de exemplo para testes E2E."""
     return [
@@ -73,19 +73,19 @@ def sample_decision_votes() -> list:
     ]
 
 
-@pytest.fixture
-def sample_consensus_decision(sample_decision_votes) -> Dict[str, Any]:
+@pytest.fixture()
+def sample_consensus_decision(sample_decision_votes) -> dict[str, Any]:
     """Decisão de consenso de exemplo para testes E2E."""
     return {
         "decision_id": "e2e_test_decision_001",
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
         "final_decision": "approve",
         "final_confidence": 0.77,
         "specialist_votes": sample_decision_votes,
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_mongodb():
     """Mock client MongoDB para testes E2E."""
     client = AsyncMock()
@@ -110,7 +110,7 @@ def mock_mongodb():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def v3_service(mock_mongodb) -> V3ExplanationService:
     """Serviço v3 configurado para testes E2E."""
     return V3ExplanationService(mock_mongodb)
@@ -122,15 +122,13 @@ def v3_service(mock_mongodb) -> V3ExplanationService:
 class TestE2EFullExplanation:
     """Testes E2E do fluxo completo de explicação."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_full_explanation_flow(self, v3_service, sample_consensus_decision):
         """Testa fluxo completo de geração de explicação."""
         decision_id = sample_consensus_decision["decision_id"]
 
         result = await v3_service.get_full_explanation(
-            decision_id=decision_id,
-            include_counterfactuals=False,
-            include_temporal=False
+            decision_id=decision_id, include_counterfactuals=False, include_temporal=False
         )
 
         # Validar estrutura completa
@@ -151,15 +149,15 @@ class TestE2EFullExplanation:
         assert all("rank" in c for c in contributions)
         assert all("contribution_score" in c for c in contributions)
 
-    @pytest.mark.asyncio
-    async def test_full_explanation_with_counterfactuals(self, v3_service, sample_consensus_decision):
+    @pytest.mark.asyncio()
+    async def test_full_explanation_with_counterfactuals(
+        self, v3_service, sample_consensus_decision
+    ):
         """Testa explicação completa com análise contrafactual."""
         decision_id = sample_consensus_decision["decision_id"]
 
         result = await v3_service.get_full_explanation(
-            decision_id=decision_id,
-            include_counterfactuals=True,
-            include_temporal=False
+            decision_id=decision_id, include_counterfactuals=True, include_temporal=False
         )
 
         # Validar que contrafactuais estão incluídos
@@ -168,15 +166,13 @@ class TestE2EFullExplanation:
         assert "sensitivity_score" in result
         assert 0.0 <= result["sensitivity_score"] <= 1.0
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_full_explanation_with_temporal(self, v3_service, sample_consensus_decision):
         """Testa explicação completa com análise temporal."""
         decision_id = sample_consensus_decision["decision_id"]
 
         result = await v3_service.get_full_explanation(
-            decision_id=decision_id,
-            include_counterfactuals=False,
-            include_temporal=True
+            decision_id=decision_id, include_counterfactuals=False, include_temporal=True
         )
 
         # Análise temporal pode retornar vazio se não houver histórico
@@ -187,7 +183,7 @@ class TestE2EFullExplanation:
 class TestE2EHierarchicalBreakdown:
     """Testes E2E de breakdown hierárquico."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_hierarchical_breakdown_levels(self, v3_service, sample_consensus_decision):
         """Testa que breakdown contém níveis de senioridade corretos."""
         decision_id = sample_consensus_decision["decision_id"]
@@ -208,7 +204,7 @@ class TestE2EHierarchicalBreakdown:
             assert "weighted_contribution" in data
             assert "influence_direction" in data
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_dominant_level_identification(self, v3_service, sample_consensus_decision):
         """Testa identificação correta do nível dominante."""
         decision_id = sample_consensus_decision["decision_id"]
@@ -221,7 +217,7 @@ class TestE2EHierarchicalBreakdown:
         # Nível dominante deve ser um dos níveis presentes
         assert dominant in breakdown["by_level"]
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_consensus_strength_calculation(self, v3_service, sample_consensus_decision):
         """Testa cálculo da força de consenso."""
         decision_id = sample_consensus_decision["decision_id"]
@@ -238,7 +234,7 @@ class TestE2EHierarchicalBreakdown:
 class TestE2EIndividualContributions:
     """Testes E2E de contribuições individuais."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_contributions_ranking(self, v3_service, sample_consensus_decision):
         """Testa que contribuições estão ordenadas por rank."""
         decision_id = sample_consensus_decision["decision_id"]
@@ -255,7 +251,7 @@ class TestE2EIndividualContributions:
         assert min(ranks) == 1
         assert max(ranks) == len(contributions)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_contributions_fields(self, v3_service, sample_consensus_decision):
         """Testa que contribuições têm todos os campos esperados."""
         decision_id = sample_consensus_decision["decision_id"]
@@ -276,16 +272,14 @@ class TestE2EIndividualContributions:
 class TestE2EBatchExplanations:
     """Testes E2E de explicações em lote."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_batch_explanation_flow(self, v3_service):
         """Testa fluxo de explicações em lote."""
         # Criar decisões mockadas
         decision_ids = [f"batch_decision_{i}" for i in range(5)]
 
         result = await v3_service.get_batch_explanations(
-            decision_ids=decision_ids,
-            include_counterfactuals=False,
-            include_temporal=False
+            decision_ids=decision_ids, include_counterfactuals=False, include_temporal=False
         )
 
         # Validar estrutura de resposta
@@ -296,20 +290,18 @@ class TestE2EBatchExplanations:
         # Validar summary
         assert result["summary"]["total_requested"] == 5
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_batch_explanation_with_failures(self, v3_service):
         """Testa lote com algumas decisões falhando."""
         # Misturar decisões existentes e inexistentes
         decision_ids = [
             "e2e_test_decision_001",  # Existe
-            "nonexistent_1",           # Não existe
-            "nonexistent_2",           # Não existe
+            "nonexistent_1",  # Não existe
+            "nonexistent_2",  # Não existe
         ]
 
         result = await v3_service.get_batch_explanations(
-            decision_ids=decision_ids,
-            include_counterfactuals=False,
-            include_temporal=False
+            decision_ids=decision_ids, include_counterfactuals=False, include_temporal=False
         )
 
         # Validar que falhas foram registradas
@@ -320,21 +312,22 @@ class TestE2EBatchExplanations:
 class TestE2EErrorHandling:
     """Testes E2E de tratamento de erros."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_nonexistent_decision(self, v3_service):
         """Testa comportamento para decisão inexistente."""
         result = await v3_service.get_full_explanation(
             decision_id="definitely_nonexistent_decision",
             include_counterfactuals=False,
-            include_temporal=False
+            include_temporal=False,
         )
 
         # Deve retornar None para decisão não encontrada
         assert result is None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_empty_votes_handling(self, mock_mongodb):
         """Testa tratamento de votos vazios."""
+
         # Mock para retornar decisão com votos vazios
         async def mock_find_one(query):
             return {
@@ -346,9 +339,7 @@ class TestE2EErrorHandling:
 
         service = V3ExplanationService(mock_mongodb)
         result = await service.get_full_explanation(
-            decision_id="empty_votes_test",
-            include_counterfactuals=False,
-            include_temporal=False
+            decision_id="empty_votes_test", include_counterfactuals=False, include_temporal=False
         )
 
         # Deve lidar com votos vazios gracefulmente
@@ -359,7 +350,7 @@ class TestE2EErrorHandling:
 class TestE2EIntegration:
     """Testes E2E de integração entre componentes."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_hierarchical_explainer_integration(self, v3_service, sample_consensus_decision):
         """Testa integração com HierarchicalExplainer."""
         decision_id = sample_consensus_decision["decision_id"]
@@ -370,7 +361,7 @@ class TestE2EIntegration:
         assert "hierarchical_breakdown" in result
         assert "by_level" in result["hierarchical_breakdown"]
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_counterfactual_analyzer_integration(self, v3_service, sample_consensus_decision):
         """Testa integração com CounterfactualAnalyzer."""
         decision_id = sample_consensus_decision["decision_id"]
@@ -381,7 +372,7 @@ class TestE2EIntegration:
         assert "counterfactuals" in result
         assert isinstance(result["counterfactuals"], list)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_temporal_tracker_integration(self, v3_service, sample_consensus_decision):
         """Testa integração com TemporalTracker."""
         decision_id = sample_consensus_decision["decision_id"]
@@ -396,7 +387,7 @@ class TestE2EIntegration:
 class TestE2EPerformance:
     """Testes E2E de performance."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_explanation_latency(self, v3_service, sample_consensus_decision):
         """Testa latência de geração de explicação (< 500ms)."""
         import time
@@ -405,16 +396,14 @@ class TestE2EPerformance:
 
         start = time.time()
         result = await v3_service.get_full_explanation(
-            decision_id=decision_id,
-            include_counterfactuals=True,
-            include_temporal=True
+            decision_id=decision_id, include_counterfactuals=True, include_temporal=True
         )
         latency_ms = (time.time() - start) * 1000
 
         assert result is not None
         assert latency_ms < 500, f"Explanation took {latency_ms}ms, expected < 500ms"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_batch_performance(self, v3_service):
         """Testa performance de explicações em lote."""
         import time
@@ -423,9 +412,7 @@ class TestE2EPerformance:
 
         start = time.time()
         result = await v3_service.get_batch_explanations(
-            decision_ids=decision_ids,
-            include_counterfactuals=False,
-            include_temporal=False
+            decision_ids=decision_ids, include_counterfactuals=False, include_temporal=False
         )
         total_time = time.time() - start
 

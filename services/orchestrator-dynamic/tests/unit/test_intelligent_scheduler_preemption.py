@@ -2,14 +2,14 @@
 Unit tests for IntelligentScheduler preemption functionality.
 """
 
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
 from datetime import datetime, timedelta
+from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
 from src.scheduler.intelligent_scheduler import IntelligentScheduler, Priority
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_config():
     """Create mock configuration for tests."""
     config = MagicMock()
@@ -49,7 +49,7 @@ def mock_config():
     return config
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_metrics():
     """Create mock metrics."""
     metrics = MagicMock()
@@ -60,7 +60,7 @@ def mock_metrics():
     return metrics
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_priority_calculator():
     """Create mock priority calculator."""
     calculator = MagicMock()
@@ -68,7 +68,7 @@ def mock_priority_calculator():
     return calculator
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_resource_allocator():
     """Create mock resource allocator."""
     allocator = MagicMock()
@@ -77,7 +77,7 @@ def mock_resource_allocator():
     return allocator
 
 
-@pytest.fixture
+@pytest.fixture()
 def scheduler(mock_config, mock_metrics, mock_priority_calculator, mock_resource_allocator):
     """Create IntelligentScheduler instance."""
     scheduler = IntelligentScheduler(
@@ -121,7 +121,7 @@ class TestCanPreempt:
 class TestPreemptLowPriorityTasks:
     """Tests for preempt_low_priority_tasks method."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_preemption_disabled_returns_empty(self, scheduler, mock_config):
         """Returns empty list when preemption is disabled."""
         mock_config.scheduler_enable_preemption = False
@@ -131,7 +131,7 @@ class TestPreemptLowPriorityTasks:
 
         assert result == []
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_max_concurrent_preemptions_exceeded(self, scheduler, mock_metrics):
         """Returns empty when max concurrent preemptions reached."""
         scheduler._active_preemptions = {"a", "b", "c", "d", "e"}  # 5 active
@@ -144,7 +144,7 @@ class TestPreemptLowPriorityTasks:
             success=False, reason="max_concurrent"
         )
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_no_preemptable_tasks_found(self, scheduler, mock_metrics):
         """Returns empty when no preemptable tasks found."""
         scheduler._discover_workers_cached = AsyncMock(return_value=[])
@@ -158,7 +158,7 @@ class TestPreemptLowPriorityTasks:
 
         assert result == []
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_successful_preemption(self, scheduler, mock_metrics):
         """Successfully preempts a low priority task."""
         # Mock worker with running task
@@ -196,7 +196,7 @@ class TestPreemptLowPriorityTasks:
         assert "worker-1" in result
         assert "worker-1" in scheduler._preemption_cooldowns
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_worker_in_cooldown_skipped(self, scheduler):
         """Workers in cooldown are skipped."""
         # Set worker in cooldown
@@ -226,7 +226,7 @@ class TestPreemptLowPriorityTasks:
 class TestFindPreemptableTasks:
     """Tests for _find_preemptable_tasks method."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_sorts_by_priority_and_progress(self, scheduler):
         """Preemptable tasks sorted by priority then progress."""
         workers = [
@@ -255,7 +255,7 @@ class TestFindPreemptableTasks:
         assert result[0]["ticket_id"] == "t2"
         assert result[1]["ticket_id"] == "t1"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_respects_limit(self, scheduler):
         """Respects the limit parameter."""
         workers = [
@@ -282,7 +282,7 @@ class TestFindPreemptableTasks:
 class TestPreemptTask:
     """Tests for _preempt_task method."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_preempt_task_success(self, scheduler, mock_metrics):
         """Successfully preempts a task."""
         task = {"ticket_id": "low-task", "worker_endpoint": "http://worker:8080", "priority": "LOW"}
@@ -300,7 +300,7 @@ class TestPreemptTask:
         assert result is True
         mock_metrics.record_task_preempted.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_preempt_task_worker_rejected(self, scheduler, mock_metrics):
         """Handles worker rejection."""
         task = {"ticket_id": "low-task", "worker_endpoint": "http://worker:8080", "priority": "LOW"}
@@ -319,7 +319,7 @@ class TestPreemptTask:
         assert result is False
         mock_metrics.record_preemption_failure.assert_called_with(reason="worker_rejected")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_preempt_task_timeout(self, scheduler, mock_metrics):
         """Handles timeout during preemption."""
         import httpx
@@ -337,7 +337,7 @@ class TestPreemptTask:
         assert result is False
         mock_metrics.record_preemption_failure.assert_called_with(reason="timeout")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_preempt_task_no_endpoint(self, scheduler):
         """Returns False when no endpoint provided."""
         task = {"ticket_id": "low-task", "priority": "LOW"}

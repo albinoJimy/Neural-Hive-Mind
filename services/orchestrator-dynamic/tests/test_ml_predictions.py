@@ -5,28 +5,27 @@ Testa DurationPredictor, AnomalyDetector, ModelRegistry, MLPredictor,
 FeatureEngineering e TrainingPipeline com mocks de dependências externas.
 """
 
-import pytest
-from unittest.mock import Mock, AsyncMock, patch
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+from unittest.mock import AsyncMock, Mock, patch
+
 import numpy as np
 import pandas as pd
-
+import pytest
 from src.ml import (
-    DurationPredictor,
     AnomalyDetector,
+    DurationPredictor,
     MLPredictor,
     TrainingPipeline,
-    extract_ticket_features,
-    encode_risk_band,
     encode_qos,
+    encode_risk_band,
+    extract_ticket_features,
     normalize_features,
 )
-
 
 # Fixtures
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_config():
     """Mock de configuração."""
     config = Mock()
@@ -43,7 +42,7 @@ def mock_config():
     return config
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_mongodb():
     """Mock de MongoDB client."""
     client = AsyncMock()
@@ -51,7 +50,7 @@ def mock_mongodb():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_model_registry():
     """Mock de ModelRegistry."""
     registry = AsyncMock()
@@ -63,7 +62,7 @@ def mock_model_registry():
     return registry
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_metrics():
     """Mock de métricas."""
     metrics = Mock()
@@ -74,7 +73,7 @@ def mock_metrics():
     return metrics
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_ticket():
     """Ticket de exemplo para testes."""
     return {
@@ -92,7 +91,7 @@ def sample_ticket():
         "estimated_duration_ms": 60000,
         "actual_duration_ms": 75000,
         "retry_count": 0,
-        "created_at": datetime.now(timezone.utc).isoformat(),
+        "created_at": datetime.now(UTC).isoformat(),
         "status": "COMPLETED",
     }
 
@@ -168,7 +167,7 @@ class TestFeatureEngineering:
 # Tests - DurationPredictor
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 class TestDurationPredictor:
     """Testes para DurationPredictor."""
 
@@ -221,7 +220,7 @@ class TestDurationPredictor:
 # Tests - AnomalyDetector
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 class TestAnomalyDetector:
     """Testes para AnomalyDetector."""
 
@@ -279,7 +278,7 @@ class TestAnomalyDetector:
             "sla": {},
             "parameters": {},
             "estimated_duration_ms": 10000,
-            "created_at": datetime.now(timezone.utc).isoformat(),
+            "created_at": datetime.now(UTC).isoformat(),
         }
 
         # Mock modelo retornando anomalia
@@ -300,7 +299,7 @@ class TestAnomalyDetector:
 # Tests - MLPredictor
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 class TestMLPredictor:
     """Testes para MLPredictor facade."""
 
@@ -361,7 +360,7 @@ class TestMLPredictor:
 # Tests - TrainingPipeline
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 class TestTrainingPipeline:
     """Testes para TrainingPipeline."""
 
@@ -425,7 +424,7 @@ class TestTrainingPipeline:
 # Tests integrados
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 class TestMLIntegration:
     """Testes de integração entre componentes ML."""
 

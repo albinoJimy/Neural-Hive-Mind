@@ -2,14 +2,15 @@
 Testes de contrato gRPC para validar request/response structures.
 """
 
-import pytest
-import grpc
 import uuid
+
+import grpc
+import pytest
 
 from neural_hive_specialists.proto_gen import specialist_pb2
 
 
-@pytest.mark.contract
+@pytest.mark.contract()
 def test_evaluate_plan_request_response_contract(grpc_stub, sample_cognitive_plan):
     """Valida contrato de EvaluatePlan: estrutura request/response."""
     import json
@@ -54,7 +55,7 @@ def test_evaluate_plan_request_response_contract(grpc_stub, sample_cognitive_pla
     assert response.evaluated_at.seconds > 0
 
 
-@pytest.mark.contract
+@pytest.mark.contract()
 def test_evaluate_plan_metadata_propagation(grpc_stub, sample_cognitive_plan):
     """Valida propagação de metadados (trace_id, span_id, correlation_id)."""
     import json
@@ -89,7 +90,7 @@ def test_evaluate_plan_metadata_propagation(grpc_stub, sample_cognitive_plan):
     assert response.opinion_id
 
 
-@pytest.mark.contract
+@pytest.mark.contract()
 def test_health_check_contract(grpc_stub):
     """Valida contrato de HealthCheck."""
     request = specialist_pb2.HealthCheckRequest()
@@ -105,7 +106,7 @@ def test_health_check_contract(grpc_stub):
     ]
 
 
-@pytest.mark.contract
+@pytest.mark.contract()
 def test_get_capabilities_contract(grpc_stub):
     """Valida contrato de GetCapabilities."""
     request = specialist_pb2.GetCapabilitiesRequest()
@@ -126,7 +127,7 @@ def test_get_capabilities_contract(grpc_stub):
         assert response.metrics.total_evaluations >= 0
 
 
-@pytest.mark.contract
+@pytest.mark.contract()
 def test_evaluate_plan_invalid_plan_id_error_mapping(grpc_stub):
     """Valida mapeamento de erro para plan_id inválido."""
     # Criar request com plan_id vazio (inválido)
@@ -163,7 +164,7 @@ def test_evaluate_plan_invalid_plan_id_error_mapping(grpc_stub):
         ]
 
 
-@pytest.mark.contract
+@pytest.mark.contract()
 def test_evaluate_plan_reasoning_factors_structure(grpc_stub, sample_cognitive_plan):
     """Valida estrutura de reasoning_factors em response."""
     import json
@@ -192,7 +193,7 @@ def test_evaluate_plan_reasoning_factors_structure(grpc_stub, sample_cognitive_p
         assert factor.score <= 1.0
 
 
-@pytest.mark.contract
+@pytest.mark.contract()
 def test_evaluate_plan_mitigations_structure(grpc_stub, sample_cognitive_plan):
     """Valida estrutura de mitigations em response."""
     import json

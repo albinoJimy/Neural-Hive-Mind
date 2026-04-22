@@ -7,7 +7,7 @@ históricas de consenso para treinamento do modelo SHAP.
 EPIC-204-01: Modelo ML para SHAP
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 import structlog
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -65,7 +65,7 @@ class MongoDBClient:
             collection=self.consensus_collection_name,
         )
 
-    async def get_recent_decisions(self, limit: int = 1000, skip: int = 0) -> List[Dict[str, Any]]:
+    async def get_recent_decisions(self, limit: int = 1000, skip: int = 0) -> list[dict[str, Any]]:
         """
         Coleta decisões recentes do MongoDB.
 
@@ -92,7 +92,7 @@ class MongoDBClient:
 
         return decisions
 
-    async def get_decision_by_id(self, decision_id: str) -> Optional[Dict[str, Any]]:
+    async def get_decision_by_id(self, decision_id: str) -> Optional[dict[str, Any]]:
         """
         Busca decisão por ID.
 
@@ -115,7 +115,7 @@ class MongoDBClient:
 
     async def get_decisions_by_date_range(
         self, start_date, end_date, limit: int = 1000
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Busca decisões por intervalo de datas.
 
@@ -166,7 +166,7 @@ class MongoDBClient:
 
         return count
 
-    async def get_decision_stats(self) -> Dict[str, Any]:
+    async def get_decision_stats(self) -> dict[str, Any]:
         """
         Retorna estatísticas das decisões disponíveis.
 

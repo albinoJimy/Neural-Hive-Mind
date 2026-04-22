@@ -1,16 +1,17 @@
 """Testes unitários para SigstoreClient"""
 
-import pytest
-from unittest.mock import AsyncMock, patch
-import sys
 import os
+import sys
+from unittest.mock import AsyncMock, patch
+
+import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from src.clients.sigstore_client import SigstoreClient
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_subprocess_success():
     """Mock de subprocess com sucesso"""
 
@@ -23,7 +24,7 @@ def mock_subprocess_success():
     return mock_create_subprocess
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_subprocess_failure():
     """Mock de subprocess com falha"""
 
@@ -36,7 +37,7 @@ def mock_subprocess_failure():
     return mock_create_subprocess
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_start_with_tools_available():
     """Testar inicialização com ferramentas disponíveis"""
     with patch("shutil.which") as mock_which:
@@ -54,7 +55,7 @@ async def test_start_with_tools_available():
         assert client._tools_available["rekor-cli"] is True
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_start_without_tools():
     """Testar inicialização sem ferramentas instaladas"""
     with patch("shutil.which", return_value=None):
@@ -70,7 +71,7 @@ async def test_start_without_tools():
         assert client._tools_available["rekor-cli"] is False
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_sign_artifact_disabled():
     """Testar assinatura com cliente desabilitado"""
     client = SigstoreClient(
@@ -84,7 +85,7 @@ async def test_sign_artifact_disabled():
     assert signature == ""
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_sign_artifact_no_cosign():
     """Testar assinatura sem cosign instalado"""
     with patch("shutil.which", return_value=None):
@@ -100,7 +101,7 @@ async def test_sign_artifact_no_cosign():
         assert signature == "MOCK_SIGNATURE_COSIGN_NOT_INSTALLED"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_sign_artifact_success(mock_subprocess_success):
     """Testar assinatura bem-sucedida"""
     with (
@@ -121,7 +122,7 @@ async def test_sign_artifact_success(mock_subprocess_success):
         assert "MEUCIQDxyz123signature" in signature
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_sign_artifact_failure(mock_subprocess_failure):
     """Testar falha na assinatura"""
     with (
@@ -141,7 +142,7 @@ async def test_sign_artifact_failure(mock_subprocess_failure):
             await client.sign_artifact("/tmp/artifact.tar")
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_verify_signature_disabled():
     """Testar verificação com cliente desabilitado"""
     client = SigstoreClient(
@@ -155,7 +156,7 @@ async def test_verify_signature_disabled():
     assert valid is True
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_verify_signature_mock():
     """Testar verificação com assinatura mock"""
     with patch("shutil.which", return_value=None):
@@ -173,7 +174,7 @@ async def test_verify_signature_mock():
         assert valid is True
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_generate_sbom_disabled():
     """Testar geração de SBOM com cliente desabilitado"""
     client = SigstoreClient(
@@ -187,7 +188,7 @@ async def test_generate_sbom_disabled():
     assert sbom_uri == ""
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_generate_sbom_no_syft():
     """Testar geração de SBOM sem syft instalado"""
     with patch("shutil.which", return_value=None):
@@ -203,7 +204,7 @@ async def test_generate_sbom_no_syft():
         assert sbom_uri == "MOCK_SBOM_URI_SYFT_NOT_INSTALLED"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_generate_sbom_success():
     """Testar geração de SBOM bem-sucedida"""
 
@@ -231,7 +232,7 @@ async def test_generate_sbom_success():
         assert "file://" in sbom_uri
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_upload_to_rekor_disabled():
     """Testar upload para Rekor com cliente desabilitado"""
     client = SigstoreClient(
@@ -245,7 +246,7 @@ async def test_upload_to_rekor_disabled():
     assert uuid is None
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_upload_to_rekor_no_cli():
     """Testar upload para Rekor sem CLI"""
     with patch("shutil.which", return_value=None):
@@ -261,7 +262,7 @@ async def test_upload_to_rekor_no_cli():
         assert uuid is None
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_upload_to_rekor_mock_signature():
     """Testar upload para Rekor com assinatura mock"""
     with patch("shutil.which", return_value=None):
@@ -277,7 +278,7 @@ async def test_upload_to_rekor_mock_signature():
         assert uuid == "MOCK_REKOR_UUID"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_health_check_disabled():
     """Testar health check com cliente desabilitado"""
     client = SigstoreClient(
@@ -291,7 +292,7 @@ async def test_health_check_disabled():
     assert healthy is True
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_health_check_with_cosign():
     """Testar health check com cosign disponível"""
 
@@ -359,7 +360,7 @@ def test_is_available_enabled_without_tools():
 # Testes de integração com S3
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_generate_sbom_with_s3_upload():
     """Testar geração de SBOM com upload para S3"""
     mock_s3_client = AsyncMock()
@@ -396,7 +397,7 @@ async def test_generate_sbom_with_s3_upload():
         mock_s3_client.upload_sbom.assert_called_once()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_generate_sbom_s3_upload_failure_fallback():
     """Testar fallback para file:// quando upload S3 falha"""
     mock_s3_client = AsyncMock()
@@ -429,7 +430,7 @@ async def test_generate_sbom_s3_upload_failure_fallback():
         assert sbom_uri.startswith("file://")
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_generate_sbom_without_s3_client():
     """Testar geração de SBOM sem cliente S3"""
 
@@ -460,7 +461,7 @@ async def test_generate_sbom_without_s3_client():
         assert sbom_uri.startswith("file://")
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_generate_sbom_without_ids():
     """Testar geração de SBOM sem IDs (não faz upload S3)"""
     mock_s3_client = AsyncMock()

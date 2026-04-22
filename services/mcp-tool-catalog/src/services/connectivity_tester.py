@@ -6,9 +6,9 @@ Verifica se ferramentas estão acessíveis e funcionais.
 
 import asyncio
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 import structlog
 from pydantic import BaseModel, Field
@@ -48,8 +48,8 @@ class ConnectivityResult:
     response_time_ms: Optional[int] = None
     status_code: Optional[int] = None
     error_message: Optional[str] = None
-    details: Dict[str, Any] = field(default_factory=dict)
-    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    details: dict[str, Any] = field(default_factory=dict)
+    timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 
 class ConnectivityReport(BaseModel):
@@ -61,12 +61,12 @@ class ConnectivityReport(BaseModel):
     tests_performed: int = Field(..., description="Número de testes realizados")
     tests_passed: int = Field(..., description="Número de testes passados")
     tests_failed: int = Field(..., description="Número de testes falhados")
-    results: List[Dict[str, Any]] = Field(default_factory=list, description="Resultados detalhados")
+    results: list[dict[str, Any]] = Field(default_factory=list, description="Resultados detalhados")
     average_response_time_ms: Optional[float] = Field(
         default=None, description="Tempo médio de resposta"
     )
-    recommendations: List[str] = Field(default_factory=list, description="Recomendações")
-    last_check: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    recommendations: list[str] = Field(default_factory=list, description="Recomendações")
+    last_check: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
 class ConnectivityTester:
@@ -99,7 +99,7 @@ class ConnectivityTester:
         tool_name: str,
         endpoint_url: Optional[str] = None,
         integration_type: Optional[str] = None,
-        additional_endpoints: Optional[List[str]] = None,
+        additional_endpoints: Optional[list[str]] = None,
     ) -> ConnectivityReport:
         """
         Testa conectividade completa de uma ferramenta.
@@ -114,8 +114,8 @@ class ConnectivityTester:
         Returns:
             Relatório de conectividade
         """
-        results: List[ConnectivityResult] = []
-        recommendations: List[str] = []
+        results: list[ConnectivityResult] = []
+        recommendations: list[str] = []
 
         # Sempre testar endpoint principal se fornecido
         if endpoint_url:
@@ -373,7 +373,7 @@ class ConnectivityTester:
                 test_type=TestType.KAFKA, target=url, is_reachable=False, error_message=str(e)
             )
 
-    async def test_batch(self, tools: List[Dict[str, Any]]) -> List[ConnectivityReport]:
+    async def test_batch(self, tools: list[dict[str, Any]]) -> list[ConnectivityReport]:
         """
         Testa conectividade de múltiplas ferramentas em paralelo.
 
@@ -385,7 +385,7 @@ class ConnectivityTester:
         """
         semaphore = asyncio.Semaphore(self.max_concurrent_tests)
 
-        async def test_with_semaphore(tool: Dict[str, Any]) -> ConnectivityReport:
+        async def test_with_semaphore(tool: dict[str, Any]) -> ConnectivityReport:
             async with semaphore:
                 return await self.test_tool_connectivity(
                     tool_id=tool.get("tool_id", ""),
@@ -398,7 +398,7 @@ class ConnectivityTester:
         tasks = [test_with_semaphore(tool) for tool in tools]
         return await asyncio.gather(*tasks)
 
-    def _result_to_dict(self, result: ConnectivityResult) -> Dict[str, Any]:
+    def _result_to_dict(self, result: ConnectivityResult) -> dict[str, Any]:
         """Converte ConnectivityResult para dicionário."""
         return {
             "test_type": result.test_type.value,
@@ -416,7 +416,7 @@ class ConnectivityTester:
         redis_url: Optional[str] = None,
         mongodb_url: Optional[str] = None,
         kafka_url: Optional[str] = None,
-    ) -> Dict[str, ConnectivityResult]:
+    ) -> dict[str, ConnectivityResult]:
         """
         Testa conectividade de infraestrutura.
 
@@ -444,7 +444,7 @@ class ConnectivityTester:
 
 async def check_tool_health(
     tool_id: str, tool_name: str, endpoint_url: Optional[str] = None
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Função auxiliar para verificar saúde de ferramenta.
 

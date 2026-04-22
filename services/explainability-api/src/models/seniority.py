@@ -5,7 +5,6 @@ Valores sincronizados com consensus-engine/src/models/seniority.py
 """
 
 from enum import Enum
-from typing import Dict
 
 
 class SeniorityLevel(str, Enum):
@@ -19,7 +18,7 @@ class SeniorityLevel(str, Enum):
 
 
 # Multiplicadores de peso por nível (sincronizado com consensus-engine)
-SENIORITY_MULTIPLIERS: Dict[str, float] = {
+SENIORITY_MULTIPLIERS: dict[str, float] = {
     SeniorityLevel.TRAINEE: 0.5,
     SeniorityLevel.JUNIOR: 0.75,
     SeniorityLevel.MID_LEVEL: 1.0,

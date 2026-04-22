@@ -2,10 +2,11 @@
 Fixtures compartilhadas para todos os testes da biblioteca neural_hive_specialists.
 """
 
-import pytest
-from unittest.mock import Mock, patch
-from typing import Dict, Any
 import uuid
+from typing import Any
+from unittest.mock import Mock, patch
+
+import pytest
 
 # ============================================================================
 # Mock MongoDB ANTES de qualquer importação
@@ -113,13 +114,12 @@ os.environ["LEDGER_REQUIRED"] = "false"
 
 from neural_hive_specialists.config import SpecialistConfig
 
-
 # ============================================================================
 # Fixtures de Configuração
 # ============================================================================
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_config():
     """Retorna SpecialistConfig com valores de teste."""
     return SpecialistConfig(
@@ -163,7 +163,7 @@ def mock_config():
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_config_no_circuit_breaker(mock_config):
     """Retorna SpecialistConfig com circuit breakers desabilitados."""
     config = mock_config.copy()
@@ -176,7 +176,7 @@ def mock_config_no_circuit_breaker(mock_config):
 # ============================================================================
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_mlflow_client(mocker, mock_config):
     """MLflowClient mockado com métodos stub."""
     client = mocker.MagicMock()
@@ -191,7 +191,7 @@ def mock_mlflow_client(mocker, mock_config):
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_ledger_client(mocker, mock_config):
     """LedgerClient mockado."""
     client = mocker.MagicMock()
@@ -209,7 +209,7 @@ def mock_ledger_client(mocker, mock_config):
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_explainability_gen(mocker, mock_config):
     """ExplainabilityGenerator mockado."""
     gen = mocker.MagicMock()
@@ -229,7 +229,7 @@ def mock_explainability_gen(mocker, mock_config):
     return gen
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_metrics(mocker):
     """SpecialistMetrics mockado."""
     metrics = mocker.MagicMock()
@@ -246,8 +246,8 @@ def mock_metrics(mocker):
 # ============================================================================
 
 
-@pytest.fixture
-def sample_cognitive_plan() -> Dict[str, Any]:
+@pytest.fixture()
+def sample_cognitive_plan() -> dict[str, Any]:
     """Retorna plano cognitivo válido."""
     return {
         "plan_id": f"plan-{uuid.uuid4()}",
@@ -298,8 +298,8 @@ def sample_cognitive_plan() -> Dict[str, Any]:
     }
 
 
-@pytest.fixture
-def sample_cognitive_plan_invalid() -> Dict[str, Any]:
+@pytest.fixture()
+def sample_cognitive_plan_invalid() -> dict[str, Any]:
     """Retorna plano cognitivo com erros de validação."""
     return {
         "plan_id": "",  # Inválido: vazio
@@ -311,8 +311,8 @@ def sample_cognitive_plan_invalid() -> Dict[str, Any]:
     }
 
 
-@pytest.fixture
-def sample_evaluation_result() -> Dict[str, Any]:
+@pytest.fixture()
+def sample_evaluation_result() -> dict[str, Any]:
     """Retorna resultado de avaliação válido."""
     return {
         "recommendation": "approve",
@@ -345,8 +345,8 @@ def sample_evaluation_result() -> Dict[str, Any]:
     }
 
 
-@pytest.fixture
-def sample_opinion() -> Dict[str, Any]:
+@pytest.fixture()
+def sample_opinion() -> dict[str, Any]:
     """Retorna parecer estruturado completo."""
     return {
         "opinion_id": f"opinion-{uuid.uuid4()}",
@@ -386,7 +386,7 @@ def sample_opinion() -> Dict[str, Any]:
 # ============================================================================
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_specialist(mocker, mock_config):
     """Retorna especialista mockado para testes gRPC."""
     specialist = mocker.MagicMock()
@@ -436,7 +436,7 @@ def mock_specialist(mocker, mock_config):
     return specialist
 
 
-@pytest.fixture
+@pytest.fixture()
 def grpc_server(mock_specialist, mock_config):
     """Servidor gRPC de teste."""
     from neural_hive_specialists.grpc_server import (
@@ -452,7 +452,7 @@ def grpc_server(mock_specialist, mock_config):
     server.stop(grace=0)
 
 
-@pytest.fixture
+@pytest.fixture()
 def grpc_channel(grpc_server):
     """Canal gRPC de teste."""
     import grpc
@@ -462,7 +462,7 @@ def grpc_channel(grpc_server):
     channel.close()
 
 
-@pytest.fixture
+@pytest.fixture()
 def grpc_stub(grpc_channel):
     """Stub do cliente gRPC."""
     from neural_hive_specialists.proto_gen import specialist_pb2_grpc
@@ -489,13 +489,13 @@ def redis_container():
     pytest.skip("testcontainers não utilizado - usar cluster do projeto")
 
 
-@pytest.fixture
+@pytest.fixture()
 def mongodb_uri(mongodb_container):
     """URI de conexão MongoDB."""
     return mongodb_container.get_connection_url()
 
 
-@pytest.fixture
+@pytest.fixture()
 def redis_uri(redis_container):
     """URI de conexão Redis."""
     host = redis_container.get_container_host_ip()
@@ -536,5 +536,5 @@ def cleanup_metrics():
 @pytest.fixture(autouse=True)
 def reset_circuit_breakers():
     """Reseta estado de circuit breakers entre testes."""
-    yield
+    return
     # Reset será implementado se necessário

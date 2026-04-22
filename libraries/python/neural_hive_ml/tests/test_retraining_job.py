@@ -1,12 +1,14 @@
 """Testes para RetrainingJob - Auto-Retraining Pipeline."""
 
-import pytest
 from datetime import datetime, timedelta
-from unittest.mock import patch, AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
+
 from neural_hive_ml.retraining_job import RetrainingJob
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_mlflow_client():
     """Mock MLflowClient."""
     client = MagicMock()
@@ -15,7 +17,7 @@ def mock_mlflow_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_model_repo():
     """Mock ModelVersionRepository."""
     # Criar mock de banco de dados
@@ -31,7 +33,7 @@ def mock_model_repo():
     return repo
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_kafka_producer():
     """Mock Kafka producer."""
     producer = AsyncMock()
@@ -39,7 +41,7 @@ def mock_kafka_producer():
     return producer
 
 
-@pytest.fixture
+@pytest.fixture()
 def retraining_job(mock_mlflow_client, mock_model_repo, mock_kafka_producer):
     """Fixture para RetrainingJob."""
     return RetrainingJob(

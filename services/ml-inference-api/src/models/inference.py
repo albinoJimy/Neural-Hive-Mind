@@ -2,7 +2,7 @@
 
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -36,8 +36,8 @@ class InferenceRequest(BaseModel):
     model_name: str = Field(..., description="Nome do modelo a usar")
     model_version: Optional[str] = Field("latest", description="Versão do modelo")
     model_type: ModelType = Field(..., description="Tipo de modelo")
-    features: Dict[str, Any] = Field(..., description="Features para predição")
-    context: Optional[Dict[str, Any]] = Field(None, description="Contexto adicional")
+    features: dict[str, Any] = Field(..., description="Features para predição")
+    context: Optional[dict[str, Any]] = Field(None, description="Contexto adicional")
     priority: int = Field(default=5, ge=1, le=10, description="Prioridade (1-10)")
     created_at: datetime = Field(default_factory=datetime.utcnow, description="Data de criação")
 
@@ -51,12 +51,14 @@ class InferenceResponse(BaseModel):
     model_name: str = Field(..., description="Modelo usado")
     model_version: str = Field(..., description="Versão do modelo usado")
     status: InferenceStatus = Field(..., description="Status da inferência")
-    prediction: Optional[Dict[str, Any]] = Field(None, description="Resultado da predição")
+    prediction: Optional[dict[str, Any]] = Field(None, description="Resultado da predição")
     confidence: Optional[float] = Field(None, ge=0.0, le=1.0, description="Confiança da predição")
     latency_ms: Optional[int] = Field(None, description="Latência em ms")
     error: Optional[str] = Field(None, description="Mensagem de erro se falhou")
     cached: bool = Field(default=False, description="Se veio do cache")
-    processed_at: datetime = Field(default_factory=datetime.utcnow, description="Data de processamento")
+    processed_at: datetime = Field(
+        default_factory=datetime.utcnow, description="Data de processamento"
+    )
 
 
 class ModelMetadata(BaseModel):
@@ -67,6 +69,6 @@ class ModelMetadata(BaseModel):
     name: str = Field(..., description="Nome do modelo")
     version: str = Field(..., description="Versão do modelo")
     model_type: ModelType = Field(..., description="Tipo de modelo")
-    feature_names: List[str] = Field(..., description="Nomes das features esperadas")
+    feature_names: list[str] = Field(..., description="Nomes das features esperadas")
     loaded_at: datetime = Field(default_factory=datetime.utcnow, description="Data de carregamento")
     memory_mb: Optional[float] = Field(None, description="Uso de memória em MB")

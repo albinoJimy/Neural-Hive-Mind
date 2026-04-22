@@ -1,14 +1,16 @@
 """Testes para ModelVersionRepository - Model Versions History."""
 
-import pytest
 from datetime import datetime, timedelta
-from unittest.mock import Mock, AsyncMock
+from unittest.mock import AsyncMock, Mock
+
+import pytest
+
 from neural_hive_ml.model_version_repository import ModelVersionRepository
 
 pytest_plugins = ("pytest_asyncio",)
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_db():
     """Mock MongoDB database."""
     db = Mock()
@@ -17,13 +19,13 @@ def mock_db():
     return db
 
 
-@pytest.fixture
+@pytest.fixture()
 def repository(mock_db):
     """Fixture para ModelVersionRepository."""
     return ModelVersionRepository(mock_db)
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_model_version():
     """Model version de exemplo."""
     return {
@@ -61,7 +63,7 @@ class TestModelVersionRepositoryInit:
 class TestCreate:
     """Testes de create."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_create_success(self, repository, mock_db, sample_model_version):
         """Testa criação com sucesso."""
         mock_db.model_versions.insert_one = AsyncMock(return_value=Mock(inserted_id="new-id"))

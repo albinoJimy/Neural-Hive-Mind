@@ -168,7 +168,7 @@ async def lifespan(app: FastAPI):
     if schema_path.exists():
         try:
             incident_schema = json.loads(schema_path.read_text())
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.warning(
                 "incident_consumer.schema_load_failed", error=str(exc), schema_path=str(schema_path)
             )

@@ -1,7 +1,7 @@
 """Kafka producer para Documentation events."""
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import structlog
 from aiokafka import AIOKafkaProducer
@@ -71,8 +71,8 @@ class DocumentationProducer:
 
         event = {
             "event_type": "documentation.generated",
-            "event_id": f"evt-{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S%f')}",
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "event_id": f"evt-{datetime.now(UTC).strftime('%Y%m%d%H%M%S%f')}",
+            "timestamp": datetime.now(UTC).isoformat(),
             "document_id": document_id,
             "doc_type": doc_type,
             "source_type": source_type,
@@ -118,8 +118,8 @@ class DocumentationProducer:
 
         event = {
             "event_type": "diagram.generated",
-            "event_id": f"evt-{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S%f')}",
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "event_id": f"evt-{datetime.now(UTC).strftime('%Y%m%d%H%M%S%f')}",
+            "timestamp": datetime.now(UTC).isoformat(),
             "diagram_id": diagram_id,
             "diagram_type": diagram_type,
             "source_id": source_id,

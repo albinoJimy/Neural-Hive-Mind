@@ -14,7 +14,7 @@ Test categories:
 
 import asyncio
 import os
-from typing import Any, Dict
+from typing import Any
 from unittest.mock import AsyncMock
 
 import pytest
@@ -28,14 +28,13 @@ from tests.helpers.integration_helpers import (
     ResultValidator,
 )
 
-
 pytestmark = [pytest.mark.integration]
 
 
 class TestFullPipelineFlow:
     """Tests for complete build-deploy-test-validate pipeline flows."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_full_build_deploy_test_validate_flow(
         self,
         worker_config,
@@ -150,7 +149,7 @@ class TestFullPipelineFlow:
         assert test_result["success"]
         assert validate_result["success"]
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_build_deploy_flow_with_rollback_on_test_failure(
         self,
         worker_config,
@@ -229,7 +228,7 @@ class TestFullPipelineFlow:
 class TestParallelExecutorExecution:
     """Tests for running multiple executors in parallel."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_parallel_validate_execution(
         self,
         worker_config,
@@ -279,7 +278,7 @@ class TestParallelExecutorExecution:
         successful = sum(1 for r in results if isinstance(r, dict) and r.get("success") is True)
         assert successful >= 1, f"Expected at least 1 success, got results: {results}"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_parallel_build_execution(
         self,
         worker_config,
@@ -329,7 +328,7 @@ class TestParallelExecutorExecution:
             assert artifact_id in build_ids
             ResultValidator.assert_success(result)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_parallel_test_execution_different_suites(
         self,
         worker_config,
@@ -371,7 +370,7 @@ class TestParallelExecutorExecution:
 class TestExecutorDependencyChains:
     """Tests for executors with dependencies between them."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_sequential_builds_with_dependencies(
         self,
         worker_config,
@@ -391,7 +390,7 @@ class TestExecutorDependencyChains:
             ("service-b", "service-a"),
         ]
 
-        build_results: Dict[str, Any] = {}
+        build_results: dict[str, Any] = {}
 
         for artifact_id, depends_on in builds:
             mock_client = create_mock_code_forge_client(
@@ -406,7 +405,7 @@ class TestExecutorDependencyChains:
                 metrics=mock_metrics,
             )
 
-            params: Dict[str, Any] = {"artifact_id": artifact_id}
+            params: dict[str, Any] = {"artifact_id": artifact_id}
             if depends_on:
                 # Include dependency info
                 params["depends_on"] = depends_on
@@ -425,7 +424,7 @@ class TestExecutorDependencyChains:
         for artifact_id, _ in builds:
             assert artifact_id in build_results
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_deploy_with_validation_gate(
         self,
         worker_config,
@@ -437,8 +436,8 @@ class TestExecutorDependencyChains:
 
         VALIDATE -> DEPLOY (only if validation passes)
         """
-        from executors.validate_executor import ValidateExecutor
         from executors.deploy_executor import DeployExecutor
+        from executors.validate_executor import ValidateExecutor
 
         # First: Validate the deployment configuration
         validate_executor = ValidateExecutor(
@@ -490,7 +489,7 @@ class TestExecutorDependencyChains:
 class TestErrorHandlingAndRecovery:
     """Tests for error handling and recovery scenarios."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_executor_retry_on_transient_failure(
         self,
         worker_config,
@@ -538,7 +537,7 @@ class TestErrorHandlingAndRecovery:
         ResultValidator.assert_success(result)
         assert call_count["value"] >= 2
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_executor_graceful_degradation(
         self,
         worker_config,
@@ -575,7 +574,7 @@ class TestErrorHandlingAndRecovery:
         assert "success" in result
         assert "output" in result
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_pipeline_continues_on_non_critical_failure(
         self,
         worker_config,
@@ -588,8 +587,8 @@ class TestErrorHandlingAndRecovery:
         BUILD -> VALIDATE (non-critical, can fail) -> DEPLOY
         """
         from executors.build_executor import BuildExecutor
-        from executors.validate_executor import ValidateExecutor
         from executors.deploy_executor import DeployExecutor
+        from executors.validate_executor import ValidateExecutor
 
         # Build succeeds
         mock_code_forge = create_mock_code_forge_client(status="completed")
@@ -648,7 +647,7 @@ class TestErrorHandlingAndRecovery:
 class TestMetricsCollectionAcrossFlows:
     """Tests for metrics collection during full workflows."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_metrics_recorded_for_complete_flow(
         self,
         worker_config,
@@ -721,7 +720,7 @@ class TestMetricsCollectionAcrossFlows:
         # Validate metrics
         assert mock_metrics.validate_tasks_executed_total.labels.called
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_duration_metrics_captured(
         self,
         worker_config,
@@ -755,7 +754,7 @@ class TestMetricsCollectionAcrossFlows:
 class TestSimulationVsRealMode:
     """Tests comparing simulation mode vs real service mode."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_simulation_mode_completes_flow(
         self,
         worker_config_minimal,
@@ -815,7 +814,7 @@ class TestSimulationVsRealMode:
         ResultValidator.assert_success(validate_result)
         ResultValidator.assert_simulated(validate_result, expected=True)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_simulation_mode_returns_valid_outputs(
         self,
         worker_config_minimal,
@@ -857,7 +856,7 @@ class TestSimulationVsRealMode:
         assert "executor" in metadata
 
 
-@pytest.mark.real_integration
+@pytest.mark.real_integration()
 class TestRealIntegrationFlows:
     """
     Tests that run against real external services.
@@ -866,8 +865,8 @@ class TestRealIntegrationFlows:
     unless INTEGRATION_TEST_MODE=real is set.
     """
 
-    @pytest.mark.asyncio
-    @pytest.mark.code_forge
+    @pytest.mark.asyncio()
+    @pytest.mark.code_forge()
     async def test_real_build_with_code_forge(
         self,
         worker_config,
@@ -876,6 +875,7 @@ class TestRealIntegrationFlows:
     ):
         """Test build execution with real Code Forge service."""
         from executors.build_executor import BuildExecutor
+
         from neural_hive_integration.clients.code_forge_client import CodeForgeClient
 
         code_forge_url = os.getenv("CODE_FORGE_URL")
@@ -906,8 +906,8 @@ class TestRealIntegrationFlows:
         finally:
             await real_client.close()
 
-    @pytest.mark.asyncio
-    @pytest.mark.argocd
+    @pytest.mark.asyncio()
+    @pytest.mark.argocd()
     async def test_real_deploy_with_argocd(
         self,
         worker_config,
@@ -945,8 +945,8 @@ class TestRealIntegrationFlows:
         assert "success" in result
         assert "output" in result
 
-    @pytest.mark.asyncio
-    @pytest.mark.opa
+    @pytest.mark.asyncio()
+    @pytest.mark.opa()
     async def test_real_validate_with_opa(
         self,
         worker_config,

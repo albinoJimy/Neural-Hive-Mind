@@ -4,11 +4,11 @@ Unit tests para Cutover Workflow.
 Testa o gerenciador de cutover, modelos e lógica de rollback.
 """
 
-import pytest
 import sys
 from datetime import datetime, timedelta
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock
+
+import pytest
 
 # Adicionar src ao path
 src_path = str(Path(__file__).parent.parent.parent / "src")
@@ -25,7 +25,7 @@ from src.models.workflow import (
 )
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_cutover_config():
     """Configuração de cutover para testes."""
     return CutoverConfig(
@@ -39,7 +39,7 @@ def sample_cutover_config():
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_cutover_status():
     """Status de cutover para testes."""
     return CutoverStatus(
@@ -49,7 +49,7 @@ def sample_cutover_status():
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_cutover_metrics():
     """Métricas de cutover para testes."""
     return CutoverMetrics(

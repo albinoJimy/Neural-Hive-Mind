@@ -10,7 +10,7 @@ Responsável por:
 
 import ast
 from collections import defaultdict
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 import structlog
 
@@ -198,14 +198,14 @@ class PatternDiscovery:
     def __init__(self):
         """Inicializa o PatternDiscovery."""
         self.patterns_db = dict(self.KNOWN_PATTERNS)
-        self._code_samples: Dict[str, str] = {}
-        self._analyzed_patterns: Dict[str, List[Dict]] = defaultdict(list)
+        self._code_samples: dict[str, str] = {}
+        self._analyzed_patterns: dict[str, list[dict]] = defaultdict(list)
 
-    def get_known_patterns(self) -> List[str]:
+    def get_known_patterns(self) -> list[str]:
         """Retorna lista de padrões conhecidos."""
         return list(self.patterns_db.keys())
 
-    def get_patterns_by_category(self, category: str) -> List[str]:
+    def get_patterns_by_category(self, category: str) -> list[str]:
         """
         Retorna padrões de uma categoria específica.
 
@@ -219,7 +219,7 @@ class PatternDiscovery:
             name for name, config in self.patterns_db.items() if config.get("category") == category
         ]
 
-    def get_pattern_categories(self) -> Dict[str, List[str]]:
+    def get_pattern_categories(self) -> dict[str, list[str]]:
         """
         Retorna todos os padrões agrupados por categoria.
 
@@ -232,7 +232,7 @@ class PatternDiscovery:
             categories[cat].append(name)
         return categories
 
-    def get_pattern_info(self, pattern_name: str) -> Optional[Dict[str, Any]]:
+    def get_pattern_info(self, pattern_name: str) -> Optional[dict[str, Any]]:
         """
         Retorna informações detalhadas sobre um padrão.
 
@@ -254,7 +254,7 @@ class PatternDiscovery:
             }
         return None
 
-    def identify_patterns(self, code: str, filename: str = "<unknown>") -> List[Dict[str, Any]]:
+    def identify_patterns(self, code: str, filename: str = "<unknown>") -> list[dict[str, Any]]:
         """
         Identifica padrões de design em um código.
 
@@ -287,7 +287,7 @@ class PatternDiscovery:
 
     def _analyze_class_for_patterns(
         self, class_node: ast.ClassDef, code: str, filename: str
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Analisa uma classe para identificar padrões."""
         patterns = []
 
@@ -314,7 +314,7 @@ class PatternDiscovery:
         return patterns
 
     def _calculate_pattern_confidence(
-        self, class_node: ast.ClassDef, pattern_name: str, pattern_config: Dict
+        self, class_node: ast.ClassDef, pattern_name: str, pattern_config: dict
     ) -> float:
         """Calcula confiança de que a classe implementa o padrão."""
         confidence = 0.0
@@ -375,7 +375,7 @@ class PatternDiscovery:
         return min(confidence, 1.0)
 
     def _pattern_specific_checks(
-        self, class_node: ast.ClassDef, pattern_name: str, methods: List[str]
+        self, class_node: ast.ClassDef, pattern_name: str, methods: list[str]
     ) -> float:
         """Verifica específicos de padrões individuais."""
         bonus = 0.0
@@ -586,7 +586,7 @@ class PatternDiscovery:
 
         return bonus
 
-    def _get_all_attribute_names(self, class_node: ast.ClassDef) -> List[str]:
+    def _get_all_attribute_names(self, class_node: ast.ClassDef) -> list[str]:
         """Extrai todos os nomes de atributos da classe."""
         attrs = []
         for node in class_node.body:
@@ -617,7 +617,7 @@ class PatternDiscovery:
                                     attrs.append(target.attr)
         return attrs
 
-    def _analyze_decorators(self, code: str, filename: str) -> List[Dict[str, Any]]:
+    def _analyze_decorators(self, code: str, filename: str) -> list[dict[str, Any]]:
         """Analisa código para identificar padrões decorator."""
         patterns = []
 
@@ -643,7 +643,7 @@ class PatternDiscovery:
 
         return patterns
 
-    def analyze_pattern_frequency(self, files: Dict[str, str], pattern_name: str) -> Dict[str, Any]:
+    def analyze_pattern_frequency(self, files: dict[str, str], pattern_name: str) -> dict[str, Any]:
         """
         Analisa frequência de um padrão em múltiplos arquivos.
 
@@ -674,7 +674,7 @@ class PatternDiscovery:
             ),
         }
 
-    def calculate_pattern_confidence(self, files: Dict[str, str], pattern_name: str) -> float:
+    def calculate_pattern_confidence(self, files: dict[str, str], pattern_name: str) -> float:
         """
         Calcula confiança agregada de um padrão no código.
 
@@ -696,7 +696,7 @@ class PatternDiscovery:
 
         return round(confidence, 2)
 
-    def suggest_patterns(self, code: str, filename: str = "<unknown>") -> List[Dict[str, Any]]:
+    def suggest_patterns(self, code: str, filename: str = "<unknown>") -> list[dict[str, Any]]:
         """
         Sugere padrões que poderiam ser aplicados ao código.
 
@@ -728,7 +728,7 @@ class PatternDiscovery:
 
         return suggestions
 
-    def _suggest_for_class(self, class_node: ast.ClassDef, filename: str) -> List[Dict[str, Any]]:
+    def _suggest_for_class(self, class_node: ast.ClassDef, filename: str) -> list[dict[str, Any]]:
         """Sugere padrões para uma classe."""
         suggestions = []
         methods = [
@@ -774,7 +774,7 @@ class PatternDiscovery:
 
     def _suggest_for_function(
         self, func_node: ast.FunctionDef, filename: str
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Sugere padrões para uma função."""
         suggestions = []
 
@@ -813,7 +813,7 @@ class PatternDiscovery:
         """Adiciona amostra de código para análise."""
         self._code_samples[filename] = code
 
-    def extract_class_structure(self, code: str, filename: str = "<unknown>") -> Dict[str, Any]:
+    def extract_class_structure(self, code: str, filename: str = "<unknown>") -> dict[str, Any]:
         """
         Extrai estrutura de classes do código.
 
@@ -885,7 +885,7 @@ class PatternDiscovery:
             return node.attr
         return str(type(node).__name__)
 
-    def detect_class_dependencies(self, class_name: str) -> List[str]:
+    def detect_class_dependencies(self, class_name: str) -> list[str]:
         """
         Detecta dependências de uma classe analisando código armazenado.
 
@@ -945,7 +945,7 @@ class PatternDiscovery:
 
         return list(set(dependencies))  # Remover duplicatas
 
-    def generate_pattern_report(self, files: Dict[str, str]) -> Dict[str, Any]:
+    def generate_pattern_report(self, files: dict[str, str]) -> dict[str, Any]:
         """
         Gera relatório de padrões encontrados nos arquivos.
 
@@ -994,7 +994,7 @@ class PatternDiscovery:
             "raw_patterns": dict(all_patterns),
         }
 
-    def export_pattern_graph(self, files: Dict[str, str]) -> Dict[str, Any]:
+    def export_pattern_graph(self, files: dict[str, str]) -> dict[str, Any]:
         """
         Exporta grafo de padrões para visualização.
 

@@ -5,10 +5,10 @@ Estes testes simulam as respostas do OPA para validar a lógica
 de integração sem depender de um servidor externo.
 """
 
-import pytest
-import pytest_asyncio
 from unittest.mock import AsyncMock, MagicMock
 
+import pytest
+import pytest_asyncio
 from src.clients.opa_client import OPAClient
 
 
@@ -31,7 +31,7 @@ async def mock_opa_http():
     return mock_client
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_opa_client_evaluate_policy_success(mock_opa_http):
     """Testa avaliação de política com sucesso"""
     # Criar cliente e injetar mock HTTP
@@ -63,7 +63,7 @@ async def test_opa_client_evaluate_policy_success(mock_opa_http):
     mock_opa_http.post.assert_called_once()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_opa_client_evaluate_policy_deny_excessive_risk(mock_opa_http):
     """Testa avaliação que nega por risco excessivo"""
     # Configurar mock para retornar negação
@@ -111,7 +111,7 @@ async def test_opa_client_evaluate_policy_deny_excessive_risk(mock_opa_http):
     assert len(result["violations"]) > 0
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_opa_client_not_connected():
     """Testa erro quando cliente não está conectado"""
     client = OPAClient(base_url="http://mock-opa:8181", timeout=5.0)
@@ -121,7 +121,7 @@ async def test_opa_client_not_connected():
         await client.evaluate_policy(policy_path="test", input_data={})
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_opa_client_http_error_handling(mock_opa_http):
     """Testa tratamento de erros HTTP"""
     # Configurar mock para simular erro HTTP

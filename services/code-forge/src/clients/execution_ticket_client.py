@@ -1,4 +1,4 @@
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 import httpx
 import structlog
@@ -61,7 +61,7 @@ class ExecutionTicketClient:
             raise
 
     async def update_status(
-        self, ticket_id: str, status: TicketStatus, metadata: Optional[Dict[str, Any]] = None
+        self, ticket_id: str, status: TicketStatus, metadata: Optional[dict[str, Any]] = None
     ):
         """
         Atualiza status do ticket

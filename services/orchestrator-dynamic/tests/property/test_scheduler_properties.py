@@ -8,8 +8,7 @@ Autor: Neural-Hive-Mind
 Criado: 2026-04-19 (HYP-02)
 """
 
-from datetime import timedelta, timezone
-
+from datetime import timedelta
 from unittest.mock import AsyncMock, Mock
 
 import pytest
@@ -28,7 +27,10 @@ agent_scores = st.floats(min_value=0.0, max_value=1.0, allow_nan=False, allow_in
 
 # Estratégia para IDs
 uuid_strategy = st.uuids().map(lambda u: str(u))
-simple_strings = st.text(min_size=1, max_size=50, alphabet=st.characters(whitelist_categories=("Lu", "Ll", "Nd")))
+simple_strings = st.text(
+    min_size=1, max_size=50, alphabet=st.characters(whitelist_categories=("Lu", "Ll", "Nd"))
+)
+
 
 # Estratégia para tickets básicos
 @st.composite
@@ -51,16 +53,22 @@ def ticket_strategy(draw):
         "created_at": draw(st.integers(min_value=1609459200000, max_value=4102444800000)),
     }
 
+
 # Estratégia para rejeição reasons
 rejection_reasons = st.sampled_from(["no_workers", "no_suitable_worker", "scheduling_error"])
 
 # Estratégia para rejection messages
-rejection_messages = st.text(min_size=1, max_size=200, alphabet=st.characters(whitelist_categories=("Lu", "Ll", "Nd", "Po", "Pd")))
+rejection_messages = st.text(
+    min_size=1,
+    max_size=200,
+    alphabet=st.characters(whitelist_categories=("Lu", "Ll", "Nd", "Po", "Pd")),
+)
 
 
 # ============================================================================
 # Helpers para criar scheduler com mocks corretos
 # ============================================================================
+
 
 def create_mock_config():
     """Cria configuração mockada com valores corretos."""
@@ -89,11 +97,15 @@ def create_scheduler():
         config=create_mock_config(),
         metrics=create_mock_metrics(),
         priority_calculator=Mock(calculate_priority_score=Mock(return_value=0.5)),
-        resource_allocator=Mock(allocate_resources=AsyncMock(return_value={
-            "agent_id": "worker-1",
-            "agent_type": "query-worker",
-            "allocation_method": "intelligent_scheduler",
-        })),
+        resource_allocator=Mock(
+            allocate_resources=AsyncMock(
+                return_value={
+                    "agent_id": "worker-1",
+                    "agent_type": "query-worker",
+                    "allocation_method": "intelligent_scheduler",
+                }
+            )
+        ),
     )
 
 
@@ -101,12 +113,15 @@ def create_scheduler():
 # Testes Property-Based
 # ============================================================================
 
+
 class TestSchedulerScoringProperties:
     """Testes de propriedades para funções de scoring."""
 
     @given(priority_scores, agent_scores)
     @settings(max_examples=100, phases=[Phase.generate])
-    def test_calculate_composite_score_always_normalized(self, priority_score: float, agent_score: float):
+    def test_calculate_composite_score_always_normalized(
+        self, priority_score: float, agent_score: float
+    ):
         """Property: _calculate_composite_score sempre retorna valor em [0.0, 1.0]."""
         scheduler = create_scheduler()
 
@@ -201,7 +216,12 @@ class TestPriorityEnumProperties:
     @settings(max_examples=20, phases=[Phase.generate])
     def test_priority_ordering(self, priority: Priority):
         """Property: LOW < MEDIUM < HIGH < CRITICAL."""
-        assert Priority.LOW.value < Priority.MEDIUM.value < Priority.HIGH.value < Priority.CRITICAL.value
+        assert (
+            Priority.LOW.value
+            < Priority.MEDIUM.value
+            < Priority.HIGH.value
+            < Priority.CRITICAL.value
+        )
 
     def test_priority_exhaustiveness(self):
         """Property: Enum tem exatamente 4 níveis."""
@@ -227,7 +247,11 @@ class TestSchedulerWithMLPredictions:
         assert result.get("plan_id") == original_plan_id
 
     @pytest.mark.asyncio()
-    @given(ticket_strategy(), st.floats(min_value=0.0, max_value=1.0), st.integers(min_value=0, max_value=10))
+    @given(
+        ticket_strategy(),
+        st.floats(min_value=0.0, max_value=1.0),
+        st.integers(min_value=0, max_value=10),
+    )
     @settings(max_examples=50, phases=[Phase.generate])
     async def test_enrichment_with_load_predictor_adds_field(
         self, ticket: dict, load_pct: float, bottleneck_count: int
@@ -246,11 +270,15 @@ class TestSchedulerWithMLPredictions:
             config=config,
             metrics=create_mock_metrics(),
             priority_calculator=Mock(calculate_priority_score=Mock(return_value=0.5)),
-            resource_allocator=Mock(allocate_resources=AsyncMock(return_value={
-                "agent_id": "worker-1",
-                "agent_type": "query-worker",
-                "allocation_method": "intelligent_scheduler",
-            })),
+            resource_allocator=Mock(
+                allocate_resources=AsyncMock(
+                    return_value={
+                        "agent_id": "worker-1",
+                        "agent_type": "query-worker",
+                        "allocation_method": "intelligent_scheduler",
+                    }
+                )
+            ),
             load_predictor=mock_load_predictor,
         )
 

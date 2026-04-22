@@ -1,8 +1,8 @@
 """MongoDB client for tool catalog persistence."""
 
 import asyncio
-from datetime import datetime, timezone
-from typing import Dict, List, Optional
+from datetime import UTC, datetime
+from typing import Optional
 
 import structlog
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
@@ -154,8 +154,8 @@ class MongoDBClient:
         return ToolDescriptor.from_avro(tool_dict)
 
     async def list_tools(
-        self, category: Optional[ToolCategory] = None, filters: Optional[Dict] = None
-    ) -> List[ToolDescriptor]:
+        self, category: Optional[ToolCategory] = None, filters: Optional[dict] = None
+    ) -> list[ToolDescriptor]:
         """List tools with optional filters.
 
         Args:
@@ -203,7 +203,7 @@ class MongoDBClient:
             {
                 "$set": {
                     "reputation_score": updated_reputation,
-                    "updated_at": int(datetime.now(timezone.utc).timestamp() * 1000),
+                    "updated_at": int(datetime.now(UTC).timestamp() * 1000),
                 }
             },
         )
@@ -217,7 +217,7 @@ class MongoDBClient:
 
         return result.modified_count > 0
 
-    async def save_selection_history(self, request: Dict, response: Dict) -> str:
+    async def save_selection_history(self, request: dict, response: dict) -> str:
         """Save selection history for learning.
 
         Args:
@@ -237,13 +237,13 @@ class MongoDBClient:
             "total_fitness_score": response.get("total_fitness_score"),
             "selection_method": response.get("selection_method"),
             "cached": response.get("cached", False),
-            "created_at": int(datetime.now(timezone.utc).timestamp() * 1000),
+            "created_at": int(datetime.now(UTC).timestamp() * 1000),
         }
 
         result = await self.db.selections_history.insert_one(history_entry)
         return str(result.inserted_id)
 
-    async def get_selection_history(self, filters: Optional[Dict] = None) -> List[Dict]:
+    async def get_selection_history(self, filters: Optional[dict] = None) -> list[dict]:
         """Query selection history.
 
         Args:
@@ -261,7 +261,7 @@ class MongoDBClient:
 
         return history
 
-    async def get_tool_usage_stats(self, tool_id: str) -> Dict:
+    async def get_tool_usage_stats(self, tool_id: str) -> dict:
         """Get tool usage statistics.
 
         Args:

@@ -10,8 +10,8 @@ Computa 26 features a partir de Cognitive Plans:
 
 import asyncio
 from collections import defaultdict
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from datetime import UTC, datetime
+from typing import Any, Optional
 
 import structlog
 from src.models.feature import (
@@ -31,7 +31,7 @@ class FeatureComputationPipeline:
     def __init__(self, timeout_seconds: int = 30):
         self.timeout_seconds = timeout_seconds
 
-    async def compute_all(self, plan_id: str, cognitive_plan: Dict[str, Any]) -> FeatureVector:
+    async def compute_all(self, plan_id: str, cognitive_plan: dict[str, Any]) -> FeatureVector:
         """
         Computa todas as features para um plano
 
@@ -42,7 +42,7 @@ class FeatureComputationPipeline:
         Returns:
             FeatureVector com todas as features computadas
         """
-        start_time = datetime.now(timezone.utc)
+        start_time = datetime.now(UTC)
 
         try:
             # Executa computação com timeout
@@ -50,7 +50,7 @@ class FeatureComputationPipeline:
                 self._compute_features_async(plan_id, cognitive_plan), timeout=self.timeout_seconds
             )
 
-            elapsed_ms = (datetime.now(timezone.utc) - start_time).total_seconds() * 1000
+            elapsed_ms = (datetime.now(UTC) - start_time).total_seconds() * 1000
             logger.info("Features computadas com sucesso", plan_id=plan_id, elapsed_ms=elapsed_ms)
 
             return result
@@ -63,7 +63,7 @@ class FeatureComputationPipeline:
             raise
 
     async def _compute_features_async(
-        self, plan_id: str, cognitive_plan: Dict[str, Any]
+        self, plan_id: str, cognitive_plan: dict[str, Any]
     ) -> FeatureVector:
         """Executa computação de features de forma assíncrona"""
 
@@ -110,7 +110,7 @@ class FeatureComputationPipeline:
             embedding=embedding,
         )
 
-    def compute_metadata_features(self, cognitive_plan: Dict[str, Any]) -> MetadataFeatures:
+    def compute_metadata_features(self, cognitive_plan: dict[str, Any]) -> MetadataFeatures:
         """
         Computa features de metadados (6 features)
 
@@ -168,7 +168,7 @@ class FeatureComputationPipeline:
         )
 
     def compute_ontology_features(
-        self, cognitive_plan: Dict[str, Any]
+        self, cognitive_plan: dict[str, Any]
     ) -> Optional[OntologyFeatures]:
         """
         Computa features de ontologia (6 features)
@@ -257,7 +257,7 @@ class FeatureComputationPipeline:
             total_anti_pattern_penalty=total_anti_pattern_penalty,
         )
 
-    def compute_graph_features(self, cognitive_plan: Dict[str, Any]) -> Optional[GraphFeatures]:
+    def compute_graph_features(self, cognitive_plan: dict[str, Any]) -> Optional[GraphFeatures]:
         """
         Computa features de grafo (11 features)
 
@@ -355,7 +355,7 @@ class FeatureComputationPipeline:
         )
 
     def compute_embedding_features(
-        self, cognitive_plan: Dict[str, Any]
+        self, cognitive_plan: dict[str, Any]
     ) -> Optional[EmbeddingFeatures]:
         """
         Computa features de embeddings (3 features)
@@ -400,7 +400,7 @@ class FeatureComputationPipeline:
             mean_norm=mean_norm, std_norm=std_norm, avg_diversity=avg_diversity
         )
 
-    def _calculate_dag_levels(self, tasks: List[Dict[str, Any]]) -> List[List[str]]:
+    def _calculate_dag_levels(self, tasks: list[dict[str, Any]]) -> list[list[str]]:
         """Calcula níveis do DAG baseado em dependências"""
         task_ids = {t.get("task_id") or t.get("id") for t in tasks}
         levels = []
@@ -428,7 +428,7 @@ class FeatureComputationPipeline:
 
         return levels
 
-    def _get_task_deps(self, task_id: str, tasks: List[Dict[str, Any]]) -> List[str]:
+    def _get_task_deps(self, task_id: str, tasks: list[dict[str, Any]]) -> list[str]:
         """Obtém dependências de uma tarefa"""
         for task in tasks:
             tid = task.get("task_id") or task.get("id")
@@ -436,7 +436,7 @@ class FeatureComputationPipeline:
                 return task.get("depends_on", []) or []
         return []
 
-    def _calculate_diversity(self, embeddings: List[List[float]]) -> Optional[float]:
+    def _calculate_diversity(self, embeddings: list[list[float]]) -> Optional[float]:
         """Calcula diversidade média entre embeddings"""
         if len(embeddings) < 2:
             return None

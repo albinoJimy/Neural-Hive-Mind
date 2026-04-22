@@ -13,7 +13,7 @@ from typing import Any, Literal
 import structlog
 from fastmcp import FastMCP
 
-from ..clients import OpenAIClient, CopilotClient
+from ..clients import CopilotClient, OpenAIClient
 from ..config import get_settings
 
 logger = structlog.get_logger(__name__)

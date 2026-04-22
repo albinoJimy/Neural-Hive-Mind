@@ -3,9 +3,9 @@
 import json
 import logging
 import subprocess
-from datetime import datetime, timezone
-from typing import Any, Dict, Optional
+from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -44,7 +44,7 @@ class RetrainingJob:
         self.retrain_threshold = retrain_threshold
         self.min_f1_improvement = min_f1_improvement
         self.training_script_path = training_script_path or self._find_training_script()
-        self._job_status: Dict[str, Any] = {}
+        self._job_status: dict[str, Any] = {}
         logger.info(f"RetrainingJob inicializado com threshold={retrain_threshold}")
 
     def _find_training_script(self) -> str:
@@ -60,7 +60,7 @@ class RetrainingJob:
                 return path
         return "ml_pipelines/training/retrain_v8_balanced.py"
 
-    async def check_threshold(self) -> Dict[str, Any]:
+    async def check_threshold(self) -> dict[str, Any]:
         """
         Verifica se há samples suficientes para retreino.
 
@@ -77,7 +77,7 @@ class RetrainingJob:
                 "has_enough_samples": has_enough,
                 "sample_count": sample_count,
                 "threshold": self.retrain_threshold,
-                "checked_at": datetime.now(timezone.utc).isoformat(),
+                "checked_at": datetime.now(UTC).isoformat(),
             }
 
             logger.info(f"Threshold check: {sample_count}/{self.retrain_threshold} samples")
@@ -88,7 +88,7 @@ class RetrainingJob:
             return {
                 "has_enough_samples": False,
                 "error": str(e),
-                "checked_at": datetime.now(timezone.utc).isoformat(),
+                "checked_at": datetime.now(UTC).isoformat(),
             }
 
     async def _count_pending_samples(self) -> int:
@@ -124,7 +124,7 @@ class RetrainingJob:
             logger.error(f"Erro ao contar samples pendentes: {e}")
             return 0
 
-    async def execute_retraining(self, script_args: Optional[list] = None) -> Dict[str, Any]:
+    async def execute_retraining(self, script_args: Optional[list] = None) -> dict[str, Any]:
         """
         Executa script de retreinamento.
 
@@ -134,8 +134,8 @@ class RetrainingJob:
         Returns:
             Dicionário com resultado do retreino
         """
-        job_id = f"retrain-{datetime.now(timezone.utc).strftime('%Y%m%d-%H%M%S')}"
-        started_at = datetime.now(timezone.utc)
+        job_id = f"retrain-{datetime.now(UTC).strftime('%Y%m%d-%H%M%S')}"
+        started_at = datetime.now(UTC)
 
         self._job_status = {
             "job_id": job_id,
@@ -160,7 +160,7 @@ class RetrainingJob:
             self._job_status.update(
                 {
                     "status": "completed" if result.returncode == 0 else "failed",
-                    "completed_at": datetime.now(timezone.utc),
+                    "completed_at": datetime.now(UTC),
                     "returncode": result.returncode,
                     "stdout": result.stdout,
                     "stderr": result.stderr,
@@ -193,7 +193,7 @@ class RetrainingJob:
             self._job_status["status"] = "error"
             return {"success": False, "job_id": job_id, "error": str(e)}
 
-    def _parse_training_output(self, stdout: str) -> Dict[str, float]:
+    def _parse_training_output(self, stdout: str) -> dict[str, float]:
         """Extrai métricas do output do treino."""
         metrics = {}
         try:
@@ -218,7 +218,7 @@ class RetrainingJob:
 
         return metrics
 
-    async def validate_model(self, new_metrics: Dict[str, float]) -> Dict[str, Any]:
+    async def validate_model(self, new_metrics: dict[str, float]) -> dict[str, Any]:
         """
         Valida se novo modelo deve ser deployado.
 
@@ -266,11 +266,11 @@ class RetrainingJob:
         self,
         model: Any,
         version: str,
-        metrics: Dict[str, float],
-        params: Dict[str, Any],
-        feature_importance: Optional[Dict[str, float]] = None,
+        metrics: dict[str, float],
+        params: dict[str, Any],
+        feature_importance: Optional[dict[str, float]] = None,
         n_samples: int = 0,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Registra modelo no MLflow.
 
@@ -320,7 +320,7 @@ class RetrainingJob:
         try:
             event = {
                 "event_type": event_type,
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
                 **kwargs,
             }
 
@@ -346,7 +346,7 @@ class RetrainingJob:
 
     async def run_retraining(
         self, model: Optional[Any] = None, force: bool = False
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Executa pipeline completo de retreinamento.
 
@@ -357,7 +357,7 @@ class RetrainingJob:
         Returns:
             Dicionário com resultado completo
         """
-        version = f"v{datetime.now(timezone.utc).strftime('%Y%m%d-%H%M')}"
+        version = f"v{datetime.now(UTC).strftime('%Y%m%d-%H%M')}"
 
         try:
             # 1. Verificar threshold (a menos que force=True)
@@ -437,7 +437,7 @@ class RetrainingJob:
             await self.publish_kafka_event("model_retraining_failed", version=version, error=str(e))
             return {"success": False, "error": str(e)}
 
-    async def get_job_status(self, job_id: str) -> Optional[Dict[str, Any]]:
+    async def get_job_status(self, job_id: str) -> Optional[dict[str, Any]]:
         """
         Obtém status de job de retreinamento.
 

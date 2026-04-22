@@ -10,16 +10,16 @@ Cobertura:
 """
 
 import asyncio
-import pytest
-from unittest.mock import MagicMock
-from aioresponses import aioresponses
 import uuid
+from unittest.mock import MagicMock
 
+import pytest
+from aioresponses import aioresponses
 
 ARGOCD_BASE_URL = "http://argocd.test:8080"
 
 
-@pytest.fixture
+@pytest.fixture()
 def worker_config():
     """Configuracao do worker para testes de integracao."""
     config = MagicMock()
@@ -30,7 +30,7 @@ def worker_config():
     return config
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_metrics():
     """Mock para metricas Prometheus."""
     metrics = MagicMock()
@@ -43,7 +43,7 @@ def mock_metrics():
     return metrics
 
 
-@pytest.fixture
+@pytest.fixture()
 def deploy_ticket():
     """Ticket de deploy para testes."""
     ticket_id = str(uuid.uuid4())
@@ -66,7 +66,7 @@ def deploy_ticket():
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def argocd_client():
     """Cliente ArgoCD real para testes de integracao."""
     from clients.argocd_client import ArgoCDClient
@@ -74,7 +74,7 @@ def argocd_client():
     return ArgoCDClient(base_url=ARGOCD_BASE_URL, token="test-token", timeout=30)
 
 
-@pytest.fixture
+@pytest.fixture()
 def deploy_executor_integration(worker_config, mock_metrics, argocd_client):
     """DeployExecutor para testes de integracao."""
     from executors.deploy_executor import DeployExecutor
@@ -92,8 +92,8 @@ def deploy_executor_integration(worker_config, mock_metrics, argocd_client):
 class TestFullDeploymentFlow:
     """Testes de fluxo completo de deployment."""
 
-    @pytest.mark.asyncio
-    @pytest.mark.integration
+    @pytest.mark.asyncio()
+    @pytest.mark.integration()
     async def test_full_deployment_flow_success(
         self, deploy_executor_integration, deploy_ticket, argocd_client
     ):
@@ -137,8 +137,8 @@ class TestFullDeploymentFlow:
             assert result["output"]["status"] == "healthy"
             assert result["metadata"]["provider"] == "argocd"
 
-    @pytest.mark.asyncio
-    @pytest.mark.integration
+    @pytest.mark.asyncio()
+    @pytest.mark.integration()
     async def test_deployment_with_multiple_polling_cycles(
         self, deploy_executor_integration, deploy_ticket, argocd_client
     ):
@@ -189,8 +189,8 @@ class TestFullDeploymentFlow:
 class TestDeploymentHealthCheckPolling:
     """Testes de polling de health check."""
 
-    @pytest.mark.asyncio
-    @pytest.mark.integration
+    @pytest.mark.asyncio()
+    @pytest.mark.integration()
     async def test_polling_respects_interval(self, argocd_client):
         """Deve respeitar intervalo de polling."""
         from clients.argocd_client import ApplicationStatus, HealthStatus, SyncStatus
@@ -231,8 +231,8 @@ class TestDeploymentHealthCheckPolling:
 class TestDeploymentTimeoutHandling:
     """Testes de tratamento de timeout."""
 
-    @pytest.mark.asyncio
-    @pytest.mark.integration
+    @pytest.mark.asyncio()
+    @pytest.mark.integration()
     async def test_deployment_timeout_after_max_attempts(
         self, deploy_executor_integration, deploy_ticket
     ):
@@ -272,8 +272,8 @@ class TestDeploymentTimeoutHandling:
 class TestDeploymentAuthenticationError:
     """Testes de erros de autenticacao."""
 
-    @pytest.mark.asyncio
-    @pytest.mark.integration
+    @pytest.mark.asyncio()
+    @pytest.mark.integration()
     async def test_authentication_error_401(self, deploy_executor_integration, deploy_ticket):
         """Deve tratar erro 401 de autenticacao."""
         with aioresponses() as m:
@@ -289,8 +289,8 @@ class TestDeploymentAuthenticationError:
             assert result["success"] is False
             assert result["output"]["status"] == "error"
 
-    @pytest.mark.asyncio
-    @pytest.mark.integration
+    @pytest.mark.asyncio()
+    @pytest.mark.integration()
     async def test_authentication_error_403(self, deploy_executor_integration, deploy_ticket):
         """Deve tratar erro 403 de permissao."""
         with aioresponses() as m:
@@ -308,8 +308,8 @@ class TestDeploymentAuthenticationError:
 class TestDeploymentRollbackScenarios:
     """Testes de cenarios de rollback."""
 
-    @pytest.mark.asyncio
-    @pytest.mark.integration
+    @pytest.mark.asyncio()
+    @pytest.mark.integration()
     async def test_deployment_degraded_status(self, deploy_executor_integration, deploy_ticket):
         """Deve aceitar status Degraded como parcialmente healthy."""
         app_name = deploy_ticket["parameters"]["deployment_name"]
@@ -341,8 +341,8 @@ class TestDeploymentRollbackScenarios:
             assert result["success"] is True
             assert result["output"]["status"] == "degraded"
 
-    @pytest.mark.asyncio
-    @pytest.mark.integration
+    @pytest.mark.asyncio()
+    @pytest.mark.integration()
     async def test_deployment_missing_status(self, deploy_executor_integration, deploy_ticket):
         """Deve tratar resposta sem status."""
         app_name = deploy_ticket["parameters"]["deployment_name"]
@@ -373,8 +373,8 @@ class TestDeploymentRollbackScenarios:
 class TestDeploymentServerErrors:
     """Testes de erros de servidor."""
 
-    @pytest.mark.asyncio
-    @pytest.mark.integration
+    @pytest.mark.asyncio()
+    @pytest.mark.integration()
     async def test_server_error_500(self, deploy_executor_integration, deploy_ticket):
         """Deve tratar erro 500 do servidor."""
         with aioresponses() as m:
@@ -389,12 +389,12 @@ class TestDeploymentServerErrors:
 
             assert result["success"] is False
 
-    @pytest.mark.asyncio
-    @pytest.mark.integration
+    @pytest.mark.asyncio()
+    @pytest.mark.integration()
     async def test_connection_error(self, worker_config, mock_metrics, deploy_ticket):
         """Deve tratar erro de conexao."""
-        from executors.deploy_executor import DeployExecutor
         from clients.argocd_client import ArgoCDClient
+        from executors.deploy_executor import DeployExecutor
 
         # Cliente com URL invalida
         client = ArgoCDClient(
@@ -421,8 +421,8 @@ class TestDeploymentServerErrors:
 class TestClientClose:
     """Testes de fechamento do cliente."""
 
-    @pytest.mark.asyncio
-    @pytest.mark.integration
+    @pytest.mark.asyncio()
+    @pytest.mark.integration()
     async def test_client_close(self, argocd_client):
         """Deve fechar cliente corretamente."""
         await argocd_client.close()

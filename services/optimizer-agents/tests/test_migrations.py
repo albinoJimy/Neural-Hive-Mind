@@ -1,13 +1,14 @@
 """Testes para migrations MongoDB."""
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock
 
+import pytest
+
 from src.database.migrations.m001_optimization_recommendations import (
-    upgrade,
     downgrade,
-    validate,
     run_migration,
+    upgrade,
+    validate,
 )
 
 

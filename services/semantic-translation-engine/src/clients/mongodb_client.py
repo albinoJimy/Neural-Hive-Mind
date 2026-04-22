@@ -6,9 +6,9 @@ Provides async interface to MongoDB for context storage and immutable ledger.
 
 import hashlib
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
-UTC = timezone.utc  # type: ignore, timedelta
+UTC = UTC  # type: ignore, timedelta
 
 import structlog
 from motor.motor_asyncio import AsyncIOMotorClient

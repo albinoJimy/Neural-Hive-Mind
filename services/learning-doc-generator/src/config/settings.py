@@ -47,15 +47,9 @@ class Settings(BaseSettings):
     kafka_topic_experiments: str = Field(
         default="experiments", description="Tópico de experimentos"
     )
-    kafka_topic_models: str = Field(
-        default="models", description="Tópico de modelos"
-    )
-    kafka_topic_deployments: str = Field(
-        default="deployments", description="Tópico de deployments"
-    )
-    kafka_enable_consumer: bool = Field(
-        default=True, description="Habilitar consumer Kafka"
-    )
+    kafka_topic_models: str = Field(default="models", description="Tópico de modelos")
+    kafka_topic_deployments: str = Field(default="deployments", description="Tópico de deployments")
+    kafka_enable_consumer: bool = Field(default=True, description="Habilitar consumer Kafka")
     kafka_security_protocol: str = Field(default="PLAINTEXT", description="Security protocol")
     kafka_sasl_mechanism: Optional[str] = Field(default=None, description="SASL mechanism")
     kafka_sasl_username: Optional[str] = Field(default=None, description="SASL username")
@@ -76,9 +70,7 @@ class Settings(BaseSettings):
     )
 
     # MongoDB
-    mongodb_uri: str = Field(
-        default="mongodb://localhost:27017", description="URI do MongoDB"
-    )
+    mongodb_uri: str = Field(default="mongodb://localhost:27017", description="URI do MongoDB")
     mongodb_database: str = Field(default="neural_hive", description="Database MongoDB")
     mongodb_collection: str = Field(
         default="learning_documents", description="Collection de documentos"
@@ -99,14 +91,16 @@ class Settings(BaseSettings):
         default="/app/templates", description="Diretório de templates Jinja2"
     )
     docs_include_plots: bool = Field(default=True, description="Incluir gráficos nos documentos")
-    docs_plot_format: str = Field(
-        default="png", description="Formato dos gráficos (png/svg)"
-    )
+    docs_plot_format: str = Field(default="png", description="Formato dos gráficos (png/svg)")
 
     # Scheduler
     scheduler_enabled: bool = Field(default=True, description="Habilitar scheduler")
-    scheduler_daily_hour: int = Field(default=9, description="Hora do relatório diário", ge=0, le=23)
-    scheduler_daily_minute: int = Field(default=0, description="Minuto do relatório diário", ge=0, le=59)
+    scheduler_daily_hour: int = Field(
+        default=9, description="Hora do relatório diário", ge=0, le=23
+    )
+    scheduler_daily_minute: int = Field(
+        default=0, description="Minuto do relatório diário", ge=0, le=59
+    )
     scheduler_weekly_day: int = Field(
         default=0, description="Dia do relatório semanal (0=Monday)", ge=0, le=6
     )
@@ -118,9 +112,7 @@ class Settings(BaseSettings):
     max_experiments_per_doc: int = Field(
         default=100, description="Máximo de experimentos por documento", gt=0
     )
-    doc_generation_timeout_seconds: int = Field(
-        default=300, description="Timeout de geração", gt=0
-    )
+    doc_generation_timeout_seconds: int = Field(default=300, description="Timeout de geração", gt=0)
 
     # Feature Flags
     enable_pdf_generation: bool = Field(default=True, description="Habilitar geração de PDF")

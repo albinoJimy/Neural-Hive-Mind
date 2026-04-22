@@ -570,8 +570,7 @@ class IntelligentScheduler:
         if self.load_predictor:
             try:
                 load_forecast = await self.load_predictor.predict_load(
-                    horizon_minutes=60,
-                    include_confidence=True
+                    horizon_minutes=60, include_confidence=True
                 )
 
                 # Extrair carga atual prevista (primeiro ponto do forecast)
@@ -598,9 +597,7 @@ class IntelligentScheduler:
         # NOVO: Detecção de bottlenecks (INFRA-011)
         if self.load_predictor:
             try:
-                bottlenecks = await self.load_predictor.predict_bottlenecks(
-                    horizon_minutes=60
-                )
+                bottlenecks = await self.load_predictor.predict_bottlenecks(horizon_minutes=60)
 
                 predictions["bottlenecks"] = {
                     "count": len(bottlenecks),

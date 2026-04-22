@@ -40,9 +40,7 @@ class ContextualRetriever:
 
         # Recuperar contexto
         retrieval_context = await self.rag_engine.retrieve_context(
-            query=query,
-            artifact_type="all",
-            limit=5
+            query=query, artifact_type="all", limit=5
         )
 
         # Enriquecer com tech stack
@@ -50,30 +48,18 @@ class ContextualRetriever:
             "query": query,
             "tech_stack": tech_stack,
             "similar_architectures": [
-                {
-                    "id": r.id,
-                    "score": r.score,
-                    "metadata": r.metadata
-                }
+                {"id": r.id, "score": r.score, "metadata": r.metadata}
                 for r in retrieval_context.similar_architectures
             ],
             "similar_templates": [
-                {
-                    "id": r.id,
-                    "score": r.score,
-                    "metadata": r.metadata
-                }
+                {"id": r.id, "score": r.score, "metadata": r.metadata}
                 for r in retrieval_context.similar_templates
             ],
             "code_snippets": [
-                {
-                    "id": r.id,
-                    "score": r.score,
-                    "metadata": r.metadata
-                }
+                {"id": r.id, "score": r.score, "metadata": r.metadata}
                 for r in retrieval_context.code_snippets
             ],
-            "connections": retrieval_context.connections
+            "connections": retrieval_context.connections,
         }
 
         logger.info(
@@ -102,9 +88,7 @@ class ContextualRetriever:
         query = " ".join(requirements + constraints)
 
         context = await self.rag_engine.retrieve_context(
-            query=query,
-            artifact_type="architecture",
-            limit=10
+            query=query, artifact_type="architecture", limit=10
         )
 
         return {
@@ -114,11 +98,11 @@ class ContextualRetriever:
                 {
                     "plan_id": r.id,
                     "similarity": r.score,
-                    "type": r.metadata.get("architecture_type", "unknown")
+                    "type": r.metadata.get("architecture_type", "unknown"),
                 }
                 for r in context.similar_architectures
             ],
-            "connections": context.connections
+            "connections": context.connections,
         }
 
     async def retrieve_context(
@@ -149,9 +133,7 @@ class ContextualRetriever:
         artifact_type = artifact_mapping.get(context_type, "all")
 
         context = await self.rag_engine.retrieve_context(
-            query=query,
-            artifact_type=artifact_type,
-            limit=limit
+            query=query, artifact_type=artifact_type, limit=limit
         )
 
         logger.info(
@@ -186,22 +168,16 @@ class ContextualRetriever:
         # Buscar código com filtro de linguagem
         if filters.get("language"):
             code_results = await self.rag_engine.search_code(
-                query=query,
-                limit=limit,
-                language_filter=filters["language"]
+                query=query, limit=limit, language_filter=filters["language"]
             )
             context.code_snippets = code_results
 
         # Buscar templates com filtro de stack
         if filters.get("stack"):
-            templates = await self.rag_engine.search_templates(
-                query=query,
-                limit=limit
-            )
+            templates = await self.rag_engine.search_templates(query=query, limit=limit)
             # Filtrar por stack no metadata
             context.similar_templates = [
-                t for t in templates
-                if t.metadata.get("stack") == filters["stack"]
+                t for t in templates if t.metadata.get("stack") == filters["stack"]
             ]
 
         logger.info(

@@ -18,14 +18,13 @@ from tests.helpers.integration_helpers import (
     ResultValidator,
 )
 
-
 pytestmark = [pytest.mark.integration]
 
 
 class TestTestExecutorWithMockGitHubActions:
     """Tests for TestExecutor with mocked GitHub Actions."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_test_executor_github_actions_success(
         self, worker_config, mock_vault_client, mock_metrics
     ):
@@ -75,7 +74,7 @@ class TestTestExecutorWithMockGitHubActions:
         ResultValidator.assert_output_value(result, "tests_failed", 0)
         ResultValidator.assert_output_value(result, "run_id", "run-123")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_test_executor_github_actions_failure(
         self, worker_config, mock_vault_client, mock_metrics
     ):
@@ -116,7 +115,7 @@ class TestTestExecutorWithMockGitHubActions:
         ResultValidator.assert_simulated(result, expected=False)
         ResultValidator.assert_output_value(result, "tests_failed", 7)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_test_executor_github_actions_connection_error(
         self, worker_config, mock_vault_client, mock_metrics
     ):
@@ -154,7 +153,7 @@ class TestTestExecutorWithMockGitHubActions:
 class TestTestExecutorLocalCommand:
     """Tests for TestExecutor local command execution."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_test_executor_local_command_success(
         self, worker_config, mock_vault_client, mock_metrics
     ):
@@ -180,7 +179,7 @@ class TestTestExecutorLocalCommand:
         ResultValidator.assert_simulated(result, expected=False)
         ResultValidator.assert_log_contains(result, "echo")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_test_executor_local_command_with_output(
         self, worker_config, mock_vault_client, mock_metrics
     ):
@@ -208,7 +207,7 @@ class TestTestExecutorLocalCommand:
 
         ResultValidator.assert_success(result)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_test_executor_command_not_allowed(
         self, worker_config, mock_vault_client, mock_metrics
     ):
@@ -235,7 +234,7 @@ class TestTestExecutorLocalCommand:
         ResultValidator.assert_success(result)
         ResultValidator.assert_simulated(result, expected=True)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_test_executor_command_timeout(
         self, worker_config, mock_vault_client, mock_metrics
     ):
@@ -262,7 +261,7 @@ class TestTestExecutorLocalCommand:
         ResultValidator.assert_failure(result)
         ResultValidator.assert_log_contains(result, "timeout")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_test_executor_working_dir_not_found(
         self, worker_config, mock_vault_client, mock_metrics
     ):
@@ -286,7 +285,7 @@ class TestTestExecutorLocalCommand:
         ResultValidator.assert_success(result)
         ResultValidator.assert_simulated(result, expected=True)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_test_executor_command_returns_nonzero(
         self, worker_config, mock_vault_client, mock_metrics
     ):
@@ -314,7 +313,7 @@ class TestTestExecutorLocalCommand:
 class TestTestExecutorSimulation:
     """Tests for TestExecutor simulation mode."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_test_executor_simulation_mode(
         self, worker_config_minimal, mock_vault_client, mock_metrics
     ):
@@ -339,7 +338,7 @@ class TestTestExecutorSimulation:
         ResultValidator.assert_has_output(result, "tests_passed", "coverage", "test_suite")
         ResultValidator.assert_log_contains(result, "simulated")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_test_executor_simulation_metrics(
         self, worker_config_minimal, mock_vault_client, mock_metrics
     ):
@@ -364,7 +363,7 @@ class TestTestExecutorSimulation:
 class TestTestExecutorValidation:
     """Tests for TestExecutor input validation."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_test_executor_missing_ticket_id(self, test_executor):
         """Test that missing ticket_id raises ValidationError."""
         from executors.base_executor import ValidationError
@@ -380,7 +379,7 @@ class TestTestExecutorValidation:
 
         assert "ticket_id" in str(exc_info.value)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_test_executor_wrong_task_type(self, test_executor):
         """Test that wrong task_type raises ValidationError."""
         from executors.base_executor import ValidationError
@@ -401,7 +400,7 @@ class TestTestExecutorValidation:
 class TestTestExecutorCommandSecurity:
     """Security-focused tests for command execution."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_command_injection_prevented(
         self, worker_config, mock_vault_client, mock_metrics
     ):
@@ -429,7 +428,7 @@ class TestTestExecutorCommandSecurity:
         # or fall back to simulation
         assert "success" in result
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_empty_command_handled(self, worker_config, mock_vault_client, mock_metrics):
         """Test that empty commands are handled safely."""
         from executors.test_executor import TestExecutor
@@ -452,18 +451,18 @@ class TestTestExecutorCommandSecurity:
         ResultValidator.assert_simulated(result, expected=True)
 
 
-@pytest.mark.real_integration
-@pytest.mark.github_actions
+@pytest.mark.real_integration()
+@pytest.mark.github_actions()
 class TestTestExecutorRealGitHubActions:
     """Tests that require real GitHub Actions integration."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_test_executor_with_real_github_actions(
         self, worker_config, mock_vault_client, mock_metrics
     ):
         """Test with real GitHub Actions (requires GITHUB_TOKEN env var)."""
-        from executors.test_executor import TestExecutor
         from clients.github_actions_client import GitHubActionsClient
+        from executors.test_executor import TestExecutor
 
         github_token = os.getenv("GITHUB_TOKEN")
         if not github_token:

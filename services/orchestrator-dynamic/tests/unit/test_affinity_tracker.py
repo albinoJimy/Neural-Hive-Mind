@@ -8,14 +8,15 @@ Cobertura:
 - Integração com métricas
 """
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock
+
+import pytest
 
 
 class TestAffinityTracker:
     """Testes para AffinityTracker."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_redis_client(self):
         """Mock do cliente Redis."""
         client = AsyncMock()
@@ -34,7 +35,7 @@ class TestAffinityTracker:
 
         return client
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_config(self):
         """Mock das configurações."""
         config = MagicMock()
@@ -43,14 +44,14 @@ class TestAffinityTracker:
         config.scheduler_affinity_anti_affinity_priorities = ["CRITICAL", "HIGH"]
         return config
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_metrics(self):
         """Mock das métricas."""
         metrics = MagicMock()
         metrics.record_affinity_cache_operation = MagicMock()
         return metrics
 
-    @pytest.fixture
+    @pytest.fixture()
     def affinity_tracker(self, mock_redis_client, mock_config, mock_metrics):
         """Instância do AffinityTracker com mocks."""
         from src.scheduler.affinity_tracker import AffinityTracker
@@ -59,7 +60,7 @@ class TestAffinityTracker:
             redis_client=mock_redis_client, config=mock_config, metrics=mock_metrics
         )
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_plan_allocations_empty(self, affinity_tracker, mock_redis_client):
         """Retorna dict vazio para plan_id novo."""
         mock_redis_client.hgetall.return_value = {}
@@ -69,7 +70,7 @@ class TestAffinityTracker:
         assert result == {}
         mock_redis_client.hgetall.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_plan_allocations_with_data(self, affinity_tracker, mock_redis_client):
         """Retorna contagens corretas de alocações."""
         mock_redis_client.hgetall.return_value = {"worker-001": "3", "worker-002": "1"}
@@ -78,13 +79,13 @@ class TestAffinityTracker:
 
         assert result == {"worker-001": 3, "worker-002": 1}
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_plan_allocations_none_plan_id(self, affinity_tracker):
         """Retorna dict vazio quando plan_id é None."""
         result = await affinity_tracker.get_plan_allocations(None)
         assert result == {}
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_intent_allocations_with_data(self, affinity_tracker, mock_redis_client):
         """Retorna contagens corretas para intent_id."""
         mock_redis_client.hgetall.return_value = {"worker-001": "2"}
@@ -93,7 +94,7 @@ class TestAffinityTracker:
 
         assert result == {"worker-001": 2}
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_critical_tickets_on_worker(self, affinity_tracker, mock_redis_client):
         """Retorna set de ticket_ids críticos."""
         mock_redis_client.smembers.return_value = {"ticket-1", "ticket-2"}
@@ -102,7 +103,7 @@ class TestAffinityTracker:
 
         assert result == {"ticket-1", "ticket-2"}
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_record_allocation_increments_count(self, affinity_tracker, mock_redis_client):
         """Incrementa contador no Redis ao registrar alocação."""
         ticket = {
@@ -119,7 +120,7 @@ class TestAffinityTracker:
         pipe = mock_redis_client.pipeline.return_value
         pipe.execute.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_record_allocation_critical_ticket(self, affinity_tracker, mock_redis_client):
         """Registra ticket crítico no set de críticos."""
         ticket = {
@@ -137,7 +138,7 @@ class TestAffinityTracker:
         # Verifica que sadd foi chamado para ticket crítico
         assert pipe.sadd.called
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_cleanup_completed_ticket(self, affinity_tracker, mock_redis_client):
         """Remove ticket do cache ao completar."""
         result = await affinity_tracker.cleanup_completed_ticket(
@@ -151,7 +152,7 @@ class TestAffinityTracker:
         pipe = mock_redis_client.pipeline.return_value
         pipe.execute.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_redis_failure_fail_open_get_plan(
         self, affinity_tracker, mock_redis_client, mock_metrics
     ):
@@ -163,7 +164,7 @@ class TestAffinityTracker:
         assert result == {}
         mock_metrics.record_affinity_cache_operation.assert_called_with("get_plan", "failure")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_redis_failure_fail_open_record(
         self, affinity_tracker, mock_redis_client, mock_metrics
     ):
@@ -201,7 +202,7 @@ class TestAffinityTracker:
 class TestResourceAllocatorAffinity:
     """Testes de integração de affinity no ResourceAllocator."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_config(self):
         """Mock das configurações com affinity habilitado."""
         config = MagicMock()
@@ -215,7 +216,7 @@ class TestResourceAllocatorAffinity:
         config.service_registry_max_results = 5
         return config
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_metrics(self):
         """Mock das métricas."""
         metrics = MagicMock()
@@ -225,7 +226,7 @@ class TestResourceAllocatorAffinity:
         metrics.record_affinity_score = MagicMock()
         return metrics
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_affinity_tracker(self):
         """Mock do AffinityTracker."""
         tracker = AsyncMock()
@@ -235,7 +236,7 @@ class TestResourceAllocatorAffinity:
         tracker.record_allocation = AsyncMock(return_value=True)
         return tracker
 
-    @pytest.fixture
+    @pytest.fixture()
     def resource_allocator(self, mock_config, mock_metrics, mock_affinity_tracker):
         """Instância do ResourceAllocator com mocks."""
         from src.scheduler.resource_allocator import ResourceAllocator
@@ -372,7 +373,7 @@ class TestResourceAllocatorAffinity:
         assert score > 0.5
         # NOTA: Métricas são registradas em select_best_worker, não em _calculate_affinity_score
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_select_best_worker_with_affinity_enabled(
         self, resource_allocator, mock_affinity_tracker
     ):
@@ -394,7 +395,7 @@ class TestResourceAllocatorAffinity:
         assert best_worker.get("affinity_applied") is True
         mock_affinity_tracker.record_allocation.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_select_best_worker_affinity_disabled(self, mock_config, mock_metrics):
         """Comportamento sem affinity habilitado."""
         from src.scheduler.resource_allocator import ResourceAllocator
@@ -421,7 +422,7 @@ class TestResourceAllocatorAffinity:
         assert best_worker is not None
         assert best_worker.get("affinity_applied", False) is False
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_affinity_tracker_failure_graceful_degradation(
         self, resource_allocator, mock_affinity_tracker
     ):

@@ -4,16 +4,16 @@ Testes unitários para lógica de aprovação do Orchestrator
 Testa decisão de aprovação, roteamento condicional e enriquecimento de metadados.
 """
 
-import pytest
-from unittest.mock import MagicMock, AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
-from src.models.cognitive_plan import RiskBand, ApprovalStatus
+import pytest
+from src.models.cognitive_plan import ApprovalStatus, RiskBand
 
 
 class TestOrchestratorApprovalDecision:
     """Testes para lógica de decisão de aprovação"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_settings(self):
         """Mock Settings object"""
         settings = MagicMock()
@@ -24,7 +24,7 @@ class TestOrchestratorApprovalDecision:
         settings.kafka_approval_topic = "cognitive-plans-approval-requests"
         return settings
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_dependencies(self, mock_settings):
         """Cria dependências mockadas para o orchestrator"""
         return {
@@ -151,14 +151,14 @@ class TestOrchestratorApprovalDecision:
 class TestOrchestratorConditionalPublishing:
     """Testes para lógica de roteamento condicional"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_plan_producer(self):
         """Mock do KafkaPlanProducer"""
         producer = MagicMock()
         producer.send_plan = AsyncMock()
         return producer
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_approval_producer(self):
         """Mock do KafkaApprovalProducer"""
         producer = MagicMock()
@@ -167,7 +167,7 @@ class TestOrchestratorConditionalPublishing:
         producer.settings.kafka_approval_topic = "cognitive-plans-approval-requests"
         return producer
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_cognitive_plan_blocked(self):
         """CognitivePlan mockado que requer aprovação"""
         plan = MagicMock()
@@ -180,7 +180,7 @@ class TestOrchestratorConditionalPublishing:
         plan.risk_matrix = {"destructive_severity": "high"}
         return plan
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_cognitive_plan_approved(self):
         """CognitivePlan mockado que não requer aprovação"""
         plan = MagicMock()
@@ -192,7 +192,7 @@ class TestOrchestratorConditionalPublishing:
         plan.is_destructive = False
         return plan
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_publish_to_approval_topic_when_blocked(
         self, mock_approval_producer, mock_plan_producer, mock_cognitive_plan_blocked
     ):
@@ -207,7 +207,7 @@ class TestOrchestratorConditionalPublishing:
         mock_approval_producer.send_approval_request.assert_called_once_with(cognitive_plan)
         mock_plan_producer.send_plan.assert_not_called()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_publish_to_execution_topic_when_approved(
         self, mock_approval_producer, mock_plan_producer, mock_cognitive_plan_approved
     ):
@@ -222,7 +222,7 @@ class TestOrchestratorConditionalPublishing:
         mock_plan_producer.send_plan.assert_called_once_with(cognitive_plan)
         mock_approval_producer.send_approval_request.assert_not_called()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_approval_producer_called_with_correct_plan(
         self, mock_approval_producer, mock_cognitive_plan_blocked
     ):
@@ -236,7 +236,7 @@ class TestOrchestratorConditionalPublishing:
         assert call_args[0][0].plan_id == "plan-123"
         assert call_args[0][0].requires_approval is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_plan_producer_not_called_when_blocked(
         self, mock_approval_producer, mock_plan_producer, mock_cognitive_plan_blocked
     ):
@@ -319,7 +319,7 @@ class TestOrchestratorApprovalMetadata:
 class TestOrchestratorApprovalLogging:
     """Testes para audit trail de aprovação"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_logger(self):
         """Mock do logger estruturado"""
         with patch("src.services.orchestrator.logger") as mock:
@@ -404,7 +404,7 @@ class TestOrchestratorApprovalLogging:
 class TestOrchestratorMetricsRecording:
     """Testes para registro de métricas de aprovação"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_metrics(self):
         """Mock do NeuralHiveMetrics"""
         metrics = MagicMock()

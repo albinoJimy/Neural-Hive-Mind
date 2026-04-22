@@ -64,17 +64,11 @@ class RAGQueryEngine:
         if self.qdrant and alpha > 0:
             if artifact_type in ["all", "template"]:
                 vector_results.extend(
-                    await self.qdrant.search_templates(
-                        query_vector=query_vector,
-                        limit=limit
-                    )
+                    await self.qdrant.search_templates(query_vector=query_vector, limit=limit)
                 )
             if artifact_type in ["all", "code"]:
                 vector_results.extend(
-                    await self.qdrant.search_code(
-                        query_vector=query_vector,
-                        limit=limit
-                    )
+                    await self.qdrant.search_code(query_vector=query_vector, limit=limit)
                 )
 
         # Busca no grafo (Neo4j)
@@ -85,17 +79,12 @@ class RAGQueryEngine:
 
             if artifact_type in ["all", "architecture"] and keywords:
                 graph_results.extend(
-                    await self.neo4j.find_similar_architectures(
-                        requirements=keywords,
-                        limit=limit
-                    )
+                    await self.neo4j.find_similar_architectures(requirements=keywords, limit=limit)
                 )
 
         # Combinar resultados com pesos
         combined = self._combine_results(
-            vector_results=vector_results,
-            graph_results=graph_results,
-            alpha=alpha
+            vector_results=vector_results, graph_results=graph_results, alpha=alpha
         )
 
         # Ordenar e limitar
@@ -124,10 +113,7 @@ class RAGQueryEngine:
         # Buscar arquiteturas similares
         if artifact_type in ["all", "architecture"]:
             arch_results = await self.hybrid_search(
-                query=query,
-                alpha=0.5,
-                limit=limit,
-                artifact_type="architecture"
+                query=query, alpha=0.5, limit=limit, artifact_type="architecture"
             )
             context.similar_architectures = arch_results
 
@@ -137,15 +123,14 @@ class RAGQueryEngine:
 
             if self.qdrant:
                 template_results = await self.qdrant.search_templates(
-                    query_vector=query_vector,
-                    limit=limit
+                    query_vector=query_vector, limit=limit
                 )
                 context.similar_templates = [
                     RetrievalResult(
                         id=str(r["id"]),
                         type="template",
                         score=r["score"],
-                        metadata=r.get("payload", r)
+                        metadata=r.get("payload", r),
                     )
                     for r in template_results
                 ]
@@ -155,16 +140,10 @@ class RAGQueryEngine:
             query_vector = await self.embedder.embed(query)
 
             if self.qdrant:
-                code_results = await self.qdrant.search_code(
-                    query_vector=query_vector,
-                    limit=limit
-                )
+                code_results = await self.qdrant.search_code(query_vector=query_vector, limit=limit)
                 context.code_snippets = [
                     RetrievalResult(
-                        id=str(r["id"]),
-                        type="code",
-                        score=r["score"],
-                        metadata=r.get("payload", r)
+                        id=str(r["id"]), type="code", score=r["score"], metadata=r.get("payload", r)
                     )
                     for r in code_results
                 ]
@@ -172,9 +151,7 @@ class RAGQueryEngine:
         # Buscar conexões no grafo
         if self.neo4j and context.similar_architectures:
             first_arch = context.similar_architectures[0]
-            connections = await self.neo4j.get_connections_context(
-                node_id=first_arch.id
-            )
+            connections = await self.neo4j.get_connections_context(node_id=first_arch.id)
             context.connections = connections
 
         logger.info(
@@ -210,17 +187,12 @@ class RAGQueryEngine:
         query_vector = await self.embedder.embed(query)
 
         results = await self.qdrant.search_templates(
-            query_vector=query_vector,
-            limit=limit,
-            score_threshold=score_threshold
+            query_vector=query_vector, limit=limit, score_threshold=score_threshold
         )
 
         return [
             RetrievalResult(
-                id=str(r["id"]),
-                type="template",
-                score=r["score"],
-                metadata=r.get("payload", r)
+                id=str(r["id"]), type="template", score=r["score"], metadata=r.get("payload", r)
             )
             for r in results
         ]
@@ -253,15 +225,12 @@ class RAGQueryEngine:
             query_vector=query_vector,
             limit=limit,
             score_threshold=score_threshold,
-            language_filter=language_filter
+            language_filter=language_filter,
         )
 
         return [
             RetrievalResult(
-                id=str(r["id"]),
-                type="code",
-                score=r["score"],
-                metadata=r.get("payload", r)
+                id=str(r["id"]), type="code", score=r["score"], metadata=r.get("payload", r)
             )
             for r in results
         ]
@@ -277,9 +246,28 @@ class RAGQueryEngine:
         """
         # Implementação simples - pode ser melhorada com NLP
         stop_words = {
-            "a", "o", "de", "para", "com", "sem", "um", "uma",
-            "create", "make", "get", "find", "search", "the",
-            "and", "or", "but", "in", "on", "at", "to", "for"
+            "a",
+            "o",
+            "de",
+            "para",
+            "com",
+            "sem",
+            "um",
+            "uma",
+            "create",
+            "make",
+            "get",
+            "find",
+            "search",
+            "the",
+            "and",
+            "or",
+            "but",
+            "in",
+            "on",
+            "at",
+            "to",
+            "for",
         }
         words = query.lower().split()
 
@@ -311,7 +299,7 @@ class RAGQueryEngine:
                 id=str(r["id"]),
                 type="vector",
                 score=alpha * r["score"],  # Aplicar peso alpha
-                metadata=r.get("payload", r)
+                metadata=r.get("payload", r),
             )
             combined_map[result.id] = result
 
@@ -329,10 +317,7 @@ class RAGQueryEngine:
                 combined_map[plan_id].type = "hybrid"
             else:
                 result = RetrievalResult(
-                    id=str(plan_id),
-                    type="graph",
-                    score=(1 - alpha) * similarity,
-                    metadata=r
+                    id=str(plan_id), type="graph", score=(1 - alpha) * similarity, metadata=r
                 )
                 combined_map[plan_id] = result
 

@@ -2,19 +2,21 @@
 Factory para criação de servidor gRPC com observabilidade.
 """
 
-import grpc
-from concurrent import futures
-import structlog
-from typing import Any
 import time
-from datetime import datetime, timezone
+from concurrent import futures
+from datetime import UTC, datetime
+from typing import Any
+
+import grpc
+import structlog
+from google.protobuf.timestamp_pb2 import Timestamp
 from opentelemetry import trace
 from opentelemetry.instrumentation.grpc import GrpcInstrumentorServer
-from google.protobuf.timestamp_pb2 import Timestamp
+
 from neural_hive_observability.context import extract_context_from_metadata, set_baggage
 
-from .config import SpecialistConfig
 from .auth_interceptor import AuthInterceptor
+from .config import SpecialistConfig
 
 try:
     from .proto_gen import specialist_pb2, specialist_pb2_grpc
@@ -382,7 +384,7 @@ class SpecialistServicer:
 
         # Construir EvaluatePlanResponse com timestamp robusto
         try:
-            now_utc = datetime.now(timezone.utc)
+            now_utc = datetime.now(UTC)
             timestamp = Timestamp()
             timestamp.FromDatetime(now_utc)
 

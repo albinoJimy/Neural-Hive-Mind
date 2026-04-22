@@ -7,7 +7,7 @@ import json
 import uuid
 from datetime import datetime
 from enum import Enum
-from typing import Dict, List, Optional
+from typing import Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -58,7 +58,7 @@ class GuardrailViolation(BaseModel):
     description: str
     remediation_suggestion: str
     detected_by: str
-    evidence: Dict[str, str] = Field(default_factory=dict)
+    evidence: dict[str, str] = Field(default_factory=dict)
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -122,11 +122,11 @@ class SecurityValidation(BaseModel):
     validated_at: datetime = Field(default_factory=datetime.utcnow)
     validation_status: ValidationStatus
     validator_type: ValidatorType
-    violations: List[GuardrailViolation] = Field(default_factory=list)
+    violations: list[GuardrailViolation] = Field(default_factory=list)
     risk_assessment: RiskAssessment
     approval_required: bool = False
     approval_reason: Optional[str] = None
-    metadata: Dict[str, str] = Field(default_factory=dict)
+    metadata: dict[str, str] = Field(default_factory=dict)
     hash: str = ""
     schema_version: int = 1
 

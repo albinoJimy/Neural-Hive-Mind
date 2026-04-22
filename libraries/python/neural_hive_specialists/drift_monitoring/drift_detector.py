@@ -5,12 +5,13 @@ Executa verificações periódicas de drift e persiste resultados no MongoDB.
 """
 
 import asyncio
-from typing import Dict, Any, Optional
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+from typing import Any, Optional
+
 import structlog
 
-from .evidently_monitor import EvidentlyMonitor
 from .drift_alerts import DriftAlerter
+from .evidently_monitor import EvidentlyMonitor
 
 logger = structlog.get_logger(__name__)
 
@@ -20,7 +21,7 @@ class DriftDetector:
 
     def __init__(
         self,
-        config: Dict[str, Any],
+        config: dict[str, Any],
         evidently_monitor: EvidentlyMonitor,
         drift_alerter: DriftAlerter,
         ledger_client: Any,
@@ -89,7 +90,7 @@ class DriftDetector:
                 logger.error("Error in drift monitoring loop", error=str(e), exc_info=True)
                 await asyncio.sleep(60)  # Retry após 1 minuto
 
-    async def check_drift(self) -> Dict[str, Any]:
+    async def check_drift(self) -> dict[str, Any]:
         """
         Executa verificação de drift.
 
@@ -133,12 +134,12 @@ class DriftDetector:
             logger.error("Drift check failed", error=str(e), exc_info=True)
             return {"drift_detected": False, "drift_score": 0.0, "error": str(e)}
 
-    async def _persist_drift_result(self, drift_result: Dict[str, Any]):
+    async def _persist_drift_result(self, drift_result: dict[str, Any]):
         """Persiste resultado de drift no ledger."""
         try:
             document = {
                 "type": "drift_detection",
-                "timestamp": datetime.now(timezone.utc),
+                "timestamp": datetime.now(UTC),
                 "drift_detected": drift_result["drift_detected"],
                 "drift_score": drift_result["drift_score"],
                 "drifted_features": drift_result["drifted_features"],
@@ -159,7 +160,7 @@ class DriftDetector:
         except Exception as e:
             logger.error("Failed to persist drift result", error=str(e))
 
-    def log_evaluation_features(self, features: Dict[str, Any]):
+    def log_evaluation_features(self, features: dict[str, Any]):
         """
         Registra features de uma avaliação para monitoramento.
 

@@ -3,20 +3,21 @@ Testes para CuriosityCalculator.
 Calcula score de curiosidade para decidir áreas interessantes para exploração.
 """
 
-import pytest
-from src.signals.curiosity_calculator import CuriosityCalculator
-from src.exploration.codebase_explorer import CodebaseExplorer
 import tempfile
 from pathlib import Path
 
+import pytest
+from src.exploration.codebase_explorer import CodebaseExplorer
+from src.signals.curiosity_calculator import CuriosityCalculator
 
-@pytest.fixture
+
+@pytest.fixture()
 def curiosity_calculator():
     """Instância de CuriosityCalculator para testes."""
     return CuriosityCalculator()
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_codebase():
     """Cria codebase temporário para testes."""
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -87,7 +88,7 @@ class TestCuriosityScoreBasic:
         explorer = CodebaseExplorer(sample_codebase)
         boring_file = str(Path(sample_codebase) / "boring.py")
 
-        with open(boring_file, "r") as f:
+        with open(boring_file) as f:
             code = f.read()
 
         score = curiosity_calculator.calculate_score(code, boring_file)
@@ -101,7 +102,7 @@ class TestCuriosityScoreBasic:
         explorer = CodebaseExplorer(sample_codebase)
         interesting_file = str(Path(sample_codebase) / "interesting.py")
 
-        with open(interesting_file, "r") as f:
+        with open(interesting_file) as f:
             code = f.read()
 
         score = curiosity_calculator.calculate_score(code, interesting_file)
@@ -114,7 +115,7 @@ class TestCuriosityScoreBasic:
         """Testa score de arquivo complexo."""
         complex_file = str(Path(sample_codebase) / "complex.py")
 
-        with open(complex_file, "r") as f:
+        with open(complex_file) as f:
             code = f.read()
 
         score = curiosity_calculator.calculate_score(code, complex_file)
@@ -219,7 +220,7 @@ class TestCuriosityComparison:
 
         scores = []
         for filepath in files:
-            with open(filepath, "r") as f:
+            with open(filepath) as f:
                 code = f.read()
             scores.append((filepath, curiosity_calculator.calculate_score(code, filepath)))
 
@@ -237,7 +238,7 @@ class TestCuriosityComparison:
 
         interesting_files = []
         for filepath in Path(sample_codebase).glob("*.py"):
-            with open(filepath, "r") as f:
+            with open(filepath) as f:
                 code = f.read()
             score = curiosity_calculator.calculate_score(code, str(filepath))
             if score >= threshold:

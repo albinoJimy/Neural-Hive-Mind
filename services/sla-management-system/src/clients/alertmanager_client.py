@@ -2,7 +2,8 @@
 Cliente para Alertmanager API.
 """
 
-from typing import Any, Dict, List, Optional
+from datetime import UTC
+from typing import Any, Optional
 
 import httpx
 import structlog
@@ -30,7 +31,7 @@ class AlertmanagerClient:
             await self.session.aclose()
             self.logger.info("alertmanager_client_disconnected")
 
-    async def get_alerts(self, filters: Optional[Dict[str, str]] = None) -> List[Dict[str, Any]]:
+    async def get_alerts(self, filters: Optional[dict[str, str]] = None) -> list[dict[str, Any]]:
         """Busca alertas ativos."""
         try:
             params = {}
@@ -50,7 +51,7 @@ class AlertmanagerClient:
             self.logger.error("alerts_fetch_failed", error=str(e))
             return []
 
-    async def get_slo_alerts(self) -> List[Dict[str, Any]]:
+    async def get_slo_alerts(self) -> list[dict[str, Any]]:
         """Busca apenas alertas relacionados a SLOs."""
         try:
             # Filtro para alertas com label slo
@@ -68,9 +69,9 @@ class AlertmanagerClient:
     async def silence_alert(self, alert_id: str, duration_hours: int, comment: str) -> str:
         """Cria silence para um alerta."""
         try:
-            from datetime import datetime, timedelta, timezone
+            from datetime import datetime, timedelta
 
-            now = datetime.now(timezone.utc)
+            now = datetime.now(UTC)
             ends_at = now + timedelta(hours=duration_hours)
 
             silence_data = {

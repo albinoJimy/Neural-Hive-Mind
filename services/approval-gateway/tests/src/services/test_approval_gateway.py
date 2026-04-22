@@ -1,20 +1,18 @@
 """Tests para ApprovalGateway service."""
 
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
-from datetime import datetime, timedelta
+from unittest.mock import AsyncMock, MagicMock
 
+import pytest
 from src.models.approval import (
+    ApprovalPolicy,
     ApprovalRequest,
-    ApprovalDecision,
     ApprovalStatus,
     ApprovalType,
-    ApprovalPolicy,
 )
 from src.services.approval_gateway import ApprovalGateway
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_repository():
     """Mock do repositório de aprovações."""
     repo = MagicMock()
@@ -24,13 +22,13 @@ def mock_repository():
     repo.list = AsyncMock(return_value=([], 0))
     repo.count_by_status = AsyncMock(return_value=0)
     repo.expire_old_pending = AsyncMock(return_value=0)
-    repo.get_metrics = AsyncMock(return_value={
-        "total": 0, "approved": 0, "rejected": 0, "pending": 0, "expired": 0
-    })
+    repo.get_metrics = AsyncMock(
+        return_value={"total": 0, "approved": 0, "rejected": 0, "pending": 0, "expired": 0}
+    )
     return repo
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 class TestApprovalGateway:
     """Testes para ApprovalGateway."""
 
@@ -38,11 +36,13 @@ class TestApprovalGateway:
         """Testa avaliação com alta confiança -> aprovação automática."""
         mock_openai_client.chat.completions.create = AsyncMock(
             return_value=MagicMock(
-                choices=[MagicMock(
-                    message=MagicMock(
-                        content="AVALIACAO: 90\nRACIOCINIO: Solicitação clara e bem estruturada"
+                choices=[
+                    MagicMock(
+                        message=MagicMock(
+                            content="AVALIACAO: 90\nRACIOCINIO: Solicitação clara e bem estruturada"
+                        )
                     )
-                )]
+                ]
             )
         )
 
@@ -54,7 +54,7 @@ class TestApprovalGateway:
             title="Simple Login",
             description="Implementação simples de login",
             requested_by="dev@example.com",
-            context={"complexity": 2, "is_critical": False}
+            context={"complexity": 2, "is_critical": False},
         )
 
         decision = await gateway.evaluate_request(request)
@@ -67,11 +67,13 @@ class TestApprovalGateway:
         """Testa avaliação com baixa confiança -> rejeição automática."""
         mock_openai_client.chat.completions.create = AsyncMock(
             return_value=MagicMock(
-                choices=[MagicMock(
-                    message=MagicMock(
-                        content="AVALIACAO: 20\nRACIOCINIO: Requisitos vagos e mal definidos"
+                choices=[
+                    MagicMock(
+                        message=MagicMock(
+                            content="AVALIACAO: 20\nRACIOCINIO: Requisitos vagos e mal definidos"
+                        )
                     )
-                )]
+                ]
             )
         )
 
@@ -82,7 +84,7 @@ class TestApprovalGateway:
             type=ApprovalType.REQUIREMENT,
             title="Vague Feature",
             description="Algo qualquer",
-            requested_by="dev@example.com"
+            requested_by="dev@example.com",
         )
 
         decision = await gateway.evaluate_request(request)
@@ -94,11 +96,13 @@ class TestApprovalGateway:
         """Testa avaliação com confiança média -> requer humano."""
         mock_openai_client.chat.completions.create = AsyncMock(
             return_value=MagicMock(
-                choices=[MagicMock(
-                    message=MagicMock(
-                        content="AVALIACAO: 50\nRACIOCINIO: Requer análise mais detalhada"
+                choices=[
+                    MagicMock(
+                        message=MagicMock(
+                            content="AVALIACAO: 50\nRACIOCINIO: Requer análise mais detalhada"
+                        )
                     )
-                )]
+                ]
             )
         )
 
@@ -109,7 +113,7 @@ class TestApprovalGateway:
             type=ApprovalType.ARCHITECTURE,
             title="Complex Decision",
             description="Decisão complexa",
-            requested_by="architect@example.com"
+            requested_by="architect@example.com",
         )
 
         decision = await gateway.evaluate_request(request)
@@ -127,7 +131,7 @@ class TestApprovalGateway:
             title="Critical System",
             description="Mudança crítica",
             requested_by="architect@example.com",
-            context={"is_critical": True, "complexity": 3}
+            context={"is_critical": True, "complexity": 3},
         )
 
         decision = await gateway.evaluate_request(request)
@@ -145,7 +149,7 @@ class TestApprovalGateway:
             title="Complex Architecture",
             description="Arquitetura muito complexa",
             requested_by="architect@example.com",
-            context={"complexity": 10, "is_critical": False}
+            context={"complexity": 10, "is_critical": False},
         )
 
         decision = await gateway.evaluate_request(request)
@@ -154,9 +158,7 @@ class TestApprovalGateway:
 
     async def test_evaluate_with_llm_error(self, mock_openai_client, mock_repository):
         """Testa fallback quando LLM falha."""
-        mock_openai_client.chat.completions.create = AsyncMock(
-            side_effect=Exception("API Error")
-        )
+        mock_openai_client.chat.completions.create = AsyncMock(side_effect=Exception("API Error"))
 
         gateway = ApprovalGateway(llm_client=mock_openai_client, repository=mock_repository)
 
@@ -165,7 +167,7 @@ class TestApprovalGateway:
             type=ApprovalType.REQUIREMENT,
             title="Test",
             description="Test",
-            requested_by="user@example.com"
+            requested_by="user@example.com",
         )
 
         decision = await gateway.evaluate_request(request)
@@ -178,11 +180,11 @@ class TestApprovalGateway:
         """Testa uso de política customizada."""
         mock_openai_client.chat.completions.create = AsyncMock(
             return_value=MagicMock(
-                choices=[MagicMock(
-                    message=MagicMock(
-                        content="AVALIACAO: 85\nRACIOCINIO: Boa solicitação"
+                choices=[
+                    MagicMock(
+                        message=MagicMock(content="AVALIACAO: 85\nRACIOCINIO: Boa solicitação")
                     )
-                )]
+                ]
             )
         )
 
@@ -193,7 +195,7 @@ class TestApprovalGateway:
             id="strict",
             name="Política Rigorosa",
             description="Test",
-            auto_approve_threshold=0.95  # Mais alto
+            auto_approve_threshold=0.95,  # Mais alto
         )
 
         request = ApprovalRequest(
@@ -201,7 +203,7 @@ class TestApprovalGateway:
             type=ApprovalType.REQUIREMENT,
             title="Test",
             description="Test",
-            requested_by="user@example.com"
+            requested_by="user@example.com",
         )
 
         # 85% não atinge 95%, então requer humano
@@ -266,7 +268,7 @@ class TestApprovalGatewaySync:
             title="Login",
             description="Funcionalidade de login",
             requested_by="user@example.com",
-            context={"priority": "high"}
+            context={"priority": "high"},
         )
 
         prompt = gateway._build_evaluation_prompt(request)

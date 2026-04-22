@@ -5,8 +5,8 @@ import pytest
 from neural_hive_specialists.drift_monitoring.drift_alerts import DriftAlerter
 
 
-@pytest.mark.unit
-@pytest.mark.asyncio
+@pytest.mark.unit()
+@pytest.mark.asyncio()
 async def test_send_alert_dispatches_channels(monkeypatch):
     alerter = DriftAlerter(
         {
@@ -25,8 +25,8 @@ async def test_send_alert_dispatches_channels(monkeypatch):
     slack_mock.assert_awaited_once()
 
 
-@pytest.mark.unit
-@pytest.mark.asyncio
+@pytest.mark.unit()
+@pytest.mark.asyncio()
 async def test_send_alert_disabled(monkeypatch):
     alerter = DriftAlerter(
         {
@@ -43,7 +43,7 @@ async def test_send_alert_disabled(monkeypatch):
     alertmanager_mock.assert_not_awaited()
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 def test_calculate_severity_levels():
     alerter = DriftAlerter({})
 
@@ -52,7 +52,7 @@ def test_calculate_severity_levels():
     assert alerter._calculate_severity(0.7) == "critical"
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 def test_calculate_severity_boundary_values():
     """Testa valores de contorno para severidade."""
     alerter = DriftAlerter({})
@@ -67,7 +67,7 @@ def test_calculate_severity_boundary_values():
     assert alerter._calculate_severity(0.51) == "critical"
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 def test_generate_alert_message():
     """Testa geração de mensagem de alerta."""
     alerter = DriftAlerter({})
@@ -80,7 +80,7 @@ def test_generate_alert_message():
     assert "3" in message  # Número de features
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 def test_generate_alert_message_many_features():
     """Testa mensagem com muitas features (limita a 5 na mensagem)."""
     alerter = DriftAlerter({})
@@ -95,7 +95,7 @@ def test_generate_alert_message_many_features():
     assert "feature5" not in message
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 def test_init_with_ledger_client():
     """Testa inicialização com ledger client."""
     mock_ledger = AsyncMock()
@@ -105,7 +105,7 @@ def test_init_with_ledger_client():
     assert alerter.ledger_client is mock_ledger
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 def test_init_with_both_config_names():
     """Testa suporte a ambos nomes de configuração de alertas."""
     # Teste com drift_alert_enabled
@@ -121,7 +121,7 @@ def test_init_with_both_config_names():
     assert alerter3.enabled is True  # drift_alert_enabled tem prioridade
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 def test_webhook_url_fallback():
     """Testa fallback para webhook_url."""
     # drift_alert_webhook tem prioridade
@@ -135,8 +135,8 @@ def test_webhook_url_fallback():
     assert alerter2.webhook_url == "http://webhook2"
 
 
-@pytest.mark.unit
-@pytest.mark.asyncio
+@pytest.mark.unit()
+@pytest.mark.asyncio()
 async def test_send_alert_data_structure():
     """Testa estrutura de dados do alerta."""
     # Precisa passar URLs para que os métodos sejam chamados
@@ -154,8 +154,8 @@ async def test_send_alert_data_structure():
     alerter._send_to_slack.assert_called_once()
 
 
-@pytest.mark.unit
-@pytest.mark.asyncio
+@pytest.mark.unit()
+@pytest.mark.asyncio()
 async def test_send_alert_limits_features():
     """Testa que alerta limita features a 10."""
     alerter = DriftAlerter({"alertmanager_url": "http://test"})
@@ -178,17 +178,15 @@ async def test_send_alert_limits_features():
     assert len(alert_data["drifted_features"]) == 10  # Limitado na lista
 
 
-@pytest.mark.unit
-@pytest.mark.asyncio
+@pytest.mark.unit()
+@pytest.mark.asyncio()
 async def test_send_alert_to_alertmanager(monkeypatch):
     """Testa envio para Alertmanager - removido devido a complexidade de mock."""
     # Este teste requer mock complexo de aiohttp.ClientSession
-    pass
 
 
-@pytest.mark.unit
-@pytest.mark.asyncio
+@pytest.mark.unit()
+@pytest.mark.asyncio()
 async def test_send_alert_to_slack(monkeypatch):
     """Testa envio para Slack - removido devido a complexidade de mock."""
     # Este teste requer mock complexo de aiohttp
-    pass

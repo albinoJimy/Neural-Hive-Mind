@@ -10,27 +10,24 @@ Este módulo implementa políticas de retry com:
 import asyncio
 import random
 import time
+from collections.abc import Callable, Coroutine
 from enum import Enum
+from functools import wraps
 from typing import (
-    Callable,
+    Any,
     Optional,
-    Type,
-    Tuple,
     TypeVar,
     Union,
-    Any,
-    Coroutine,
 )
-from functools import wraps
-from prometheus_client import Counter, Histogram
+
 import structlog
+from prometheus_client import Counter, Histogram
 
 from .exceptions import (
     MaxRetriesExceededError,
-    RetryableError,
     NonRetryableError,
+    RetryableError,
 )
-
 
 # Type variables
 T = TypeVar("T")
@@ -82,8 +79,8 @@ class RetryPolicy:
         backoff_strategy: BackoffStrategy = BackoffStrategy.EXPONENTIAL,
         jitter_enabled: bool = True,
         jitter_factor: float = 0.1,
-        retryable_exceptions: Optional[Tuple[Type[Exception], ...]] = None,
-        non_retryable_exceptions: Optional[Tuple[Type[Exception], ...]] = None,
+        retryable_exceptions: Optional[tuple[type[Exception], ...]] = None,
+        non_retryable_exceptions: Optional[tuple[type[Exception], ...]] = None,
     ):
         if max_attempts < 1:
             raise ValueError("max_attempts deve ser >= 1")
@@ -464,4 +461,3 @@ class RetryContext:
 class RetryConfigError(ValueError):
     """Erro de configuração de política de retry."""
 
-    pass

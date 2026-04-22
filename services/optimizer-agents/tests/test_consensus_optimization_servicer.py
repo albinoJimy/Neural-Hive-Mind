@@ -4,11 +4,12 @@ Testes de integração para ConsensusOptimizationServicer.
 Testa os métodos gRPC para otimização de pesos de especialistas.
 """
 
-import pytest
 from unittest.mock import AsyncMock, Mock
 
-from src.grpc_service.consensus_optimization_servicer import ConsensusOptimizationServicer
+import pytest
+
 from src.config.settings import Settings
+from src.grpc_service.consensus_optimization_servicer import ConsensusOptimizationServicer
 
 
 @pytest.fixture

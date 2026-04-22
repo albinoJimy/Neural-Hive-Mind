@@ -1,7 +1,7 @@
 """Helpers de tracing OpenTelemetry para Guard Agents"""
 
+from collections.abc import Callable
 from functools import wraps
-from typing import Callable
 
 import structlog
 from opentelemetry import trace

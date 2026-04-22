@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Response, status
 from pydantic import BaseModel
@@ -29,7 +29,7 @@ class StartupResponse(BaseModel):
 async def health() -> HealthResponse:
     """Health check endpoint"""
     return HealthResponse(
-        status="healthy", timestamp=datetime.now(timezone.utc), version=settings.service_version
+        status="healthy", timestamp=datetime.now(UTC), version=settings.service_version
     )
 
 
@@ -37,14 +37,14 @@ async def health() -> HealthResponse:
 @router.get("/health/live", status_code=status.HTTP_200_OK)
 async def liveness() -> dict:
     """Liveness probe"""
-    return {"status": "healthy", "timestamp": datetime.now(timezone.utc)}
+    return {"status": "healthy", "timestamp": datetime.now(UTC)}
 
 
 @router.get("/health/readiness", status_code=status.HTTP_200_OK)
 @router.get("/health/ready", status_code=status.HTTP_200_OK)
 async def readiness() -> dict:
     """Readiness probe"""
-    return {"status": "healthy", "timestamp": datetime.now(timezone.utc)}
+    return {"status": "healthy", "timestamp": datetime.now(UTC)}
 
 
 @router.get("/health/startup", response_model=StartupResponse, status_code=status.HTTP_200_OK)
@@ -59,7 +59,7 @@ async def startup_check() -> dict:
         "status": "started",
         "service": settings.service_name,
         "version": settings.service_version,
-        "started_at": datetime.now(timezone.utc).isoformat(),
+        "started_at": datetime.now(UTC).isoformat(),
     }
 
 

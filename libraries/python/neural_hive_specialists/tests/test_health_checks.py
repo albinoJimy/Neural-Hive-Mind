@@ -1,5 +1,5 @@
 import asyncio
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock
 
 import pytest
@@ -11,7 +11,7 @@ from neural_hive_specialists.observability.health_checks import (
 )
 
 
-@pytest.fixture
+@pytest.fixture()
 def checker():
     return SpecialistHealthChecker(
         {"mongodb_uri": "mongodb://localhost:27017", "mongodb_database": "test-db"},
@@ -19,8 +19,8 @@ def checker():
     )
 
 
-@pytest.mark.unit
-@pytest.mark.asyncio
+@pytest.mark.unit()
+@pytest.mark.asyncio()
 async def test_check_all_health_aggregates_status(checker, monkeypatch):
     healthy = ComponentHealth("mongodb", HealthStatus.HEALTHY)
     degraded = ComponentHealth("redis", HealthStatus.DEGRADED)
@@ -38,8 +38,8 @@ async def test_check_all_health_aggregates_status(checker, monkeypatch):
     assert len(report["components"]) == 5
 
 
-@pytest.mark.unit
-@pytest.mark.asyncio
+@pytest.mark.unit()
+@pytest.mark.asyncio()
 async def test_check_all_health_uses_cache(checker, monkeypatch):
     cached = {"overall_status": "healthy", "components": []}
     checker._health_cache = cached
@@ -51,7 +51,7 @@ async def test_check_all_health_uses_cache(checker, monkeypatch):
     assert result is cached
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 def test_component_health_to_dict_includes_fields():
     comp = ComponentHealth(
         "mlflow",
@@ -71,7 +71,7 @@ def test_component_health_to_dict_includes_fields():
 # =============================================================================
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 def test_health_status_enum_values():
     """Testa valores do enum HealthStatus."""
     assert HealthStatus.HEALTHY.value == "healthy"
@@ -80,14 +80,14 @@ def test_health_status_enum_values():
     assert HealthStatus.UNKNOWN.value == "unknown"
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 def test_health_status_comparison():
     """Testa comparação de status."""
     assert HealthStatus.HEALTHY == HealthStatus.HEALTHY
     assert HealthStatus.HEALTHY != HealthStatus.DEGRADED
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 def test_component_health_init_minimal():
     """Testa criação de ComponentHealth com parâmetros mínimos."""
     comp = ComponentHealth("test", HealthStatus.HEALTHY)
@@ -99,7 +99,7 @@ def test_component_health_init_minimal():
     assert comp.latency_ms is None
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 def test_component_health_checked_at_set():
     """Testa que checked_at é definido automaticamente."""
     comp = ComponentHealth("test", HealthStatus.HEALTHY)
@@ -108,8 +108,8 @@ def test_component_health_checked_at_set():
     assert isinstance(comp.checked_at, datetime)
 
 
-@pytest.mark.unit
-@pytest.mark.asyncio
+@pytest.mark.unit()
+@pytest.mark.asyncio()
 async def test_check_mongodb_health_success(checker, monkeypatch):
     """Testa check de MongoDB com sucesso."""
     healthy = ComponentHealth("mongodb", HealthStatus.HEALTHY)
@@ -120,8 +120,8 @@ async def test_check_mongodb_health_success(checker, monkeypatch):
     assert result.component_name == "mongodb"
 
 
-@pytest.mark.unit
-@pytest.mark.asyncio
+@pytest.mark.unit()
+@pytest.mark.asyncio()
 async def test_check_mlflow_health_success(checker, monkeypatch):
     """Testa check de MLflow com sucesso."""
     healthy = ComponentHealth("mlflow", HealthStatus.HEALTHY)
@@ -132,8 +132,8 @@ async def test_check_mlflow_health_success(checker, monkeypatch):
     assert result.component_name == "mlflow"
 
 
-@pytest.mark.unit
-@pytest.mark.asyncio
+@pytest.mark.unit()
+@pytest.mark.asyncio()
 async def test_check_feature_extraction_health_success(checker, monkeypatch):
     """Testa check de feature extraction com sucesso."""
     healthy = ComponentHealth("feature_extraction", HealthStatus.HEALTHY)
@@ -146,8 +146,8 @@ async def test_check_feature_extraction_health_success(checker, monkeypatch):
     assert result.component_name == "feature_extraction"
 
 
-@pytest.mark.unit
-@pytest.mark.asyncio
+@pytest.mark.unit()
+@pytest.mark.asyncio()
 async def test_check_circuit_breakers_health_success(checker, monkeypatch):
     """Testa check de circuit breakers com sucesso."""
     healthy = ComponentHealth("circuit_breakers", HealthStatus.HEALTHY)
@@ -158,7 +158,7 @@ async def test_check_circuit_breakers_health_success(checker, monkeypatch):
     assert result.component_name == "circuit_breakers"
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 def test_is_cache_valid_no_cache(checker):
     """Testa _is_cache_valid quando não há cache."""
     checker._health_cache = None
@@ -167,31 +167,31 @@ def test_is_cache_valid_no_cache(checker):
     assert checker._is_cache_valid() is False
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 def test_is_cache_valid_expired(checker):
     """Testa _is_cache_valid quando cache expirou."""
     checker._health_cache = {"status": "cached"}
-    checker._cache_timestamp = datetime.now(timezone.utc) - timedelta(seconds=31)
+    checker._cache_timestamp = datetime.now(UTC) - timedelta(seconds=31)
 
     assert checker._is_cache_valid() is False
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 def test_is_cache_valid_fresh(checker):
     """Testa _is_cache_valid quando cache é fresco."""
     checker._health_cache = {"status": "cached"}
-    checker._cache_timestamp = datetime.now(timezone.utc) - timedelta(seconds=10)
+    checker._cache_timestamp = datetime.now(UTC) - timedelta(seconds=10)
 
     assert checker._is_cache_valid() is True
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 def test_specialist_type_property(checker):
     """Testa propriedade specialist_type."""
     assert checker.specialist_type == "technical"
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 def test_config_property(checker):
     """Testa propriedade config."""
     assert checker.config == {
@@ -200,8 +200,8 @@ def test_config_property(checker):
     }
 
 
-@pytest.mark.unit
-@pytest.mark.asyncio
+@pytest.mark.unit()
+@pytest.mark.asyncio()
 async def test_check_ledger_health_success(checker, monkeypatch):
     """Testa check de ledger com sucesso."""
     healthy = ComponentHealth("ledger", HealthStatus.HEALTHY)
@@ -212,8 +212,8 @@ async def test_check_ledger_health_success(checker, monkeypatch):
     assert result.component_name == "ledger"
 
 
-@pytest.mark.unit
-@pytest.mark.asyncio
+@pytest.mark.unit()
+@pytest.mark.asyncio()
 async def test_overall_status_calculation(checker, monkeypatch):
     """Testa cálculo de status agregado."""
     # Todos saudáveis
@@ -241,7 +241,7 @@ async def test_overall_status_calculation(checker, monkeypatch):
     assert result["overall_status"] in ["healthy", "degraded"]
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 def test_component_health_with_all_parameters():
     """Testa ComponentHealth com todos os parâmetros."""
     comp = ComponentHealth(
@@ -259,8 +259,8 @@ def test_component_health_with_all_parameters():
     assert comp.latency_ms == 150.5
 
 
-@pytest.mark.unit
-@pytest.mark.asyncio
+@pytest.mark.unit()
+@pytest.mark.asyncio()
 async def test_check_all_health_parallel_execution(checker, monkeypatch):
     """Testa que checks são executados em paralelo."""
     import time

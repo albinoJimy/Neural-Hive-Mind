@@ -1,9 +1,9 @@
 """Testes unitários para BehaviorSpecialist - Métodos de Análise."""
 
-import sys
 import os
+import sys
+
 import pytest
-from typing import Dict, List
 
 # Configurar paths
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
@@ -13,7 +13,7 @@ class BehaviorAnalysisTestHelper:
     """Helper class para testar métodos de análise sem inicialização completa."""
 
     @staticmethod
-    def analyze_usability(tasks: List[Dict], cognitive_plan: Dict) -> float:
+    def analyze_usability(tasks: list[dict], cognitive_plan: dict) -> float:
         """Implementação do método de análise de usabilidade."""
         if not tasks:
             return 0.5
@@ -65,7 +65,7 @@ class BehaviorAnalysisTestHelper:
         return max(0.0, min(1.0, score))
 
     @staticmethod
-    def analyze_accessibility(cognitive_plan: Dict, context: Dict) -> float:
+    def analyze_accessibility(cognitive_plan: dict, context: dict) -> float:
         """Implementação do método de análise de acessibilidade."""
         # Palavras-chave de acessibilidade (WCAG)
         a11y_keywords = [
@@ -103,7 +103,7 @@ class BehaviorAnalysisTestHelper:
         return min(1.0, base_score + requirement_bonus)
 
     @staticmethod
-    def analyze_response_time(tasks: List[Dict]) -> float:
+    def analyze_response_time(tasks: list[dict]) -> float:
         """Implementação do método de análise de tempo de resposta."""
         if not tasks:
             return 0.5
@@ -137,7 +137,7 @@ class BehaviorAnalysisTestHelper:
         return min(1.0, time_score + perf_bonus)
 
     @staticmethod
-    def analyze_interaction_cost(tasks: List[Dict]) -> float:
+    def analyze_interaction_cost(tasks: list[dict]) -> float:
         """Implementação do método de análise de custo de interação."""
         if not tasks:
             return 0.5
@@ -169,7 +169,7 @@ class BehaviorAnalysisTestHelper:
 
     @staticmethod
     def calculate_behavior_risk(
-        cognitive_plan: Dict,
+        cognitive_plan: dict,
         usability_score: float,
         accessibility_score: float,
         response_time_score: float,
@@ -222,7 +222,7 @@ class BehaviorAnalysisTestHelper:
         accessibility_score: float,
         response_time_score: float,
         interaction_cost_score: float,
-    ) -> List[Dict]:
+    ) -> list[dict]:
         """Gera sugestões de mitigação de riscos comportamentais."""
         mitigations = []
 
@@ -269,7 +269,7 @@ class BehaviorAnalysisTestHelper:
         return mitigations
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_cognitive_plan():
     """Plano cognitivo de exemplo."""
     return {
@@ -698,8 +698,8 @@ class TestMLModelIntegration:
 
     def test_ml_model_prediction(self):
         """Testa predição do modelo ML comportamental."""
-        from sklearn.ensemble import GradientBoostingClassifier
         import numpy as np
+        from sklearn.ensemble import GradientBoostingClassifier
 
         model = GradientBoostingClassifier(n_estimators=10, max_depth=3, random_state=42)
 

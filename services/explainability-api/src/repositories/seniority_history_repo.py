@@ -4,8 +4,8 @@ Seniority History Repository.
 Repository para tracking de mudancas de senioridade de especialistas.
 """
 
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from datetime import UTC, datetime
+from typing import Any, Optional
 
 import structlog
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -39,7 +39,7 @@ class SeniorityHistoryRepository:
             "specialist_id": specialist_id,
             "specialist_name": specialist_name,
             "domain": domain,
-            "changed_at": datetime.now(timezone.utc),
+            "changed_at": datetime.now(UTC),
             "previous_level": previous_level,
             "previous_multiplier": previous_multiplier,
             "new_level": new_level,
@@ -59,7 +59,7 @@ class SeniorityHistoryRepository:
         )
         return str(result.inserted_id)
 
-    async def get_history(self, specialist_id: str, limit: int = 100) -> List[Dict[str, Any]]:
+    async def get_history(self, specialist_id: str, limit: int = 100) -> list[dict[str, Any]]:
         """Get history for a specialist."""
         cursor = (
             self.collection.find({"specialist_id": specialist_id})
@@ -70,8 +70,8 @@ class SeniorityHistoryRepository:
         return await self._parse_cursor(cursor)
 
     async def get_recent_changes(
-        self, specialists: List[str], since: datetime, limit: int = 100
-    ) -> List[Dict[str, Any]]:
+        self, specialists: list[str], since: datetime, limit: int = 100
+    ) -> list[dict[str, Any]]:
         """Get recent changes for multiple specialists."""
         cursor = (
             self.collection.find(
@@ -85,7 +85,7 @@ class SeniorityHistoryRepository:
 
     async def get_by_domain(
         self, domain: str, since: Optional[datetime] = None, limit: int = 100
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Get changes by domain."""
         query = {"domain": domain}
         if since:
@@ -94,7 +94,7 @@ class SeniorityHistoryRepository:
         cursor = self.collection.find(query).sort("changed_at", -1).limit(limit)
         return await self._parse_cursor(cursor)
 
-    async def _parse_cursor(self, cursor) -> List[Dict[str, Any]]:
+    async def _parse_cursor(self, cursor) -> list[dict[str, Any]]:
         """Parse cursor to list, removing _id."""
         results = []
         async for doc in cursor:

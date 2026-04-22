@@ -2,18 +2,18 @@
 Testes de integração para ML Scheduling (LoadPredictor + SchedulingOptimizer + ResourceAllocator).
 """
 
-import pytest
-from unittest.mock import Mock, AsyncMock
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+from unittest.mock import AsyncMock, Mock
 
+import pytest
+from src.config.settings import OrchestratorSettings
 from src.ml.load_predictor import LoadPredictor
 from src.ml.scheduling_optimizer import SchedulingOptimizer
-from src.scheduler.resource_allocator import ResourceAllocator
-from src.config.settings import OrchestratorSettings
 from src.observability.metrics import OrchestratorMetrics
+from src.scheduler.resource_allocator import ResourceAllocator
 
 
-@pytest.fixture
+@pytest.fixture()
 def config():
     """Configuração real para testes de integração."""
     config = Mock(spec=OrchestratorSettings)
@@ -29,16 +29,16 @@ def config():
     return config
 
 
-@pytest.fixture
+@pytest.fixture()
 def mongodb_client_with_data():
     """MongoDB mockado com dados históricos."""
     mock = AsyncMock()
 
     # Dados de completions
     completions = [
-        {"actual_duration_ms": 2000.0, "completed_at": datetime.now(timezone.utc)},
-        {"actual_duration_ms": 2500.0, "completed_at": datetime.now(timezone.utc)},
-        {"actual_duration_ms": 3000.0, "completed_at": datetime.now(timezone.utc)},
+        {"actual_duration_ms": 2000.0, "completed_at": datetime.now(UTC)},
+        {"actual_duration_ms": 2500.0, "completed_at": datetime.now(UTC)},
+        {"actual_duration_ms": 3000.0, "completed_at": datetime.now(UTC)},
     ]
 
     # Collection mockada
@@ -52,7 +52,7 @@ def mongodb_client_with_data():
     return mock
 
 
-@pytest.fixture
+@pytest.fixture()
 def redis_client():
     """Redis mockado."""
     mock = AsyncMock()
@@ -61,7 +61,7 @@ def redis_client():
     return mock
 
 
-@pytest.fixture
+@pytest.fixture()
 def optimizer_client():
     """Optimizer gRPC client mockado."""
     mock = AsyncMock()
@@ -79,7 +79,7 @@ def optimizer_client():
     return mock
 
 
-@pytest.fixture
+@pytest.fixture()
 def kafka_producer():
     """Kafka producer mockado."""
     mock = AsyncMock()
@@ -87,7 +87,7 @@ def kafka_producer():
     return mock
 
 
-@pytest.fixture
+@pytest.fixture()
 def service_registry_client():
     """Service Registry client mockado."""
     mock = AsyncMock()
@@ -118,13 +118,13 @@ def service_registry_client():
     return mock
 
 
-@pytest.fixture
+@pytest.fixture()
 def metrics():
     """Métricas mockadas."""
     return Mock(spec=OrchestratorMetrics)
 
 
-@pytest.fixture
+@pytest.fixture()
 async def integrated_components(
     config,
     mongodb_client_with_data,
@@ -170,7 +170,7 @@ async def integrated_components(
 class TestMLSchedulingIntegration:
     """Testes de integração end-to-end do ML scheduling."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_full_scheduling_flow_with_ml_optimization(
         self, integrated_components, service_registry_client
     ):
@@ -201,7 +201,7 @@ class TestMLSchedulingIntegration:
         assert "predicted_load_pct" in best_worker
         assert "rl_boost" in best_worker
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_ml_predictions_enrich_worker_scoring(self, integrated_components):
         """Testa que predições ML influenciam scoring de workers."""
         optimizer = integrated_components["scheduling_optimizer"]
@@ -244,7 +244,7 @@ class TestMLSchedulingIntegration:
         # Worker com RL boost deve ter score mais alto
         assert best_worker.get("rl_boost", 1.0) >= 1.0
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_fallback_to_local_when_optimizer_unavailable(
         self,
         config,
@@ -293,7 +293,7 @@ class TestMLSchedulingIntegration:
         assert best_worker is not None
         assert best_worker["ml_enriched"] is True  # Ainda tem enrichment local
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_degraded_mode_without_mongodb(
         self,
         config,
@@ -340,7 +340,7 @@ class TestMLSchedulingIntegration:
         assert best_worker.get("predicted_queue_ms") in [1000.0, 2000.0]  # Defaults
         assert best_worker.get("predicted_load_pct") == 0.5  # Default
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_allocation_outcome_feedback_loop(self, integrated_components, kafka_producer):
         """Testa feedback loop de allocation outcomes para RL training."""
         optimizer = integrated_components["scheduling_optimizer"]
@@ -374,7 +374,7 @@ class TestMLSchedulingIntegration:
         assert outcome["actual_duration_ms"] == 2200.0
         assert outcome["success"] is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_metrics_recorded_throughout_pipeline(self, integrated_components, metrics):
         """Testa que métricas são registradas em todos os estágios."""
         allocator = integrated_components["resource_allocator"]
@@ -395,7 +395,7 @@ class TestMLSchedulingIntegration:
 class TestRedisIntegration:
     """Testes de integração para Redis com LoadPredictor."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_redis_integration_with_load_predictor(
         self, config, mongodb_client_with_data, metrics
     ):
@@ -418,7 +418,7 @@ class TestRedisIntegration:
         assert queue_time == 2500.0
         redis_client.get.assert_called()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_redis_cache_miss_falls_through_to_mongodb(
         self, config, mongodb_client_with_data, metrics
     ):
@@ -444,7 +444,7 @@ class TestRedisIntegration:
         # Resultado deve vir do MongoDB
         assert queue_time > 0
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_fail_open_when_redis_unavailable(
         self, config, mongodb_client_with_data, metrics
     ):
@@ -460,7 +460,7 @@ class TestRedisIntegration:
         queue_time = await load_predictor.predict_queue_time("worker-1")
         assert queue_time > 0
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_redis_error_does_not_break_prediction(
         self, config, mongodb_client_with_data, metrics
     ):

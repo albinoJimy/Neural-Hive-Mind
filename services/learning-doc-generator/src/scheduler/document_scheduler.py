@@ -4,18 +4,15 @@ Implementa geração periódica (diária, semanal, mensal) usando APScheduler.
 Publica eventos em Kafka quando documentos são gerados.
 """
 
-import asyncio
 from datetime import datetime, timedelta
 from typing import Optional
 
 import structlog
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
-
 from src.config import get_settings
 from src.models import (
     DocumentFormat,
-    DocumentGenerationRequest,
     DocumentType,
     LearningDocument,
 )
@@ -209,7 +206,9 @@ class DocumentScheduler:
             insights = await self.insight_extractor.extract_insights_from_runs(experiment_runs)
 
             # Criar documento
-            title = f"Relatório de Aprendizado Semanal - Semana de {week_start.strftime('%Y-%m-%d')}"
+            title = (
+                f"Relatório de Aprendizado Semanal - Semana de {week_start.strftime('%Y-%m-%d')}"
+            )
             summary = self._generate_period_summary(experiment_runs, insights, "semanal")
 
             document = LearningDocument(
@@ -229,7 +228,9 @@ class DocumentScheduler:
 
             # Salvar no MongoDB
             doc_id = await self.repository.save(document)
-            logger.info("weekly_report_saved", doc_id=doc_id, experiments_count=len(experiment_runs))
+            logger.info(
+                "weekly_report_saved", doc_id=doc_id, experiments_count=len(experiment_runs)
+            )
 
         except Exception as e:
             logger.error("erro_ao_gerar_relatorio_semanal", error=str(e), exc_info=True)

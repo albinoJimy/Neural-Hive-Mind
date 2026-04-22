@@ -1,8 +1,8 @@
 from typing import Optional
 
-from pybreaker import CircuitBreaker, CircuitBreakerError
-from prometheus_client import Counter, Gauge
 import structlog
+from prometheus_client import Counter, Gauge
+from pybreaker import CircuitBreaker, CircuitBreakerError
 
 # Metrics
 circuit_breaker_state = Gauge(

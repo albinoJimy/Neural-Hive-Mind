@@ -9,7 +9,7 @@ Responsável por:
 """
 
 import time
-from typing import List, Optional
+from typing import Optional
 
 import httpx
 import structlog
@@ -142,7 +142,7 @@ class TrivyClient:
             except Exception:
                 pass  # Não falhar se métricas falharem
 
-    async def scan_parameters(self, parameters: dict) -> List[dict]:
+    async def scan_parameters(self, parameters: dict) -> list[dict]:
         """
         Escaneia parameters de ExecutionTicket em busca de secrets.
 
@@ -233,7 +233,7 @@ class TrivyClient:
             except Exception:
                 pass  # Não falhar se métricas falharem
 
-    def _extract_secrets(self, scan_result: dict) -> List[dict]:
+    def _extract_secrets(self, scan_result: dict) -> list[dict]:
         """
         Extrai secrets do resultado do scan Trivy.
 

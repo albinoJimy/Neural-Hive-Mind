@@ -4,8 +4,7 @@ Retention Policy Manager
 Gerencia políticas de retenção e TTL nas camadas de memória.
 """
 
-from datetime import datetime, timedelta, timezone
-from typing import Dict
+from datetime import UTC, datetime, timedelta
 
 import structlog
 
@@ -22,7 +21,7 @@ class RetentionPolicyManager:
         self.neo4j = neo4j_client
         self.policies = self._load_policies()
 
-    def _load_policies(self) -> Dict[str, Dict]:
+    def _load_policies(self) -> dict[str, dict]:
         """
         Load retention policies from settings
 
@@ -105,7 +104,7 @@ class RetentionPolicyManager:
         if ttl == 0:
             return False
 
-        age = datetime.now(timezone.utc) - timestamp
+        age = datetime.now(UTC) - timestamp
 
         if layer == "redis":
             return age.total_seconds() > ttl
@@ -116,7 +115,7 @@ class RetentionPolicyManager:
 
         return False
 
-    async def enforce_retention(self, layer: str, dry_run: bool = False) -> Dict[str, int]:
+    async def enforce_retention(self, layer: str, dry_run: bool = False) -> dict[str, int]:
         """
         Enforce retention policies for a layer
 
@@ -176,7 +175,7 @@ class RetentionPolicyManager:
         for collection_name, data_type in collections:
             try:
                 retention_days = self.get_ttl_for_data_type(data_type, "mongodb")
-                cutoff_date = datetime.now(timezone.utc) - timedelta(days=retention_days)
+                cutoff_date = datetime.now(UTC) - timedelta(days=retention_days)
 
                 filter_query = {"created_at": {"$lt": cutoff_date}}
 
@@ -231,7 +230,7 @@ class RetentionPolicyManager:
         for table_name, data_type in tables:
             try:
                 retention_months = self.get_ttl_for_data_type(data_type, "clickhouse")
-                cutoff_date = datetime.now(timezone.utc) - timedelta(days=retention_months * 30)
+                cutoff_date = datetime.now(UTC) - timedelta(days=retention_months * 30)
 
                 if dry_run:
                     count_query = f"""

@@ -4,7 +4,7 @@ Feature Store API Endpoints
 Endpoints REST para gerenciamento de features de planos cognitivos.
 """
 
-from typing import List, Optional
+from typing import Optional
 
 import structlog
 from fastapi import APIRouter, HTTPException, Query, status
@@ -151,10 +151,10 @@ async def list_features(
 class BatchFeatureComputationRequest(BaseModel):
     """Wrapper para batch computation requests"""
 
-    requests: List[FeatureComputationRequest]
+    requests: list[FeatureComputationRequest]
 
 
-@router.post("/batch", response_model=List[FeatureVector])
+@router.post("/batch", response_model=list[FeatureVector])
 async def batch_compute_features(body: BatchFeatureComputationRequest):
     """
     Computa features para múltiplos planos em batch
@@ -204,7 +204,7 @@ async def get_metrics():
     )
 
 
-@router.get("/by-plan-ids", response_model=List[FeatureVector])
+@router.get("/by-plan-ids", response_model=list[FeatureVector])
 async def get_features_by_plan_ids(
     plan_ids: str = Query(..., description="Lista de plan_ids separados por vírgula")
 ):

@@ -4,17 +4,19 @@ Risk Ensemble
 Combinação de múltiplos modelos de avaliação de risco para decisão robusta.
 """
 
-import structlog
-from typing import Dict, List, Optional, Tuple, Callable, Any
-from datetime import datetime, timezone
+from collections.abc import Callable
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from enum import Enum
 from statistics import mean, median, stdev
+from typing import Any, Optional
+
+import structlog
+
+from neural_hive_domain import UnifiedDomain
 
 from .config import RiskBand, RiskScoringConfig
 from .models import RiskAssessment
-from neural_hive_domain import UnifiedDomain
-
 
 logger = structlog.get_logger(__name__)
 
@@ -38,8 +40,8 @@ class RiskModel:
         name: str,
         assessor: Callable,
         weight: float = 1.0,
-        domains: Optional[List[UnifiedDomain]] = None,
-        metadata: Optional[Dict] = None,
+        domains: Optional[list[UnifiedDomain]] = None,
+        metadata: Optional[dict] = None,
     ):
         """Inicializa modelo.
 
@@ -57,10 +59,10 @@ class RiskModel:
         self.metadata = metadata or {}
 
         # Estatísticas de performance
-        self._accuracy_history: List[float] = []
+        self._accuracy_history: list[float] = []
         self._call_count = 0
 
-    def assess(self, entity: Dict[str, Any], domain: UnifiedDomain) -> Optional[RiskAssessment]:
+    def assess(self, entity: dict[str, Any], domain: UnifiedDomain) -> Optional[RiskAssessment]:
         """Executa avaliação.
 
         Args:
@@ -107,13 +109,13 @@ class EnsembleResult:
     final_band: RiskBand
     method: EnsembleMethod
     model_count: int
-    model_votes: Dict[str, Tuple[float, RiskBand]]  # model -> (score, band)
+    model_votes: dict[str, tuple[float, RiskBand]]  # model -> (score, band)
     confidence: float  # 0.0 a 1.0, quão confidente o ensemble está
     consensus_level: float  # 0.0 a 1.0, quão de acordo estão os modelos
-    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
-    metadata: Dict = field(default_factory=dict)
+    timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))
+    metadata: dict = field(default_factory=dict)
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         """Converte para dicionário."""
         return {
             "entity_id": self.entity_id,
@@ -156,7 +158,7 @@ class RiskEnsemble:
         self.min_models = min_models
         self.fallback_to_default = fallback_to_default
 
-        self._models: List[RiskModel] = []
+        self._models: list[RiskModel] = []
 
     def add_model(self, model: RiskModel):
         """Adiciona modelo ao ensemble.
@@ -177,7 +179,7 @@ class RiskEnsemble:
         logger.info("model_removed_from_ensemble", model_name=model_name)
 
     def assess(
-        self, entity: Dict[str, Any], domain: UnifiedDomain, entity_id: str
+        self, entity: dict[str, Any], domain: UnifiedDomain, entity_id: str
     ) -> EnsembleResult:
         """Avalia usando ensemble de modelos.
 
@@ -190,7 +192,7 @@ class RiskEnsemble:
             EnsembleResult com decisão combinada
         """
         # Coletar avaliações de todos os modelos
-        model_votes: Dict[str, Tuple[float, RiskBand]] = {}
+        model_votes: dict[str, tuple[float, RiskBand]] = {}
 
         for model in self._models:
             assessment = model.assess(entity, domain)
@@ -254,11 +256,11 @@ class RiskEnsemble:
         return result
 
     def _majority_vote(
-        self, model_votes: Dict[str, Tuple[float, RiskBand]]
-    ) -> Tuple[float, RiskBand]:
+        self, model_votes: dict[str, tuple[float, RiskBand]]
+    ) -> tuple[float, RiskBand]:
         """Votação por maioria (band)."""
         # Contar votos por band
-        band_counts: Dict[RiskBand, int] = {}
+        band_counts: dict[RiskBand, int] = {}
         for score, band in model_votes.values():
             band_counts[band] = band_counts.get(band, 0) + 1
 
@@ -272,8 +274,8 @@ class RiskEnsemble:
         return final_score, winning_band
 
     def _weighted_average(
-        self, model_votes: Dict[str, Tuple[float, RiskBand]]
-    ) -> Tuple[float, RiskBand]:
+        self, model_votes: dict[str, tuple[float, RiskBand]]
+    ) -> tuple[float, RiskBand]:
         """Média ponderada dos scores."""
         # Buscar pesos dos modelos
         models_dict = {m.name: m for m in self._models}
@@ -316,10 +318,10 @@ class RiskEnsemble:
 
     def _stacking(
         self,
-        model_votes: Dict[str, Tuple[float, RiskBand]],
-        entity: Dict[str, Any],
+        model_votes: dict[str, tuple[float, RiskBand]],
+        entity: dict[str, Any],
         domain: UnifiedDomain,
-    ) -> Tuple[float, RiskBand]:
+    ) -> tuple[float, RiskBand]:
         """Stacking: usa meta-modelo simples para combinar."""
         # Meta-modelo simples: média ponderada por acurácia histórica
         models_dict = {m.name: m for m in self._models}
@@ -362,14 +364,14 @@ class RiskEnsemble:
         return final_score, final_band
 
     def _borda_count(
-        self, model_votes: Dict[str, Tuple[float, RiskBand]]
-    ) -> Tuple[float, RiskBand]:
+        self, model_votes: dict[str, tuple[float, RiskBand]]
+    ) -> tuple[float, RiskBand]:
         """Contagem Borda: cada modelo dá pontos para cada band."""
         # Ordem de bands (do menor para o maior risco)
         band_order = [RiskBand.LOW, RiskBand.MEDIUM, RiskBand.HIGH, RiskBand.CRITICAL]
 
         # Pontos por posição
-        points: Dict[RiskBand, int] = {band: 0 for band in band_order}
+        points: dict[RiskBand, int] = {band: 0 for band in band_order}
 
         for score, band in model_votes.values():
             # Dar pontos baseado na posição
@@ -387,8 +389,8 @@ class RiskEnsemble:
         return final_score, winning_band
 
     def _bucket_vote(
-        self, model_votes: Dict[str, Tuple[float, RiskBand]]
-    ) -> Tuple[float, RiskBand]:
+        self, model_votes: dict[str, tuple[float, RiskBand]]
+    ) -> tuple[float, RiskBand]:
         """Votação por buckets de score."""
         # Criar buckets de score
         buckets = {
@@ -399,7 +401,7 @@ class RiskEnsemble:
         }
 
         # Contar votos em buckets
-        bucket_counts: Dict[RiskBand, int] = {band: 0 for band in buckets.keys()}
+        bucket_counts: dict[RiskBand, int] = {band: 0 for band in buckets.keys()}
 
         for score, _ in model_votes.values():
             for band, (low, high) in buckets.items():
@@ -419,8 +421,8 @@ class RiskEnsemble:
         return final_score, winning_band
 
     def _confidence_weighted(
-        self, model_votes: Dict[str, Tuple[float, RiskBand]]
-    ) -> Tuple[float, RiskBand]:
+        self, model_votes: dict[str, tuple[float, RiskBand]]
+    ) -> tuple[float, RiskBand]:
         """Ponderação por confiança (baseado em variância)."""
         # Usar mediana como baseline
         scores = [score for score, _ in model_votes.values()]
@@ -468,7 +470,7 @@ class RiskEnsemble:
         return final_score, final_band
 
     def _calculate_confidence(
-        self, model_votes: Dict[str, Tuple[float, RiskBand]], final_score: float
+        self, model_votes: dict[str, tuple[float, RiskBand]], final_score: float
     ) -> float:
         """Calcula confiança do ensemble (inverso da variância)."""
         scores = [score for score, _ in model_votes.values()]
@@ -485,7 +487,7 @@ class RiskEnsemble:
 
         return confidence
 
-    def _calculate_consensus(self, model_votes: Dict[str, Tuple[float, RiskBand]]) -> float:
+    def _calculate_consensus(self, model_votes: dict[str, tuple[float, RiskBand]]) -> float:
         """Calcula nível de consenso entre modelos.
 
         Returns:
@@ -518,7 +520,7 @@ class RiskEnsemble:
         return max(0.0, min(1.0, consensus))
 
     def _fallback_result(
-        self, entity_id: str, domain: UnifiedDomain, model_votes: Dict[str, Tuple[float, RiskBand]]
+        self, entity_id: str, domain: UnifiedDomain, model_votes: dict[str, tuple[float, RiskBand]]
     ) -> EnsembleResult:
         """Resultado de fallback quando modelos insuficientes."""
         if model_votes:
@@ -544,7 +546,7 @@ class RiskEnsemble:
             metadata={"fallback": True},
         )
 
-    def get_model_stats(self) -> List[Dict]:
+    def get_model_stats(self) -> list[dict]:
         """Retorna estatísticas de todos os modelos."""
         stats = []
 

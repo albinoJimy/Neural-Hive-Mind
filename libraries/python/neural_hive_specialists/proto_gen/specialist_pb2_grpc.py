@@ -25,7 +25,7 @@ if _version_not_supported:
     )
 
 
-class SpecialistServiceStub(object):
+class SpecialistServiceStub:
     """Serviço principal do especialista"""
 
     def __init__(self, channel):
@@ -54,7 +54,7 @@ class SpecialistServiceStub(object):
         )
 
 
-class SpecialistServiceServicer(object):
+class SpecialistServiceServicer:
     """Serviço principal do especialista"""
 
     def EvaluatePlan(self, request, context):
@@ -104,7 +104,7 @@ def add_SpecialistServiceServicer_to_server(servicer, server):
 
 
 # This class is part of an EXPERIMENTAL API.
-class SpecialistService(object):
+class SpecialistService:
     """Serviço principal do especialista"""
 
     @staticmethod

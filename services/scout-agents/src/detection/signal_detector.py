@@ -1,6 +1,6 @@
 """Main signal detector orchestrating detection pipeline"""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any, Optional
 
 import numpy as np
@@ -88,7 +88,7 @@ class SignalDetector:
                 metadata={
                     "event_type": event.event_type,
                     "source": event.source,
-                    "detection_timestamp": datetime.now(timezone.utc).isoformat(),
+                    "detection_timestamp": datetime.now(UTC).isoformat(),
                 },
                 requires_validation=self.requires_validation(signal_type, confidence_score),
             )

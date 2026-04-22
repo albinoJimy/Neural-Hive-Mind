@@ -4,11 +4,12 @@ Testes de integração do ConsensusOrchestrator com consenso hierárquico.
 TDD: Testes escritos antes da implementação (RED phase).
 """
 
-import pytest
 import sys
-from pathlib import Path
-from unittest.mock import Mock, MagicMock, patch
 from enum import Enum
+from pathlib import Path
+from unittest.mock import MagicMock, Mock, patch
+
+import pytest
 
 
 # Mock neural_hive_domain BEFORE any imports
@@ -89,7 +90,7 @@ class TestConsensusOrchestratorInitialization:
 class TestDynamicWeightsWithHierarchical:
     """Testes de _calculate_dynamic_weights com pesos hierárquicos."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_uses_hierarchical_weights_when_enabled(self):
         """Quando habilitado, deve usar HierarchicalWeightCalculator."""
         import importlib.util

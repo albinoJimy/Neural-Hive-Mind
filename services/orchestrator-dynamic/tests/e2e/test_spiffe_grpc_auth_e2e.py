@@ -2,20 +2,20 @@ import os
 
 import grpc
 import pytest
+from src.clients import execution_ticket_client as etc_module
+from src.clients.execution_ticket_client import ExecutionTicketClient
+from src.clients.service_registry_client import ServiceRegistryClient
 
 from tests.e2e.fixtures.vault_spire_setup import (
-    require_real_env,
     build_test_settings,
+    require_real_env,
 )
-from src.clients.service_registry_client import ServiceRegistryClient
-from src.clients.execution_ticket_client import ExecutionTicketClient
-from src.clients import execution_ticket_client as etc_module
 
 REAL_E2E = os.getenv("RUN_VAULT_SPIFFE_E2E", "").lower() == "true"
 pytestmark = pytest.mark.skipif(not REAL_E2E, reason="RUN_VAULT_SPIFFE_E2E not enabled")
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_fetch_jwt_svid(spiffe_manager):
     """Obtém JWT-SVID real via SPIRE agent."""
     require_real_env()
@@ -25,7 +25,7 @@ async def test_fetch_jwt_svid(spiffe_manager):
     assert audience in jwt_svid.token or jwt_svid.spiffe_id
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_service_registry_call_with_jwt(spiffe_manager):
     """Chamada gRPC ao Service Registry com JWT-SVID."""
     require_real_env()
@@ -53,7 +53,7 @@ async def test_service_registry_call_with_jwt(spiffe_manager):
             pass
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_execution_ticket_call_with_jwt(spiffe_manager):
     """Chamada gRPC ao Execution Ticket Service autenticada com JWT-SVID."""
     require_real_env()
@@ -87,7 +87,7 @@ async def test_execution_ticket_call_with_jwt(spiffe_manager):
             pass
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_invalid_jwt_returns_unauthenticated():
     """JWT inválido deve retornar UNAUTHENTICATED/PERMISSION_DENIED."""
     require_real_env()
@@ -129,7 +129,7 @@ async def test_invalid_jwt_returns_unauthenticated():
         await client.close()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_fallback_to_unauthenticated_when_allowed():
     """Fallback para modo não autenticado quando SPIFFE indisponível e fallback permitido."""
     require_real_env()

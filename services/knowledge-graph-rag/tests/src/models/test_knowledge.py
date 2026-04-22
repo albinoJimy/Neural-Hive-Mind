@@ -1,6 +1,5 @@
 """Tests para modelos de conhecimento."""
 
-import pytest
 from datetime import datetime
 from knowledge_graph_rag.models.knowledge import (
     NodeType,
@@ -48,7 +47,7 @@ class TestKnowledgeNode:
             id="REQ:001",
             node_type=NodeType.REQUIREMENT,
             name="Login",
-            description="Funcionalidade de login"
+            description="Funcionalidade de login",
         )
 
         assert node.id == "REQ:001"
@@ -70,7 +69,7 @@ class TestKnowledgeNode:
             name="Autenticação",
             description="História de autenticação",
             properties=properties,
-            embedding=embedding
+            embedding=embedding,
         )
 
         assert len(node.embedding) == 1536
@@ -87,7 +86,7 @@ class TestKnowledgeRelation:
             id="REL:001",
             source_id="REQ:001",
             target_id="USR:001",
-            relation_type=RelationType.IMPLEMENTS
+            relation_type=RelationType.IMPLEMENTS,
         )
 
         assert relation.id == "REL:001"
@@ -105,7 +104,7 @@ class TestKnowledgeRelation:
             target_id="REQ:003",
             relation_type=RelationType.DEPENDS_ON,
             weight=0.8,
-            properties={"strength": "strong"}
+            properties={"strength": "strong"},
         )
 
         assert relation.weight == 0.8
@@ -130,7 +129,7 @@ class TestGraphQuery:
             query_text="requisitos de autenticação",
             node_types=[NodeType.REQUIREMENT, NodeType.USER_STORY],
             limit=20,
-            include_relations=False
+            include_relations=False,
         )
 
         assert len(query.node_types) == 2
@@ -143,12 +142,7 @@ class TestGraphSearchResult:
 
     def test_create_empty_result(self):
         """Cria resultado vazio."""
-        result = GraphSearchResult(
-            nodes=[],
-            relations=[],
-            total_found=0,
-            query_id="Q-test"
-        )
+        result = GraphSearchResult(nodes=[], relations=[], total_found=0, query_id="Q-test")
 
         assert result.total_found == 0
         assert len(result.nodes) == 0
@@ -157,18 +151,10 @@ class TestGraphSearchResult:
     def test_create_result_with_data(self):
         """Cria resultado com dados."""
         node = KnowledgeNode(
-            id="REQ:001",
-            node_type=NodeType.REQUIREMENT,
-            name="Test",
-            description="Test node"
+            id="REQ:001", node_type=NodeType.REQUIREMENT, name="Test", description="Test node"
         )
 
-        result = GraphSearchResult(
-            nodes=[node],
-            relations=[],
-            total_found=1,
-            query_id="Q-search"
-        )
+        result = GraphSearchResult(nodes=[node], relations=[], total_found=1, query_id="Q-search")
 
         assert result.total_found == 1
         assert len(result.nodes) == 1
@@ -184,14 +170,14 @@ class TestRAGContext:
             id="DOC:001",
             node_type=NodeType.DOCUMENT,
             name="Arquitetura",
-            description="Doc de arquitetura"
+            description="Doc de arquitetura",
         )
 
         context = RAGContext(
             query="explain architecture",
             retrieved_nodes=[node],
             context_text="Architecture doc content",
-            relevance_scores=[0.9]
+            relevance_scores=[0.9],
         )
 
         assert context.query == "explain architecture"

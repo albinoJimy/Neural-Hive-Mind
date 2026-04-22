@@ -2,8 +2,9 @@
 
 import os
 import sys
+from unittest.mock import Mock, patch
+
 import pytest
-from unittest.mock import patch, Mock
 
 # Adicionar diretório de scripts ao path
 sys.path.insert(

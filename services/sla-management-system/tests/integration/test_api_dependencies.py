@@ -1,13 +1,14 @@
 """Testes de integração para validação de injeção de dependências nas APIs do SLA Management System."""
 
-import pytest
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock
+
+import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 
-@pytest.mark.integration
+@pytest.mark.integration()
 class TestSLOsAPIDependencies:
     """Validar que dependências da API de SLOs foram configuradas."""
 
@@ -31,7 +32,7 @@ class TestSLOsAPIDependencies:
     def test_slos_api_get_with_dependencies(self):
         """Validar que endpoint de busca funciona com dependências."""
         from src.api import slos
-        from src.models.slo_definition import SLODefinition, SLIQuery, SLOType
+        from src.models.slo_definition import SLIQuery, SLODefinition, SLOType
 
         app = FastAPI()
         app.include_router(slos.router)
@@ -73,14 +74,14 @@ class TestSLOsAPIDependencies:
         assert "não inicializado" in response.json()["detail"]
 
 
-@pytest.mark.integration
+@pytest.mark.integration()
 class TestBudgetsAPIDependencies:
     """Validar que dependências da API de budgets foram configuradas."""
 
     def test_budgets_api_get_with_dependencies(self):
         """Validar que endpoint de busca funciona com dependências."""
         from src.api import budgets
-        from src.models.error_budget import ErrorBudget, BudgetStatus
+        from src.models.error_budget import BudgetStatus, ErrorBudget
 
         app = FastAPI()
         app.include_router(budgets.router)
@@ -88,9 +89,9 @@ class TestBudgetsAPIDependencies:
         mock_budget = ErrorBudget(
             slo_id="slo-123",
             service_name="test-service",
-            calculated_at=datetime.now(timezone.utc),
-            window_start=datetime.now(timezone.utc),
-            window_end=datetime.now(timezone.utc),
+            calculated_at=datetime.now(UTC),
+            window_start=datetime.now(UTC),
+            window_end=datetime.now(UTC),
             sli_value=0.999,
             slo_target=0.999,
             error_budget_total=0.1,
@@ -139,7 +140,7 @@ class TestBudgetsAPIDependencies:
         assert "não inicializado" in response.json()["detail"]
 
 
-@pytest.mark.integration
+@pytest.mark.integration()
 class TestWebhooksAPIDependencies:
     """Validar que dependências da API de webhooks foram configuradas."""
 
@@ -206,7 +207,7 @@ class TestWebhooksAPIDependencies:
         assert "não inicializado" in response.json()["detail"]
 
 
-@pytest.mark.integration
+@pytest.mark.integration()
 class TestPoliciesAPIDependencies:
     """Validar que dependências da API de políticas foram configuradas."""
 
@@ -265,7 +266,7 @@ class TestPoliciesAPIDependencies:
         assert "não inicializado" in response.json()["detail"]
 
 
-@pytest.mark.integration
+@pytest.mark.integration()
 class TestDependencyOverridesConfiguration:
     """Validar que dependency overrides são configurados corretamente."""
 
@@ -278,8 +279,8 @@ class TestDependencyOverridesConfiguration:
 
     def test_dependency_functions_raise_http_exception_without_override(self):
         """Validar que funções de dependency lançam HTTPException 503 sem override."""
-        from src.api import policies
         from fastapi import HTTPException
+        from src.api import policies
 
         with pytest.raises(HTTPException) as exc_info:
             policies.get_policy_enforcer()

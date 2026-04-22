@@ -5,13 +5,14 @@ Usa RedisCluster para cache de alta disponibilidade com TTL configurável,
 permitindo recuperação rápida de pareceres para planos idênticos.
 """
 
-import json
 import hashlib
+import json
 import time
-from typing import Dict, Any, Optional
+from typing import Any, Optional
+
 import structlog
 from redis.cluster import RedisCluster
-from redis.exceptions import RedisError, ConnectionError as RedisConnectionError
+from redis.exceptions import ConnectionError as RedisConnectionError, RedisError
 
 logger = structlog.get_logger(__name__)
 
@@ -130,7 +131,7 @@ class OpinionCache:
 
         return cache_key
 
-    def get_cached_opinion(self, cache_key: str) -> Optional[Dict[str, Any]]:
+    def get_cached_opinion(self, cache_key: str) -> Optional[dict[str, Any]]:
         """
         Recupera parecer do cache.
 
@@ -174,7 +175,7 @@ class OpinionCache:
             return None
 
     def set_cached_opinion(
-        self, cache_key: str, opinion: Dict[str, Any], ttl_seconds: Optional[int] = None
+        self, cache_key: str, opinion: dict[str, Any], ttl_seconds: Optional[int] = None
     ) -> bool:
         """
         Salva parecer no cache com TTL.
@@ -255,8 +256,8 @@ class OpinionCache:
         Returns:
             True se conectado, False caso contrário
         """
-        import threading
         import queue
+        import threading
 
         if not self._connected or not self.redis_client:
             return False

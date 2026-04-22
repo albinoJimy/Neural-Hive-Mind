@@ -1,14 +1,12 @@
 """Extractor de insights de experimentos MLflow"""
 
-import asyncio
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 import structlog
-from tenacity import retry, stop_after_attempt, wait_exponential
-
 from src.config import get_settings
 from src.models import ExperimentRun, Insight, InsightConfidence
+from tenacity import retry, stop_after_attempt, wait_exponential
 
 logger = structlog.get_logger()
 
@@ -28,9 +26,7 @@ class ExperimentInsightExtractor:
 
             mlflow.set_tracking_uri(self.settings.mlflow_tracking_uri)
             self._mlflow_client = mlflow.tracking.MlflowClient()
-            logger.info(
-                "MLflow client inicializado", uri=self.settings.mlflow_tracking_uri
-            )
+            logger.info("MLflow client inicializado", uri=self.settings.mlflow_tracking_uri)
         except Exception as e:
             logger.error("Erro ao inicializar MLflow client", error=str(e), exc_info=True)
             raise
@@ -39,7 +35,7 @@ class ExperimentInsightExtractor:
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=2, max=10),
     )
-    async def _get_run_safe(self, run_id: str) -> Optional[Dict[str, Any]]:
+    async def _get_run_safe(self, run_id: str) -> Optional[dict[str, Any]]:
         """Busca run de forma segura com retry"""
         try:
             run = self._mlflow_client.get_run(run_id)
@@ -50,12 +46,12 @@ class ExperimentInsightExtractor:
 
     async def fetch_experiment_runs(
         self,
-        experiment_ids: Optional[List[int]] = None,
-        run_ids: Optional[List[str]] = None,
+        experiment_ids: Optional[list[int]] = None,
+        run_ids: Optional[list[str]] = None,
         period_start: Optional[datetime] = None,
         period_end: Optional[datetime] = None,
         max_runs: int = 100,
-    ) -> List[ExperimentRun]:
+    ) -> list[ExperimentRun]:
         """Busca runs de experimento do MLflow
 
         Args:
@@ -157,13 +153,13 @@ class ExperimentInsightExtractor:
             return datetime.fromtimestamp(ts_ms / 1000)
         return None
 
-    def _extract_metrics(self, metrics_data: List[Dict[str, Any]]) -> Dict[str, float]:
+    def _extract_metrics(self, metrics_data: list[dict[str, Any]]) -> dict[str, float]:
         """Extrai métricas do formato MLflow"""
         return {m["key"]: m["value"] for m in metrics_data if m.get("value") is not None}
 
     async def extract_insights(
-        self, runs: List[ExperimentRun], baseline_run_id: Optional[str] = None
-    ) -> List[Insight]:
+        self, runs: list[ExperimentRun], baseline_run_id: Optional[str] = None
+    ) -> list[Insight]:
         """Extrai insights de uma lista de runs
 
         Args:
@@ -187,7 +183,7 @@ class ExperimentInsightExtractor:
                     break
 
         # Agrupar runs por experimento
-        runs_by_experiment: Dict[int, List[ExperimentRun]] = {}
+        runs_by_experiment: dict[int, list[ExperimentRun]] = {}
         for run in runs:
             if run.experiment_id not in runs_by_experiment:
                 runs_by_experiment[run.experiment_id] = []
@@ -212,7 +208,7 @@ class ExperimentInsightExtractor:
         end_time: datetime,
         experiment_id: Optional[int] = None,
         limit: int = 100,
-    ) -> List[ExperimentRun]:
+    ) -> list[ExperimentRun]:
         """Busca runs por período
 
         Args:
@@ -246,9 +242,7 @@ class ExperimentInsightExtractor:
             logger.error("Erro ao buscar run por ID", run_id=run_id, error=str(e))
             return None
 
-    async def extract_insights_from_runs(
-        self, runs: List[ExperimentRun]
-    ) -> List[Insight]:
+    async def extract_insights_from_runs(self, runs: list[ExperimentRun]) -> list[Insight]:
         """Extrai insights de uma lista de runs (alias para extract_insights)
 
         Args:
@@ -260,8 +254,8 @@ class ExperimentInsightExtractor:
         return await self.extract_insights(runs)
 
     async def _extract_experiment_insights(
-        self, runs: List[ExperimentRun], baseline_metrics: Dict[str, float]
-    ) -> List[Insight]:
+        self, runs: list[ExperimentRun], baseline_metrics: dict[str, float]
+    ) -> list[Insight]:
         """Extrai insights específicos de um experimento"""
         insights = []
 
@@ -302,9 +296,11 @@ class ExperimentInsightExtractor:
                                     "baseline": baseline_value,
                                     "improvement_percent": improvement,
                                 },
-                                confidence=InsightConfidence.HIGH
-                                if improvement > 10
-                                else InsightConfidence.MEDIUM,
+                                confidence=(
+                                    InsightConfidence.HIGH
+                                    if improvement > 10
+                                    else InsightConfidence.MEDIUM
+                                ),
                                 experiment_ids=[best_run.run_id],
                                 category="improvement",
                             )
@@ -327,7 +323,7 @@ class ExperimentInsightExtractor:
 
         return insights
 
-    async def _extract_trend_insights(self, runs: List[ExperimentRun]) -> List[Insight]:
+    async def _extract_trend_insights(self, runs: list[ExperimentRun]) -> list[Insight]:
         """Extrai insights de tendências entre runs"""
         insights = []
 
@@ -367,8 +363,8 @@ class ExperimentInsightExtractor:
         return insights
 
     async def _extract_performance_insights(
-        self, runs: List[ExperimentRun], baseline_metrics: Dict[str, float]
-    ) -> List[Insight]:
+        self, runs: list[ExperimentRun], baseline_metrics: dict[str, float]
+    ) -> list[Insight]:
         """Extrai insights de performance"""
         insights = []
 
@@ -397,7 +393,7 @@ class ExperimentInsightExtractor:
 
         return insights
 
-    async def generate_summary(self, runs: List[ExperimentRun]) -> str:
+    async def generate_summary(self, runs: list[ExperimentRun]) -> str:
         """Gera um resumo executivo dos runs
 
         Args:
@@ -436,8 +432,8 @@ class ExperimentInsightExtractor:
         return " ".join(summary_lines)
 
     async def generate_recommendations(
-        self, insights: List[Insight], runs: List[ExperimentRun]
-    ) -> List[str]:
+        self, insights: list[Insight], runs: list[ExperimentRun]
+    ) -> list[str]:
         """Gera recomendações baseado nos insights
 
         Args:
@@ -472,9 +468,7 @@ class ExperimentInsightExtractor:
 
         # Recomendação de feature engineering
         if not recommendations:
-            recommendations.append(
-                "Continuar experimentando com diferentes hiperparâmetros."
-            )
+            recommendations.append("Continuar experimentando com diferentes hiperparâmetros.")
 
         return recommendations
 

@@ -10,9 +10,9 @@ Suporta:
 
 import base64
 import logging
-from datetime import datetime, timezone, timedelta
+from datetime import UTC, datetime, timedelta
 
-UTC = timezone.utc  # type: ignore
+UTC = UTC  # type: ignore
 
 logger = logging.getLogger(__name__)
 

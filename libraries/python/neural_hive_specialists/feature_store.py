@@ -7,7 +7,8 @@ permitindo recuperação rápida de features para inferência e análise.
 
 import json
 import time
-from typing import Dict, Any, Optional
+from typing import Any, Optional
+
 import structlog
 from pymongo import MongoClient
 from redis.cluster import RedisCluster
@@ -95,7 +96,7 @@ class FeatureStore:
             logger.warning("Failed to initialize Redis for feature cache", error=str(e))
             self.redis_client = None
 
-    def save_features(self, plan_id: str, features: Dict[str, Any]) -> bool:
+    def save_features(self, plan_id: str, features: dict[str, Any]) -> bool:
         """
         Salva features de um plano.
 
@@ -133,7 +134,7 @@ class FeatureStore:
             logger.error("Failed to save features", plan_id=plan_id, error=str(e))
             return False
 
-    def get_features(self, plan_id: str) -> Optional[Dict[str, Any]]:
+    def get_features(self, plan_id: str) -> Optional[dict[str, Any]]:
         """
         Recupera features de um plano.
 

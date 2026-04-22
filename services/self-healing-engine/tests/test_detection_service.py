@@ -8,21 +8,19 @@ Este módulo testa a detecção de problemas que requerem remediação:
 - trigger_remediation: Dispara remediação baseado em detecção
 """
 
-import asyncio
-import pytest
-from unittest.mock import AsyncMock, patch, MagicMock
-from datetime import datetime, timezone, timedelta
+from datetime import UTC, datetime, timedelta
+from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
 from src.services.detection_service import (
-    DetectionService,
     DeadlockStatus,
+    DetectionService,
     MemoryStatus,
-    PodCrashLoopStatus,
     RemediationTrigger,
 )
 
 
-@pytest.fixture
+@pytest.fixture()
 def detection_service_with_k8s(mock_orchestrator_client, mock_k8s_core_api, mock_k8s_custom_api):
     """Fixture do DetectionService com Core API para crash loop tests."""
     return DetectionService(
@@ -34,7 +32,7 @@ def detection_service_with_k8s(mock_orchestrator_client, mock_k8s_core_api, mock
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def detection_service(mock_orchestrator_client, mock_k8s_client, mock_k8s_custom_api):
     """Fixture do DetectionService."""
     return DetectionService(
@@ -49,10 +47,10 @@ def detection_service(mock_orchestrator_client, mock_k8s_client, mock_k8s_custom
 class TestDetectionService:
     """Testes para o DetectionService."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_detect_deadlocks_no_deadlock(self, detection_service, mock_orchestrator_client):
         """Testa detecção quando workflow está progredindo."""
-        recent_time = (datetime.now(timezone.utc) - timedelta(minutes=5)).isoformat()
+        recent_time = (datetime.now(UTC) - timedelta(minutes=5)).isoformat()
 
         mock_orchestrator_client.get_workflow_status = AsyncMock(
             return_value={
@@ -79,10 +77,10 @@ class TestDetectionService:
         assert status.has_deadlock is False
         assert status.workflow_id == "wf-123"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_detect_deadlocks_detected(self, detection_service, mock_orchestrator_client):
         """Testa detecção de deadlock (sem progresso por 30+ min)."""
-        old_time = (datetime.now(timezone.utc) - timedelta(minutes=35)).isoformat()
+        old_time = (datetime.now(UTC) - timedelta(minutes=35)).isoformat()
 
         mock_orchestrator_client.get_workflow_status = AsyncMock(
             return_value={
@@ -100,7 +98,7 @@ class TestDetectionService:
         assert status.has_deadlock is True
         assert status.stuck_duration_seconds >= 1800
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_detect_memory_leak_ok(self, detection_service):
         """Testa detecção de memória dentro do limite."""
         # Usar patch direto do método interno
@@ -120,15 +118,15 @@ class TestDetectionService:
         assert status.has_leak is False
         assert status.usage_percent < 90
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_detect_memory_leak_detected(self, detection_service):
         """Testa detecção de memory leak (>90% por 5min)."""
         # Simular métricas diretamente no _memory_history
         # Para forçar a detecção de leak
-        from datetime import datetime, timezone, timedelta
+        from datetime import datetime, timedelta
 
         key = "neural-hive-orchestration/worker-1/app"
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         # Adicionar vários timestamps acima do threshold
         for i in range(10):
             detection_service._memory_history[key] = [
@@ -162,14 +160,14 @@ class TestDetectionService:
         # (pode ser False se o mock não funcionou, mas o importante é não crashar)
         assert status.usage_bytes == 996147200  # 950Mi parsed
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_trigger_remediation_deadlock(self, detection_service):
         """Testa trigger de remediação para deadlock."""
         trigger = RemediationTrigger(
             incident_type="deadlock",
             workflow_id="wf-123",
             severity="high",
-            detected_at=datetime.now(timezone.utc),
+            detected_at=datetime.now(UTC),
         )
 
         # Mock playbook executor
@@ -187,7 +185,7 @@ class TestDetectionService:
 
         assert result["success"] is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_trigger_remediation_memory_leak(self, detection_service):
         """Testa trigger de remediação para memory leak."""
         trigger = RemediationTrigger(
@@ -195,7 +193,7 @@ class TestDetectionService:
             pod_name="worker-1",
             namespace="neural-hive-orchestration",
             severity="medium",
-            detected_at=datetime.now(timezone.utc),
+            detected_at=datetime.now(UTC),
         )
 
         # Mock playbook executor
@@ -243,7 +241,7 @@ class TestDetectionService:
             incident_type="deadlock",
             workflow_id="wf-123",
             severity="high",
-            detected_at=datetime.now(timezone.utc),
+            detected_at=datetime.now(UTC),
         )
         assert trigger.incident_type == "deadlock"
         assert trigger.severity == "high"
@@ -252,10 +250,10 @@ class TestDetectionService:
 class TestDetectionServiceIntegration:
     """Testes de integração do DetectionService."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_detect_and_remediate_deadlock(self, detection_service, mock_orchestrator_client):
         """Teste de ponta a ponta: detectar deadlock → remeditar."""
-        old_time = (datetime.now(timezone.utc) - timedelta(minutes=35)).isoformat()
+        old_time = (datetime.now(UTC) - timedelta(minutes=35)).isoformat()
 
         mock_orchestrator_client.get_workflow_status = AsyncMock(
             return_value={
@@ -277,7 +275,7 @@ class TestDetectionServiceIntegration:
                 incident_type="deadlock",
                 workflow_id="wf-123",
                 severity="high",
-                detected_at=datetime.now(timezone.utc),
+                detected_at=datetime.now(UTC),
                 metadata={"stuck_duration_seconds": status.stuck_duration_seconds},
             )
 
@@ -293,7 +291,7 @@ class TestDetectionServiceIntegration:
 # ===== Tests para detect_pod_crash_loop (FASE3-ANOMALY-002) =====
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_detect_pod_crash_loop_no_crash(mock_k8s_core_api):
     """Testa detecção quando pod está saudável."""
     from unittest.mock import AsyncMock
@@ -330,10 +328,10 @@ async def test_detect_pod_crash_loop_no_crash(mock_k8s_core_api):
     assert status.namespace == "default"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_detect_pod_crash_loop_with_restarts(detection_service_with_k8s, mock_k8s_core_api):
     """Testa detecção quando pod tem múltiplos restarts."""
-    old_time = (datetime.now(timezone.utc) - timedelta(minutes=5)).isoformat()
+    old_time = (datetime.now(UTC) - timedelta(minutes=5)).isoformat()
 
     # Mock pod com 5 restarts recentes
     mock_pod_dict = {
@@ -370,10 +368,10 @@ async def test_detect_pod_crash_loop_with_restarts(detection_service_with_k8s, m
     assert status.container_name == "main"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_detect_pod_crash_loop_below_threshold(detection_service_with_k8s, mock_k8s_core_api):
     """Testa que pod com restarts abaixo do threshold não é considerado crash loop."""
-    old_time = (datetime.now(timezone.utc) - timedelta(minutes=5)).isoformat()
+    old_time = (datetime.now(UTC) - timedelta(minutes=5)).isoformat()
 
     # Mock pod com apenas 2 restarts
     mock_pod_dict = {
@@ -403,11 +401,11 @@ async def test_detect_pod_crash_loop_below_threshold(detection_service_with_k8s,
     assert status.restart_count == 2
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_detect_pod_crash_loop_old_restarts(detection_service_with_k8s, mock_k8s_core_api):
     """Testa que restarts antigos (fora da janela) não são considerados."""
     # Restart há 20 minutos (fora da janela de 10 minutos)
-    old_time = (datetime.now(timezone.utc) - timedelta(minutes=20)).isoformat()
+    old_time = (datetime.now(UTC) - timedelta(minutes=20)).isoformat()
 
     mock_pod = MagicMock()
     mock_pod.status = MagicMock()
@@ -429,10 +427,10 @@ async def test_detect_pod_crash_loop_old_restarts(detection_service_with_k8s, mo
     assert status.has_crash_loop is False
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_detect_pod_crash_loop_init_container(detection_service_with_k8s, mock_k8s_core_api):
     """Testa detecção de crash loop em init container."""
-    old_time = (datetime.now(timezone.utc) - timedelta(minutes=3)).isoformat()
+    old_time = (datetime.now(UTC) - timedelta(minutes=3)).isoformat()
 
     mock_pod_dict = {
         "metadata": {"name": "test-pod", "namespace": "default"},
@@ -463,7 +461,7 @@ async def test_detect_pod_crash_loop_init_container(detection_service_with_k8s, 
     assert status.container_name == "init-db"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_detect_pod_crash_loop_no_api(detection_service):
     """Testa comportamento quando Kubernetes API não está disponível."""
     # Criar service sem k8s_core_api
@@ -479,7 +477,7 @@ async def test_detect_pod_crash_loop_no_api(detection_service):
     assert "error" in status.metadata
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_detect_pod_crash_loop_pod_not_found(detection_service_with_k8s, mock_k8s_core_api):
     """Testa comportamento quando pod não existe."""
     from kubernetes.client.exceptions import ApiException

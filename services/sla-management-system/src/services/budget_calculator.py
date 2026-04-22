@@ -3,8 +3,8 @@ Serviço para cálculo de error budgets.
 """
 
 import asyncio
-from datetime import datetime, timedelta, timezone
-from typing import List, Optional
+from datetime import UTC, datetime, timedelta
+from typing import Optional
 
 import structlog
 
@@ -39,7 +39,7 @@ class BudgetCalculator:
     async def calculate_budget(self, slo: SLODefinition) -> ErrorBudget:
         """Calcula error budget para um SLO."""
         try:
-            start_time = datetime.now(timezone.utc)
+            start_time = datetime.now(UTC)
 
             # Passo 1: Buscar SLI atual via Prometheus
             sli_value = await self.prometheus_client.calculate_sli(slo, window_days=slo.window_days)
@@ -68,13 +68,13 @@ class BudgetCalculator:
             )
 
             # Passo 6: Criar objeto ErrorBudget
-            window_end = datetime.now(timezone.utc)
+            window_end = datetime.now(UTC)
             window_start = window_end - timedelta(days=slo.window_days)
 
             budget = ErrorBudget(
                 slo_id=slo.slo_id,
                 service_name=slo.service_name,
-                calculated_at=datetime.now(timezone.utc),
+                calculated_at=datetime.now(UTC),
                 window_start=window_start,
                 window_end=window_end,
                 sli_value=sli_value,
@@ -96,7 +96,7 @@ class BudgetCalculator:
             # Passo 9: Publicar evento Kafka
             await self.kafka_producer.publish_budget_update(budget)
 
-            duration = (datetime.now(timezone.utc) - start_time).total_seconds()
+            duration = (datetime.now(UTC) - start_time).total_seconds()
             self.logger.info(
                 "budget_calculated",
                 slo_id=slo.slo_id,
@@ -112,7 +112,7 @@ class BudgetCalculator:
             self.logger.error("budget_calculation_failed", slo_id=slo.slo_id, error=str(e))
             raise
 
-    async def calculate_all_budgets(self) -> List[ErrorBudget]:
+    async def calculate_all_budgets(self) -> list[ErrorBudget]:
         """Calcula budget para todos os SLOs ativos."""
         slos = await self.postgresql_client.list_slos(enabled_only=True)
 
@@ -165,9 +165,9 @@ class BudgetCalculator:
 
         while self._running:
             try:
-                start_time = datetime.now(timezone.utc)
+                start_time = datetime.now(UTC)
                 budgets = await self.calculate_all_budgets()
-                duration = (datetime.now(timezone.utc) - start_time).total_seconds()
+                duration = (datetime.now(UTC) - start_time).total_seconds()
 
                 self.logger.info(
                     "periodic_calculation_completed",
@@ -186,7 +186,7 @@ class BudgetCalculator:
         self._running = False
         self.logger.info("periodic_calculation_stopped")
 
-    async def _calculate_burn_rates(self, service_name: str) -> List[BurnRate]:
+    async def _calculate_burn_rates(self, service_name: str) -> list[BurnRate]:
         """Calcula burn rates para diferentes janelas."""
         burn_rates = []
         windows = [1, 6, 24]  # horas

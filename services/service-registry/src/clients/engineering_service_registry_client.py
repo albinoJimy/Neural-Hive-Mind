@@ -9,7 +9,7 @@ Este cliente é compartilhado pelos serviços:
 """
 
 import asyncio
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 import grpc
 import structlog
@@ -89,7 +89,7 @@ class EngineeringServiceRegistryClient:
             return False
 
     async def register(
-        self, capabilities: List[str], metadata: Optional[Dict[str, str]] = None
+        self, capabilities: list[str], metadata: Optional[dict[str, str]] = None
     ) -> Optional[str]:
         """
         Registra o serviço no Service Registry.
@@ -183,7 +183,7 @@ class EngineeringServiceRegistryClient:
             )
             return False
 
-    async def send_heartbeat(self, metrics: Optional[Dict[str, Any]] = None) -> bool:
+    async def send_heartbeat(self, metrics: Optional[dict[str, Any]] = None) -> bool:
         """
         Envia heartbeat para o Service Registry.
 
@@ -286,8 +286,8 @@ class EngineeringServiceRegistryClient:
 async def register_engineering_service(
     service_name: str,
     agent_type: service_registry_pb2.AgentType,
-    capabilities: List[str],
-    metadata: Optional[Dict[str, str]] = None,
+    capabilities: list[str],
+    metadata: Optional[dict[str, str]] = None,
 ) -> Optional[EngineeringServiceRegistryClient]:
     """
     Registra um serviço de engenharia no Service Registry.

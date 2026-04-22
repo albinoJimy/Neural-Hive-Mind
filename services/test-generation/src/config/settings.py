@@ -1,7 +1,6 @@
 """Configurações do Test Generation service."""
 
 from functools import lru_cache
-from typing import Optional
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -25,16 +24,12 @@ class Settings(BaseSettings):
     port: int = 8013
 
     # MongoDB
-    mongodb_url: str = Field(
-        default="mongodb://localhost:27017",
-        validation_alias="MONGODB_URL"
-    )
+    mongodb_url: str = Field(default="mongodb://localhost:27017", validation_alias="MONGODB_URL")
     mongodb_database: str = "nhm_tests"
 
     # Kafka
     kafka_bootstrap_servers: str = Field(
-        default="localhost:9092",
-        validation_alias="KAFKA_BOOTSTRAP_SERVERS"
+        default="localhost:9092", validation_alias="KAFKA_BOOTSTRAP_SERVERS"
     )
     kafka_consumer_group: str = "test-generation-group"
     kafka_input_topic: str = "requirements.generated"
@@ -47,26 +42,16 @@ class Settings(BaseSettings):
 
     # Knowledge Graph
     knowledge_graph_url: str = Field(
-        default="http://knowledge-graph-rag:8016",
-        validation_alias="KNOWLEDGE_GRAPH_URL"
+        default="http://knowledge-graph-rag:8016", validation_alias="KNOWLEDGE_GRAPH_URL"
     )
 
     # Test Generation Settings
-    default_test_framework: str = Field(
-        default="pytest",
-        description="Framework de testes padrão"
-    )
+    default_test_framework: str = Field(default="pytest", description="Framework de testes padrão")
     coverage_target: float = Field(
-        default=0.8,
-        ge=0.0,
-        le=1.0,
-        description="Cobertura de código alvo"
+        default=0.8, ge=0.0, le=1.0, description="Cobertura de código alvo"
     )
     max_test_cases_per_requirement: int = Field(
-        default=5,
-        ge=1,
-        le=20,
-        description="Máximo de casos de teste por requisito"
+        default=5, ge=1, le=20, description="Máximo de casos de teste por requisito"
     )
 
     # Service Info

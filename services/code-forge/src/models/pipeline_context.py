@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -25,13 +25,13 @@ class PipelineContext(BaseModel):
     span_id: str = Field(..., description="Span ID OpenTelemetry")
 
     selected_template: Optional[Template] = Field(None, description="Template selecionado")
-    generated_artifacts: List[CodeForgeArtifact] = Field(
+    generated_artifacts: list[CodeForgeArtifact] = Field(
         default_factory=list, description="Artefatos gerados"
     )
-    validation_results: List[ValidationResult] = Field(
+    validation_results: list[ValidationResult] = Field(
         default_factory=list, description="Resultados de validações"
     )
-    pipeline_stages: List[PipelineStage] = Field(
+    pipeline_stages: list[PipelineStage] = Field(
         default_factory=list, description="Status dos stages"
     )
 
@@ -39,7 +39,7 @@ class PipelineContext(BaseModel):
         None, description="Path do workspace onde código foi materializado"
     )
     mcp_selection_id: Optional[str] = Field(None, description="ID da seleção MCP")
-    selected_tools: List[Dict[str, Any]] = Field(
+    selected_tools: list[dict[str, Any]] = Field(
         default_factory=list, description="Ferramentas selecionadas pelo MCP"
     )
     generation_method: Optional[str] = Field(
@@ -48,7 +48,7 @@ class PipelineContext(BaseModel):
     mcp_feedback_sent: bool = Field(
         False, description="Flag indicando se feedback foi enviado ao MCP"
     )
-    metadata: Dict[str, Any] = Field(default_factory=dict, description="Metadados adicionais")
+    metadata: dict[str, Any] = Field(default_factory=dict, description="Metadados adicionais")
 
     started_at: datetime = Field(default_factory=datetime.now, description="Timestamp de início")
     completed_at: Optional[datetime] = Field(None, description="Timestamp de conclusão")

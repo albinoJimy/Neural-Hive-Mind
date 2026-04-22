@@ -4,27 +4,27 @@ Testes de Dependency Injection para APIs REST do Queen Agent.
 Verifica que as dependências são injetadas correctamente usando FastAPI Depends().
 """
 
-import pytest
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock
-from datetime import datetime, timezone
-from fastapi import HTTPException
 
+import pytest
+from fastapi import HTTPException
 from src.api.dependencies import (
-    get_mongodb_client,
-    get_load_balancer,
-    get_leader_election,
     get_exception_service,
+    get_leader_election,
+    get_load_balancer,
     get_mcp_orchestrator,
+    get_mongodb_client,
 )
 from src.clients import MongoDBClient
 from src.services import (
-    LoadBalancer,
-    LeaderElection,
     ExceptionApprovalService,
+    LeaderElection,
+    LoadBalancer,
 )
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_request():
     """Mock Request com app_state"""
     request = MagicMock()
@@ -35,7 +35,7 @@ def mock_request():
 class TestGetMongoDBClient:
     """Testes do get_mongodb_client"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_mongodb_client_success(self, mock_request):
         """Testa obtenção bem-sucedida do cliente MongoDB"""
         mock_client = MagicMock(spec=MongoDBClient)
@@ -45,7 +45,7 @@ class TestGetMongoDBClient:
 
         assert result == mock_client
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_mongodb_client_not_initialized(self, mock_request):
         """Testa erro quando cliente não está inicializado"""
         mock_request.app.state.app_state.mongodb_client = None
@@ -59,7 +59,7 @@ class TestGetMongoDBClient:
 class TestGetLoadBalancer:
     """Testes do get_load_balancer"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_load_balancer_success(self, mock_request):
         """Testa obtenção bem-sucedida do LoadBalancer"""
         mock_lb = MagicMock(spec=LoadBalancer)
@@ -69,7 +69,7 @@ class TestGetLoadBalancer:
 
         assert result == mock_lb
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_load_balancer_not_enabled(self, mock_request):
         """Testa erro quando LoadBalancer não está habilitado"""
         mock_request.app.state.app_state.load_balancer = None
@@ -83,7 +83,7 @@ class TestGetLoadBalancer:
 class TestGetLeaderElection:
     """Testes do get_leader_election"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_leader_election_success(self, mock_request):
         """Testa obtenção bem-sucedida do LeaderElection"""
         mock_le = MagicMock(spec=LeaderElection)
@@ -93,7 +93,7 @@ class TestGetLeaderElection:
 
         assert result == mock_le
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_leader_election_not_enabled(self, mock_request):
         """Testa erro quando LeaderElection não está habilitado"""
         mock_request.app.state.app_state.leader_election = None
@@ -107,7 +107,7 @@ class TestGetLeaderElection:
 class TestGetExceptionService:
     """Testes do get_exception_service"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_exception_service_success(self, mock_request):
         """Testa obtenção bem-sucedida do ExceptionApprovalService"""
         mock_service = MagicMock(spec=ExceptionApprovalService)
@@ -117,7 +117,7 @@ class TestGetExceptionService:
 
         assert result == mock_service
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_exception_service_not_enabled(self, mock_request):
         """Testa erro quando ExceptionApprovalService não está habilitado"""
         mock_request.app.state.app_state.exception_service = None
@@ -131,7 +131,7 @@ class TestGetExceptionService:
 class TestGetMcpOrchestrator:
     """Testes do get_mcp_orchestrator"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_mcp_orchestrator_success(self, mock_request):
         """Testa obtenção bem-sucedida do MCPToolOrchestrator"""
         mock_orchestrator = MagicMock()
@@ -141,7 +141,7 @@ class TestGetMcpOrchestrator:
 
         assert result == mock_orchestrator
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_mcp_orchestrator_not_available(self, mock_request):
         """Testa erro quando MCPToolOrchestrator não está disponível"""
         mock_request.app.state.app_state.mcp_orchestrator = None
@@ -155,15 +155,15 @@ class TestGetMcpOrchestrator:
 class TestDependencyInjectionIntegration:
     """Testes de integração de DI com endpoints FastAPI"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def app_with_di(self):
         """App FastAPI com DI configurado"""
         from fastapi import FastAPI
-        from src.api.workers import router as workers_router
-        from src.api.election import router as election_router
         from src.api.decisions import router as decisions_router
+        from src.api.election import router as election_router
         from src.api.exceptions import router as exceptions_router
         from src.api.mcp import router as mcp_router
+        from src.api.workers import router as workers_router
 
         app = FastAPI()
 
@@ -184,13 +184,13 @@ class TestDependencyInjectionIntegration:
             return_value=TaskAssignment(
                 worker_id="worker-1",
                 strategy=BalancingStrategy.ROUND_ROBIN,
-                assigned_at=datetime.now(timezone.utc),
+                assigned_at=datetime.now(UTC),
             )
         )
         mock_load_balancer.complete_task = AsyncMock(return_value=True)
 
         mock_leader_election = MagicMock(spec=LeaderElection)
-        from src.services import NodeRole, ElectionState
+        from src.services import ElectionState, NodeRole
 
         mock_leader_election.node_id = "queen-test-1"
         mock_leader_election.get_state = MagicMock(
@@ -234,10 +234,10 @@ class TestDependencyInjectionIntegration:
 
         return app
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_workers_api_with_di(self, app_with_di):
         """Testa que workers API funciona com DI"""
-        from httpx import AsyncClient, ASGITransport
+        from httpx import ASGITransport, AsyncClient
 
         transport = ASGITransport(app=app_with_di)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
@@ -245,10 +245,10 @@ class TestDependencyInjectionIntegration:
 
             assert response.status_code == 200
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_election_api_with_di(self, app_with_di):
         """Testa que election API funciona com DI"""
-        from httpx import AsyncClient, ASGITransport
+        from httpx import ASGITransport, AsyncClient
 
         transport = ASGITransport(app=app_with_di)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
@@ -256,10 +256,10 @@ class TestDependencyInjectionIntegration:
 
             assert response.status_code == 200
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_decisions_api_with_di(self, app_with_di):
         """Testa que decisions API funciona com DI"""
-        from httpx import AsyncClient, ASGITransport
+        from httpx import ASGITransport, AsyncClient
 
         transport = ASGITransport(app=app_with_di)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
@@ -267,10 +267,10 @@ class TestDependencyInjectionIntegration:
 
             assert response.status_code == 200
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_exceptions_api_with_di(self, app_with_di):
         """Testa que exceptions API funciona com DI"""
-        from httpx import AsyncClient, ASGITransport
+        from httpx import ASGITransport, AsyncClient
 
         transport = ASGITransport(app=app_with_di)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
@@ -278,10 +278,10 @@ class TestDependencyInjectionIntegration:
 
             assert response.status_code == 200
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_mcp_api_with_di(self, app_with_di):
         """Testa que MCP API funciona com DI"""
-        from httpx import AsyncClient, ASGITransport
+        from httpx import ASGITransport, AsyncClient
 
         transport = ASGITransport(app=app_with_di)
         async with AsyncClient(transport=transport, base_url="http://test") as client:

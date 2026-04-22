@@ -4,15 +4,16 @@ Testes de integração para SemanticParser com NLP
 Testa o fluxo completo de parsing com extração NLP.
 """
 
-import pytest
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock
-from datetime import datetime, timezone
+
+import pytest
 
 
 class TestSemanticParserWithNLP:
     """Testes de integração do SemanticParser com NLPProcessor"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_neo4j_client(self):
         """Mock do Neo4jClient"""
         mock = AsyncMock()
@@ -23,14 +24,14 @@ class TestSemanticParserWithNLP:
         mock.nlp_processor = None
         return mock
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_mongodb_client(self):
         """Mock do MongoDBClient"""
         mock = AsyncMock()
         mock.get_operational_context = AsyncMock(return_value=None)
         return mock
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_redis_client(self):
         """Mock do RedisClient"""
         mock = AsyncMock()
@@ -39,7 +40,7 @@ class TestSemanticParserWithNLP:
         mock.cache_enriched_context = AsyncMock()
         return mock
 
-    @pytest.fixture
+    @pytest.fixture()
     async def nlp_processor(self, mock_redis_client):
         """Fixture que cria e inicializa NLPProcessor"""
         from src.services.nlp_processor import NLPProcessor
@@ -48,7 +49,7 @@ class TestSemanticParserWithNLP:
         await processor.initialize()
         return processor
 
-    @pytest.fixture
+    @pytest.fixture()
     def semantic_parser_with_nlp(
         self, mock_neo4j_client, mock_mongodb_client, mock_redis_client, nlp_processor
     ):
@@ -62,7 +63,7 @@ class TestSemanticParserWithNLP:
             nlp_processor=nlp_processor,
         )
 
-    @pytest.fixture
+    @pytest.fixture()
     def semantic_parser_without_nlp(
         self, mock_neo4j_client, mock_mongodb_client, mock_redis_client
     ):
@@ -76,12 +77,12 @@ class TestSemanticParserWithNLP:
             nlp_processor=None,
         )
 
-    @pytest.fixture
+    @pytest.fixture()
     def intent_envelope_create(self):
         """Fixture de Intent Envelope para operação de criação"""
         return {
             "id": "test-intent-001",
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "confidence": 0.95,
             "intent": {
                 "text": "Criar novo serviço REST para gerenciamento de produtos usando FastAPI",
@@ -91,12 +92,12 @@ class TestSemanticParserWithNLP:
             "constraints": {"priority": "high", "timeout_ms": 30000},
         }
 
-    @pytest.fixture
+    @pytest.fixture()
     def intent_envelope_query(self):
         """Fixture de Intent Envelope para operação de consulta"""
         return {
             "id": "test-intent-002",
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "confidence": 0.88,
             "intent": {
                 "text": "Buscar todos os pedidos dos últimos 30 dias no MongoDB",
@@ -106,7 +107,7 @@ class TestSemanticParserWithNLP:
             "constraints": None,
         }
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_parse_extracts_objectives_with_nlp(
         self, semantic_parser_with_nlp, intent_envelope_create
     ):
@@ -117,7 +118,7 @@ class TestSemanticParserWithNLP:
         assert isinstance(result["objectives"], list)
         assert "create" in result["objectives"]
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_parse_enriches_entities_with_nlp(
         self, semantic_parser_with_nlp, intent_envelope_create
     ):
@@ -129,7 +130,7 @@ class TestSemanticParserWithNLP:
         # devido ao enriquecimento NLP
         assert len(result["entities"]) >= 1
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_parse_extracts_query_objective(
         self, semantic_parser_with_nlp, intent_envelope_query
     ):
@@ -138,7 +139,7 @@ class TestSemanticParserWithNLP:
 
         assert "query" in result["objectives"]
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_parse_without_nlp_uses_heuristic(
         self, semantic_parser_without_nlp, intent_envelope_create
     ):
@@ -152,7 +153,7 @@ class TestSemanticParserWithNLP:
             or "criar" in intent_envelope_create["intent"]["text"].lower()
         )
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_parse_handles_empty_entities(
         self, semantic_parser_with_nlp, intent_envelope_query
     ):
@@ -163,7 +164,7 @@ class TestSemanticParserWithNLP:
         # NLP pode adicionar entidades mesmo quando original está vazio
         assert isinstance(result["entities"], list)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_parse_preserves_original_entities(
         self, semantic_parser_with_nlp, intent_envelope_create
     ):
@@ -177,7 +178,7 @@ class TestSemanticParserWithNLP:
         # Entidade original pode ter sido mapeada para canonical_type
         assert len(result["entities"]) >= 1
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_parse_handles_null_constraints(
         self, semantic_parser_with_nlp, intent_envelope_query
     ):
@@ -187,7 +188,7 @@ class TestSemanticParserWithNLP:
         assert "constraints" in result
         assert result["constraints"]["priority"] == "normal"  # valor padrão
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_parse_result_structure(self, semantic_parser_with_nlp, intent_envelope_create):
         """Testa estrutura completa do resultado do parse"""
         result = await semantic_parser_with_nlp.parse(intent_envelope_create)
@@ -212,7 +213,7 @@ class TestSemanticParserWithNLP:
 class TestNLPAccuracyComparison:
     """Testes de acurácia comparando NLP vs heurística"""
 
-    @pytest.fixture
+    @pytest.fixture()
     async def nlp_processor(self):
         """Fixture que cria e inicializa NLPProcessor"""
         from src.services.nlp_processor import NLPProcessor
@@ -221,7 +222,7 @@ class TestNLPAccuracyComparison:
         await processor.initialize()
         return processor
 
-    @pytest.fixture
+    @pytest.fixture()
     def test_cases(self):
         """Dataset de teste para comparação de acurácia"""
         return [
@@ -287,7 +288,7 @@ class TestNLPAccuracyComparison:
             },
         ]
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_nlp_objective_accuracy(self, nlp_processor, test_cases):
         """Testa acurácia de extração de objectives com NLP"""
         correct = 0
@@ -307,7 +308,7 @@ class TestNLPAccuracyComparison:
         # NLP deve ter acurácia >= 80%
         assert accuracy >= 0.80, f"Acurácia de objectives: {accuracy:.2%}"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_nlp_keyword_extraction_quality(self, nlp_processor):
         """Testa qualidade de extração de keywords"""
         test_text = (

@@ -54,7 +54,7 @@ class SnykClient:
             cmd.extend(["--file=go.mod"])
 
         result = subprocess.run(
-            cmd, capture_output=True, text=True, timeout=self.timeout, env=env, cwd=project_path
+            cmd, capture_output=True, text=True, timeout=self.timeout, env=env, cwd=project_path, check=False
         )
 
         if result.stdout:

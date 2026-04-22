@@ -16,9 +16,7 @@ from datetime import datetime
 from unittest.mock import AsyncMock
 
 import pytest
-
 from src.types.artifact_types import ArtifactCategory
-
 
 pytest_plugins = ["tests.unit.conftest", "tests.fixtures.d3_fixtures"]
 
@@ -31,8 +29,8 @@ pytest_plugins = ["tests.unit.conftest", "tests.fixtures.d3_fixtures"]
 class TestD3MongoDBConnection:
     """Testes de conexão com MongoDB."""
 
-    @pytest.mark.integration
-    @pytest.mark.asyncio
+    @pytest.mark.integration()
+    @pytest.mark.asyncio()
     async def test_d3_mongodb_connection_string_format(self):
         """
         D3: Formato da string de conexão MongoDB
@@ -60,8 +58,8 @@ class TestD3MongoDBConnection:
                 "authSource=admin" in mongodb_url or "authSource=admin" in mongodb_url.lower()
             ), "authSource deve ser 'admin' para autenticação correta"
 
-    @pytest.mark.integration
-    @pytest.mark.asyncio
+    @pytest.mark.integration()
+    @pytest.mark.asyncio()
     async def test_d3_mongodb_client_initialization(self):
         """
         D3: Inicialização do MongoDBClient
@@ -97,7 +95,7 @@ class TestD3MongoDBConnection:
 class TestD3ArtifactPersistence:
     """Testes de persistência de artefatos no MongoDB."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_d3_save_artifact_content(
         self, mock_mongodb_client, d3_pipeline_context_with_artifacts
     ):
@@ -121,7 +119,7 @@ class TestD3ArtifactPersistence:
         assert call_args[0][0] == artifact.artifact_id
         assert call_args[0][1] == content
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_d3_get_artifact_content(self, mock_mongodb_client):
         """
         D3: Recuperação de conteúdo de artefato
@@ -137,7 +135,7 @@ class TestD3ArtifactPersistence:
         assert mock_mongodb_client.get_artifact_content.called
         assert mock_mongodb_client.get_artifact_content.call_args[0][0] == artifact_id
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_d3_artifact_document_structure(self, mock_d3_mongodb_artifact):
         """
         D3: Estrutura do documento de artefato
@@ -162,7 +160,7 @@ class TestD3ArtifactPersistence:
         for field in required_fields:
             assert field in mock_d3_mongodb_artifact, f"Campo obrigatório {field} ausente"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_d3_delete_artifact(self, mock_mongodb_client):
         """
         D3: Deleção de artefato
@@ -186,7 +184,7 @@ class TestD3ArtifactPersistence:
 class TestD3PipelinePersistence:
     """Testes de persistência de pipelines no MongoDB."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_d3_save_pipeline_result(self, mock_mongodb_client, d3_expected_pipeline_result):
         """
         D3: Salvamento de resultado de pipeline
@@ -202,7 +200,7 @@ class TestD3PipelinePersistence:
 
         assert mock_mongodb_client.save_pipeline_result.called
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_d3_get_pipeline_result(self, mock_mongodb_client):
         """
         D3: Recuperação de resultado de pipeline
@@ -217,7 +215,7 @@ class TestD3PipelinePersistence:
 
         assert mock_mongodb_client.get_pipeline_result.called
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_d3_pipeline_document_structure(self, mock_d3_postgres_pipeline):
         """
         D3: Estrutura do documento de pipeline
@@ -243,7 +241,7 @@ class TestD3PipelinePersistence:
         for field in required_fields:
             assert field in mock_d3_postgres_pipeline, f"Campo obrigatório {field} ausente"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_d3_query_pipelines_by_ticket(self, mock_mongodb_client):
         """
         D3: Consulta de pipelines por ticket_id
@@ -270,7 +268,7 @@ class TestD3PipelinePersistence:
 class TestD3PipelineLogs:
     """Testes de logs de pipeline no MongoDB."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_d3_save_pipeline_logs(self, mock_mongodb_client):
         """
         D3: Salvamento de logs de pipeline
@@ -294,7 +292,7 @@ class TestD3PipelineLogs:
         assert call_args[0][0] == pipeline_id
         assert call_args[0][1] == logs
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_d3_get_pipeline_logs(self, mock_mongodb_client):
         """
         D3: Recuperação de logs de pipeline
@@ -309,7 +307,7 @@ class TestD3PipelineLogs:
 
         assert mock_mongodb_client.get_pipeline_logs.called
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_d3_append_pipeline_log(self, mock_mongodb_client):
         """
         D3: Append de log ao pipeline
@@ -340,7 +338,7 @@ class TestD3PipelineLogs:
 class TestD3MongoDBQueries:
     """Testes de consultas complexas no MongoDB."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_d3_query_artifacts_by_type(self, mock_mongodb_client):
         """
         D3: Consulta de artefatos por tipo
@@ -355,7 +353,7 @@ class TestD3MongoDBQueries:
 
         assert mock_mongodb_client.query_artifacts_by_type.called
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_d3_query_pipelines_by_date_range(self, mock_mongodb_client):
         """
         D3: Consulta de pipelines por intervalo de datas
@@ -373,7 +371,7 @@ class TestD3MongoDBQueries:
 
         assert mock_mongodb_client.query_pipelines_by_date_range.called
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_d3_aggregate_pipeline_statistics(self, mock_mongodb_client):
         """
         D3: Agregação de estatísticas de pipeline
@@ -405,7 +403,7 @@ class TestD3MongoDBQueries:
 class TestD3MongoDBTransactions:
     """Testes de transações no MongoDB."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_d3_transactional_artifact_save(
         self, mock_mongodb_client, d3_pipeline_context_with_artifacts
     ):
@@ -424,7 +422,7 @@ class TestD3MongoDBTransactions:
 
         assert mock_mongodb_client.save_artifacts_transactional.called
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_d3_transaction_rollback_on_error(self, mock_mongodb_client):
         """
         D3: Rollback de transação em erro
@@ -454,8 +452,8 @@ class TestD3MongoDBTransactions:
 class TestD3MongoDBIndexes:
     """Testes de índices no MongoDB."""
 
-    @pytest.mark.integration
-    @pytest.mark.asyncio
+    @pytest.mark.integration()
+    @pytest.mark.asyncio()
     async def test_d3_artifact_indexes_exist(self):
         """
         D3: Índices de artifacts existem
@@ -494,8 +492,8 @@ class TestD3MongoDBIndexes:
         finally:
             await client.stop()
 
-    @pytest.mark.integration
-    @pytest.mark.asyncio
+    @pytest.mark.integration()
+    @pytest.mark.asyncio()
     async def test_d3_pipeline_indexes_exist(self):
         """
         D3: Índices de pipelines existem
@@ -541,7 +539,7 @@ class TestD3MongoDBIndexes:
 class TestD3MongoDBCleanup:
     """Testes de cleanup e retenção de dados."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_d3_delete_old_artifacts(self, mock_mongodb_client):
         """
         D3: Deleção de artefatos antigos
@@ -559,7 +557,7 @@ class TestD3MongoDBCleanup:
         assert mock_mongodb_client.delete_artifacts_older_than.called
         assert deleted >= 0
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_d3_archive_old_pipelines(self, mock_mongodb_client):
         """
         D3: Arquivamento de pipelines antigos
@@ -585,7 +583,7 @@ class TestD3MongoDBCleanup:
 class TestD3MongoDBPerformance:
     """Testes de performance do MongoDB."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_d3_artifact_save_latency(self, mock_mongodb_client):
         """
         D3: Latência de salvamento de artefato
@@ -605,7 +603,7 @@ class TestD3MongoDBPerformance:
         # Mock deve ser rápido
         assert latency_ms < 50
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_d3_query_performance(self, mock_mongodb_client):
         """
         D3: Performance de consultas
@@ -632,7 +630,7 @@ class TestD3MongoDBPerformance:
 class TestD3MongoDBSecurity:
     """Testes de segurança do MongoDB."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_d3_connection_with_auth(self, mock_mongodb_client):
         """
         D3: Conexão com autenticação
@@ -644,7 +642,7 @@ class TestD3MongoDBSecurity:
         # Verificar que client foi configurado com auth
         assert mock_mongodb_client is not None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_d3_sensitive_data_encryption(self, mock_mongodb_client):
         """
         D3: Criptografia de dados sensíveis
@@ -672,7 +670,7 @@ class TestD3MongoDBSecurity:
 class TestD3MongoDBBackup:
     """Testes de backup e restore do MongoDB."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_d3_collection_backup(self, mock_mongodb_client):
         """
         D3: Backup de collection

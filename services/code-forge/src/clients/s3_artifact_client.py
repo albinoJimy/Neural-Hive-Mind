@@ -7,8 +7,8 @@ Baseado no padrão S3StorageClient do módulo de disaster recovery.
 import hashlib
 import os
 import time
-from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Dict, List, Optional
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING, Optional
 
 import structlog
 
@@ -173,7 +173,7 @@ class S3ArtifactClient:
                 ExtraArgs={
                     "ServerSideEncryption": "AES256",
                     "Metadata": {
-                        "uploaded_at": datetime.now(timezone.utc).isoformat(),
+                        "uploaded_at": datetime.now(UTC).isoformat(),
                         "source": "code-forge",
                         "ticket_id": ticket_id,
                         "artifact_id": artifact_id,
@@ -285,7 +285,7 @@ class S3ArtifactClient:
             )
             return False
 
-    async def get_sbom_metadata(self, sbom_uri: str) -> Dict:
+    async def get_sbom_metadata(self, sbom_uri: str) -> dict:
         """
         Obtém metadados de SBOM do S3.
 
@@ -324,7 +324,7 @@ class S3ArtifactClient:
             )
             return {}
 
-    async def list_sboms(self, ticket_id: str) -> List[Dict]:
+    async def list_sboms(self, ticket_id: str) -> list[dict]:
         """
         Lista SBOMs de um ticket.
 

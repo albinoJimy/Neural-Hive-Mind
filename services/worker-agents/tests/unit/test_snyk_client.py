@@ -12,12 +12,11 @@ Cobertura:
 from unittest.mock import MagicMock, patch
 
 import pytest
-
 from src.clients.snyk_client import (
     SnykClient,
     SnykReport,
-    SnykVulnerability,
     SnykSeverity,
+    SnykVulnerability,
 )
 
 
@@ -120,7 +119,7 @@ class TestSnykVulnerability:
 class TestSnykClientTest:
     """Testes de teste de dependencias via API."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_test_dependencies_success(self):
         """Deve executar teste com sucesso via API."""
         client = SnykClient(token="test-token", org_id="org-123")
@@ -137,7 +136,7 @@ class TestSnykClientTest:
         assert len(report.vulnerabilities) == 0
         assert report.test_id == "test-123"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_test_dependencies_with_vulnerabilities(self):
         """Deve parser vulnerabilidades da resposta da API."""
         client = SnykClient(token="test-token", org_id="org-123")
@@ -169,7 +168,7 @@ class TestSnykClientTest:
         assert report.vulnerabilities[0].package == "lodash"
         assert report.vulnerabilities[0].severity == SnykSeverity.HIGH
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_test_dependencies_file_not_found(self):
         """Deve retornar erro quando ficheiro nao existe."""
         client = SnykClient(token="test-token", org_id="org-123")
@@ -180,7 +179,7 @@ class TestSnykClientTest:
         assert report.error is not None
         assert "File not found" in report.error
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_test_dependencies_api_error(self):
         """Deve handle erros da API."""
         client = SnykClient(token="test-token", org_id="org-123")
@@ -202,7 +201,7 @@ class TestSnykClientTest:
         assert report.passed is False
         assert report.error is not None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_organization_health(self):
         """Deve obter metricas de saude da organizacao."""
         client = SnykClient(token="test-token", org_id="org-123")
@@ -223,7 +222,7 @@ class TestSnykClientTest:
 class TestSnykClientContainer:
     """Testes de scan de imagens de container."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_container_scan_success(self):
         """Deve escanear imagem de container com sucesso."""
         client = SnykClient(token="test-token", org_id="org-123")
@@ -255,7 +254,7 @@ class TestSnykClientContainer:
         assert len(report.vulnerabilities) == 1
         assert report.test_id == "sha256:abc123"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_container_scan_passed(self):
         """Deve retornar passed true para imagem limpa."""
         client = SnykClient(token="test-token", org_id="org-123")

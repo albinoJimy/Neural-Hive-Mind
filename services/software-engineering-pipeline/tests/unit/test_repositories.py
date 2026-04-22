@@ -1,16 +1,16 @@
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock
+
 import pytest
-from datetime import datetime, timedelta, timezone
-
-from src.repositories.pipeline_repository import (
-    PipelineRunRepository,
-    AnomalyRepository,
-)
 from src.models.pipeline import PipelineRun
-from src.models.schemas import PipelineStatus, AnomalyType
+from src.models.schemas import AnomalyType, PipelineStatus
+from src.repositories.pipeline_repository import (
+    AnomalyRepository,
+    PipelineRunRepository,
+)
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_create_and_find_run():
     """Test creating and finding a pipeline run."""
     repo = PipelineRunRepository()
@@ -41,7 +41,7 @@ async def test_create_and_find_run():
     assert found["run_id"] == "test-run-1"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_update_run_status():
     """Test updating pipeline run status."""
     repo = PipelineRunRepository()
@@ -63,14 +63,14 @@ async def test_update_run_status():
     updated = await repo.update_status(
         run_id,
         PipelineStatus.SUCCESS,
-        finished_at=datetime.now(timezone.utc),
+        finished_at=datetime.now(UTC),
         duration_seconds=120,
     )
 
     assert updated is True
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_find_unresolved_anomalies():
     """Test finding unresolved anomalies."""
     repo = AnomalyRepository()
@@ -102,7 +102,7 @@ async def test_find_unresolved_anomalies():
     assert unresolved[0]["resolved"] is False
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_mark_anomaly_resolved():
     """Test marking an anomaly as resolved."""
     repo = AnomalyRepository()
@@ -115,7 +115,7 @@ async def test_mark_anomaly_resolved():
     assert resolved is True
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_find_many_with_filter():
     """Test finding multiple documents with filter."""
     repo = PipelineRunRepository()
@@ -145,7 +145,7 @@ async def test_find_many_with_filter():
     assert results[0]["run_id"] == "run-1"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_count_documents():
     """Test counting documents."""
     repo = PipelineRunRepository()
@@ -158,7 +158,7 @@ async def test_count_documents():
     assert count == 42
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_aggregate_pipeline():
     """Test aggregation pipeline."""
     repo = PipelineRunRepository()
@@ -185,7 +185,7 @@ async def test_aggregate_pipeline():
     assert results[0]["count"] == 30
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_delete_document():
     """Test deleting a document."""
     repo = PipelineRunRepository()
@@ -198,7 +198,7 @@ async def test_delete_document():
     assert deleted is True
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_delete_not_found():
     """Test deleting a non-existent document."""
     repo = PipelineRunRepository()
@@ -211,7 +211,7 @@ async def test_delete_not_found():
     assert deleted is False
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_find_by_date_range():
     """Test finding runs by date range."""
     repo = PipelineRunRepository()
@@ -222,13 +222,13 @@ async def test_find_by_date_range():
     async_mock_cursor.limit = MagicMock(return_value=async_mock_cursor)
     async_mock_cursor.to_list = AsyncMock(
         return_value=[
-            {"run_id": "run-1", "started_at": datetime.now(timezone.utc)},
+            {"run_id": "run-1", "started_at": datetime.now(UTC)},
         ]
     )
 
     repo.collection.find = MagicMock(return_value=async_mock_cursor)
 
-    end_date = datetime.now(timezone.utc)
+    end_date = datetime.now(UTC)
     start_date = end_date - timedelta(days=7)
 
     results = await repo.find_by_date_range(
@@ -240,7 +240,7 @@ async def test_find_by_date_range():
     assert len(results) == 1
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_find_by_status():
     """Test finding runs by status."""
     repo = PipelineRunRepository()
@@ -263,7 +263,7 @@ async def test_find_by_status():
     assert results[0]["status"] == "running"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_find_recent_by_repo():
     """Test finding recent runs for a repo."""
     repo = PipelineRunRepository()

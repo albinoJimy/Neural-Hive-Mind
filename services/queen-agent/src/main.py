@@ -6,14 +6,14 @@ import structlog
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-# SEC-001: Security Headers
-from neural_hive_security import SecurityHeadersMiddleware
-
 from neural_hive_observability import (
     ObservabilityConfig,
     create_instrumented_async_grpc_server,
     init_observability,
 )
+
+# SEC-001: Security Headers
+from neural_hive_security import SecurityHeadersMiddleware
 
 from .api import (
     decisions_router,

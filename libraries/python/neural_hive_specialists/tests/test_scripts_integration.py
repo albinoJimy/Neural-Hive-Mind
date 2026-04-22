@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 def test_generate_encryption_key_script_invocation(monkeypatch, tmp_path):
     captured = {}
 
@@ -27,7 +27,7 @@ def test_generate_encryption_key_script_invocation(monkeypatch, tmp_path):
     assert script_path.as_posix() in " ".join(captured["cmd"])
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 def test_monitor_retraining_runs_script_invocation(monkeypatch):
     captured = {}
 
@@ -50,7 +50,7 @@ def test_monitor_retraining_runs_script_invocation(monkeypatch):
     assert module_path in " ".join(captured["cmd"])
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 def test_run_retention_policies_script_invocation(monkeypatch):
     captured = {}
 

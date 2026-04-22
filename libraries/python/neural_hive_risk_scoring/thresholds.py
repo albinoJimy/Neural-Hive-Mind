@@ -4,15 +4,16 @@ Risk Thresholds
 Configuração dinâmica de thresholds com ajuste automático baseado em histórico.
 """
 
-import structlog
-from typing import Dict, List, Optional
-from datetime import datetime, timezone
 from collections import deque
+from datetime import UTC, datetime
 from statistics import mean, stdev
+from typing import Optional
 
-from .config import RiskScoringConfig
+import structlog
+
 from neural_hive_domain import UnifiedDomain
 
+from .config import RiskScoringConfig
 
 logger = structlog.get_logger(__name__)
 
@@ -53,19 +54,19 @@ class DynamicThresholds:
         self.adjustment_factor = adjustment_factor
 
         # Histórico de scores por domínio
-        self._history: Dict[str, deque] = {
+        self._history: dict[str, deque] = {
             domain.value: deque(maxlen=window_size) for domain in UnifiedDomain
         }
 
         # Thresholds atuais (inicializa com base_config)
-        self._current_thresholds: Dict[str, Dict[str, float]] = {}
+        self._current_thresholds: dict[str, dict[str, float]] = {}
         for domain in UnifiedDomain:
             self._current_thresholds[domain.value] = base_config.get_thresholds(domain).copy()
 
         # Timestamp da última atualização
-        self._last_adjustment: Dict[str, datetime] = {}
+        self._last_adjustment: dict[str, datetime] = {}
 
-    def get_thresholds(self, domain: UnifiedDomain) -> Dict[str, float]:
+    def get_thresholds(self, domain: UnifiedDomain) -> dict[str, float]:
         """Retorna thresholds atuais para domínio.
 
         Args:
@@ -86,12 +87,12 @@ class DynamicThresholds:
             score: Valor do score (0.0 a 1.0)
             timestamp: Timestamp do score (padrão: agora)
         """
-        ts = timestamp or datetime.now(timezone.utc)
+        ts = timestamp or datetime.now(UTC)
         self._history[domain.value].append((ts, score))
 
     def adjust_thresholds(
         self, domain: Optional[UnifiedDomain] = None, force: bool = False
-    ) -> Dict[str, Dict[str, float]]:
+    ) -> dict[str, dict[str, float]]:
         """Ajusta thresholds baseado em histórico.
 
         Args:
@@ -137,7 +138,7 @@ class DynamicThresholds:
             blended_thresholds = self._blend_thresholds(old_thresholds, new_thresholds)
 
             self._current_thresholds[domain_value] = blended_thresholds
-            self._last_adjustment[domain_value] = datetime.now(timezone.utc)
+            self._last_adjustment[domain_value] = datetime.now(UTC)
 
             adjusted[domain_value] = blended_thresholds
 
@@ -153,8 +154,8 @@ class DynamicThresholds:
         return adjusted
 
     def _calculate_percentile_thresholds(
-        self, scores: List[float], domain: str
-    ) -> Dict[str, float]:
+        self, scores: list[float], domain: str
+    ) -> dict[str, float]:
         """Calcula thresholds baseado em percentis.
 
         Strategy:
@@ -174,7 +175,7 @@ class DynamicThresholds:
 
         return {"medium": percentile(0.60), "high": percentile(0.80), "critical": percentile(0.95)}
 
-    def _calculate_std_dev_thresholds(self, scores: List[float], domain: str) -> Dict[str, float]:
+    def _calculate_std_dev_thresholds(self, scores: list[float], domain: str) -> dict[str, float]:
         """Calcula thresholds baseado em desvio padrão.
 
         Strategy:
@@ -194,7 +195,7 @@ class DynamicThresholds:
             "critical": min(1.0, avg + 1.5 * std),
         }
 
-    def _calculate_ema_thresholds(self, scores: List[float], domain: str) -> Dict[str, float]:
+    def _calculate_ema_thresholds(self, scores: list[float], domain: str) -> dict[str, float]:
         """Calcula thresholds usando média móvel exponencial.
 
         Strategy: EMA com alpha=0.2, adiciona múltiplos de desvio.
@@ -218,7 +219,7 @@ class DynamicThresholds:
             "critical": min(1.0, ema + 1.5 * avg_deviation),
         }
 
-    def _blend_thresholds(self, old: Dict[str, float], new: Dict[str, float]) -> Dict[str, float]:
+    def _blend_thresholds(self, old: dict[str, float], new: dict[str, float]) -> dict[str, float]:
         """Combina thresholds antigos e novos.
 
         Args:
@@ -245,7 +246,7 @@ class DynamicThresholds:
             self._current_thresholds[d.value] = self.base_config.get_thresholds(d).copy()
             logger.info("thresholds_reset_to_base", domain=d.value)
 
-    def get_threshold_stats(self, domain: UnifiedDomain) -> Dict:
+    def get_threshold_stats(self, domain: UnifiedDomain) -> dict:
         """Retorna estatísticas sobre thresholds.
 
         Returns:
@@ -295,10 +296,10 @@ class ThresholdViolation:
         self.threshold_level = threshold_level
         self.threshold_value = threshold_value
         self.severity = severity  # 'minor', 'major', 'critical'
-        self.timestamp = timestamp or datetime.now(timezone.utc)
+        self.timestamp = timestamp or datetime.now(UTC)
         self.delta = score - threshold_value
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         """Converte para dicionário."""
         return {
             "domain": self.domain.value,
@@ -321,8 +322,8 @@ class ThresholdMonitor:
             dynamic_thresholds: Gerenciador de thresholds a monitorar
         """
         self.thresholds = dynamic_thresholds
-        self._violations: List[ThresholdViolation] = []
-        self._violation_counts: Dict[str, int] = {}
+        self._violations: list[ThresholdViolation] = []
+        self._violation_counts: dict[str, int] = {}
 
     def check_violation(self, domain: UnifiedDomain, score: float) -> Optional[ThresholdViolation]:
         """Verifica se score viola thresholds.
@@ -384,7 +385,7 @@ class ThresholdMonitor:
         domain: Optional[UnifiedDomain] = None,
         since: Optional[datetime] = None,
         severity: Optional[str] = None,
-    ) -> List[ThresholdViolation]:
+    ) -> list[ThresholdViolation]:
         """Retorna violações filtradas.
 
         Args:
@@ -408,7 +409,7 @@ class ThresholdMonitor:
 
         return violations
 
-    def get_violation_stats(self) -> Dict:
+    def get_violation_stats(self) -> dict:
         """Retorna estatísticas de violações."""
         return {
             "total_violations": len(self._violations),

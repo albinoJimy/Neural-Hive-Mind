@@ -7,7 +7,7 @@ sensibilidade da decisão a mudanças nos multiplicadores hierárquicos.
 Explainability API v3 - Task 4
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 import structlog
 
@@ -17,7 +17,7 @@ from src.models.seniority import SENIORITY_MULTIPLIERS, SeniorityLevel
 logger = structlog.get_logger(__name__)
 
 # Multiplicadores invertidos para cenário de seniority inversion
-INVERTED_MULTIPLIERS: Dict[SeniorityLevel, float] = {
+INVERTED_MULTIPLIERS: dict[SeniorityLevel, float] = {
     SeniorityLevel.EXPERT: 0.5,
     SeniorityLevel.SENIOR: 0.75,
     SeniorityLevel.MID_LEVEL: 1.0,
@@ -35,7 +35,7 @@ class CounterfactualResult:
         outcome: str,
         weighted_score: float,
         decision: str,
-        breakdown: Dict[str, Any],
+        breakdown: dict[str, Any],
     ):
         self.scenario_name = scenario_name
         self.outcome = outcome
@@ -43,7 +43,7 @@ class CounterfactualResult:
         self.decision = decision
         self.breakdown = breakdown
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Converte para dicionário."""
         return {
             "scenario_name": self.scenario_name,
@@ -70,7 +70,7 @@ class CounterfactualAnalyzer:
         """Inicializa o analyzer contrafactual."""
         self.logger = logger
 
-    def analyze_equal_weights(self, votes: List[Dict[str, Any]]) -> CounterfactualResult:
+    def analyze_equal_weights(self, votes: list[dict[str, Any]]) -> CounterfactualResult:
         """
         Analisa cenário onde todos os especialistas têm peso igual (1.0x).
 
@@ -126,7 +126,7 @@ class CounterfactualAnalyzer:
             breakdown=breakdown,
         )
 
-    def analyze_no_trainee(self, votes: List[Dict[str, Any]]) -> CounterfactualResult:
+    def analyze_no_trainee(self, votes: list[dict[str, Any]]) -> CounterfactualResult:
         """
         Analisa cenário ignorando opiniões de trainees.
 
@@ -200,7 +200,7 @@ class CounterfactualAnalyzer:
             breakdown=breakdown,
         )
 
-    def analyze_seniority_inversion(self, votes: List[Dict[str, Any]]) -> CounterfactualResult:
+    def analyze_seniority_inversion(self, votes: list[dict[str, Any]]) -> CounterfactualResult:
         """
         Analisa cenário com multiplicadores de senioridade invertidos.
 
@@ -262,8 +262,8 @@ class CounterfactualAnalyzer:
         )
 
     def generate_all_counterfactuals(
-        self, votes: List[Dict[str, Any]], original_decision: Optional[str] = None
-    ) -> Dict[str, Any]:
+        self, votes: list[dict[str, Any]], original_decision: Optional[str] = None
+    ) -> dict[str, Any]:
         """
         Gera todos os cenários contrafactuais e compara com decisão original.
 
@@ -300,7 +300,7 @@ class CounterfactualAnalyzer:
 
         return {"scenarios": scenarios, "sensitivity_analysis": sensitivity_analysis}
 
-    def _calculate_original_score(self, votes: List[Dict[str, Any]]) -> float:
+    def _calculate_original_score(self, votes: list[dict[str, Any]]) -> float:
         """Calcula score com multiplicadores originais de senioridade."""
         if not votes:
             return 0.0
@@ -340,7 +340,7 @@ class CounterfactualAnalyzer:
             return "reject"
         return "neutral"
 
-    def _determine_outcome(self, decision: str, votes: List[Dict[str, Any]]) -> str:
+    def _determine_outcome(self, decision: str, votes: list[dict[str, Any]]) -> str:
         """
         Determina outcome detalhado do cenário.
 
@@ -358,8 +358,8 @@ class CounterfactualAnalyzer:
         return decision
 
     def _analyze_sensitivity(
-        self, scenarios: Dict[str, Any], original_decision: str
-    ) -> Dict[str, Any]:
+        self, scenarios: dict[str, Any], original_decision: str
+    ) -> dict[str, Any]:
         """
         Analisa sensibilidade da decisão aos diferentes cenários.
 
@@ -391,8 +391,8 @@ class CounterfactualAnalyzer:
         return {"is_robust": robust, "decision_flips": flips, "flip_count": len(flips)}
 
     def generate_counterfactual(
-        self, explanation: Dict[str, Any], target_outcome: str
-    ) -> Dict[str, Any]:
+        self, explanation: dict[str, Any], target_outcome: str
+    ) -> dict[str, Any]:
         """
         Gera análise contrafactual para um outcome específico.
 

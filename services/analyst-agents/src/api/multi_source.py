@@ -6,7 +6,7 @@ Endpoint para consultar e fundir dados de múltiplas fontes.
 
 import time
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 import structlog
 from fastapi import APIRouter, HTTPException, status
@@ -51,8 +51,8 @@ class MultiSourceQueryResponse(BaseModel):
     """Response para query multi-source."""
 
     query_id: str
-    results: Dict[str, Any]
-    sources_queried: List[str]
+    results: dict[str, Any]
+    sources_queried: list[str]
     cached: bool
     fused: bool = False
     query_time_ms: float
@@ -62,10 +62,10 @@ class CrossSourceAnalysisResponse(BaseModel):
     """Response para análise cross-source."""
 
     query_id: str
-    fused_data: Dict[str, Any]
-    correlations: Dict[str, float]
-    sources_summary: Dict[str, str]
-    warnings: List[str]
+    fused_data: dict[str, Any]
+    correlations: dict[str, float]
+    sources_summary: dict[str, str]
+    warnings: list[str]
 
 
 class CorrelationResponse(BaseModel):
@@ -74,7 +74,7 @@ class CorrelationResponse(BaseModel):
     metric_x: str
     metric_y: str
     correlation: Optional[float]
-    sources_analyzed: List[str]
+    sources_analyzed: list[str]
 
 
 # -------------------------------------------------------------------------
@@ -207,7 +207,7 @@ async def cross_source_analysis(request: MultiSourceQueryRequest):
     )
 
 
-@router.get("/sources/status", response_model=List[SourceStatus])
+@router.get("/sources/status", response_model=list[SourceStatus])
 async def get_sources_status():
     """
     Retorna status de todas as fontes de dados disponíveis.

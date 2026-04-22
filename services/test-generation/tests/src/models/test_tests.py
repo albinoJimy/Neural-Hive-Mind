@@ -1,14 +1,11 @@
 """Tests para modelos de testes."""
 
-import pytest
-from datetime import datetime
 from models.tests import (
-    TestType,
-    TestFramework,
     TestCase,
-    TestSuite,
-    TestGenerationRequest,
     TestCoverage,
+    TestFramework,
+    TestSuite,
+    TestType,
 )
 
 

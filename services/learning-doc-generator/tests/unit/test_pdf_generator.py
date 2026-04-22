@@ -1,13 +1,10 @@
 """Testes unitários para PDFGenerator"""
 
 import os
-import tempfile
 from datetime import datetime
-from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
-
 from src.models import (
     DocumentFormat,
     DocumentStatus,
@@ -19,7 +16,7 @@ from src.models import (
 from src.services.pdf_generator import PDFGenerator
 
 
-@pytest.fixture
+@pytest.fixture()
 def pdf_generator(tmp_path, monkeypatch):
     """Fixture para PDFGenerator"""
     # Create directories explicitly for the generator
@@ -34,13 +31,14 @@ def pdf_generator(tmp_path, monkeypatch):
 
     # Reset settings to pick up new env vars
     import src.config.settings
+
     src.config.settings._settings_instance = None
 
     gen = PDFGenerator()
     return gen
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_document():
     """Fixture para documento de exemplo"""
     return LearningDocument(
@@ -78,7 +76,7 @@ def hello():
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_insights():
     """Fixture para insights de exemplo"""
     return [
@@ -119,7 +117,7 @@ class TestPDFGeneratorInit:
 class TestMarkdownToHTML:
     """Testes de conversão de Markdown para HTML"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_markdown_to_html_basic(self, pdf_generator, sample_document):
         """Testa conversão básica de Markdown para HTML"""
         html = await pdf_generator._markdown_to_html(
@@ -128,12 +126,12 @@ class TestMarkdownToHTML:
             None,
         )
 
-        assert ("<!DOCTYPE html>" in html or "<html" in html.lower())
+        assert "<!DOCTYPE html>" in html or "<html" in html.lower()
         assert "<body>" in html
         assert sample_document.title in html
         assert "Resumo Executivo" in html
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_markdown_to_html_with_tables(self, pdf_generator, sample_document):
         """Testa conversão de tabelas Markdown para HTML"""
         markdown = "| Col1 | Col2 |\n|------|------|\n| A | B |"
@@ -145,7 +143,7 @@ class TestMarkdownToHTML:
 
         assert "<table>" in html or "<td>" in html
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_markdown_to_html_with_code(self, pdf_generator, sample_document):
         """Testa conversão de código Markdown para HTML"""
         markdown = "```python\nprint('test')\n```"
@@ -157,10 +155,8 @@ class TestMarkdownToHTML:
 
         assert "<code>" in html or "<pre>" in html
 
-    @pytest.mark.asyncio
-    async def test_markdown_to_html_custom_template(
-        self, pdf_generator, sample_document, tmp_path
-    ):
+    @pytest.mark.asyncio()
+    async def test_markdown_to_html_custom_template(self, pdf_generator, sample_document, tmp_path):
         """Testa uso de template HTML customizado"""
         # Criar template customizado
         template_content = """
@@ -190,7 +186,7 @@ class TestMarkdownToHTML:
 class TestHTMLToPDF:
     """Testes de conversão de HTML para PDF"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_html_to_pdf_without_weasyprint(self, pdf_generator):
         """Testa erro quando WeasyPrint não está disponível"""
         with patch.object(pdf_generator, "_weasyprint_available", False):
@@ -200,15 +196,13 @@ class TestHTMLToPDF:
                     markdown_content="# Test",
                 )
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_html_to_pdf_missing_content(self, pdf_generator):
         """Testa erro quando não há conteúdo Markdown"""
         if not pdf_generator.is_available():
             pytest.skip("WeasyPrint não disponível")
 
-        doc = LearningDocument(
-            title="Test", type=DocumentType.EXPERIMENT_REPORT
-        )
+        doc = LearningDocument(title="Test", type=DocumentType.EXPERIMENT_REPORT)
 
         with pytest.raises(ValueError, match="Conteúdo Markdown não disponível"):
             await pdf_generator.generate_pdf(doc)
@@ -217,10 +211,8 @@ class TestHTMLToPDF:
 class TestPDFGeneration:
     """Testes de geração completa de PDF"""
 
-    @pytest.mark.asyncio
-    async def test_generate_pdf_success(
-        self, pdf_generator, sample_document, tmp_path
-    ):
+    @pytest.mark.asyncio()
+    async def test_generate_pdf_success(self, pdf_generator, sample_document, tmp_path):
         """Testa geração bem-sucedida de PDF"""
         if not pdf_generator.is_available():
             pytest.skip("WeasyPrint não disponível")
@@ -232,7 +224,7 @@ class TestPDFGeneration:
             assert pdf_path.endswith(".pdf")
             assert os.path.getsize(pdf_path) > 0
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_generate_pdf_with_custom_template(
         self, pdf_generator, sample_document, tmp_path
     ):
@@ -264,7 +256,7 @@ class TestPDFGeneration:
 class TestFromMarkdownFile:
     """Testes de geração a partir de arquivo Markdown"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_generate_from_markdown_file(self, pdf_generator, tmp_path):
         """Testa geração de PDF a partir de arquivo Markdown"""
         if not pdf_generator.is_available():
@@ -281,7 +273,7 @@ class TestFromMarkdownFile:
             assert os.path.exists(pdf_path)
             assert pdf_path.endswith(".pdf")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_generate_from_nonexistent_file(self, pdf_generator):
         """Testa erro com arquivo inexistente"""
         with pytest.raises(FileNotFoundError):
@@ -291,7 +283,7 @@ class TestFromMarkdownFile:
 class TestBatchGeneration:
     """Testes de geração em lote"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_generate_batch(self, pdf_generator, sample_document, tmp_path):
         """Testa geração de PDFs em lote"""
         if not pdf_generator.is_available():
@@ -300,9 +292,7 @@ class TestBatchGeneration:
         docs = [
             (sample_document, "# Doc 1"),
             (
-                LearningDocument(
-                    title="Doc 2", type=DocumentType.WEEKLY_SUMMARY
-                ),
+                LearningDocument(title="Doc 2", type=DocumentType.WEEKLY_SUMMARY),
                 "# Doc 2",
             ),
         ]
@@ -323,7 +313,7 @@ class TestTemplates:
         """Testa se o template padrão retorna HTML válido"""
         for doc_type in DocumentType:
             template = pdf_generator._get_default_template(doc_type)
-            assert ("<!DOCTYPE html>" in template or "<html" in template.lower())
+            assert "<!DOCTYPE html>" in template or "<html" in template.lower()
             assert "</html>" in template
 
     def test_get_base_css_returns_styles(self, pdf_generator):
@@ -340,7 +330,7 @@ class TestTemplates:
 class TestEdgeCases:
     """Testes de casos extremos"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_empty_markdown_content(self, pdf_generator, sample_document):
         """Testa comportamento com conteúdo vazio"""
         if not pdf_generator.is_available():
@@ -349,23 +339,19 @@ class TestEdgeCases:
         with pytest.raises(ValueError):
             await pdf_generator.generate_pdf(sample_document, markdown_content="")
 
-    @pytest.mark.asyncio
-    async def test_markdown_with_special_characters(
-        self, pdf_generator, sample_document, tmp_path
-    ):
+    @pytest.mark.asyncio()
+    async def test_markdown_with_special_characters(self, pdf_generator, sample_document, tmp_path):
         """Testa Markdown com caracteres especiais"""
         if not pdf_generator.is_available():
             pytest.skip("WeasyPrint não disponível")
 
-        special_md = "# Test <>&\"\n\nÁéíóú ñ ß"
-        html = await pdf_generator._markdown_to_html(
-            special_md, sample_document, None
-        )
+        special_md = '# Test <>&"\n\nÁéíóú ñ ß'
+        html = await pdf_generator._markdown_to_html(special_md, sample_document, None)
 
         assert "Test" in html
         # HTML entities devem estar presentes ou os caracteres preservados
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_very_long_markdown(self, pdf_generator, sample_document, tmp_path):
         """Testa Markdown muito longo"""
         if not pdf_generator.is_available():
@@ -376,17 +362,13 @@ class TestEdgeCases:
 
         assert "Long Document" in html
 
-    @pytest.mark.asyncio
-    async def test_markdown_with_insights(
-        self, pdf_generator, sample_document, sample_insights
-    ):
+    @pytest.mark.asyncio()
+    async def test_markdown_with_insights(self, pdf_generator, sample_document, sample_insights):
         """Testa Markdown com insights"""
         doc = sample_document
         doc.insights = sample_insights
 
-        html = await pdf_generator._markdown_to_html(
-            doc.markdown_content, doc, None
-        )
+        html = await pdf_generator._markdown_to_html(doc.markdown_content, doc, None)
 
         # Template deve incluir título do documento
         assert doc.title in html
@@ -395,7 +377,7 @@ class TestEdgeCases:
 class TestClose:
     """Testes de fechamento de recursos"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_close_clears_cache(self, pdf_generator):
         """Testa se close limpa o cache de templates"""
         pdf_generator._html_templates["test"] = "value"

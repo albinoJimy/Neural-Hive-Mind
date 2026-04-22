@@ -15,7 +15,6 @@ from fastapi.middleware.cors import CORSMiddleware
 
 # SEC-001: Security Headers
 from neural_hive_security import SecurityHeadersMiddleware
-
 from src.adapters.feedback_config_adapter import create_feedback_collector_config
 from src.api.routers import active_learning, approvals, dashboard, health
 from src.clients.cognitive_ledger_client import CognitiveLedgerClient
@@ -28,6 +27,7 @@ from src.observability.metrics import NeuralHiveMetrics, register_metrics
 # Neural Hive Observability
 try:
     from neural_hive_observability import init_observability
+
     HAS_OBSERVABILITY = True
 except ImportError:
     HAS_OBSERVABILITY = False

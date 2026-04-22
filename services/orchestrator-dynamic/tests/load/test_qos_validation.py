@@ -9,20 +9,20 @@ Valida que garantias de QoS são respeitadas sob carga:
 """
 
 import asyncio
-import pytest
 import statistics
-from datetime import datetime, timezone, timedelta
-from typing import Dict, List, Any
+from datetime import UTC, datetime, timedelta
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
+import pytest
+from src.config.settings import OrchestratorSettings
+from src.observability.metrics import OrchestratorMetrics
 from src.scheduler.intelligent_scheduler import IntelligentScheduler
 from src.scheduler.priority_calculator import PriorityCalculator
 from src.scheduler.resource_allocator import ResourceAllocator
-from src.config.settings import OrchestratorSettings
-from src.observability.metrics import OrchestratorMetrics
 
 
-@pytest.fixture
+@pytest.fixture()
 def qos_test_config():
     """Config com pesos de prioridade explícitos."""
     config = MagicMock(spec=OrchestratorSettings)
@@ -37,15 +37,15 @@ def qos_test_config():
     return config
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_metrics():
     """Metrics mock."""
     metrics = MagicMock(spec=OrchestratorMetrics)
     return metrics
 
 
-@pytest.fixture
-def sample_workers() -> List[Dict[str, Any]]:
+@pytest.fixture()
+def sample_workers() -> list[dict[str, Any]]:
     """Workers mock."""
     return [
         {
@@ -59,7 +59,7 @@ def sample_workers() -> List[Dict[str, Any]]:
     ]
 
 
-def create_allocator(workers: List[Dict]) -> AsyncMock:
+def create_allocator(workers: list[dict]) -> AsyncMock:
     """Cria ResourceAllocator mock."""
     allocator = AsyncMock(spec=ResourceAllocator)
     allocator.discover_workers = AsyncMock(return_value=workers)
@@ -74,7 +74,7 @@ def create_ticket(
     consistency: str = "EVENTUAL",
     durability: str = "PERSISTENT",
     deadline_hours: float = 1.0,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Cria ticket com parâmetros específicos de QoS."""
     return {
         "ticket_id": ticket_id,
@@ -85,21 +85,21 @@ def create_ticket(
             "durability": durability,
         },
         "sla": {
-            "deadline": (datetime.now(timezone.utc) + timedelta(hours=deadline_hours)).isoformat(),
+            "deadline": (datetime.now(UTC) + timedelta(hours=deadline_hours)).isoformat(),
             "timeout_ms": int(deadline_hours * 3600000),
         },
         "required_capabilities": ["python", "data-processing"],
         "namespace": "default",
         "security_level": "standard",
         "estimated_duration_ms": 1000,
-        "created_at": datetime.now(timezone.utc).isoformat(),
+        "created_at": datetime.now(UTC).isoformat(),
     }
 
 
 class TestQoSDeliveryModeOrdering:
     """Testes de ordenação por delivery_mode."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_exactly_once_higher_than_at_least_once(
         self, qos_test_config, mock_metrics, sample_workers
     ):
@@ -144,7 +144,7 @@ class TestQoSDeliveryModeOrdering:
         print(f"  AT_LEAST_ONCE média: {avg_al:.4f}")
         print(f"  Diferença: {avg_eo - avg_al:.4f}")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_at_least_once_higher_than_at_most_once(
         self, qos_test_config, mock_metrics, sample_workers
     ):
@@ -188,7 +188,7 @@ class TestQoSDeliveryModeOrdering:
         print(f"  AT_MOST_ONCE média: {avg_am:.4f}")
         print(f"  Diferença: {avg_al - avg_am:.4f}")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_full_delivery_mode_ordering(self, qos_test_config, mock_metrics, sample_workers):
         """Valida ordenação completa: EXACTLY_ONCE > AT_LEAST_ONCE > AT_MOST_ONCE."""
         priority_calc = PriorityCalculator(qos_test_config)
@@ -224,7 +224,7 @@ class TestQoSDeliveryModeOrdering:
 class TestQoSConsistencyImpact:
     """Testes de impacto de consistency no QoS."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_strong_consistency_higher_than_eventual(
         self, qos_test_config, mock_metrics, sample_workers
     ):
@@ -272,7 +272,7 @@ class TestQoSConsistencyImpact:
 class TestRiskBandPrioritization:
     """Testes de priorização por risk_band."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_risk_band_ordering_under_load(
         self, qos_test_config, mock_metrics, sample_workers
     ):
@@ -315,7 +315,7 @@ class TestRiskBandPrioritization:
         for rb in risk_bands:
             print(f"  {rb}: {avg_scores[rb]:.4f}")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_risk_band_weight_contribution(
         self, qos_test_config, mock_metrics, sample_workers
     ):
@@ -341,7 +341,7 @@ class TestRiskBandPrioritization:
 class TestSLAUrgencyPrioritization:
     """Testes de priorização por urgência de SLA."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_deadline_urgency_impact(self, qos_test_config, mock_metrics, sample_workers):
         """Valida que tickets próximos do deadline têm prioridade maior."""
         priority_calc = PriorityCalculator(qos_test_config)
@@ -385,7 +385,7 @@ class TestSLAUrgencyPrioritization:
 class TestCombinedQoSFactors:
     """Testes de combinação de fatores de QoS."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_combined_qos_priority_ordering(
         self, qos_test_config, mock_metrics, sample_workers
     ):
@@ -437,7 +437,7 @@ class TestCombinedQoSFactors:
         print(f"  Low priority score: {score_low:.4f}")
         print(f"  Diferença: {difference:.4f}")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_mixed_qos_load_distribution(self, qos_test_config, mock_metrics, sample_workers):
         """Valida distribuição sob carga com QoS misto."""
         priority_calc = PriorityCalculator(qos_test_config)
@@ -490,7 +490,7 @@ class TestCombinedQoSFactors:
 class TestQoSWeightsValidation:
     """Testes de validação de pesos de QoS."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_qos_weight_30_percent_contribution(
         self, qos_test_config, mock_metrics, sample_workers
     ):

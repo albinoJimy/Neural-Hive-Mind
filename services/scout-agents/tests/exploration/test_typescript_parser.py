@@ -4,11 +4,10 @@ Parsing de TypeScript para análise estática.
 """
 
 import pytest
-
 from src.exploration.parsers.typescript_parser import TypeScriptParser
 
 
-@pytest.fixture
+@pytest.fixture()
 def ts_parser():
     """Instância de TypeScriptParser para testes."""
     return TypeScriptParser()

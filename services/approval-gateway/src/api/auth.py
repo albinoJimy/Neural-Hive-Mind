@@ -8,8 +8,7 @@ from typing import Optional
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-
-from src.services.token_service import TokenService, get_token_service, TokenPayload
+from src.services.token_service import TokenPayload, TokenService, get_token_service
 
 # Security scheme para FastAPI (Bearer token)
 security = HTTPBearer(auto_error=False)
@@ -104,9 +103,7 @@ async def get_current_user_with_permissions(
         if base_payload is None:
             raise UnauthorizedError("Token inválido ou expirado")
         else:
-            raise ForbiddenError(
-                f"Permissões insuficientes. Requerido: {required_permissions}"
-            )
+            raise ForbiddenError(f"Permissões insuficientes. Requerido: {required_permissions}")
 
     return payload
 

@@ -48,10 +48,7 @@ class VersioningService:
         # Calcular mudanças se temos snapshot anterior
         changes: dict[str, Any] = {}
         if previous_snapshot:
-            changes = self._calculate_changes(
-                previous_snapshot,
-                hypothesis.to_dict()
-            )
+            changes = self._calculate_changes(previous_snapshot, hypothesis.to_dict())
 
         # Determinar versão pai
         parent_version = None
@@ -70,9 +67,7 @@ class VersioningService:
         saved_version = await self.version_repository.save(version)
 
         # Cleanup de versões antigas se necessário
-        await self.version_repository.cleanup_old_versions(
-            hypothesis.hypothesis_id
-        )
+        await self.version_repository.cleanup_old_versions(hypothesis.hypothesis_id)
 
         logger.info(
             "version_created",

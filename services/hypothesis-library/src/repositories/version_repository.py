@@ -3,10 +3,9 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC
 from typing import Any
 
-from bson import ObjectId
 from motor.motor_asyncio import AsyncIOMotorClient
 from pymongo import ASCENDING, DESCENDING
 
@@ -14,7 +13,7 @@ from src.config.settings import Settings, get_settings
 from src.models.hypothesis_version import HypothesisVersion, VersionDiff
 
 logger = logging.getLogger(__name__)
-UTC = timezone.utc
+UTC = UTC
 
 
 class HypothesisVersionRepository:
@@ -40,22 +39,17 @@ class HypothesisVersionRepository:
     async def create_indexes(self) -> None:
         """Cria índices para a coleção de versões."""
         await self.collection.create_index(
-            [("version_id", ASCENDING)],
-            unique=True,
-            name="idx_version_id"
+            [("version_id", ASCENDING)], unique=True, name="idx_version_id"
         )
         await self.collection.create_index(
             [("hypothesis_id", ASCENDING), ("version_number", DESCENDING)],
-            name="idx_hypothesis_version"
+            name="idx_hypothesis_version",
         )
         await self.collection.create_index(
             [("hypothesis_id", ASCENDING), ("created_at", DESCENDING)],
-            name="idx_hypothesis_created"
+            name="idx_hypothesis_created",
         )
-        await self.collection.create_index(
-            [("created_at", DESCENDING)],
-            name="idx_created_at"
-        )
+        await self.collection.create_index([("created_at", DESCENDING)], name="idx_created_at")
 
         logger.info("hypothesis_version_indexes_created")
 
@@ -96,10 +90,12 @@ class HypothesisVersionRepository:
         Returns:
             Instância de HypothesisVersion ou None
         """
-        doc = await self.collection.find_one({
-            "hypothesis_id": hypothesis_id,
-            "version_number": version_number,
-        })
+        doc = await self.collection.find_one(
+            {
+                "hypothesis_id": hypothesis_id,
+                "version_number": version_number,
+            }
+        )
         if not doc:
             return None
 
@@ -149,8 +145,7 @@ class HypothesisVersionRepository:
             Versão mais recente ou None
         """
         doc = await self.collection.find_one(
-            {"hypothesis_id": hypothesis_id},
-            sort=[("version_number", DESCENDING)]
+            {"hypothesis_id": hypothesis_id}, sort=[("version_number", DESCENDING)]
         )
         if not doc:
             return None
@@ -232,9 +227,7 @@ class HypothesisVersionRepository:
         if not versions_to_remove:
             return 0
 
-        result = await self.collection.delete_many({
-            "_id": {"$in": versions_to_remove}
-        })
+        result = await self.collection.delete_many({"_id": {"$in": versions_to_remove}})
 
         logger.info(
             "old_versions_cleaned",
@@ -257,18 +250,9 @@ class HypothesisVersionRepository:
             Lista de hypothesis_ids
         """
         pipeline = [
-            {
-                "$group": {
-                    "_id": "$hypothesis_id",
-                    "version_count": {"$sum": 1}
-                }
-            },
-            {
-                "$match": {"version_count": {"$gte": min_versions}}
-            },
-            {
-                "$sort": {"version_count": DESCENDING}
-            }
+            {"$group": {"_id": "$hypothesis_id", "version_count": {"$sum": 1}}},
+            {"$match": {"version_count": {"$gte": min_versions}}},
+            {"$sort": {"version_count": DESCENDING}},
         ]
 
         hypothesis_ids = []

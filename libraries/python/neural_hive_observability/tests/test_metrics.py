@@ -13,15 +13,16 @@ Este arquivo contém testes unitários para validar:
 - Métricas de export de spans
 """
 
-import pytest
 from unittest.mock import patch
+
+import pytest
 from prometheus_client import CollectorRegistry
 
 from neural_hive_observability.config import ObservabilityConfig
 from neural_hive_observability.metrics import (
     NeuralHiveMetrics,
-    init_metrics,
     get_metrics,
+    init_metrics,
 )
 
 

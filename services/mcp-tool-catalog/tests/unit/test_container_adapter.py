@@ -21,7 +21,7 @@ import pytest
 class TestContainerAdapterExecution:
     """Testes de execucao de containers."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_success(self):
         """Deve executar container com sucesso."""
         from src.adapters.container_adapter import ContainerAdapter
@@ -53,7 +53,7 @@ class TestContainerAdapterExecution:
             assert "run" in call_cmd
             assert "aquasec/trivy:latest" in call_cmd
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_failure(self):
         """Deve retornar erro quando container falha."""
         from src.adapters.container_adapter import ContainerAdapter
@@ -78,7 +78,7 @@ class TestContainerAdapterExecution:
             assert result.exit_code == 1
             assert "Error: image not found" in result.error
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_timeout_kills_container(self):
         """Deve matar container quando ocorre timeout."""
         from src.adapters.container_adapter import ContainerAdapter
@@ -222,7 +222,7 @@ class TestContainerAdapterCommandBuilding:
 class TestContainerAdapterValidation:
     """Testes de validacao de disponibilidade Docker."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_validate_tool_availability_docker_available(self):
         """Deve retornar True quando Docker esta disponivel."""
         from src.adapters.container_adapter import ContainerAdapter
@@ -242,7 +242,7 @@ class TestContainerAdapterValidation:
             call_cmd = mock_proc.call_args[0][0]
             assert "docker version" in call_cmd
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_validate_tool_availability_docker_not_available(self):
         """Deve retornar False quando Docker nao esta disponivel."""
         from src.adapters.container_adapter import ContainerAdapter
@@ -259,7 +259,7 @@ class TestContainerAdapterValidation:
 
             assert is_available is False
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_validate_tool_availability_handles_exception(self):
         """Deve retornar False quando ocorre excecao."""
         from src.adapters.container_adapter import ContainerAdapter
@@ -277,7 +277,7 @@ class TestContainerAdapterValidation:
 class TestContainerAdapterMetrics:
     """Testes de metricas."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execution_time_recorded(self):
         """Deve registrar tempo de execucao."""
         from src.adapters.container_adapter import ContainerAdapter
@@ -301,7 +301,7 @@ class TestContainerAdapterMetrics:
             assert result.execution_time_ms > 0
             assert isinstance(result.execution_time_ms, float)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_metadata_includes_docker_info(self):
         """Deve incluir informacoes do Docker no metadata."""
         from src.adapters.container_adapter import ContainerAdapter
@@ -330,7 +330,7 @@ class TestContainerAdapterMetrics:
 class TestContainerAdapterErrorHandling:
     """Testes de tratamento de erros."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_handles_general_exception(self):
         """Deve tratar excecoes gerais graciosamente."""
         from src.adapters.container_adapter import ContainerAdapter
@@ -352,7 +352,7 @@ class TestContainerAdapterErrorHandling:
             assert "Unexpected error" in result.error
             assert result.metadata.get("exception") == "Exception"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_unicode_output_handling(self):
         """Deve tratar output com caracteres unicode."""
         from src.adapters.container_adapter import ContainerAdapter
@@ -360,7 +360,7 @@ class TestContainerAdapterErrorHandling:
         adapter = ContainerAdapter()
 
         # Simular output com caracteres unicode
-        unicode_output = '{"message": "Sucesso! ✓"}'.encode("utf-8")
+        unicode_output = '{"message": "Sucesso! ✓"}'.encode()
 
         with patch("asyncio.create_subprocess_shell", new_callable=AsyncMock) as mock_proc:
             mock_process = AsyncMock()
@@ -383,7 +383,7 @@ class TestContainerAdapterErrorHandling:
 class TestContainerAdapterIntegration:
     """Testes de integracao do adapter."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_full_execution_flow(self):
         """Deve executar fluxo completo de container."""
         from src.adapters.container_adapter import ContainerAdapter

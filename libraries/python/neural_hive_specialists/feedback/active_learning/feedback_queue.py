@@ -6,11 +6,11 @@ de forma estratégica.
 """
 
 import uuid
-from typing import Dict, Any, List, Optional
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from enum import Enum
-import structlog
+from typing import Any, Optional
 
+import structlog
 from pydantic import BaseModel, Field
 from pymongo.errors import DuplicateKeyError
 
@@ -49,9 +49,9 @@ class QueuedCase(BaseModel):
     feedback_id: Optional[str] = Field(None, description="ID do feedback submetido")
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+    metadata: dict[str, Any] = Field(default_factory=dict)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Converte para dicionário."""
         return self.model_dump()
 
@@ -88,9 +88,9 @@ class PriorityFeedbackQueue:
         self,
         plan_id: str,
         intent_text: str,
-        prediction: Dict[str, Any],
-        dataset_stats: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, Any]:
+        prediction: dict[str, Any],
+        dataset_stats: Optional[dict[str, Any]] = None,
+    ) -> dict[str, Any]:
         """
         Adiciona plano à fila de revisão.
 
@@ -133,8 +133,8 @@ class PriorityFeedbackQueue:
             "confidence": prediction.get("confidence"),
             "predicted_decision": prediction.get("decision"),
             "status": QueueStatus.PENDING,
-            "created_at": datetime.now(timezone.utc),
-            "updated_at": datetime.now(timezone.utc),
+            "created_at": datetime.now(UTC),
+            "updated_at": datetime.now(UTC),
             "metadata": {"nlp_features": nlp_features},
         }
 
@@ -151,7 +151,7 @@ class PriorityFeedbackQueue:
         except DuplicateKeyError:
             raise ValueError(f"Plano {plan_id} já está na fila de revisão")
 
-    def dequeue_next_case(self) -> Optional[Dict[str, Any]]:
+    def dequeue_next_case(self) -> Optional[dict[str, Any]]:
         """
         Retorna próximo caso prioritário.
 
@@ -178,7 +178,7 @@ class PriorityFeedbackQueue:
             logger.error("Failed to dequeue case", error=str(e))
             return None
 
-    def claim_case(self, queue_id: str, assigned_to: str) -> Optional[Dict[str, Any]]:
+    def claim_case(self, queue_id: str, assigned_to: str) -> Optional[dict[str, Any]]:
         """
         Marca caso como "em revisão" para um usuário.
 
@@ -189,7 +189,7 @@ class PriorityFeedbackQueue:
         Returns:
             Caso atualizado ou None se não encontrado
         """
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         expires_at = now + timedelta(hours=self.claim_expiry_hours)
 
         update = {
@@ -218,7 +218,7 @@ class PriorityFeedbackQueue:
 
         return case
 
-    def release_case(self, queue_id: str) -> Optional[Dict[str, Any]]:
+    def release_case(self, queue_id: str) -> Optional[dict[str, Any]]:
         """
         Libera caso da fila (ex: usuário decidiu não revisar).
 
@@ -228,7 +228,7 @@ class PriorityFeedbackQueue:
         Returns:
             Caso atualizado ou None se não encontrado
         """
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         update = {
             "$set": {
@@ -249,7 +249,7 @@ class PriorityFeedbackQueue:
 
         return {"queue_id": queue_id, "status": QueueStatus.PENDING}
 
-    def mark_feedback_submitted(self, queue_id: str, feedback_id: str) -> Optional[Dict[str, Any]]:
+    def mark_feedback_submitted(self, queue_id: str, feedback_id: str) -> Optional[dict[str, Any]]:
         """
         Marca feedback como submetido e caso como completo.
 
@@ -260,7 +260,7 @@ class PriorityFeedbackQueue:
         Returns:
             Caso atualizado ou None se não encontrado
         """
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         update = {
             "$set": {
@@ -293,7 +293,7 @@ class PriorityFeedbackQueue:
         query = {"status": status} if status else {}
         return self.collection.count_documents(query)
 
-    def get_pending_cases(self, limit: int = 50) -> List[Dict[str, Any]]:
+    def get_pending_cases(self, limit: int = 50) -> list[dict[str, Any]]:
         """
         Retorna lista de casos pendentes.
 
@@ -324,7 +324,7 @@ class PriorityFeedbackQueue:
         Returns:
             Número de casos expirados
         """
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         update = {
             "$set": {
@@ -356,7 +356,7 @@ class PriorityFeedbackQueue:
         Returns:
             Número de casos removidos
         """
-        cutoff = datetime.now(timezone.utc) - timedelta(hours=older_than_hours)
+        cutoff = datetime.now(UTC) - timedelta(hours=older_than_hours)
 
         result = self.collection.delete_many(
             {"status": QueueStatus.COMPLETED, "completed_at": {"$lt": cutoff}}
@@ -371,7 +371,7 @@ class PriorityFeedbackQueue:
         return count
 
     def _generate_priority_reason(
-        self, information_value: float, prediction: Dict[str, Any]
+        self, information_value: float, prediction: dict[str, Any]
     ) -> str:
         """Gera descrição do porquê é prioritário."""
         parts = []

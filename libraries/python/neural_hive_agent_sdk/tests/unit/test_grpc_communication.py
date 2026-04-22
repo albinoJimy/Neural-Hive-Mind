@@ -5,18 +5,18 @@ Cobre envio de requisições, respostas, streaming, metadados, deadlines,
 compressão e interceptors.
 """
 
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
-from unittest.mock import MagicMock, AsyncMock, patch
 
-from neural_hive_agent_sdk import AgentClient, AgentType, AgentConfig
-
+from neural_hive_agent_sdk import AgentClient, AgentConfig, AgentType
 
 # ============================================================================
 # Fixtures
 # ============================================================================
 
 
-@pytest.fixture
+@pytest.fixture()
 def grpc_config():
     """Configuração para testes gRPC."""
     return AgentConfig(
@@ -28,7 +28,7 @@ def grpc_config():
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_channel():
     """Mock de canal gRPC."""
     channel = MagicMock()
@@ -47,7 +47,7 @@ def mock_channel():
 class TestGrpcSendRequest:
     """Testes de envio de requisições gRPC."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_send_register_request(self, grpc_config, mock_channel):
         """Testa envio de requisição de registro."""
         # Quando proto não disponível, usa fallback mock
@@ -66,7 +66,7 @@ class TestGrpcSendRequest:
             assert client.agent_id == agent_id
             assert client.registration_token is not None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_send_request_succeeds(self, grpc_config, mock_channel):
         """Testa que requisição tem sucesso."""
         with patch(
@@ -82,7 +82,7 @@ class TestGrpcSendRequest:
             assert agent_id is not None
             assert client.agent_id == agent_id
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_send_request_with_different_types(self, grpc_config, mock_channel):
         """Testa envio com diferentes tipos de agente."""
         with patch(
@@ -115,7 +115,7 @@ class TestGrpcSendRequest:
 class TestGrpcReceiveResponse:
     """Testes de recebimento de respostas gRPC."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_receive_register_response_fields(self, grpc_config, mock_channel):
         """Testa extração de campos da resposta de registro."""
         with patch(
@@ -133,7 +133,7 @@ class TestGrpcReceiveResponse:
             assert client.registration_token is not None
             assert agent_id == client.agent_id
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_response_includes_token(self, grpc_config, mock_channel):
         """Testa que resposta inclui token de registro."""
         with patch(
@@ -159,7 +159,7 @@ class TestGrpcReceiveResponse:
 class TestGrpcDeadline:
     """Testes de deadline/timeout gRPC."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_timeout_configuration_used(self, grpc_config, mock_channel):
         """Testa que configuração de timeout é usada."""
         grpc_config.GRPC_TIMEOUT_SECONDS = 10
@@ -177,7 +177,7 @@ class TestGrpcDeadline:
                 capabilities=["test"],
             )
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_timeout_applies_to_channel_ready(self, grpc_config):
         """Testa que timeout é aplicado no channel_ready."""
         slow_channel = MagicMock()
@@ -204,7 +204,7 @@ class TestGrpcDeadline:
 class TestGrpcMetadata:
     """Testes de metadados gRPC."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_metadata_passed_to_register(self, grpc_config, mock_channel):
         """Testa que metadados são passados para registro."""
         with patch(
@@ -225,7 +225,7 @@ class TestGrpcMetadata:
 
             assert agent_id is not None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_default_metadata_included(self, grpc_config, mock_channel):
         """Testa que metadados padrão são incluídos."""
         with patch(
@@ -249,7 +249,7 @@ class TestGrpcMetadata:
 class TestGrpcChannel:
     """Testes de canal gRPC."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_channel_created_with_options(self, grpc_config):
         """Testa que canal é criado com opções corretas."""
         channel = MagicMock()
@@ -273,7 +273,7 @@ class TestGrpcChannel:
             call_args = mock_create.call_args
             assert call_args[0][0] == grpc_config.REGISTRY_GRPC_ENDPOINT
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_channel_closed_on_deregister(self, grpc_config, mock_channel):
         """Testa que canal é fechado no deregister."""
         with patch(
@@ -300,7 +300,7 @@ class TestGrpcChannel:
 class TestGrpcRetry:
     """Testes de retry gRPC."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_retry_on_channel_failure(self, grpc_config):
         """Testa retry quando falha na criação do canal."""
         call_count = 0
@@ -312,7 +312,6 @@ class TestGrpcRetry:
             call_count += 1
             if call_count < 3:
                 raise Exception("Connection failed")
-            return None
 
         channel.channel_ready = failing_channel_ready
 
@@ -336,7 +335,7 @@ class TestGrpcRetry:
 class TestGrpcCompression:
     """Testes de compressão gRPC."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_large_payload_handled(self, grpc_config, mock_channel):
         """Testa que payload grande é manipulado."""
         with patch(

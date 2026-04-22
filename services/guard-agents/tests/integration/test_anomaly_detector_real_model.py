@@ -8,23 +8,23 @@ Valida que o modelo carregado do MLflow atende aos criterios minimos:
 - Latencia de inferencia < 100ms
 """
 
-import pytest
-import numpy as np
 import asyncio
-import time
-from datetime import datetime, timezone
-from typing import List, Dict, Any
-from unittest.mock import MagicMock, AsyncMock
-
 import sys
+import time
+from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
+from unittest.mock import AsyncMock, MagicMock
+
+import numpy as np
+import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
 
 def generate_test_tickets_with_labels(
     n_normal: int = 100, n_anomalies: int = 20
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """
     Gera tickets de teste com labels conhecidos.
 
@@ -51,7 +51,7 @@ def generate_test_tickets_with_labels(
                 "capabilities": ["cpu"][: np.random.randint(1, 3)],
                 "qos": {"priority": "normal"},
                 "parameters": {},
-                "timestamp": datetime.now(timezone.utc).timestamp(),
+                "timestamp": datetime.now(UTC).timestamp(),
                 "estimated_duration_ms": base_duration,
                 "actual_duration_ms": base_duration * np.random.uniform(0.8, 1.2),
                 "sla_timeout_ms": 300000,
@@ -73,7 +73,7 @@ def generate_test_tickets_with_labels(
             "type": task_type,
             "qos": {"priority": "high"},
             "parameters": {},
-            "timestamp": datetime.now(timezone.utc).timestamp(),
+            "timestamp": datetime.now(UTC).timestamp(),
             "sla_timeout_ms": 300000,
             "expected_anomaly": True,
         }
@@ -113,7 +113,7 @@ def generate_test_tickets_with_labels(
     return tickets
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_model_registry():
     """Mock do ModelRegistry para testes sem MLflow."""
     registry = MagicMock()
@@ -123,7 +123,7 @@ def mock_model_registry():
     return registry
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_anomaly_detector(mock_model_registry):
     """AnomalyDetector com modelo simulado de alta performance."""
     from neural_hive_ml.predictive_models import AnomalyDetector
@@ -148,8 +148,8 @@ def mock_anomaly_detector(mock_model_registry):
 class TestAnomalyDetectorRealModel:
     """Testes de integracao com modelo real."""
 
-    @pytest.mark.integration
-    @pytest.mark.asyncio
+    @pytest.mark.integration()
+    @pytest.mark.asyncio()
     async def test_model_loads_from_mlflow(self, mock_model_registry):
         """Verifica que modelo carrega do MLflow sem erros."""
         from neural_hive_ml.predictive_models import AnomalyDetector
@@ -164,8 +164,8 @@ class TestAnomalyDetectorRealModel:
         # Verifica que tentou carregar
         mock_model_registry.load_model.assert_called()
 
-    @pytest.mark.integration
-    @pytest.mark.asyncio
+    @pytest.mark.integration()
+    @pytest.mark.asyncio()
     async def test_inference_latency_under_100ms(self, mock_anomaly_detector):
         """Valida que latencia de inferencia esta abaixo de 100ms."""
         tickets = generate_test_tickets_with_labels(n_normal=50, n_anomalies=10)
@@ -200,8 +200,8 @@ class TestAnomalyDetectorRealModel:
         assert avg_latency < 100, f"Latencia media ({avg_latency:.2f}ms) excede 100ms"
         assert p95_latency < 100, f"Latencia P95 ({p95_latency:.2f}ms) excede 100ms"
 
-    @pytest.mark.integration
-    @pytest.mark.asyncio
+    @pytest.mark.integration()
+    @pytest.mark.asyncio()
     async def test_precision_above_threshold(self, mock_anomaly_detector):
         """Valida Precision > 0.75."""
         tickets = generate_test_tickets_with_labels(n_normal=100, n_anomalies=20)
@@ -242,8 +242,8 @@ class TestAnomalyDetectorRealModel:
 
         assert precision > 0.75, f"Precision ({precision:.2%}) abaixo de 75%"
 
-    @pytest.mark.integration
-    @pytest.mark.asyncio
+    @pytest.mark.integration()
+    @pytest.mark.asyncio()
     async def test_recall_above_threshold(self, mock_anomaly_detector):
         """Valida Recall > 0.60."""
         tickets = generate_test_tickets_with_labels(n_normal=100, n_anomalies=20)
@@ -284,8 +284,8 @@ class TestAnomalyDetectorRealModel:
 
         assert recall > 0.60, f"Recall ({recall:.2%}) abaixo de 60%"
 
-    @pytest.mark.integration
-    @pytest.mark.asyncio
+    @pytest.mark.integration()
+    @pytest.mark.asyncio()
     async def test_f1_score_above_threshold(self, mock_anomaly_detector):
         """Valida F1 Score > 0.65."""
         tickets = generate_test_tickets_with_labels(n_normal=100, n_anomalies=20)
@@ -326,8 +326,8 @@ class TestAnomalyDetectorRealModel:
 
         assert f1 > 0.65, f"F1 Score ({f1:.3f}) abaixo de 0.65"
 
-    @pytest.mark.integration
-    @pytest.mark.asyncio
+    @pytest.mark.integration()
+    @pytest.mark.asyncio()
     async def test_batch_inference_performance(self, mock_anomaly_detector):
         """Testa performance de inferencia em batch."""
         tickets = generate_test_tickets_with_labels(n_normal=500, n_anomalies=100)
@@ -358,8 +358,8 @@ class TestAnomalyDetectorRealModel:
         # Deve processar pelo menos 100 tickets/s
         assert throughput > 100, f"Throughput ({throughput:.0f}/s) muito baixo"
 
-    @pytest.mark.integration
-    @pytest.mark.asyncio
+    @pytest.mark.integration()
+    @pytest.mark.asyncio()
     async def test_handles_missing_fields_gracefully(self, mock_anomaly_detector):
         """Verifica que modelo lida com campos faltantes."""
         incomplete_tickets = [

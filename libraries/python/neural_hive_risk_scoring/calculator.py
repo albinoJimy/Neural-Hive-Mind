@@ -4,14 +4,15 @@ Risk Calculator
 Cálculo agregado de risco multi-domínio com combinação inteligente de scores.
 """
 
+from datetime import UTC, datetime
+from typing import Optional
+
 import structlog
-from typing import Dict, List, Optional, Tuple
-from datetime import datetime, timezone
+
+from neural_hive_domain import UnifiedDomain
 
 from .config import RiskBand, RiskScoringConfig
 from .models import RiskAssessment, RiskMatrix
-from neural_hive_domain import UnifiedDomain
-
 
 logger = structlog.get_logger(__name__)
 
@@ -33,7 +34,7 @@ class RiskCalculator:
         self,
         config: RiskScoringConfig,
         aggregation_strategy: str = AggregationStrategy.WEIGHTED_AVERAGE,
-        domain_weights: Optional[Dict[str, float]] = None,
+        domain_weights: Optional[dict[str, float]] = None,
     ):
         """Inicializa calculadora de risco.
 
@@ -46,7 +47,7 @@ class RiskCalculator:
         self.aggregation_strategy = aggregation_strategy
         self.domain_weights = domain_weights or self._default_domain_weights()
 
-    def _default_domain_weights(self) -> Dict[str, float]:
+    def _default_domain_weights(self) -> dict[str, float]:
         """Pesos padrão por domínio."""
         return {
             UnifiedDomain.BUSINESS.value: 0.25,
@@ -57,7 +58,7 @@ class RiskCalculator:
         }
 
     def calculate_aggregate_risk(
-        self, assessments: List[RiskAssessment], entity_id: str, entity_type: str = "plan"
+        self, assessments: list[RiskAssessment], entity_id: str, entity_type: str = "plan"
     ) -> RiskMatrix:
         """Calcula risco agregado a partir de múltiplas avaliações.
 
@@ -74,7 +75,7 @@ class RiskCalculator:
             return self._empty_matrix(entity_id, entity_type)
 
         # Criar dicionário de avaliações por domínio
-        assessments_by_domain: Dict[str, RiskAssessment] = {}
+        assessments_by_domain: dict[str, RiskAssessment] = {}
         for assessment in assessments:
             domain_value = assessment.domain.value
             assessments_by_domain[domain_value] = assessment
@@ -100,7 +101,7 @@ class RiskCalculator:
             overall_score=overall_score,
             overall_band=overall_band,
             highest_risk_domain=highest_risk_domain,
-            created_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
         )
 
         logger.info(
@@ -114,7 +115,7 @@ class RiskCalculator:
 
         return matrix
 
-    def _aggregate_scores(self, assessments: List[RiskAssessment]) -> Tuple[float, RiskBand]:
+    def _aggregate_scores(self, assessments: list[RiskAssessment]) -> tuple[float, RiskBand]:
         """Agrega scores de múltiplas avaliações.
 
         Returns:
@@ -141,7 +142,7 @@ class RiskCalculator:
 
         return aggregated, band
 
-    def _weighted_average(self, scores: List[float], domains: List[UnifiedDomain]) -> float:
+    def _weighted_average(self, scores: list[float], domains: list[UnifiedDomain]) -> float:
         """Calcula média ponderada por domínio."""
         weighted_sum = 0.0
         total_weight = 0.0
@@ -153,7 +154,7 @@ class RiskCalculator:
 
         return weighted_sum / total_weight if total_weight > 0 else 0.5
 
-    def _geometric_mean(self, scores: List[float]) -> float:
+    def _geometric_mean(self, scores: list[float]) -> float:
         """Calcula média geométrica."""
         import math
 
@@ -163,7 +164,7 @@ class RiskCalculator:
         log_sum = sum(math.log(s) for s in adjusted_scores)
         return math.exp(log_sum / len(scores))
 
-    def _harmonic_mean(self, scores: List[float]) -> float:
+    def _harmonic_mean(self, scores: list[float]) -> float:
         """Calcula média harmônica."""
         # Penaliza valores altos - útil para risco (pior caso importa)
         epsilon = 1e-6
@@ -183,7 +184,7 @@ class RiskCalculator:
         else:
             return RiskBand.LOW
 
-    def _find_highest_risk_domain(self, assessments: List[RiskAssessment]) -> UnifiedDomain:
+    def _find_highest_risk_domain(self, assessments: list[RiskAssessment]) -> UnifiedDomain:
         """Encontra domínio com maior risco.
 
         Critério: maior score, desempate pela gravidade da band.
@@ -200,9 +201,9 @@ class RiskCalculator:
 
         return sorted_assessments[0].domain
 
-    def _aggregate_factors(self, assessments: List[RiskAssessment]) -> Dict[str, float]:
+    def _aggregate_factors(self, assessments: list[RiskAssessment]) -> dict[str, float]:
         """Agrega fatores individuais de todos os domínios."""
-        aggregate: Dict[str, float] = {}
+        aggregate: dict[str, float] = {}
 
         for assessment in assessments:
             domain_prefix = f"{assessment.domain.value}_"
@@ -214,7 +215,7 @@ class RiskCalculator:
 
     def _generate_aggregate_reasoning(
         self,
-        assessments: List[RiskAssessment],
+        assessments: list[RiskAssessment],
         overall_score: float,
         overall_band: RiskBand,
         highest_risk_domain: UnifiedDomain,
@@ -237,10 +238,10 @@ class RiskCalculator:
             overall_score=0.0,
             overall_band=RiskBand.LOW,
             highest_risk_domain=UnifiedDomain.BUSINESS,
-            created_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
         )
 
-    def calculate_domain_contribution(self, matrix: RiskMatrix) -> Dict[str, Dict[str, float]]:
+    def calculate_domain_contribution(self, matrix: RiskMatrix) -> dict[str, dict[str, float]]:
         """Calcula contribuição de cada domínio para o risco total.
 
         Returns:
@@ -259,8 +260,8 @@ class RiskCalculator:
         return contributions
 
     def calculate_risk_velocity(
-        self, historical_scores: List[Tuple[datetime, float]]
-    ) -> Dict[str, float]:
+        self, historical_scores: list[tuple[datetime, float]]
+    ) -> dict[str, float]:
         """Calcula velocidade de mudança do risco.
 
         Args:

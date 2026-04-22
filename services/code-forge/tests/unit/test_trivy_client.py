@@ -4,16 +4,16 @@ Testes unitários para TrivyClient.
 Valida a execução de scans de vulnerabilidades com Trivy CLI.
 """
 
-import pytest
 import json
-from unittest.mock import MagicMock, patch
 from datetime import datetime
+from unittest.mock import MagicMock, patch
 
+import pytest
 from src.clients.trivy_client import TrivyClient
 from src.models.artifact import ValidationStatus
 
 
-@pytest.fixture
+@pytest.fixture()
 def trivy_client_with_trivy():
     """Instância do TrivyClient com Trivy instalado."""
     with patch("shutil.which", return_value="/usr/bin/trivy"):
@@ -24,7 +24,7 @@ def trivy_client_with_trivy():
         return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def trivy_client():
     """Instância do TrivyClient (sem Trivy instalado por padrão)."""
     return TrivyClient(enabled=True, severity="CRITICAL,HIGH", timeout=300)
@@ -55,7 +55,7 @@ class TestTrivyClientInitialization:
 class TestTrivyClientDisabled:
     """Testes de comportamento quando cliente está desabilitado."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_scan_container_image_when_disabled(self):
         """Testa que scan retorna SKIPPED quando desabilitado."""
         client = TrivyClient(enabled=False)
@@ -65,7 +65,7 @@ class TestTrivyClientDisabled:
         assert result.status == ValidationStatus.SKIPPED
         assert result.issues_count == 0
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_scan_filesystem_when_disabled(self):
         """Testa que scan de filesystem retorna SKIPPED quando desabilitado."""
         client = TrivyClient(enabled=False)
@@ -74,7 +74,7 @@ class TestTrivyClientDisabled:
 
         assert result.status == ValidationStatus.SKIPPED
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_scan_iac_when_disabled(self):
         """Testa que scan de IaC retorna SKIPPED quando desabilitado."""
         client = TrivyClient(enabled=False)
@@ -253,7 +253,7 @@ class TestTrivyResultCreation:
 class TestTrivyScanExecution:
     """Testes de execução de scans."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_scan_container_image_success(self, trivy_client_with_trivy):
         """Testa scan de imagem com sucesso."""
         trivy_output = {
@@ -277,7 +277,7 @@ class TestTrivyScanExecution:
             assert result.high_issues == 1
             assert result.issues_count == 1
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_scan_container_image_no_vulnerabilities(self, trivy_client_with_trivy):
         """Testa scan de imagem sem vulnerabilidades."""
         trivy_output = {"Results": []}
@@ -294,7 +294,7 @@ class TestTrivyScanExecution:
             assert result.score == 1.0
             assert result.issues_count == 0
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_scan_container_image_trivy_error(self, trivy_client_with_trivy):
         """Testa scan quando Trivy retorna erro."""
         with patch("subprocess.run") as mock_run:
@@ -309,7 +309,7 @@ class TestTrivyScanExecution:
             assert result.status == ValidationStatus.FAILED
             assert result.score == 0.0
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_scan_container_image_timeout(self, trivy_client_with_trivy):
         """Testa scan com timeout."""
         import subprocess
@@ -322,7 +322,7 @@ class TestTrivyScanExecution:
             assert result.status == ValidationStatus.FAILED
             assert result.score == 0.0
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_scan_filesystem_success(self, trivy_client_with_trivy):
         """Testa scan de filesystem com sucesso."""
         trivy_output = {
@@ -345,7 +345,7 @@ class TestTrivyScanExecution:
             assert result.status == ValidationStatus.WARNING
             assert result.medium_issues == 1
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_scan_iac_success(self, trivy_client_with_trivy):
         """Testa scan de IaC com sucesso."""
         trivy_output = {
@@ -510,7 +510,7 @@ class TestTrivyHealthCheck:
 
         assert client.is_available() is False
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_health_check_enabled_with_trivy(self):
         """Testa health_check quando habilitado com Trivy."""
         with patch("shutil.which", return_value="/usr/bin/trivy"):
@@ -521,7 +521,7 @@ class TestTrivyHealthCheck:
         result = await client.health_check()
         assert result is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_health_check_enabled_without_trivy(self):
         """Testa health_check quando habilitado sem Trivy."""
         with patch("shutil.which", return_value=None):
@@ -530,7 +530,7 @@ class TestTrivyHealthCheck:
         result = await client.health_check()
         assert result is False
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_health_check_disabled(self):
         """Testa health_check quando desabilitado."""
         client = TrivyClient(enabled=False)

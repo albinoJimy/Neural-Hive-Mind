@@ -5,29 +5,29 @@ Testa computação de 26 features: metadata, ontology, graph e embedding.
 """
 
 import pytest
-from src.services.computation import FeatureComputationPipeline
 from src.models.feature import (
-    MetadataFeatures,
-    OntologyFeatures,
-    GraphFeatures,
     EmbeddingFeatures,
     FeatureVector,
+    GraphFeatures,
+    MetadataFeatures,
+    OntologyFeatures,
 )
+from src.services.computation import FeatureComputationPipeline
 
 
-@pytest.fixture
+@pytest.fixture()
 def computation_pipeline():
     """Instância do pipeline de computação"""
     return FeatureComputationPipeline(timeout_seconds=30)
 
 
-@pytest.fixture
+@pytest.fixture()
 def minimal_cognitive_plan():
     """Plano cognitivo mínimo"""
     return {"plan_id": "test-plan-123", "priority": "high", "tasks": []}
 
 
-@pytest.fixture
+@pytest.fixture()
 def full_cognitive_plan():
     """Plano cognitivo completo com todos os dados"""
     return {
@@ -292,7 +292,7 @@ class TestEmbeddingFeatures:
 class TestComputeAll:
     """Testes para computação completa de todas as features"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_compute_all_features(self, computation_pipeline, full_cognitive_plan):
         """Testa computação de todas as features"""
         result = await computation_pipeline.compute_all("test-plan-456", full_cognitive_plan)
@@ -304,7 +304,7 @@ class TestComputeAll:
         assert isinstance(result.graph, GraphFeatures)
         assert isinstance(result.embedding, EmbeddingFeatures)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_compute_all_with_minimal_plan(
         self, computation_pipeline, minimal_cognitive_plan
     ):
@@ -315,7 +315,7 @@ class TestComputeAll:
         assert isinstance(result.metadata, MetadataFeatures)
         # Ontology, graph e embedding podem ser None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_compute_all_timeout(self, computation_pipeline):
         """Testa que timeout é configurável"""
         # Apenas verifica que o timeout pode ser configurado

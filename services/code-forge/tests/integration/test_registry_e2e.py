@@ -5,15 +5,17 @@ Testes de integração que simulam interações com registries privados
 sem depender de credenciais reais.
 """
 
-import pytest
-from unittest.mock import MagicMock, AsyncMock, patch
 import base64
+from datetime import UTC
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 
 
 class TestECRE2E:
     """Testes E2E para ECR com moto mock."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_ecr_full_workflow_mock(self):
         """Teste workflow completo de autenticação ECR com mock."""
         from src.clients.ecr_client import ECRClient
@@ -64,7 +66,7 @@ class TestECRE2E:
 class TestGCRE2E:
     """Testes E2E para GCR com mock."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_gcr_full_workflow_mock(self):
         """Teste workflow completo de autenticação GCR com mock."""
         from src.clients.gcr_client import GCRClient
@@ -97,7 +99,7 @@ class TestGCRE2E:
 class TestACRE2E:
     """Testes E2E para ACR com mock."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_acr_full_workflow_mock(self):
         """Teste workflow completo de autenticação ACR com mock."""
         from src.clients.acr_client import ACRClient
@@ -133,7 +135,7 @@ class TestACRE2E:
 class TestMultiArchE2E:
     """Testes E2E para builds multi-arch."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_parallel_builder_multi_platforms_mock(self):
         """Teste build paralelo para múltiplas plataformas."""
         from src.services.kaniko.parallel_builder import (
@@ -260,15 +262,16 @@ class TestSecurityE2E:
         try:
 
             # Criar token (que normalmente seria logado)
+            from datetime import datetime, timedelta
+
             from src.clients.ecr_client import ECRToken
-            from datetime import datetime, timedelta, timezone
 
             token = ECRToken(
                 username="AWS",
                 password="secret-password-123",
                 endpoint="123.dkr.ecr.amazonaws.com",
-                expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
-                obtained_at=datetime.now(timezone.utc),
+                expires_at=datetime.now(UTC) + timedelta(hours=1),
+                obtained_at=datetime.now(UTC),
             )
 
             # Verificar que password não aparece nos logs
@@ -281,9 +284,10 @@ class TestSecurityE2E:
 
     def test_tokens_only_in_memory(self):
         """Testa que tokens nunca são persistidos."""
-        from src.clients.gcr_client import GCRClient
-        import tempfile
         import os
+        import tempfile
+
+        from src.clients.gcr_client import GCRClient
 
         # Verificar que não há write de token em disco
         with tempfile.TemporaryDirectory() as tmpdir:

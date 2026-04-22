@@ -1,13 +1,12 @@
 import asyncio
-import yaml
-import pytest
-from pathlib import Path
 from unittest.mock import patch
 
+import pytest
+import yaml
 from src.services.playbook_executor import PlaybookExecutor
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_execute_playbook_runs_actions(tmp_path, mock_tracer):
     playbook_path = tmp_path / "sample.yaml"
     playbook_content = {
@@ -34,7 +33,7 @@ async def test_execute_playbook_runs_actions(tmp_path, mock_tracer):
     assert result["total_actions"] == 2
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_execute_playbook_timeout(tmp_path, mock_tracer):
     playbook_path = tmp_path / "slow.yaml"
     playbook_content = {"playbook_name": "slow", "actions": [{"type": "update_policy"}]}
@@ -55,7 +54,7 @@ async def test_execute_playbook_timeout(tmp_path, mock_tracer):
     assert result.get("status") == "TIMEOUT"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_wait_action(tmp_path, mock_tracer):
     """Test the wait action."""
     playbook_path = tmp_path / "wait_test.yaml"
@@ -73,7 +72,7 @@ async def test_wait_action(tmp_path, mock_tracer):
     assert result["total_actions"] == 1
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_apply_policy_action(tmp_path, mock_tracer):
     """Test the apply_policy action (alias for update_policy)."""
     playbook_path = tmp_path / "apply_policy_test.yaml"
@@ -93,7 +92,7 @@ async def test_apply_policy_action(tmp_path, mock_tracer):
     assert result["total_actions"] == 1
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_delete_pod_action(tmp_path, mock_tracer):
     """Test the delete_pod action."""
     playbook_path = tmp_path / "delete_pod_test.yaml"
@@ -113,7 +112,7 @@ async def test_delete_pod_action(tmp_path, mock_tracer):
     assert result["total_actions"] == 1
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_patch_deployment_action(tmp_path, mock_tracer):
     """Test the patch_deployment action."""
     playbook_path = tmp_path / "patch_deployment_test.yaml"
@@ -140,7 +139,7 @@ async def test_patch_deployment_action(tmp_path, mock_tracer):
     assert result["total_actions"] == 1
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_cleanup_poison_messages_action(tmp_path, mock_tracer):
     """Test the cleanup_poison_messages action."""
     playbook_path = tmp_path / "cleanup_poison_test.yaml"
@@ -163,7 +162,7 @@ async def test_cleanup_poison_messages_action(tmp_path, mock_tracer):
     assert result["total_actions"] == 1
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_combined_actions(tmp_path, mock_tracer):
     """Test a playbook with multiple new action types."""
     playbook_path = tmp_path / "combined_test.yaml"
@@ -199,7 +198,7 @@ async def test_combined_actions(tmp_path, mock_tracer):
 
 def test_playbook_action_valid_type():
     """Testa validação de tipo de ação válido."""
-    from src.models.remediation_models import PlaybookAction, ActionType
+    from src.models.remediation_models import ActionType, PlaybookAction
 
     action = PlaybookAction(type=ActionType.REALLOCATE_TICKET)
     assert action.type == ActionType.REALLOCATE_TICKET
@@ -209,8 +208,8 @@ def test_playbook_action_valid_type():
 
 def test_playbook_action_invalid_type():
     """Testa erro para tipo de ação inválido."""
-    from src.models.remediation_models import PlaybookAction
     from pydantic import ValidationError
+    from src.models.remediation_models import PlaybookAction
 
     try:
         PlaybookAction(type="invalid_action_type")
@@ -222,7 +221,7 @@ def test_playbook_action_invalid_type():
 
 def test_playbook_action_with_parameters():
     """Testa ação com parâmetros."""
-    from src.models.remediation_models import PlaybookAction, ActionType
+    from src.models.remediation_models import ActionType, PlaybookAction
 
     action = PlaybookAction(
         type=ActionType.REALLOCATE_TICKET,
@@ -240,8 +239,7 @@ def test_playbook_action_with_parameters():
 
 def test_playbook_model_valid():
     """Testa modelo Playbook válido."""
-    from datetime import datetime
-    from src.models.remediation_models import Playbook, PlaybookAction, ActionType
+    from src.models.remediation_models import ActionType, Playbook, PlaybookAction
 
     playbook = Playbook(
         playbook_name="test_playbook",
@@ -261,8 +259,8 @@ def test_playbook_model_valid():
 
 def test_playbook_model_empty_actions():
     """Testa erro quando playbook não tem ações."""
-    from src.models.remediation_models import Playbook
     from pydantic import ValidationError
+    from src.models.remediation_models import Playbook
 
     try:
         Playbook(playbook_name="empty", actions=[])
@@ -378,7 +376,7 @@ def test_validate_playbook_structure_from_dict(tmp_path):
     assert result["action_count"] == 1
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_execute_playbook_with_validation_enabled(tmp_path, mock_tracer):
     """Testa execução com validação habilitada."""
     playbook_path = tmp_path / "validated.yaml"
@@ -396,7 +394,7 @@ async def test_execute_playbook_with_validation_enabled(tmp_path, mock_tracer):
     assert result["success"] is True
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_execute_playbook_invalid_structure_fails(tmp_path, mock_tracer):
     """Testa que playbook com estrutura inválida falha na execução."""
     playbook_path = tmp_path / "invalid.yaml"
@@ -444,4 +442,3 @@ def test_all_action_types_defined():
     actual_types = {t.value for t in ActionType}
 
     assert expected_types.issubset(actual_types), f"Missing types: {expected_types - actual_types}"
-

@@ -11,26 +11,26 @@ Tests cover:
 - Test recovery validates components
 """
 
-import os
 import json
+import os
 import tarfile
 import tempfile
 import tempfile as real_tempfile
-from datetime import datetime, timedelta, timezone
-from unittest.mock import Mock, MagicMock, patch, mock_open
+from datetime import UTC, datetime, timedelta
+from unittest.mock import MagicMock, Mock, mock_open, patch
 
 import pytest
 
-from neural_hive_specialists.disaster_recovery.disaster_recovery_manager import (
-    DisasterRecoveryManager,
-)
 from neural_hive_specialists.disaster_recovery.backup_manifest import (
     BackupManifest,
+)
+from neural_hive_specialists.disaster_recovery.disaster_recovery_manager import (
+    DisasterRecoveryManager,
 )
 from neural_hive_specialists.disaster_recovery.storage_client import StorageClient
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_config():
     """Mock specialist config."""
     config = Mock()
@@ -61,7 +61,7 @@ def mock_config():
     return config
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_specialist():
     """Mock specialist instance."""
     specialist = Mock()
@@ -71,7 +71,7 @@ def mock_specialist():
     return specialist
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_storage_client():
     """Mock storage client."""
     client = Mock(spec=StorageClient)
@@ -82,7 +82,7 @@ def mock_storage_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def dr_manager(mock_config, mock_specialist, mock_storage_client):
     """DisasterRecoveryManager instance with mocks."""
     return DisasterRecoveryManager(mock_config, mock_specialist, mock_storage_client)
@@ -195,7 +195,7 @@ class TestBackupSuccessPath:
                 assert os.path.exists(manifest_path)
 
                 # Load and validate manifest
-                with open(manifest_path, "r") as f:
+                with open(manifest_path) as f:
                     manifest_data = json.load(f)
 
                 assert "backup_id" in manifest_data
@@ -314,7 +314,7 @@ class TestDeleteExpiredBackups:
     def test_delete_expired_backups_with_timezone(self, dr_manager, mock_storage_client):
         """Test that expired backups are deleted using UTC timezone-aware timestamps."""
         # Create mix of expired and current backups
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         expired_date = now - timedelta(days=100)
         recent_date = now - timedelta(days=30)
 
@@ -345,7 +345,7 @@ class TestDeleteExpiredBackups:
 
     def test_delete_expired_backups_pairs_checksums(self, dr_manager, mock_storage_client):
         """Test that when deleting .tar.gz, corresponding .sha256 is also deleted."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         expired_date = now - timedelta(days=100)
 
         mock_backups = [
@@ -522,7 +522,7 @@ class TestRecoveryValidation:
             {
                 "key": "specialist-technical-backup-latest.tar.gz",
                 "size": 1024,
-                "timestamp": datetime.now(timezone.utc),
+                "timestamp": datetime.now(UTC),
             }
         ]
 
@@ -536,7 +536,7 @@ class TestRecoveryValidation:
             manifest = BackupManifest(
                 backup_id="test123",
                 specialist_type="technical",
-                backup_timestamp=datetime.now(timezone.utc),
+                backup_timestamp=datetime.now(UTC),
                 compression_level=6,
             )
 
@@ -722,7 +722,7 @@ class TestErrorHandling:
 class TestIncrementalBackup:
     """Test incremental backup with content-addressed storage."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def dr_manager_incremental(self, mock_config, mock_specialist, mock_storage_client):
         """DisasterRecoveryManager configured for incremental backup."""
         mock_config.backup_mode = "incremental"
@@ -872,7 +872,7 @@ class TestIncrementalBackup:
         # Simular snapshot JSON
         snapshot_data = {
             "snapshot_id": "snapshot-20250211-120000",
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "specialist_type": "technical",
             "tenant_id": None,
             "component_refs": {
@@ -992,11 +992,11 @@ class TestIncrementalBackup:
             "specialists/backups/snapshots/": [
                 {
                     "key": "specialists/backups/snapshots/snapshot-1.json",
-                    "timestamp": datetime.now(timezone.utc),
+                    "timestamp": datetime.now(UTC),
                 },
                 {
                     "key": "specialists/backups/snapshots/snapshot-2.json",
-                    "timestamp": datetime.now(timezone.utc),
+                    "timestamp": datetime.now(UTC),
                 },
             ],
             "specialists/backups/components/": [
@@ -1148,7 +1148,7 @@ class TestBackwardCompatibility:
                 backup_id="test-backup",
                 specialist_type="technical",
                 tenant_id=None,
-                backup_timestamp=datetime.now(timezone.utc),
+                backup_timestamp=datetime.now(UTC),
                 compression_level=6,
                 metadata={},
             )

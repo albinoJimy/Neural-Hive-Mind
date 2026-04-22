@@ -5,21 +5,22 @@ TDD: Testes escritos antes da implementação.
 Espec: GAPS-05 Scout Agents
 """
 
+from datetime import UTC, datetime, timedelta
+from unittest.mock import AsyncMock, MagicMock, Mock
+
 import pytest
-from unittest.mock import Mock, MagicMock, AsyncMock
-from datetime import datetime, timezone, timedelta
 
 # Import com skip automático se módulo não disponível
 ScoutLedger = pytest.importorskip("src.persistence.scout_ledger").ScoutLedger
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_collection():
     """Mock de coleção MongoDB para testes."""
     return AsyncMock()
 
 
-@pytest.fixture
+@pytest.fixture()
 def ledger(mock_collection):
     """Ledger com collection mockada."""
     mock_mongo = AsyncMock()
@@ -57,7 +58,7 @@ class TestScoutLedgerInitialization:
 class TestSaveExploration:
     """Testes do método save_exploration."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_save_exploration_creates_document(self, ledger, mock_collection):
         """Testa que save cria documento no MongoDB."""
         exploration_data = {
@@ -66,7 +67,7 @@ class TestSaveExploration:
             "intent_text": "Implementar API",
             "status": "started",
             "scouts_deployed": ["pattern_matcher", "code_searcher"],
-            "started_at": datetime.now(timezone.utc),
+            "started_at": datetime.now(UTC),
         }
 
         mock_result = MagicMock()
@@ -77,7 +78,7 @@ class TestSaveExploration:
 
         assert result["exploration_id"] == "scout-exp-1"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_save_exploration_with_results(self, ledger, mock_collection):
         """Testa save com resultados de scouts."""
         exploration_data = {
@@ -101,7 +102,7 @@ class TestSaveExploration:
 class TestGetExploration:
     """Testes do método get_exploration."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_existing_exploration(self, ledger, mock_collection):
         """Testa recuperação de exploração existente."""
         exploration_id = "scout-exp-1"
@@ -118,7 +119,7 @@ class TestGetExploration:
         assert result is not None
         assert result["exploration_id"] == exploration_id
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_nonexistent_exploration(self, ledger, mock_collection):
         """Testa recuperação de exploração inexistente."""
         mock_collection.find_one = AsyncMock(return_value=None)
@@ -131,7 +132,7 @@ class TestGetExploration:
 class TestListExplorations:
     """Testes do método list_explorations."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_list_all_explorations(self, ledger, mock_collection):
         """Testa listagem de todas as explorações."""
         mock_cursor = AsyncMock()
@@ -151,7 +152,7 @@ class TestListExplorations:
         assert len(result) == 2
         assert result[0]["exploration_id"] == "exp-1"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_list_with_limit(self, ledger, mock_collection):
         """Testa listagem com limite."""
         mock_cursor = AsyncMock()
@@ -171,7 +172,7 @@ class TestListExplorations:
 class TestUpdateExplorationStatus:
     """Testes do método update_exploration_status."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_update_status_to_completed(self, ledger, mock_collection):
         """Testa atualização de status para completed."""
         exploration_id = "scout-exp-1"
@@ -184,7 +185,7 @@ class TestUpdateExplorationStatus:
 
         assert result is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_update_status_with_results(self, ledger, mock_collection):
         """Testa atualização com resultados."""
         exploration_id = "scout-exp-1"
@@ -200,7 +201,7 @@ class TestUpdateExplorationStatus:
 
         assert result is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_update_nonexistent_returns_false(self, ledger, mock_collection):
         """Testa update de exploração inexistente."""
         mock_result = MagicMock()
@@ -215,7 +216,7 @@ class TestUpdateExplorationStatus:
 class TestDeleteExploration:
     """Testes do método delete_exploration."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_delete_existing_exploration(self, ledger, mock_collection):
         """Testa deleção de exploração existente."""
         mock_result = MagicMock()
@@ -226,7 +227,7 @@ class TestDeleteExploration:
 
         assert result is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_delete_nonexistent_returns_false(self, ledger, mock_collection):
         """Testa deleção de exploração inexistente."""
         mock_result = MagicMock()
@@ -241,7 +242,7 @@ class TestDeleteExploration:
 class TestGetExplorationStats:
     """Testes do método get_exploration_stats."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_overall_stats(self, ledger, mock_collection):
         """Testa obtenção de estatísticas gerais."""
         mock_cursor = AsyncMock()
@@ -259,7 +260,7 @@ class TestGetExplorationStats:
         assert stats["total"] == 14
         assert stats["by_status"]["completed"] == 10
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_stats_for_plan(self, ledger, mock_collection):
         """Testa estatísticas filtradas por plano."""
         mock_cursor = AsyncMock()
@@ -275,7 +276,7 @@ class TestGetExplorationStats:
 class TestCleanupOldExplorations:
     """Testes do método cleanup_old_explorations."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_cleanup_explorations_older_than_days(self, ledger, mock_collection):
         """Testa cleanup de explorações antigas."""
         mock_result = MagicMock()
@@ -286,7 +287,7 @@ class TestCleanupOldExplorations:
 
         assert result == 5
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_cleanup_only_completed_explorations(self, ledger, mock_collection):
         """Testa cleanup apenas de explorações completadas."""
         mock_result = MagicMock()
@@ -301,25 +302,25 @@ class TestCleanupOldExplorations:
 class TestQueryExplorations:
     """Testes de consultas complexas."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_query_by_date_range(self, ledger, mock_collection):
         """Testa consulta por intervalo de datas."""
         mock_cursor = AsyncMock()
         mock_cursor.to_list = AsyncMock(
-            return_value=[{"exploration_id": "exp-1", "created_at": datetime.now(timezone.utc)}]
+            return_value=[{"exploration_id": "exp-1", "created_at": datetime.now(UTC)}]
         )
         mock_cursor.limit = Mock(return_value=mock_cursor)
         mock_cursor.sort = Mock(return_value=mock_cursor)
         mock_collection.find = Mock(return_value=mock_cursor)
 
-        start_date = datetime.now(timezone.utc) - timedelta(days=7)
-        end_date = datetime.now(timezone.utc)
+        start_date = datetime.now(UTC) - timedelta(days=7)
+        end_date = datetime.now(UTC)
 
         result = await ledger.query_explorations(start_date=start_date, end_date=end_date)
 
         mock_collection.find.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_query_by_scouts_used(self, ledger, mock_collection):
         """Testa consulta por scouts utilizados."""
         mock_cursor = AsyncMock()

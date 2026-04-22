@@ -6,7 +6,7 @@ Detecta riscos de segurança em schemas e metadados de ferramentas.
 
 import re
 from enum import Enum
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Optional
 
 import structlog
 from pydantic import BaseModel, Field
@@ -40,10 +40,10 @@ class SecurityValidationResult(BaseModel):
 
     is_safe: bool = Field(..., description="Se a ferramenta é considerada segura")
     risk_count: int = Field(..., description="Total de riscos encontrados")
-    risks_by_level: Dict[str, int] = Field(default_factory=dict, description="Contagem por nível")
-    risks: List[SecurityRisk] = Field(default_factory=list, description="Lista de riscos")
+    risks_by_level: dict[str, int] = Field(default_factory=dict, description="Contagem por nível")
+    risks: list[SecurityRisk] = Field(default_factory=list, description="Lista de riscos")
     requires_approval: bool = Field(default=False, description="Se requer aprovação humana")
-    allowed_contexts: List[str] = Field(
+    allowed_contexts: list[str] = Field(
         default_factory=list, description="Contextos onde a ferramenta pode ser usada"
     )
 
@@ -73,7 +73,7 @@ class SecurityValidator:
     }
 
     # Palavras-chave que indicam operações perigosas
-    DANGEROUS_KEYWORDS: Set[str] = {
+    DANGEROUS_KEYWORDS: set[str] = {
         "delete",
         "remove",
         "destroy",
@@ -110,7 +110,7 @@ class SecurityValidator:
     }
 
     # Nomes de parâmetros suspeitos
-    SUSPICIOUS_PARAMS: Set[str] = {
+    SUSPICIOUS_PARAMS: set[str] = {
         "url",
         "uri",
         "endpoint",
@@ -134,7 +134,7 @@ class SecurityValidator:
     }
 
     # Tipos MIME perigosos
-    DANGEROUS_MIME_TYPES: Set[str] = {
+    DANGEROUS_MIME_TYPES: set[str] = {
         "application/x-executable",
         "application/x-sh",
         "application/x-bat",
@@ -160,8 +160,8 @@ class SecurityValidator:
         self,
         tool_name: str,
         description: str,
-        input_schema: Dict[str, Any],
-        metadata: Optional[Dict[str, Any]] = None,
+        input_schema: dict[str, Any],
+        metadata: Optional[dict[str, Any]] = None,
     ) -> SecurityValidationResult:
         """
         Valida segurança completa de ferramenta.
@@ -307,7 +307,7 @@ class SecurityValidator:
             )
 
     def _check_input_schema(
-        self, schema: Dict[str, Any], result: SecurityValidationResult, path: str = "$"
+        self, schema: dict[str, Any], result: SecurityValidationResult, path: str = "$"
     ):
         """Verifica schema de entrada em busca de riscos."""
         if not isinstance(schema, dict):
@@ -354,7 +354,7 @@ class SecurityValidator:
                     prop_def["items"], result, f"{path}.properties.{prop_name}.items"
                 )
 
-    def _check_metadata(self, metadata: Dict[str, Any], result: SecurityValidationResult):
+    def _check_metadata(self, metadata: dict[str, Any], result: SecurityValidationResult):
         """Verifica metadados da ferramenta."""
         # Verificar se há flags de perigo
         if metadata.get("dangerous"):
@@ -437,7 +437,7 @@ class SecurityValidator:
         }
         return cwe_mapping.get(keyword)
 
-    def validate_data_sensitivity(self, data: Dict[str, Any]) -> List[SecurityRisk]:
+    def validate_data_sensitivity(self, data: dict[str, Any]) -> list[SecurityRisk]:
         """
         Valida se dados contêm informações sensíveis.
 

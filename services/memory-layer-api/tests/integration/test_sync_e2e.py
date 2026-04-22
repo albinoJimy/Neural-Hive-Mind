@@ -9,13 +9,13 @@ Testes que validam o fluxo completo de sincronização:
 """
 
 import json
-import pytest
-from datetime import datetime, timedelta, timezone
-from unittest.mock import AsyncMock, MagicMock
 import uuid
+from datetime import UTC, datetime, timedelta
+from unittest.mock import AsyncMock, MagicMock
 
+import pytest
+from src.clients.kafka_sync_producer import KafkaSyncProducer, get_avro_schema, serialize_avro
 from src.clients.unified_memory_client import UnifiedMemoryClient
-from src.clients.kafka_sync_producer import KafkaSyncProducer, serialize_avro, get_avro_schema
 from src.consumers.sync_event_consumer import SyncEventConsumer
 from src.jobs.sync_mongodb_to_clickhouse import MongoToClickHouseSync
 
@@ -43,13 +43,13 @@ class MockSettings:
         self.batch_size = 100
 
 
-@pytest.fixture
+@pytest.fixture()
 def settings():
     """Fixture de configurações"""
     return MockSettings()
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_redis():
     """Mock do cliente Redis"""
     redis = AsyncMock()
@@ -59,7 +59,7 @@ def mock_redis():
     return redis
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_mongodb():
     """Mock do cliente MongoDB"""
     mongodb = AsyncMock()
@@ -72,7 +72,7 @@ def mock_mongodb():
     return mongodb
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_neo4j():
     """Mock do cliente Neo4j"""
     neo4j = AsyncMock()
@@ -80,7 +80,7 @@ def mock_neo4j():
     return neo4j
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_clickhouse():
     """Mock do cliente ClickHouse"""
     clickhouse = MagicMock()
@@ -95,7 +95,7 @@ def mock_clickhouse():
 class TestRealtimeSyncE2E:
     """Testes E2E de sincronização real-time"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_realtime_sync_mongodb_to_clickhouse(
         self, settings, mock_redis, mock_mongodb, mock_neo4j, mock_clickhouse
     ):
@@ -162,7 +162,7 @@ class TestRealtimeSyncE2E:
         call_args = mock_clickhouse.insert_batch.call_args
         assert call_args is not None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_batch_sync_job(self, settings, mock_mongodb, mock_clickhouse):
         """
         Testa job de sincronização batch.
@@ -178,7 +178,7 @@ class TestRealtimeSyncE2E:
                 "_id": f"mongo-id-{i}",
                 "entity_id": f"entity-{i}",
                 "data_type": "context",
-                "created_at": datetime.now(timezone.utc) - timedelta(hours=i),
+                "created_at": datetime.now(UTC) - timedelta(hours=i),
                 "content": f"test content {i}",
                 "metadata": {"batch": True},
             }
@@ -197,7 +197,7 @@ class TestRealtimeSyncE2E:
         # Verifica que insert_batch foi chamado
         assert mock_clickhouse.insert_batch.call_count >= 1
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_idempotency_prevents_duplicates(self, settings, mock_clickhouse):
         """
         Testa que eventos duplicados são ignorados.
@@ -215,7 +215,7 @@ class TestRealtimeSyncE2E:
             "data_type": "context",
             "operation": "INSERT",
             "collection": "operational_context",
-            "timestamp": int(datetime.now(timezone.utc).timestamp() * 1000),
+            "timestamp": int(datetime.now(UTC).timestamp() * 1000),
             "data": json.dumps({"content": "idempotency test"}),
             "metadata": None,
         }
@@ -234,7 +234,7 @@ class TestRealtimeSyncE2E:
         # insert_batch não deve ter sido chamado novamente
         assert mock_clickhouse.insert_batch.call_count == 1
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_dlq_on_failure(self, settings, mock_clickhouse):
         """
         Testa envio para DLQ em caso de falha.
@@ -265,7 +265,7 @@ class TestRealtimeSyncE2E:
             "data_type": "context",
             "operation": "INSERT",
             "collection": "operational_context",
-            "timestamp": int(datetime.now(timezone.utc).timestamp() * 1000),
+            "timestamp": int(datetime.now(UTC).timestamp() * 1000),
             "data": json.dumps({"content": "dlq test"}),
             "metadata": None,
         }
@@ -284,7 +284,7 @@ class TestRealtimeSyncE2E:
 class TestAvroSerializationE2E:
     """Testes de serialização/deserialização Avro"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_avro_serialization_roundtrip(self, settings):
         """
         Testa que dados serializados com Avro são deserializados corretamente.
@@ -295,7 +295,7 @@ class TestAvroSerializationE2E:
             "data_type": "context",
             "operation": "INSERT",
             "collection": "operational_context",
-            "timestamp": int(datetime.now(timezone.utc).timestamp() * 1000),
+            "timestamp": int(datetime.now(UTC).timestamp() * 1000),
             "data": json.dumps({"content": "test content", "nested": {"key": "value"}}),
             "metadata": json.dumps({"source": "avro_test"}),
         }
@@ -319,7 +319,7 @@ class TestAvroSerializationE2E:
 class TestTimestampConsistency:
     """Testes de consistência de timestamps"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_timestamp_preserved_mongodb_to_clickhouse(self, settings, mock_clickhouse):
         """
         Valida que timestamps são preservados na sincronização.
@@ -348,7 +348,7 @@ class TestTimestampConsistency:
         call_args = mock_clickhouse.insert_batch.call_args
         assert call_args is not None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_timezone_handling_utc(self, settings):
         """
         Valida que timezones são tratados como UTC.
@@ -360,7 +360,7 @@ class TestTimestampConsistency:
             "_id": "mongo-id-tz",
             "entity_id": "test-entity-tz",
             "data_type": "context",
-            "created_at": datetime.now(timezone.utc),
+            "created_at": datetime.now(UTC),
             "content": "timezone test",
             "metadata": {},
         }
@@ -374,7 +374,7 @@ class TestTimestampConsistency:
 class TestLargeBatchProcessing:
     """Testes de processamento de lotes grandes"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_large_batch_10k_documents(self, settings, mock_mongodb, mock_clickhouse):
         """
         Simula 10k documentos e valida batch processing.
@@ -385,7 +385,7 @@ class TestLargeBatchProcessing:
                 "_id": f"mongo-id-{i}",
                 "entity_id": f"entity-{i}",
                 "data_type": "context",
-                "created_at": datetime.now(timezone.utc) - timedelta(minutes=i),
+                "created_at": datetime.now(UTC) - timedelta(minutes=i),
                 "content": f"content {i}",
                 "metadata": {},
             }
@@ -424,7 +424,7 @@ class TestLargeBatchProcessing:
 class TestRetentionPolicyEnforcement:
     """Testes de enforcement de políticas de retenção"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_retention_removes_old_data(self, settings, mock_mongodb):
         """
         Valida que dados antigos são removidos.

@@ -2,25 +2,23 @@
 
 import asyncio
 import signal
-import sys
 
 import structlog
 import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from neural_hive_observability import init_observability
 from prometheus_client import make_asgi_app
-
 from src.api import api_router, health_handler, root_handler
 from src.clients.mongodb_client import MongoDBClient
 from src.config.settings import get_settings
+from src.consumers import HypothesisCreatedConsumer
+from src.producers import HypothesisValidatedProducer
 from src.repositories.hypothesis_repository import HypothesisRepository
 from src.repositories.version_repository import HypothesisVersionRepository
 from src.services.hypothesis_service import HypothesisService
 from src.services.versioning_service import VersioningService
-from src.observability.metrics import hypothesis_metrics
-from src.consumers import HypothesisCreatedConsumer
-from src.producers import HypothesisValidatedProducer
+
+from neural_hive_observability import init_observability
 
 logger = structlog.get_logger()
 
@@ -112,9 +110,7 @@ def create_app() -> FastAPI:
 
         # Inicializar services
         versioning_service = VersioningService(version_repository)
-        hypothesis_service = HypothesisService(
-            hypothesis_repository, versioning_service
-        )
+        hypothesis_service = HypothesisService(hypothesis_repository, versioning_service)
 
         # Inicializar Kafka Consumer e Producer (se habilitado)
         kafka_enabled = getattr(settings, "kafka_enabled", True)

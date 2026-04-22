@@ -8,7 +8,6 @@ Autor: Neural-Hive-Mind
 Criado: 2026-04-19 (HYP-02)
 """
 
-from datetime import timezone
 
 from uuid import uuid4
 
@@ -37,16 +36,27 @@ BASE_TIME_MS = 1609459200000  # 2021-01-01 00:00:00 UTC
 valid_timestamps = st.integers(min_value=BASE_TIME_MS, max_value=BASE_TIME_MS + 86400000 * 365)
 
 # Estratégia para strings simples (nomes, descrições)
-simple_strings = st.text(min_size=1, max_size=100, alphabet=st.characters(whitelist_categories=("Lu", "Ll", "Nd", "Pd", "Po")))
+simple_strings = st.text(
+    min_size=1,
+    max_size=100,
+    alphabet=st.characters(whitelist_categories=("Lu", "Ll", "Nd", "Pd", "Po")),
+)
 
 # Estratégia para listas de strings
-string_lists = st.lists(st.text(min_size=1, max_size=50, alphabet=st.characters(whitelist_categories=("Lu", "Ll", "Nd"))), max_size=10)
+string_lists = st.lists(
+    st.text(
+        min_size=1, max_size=50, alphabet=st.characters(whitelist_categories=("Lu", "Ll", "Nd"))
+    ),
+    max_size=10,
+)
 
 # Estratégia para dicionários de metadados
 metadata_dicts = st.dictionaries(
-    keys=st.text(min_size=1, max_size=20, alphabet=st.characters(whitelist_categories=("Lu", "Ll", "Nd"))),
+    keys=st.text(
+        min_size=1, max_size=20, alphabet=st.characters(whitelist_categories=("Lu", "Ll", "Nd"))
+    ),
     values=st.text(max_size=100, alphabet=st.characters(whitelist_categories=("Lu", "Ll", "Nd"))),
-    max_size=5
+    max_size=5,
 )
 
 # Estratégia para dicionários de parâmetros (valores podem ser various tipos)
@@ -54,19 +64,25 @@ param_values = st.one_of(
     st.text(max_size=100),
     st.integers(),
     st.floats(allow_infinity=False, allow_nan=False, min_value=-1e10, max_value=1e10),
-    st.lists(st.text(max_size=50))
+    st.lists(st.text(max_size=50)),
 )
 param_dicts = st.dictionaries(
-    keys=st.text(min_size=1, max_size=20, alphabet=st.characters(whitelist_categories=("Lu", "Ll", "Nd"))),
+    keys=st.text(
+        min_size=1, max_size=20, alphabet=st.characters(whitelist_categories=("Lu", "Ll", "Nd"))
+    ),
     values=param_values,
-    max_size=5
+    max_size=5,
 )
 
 # Estratégia para dicionários de predições
 prediction_dicts = st.dictionaries(
-    keys=st.text(min_size=1, max_size=20, alphabet=st.characters(whitelist_categories=("Lu", "Ll", "Nd"))),
-    values=st.one_of(st.integers(min_value=0, max_value=10000), st.floats(min_value=0.0, max_value=1.0)),
-    max_size=5
+    keys=st.text(
+        min_size=1, max_size=20, alphabet=st.characters(whitelist_categories=("Lu", "Ll", "Nd"))
+    ),
+    values=st.one_of(
+        st.integers(min_value=0, max_value=10000), st.floats(min_value=0.0, max_value=1.0)
+    ),
+    max_size=5,
 )
 
 # Enums
@@ -82,14 +98,18 @@ durabilities = st.sampled_from(Durability)
 # Estratégia para UUIDs como strings
 uuid_strategy = st.uuids().map(lambda u: str(u))
 
+
 # Estratégia para SLA - usando composite para garantir consistência
 @st.composite
 def sla_strategy(draw):
     """Gera SLA válido."""
     timeout = draw(st.integers(min_value=1000, max_value=86400000))
-    deadline = draw(st.integers(min_value=BASE_TIME_MS + timeout, max_value=BASE_TIME_MS + 86400000 * 7))
+    deadline = draw(
+        st.integers(min_value=BASE_TIME_MS + timeout, max_value=BASE_TIME_MS + 86400000 * 7)
+    )
     max_retries = draw(st.integers(min_value=0, max_value=10))
     return SLA(deadline=deadline, timeout_ms=timeout, max_retries=max_retries)
+
 
 # Estratégia para QoS
 @st.composite
@@ -112,14 +132,18 @@ def execution_ticket_strategy(draw):
     qos = draw(qos_strategy())
 
     # started_at pode ser None ou um timestamp >= created_at
-    started_at = draw(st.none() | st.integers(min_value=created_at, max_value=created_at + sla.timeout_ms))
+    started_at = draw(
+        st.none() | st.integers(min_value=created_at, max_value=created_at + sla.timeout_ms)
+    )
 
     # completed_at deve ser > started_at se ambos existem
     completed_at = None
     if started_at is not None:
         min_completed = started_at + 1
         max_completed = started_at + sla.timeout_ms
-        completed_at = draw(st.none() | st.integers(min_value=min_completed, max_value=max_completed))
+        completed_at = draw(
+            st.none() | st.integers(min_value=min_completed, max_value=max_completed)
+        )
 
     return ExecutionTicket(
         ticket_id=draw(uuid_strategy),
@@ -158,6 +182,7 @@ def execution_ticket_strategy(draw):
 # ============================================================================
 # Testes Property-Based
 # ============================================================================
+
 
 class TestExecutionTicketProperties:
     """Testes de propriedades para ExecutionTicket."""
@@ -236,7 +261,9 @@ class TestExecutionTicketProperties:
 
     @given(execution_ticket_strategy(), execution_ticket_strategy())
     @settings(max_examples=50, phases=[Phase.generate])
-    def test_different_tickets_different_hashes(self, ticket1: ExecutionTicket, ticket2: ExecutionTicket):
+    def test_different_tickets_different_hashes(
+        self, ticket1: ExecutionTicket, ticket2: ExecutionTicket
+    ):
         """Property: Tickets diferentes produzem hashes diferentes (com alta probabilidade)."""
         assume(ticket1.ticket_id != ticket2.ticket_id)
         hash1 = ticket1.calculate_hash()

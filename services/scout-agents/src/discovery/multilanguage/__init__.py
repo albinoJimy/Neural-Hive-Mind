@@ -28,7 +28,7 @@ class PatternMatch:
         class_name: Optional[str] = None,
         filename: Optional[str] = None,
         language: Optional[str] = None,
-        methods: Optional[List] = None,
+        methods: Optional[list] = None,
     ):
         self.name = name
         self.confidence = confidence
@@ -237,11 +237,11 @@ class MultiLanguagePatternDiscovery:
 
     def __init__(self):
         """Inicializa o detector multi-linguagem."""
-        self._analyzed_files: Dict[str, Dict] = {}
+        self._analyzed_files: dict[str, dict] = {}
 
     def discover_patterns(
         self, code: str, filename: str, language: PatternLanguage
-    ) -> List[PatternMatch]:
+    ) -> list[PatternMatch]:
         """
         Descobre padrões no código baseado na linguagem.
 
@@ -265,7 +265,7 @@ class MultiLanguagePatternDiscovery:
             logger.warning("unsupported_language", language=language)
             return []
 
-    def _discover_python_patterns(self, code: str, filename: str) -> List[PatternMatch]:
+    def _discover_python_patterns(self, code: str, filename: str) -> list[PatternMatch]:
         """Descobre padrões em Python."""
         from ..pattern_discovery import PatternDiscovery
 
@@ -290,7 +290,7 @@ class MultiLanguagePatternDiscovery:
 
     def _discover_js_ts_patterns(
         self, code: str, filename: str, language: PatternLanguage
-    ) -> List[PatternMatch]:
+    ) -> list[PatternMatch]:
         """Descobre padrões em TypeScript/JavaScript."""
         patterns = []
         config = self.LANGUAGE_PATTERNS[language]
@@ -319,7 +319,7 @@ class MultiLanguagePatternDiscovery:
 
         return patterns
 
-    def _discover_yaml_patterns(self, code: str, filename: str) -> List[PatternMatch]:
+    def _discover_yaml_patterns(self, code: str, filename: str) -> list[PatternMatch]:
         """Descobre padrões estruturais em YAML."""
         patterns = []
         self.LANGUAGE_PATTERNS[PatternLanguage.YAML]
@@ -384,7 +384,7 @@ class MultiLanguagePatternDiscovery:
 
         return patterns
 
-    def _discover_json_patterns(self, code: str, filename: str) -> List[PatternMatch]:
+    def _discover_json_patterns(self, code: str, filename: str) -> list[PatternMatch]:
         """Descobre padrões estruturais em JSON."""
         patterns = []
 
@@ -444,7 +444,7 @@ class MultiLanguagePatternDiscovery:
 
         return patterns
 
-    def _extract_js_ts_classes(self, code: str, filename: str) -> List[Dict[str, Any]]:
+    def _extract_js_ts_classes(self, code: str, filename: str) -> list[dict[str, Any]]:
         """Extrai informações de classes TypeScript/JavaScript."""
         classes = []
 
@@ -487,7 +487,7 @@ class MultiLanguagePatternDiscovery:
 
         return classes
 
-    def _extract_js_ts_methods(self, class_body: str) -> List[Dict[str, Any]]:
+    def _extract_js_ts_methods(self, class_body: str) -> list[dict[str, Any]]:
         """Extrai métodos de classe TS/JS."""
         methods = []
 
@@ -510,7 +510,7 @@ class MultiLanguagePatternDiscovery:
 
         return methods
 
-    def _extract_js_ts_attributes(self, class_body: str) -> List[str]:
+    def _extract_js_ts_attributes(self, class_body: str) -> list[str]:
         """Extrai atributos de classe TS/JS."""
         attributes = []
 
@@ -522,14 +522,14 @@ class MultiLanguagePatternDiscovery:
 
         return attributes
 
-    def _extract_decorators(self, decorators_str: str) -> List[str]:
+    def _extract_decorators(self, decorators_str: str) -> list[str]:
         """Extrai decorators de uma string."""
         decorators = []
         for match in re.finditer(r"@(\w+)", decorators_str):
             decorators.append(f"@{match.group(1)}")
         return decorators
 
-    def _analyze_js_ts_class(self, class_info: Dict, config: Dict) -> Dict[str, float]:
+    def _analyze_js_ts_class(self, class_info: dict, config: dict) -> dict[str, float]:
         """Analisa uma classe para calcular confiança por padrão."""
         confidences = {}
         class_name_lower = class_info["name"].lower()
@@ -683,11 +683,11 @@ class MultiLanguagePatternDiscovery:
             i += 1
         return i if brace_count == 0 else None
 
-    def get_supported_languages(self) -> List[str]:
+    def get_supported_languages(self) -> list[str]:
         """Retorna lista de linguagens suportadas."""
         return [lang.value for lang in PatternLanguage]
 
-    def get_language_patterns(self, language: str) -> List[str]:
+    def get_language_patterns(self, language: str) -> list[str]:
         """Retorna padrões disponíveis para uma linguagem."""
         try:
             lang_enum = PatternLanguage(language)

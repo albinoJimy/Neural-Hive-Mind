@@ -9,11 +9,13 @@ Cobre:
 - Atualização da Q-table
 """
 
-import pytest
 from unittest.mock import Mock, patch
-from src.services.optimization_engine import OptimizationEngine
-from src.models.optimization_event import OptimizationType
+
+import pytest
+
 from src.config.settings import Settings
+from src.models.optimization_event import OptimizationType
+from src.services.optimization_engine import OptimizationEngine
 
 
 @pytest.fixture

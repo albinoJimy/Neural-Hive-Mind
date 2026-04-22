@@ -4,25 +4,25 @@ Testes para API REST do Feature Store
 Testa endpoints CRUD e validações de schema.
 """
 
-import pytest
-from fastapi.testclient import TestClient
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
+from fastapi.testclient import TestClient
 from src.main import app
 from src.models.feature import (
+    ComputationStatus,
     FeatureVector,
     MetadataFeatures,
-    ComputationStatus,
 )
 
 
-@pytest.fixture
+@pytest.fixture()
 def client():
     """Cliente de teste FastAPI"""
     return TestClient(app)
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_feature_store():
     """Mock do FeatureStoreService"""
     store = MagicMock()
@@ -35,7 +35,7 @@ def mock_feature_store():
     return store
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_feature_vector():
     """FeatureVector de exemplo"""
     return FeatureVector(
@@ -52,7 +52,7 @@ def sample_feature_vector():
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_cognitive_plan():
     """Plano cognitivo de exemplo"""
     return {

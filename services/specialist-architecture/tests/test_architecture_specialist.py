@@ -1,9 +1,9 @@
 """Testes unitários para ArchitectureSpecialist - Métodos de Análise."""
 
-import sys
 import os
+import sys
+
 import pytest
-from typing import Dict, List
 
 # Configurar paths
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
@@ -13,7 +13,7 @@ class ArchitectureAnalysisTestHelper:
     """Helper class para testar métodos de análise sem inicialização completa."""
 
     @staticmethod
-    def analyze_design_patterns(tasks: List[Dict]) -> float:
+    def analyze_design_patterns(tasks: list[dict]) -> float:
         """Implementação do método de análise de design patterns."""
         if not tasks:
             return 0.5
@@ -68,7 +68,7 @@ class ArchitectureAnalysisTestHelper:
         return max(0.0, min(1.0, score))
 
     @staticmethod
-    def analyze_solid_principles(tasks: List[Dict], cognitive_plan: Dict) -> float:
+    def analyze_solid_principles(tasks: list[dict], cognitive_plan: dict) -> float:
         """Implementação do método de análise SOLID."""
         if not tasks:
             return 0.5
@@ -124,7 +124,7 @@ class ArchitectureAnalysisTestHelper:
         return max(0.0, min(1.0, solid_score))
 
     @staticmethod
-    def analyze_coupling_cohesion(tasks: List[Dict]) -> float:
+    def analyze_coupling_cohesion(tasks: list[dict]) -> float:
         """Implementação do método de análise de acoplamento e coesão."""
         if not tasks:
             return 0.5
@@ -155,7 +155,7 @@ class ArchitectureAnalysisTestHelper:
         return (coupling_score + cohesion_score) / 2.0
 
     @staticmethod
-    def analyze_separation_of_concerns(tasks: List[Dict]) -> float:
+    def analyze_separation_of_concerns(tasks: list[dict]) -> float:
         """Implementação do método de análise de separação de concerns."""
         if not tasks:
             return 0.5
@@ -182,7 +182,7 @@ class ArchitectureAnalysisTestHelper:
         return max(0.0, min(1.0, score))
 
     @staticmethod
-    def analyze_modularity(tasks: List[Dict]) -> float:
+    def analyze_modularity(tasks: list[dict]) -> float:
         """Implementação do método de análise de modularidade."""
         if not tasks:
             return 0.5
@@ -209,7 +209,7 @@ class ArchitectureAnalysisTestHelper:
 
     @staticmethod
     def calculate_architecture_risk(
-        cognitive_plan: Dict,
+        cognitive_plan: dict,
         design_pattern_score: float,
         solid_score: float,
         coupling_cohesion_score: float,
@@ -266,7 +266,7 @@ class ArchitectureAnalysisTestHelper:
         coupling_cohesion_score: float,
         separation_score: float,
         modularity_score: float,
-    ) -> List[Dict]:
+    ) -> list[dict]:
         """Gera sugestões de mitigação de riscos arquiteturais."""
         mitigations = []
 
@@ -323,7 +323,7 @@ class ArchitectureAnalysisTestHelper:
         return mitigations
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_cognitive_plan():
     """Plano cognitivo de exemplo."""
     return {
@@ -807,8 +807,8 @@ class TestMLModelIntegration:
 
     def test_ml_model_prediction(self):
         """Testa predição do modelo ML de arquitetura."""
-        from sklearn.ensemble import GradientBoostingClassifier
         import numpy as np
+        from sklearn.ensemble import GradientBoostingClassifier
 
         model = GradientBoostingClassifier(n_estimators=10, max_depth=3, random_state=42)
 

@@ -1,9 +1,9 @@
 """Testes unitários para TechnicalSpecialist - Métodos de Análise."""
 
-import sys
 import os
+import sys
+
 import pytest
-from typing import Dict, List
 
 # Configurar paths
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
@@ -13,7 +13,7 @@ class TechnicalAnalysisTestHelper:
     """Helper class para testar métodos de análise sem inicialização completa."""
 
     @staticmethod
-    def analyze_security(tasks: List[Dict], cognitive_plan: Dict) -> float:
+    def analyze_security(tasks: list[dict], cognitive_plan: dict) -> float:
         """Implementação do método de análise de segurança."""
         if not tasks:
             return 0.5
@@ -53,7 +53,7 @@ class TechnicalAnalysisTestHelper:
         return max(0.0, min(1.0, security_score))
 
     @staticmethod
-    def analyze_architecture(tasks: List[Dict], cognitive_plan: Dict) -> float:
+    def analyze_architecture(tasks: list[dict], cognitive_plan: dict) -> float:
         """Implementação do método de análise de arquitetura."""
         if not tasks:
             return 0.5
@@ -92,7 +92,7 @@ class TechnicalAnalysisTestHelper:
         return max(0.0, min(1.0, architecture_score))
 
     @staticmethod
-    def analyze_performance(tasks: List[Dict]) -> float:
+    def analyze_performance(tasks: list[dict]) -> float:
         """Implementação do método de análise de performance."""
         if not tasks:
             return 0.5
@@ -129,7 +129,7 @@ class TechnicalAnalysisTestHelper:
         return max(0.0, min(1.0, performance_score))
 
     @staticmethod
-    def analyze_code_quality(tasks: List[Dict]) -> float:
+    def analyze_code_quality(tasks: list[dict]) -> float:
         """Implementação do método de análise de qualidade de código."""
         if not tasks:
             return 0.5
@@ -167,7 +167,7 @@ class TechnicalAnalysisTestHelper:
 
     @staticmethod
     def calculate_technical_risk(
-        cognitive_plan: Dict,
+        cognitive_plan: dict,
         security_score: float,
         architecture_score: float,
         performance_score: float,
@@ -220,7 +220,7 @@ class TechnicalAnalysisTestHelper:
         architecture_score: float,
         performance_score: float,
         code_quality_score: float,
-    ) -> List[Dict]:
+    ) -> list[dict]:
         """Gera sugestões de mitigação de riscos técnicos."""
         mitigations = []
 
@@ -267,7 +267,7 @@ class TechnicalAnalysisTestHelper:
         return mitigations
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_cognitive_plan():
     """Plano cognitivo de exemplo."""
     return {
@@ -736,8 +736,8 @@ class TestMLModelIntegration:
 
     def test_ml_model_prediction(self):
         """Testa predição do modelo ML técnico."""
-        from sklearn.ensemble import GradientBoostingClassifier
         import numpy as np
+        from sklearn.ensemble import GradientBoostingClassifier
 
         model = GradientBoostingClassifier(n_estimators=10, max_depth=3, random_state=42)
 

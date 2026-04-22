@@ -3,8 +3,9 @@ Testes unitários para HTTP Server - health endpoints.
 
 Testa os endpoints /health, /ready e /health/startup para Kubernetes probes.
 """
+
 import sys
-from datetime import datetime, timezone
+from datetime import datetime
 from pathlib import Path
 from unittest.mock import MagicMock
 
@@ -19,7 +20,7 @@ mock_tracer_module = MagicMock()
 mock_tracer_module.get_tracer = MagicMock()
 sys.modules["neural_hive_observability"] = mock_tracer_module
 
-from api.http_server import create_http_server  # noqa: E402
+from api.http_server import create_http_server
 
 
 class MockConfig:
@@ -58,13 +59,13 @@ class MockExecutionEngine:
         self.active_tasks = {}
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_config():
     """Fixture para config mock."""
     return MockConfig()
 
 
-@pytest.fixture
+@pytest.fixture()
 def app_state():
     """Fixture para app_state."""
     registry = MockRegistryClient(registered=True)
@@ -72,7 +73,7 @@ def app_state():
     return {"registry_client": registry, "execution_engine": engine}
 
 
-@pytest.fixture
+@pytest.fixture()
 def client(mock_config, app_state):
     """Fixture para TestClient."""
     app = create_http_server(mock_config, app_state)

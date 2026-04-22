@@ -16,10 +16,10 @@ import os
 import sys
 import time
 from datetime import datetime
-from typing import Dict, Any
+from typing import Any
 
 
-def load_config() -> Dict[str, Any]:
+def load_config() -> dict[str, Any]:
     """
     Carrega configuração de variáveis de ambiente.
 
@@ -113,7 +113,7 @@ def initialize_metrics_registry():
     return metrics_registry
 
 
-def initialize_business_metrics_collector(config: Dict[str, Any], metrics_registry: Dict):
+def initialize_business_metrics_collector(config: dict[str, Any], metrics_registry: dict):
     """
     Inicializa BusinessMetricsCollector.
 
@@ -133,7 +133,7 @@ def initialize_business_metrics_collector(config: Dict[str, Any], metrics_regist
     return collector
 
 
-def initialize_anomaly_detector(config: Dict[str, Any]):
+def initialize_anomaly_detector(config: dict[str, Any]):
     """
     Inicializa AnomalyDetector.
 
@@ -156,7 +156,7 @@ def initialize_anomaly_detector(config: Dict[str, Any]):
     return detector
 
 
-def build_anomaly_features(metrics_summary: Dict[str, Any]) -> Dict[str, float]:
+def build_anomaly_features(metrics_summary: dict[str, Any]) -> dict[str, float]:
     """
     Constrói dict completo de features para AnomalyDetector.
 
@@ -186,7 +186,7 @@ def build_anomaly_features(metrics_summary: Dict[str, Any]) -> Dict[str, float]:
     return features
 
 
-def push_metrics_to_gateway(config: Dict[str, Any], metrics_registry: Dict):
+def push_metrics_to_gateway(config: dict[str, Any], metrics_registry: dict):
     """
     Envia métricas para Prometheus Pushgateway.
 
@@ -200,8 +200,7 @@ def push_metrics_to_gateway(config: Dict[str, Any], metrics_registry: Dict):
         return
 
     try:
-        from prometheus_client import push_to_gateway
-        from prometheus_client import REGISTRY
+        from prometheus_client import REGISTRY, push_to_gateway
 
         push_to_gateway(pushgateway_url, job="business_metrics_collector", registry=REGISTRY)
 
@@ -244,8 +243,9 @@ def main():
 
     # Configurar logging
     if args.verbose:
-        import structlog
         import logging
+
+        import structlog
 
         logging.basicConfig(level=logging.DEBUG)
         structlog.configure(wrapper_class=structlog.make_filtering_bound_logger(logging.DEBUG))

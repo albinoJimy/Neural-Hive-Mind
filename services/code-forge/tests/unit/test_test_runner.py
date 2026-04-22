@@ -17,7 +17,7 @@ import pytest
 class TestTestRunnerExecution:
     """Testes de execucao de testes."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_run_tests_success(
         self, sample_pipeline_context_with_artifacts, mock_mongodb_client
     ):
@@ -52,13 +52,13 @@ def root():
         # Mas diretamente result.status já é a string
         assert result.status in ("PASSED", "WARNING", "FAILED")  # pytest pode não estar instalado
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_run_tests_adds_validation_result(
         self, sample_pipeline_context_with_artifacts, mock_mongodb_client
     ):
         """Deve adicionar ValidationResult ao contexto."""
-        from src.services.test_runner import TestRunner
         from src.models.artifact import ValidationType
+        from src.services.test_runner import TestRunner
 
         # Configurar mock para retornar código Python válido
         mock_mongodb_client.get_artifact_content = AsyncMock(
@@ -78,7 +78,7 @@ def root():
 class TestTestRunnerCoverageThreshold:
     """Testes de threshold de cobertura."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_default_min_coverage(self, sample_pipeline_context_with_artifacts):
         """Deve usar min_coverage padrao de 0.8."""
         from src.services.test_runner import TestRunner
@@ -87,7 +87,7 @@ class TestTestRunnerCoverageThreshold:
 
         assert runner.min_coverage == 0.8
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_custom_min_coverage(self, sample_pipeline_context_with_artifacts):
         """Deve aceitar min_coverage customizado."""
         from src.services.test_runner import TestRunner
@@ -100,7 +100,7 @@ class TestTestRunnerCoverageThreshold:
 class TestTestRunnerValidationResult:
     """Testes de criacao de ValidationResult."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_validation_result_no_issues(
         self, sample_pipeline_context_with_artifacts, mock_mongodb_client
     ):
@@ -122,7 +122,7 @@ class TestTestRunnerValidationResult:
         assert isinstance(result.medium_issues, int)
         assert isinstance(result.low_issues, int)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_validation_result_has_duration(
         self, sample_pipeline_context_with_artifacts, mock_mongodb_client
     ):
@@ -141,7 +141,7 @@ class TestTestRunnerValidationResult:
         assert isinstance(result.duration_ms, int)
         assert result.duration_ms >= 0
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_validation_result_has_timestamp(
         self, sample_pipeline_context_with_artifacts, mock_mongodb_client
     ):

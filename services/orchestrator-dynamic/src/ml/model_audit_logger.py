@@ -8,21 +8,24 @@ Provides full traceability for compliance, debugging, and operational insights.
 import sys
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any, Optional
 
-UTC = timezone.utc  # type: ignore, timedelta
+UTC = UTC  # type: ignore, timedelta
 
 # Python 3.10 compatibility: StrEnum was added in Python 3.11
 if sys.version_info >= (3, 11):
     from enum import StrEnum as _StrEnum
 else:
+
     class _StrEnum(str, Enum):
         """Polyfill for StrEnum on Python 3.10"""
+
         @staticmethod
         def _generate_next_value_(name, start, count, last_values):
             return name
+
 
 import structlog
 from motor.motor_asyncio import AsyncIOMotorClient

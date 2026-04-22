@@ -1,9 +1,10 @@
 """Testes de integração ML para TechnicalSpecialist."""
 
-import sys
 import os
+import sys
+from typing import Any
+
 import pytest
-from typing import Dict, Any
 
 # Configurar paths
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "src"))
@@ -30,7 +31,7 @@ class MockMLflowClient:
             return None
         return MockModel()
 
-    def get_model_metadata(self, model_name: str, stage: str) -> Dict:
+    def get_model_metadata(self, model_name: str, stage: str) -> dict:
         if not self._model_available:
             return {}
         return self._model_metadata.copy()
@@ -86,19 +87,19 @@ class MockModel:
         return np.array([0.30, 0.25, 0.20, 0.15, 0.05, 0.05])
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_mlflow_client():
     """Fixture para cliente MLflow mock."""
     return MockMLflowClient(model_available=True)
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_mlflow_client_unavailable():
     """Fixture para cliente MLflow indisponível."""
     return MockMLflowClient(model_available=False)
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_features():
     """Features de exemplo para predição."""
     return {
@@ -376,6 +377,7 @@ class TestModelPerformanceTracking:
     def test_model_prediction_latency(self, mock_mlflow_client):
         """Testa medição de latência de predição."""
         import time
+
         import numpy as np
 
         model = mock_mlflow_client.load_model_with_fallback(
@@ -394,6 +396,7 @@ class TestModelPerformanceTracking:
     def test_model_batch_performance(self, mock_mlflow_client):
         """Testa performance de predição em batch."""
         import time
+
         import numpy as np
 
         model = mock_mlflow_client.load_model_with_fallback(

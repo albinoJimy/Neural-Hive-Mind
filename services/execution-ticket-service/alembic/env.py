@@ -2,16 +2,15 @@
 
 import asyncio
 import os
-from logging.config import fileConfig
-
-from sqlalchemy import pool
-from sqlalchemy.engine import Connection
-from sqlalchemy.ext.asyncio import async_engine_from_config
-
-from alembic import context
 
 # Importar Base do ORM
 import sys
+from logging.config import fileConfig
+
+from alembic import context
+from sqlalchemy import pool
+from sqlalchemy.engine import Connection
+from sqlalchemy.ext.asyncio import async_engine_from_config
 
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 from src.models.ticket_orm import Base

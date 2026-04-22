@@ -1,12 +1,12 @@
 """Integration tests for Guard Agent Service Registry client."""
 
-import pytest
 import asyncio
 
+import pytest
 from src.clients.service_registry_client import ServiceRegistryClient
 
 
-@pytest.fixture
+@pytest.fixture()
 def service_registry_host():
     """Service Registry host for integration tests."""
     import os
@@ -14,7 +14,7 @@ def service_registry_host():
     return os.environ.get("SERVICE_REGISTRY_HOST", "localhost")
 
 
-@pytest.fixture
+@pytest.fixture()
 def service_registry_port():
     """Service Registry port for integration tests."""
     import os
@@ -22,7 +22,7 @@ def service_registry_port():
     return int(os.environ.get("SERVICE_REGISTRY_PORT", "50051"))
 
 
-@pytest.fixture
+@pytest.fixture()
 async def guard_client(service_registry_host, service_registry_port):
     """Create a Guard Agent Service Registry client for testing."""
     client = ServiceRegistryClient(
@@ -36,8 +36,8 @@ async def guard_client(service_registry_host, service_registry_port):
     await client.close()
 
 
-@pytest.mark.asyncio
-@pytest.mark.integration
+@pytest.mark.asyncio()
+@pytest.mark.integration()
 async def test_register_guard_agent(guard_client):
     """Test Guard Agent registration in Service Registry."""
     await guard_client.connect()
@@ -48,8 +48,8 @@ async def test_register_guard_agent(guard_client):
     assert guard_client.agent_id == agent_id
 
 
-@pytest.mark.asyncio
-@pytest.mark.integration
+@pytest.mark.asyncio()
+@pytest.mark.integration()
 async def test_heartbeat_lifecycle(guard_client):
     """Test complete lifecycle: register -> heartbeat -> deregister."""
     await guard_client.connect()
@@ -69,8 +69,8 @@ async def test_heartbeat_lifecycle(guard_client):
     assert guard_client.channel is None
 
 
-@pytest.mark.asyncio
-@pytest.mark.integration
+@pytest.mark.asyncio()
+@pytest.mark.integration()
 async def test_deregister_guard_agent(guard_client):
     """Test Guard Agent deregistration."""
     await guard_client.connect()
@@ -84,8 +84,8 @@ async def test_deregister_guard_agent(guard_client):
     # (client doesn't clear agent_id on deregister for logging purposes)
 
 
-@pytest.mark.asyncio
-@pytest.mark.integration
+@pytest.mark.asyncio()
+@pytest.mark.integration()
 async def test_connect_to_unavailable_registry():
     """Test connection to unavailable Service Registry handles gracefully."""
     client = ServiceRegistryClient(
@@ -102,8 +102,8 @@ async def test_connect_to_unavailable_registry():
     await client.close()
 
 
-@pytest.mark.asyncio
-@pytest.mark.integration
+@pytest.mark.asyncio()
+@pytest.mark.integration()
 async def test_multiple_capabilities_registration(service_registry_host, service_registry_port):
     """Test registration with multiple capabilities."""
     client = ServiceRegistryClient(
@@ -135,8 +135,8 @@ async def test_multiple_capabilities_registration(service_registry_host, service
     await client.close()
 
 
-@pytest.mark.asyncio
-@pytest.mark.integration
+@pytest.mark.asyncio()
+@pytest.mark.integration()
 async def test_is_healthy_before_registration(service_registry_host, service_registry_port):
     """Test is_healthy returns False before registration."""
     client = ServiceRegistryClient(
@@ -156,8 +156,8 @@ async def test_is_healthy_before_registration(service_registry_host, service_reg
     await client.close()
 
 
-@pytest.mark.asyncio
-@pytest.mark.integration
+@pytest.mark.asyncio()
+@pytest.mark.integration()
 async def test_is_healthy_after_registration(guard_client):
     """Test is_healthy returns True after successful registration."""
     await guard_client.connect()

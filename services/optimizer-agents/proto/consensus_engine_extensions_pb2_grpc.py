@@ -24,7 +24,7 @@ if _version_not_supported:
     )
 
 
-class ConsensusOptimizationStub(object):
+class ConsensusOptimizationStub:
     """Extensões propostas para consensus_engine.proto
     Estas extensões permitem ao Optimizer Agents ajustar pesos dinamicamente
 
@@ -69,7 +69,7 @@ class ConsensusOptimizationStub(object):
                 _registered_method=True)
 
 
-class ConsensusOptimizationServicer(object):
+class ConsensusOptimizationServicer:
     """Extensões propostas para consensus_engine.proto
     Estas extensões permitem ao Optimizer Agents ajustar pesos dinamicamente
 
@@ -159,7 +159,7 @@ def add_ConsensusOptimizationServicer_to_server(servicer, server):
 
 
  # This class is part of an EXPERIMENTAL API.
-class ConsensusOptimization(object):
+class ConsensusOptimization:
     """Extensões propostas para consensus_engine.proto
     Estas extensões permitem ao Optimizer Agents ajustar pesos dinamicamente
 

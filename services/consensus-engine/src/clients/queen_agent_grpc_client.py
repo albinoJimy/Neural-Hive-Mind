@@ -1,7 +1,7 @@
 """Cliente gRPC para comunicação com Queen Agent"""
 
 import asyncio
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Optional
 
 import grpc
 import structlog
@@ -121,7 +121,7 @@ class QueenAgentGrpcClient:
         except asyncio.TimeoutError:
             logger.warning("queen_agent_grpc_channel_ready_timeout", endpoint=endpoint)
 
-    async def _get_grpc_metadata(self) -> List[Tuple[str, str]]:
+    async def _get_grpc_metadata(self) -> list[tuple[str, str]]:
         """Obter metadata gRPC com JWT-SVID para autenticação"""
         spiffe_enabled = getattr(self.config, "spiffe_enabled", False)
 
@@ -148,7 +148,7 @@ class QueenAgentGrpcClient:
                 raise
             return inject_grpc_context()
 
-    async def get_strategic_decision(self, decision_id: str) -> Optional[Dict[str, Any]]:
+    async def get_strategic_decision(self, decision_id: str) -> Optional[dict[str, Any]]:
         """Buscar decisão estratégica por ID"""
         if not self.stub:
             logger.warning("queen_agent_stub_not_initialized")
@@ -196,8 +196,8 @@ class QueenAgentGrpcClient:
         return None
 
     async def make_strategic_decision(
-        self, event_type: str, source_id: str, trigger_data: Optional[Dict[str, str]] = None
-    ) -> Optional[Dict[str, Any]]:
+        self, event_type: str, source_id: str, trigger_data: Optional[dict[str, str]] = None
+    ) -> Optional[dict[str, Any]]:
         """Solicitar criação de nova decisão estratégica"""
         if not self.stub:
             logger.warning("queen_agent_stub_not_initialized")
@@ -254,7 +254,7 @@ class QueenAgentGrpcClient:
 
         return None
 
-    async def get_system_status(self) -> Optional[Dict[str, Any]]:
+    async def get_system_status(self) -> Optional[dict[str, Any]]:
         """Obter status geral do sistema via Queen Agent"""
         if not self.stub:
             logger.warning("queen_agent_stub_not_initialized")
@@ -303,7 +303,7 @@ class QueenAgentGrpcClient:
         end_date: Optional[int] = None,
         limit: int = 50,
         offset: int = 0,
-    ) -> Optional[Dict[str, Any]]:
+    ) -> Optional[dict[str, Any]]:
         """Listar decisões estratégicas com filtros"""
         if not self.stub:
             logger.warning("queen_agent_stub_not_initialized")
@@ -361,7 +361,7 @@ class QueenAgentGrpcClient:
 
         return None
 
-    async def health_check(self) -> Dict[str, Any]:
+    async def health_check(self) -> dict[str, Any]:
         """Verificar saúde do Queen Agent"""
         try:
             status = await self.get_system_status()

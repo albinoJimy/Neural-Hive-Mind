@@ -5,14 +5,15 @@ Implementa assinatura RSA-SHA256 para garantir autenticidade e
 integridade dos documentos, além do hash SHA-256 existente.
 """
 
-import json
-import hashlib
-from typing import Dict, Any, Optional, Tuple
-from cryptography.hazmat.primitives import hashes, serialization
-from cryptography.hazmat.primitives.asymmetric import rsa, padding
-from cryptography.hazmat.backends import default_backend
 import base64
+import hashlib
+import json
+from typing import Any, Optional
+
 import structlog
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric import padding, rsa
 
 logger = structlog.get_logger(__name__)
 
@@ -20,7 +21,7 @@ logger = structlog.get_logger(__name__)
 class DigitalSigner:
     """Gerencia assinatura digital de documentos do ledger."""
 
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, config: dict[str, Any]):
         """
         Inicializa assinador digital.
 
@@ -68,7 +69,7 @@ class DigitalSigner:
                 logger.error("Failed to load public key", path=public_key_path, error=str(e))
                 self.public_key = None
 
-    def generate_keys(self, key_size: int = 2048) -> Tuple[bytes, bytes]:
+    def generate_keys(self, key_size: int = 2048) -> tuple[bytes, bytes]:
         """
         Gera par de chaves RSA.
 
@@ -108,7 +109,7 @@ class DigitalSigner:
 
         return private_pem, public_pem
 
-    def compute_content_hash(self, document: Dict[str, Any]) -> str:
+    def compute_content_hash(self, document: dict[str, Any]) -> str:
         """
         Computa hash SHA-256 do conteúdo do documento.
 
@@ -130,7 +131,7 @@ class DigitalSigner:
 
         return content_hash
 
-    def sign_document(self, document: Dict[str, Any]) -> Dict[str, Any]:
+    def sign_document(self, document: dict[str, Any]) -> dict[str, Any]:
         """
         Assina documento digitalmente.
 
@@ -178,7 +179,7 @@ class DigitalSigner:
             logger.error("Failed to sign document", error=str(e), exc_info=True)
             return document
 
-    def verify_signature(self, document: Dict[str, Any]) -> bool:
+    def verify_signature(self, document: dict[str, Any]) -> bool:
         """
         Verifica assinatura digital do documento.
 
@@ -227,7 +228,7 @@ class DigitalSigner:
             )
             return False
 
-    def detect_tampering(self, document: Dict[str, Any]) -> bool:
+    def detect_tampering(self, document: dict[str, Any]) -> bool:
         """
         Detecta se documento foi adulterado.
 

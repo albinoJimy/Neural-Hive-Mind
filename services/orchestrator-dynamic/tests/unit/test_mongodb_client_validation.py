@@ -7,10 +7,9 @@ import types
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from pymongo.errors import PyMongoError, DuplicateKeyError
+from pymongo.errors import DuplicateKeyError, PyMongoError
 
 from neural_hive_resilience.circuit_breaker import CircuitBreakerError
-
 
 # ======================================================
 # Testes de Validação de Configuração
@@ -93,7 +92,7 @@ def test_init_succeeds_with_valid_config():
 # ======================================================
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_config_fail_closed():
     """Config com fail-open=False."""
     return types.SimpleNamespace(
@@ -110,7 +109,7 @@ def mock_config_fail_closed():
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_config_fail_open():
     """Config com fail-open=True."""
     return types.SimpleNamespace(
@@ -127,7 +126,7 @@ def mock_config_fail_open():
     )
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_save_ticket_fail_closed_propagates_pymongo_error(mock_config_fail_closed):
     """Valida que erro PyMongo é propagado quando fail-closed."""
     from src.clients.mongodb_client import MongoDBClient
@@ -145,7 +144,7 @@ async def test_save_ticket_fail_closed_propagates_pymongo_error(mock_config_fail
             await client.save_execution_ticket(ticket)
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_save_ticket_fail_open_continues(mock_config_fail_open):
     """Valida que erro PyMongo não propaga quando fail-open."""
     from src.clients.mongodb_client import MongoDBClient
@@ -169,7 +168,7 @@ async def test_save_ticket_fail_open_continues(mock_config_fail_open):
         )
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_save_ticket_circuit_breaker_always_propagates(mock_config_fail_open):
     """Valida que CircuitBreakerError sempre propaga, mesmo com fail-open."""
     from src.clients.mongodb_client import MongoDBClient
@@ -216,7 +215,7 @@ async def test_save_ticket_circuit_breaker_always_propagates(mock_config_fail_op
 # ======================================================
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_save_ticket_retries_on_transient_error(mock_config_fail_closed):
     """Valida que erros transitórios são retried."""
     from src.clients.mongodb_client import MongoDBClient
@@ -252,7 +251,7 @@ async def test_save_ticket_retries_on_transient_error(mock_config_fail_closed):
         assert client.execution_tickets.insert_one.await_count == 2
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_save_ticket_no_retry_on_duplicate_key(mock_config_fail_closed):
     """Valida que DuplicateKeyError não faz retry infinito, faz update."""
     from src.clients.mongodb_client import MongoDBClient
@@ -302,7 +301,7 @@ def test_expected_indexes_defined():
 # ======================================================
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_validate_indexes_records_metrics():
     """Valida que validate_indexes registra métricas."""
     from src.clients.mongodb_client import MongoDBClient

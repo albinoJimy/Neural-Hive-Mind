@@ -5,10 +5,11 @@ Previne chamadas a serviços que estão falhando repetidamente,
 permitindo que o sistema recupere sem sobrecarga.
 """
 
+from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Callable, Optional, TypeVar
+from typing import Optional, TypeVar
 
 import structlog
 
@@ -78,7 +79,7 @@ class CircuitBreaker:
         self._state = CircuitBreakerState.CLOSED
         self._failure_count = 0
         self._last_failure_time: Optional[datetime] = None
-        self._last_state_change = datetime.now(timezone.utc)
+        self._last_state_change = datetime.now(UTC)
         self._half_open_call_count = 0
 
         logger.info(
@@ -124,7 +125,7 @@ class CircuitBreaker:
             self._half_open_call_count = 0
 
         self._failure_count = 0
-        self._last_state_change = datetime.now(timezone.utc)
+        self._last_state_change = datetime.now(UTC)
 
     def record_failure(self, error_message: Optional[str] = None):
         """
@@ -134,7 +135,7 @@ class CircuitBreaker:
             error_message: Mensagem de erro opcional para logging
         """
         self._failure_count += 1
-        self._last_failure_time = datetime.now(timezone.utc)
+        self._last_failure_time = datetime.now(UTC)
 
         logger.warning(
             "circuit_breaker.failure_recorded",
@@ -151,7 +152,7 @@ class CircuitBreaker:
         """Abre o circuit breaker."""
         if self._state != CircuitBreakerState.OPEN:
             self._state = CircuitBreakerState.OPEN
-            self._last_state_change = datetime.now(timezone.utc)
+            self._last_state_change = datetime.now(UTC)
             logger.error(
                 "circuit_breaker.opened",
                 service=self.service_name,
@@ -162,7 +163,7 @@ class CircuitBreaker:
         """Transiciona para HALF_OPEN."""
         if self._state != CircuitBreakerState.HALF_OPEN:
             self._state = CircuitBreakerState.HALF_OPEN
-            self._last_state_change = datetime.now(timezone.utc)
+            self._last_state_change = datetime.now(UTC)
             self._half_open_call_count = 0
             logger.info("circuit_breaker.half_open", service=self.service_name)
 
@@ -184,7 +185,7 @@ class CircuitBreaker:
         if self._state == CircuitBreakerState.OPEN:
             # Verificar se expirou o timeout
             if self._last_state_change:
-                elapsed = (datetime.now(timezone.utc) - self._last_state_change).total_seconds()
+                elapsed = (datetime.now(UTC) - self._last_state_change).total_seconds()
                 if elapsed >= self._timeout_seconds:
                     self._half_open()
                 else:
@@ -225,7 +226,7 @@ class CircuitBreaker:
         if self._state == CircuitBreakerState.OPEN:
             # Verificar se expirou o timeout
             if self._last_state_change:
-                elapsed = (datetime.now(timezone.utc) - self._last_state_change).total_seconds()
+                elapsed = (datetime.now(UTC) - self._last_state_change).total_seconds()
                 if elapsed >= self._timeout_seconds:
                     self._half_open()
                 else:
@@ -252,7 +253,7 @@ class CircuitBreaker:
         self._state = CircuitBreakerState.CLOSED
         self._failure_count = 0
         self._last_failure_time = None
-        self._last_state_change = datetime.now(timezone.utc)
+        self._last_state_change = datetime.now(UTC)
         self._half_open_call_count = 0
         logger.info("circuit_breaker.reset", service=self.service_name)
 

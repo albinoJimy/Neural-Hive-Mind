@@ -11,7 +11,6 @@ Para executar:
 
 import pytest
 import pytest_asyncio
-
 from src.clients.opa_client import OPAClient
 
 
@@ -31,8 +30,8 @@ async def opa_client():
             pass  # Ignorar erros no close
 
 
-@pytest.mark.integration
-@pytest.mark.asyncio
+@pytest.mark.integration()
+@pytest.mark.asyncio()
 async def test_opa_ethical_guardrails_allow(opa_client):
     """Testa se política OPA permite decisão segura"""
     input_data = {
@@ -60,8 +59,8 @@ async def test_opa_ethical_guardrails_allow(opa_client):
     assert len(result.get("violations", [])) == 0
 
 
-@pytest.mark.integration
-@pytest.mark.asyncio
+@pytest.mark.integration()
+@pytest.mark.asyncio()
 async def test_opa_ethical_guardrails_deny_excessive_risk(opa_client):
     """Testa se política OPA nega risco excessivo"""
     input_data = {
@@ -91,8 +90,8 @@ async def test_opa_ethical_guardrails_deny_excessive_risk(opa_client):
     assert any(v.get("rule") == "excessive_risk" for v in violations)
 
 
-@pytest.mark.integration
-@pytest.mark.asyncio
+@pytest.mark.integration()
+@pytest.mark.asyncio()
 async def test_opa_ethical_guardrails_deny_low_confidence_critical(opa_client):
     """Testa se política OPA nega decisão crítica com baixa confiança"""
     input_data = {
@@ -120,8 +119,8 @@ async def test_opa_ethical_guardrails_deny_low_confidence_critical(opa_client):
     assert any(v.get("rule") == "low_confidence_critical_decision" for v in violations)
 
 
-@pytest.mark.integration
-@pytest.mark.asyncio
+@pytest.mark.integration()
+@pytest.mark.asyncio()
 async def test_opa_ethical_guardrails_high_risk_warning(opa_client):
     """Testa se política OPA gera warning para risco alto (mas aceitável)"""
     input_data = {
@@ -150,8 +149,8 @@ async def test_opa_ethical_guardrails_high_risk_warning(opa_client):
     assert any(w.get("rule") == "high_risk_warning" for w in warnings)
 
 
-@pytest.mark.integration
-@pytest.mark.asyncio
+@pytest.mark.integration()
+@pytest.mark.asyncio()
 async def test_opa_ethical_guardrails_resource_saturation_critical(opa_client):
     """Testa se política OPA detecta saturação crítica de recursos"""
     input_data = {
@@ -180,8 +179,8 @@ async def test_opa_ethical_guardrails_resource_saturation_critical(opa_client):
     assert any(v.get("rule") == "resource_saturation_critical" for v in violations)
 
 
-@pytest.mark.integration
-@pytest.mark.asyncio
+@pytest.mark.integration()
+@pytest.mark.asyncio()
 async def test_opa_ethical_guardrails_resource_saturation_ok_with_reallocation(opa_client):
     """Testa se política OPA permite saturação crítica quando ação é realocação"""
     input_data = {

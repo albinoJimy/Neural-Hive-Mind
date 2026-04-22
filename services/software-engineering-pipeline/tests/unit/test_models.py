@@ -1,18 +1,19 @@
+from datetime import UTC, datetime
+
 import pytest
-from datetime import datetime, timezone
-from src.models.schemas import (
-    PipelineProvider,
-    PipelineStatus,
-    PipelineStage,
-    InsightType,
-    Severity,
-)
 from src.models.pipeline import (
-    PipelineRun,
     DeployRequest,
-    RollbackRequest,
     Insight,
     InsightsReport,
+    PipelineRun,
+    RollbackRequest,
+)
+from src.models.schemas import (
+    InsightType,
+    PipelineProvider,
+    PipelineStage,
+    PipelineStatus,
+    Severity,
 )
 
 
@@ -121,8 +122,8 @@ def test_insight_model():
 
 
 def test_insights_report_model():
-    start = datetime(2026, 1, 1, tzinfo=timezone.utc)
-    end = datetime(2026, 1, 31, tzinfo=timezone.utc)
+    start = datetime(2026, 1, 1, tzinfo=UTC)
+    end = datetime(2026, 1, 31, tzinfo=UTC)
 
     insight = Insight(
         insight_id="insight-1",
@@ -150,8 +151,8 @@ def test_insights_report_model():
 
 
 def test_component_replicas_validation():
-    from src.models.schemas import Component
     from pydantic import ValidationError
+    from src.models.schemas import Component
 
     # Valid: replicas >= 0
     component = Component(name="api", image="api:latest", replicas=0)
@@ -207,8 +208,8 @@ def test_deploy_request_timeout_validation():
 
 
 def test_extra_fields_forbidden():
-    from src.models.schemas import Component
     from pydantic import ValidationError
+    from src.models.schemas import Component
 
     # Extra fields should raise error
     with pytest.raises(ValidationError):

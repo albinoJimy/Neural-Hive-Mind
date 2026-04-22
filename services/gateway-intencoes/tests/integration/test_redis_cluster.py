@@ -3,12 +3,12 @@ Testes de integração Redis Cluster
 Usa testcontainers para criar cluster Redis real
 """
 
-import pytest
 import asyncio
+
+import pytest
+from src.cache.redis_client import CircuitBreakerError, RedisClient
 from testcontainers.compose import DockerCompose
 from testcontainers.redis import RedisContainer
-
-from src.cache.redis_client import RedisClient, CircuitBreakerError
 
 
 @pytest.fixture(scope="session")
@@ -36,7 +36,7 @@ def redis_cluster():
             yield {"nodes": f"localhost:{redis.get_exposed_port(6379)}", "password": None}
 
 
-@pytest.fixture
+@pytest.fixture()
 def redis_client_config(redis_cluster):
     """Configuração do cliente Redis para testes"""
     from unittest.mock import Mock
@@ -52,7 +52,7 @@ def redis_client_config(redis_cluster):
     return settings
 
 
-@pytest.fixture
+@pytest.fixture()
 async def redis_client(redis_client_config):
     """Cliente Redis configurado para cluster de teste"""
     from unittest.mock import patch
@@ -70,7 +70,7 @@ async def redis_client(redis_client_config):
 class TestRedisClusterIntegration:
     """Testes de integração com Redis Cluster real"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_basic_operations(self, redis_client):
         """Testa operações básicas CRUD"""
         # Set
@@ -93,7 +93,7 @@ class TestRedisClusterIntegration:
         value = await redis_client.get("test_key")
         assert value is None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_json_serialization(self, redis_client):
         """Testa serialização/deserialização JSON"""
         test_data = {
@@ -110,7 +110,7 @@ class TestRedisClusterIntegration:
         assert retrieved == test_data
         assert isinstance(retrieved["metadata"]["roles"], list)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_ttl_expiration(self, redis_client):
         """Testa expiração TTL"""
         # Set com TTL curto
@@ -127,7 +127,7 @@ class TestRedisClusterIntegration:
         value = await redis_client.get("temp_key")
         assert value is None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_circuit_breaker_behavior(self, redis_client):
         """Testa comportamento do circuit breaker"""
         # Simular falhas forçando erro
@@ -158,7 +158,7 @@ class TestRedisClusterIntegration:
         # Restaurar redis original para cleanup
         redis_client.redis = original_redis
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_pipeline_operations(self, redis_client):
         """Testa operações em pipeline"""
         operations = [
@@ -183,7 +183,7 @@ class TestRedisClusterIntegration:
             # Isso é comportamento esperado
             pass
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_cache_statistics(self, redis_client):
         """Testa coleta de estatísticas"""
         # Gerar alguns hits e misses
@@ -199,7 +199,7 @@ class TestRedisClusterIntegration:
         assert stats["hit_ratio"] > 0
         assert "circuit_breaker_state" in stats
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_distributed_locking(self, redis_client):
         """Testa locks distribuídos"""
         lock_key = "test_lock"
@@ -219,7 +219,7 @@ class TestRedisClusterIntegration:
         exists = await redis_client.exists(lock_key)
         assert exists is False
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_concurrent_access(self, redis_client):
         """Testa acesso concorrente"""
 
@@ -246,7 +246,7 @@ class TestRedisClusterIntegration:
                 actual = await redis_client.get(key)
                 assert actual == expected
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_large_data_handling(self, redis_client):
         """Testa manipulação de dados grandes"""
         # Criar dados grandes (mas não muito para não sobrecarregar testes)
@@ -268,7 +268,7 @@ class TestRedisClusterIntegration:
         assert len(retrieved["array"]) == 1000
         assert retrieved["nested"]["level1"]["level2"]["level3"] == "deep_value"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_error_handling_and_recovery(self, redis_client):
         """Testa recuperação de erros"""
         # Operação normal
@@ -288,20 +288,18 @@ class TestRedisClusterIntegration:
 class TestRedisClusterFailover:
     """Testes específicos de failover e resiliência"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     @pytest.mark.skip(reason="Requer cluster Redis multi-node real")
     async def test_node_failover(self, redis_client):
         """Testa failover quando um node falha"""
         # Este teste requer um cluster Redis real com múltiplos nodes
         # Seria executado apenas em ambiente de integração completa
-        pass
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     @pytest.mark.skip(reason="Requer cluster Redis multi-node real")
     async def test_cluster_scaling(self, redis_client):
         """Testa adição/remoção de nodes do cluster"""
         # Este teste requer capacidade de modificar o cluster dinamicamente
-        pass
 
 
 # Configuração do Docker Compose para testes (seria em arquivo separado)

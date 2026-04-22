@@ -1,10 +1,11 @@
 """Testes para o script train_anomaly_detector.py."""
 
-import pytest
 import os
 import sys
-from unittest.mock import Mock, patch
 from datetime import datetime
+from unittest.mock import Mock, patch
+
+import pytest
 
 # Adicionar diretório de scripts ao path
 sys.path.insert(

@@ -5,7 +5,7 @@ Modelos estendidos para Insights Analyst Agents.
 import uuid
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from pydantic import BaseModel, Field
 
@@ -43,7 +43,7 @@ class InsightMetadata(BaseModel):
     source: InsightSource
     source_id: Optional[str] = None
     mcp_server: Optional[str] = None
-    mcp_tools: List[str] = Field(default_factory=list)
+    mcp_tools: list[str] = Field(default_factory=list)
     created_by: str = "system"
 
 
@@ -62,7 +62,7 @@ class TimeSeriesData(BaseModel):
     start_time: datetime
     end_time: datetime
     resolution: str  # "1m", "5m", "1h", "1d"
-    anomalies: List[Dict[str, Any]] = Field(default_factory=list)
+    anomalies: list[dict[str, Any]] = Field(default_factory=list)
     trend: str  # "increasing", "decreasing", "stable"
     seasonality: bool = False
 
@@ -82,9 +82,9 @@ class InsightCreate(BaseModel):
     analysis_type: AnalysisType
     title: str
     description: str
-    data: Dict[str, Any]
+    data: dict[str, Any]
     metadata: InsightMetadata
-    tags: List[str] = Field(default_factory=list)
+    tags: list[str] = Field(default_factory=list)
 
 
 class InsightResponse(BaseModel):
@@ -94,11 +94,11 @@ class InsightResponse(BaseModel):
     analysis_type: AnalysisType
     title: str
     description: str
-    data: Dict[str, Any]
+    data: dict[str, Any]
     metadata: InsightMetadata
     metrics: InsightMetrics
     timeseries: Optional[TimeSeriesData] = None
-    tags: List[str] = Field(default_factory=list)
+    tags: list[str] = Field(default_factory=list)
     status: InsightStatus = InsightStatus.PENDING
     created_at: datetime = Field(default_factory=datetime.utcnow)
     expires_at: Optional[datetime] = None
@@ -107,7 +107,7 @@ class InsightResponse(BaseModel):
 class InsightListResponse(BaseModel):
     """Schema de listagem de insights."""
 
-    items: List[InsightResponse]
+    items: list[InsightResponse]
     total: int
     limit: int
     offset: int
@@ -117,8 +117,8 @@ class AnalyticsQueryRequest(BaseModel):
     """Request para nova análise."""
 
     analysis_type: AnalysisType
-    target: Dict[str, Any]
-    parameters: Dict[str, Any] = Field(default_factory=dict)
+    target: dict[str, Any]
+    parameters: dict[str, Any] = Field(default_factory=dict)
 
 
 class AnalyticsQueryResponse(BaseModel):
@@ -143,10 +143,10 @@ class TimeSeriesResponse(BaseModel):
     """Response de série temporal."""
 
     metric_name: str
-    time_range: Dict[str, datetime]
+    time_range: dict[str, datetime]
     resolution: str
-    data: List[Dict[str, Any]]
-    statistics: Dict[str, float]
+    data: list[dict[str, Any]]
+    statistics: dict[str, float]
 
 
 class AnomalyDetectionQuery(BaseModel):
@@ -165,20 +165,20 @@ class AnomalyDetectionResponse(BaseModel):
     metric_name: str
     method: str
     threshold: float
-    anomalies: List[AnomalyPoint]
-    summary: Dict[str, int]
+    anomalies: list[AnomalyPoint]
+    summary: dict[str, int]
 
 
 class DashboardData(BaseModel):
     """Dados agregados para dashboard."""
 
     time_range: str
-    insights_by_type: Dict[str, int]
+    insights_by_type: dict[str, int]
     anomalies_detected: int
     avg_processing_time_ms: float
-    confidence_distribution: Dict[str, int]
-    top_sources: List[Dict[str, Any]]
-    recent_insights: List[InsightResponse]
+    confidence_distribution: dict[str, int]
+    top_sources: list[dict[str, Any]]
+    recent_insights: list[InsightResponse]
 
 
 class TimeSeriesCacheEntry(BaseModel):
@@ -186,7 +186,7 @@ class TimeSeriesCacheEntry(BaseModel):
 
     cache_key: str
     metric_name: str
-    data: List[Dict[str, Any]]
-    statistics: Dict[str, float]
+    data: list[dict[str, Any]]
+    statistics: dict[str, float]
     created_at: datetime = Field(default_factory=datetime.utcnow)
     expires_at: Optional[datetime] = None

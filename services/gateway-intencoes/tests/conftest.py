@@ -1,9 +1,9 @@
 """Configurações compartilhadas para os testes"""
 
-import sys
 import os
-from unittest.mock import MagicMock
+import sys
 from enum import Enum
+from unittest.mock import MagicMock
 
 
 # Mock UnifiedDomain Enum before importing
@@ -71,17 +71,18 @@ sys.modules["neural_hive_integration"] = MagicMock()
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 import asyncio
-import pytest
+from datetime import UTC
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock
-from typing import Dict, Any
 
+import pytest
+from kafka.producer import KafkaIntentProducer
 from models.intent_envelope import IntentEnvelope, IntentRequest
 from pipelines.asr_pipeline import ASRPipeline, ASRResult
-from pipelines.nlu_pipeline import NLUPipeline, NLUResult, Entity
-from kafka.producer import KafkaIntentProducer
+from pipelines.nlu_pipeline import Entity, NLUPipeline, NLUResult
 
 
-@pytest.fixture
+@pytest.fixture()
 def event_loop():
     """Create an instance of the default event loop for the test session."""
     loop = asyncio.get_event_loop_policy().new_event_loop()
@@ -89,7 +90,7 @@ def event_loop():
     loop.close()
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_asr_pipeline() -> AsyncMock:
     """Mock do pipeline ASR"""
     mock = AsyncMock(spec=ASRPipeline)
@@ -111,7 +112,7 @@ def mock_asr_pipeline() -> AsyncMock:
     return mock
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_nlu_pipeline() -> AsyncMock:
     """Mock do pipeline NLU"""
     mock = AsyncMock(spec=NLUPipeline)
@@ -135,7 +136,7 @@ def mock_nlu_pipeline() -> AsyncMock:
     return mock
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_kafka_producer() -> AsyncMock:
     """Mock do producer Kafka"""
     mock = AsyncMock(spec=KafkaIntentProducer)
@@ -149,7 +150,7 @@ def mock_kafka_producer() -> AsyncMock:
     return mock
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_intent_request() -> IntentRequest:
     """Request de intenção de exemplo"""
     return IntentRequest(
@@ -159,8 +160,8 @@ def sample_intent_request() -> IntentRequest:
     )
 
 
-@pytest.fixture
-def sample_user_context() -> Dict[str, Any]:
+@pytest.fixture()
+def sample_user_context() -> dict[str, Any]:
     """Contexto do usuário de exemplo"""
     return {
         "userId": "user-123",
@@ -170,10 +171,10 @@ def sample_user_context() -> Dict[str, Any]:
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_intent_envelope(sample_user_context) -> IntentEnvelope:
     """Envelope de intenção de exemplo"""
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     return IntentEnvelope(
         id="intent-123",
@@ -202,11 +203,11 @@ def sample_intent_envelope(sample_user_context) -> IntentEnvelope:
         },
         confidence=0.85,
         context=sample_user_context,
-        timestamp=datetime.now(timezone.utc),
+        timestamp=datetime.now(UTC),
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def audio_file_mock():
     """Mock de arquivo de áudio"""
     mock = MagicMock()
@@ -216,7 +217,7 @@ def audio_file_mock():
     return mock
 
 
-@pytest.fixture
+@pytest.fixture()
 def settings_override():
     """Override das configurações para testes"""
     from config.settings import Settings

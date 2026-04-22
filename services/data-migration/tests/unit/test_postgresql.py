@@ -62,9 +62,7 @@ class TestPostgreSQLClient:
 
     def test_initialization_without_password(self):
         """Verifica inicialização sem senha."""
-        client = PostgreSQLClient(
-            host="localhost", port=5432, database="legacy_db", user="user"
-        )
+        client = PostgreSQLClient(host="localhost", port=5432, database="legacy_db", user="user")
 
         assert client.dsn == "postgresql://user@localhost:5432/legacy_db"
 

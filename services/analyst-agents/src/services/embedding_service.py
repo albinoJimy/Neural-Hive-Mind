@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional
+from typing import Optional
 
 import faiss
 import numpy as np
@@ -61,8 +61,8 @@ class EmbeddingService:
             return None
 
     async def batch_generate_embeddings(
-        self, texts: List[str], use_cache: bool = True
-    ) -> List[np.ndarray]:
+        self, texts: list[str], use_cache: bool = True
+    ) -> list[np.ndarray]:
         """Gerar embeddings em lote"""
         try:
             if not self.model:
@@ -112,7 +112,7 @@ class EmbeddingService:
             logger.error("batch_generate_embeddings_failed", error=str(e))
             return []
 
-    async def build_index(self, texts: List[str]) -> bool:
+    async def build_index(self, texts: list[str]) -> bool:
         """Construir índice FAISS para busca rápida"""
         try:
             if not self.model:
@@ -139,7 +139,7 @@ class EmbeddingService:
 
     async def search_similar(
         self, query_text: str, top_k: int = 5, threshold: float = 0.7
-    ) -> List[Dict]:
+    ) -> list[dict]:
         """Buscar textos similares"""
         try:
             if not self.index or not self.indexed_texts:
@@ -201,8 +201,8 @@ class EmbeddingService:
             return 0.0
 
     async def cluster_texts(
-        self, texts: List[str], eps: float = 0.5, min_samples: int = 2
-    ) -> List[Dict]:
+        self, texts: list[str], eps: float = 0.5, min_samples: int = 2
+    ) -> list[dict]:
         """Agrupar textos similares usando DBSCAN"""
         try:
             if not texts:
@@ -250,8 +250,8 @@ class EmbeddingService:
             return []
 
     async def detect_semantic_drift(
-        self, baseline_texts: List[str], current_texts: List[str], threshold: float = 0.3
-    ) -> Dict:
+        self, baseline_texts: list[str], current_texts: list[str], threshold: float = 0.3
+    ) -> dict:
         """Detectar drift semântico entre duas coleções de textos"""
         try:
             if not baseline_texts or not current_texts:
@@ -304,8 +304,8 @@ class EmbeddingService:
             return {"drift_detected": False, "error": str(e)}
 
     async def find_outliers(
-        self, texts: List[str], threshold_percentile: float = 95.0
-    ) -> List[Dict]:
+        self, texts: list[str], threshold_percentile: float = 95.0
+    ) -> list[dict]:
         """Encontrar textos outliers (semanticamente distantes)"""
         try:
             if len(texts) < 3:

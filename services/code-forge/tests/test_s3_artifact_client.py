@@ -1,17 +1,18 @@
 """Testes unitários para S3ArtifactClient"""
 
-import pytest
-from unittest.mock import MagicMock, patch
-import sys
 import os
+import sys
 import tempfile
+from unittest.mock import MagicMock, patch
+
+import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from src.clients.s3_artifact_client import S3ArtifactClient
 
 
-@pytest.fixture
+@pytest.fixture()
 def s3_client():
     """Fixture para S3ArtifactClient com mock boto3"""
     with patch.dict("sys.modules", {"boto3": MagicMock(), "botocore.config": MagicMock()}):
@@ -21,7 +22,7 @@ def s3_client():
         return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_boto3_client():
     """Mock do cliente boto3"""
     mock_client = MagicMock()
@@ -58,7 +59,7 @@ def mock_boto3_client():
     return mock_client
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_upload_sbom_success(s3_client, mock_boto3_client):
     """Testar upload de SBOM com sucesso"""
     s3_client._s3_client = mock_boto3_client
@@ -78,7 +79,7 @@ async def test_upload_sbom_success(s3_client, mock_boto3_client):
         os.unlink(temp_path)
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_upload_sbom_with_encryption(s3_client, mock_boto3_client):
     """Testar upload de SBOM com encryption AES256"""
     s3_client._s3_client = mock_boto3_client
@@ -99,7 +100,7 @@ async def test_upload_sbom_with_encryption(s3_client, mock_boto3_client):
         os.unlink(temp_path)
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_upload_artifact_success(s3_client, mock_boto3_client):
     """Testar upload de artefato com sucesso"""
     s3_client._s3_client = mock_boto3_client
@@ -118,7 +119,7 @@ async def test_upload_artifact_success(s3_client, mock_boto3_client):
         os.unlink(temp_path)
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_upload_sbom_failure(s3_client, mock_boto3_client):
     """Testar falha de upload de SBOM"""
     mock_boto3_client.upload_file.side_effect = Exception("Upload failed")
@@ -137,7 +138,7 @@ async def test_upload_sbom_failure(s3_client, mock_boto3_client):
         os.unlink(temp_path)
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_download_sbom_success(s3_client, mock_boto3_client):
     """Testar download de SBOM com sucesso"""
     s3_client._s3_client = mock_boto3_client
@@ -154,7 +155,7 @@ async def test_download_sbom_success(s3_client, mock_boto3_client):
         mock_boto3_client.download_file.assert_called_once()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_download_sbom_invalid_uri(s3_client):
     """Testar download com URI inválida"""
     result = await s3_client.download_sbom(
@@ -164,7 +165,7 @@ async def test_download_sbom_invalid_uri(s3_client):
     assert result is False
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_download_sbom_failure(s3_client, mock_boto3_client):
     """Testar falha de download"""
     mock_boto3_client.download_file.side_effect = Exception("Download failed")
@@ -177,7 +178,7 @@ async def test_download_sbom_failure(s3_client, mock_boto3_client):
     assert result is False
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_get_sbom_metadata_success(s3_client, mock_boto3_client):
     """Testar obtenção de metadados"""
     s3_client._s3_client = mock_boto3_client
@@ -189,7 +190,7 @@ async def test_get_sbom_metadata_success(s3_client, mock_boto3_client):
     assert "metadata" in result
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_get_sbom_metadata_invalid_uri(s3_client):
     """Testar metadados com URI inválida"""
     result = await s3_client.get_sbom_metadata(sbom_uri="invalid-uri")
@@ -197,7 +198,7 @@ async def test_get_sbom_metadata_invalid_uri(s3_client):
     assert result == {}
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_list_sboms_success(s3_client, mock_boto3_client):
     """Testar listagem de SBOMs"""
     s3_client._s3_client = mock_boto3_client
@@ -208,7 +209,7 @@ async def test_list_sboms_success(s3_client, mock_boto3_client):
     assert result[0]["key"] == "sboms/ticket1/artifact1/sbom.json"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_list_sboms_empty(s3_client, mock_boto3_client):
     """Testar listagem vazia"""
     mock_boto3_client.list_objects_v2.return_value = {}
@@ -219,7 +220,7 @@ async def test_list_sboms_empty(s3_client, mock_boto3_client):
     assert result == []
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_delete_sbom_success(s3_client, mock_boto3_client):
     """Testar deleção de SBOM"""
     s3_client._s3_client = mock_boto3_client
@@ -230,7 +231,7 @@ async def test_delete_sbom_success(s3_client, mock_boto3_client):
     mock_boto3_client.delete_object.assert_called_once()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_delete_sbom_invalid_uri(s3_client):
     """Testar deleção com URI inválida"""
     result = await s3_client.delete_sbom(sbom_uri="invalid-uri")
@@ -238,7 +239,7 @@ async def test_delete_sbom_invalid_uri(s3_client):
     assert result is False
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_verify_sbom_integrity_success(s3_client, mock_boto3_client):
     """Testar verificação de integridade"""
     s3_client._s3_client = mock_boto3_client
@@ -268,7 +269,7 @@ async def test_verify_sbom_integrity_success(s3_client, mock_boto3_client):
         os.unlink(temp_path)
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_verify_sbom_integrity_mismatch(s3_client, mock_boto3_client):
     """Testar verificação de integridade com mismatch"""
     s3_client._s3_client = mock_boto3_client
@@ -295,7 +296,7 @@ async def test_verify_sbom_integrity_mismatch(s3_client, mock_boto3_client):
         os.unlink(temp_path)
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_health_check_success(s3_client, mock_boto3_client):
     """Testar health check com sucesso"""
     s3_client._s3_client = mock_boto3_client
@@ -306,7 +307,7 @@ async def test_health_check_success(s3_client, mock_boto3_client):
     mock_boto3_client.head_bucket.assert_called_once_with(Bucket="test-bucket")
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_health_check_failure(s3_client, mock_boto3_client):
     """Testar health check com falha"""
     mock_boto3_client.head_bucket.side_effect = Exception("Bucket not found")

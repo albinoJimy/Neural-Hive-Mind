@@ -1,13 +1,14 @@
 import sys
 import types
-import pytest
 
+import pytest
 from opentelemetry import trace
 from opentelemetry.baggage import set_baggage
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 
+from neural_hive_observability import tracing
 from neural_hive_observability.config import ObservabilityConfig
 from neural_hive_observability.kafka_instrumentation import (
     InstrumentedAIOKafkaConsumer,
@@ -15,7 +16,6 @@ from neural_hive_observability.kafka_instrumentation import (
     instrument_kafka_consumer,
     instrument_kafka_producer,
 )
-import neural_hive_observability.tracing as tracing
 
 
 def _setup_tracer():
@@ -130,7 +130,7 @@ class DummyAIOKafkaConsumer:
         return None
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_instrumented_aiokafka_consumer_extracts_context():
     """Test that AIOKafka consumer extracts context from headers."""
     tracer, exporter = _setup_tracer()
@@ -219,7 +219,8 @@ def test_instrument_kafka_wrapper_detection_for_aiokafka():
 # ============================================================================
 
 import logging
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
+
 from neural_hive_observability.kafka_instrumentation import (
     InstrumentedAIOKafkaProducer,
 )

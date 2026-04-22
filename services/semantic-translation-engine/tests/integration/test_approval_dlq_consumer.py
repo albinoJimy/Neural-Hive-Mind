@@ -4,20 +4,20 @@ Testes de integração para Approval DLQ Consumer e DLQ Reprocessor
 Valida o fluxo completo de reprocessamento de mensagens da Dead Letter Queue.
 """
 
-import pytest
 import json
-from datetime import datetime, timezone, timedelta
-from unittest.mock import MagicMock, AsyncMock, patch
+from datetime import UTC, datetime, timedelta
+from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
 from src.consumers.approval_dlq_consumer import ApprovalDLQConsumer
-from src.services.dlq_reprocessor import DLQReprocessor
 from src.models.approval_dlq import ApprovalDLQEntry
+from src.services.dlq_reprocessor import DLQReprocessor
 
 
 class TestDLQConsumerBackoffCalculation:
     """Testes para cálculo de backoff progressivo no DLQ consumer"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_settings(self):
         """Settings mockado para testes de backoff"""
         settings = MagicMock()
@@ -63,7 +63,7 @@ class TestDLQConsumerBackoffCalculation:
 class TestDLQConsumerMessageDeserialization:
     """Testes para deserialização de mensagens DLQ"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_settings(self):
         """Settings mockado"""
         settings = MagicMock()
@@ -77,7 +77,7 @@ class TestDLQConsumerMessageDeserialization:
         settings.dlq_backoff_base_minutes = 2
         return settings
 
-    @pytest.fixture
+    @pytest.fixture()
     def valid_dlq_message_data(self):
         """Dados válidos de mensagem DLQ"""
         return {
@@ -90,9 +90,9 @@ class TestDLQConsumerMessageDeserialization:
                 "intent_id": "intent-dlq-001",
                 "decision": "approved",
                 "approved_by": "admin@company.com",
-                "approved_at": int(datetime.now(timezone.utc).timestamp() * 1000),
+                "approved_at": int(datetime.now(UTC).timestamp() * 1000),
             },
-            "failed_at": int(datetime.now(timezone.utc).timestamp() * 1000),
+            "failed_at": int(datetime.now(UTC).timestamp() * 1000),
             "correlation_id": "corr-dlq-001",
             "trace_id": "trace-dlq-001",
             "span_id": "span-dlq-001",
@@ -150,7 +150,7 @@ class TestDLQConsumerMessageDeserialization:
 class TestDLQConsumerHealthCheck:
     """Testes para health check do DLQ consumer"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_settings(self):
         """Settings mockado"""
         settings = MagicMock()
@@ -232,7 +232,7 @@ class TestDLQConsumerHealthCheck:
 class TestDLQReprocessorIntegration:
     """Testes de integração para DLQReprocessor"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_settings(self):
         """Settings mockado"""
         settings = MagicMock()
@@ -242,14 +242,14 @@ class TestDLQReprocessorIntegration:
         settings.dlq_max_retry_count = 10
         return settings
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_mongodb_client(self):
         """MongoDB client mockado"""
         client = MagicMock()
         client.update_plan_dlq_status = AsyncMock(return_value=True)
         return client
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_metrics(self):
         """Métricas mockadas"""
         metrics = MagicMock()
@@ -258,7 +258,7 @@ class TestDLQReprocessorIntegration:
         metrics.increment_dlq_permanently_failed = MagicMock()
         return metrics
 
-    @pytest.fixture
+    @pytest.fixture()
     def sample_dlq_entry(self):
         """Entrada DLQ de exemplo"""
         return ApprovalDLQEntry(
@@ -271,9 +271,9 @@ class TestDLQReprocessorIntegration:
                 "intent_id": "intent-reprocess-001",
                 "decision": "approved",
                 "approved_by": "admin@company.com",
-                "approved_at": int(datetime.now(timezone.utc).timestamp() * 1000),
+                "approved_at": int(datetime.now(UTC).timestamp() * 1000),
             },
-            failed_at=datetime.now(timezone.utc) - timedelta(minutes=30),
+            failed_at=datetime.now(UTC) - timedelta(minutes=30),
             correlation_id="corr-reprocess-001",
             trace_id="trace-reprocess-001",
             span_id="span-reprocess-001",
@@ -281,7 +281,7 @@ class TestDLQReprocessorIntegration:
             is_destructive=True,
         )
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     @patch("src.services.dlq_reprocessor.Producer")
     async def test_reprocess_dlq_entry_success(
         self,
@@ -313,7 +313,7 @@ class TestDLQReprocessorIntegration:
         mock_producer.flush.assert_called_once()
         mock_metrics.increment_dlq_reprocessed.assert_called_once_with("success", "high")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     @patch("src.services.dlq_reprocessor.Producer")
     async def test_reprocess_dlq_entry_exceeds_max_retries(
         self,
@@ -344,7 +344,7 @@ class TestDLQReprocessorIntegration:
         mock_metrics.increment_dlq_permanently_failed.assert_called_once_with("high")
         mock_mongodb_client.update_plan_dlq_status.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     @patch("src.services.dlq_reprocessor.Producer")
     async def test_reprocess_dlq_entry_producer_failure(
         self,
@@ -375,7 +375,7 @@ class TestDLQReprocessorIntegration:
 class TestDLQReprocessorMessageValidation:
     """Testes para validação de mensagens no DLQReprocessor"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_settings(self):
         """Settings mockado"""
         settings = MagicMock()
@@ -385,19 +385,19 @@ class TestDLQReprocessorMessageValidation:
         settings.dlq_max_retry_count = 10
         return settings
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_mongodb_client(self):
         """MongoDB client mockado"""
         return MagicMock()
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_metrics(self):
         """Métricas mockadas"""
         metrics = MagicMock()
         metrics.increment_dlq_reprocess_failure = MagicMock()
         return metrics
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     @patch("src.services.dlq_reprocessor.Producer")
     async def test_reprocess_validates_required_fields(
         self, mock_producer_class, mock_settings, mock_mongodb_client, mock_metrics
@@ -415,7 +415,7 @@ class TestDLQReprocessorMessageValidation:
             original_approval_response={
                 # Missing: plan_id, intent_id, decision
             },
-            failed_at=datetime.now(timezone.utc),
+            failed_at=datetime.now(UTC),
         )
 
         reprocessor = DLQReprocessor(
@@ -432,7 +432,7 @@ class TestDLQReprocessorMessageValidation:
 class TestDLQConsumerReprocessorIntegration:
     """Testes de integração entre DLQ Consumer e DLQ Reprocessor"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_settings(self):
         """Settings mockado completo"""
         settings = MagicMock()
@@ -447,7 +447,7 @@ class TestDLQConsumerReprocessorIntegration:
         settings.dlq_backoff_base_minutes = 2
         return settings
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_consumer_calls_reprocessor_callback(self, mock_settings):
         """Consumer deve chamar callback do reprocessor corretamente"""
         consumer = ApprovalDLQConsumer(mock_settings)
@@ -463,7 +463,7 @@ class TestDLQConsumerReprocessorIntegration:
                 "intent_id": "intent-callback-001",
                 "decision": "approved",
             },
-            failed_at=datetime.now(timezone.utc)
+            failed_at=datetime.now(UTC)
             - timedelta(hours=1),  # Suficiente para passar backoff
             correlation_id="corr-callback-001",
         )
@@ -488,7 +488,7 @@ class TestDLQReprocessorRetryCountIncrement:
     e a entrada é republicada na DLQ para controle de max retries.
     """
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_settings(self):
         """Settings mockado"""
         settings = MagicMock()
@@ -498,14 +498,14 @@ class TestDLQReprocessorRetryCountIncrement:
         settings.dlq_max_retry_count = 5
         return settings
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_mongodb_client(self):
         """MongoDB client mockado"""
         client = MagicMock()
         client.update_plan_dlq_status = AsyncMock(return_value=True)
         return client
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_metrics(self):
         """Métricas mockadas"""
         metrics = MagicMock()
@@ -514,14 +514,14 @@ class TestDLQReprocessorRetryCountIncrement:
         metrics.increment_dlq_permanently_failed = MagicMock()
         return metrics
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_dlq_producer(self):
         """DLQ producer mockado"""
         producer = MagicMock()
         producer.send_dlq_entry = AsyncMock()
         return producer
 
-    @pytest.fixture
+    @pytest.fixture()
     def sample_dlq_entry(self):
         """Entrada DLQ de exemplo"""
         return ApprovalDLQEntry(
@@ -534,15 +534,15 @@ class TestDLQReprocessorRetryCountIncrement:
                 "intent_id": "intent-retry-001",
                 "decision": "approved",
                 "approved_by": "admin@company.com",
-                "approved_at": int(datetime.now(timezone.utc).timestamp() * 1000),
+                "approved_at": int(datetime.now(UTC).timestamp() * 1000),
             },
-            failed_at=datetime.now(timezone.utc) - timedelta(minutes=30),
+            failed_at=datetime.now(UTC) - timedelta(minutes=30),
             correlation_id="corr-retry-001",
             risk_band="high",
             is_destructive=True,
         )
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     @patch("src.services.dlq_reprocessor.Producer")
     async def test_reprocess_failure_republishes_to_dlq_with_incremented_retry_count(
         self,
@@ -583,7 +583,7 @@ class TestDLQReprocessorRetryCountIncrement:
         assert republished_entry.retry_count == sample_dlq_entry.retry_count + 1
         assert "[REPROCESS_FAILED]" in republished_entry.failure_reason
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     @patch("src.services.dlq_reprocessor.Producer")
     async def test_reprocess_failure_triggers_permanent_failure_when_max_exceeded(
         self,
@@ -611,7 +611,7 @@ class TestDLQReprocessorRetryCountIncrement:
                 "intent_id": "intent-max-retry-001",
                 "decision": "approved",
             },
-            failed_at=datetime.now(timezone.utc) - timedelta(hours=1),
+            failed_at=datetime.now(UTC) - timedelta(hours=1),
             risk_band="critical",
         )
 
@@ -637,7 +637,7 @@ class TestDLQReprocessorRetryCountIncrement:
         # Deve atualizar MongoDB
         mock_mongodb_client.update_plan_dlq_status.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     @patch("src.services.dlq_reprocessor.Producer")
     async def test_reprocess_failure_without_dlq_producer_returns_false(
         self,
@@ -677,7 +677,7 @@ class TestApprovalSagaDLQIntegration:
     incrementa as métricas correspondentes.
     """
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_mongodb_client(self):
         """MongoDB client mockado"""
         client = MagicMock()
@@ -686,21 +686,21 @@ class TestApprovalSagaDLQIntegration:
         client.update_plan_saga_state = AsyncMock(return_value=True)
         return client
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_plan_producer_failing(self):
         """Plan producer que sempre falha"""
         producer = MagicMock()
         producer.send_plan = AsyncMock(side_effect=Exception("Kafka broker unavailable"))
         return producer
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_dlq_producer(self):
         """DLQ producer mockado"""
         producer = MagicMock()
         producer.send_dlq_entry = AsyncMock()
         return producer
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_metrics(self):
         """Métricas mockadas"""
         metrics = MagicMock()
@@ -711,7 +711,7 @@ class TestApprovalSagaDLQIntegration:
         metrics.increment_saga_compensation_failure = MagicMock()
         return metrics
 
-    @pytest.fixture
+    @pytest.fixture()
     def sample_cognitive_plan(self):
         """Plano cognitivo de exemplo para testes de integração"""
         from src.models.cognitive_plan import CognitivePlan
@@ -732,7 +732,7 @@ class TestApprovalSagaDLQIntegration:
             original_security_level="confidential",
         )
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_saga_sends_dlq_entry_after_kafka_retries_exhausted(
         self,
         mock_mongodb_client,
@@ -766,7 +766,7 @@ class TestApprovalSagaDLQIntegration:
                     plan_id="plan-dlq-integration-001",
                     intent_id="intent-dlq-integration-001",
                     approved_by="admin@company.com",
-                    approved_at=datetime.now(timezone.utc),
+                    approved_at=datetime.now(UTC),
                     cognitive_plan=sample_cognitive_plan,
                     trace_context=trace_context,
                     risk_band="high",
@@ -794,7 +794,7 @@ class TestApprovalSagaDLQIntegration:
             reason="saga_compensation", risk_band="high", is_destructive=True
         )
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_saga_dlq_entry_contains_original_approval_response(
         self,
         mock_mongodb_client,
@@ -819,7 +819,7 @@ class TestApprovalSagaDLQIntegration:
             metrics=mock_metrics,
         )
 
-        approved_at = datetime.now(timezone.utc)
+        approved_at = datetime.now(UTC)
         trace_context = {
             "correlation_id": "corr-original-response-001",
             "trace_id": "trace-original-001",
@@ -854,7 +854,7 @@ class TestApprovalSagaDLQIntegration:
         assert dlq_entry.trace_id == "trace-original-001"
         assert dlq_entry.span_id == "span-original-001"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_saga_compensation_failure_still_sends_to_dlq(
         self, mock_plan_producer_failing, mock_dlq_producer, mock_metrics, sample_cognitive_plan
     ):
@@ -886,7 +886,7 @@ class TestApprovalSagaDLQIntegration:
                     plan_id="plan-dlq-integration-001",
                     intent_id="intent-dlq-integration-001",
                     approved_by="admin@company.com",
-                    approved_at=datetime.now(timezone.utc),
+                    approved_at=datetime.now(UTC),
                     cognitive_plan=sample_cognitive_plan,
                     trace_context={},
                     risk_band="critical",

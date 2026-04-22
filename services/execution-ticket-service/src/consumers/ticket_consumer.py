@@ -6,8 +6,9 @@ import asyncio
 import json
 import time
 import uuid
+from collections.abc import Callable
 from pathlib import Path
-from typing import TYPE_CHECKING, Callable, Optional
+from typing import TYPE_CHECKING, Optional
 
 import structlog
 from confluent_kafka import Consumer, KafkaError

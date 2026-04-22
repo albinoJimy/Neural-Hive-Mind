@@ -5,15 +5,16 @@ Estes testes garantem que a estrutura de request/response está em conformidade
 com o arquivo proto specialist.proto e com a versão 2.0.0 do schema.
 """
 
-import pytest
-import grpc
-import uuid
 import json
+import uuid
+
+import grpc
+import pytest
 
 from neural_hive_specialists.proto_gen import specialist_pb2
 
 
-@pytest.mark.contract
+@pytest.mark.contract()
 def test_evaluate_plan_full_opinion_structure(grpc_stub, sample_cognitive_plan):
     """Valida estrutura completa de SpecialistOpinion incluindo campos novos."""
     cognitive_plan_json = json.dumps(sample_cognitive_plan)
@@ -58,7 +59,7 @@ def test_evaluate_plan_full_opinion_structure(grpc_stub, sample_cognitive_plan):
     assert hasattr(opinion.metadata, "get")
 
 
-@pytest.mark.contract
+@pytest.mark.contract()
 def test_evaluate_plan_explainability_structure(grpc_stub, sample_cognitive_plan):
     """Valida estrutura de explainability no opinion."""
     cognitive_plan_json = json.dumps(sample_cognitive_plan)
@@ -106,7 +107,7 @@ def test_evaluate_plan_explainability_structure(grpc_stub, sample_cognitive_plan
             ]
 
 
-@pytest.mark.contract
+@pytest.mark.contract()
 def test_evaluate_plan_reasoning_factors_validation(grpc_stub, sample_cognitive_plan):
     """Valida estrutura e valores de reasoning_factors."""
     cognitive_plan_json = json.dumps(sample_cognitive_plan)
@@ -135,7 +136,7 @@ def test_evaluate_plan_reasoning_factors_validation(grpc_stub, sample_cognitive_
         assert isinstance(factor.description, str)
 
 
-@pytest.mark.contract
+@pytest.mark.contract()
 def test_evaluate_plan_mitigations_validation(grpc_stub, sample_cognitive_plan):
     """Valida estrutura e valores de mitigations."""
     cognitive_plan_json = json.dumps(sample_cognitive_plan)
@@ -177,7 +178,7 @@ def test_evaluate_plan_mitigations_validation(grpc_stub, sample_cognitive_plan):
             assert isinstance(action, str)
 
 
-@pytest.mark.contract
+@pytest.mark.contract()
 def test_health_check_all_status_values(grpc_stub):
     """Valida que HealthCheck retorna valores válidos."""
     request = specialist_pb2.HealthCheckRequest(service_name="test-specialist")
@@ -197,7 +198,7 @@ def test_health_check_all_status_values(grpc_stub):
     assert hasattr(response.details, "get")
 
 
-@pytest.mark.contract
+@pytest.mark.contract()
 def test_get_capabilities_complete_structure(grpc_stub):
     """Valida estrutura completa de GetCapabilities."""
     request = specialist_pb2.GetCapabilitiesRequest()
@@ -256,7 +257,7 @@ def test_get_capabilities_complete_structure(grpc_stub):
             assert metrics.last_model_update.seconds > 0
 
 
-@pytest.mark.contract
+@pytest.mark.contract()
 def test_evaluate_plan_request_all_fields(grpc_stub, sample_cognitive_plan):
     """Valida que todos os campos do request são processados."""
     trace_id = f"trace-{uuid.uuid4()}"
@@ -288,7 +289,7 @@ def test_evaluate_plan_request_all_fields(grpc_stub, sample_cognitive_plan):
     assert response.opinion_id
 
 
-@pytest.mark.contract
+@pytest.mark.contract()
 def test_evaluate_plan_context_propagation(grpc_stub, sample_cognitive_plan):
     """Valida que contexto adicional é propagado corretamente."""
     cognitive_plan_json = json.dumps(sample_cognitive_plan)
@@ -313,7 +314,7 @@ def test_evaluate_plan_context_propagation(grpc_stub, sample_cognitive_plan):
     assert response.opinion_id
 
 
-@pytest.mark.contract
+@pytest.mark.contract()
 def test_evaluate_plan_timestamp_validity(grpc_stub, sample_cognitive_plan):
     """Valida que timestamp retornado é válido e recente."""
     import time
@@ -342,7 +343,7 @@ def test_evaluate_plan_timestamp_validity(grpc_stub, sample_cognitive_plan):
     assert before_time - 60 <= evaluated_seconds <= after_time + 60
 
 
-@pytest.mark.contract
+@pytest.mark.contract()
 def test_evaluate_plan_response_metadata(grpc_stub, sample_cognitive_plan):
     """Valida metadados da resposta."""
     cognitive_plan_json = json.dumps(sample_cognitive_plan)
@@ -370,7 +371,7 @@ def test_evaluate_plan_response_metadata(grpc_stub, sample_cognitive_plan):
     assert isinstance(response.processing_time_ms, int)
 
 
-@pytest.mark.contract
+@pytest.mark.contract()
 def test_evaluate_plan_error_handling_empty_plan(grpc_stub):
     """Valida tratamento de erro para plano vazio."""
     empty_plan = {
@@ -399,7 +400,7 @@ def test_evaluate_plan_error_handling_empty_plan(grpc_stub):
     ]
 
 
-@pytest.mark.contract
+@pytest.mark.contract()
 def test_evaluate_plan_error_handling_malformed_json(grpc_stub):
     """Valida tratamento de erro para JSON malformado."""
     invalid_json_bytes = b'{"invalid": json}'
@@ -416,7 +417,7 @@ def test_evaluate_plan_error_handling_malformed_json(grpc_stub):
     assert response.opinion_id
 
 
-@pytest.mark.contract
+@pytest.mark.contract()
 def test_grpc_interceptor_metadata_propagation(grpc_stub, sample_cognitive_plan):
     """Valida que metadados gRPC são propagados através de interceptors."""
     cognitive_plan_json = json.dumps(sample_cognitive_plan)
@@ -442,7 +443,7 @@ def test_grpc_interceptor_metadata_propagation(grpc_stub, sample_cognitive_plan)
     assert response.opinion_id
 
 
-@pytest.mark.contract
+@pytest.mark.contract()
 def test_multiple_sequential_requests(grpc_stub, sample_cognitive_plan):
     """Valida que múltiplas requisições sequenciais funcionam corretamente."""
     cognitive_plan_json = json.dumps(sample_cognitive_plan)
@@ -471,7 +472,7 @@ def test_multiple_sequential_requests(grpc_stub, sample_cognitive_plan):
         ]
 
 
-@pytest.mark.contract
+@pytest.mark.contract()
 def test_response_size_limits(grpc_stub, sample_cognitive_plan):
     """Valida que tamanho da resposta está dentro dos limites gRPC."""
     cognitive_plan_json = json.dumps(sample_cognitive_plan)
@@ -491,7 +492,7 @@ def test_response_size_limits(grpc_stub, sample_cognitive_plan):
     assert response_size < 1_000_000  # < 1MB
 
 
-@pytest.mark.contract
+@pytest.mark.contract()
 def test_plan_version_compatibility(grpc_stub, sample_cognitive_plan):
     """Valida compatibilidade com diferentes versões de plano."""
     supported_versions = ["1.0.0", "1.1.0", "2.0.0"]
@@ -514,7 +515,7 @@ def test_plan_version_compatibility(grpc_stub, sample_cognitive_plan):
         assert response.opinion_id
 
 
-@pytest.mark.contract
+@pytest.mark.contract()
 def test_timeout_handling(grpc_stub, sample_cognitive_plan):
     """Valida que timeout é respeitado."""
     cognitive_plan_json = json.dumps(sample_cognitive_plan)

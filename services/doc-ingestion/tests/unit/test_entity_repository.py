@@ -1,7 +1,8 @@
 """Testes unitários para EntityRepository."""
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock
+
+import pytest
 
 from src.models.entities import EntityType, ExtractedEntity
 from src.repositories.entity_repository import EntityRepository
@@ -88,9 +89,7 @@ class TestEntityRepository:
         # Mock insert_many
         mock_result = MagicMock()
         mock_result.inserted_ids = ["id1", "id2", "id3"]
-        mock_mongodb_client.entities_collection.insert_many = AsyncMock(
-            return_value=mock_result
-        )
+        mock_mongodb_client.entities_collection.insert_many = AsyncMock(return_value=mock_result)
 
         result = await entity_repository.create_many(sample_entities, "doc1")
 
@@ -109,9 +108,7 @@ class TestEntityRepository:
         assert documents[0]["extracted_by"] == "entity_extractor"
 
     @pytest.mark.asyncio
-    async def test_list_by_document(
-        self, entity_repository, mock_mongodb_client
-    ):
+    async def test_list_by_document(self, entity_repository, mock_mongodb_client):
         """Testa listar entidades por documento."""
         mock_cursor = AsyncMock()
         mock_cursor.to_list = AsyncMock(
@@ -133,9 +130,7 @@ class TestEntityRepository:
         mock_cursor.to_list.assert_called_once_with(length=None)
 
     @pytest.mark.asyncio
-    async def test_list_by_document_with_type_filter(
-        self, entity_repository, mock_mongodb_client
-    ):
+    async def test_list_by_document_with_type_filter(self, entity_repository, mock_mongodb_client):
         """Testa listar entidades por documento e tipo."""
         mock_cursor = AsyncMock()
         mock_cursor.to_list = AsyncMock(return_value=[])
@@ -150,15 +145,11 @@ class TestEntityRepository:
         assert query["type"] == EntityType.API
 
     @pytest.mark.asyncio
-    async def test_delete_by_document(
-        self, entity_repository, mock_mongodb_client
-    ):
+    async def test_delete_by_document(self, entity_repository, mock_mongodb_client):
         """Testa deletar entidades por documento."""
         mock_result = MagicMock()
         mock_result.deleted_count = 5
-        mock_mongodb_client.entities_collection.delete_many = AsyncMock(
-            return_value=mock_result
-        )
+        mock_mongodb_client.entities_collection.delete_many = AsyncMock(return_value=mock_result)
 
         result = await entity_repository.delete_by_document("doc1")
 

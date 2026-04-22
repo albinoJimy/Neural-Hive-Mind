@@ -3,7 +3,7 @@
 import asyncio
 import json
 import time
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 import structlog
 
@@ -74,10 +74,10 @@ class ToolExecutor:
         }
 
         # Mapeamento tool_id → MCP Server URL (do settings)
-        self.mcp_servers_config: Dict[str, str] = self.settings.MCP_SERVERS or {}
+        self.mcp_servers_config: dict[str, str] = self.settings.MCP_SERVERS or {}
 
         # Dicionário de clientes MCP inicializados (tool_id → MCPServerClient)
-        self.mcp_clients: Dict[str, "MCPServerClient"] = {}
+        self.mcp_clients: dict[str, "MCPServerClient"] = {}
 
         self.logger.info(
             "tool_executor_initialized",
@@ -172,7 +172,7 @@ class ToolExecutor:
         self.logger.info("mcp_clients_stopped")
 
     async def execute_tool(
-        self, tool: "ToolDescriptor", execution_params: Dict[str, Any], context: Dict[str, Any]
+        self, tool: "ToolDescriptor", execution_params: dict[str, Any], context: dict[str, Any]
     ) -> "ExecutionResult":
         """
         Executa ferramenta usando roteamento híbrido:
@@ -313,7 +313,7 @@ class ToolExecutor:
         return fallback_result
 
     async def _execute_via_mcp(
-        self, tool: "ToolDescriptor", execution_params: Dict[str, Any], context: Dict[str, Any]
+        self, tool: "ToolDescriptor", execution_params: dict[str, Any], context: dict[str, Any]
     ) -> "ExecutionResult":
         """
         Executa ferramenta via MCP Server externo.
@@ -399,8 +399,8 @@ class ToolExecutor:
     async def _execute_via_adapter(
         self,
         tool: "ToolDescriptor",
-        execution_params: Dict[str, Any],
-        context: Dict[str, Any],
+        execution_params: dict[str, Any],
+        context: dict[str, Any],
         adapter: "BaseToolAdapter",
     ) -> "ExecutionResult":
         """
@@ -520,7 +520,7 @@ class ToolExecutor:
                 metadata=metadata,
             )
 
-    def _build_command(self, tool: "ToolDescriptor", execution_params: Dict[str, Any]) -> str:
+    def _build_command(self, tool: "ToolDescriptor", execution_params: dict[str, Any]) -> str:
         """
         Constrói comando/URL baseado em integration_type.
 
@@ -562,10 +562,10 @@ class ToolExecutor:
 
     async def execute_tools_batch(
         self,
-        tools: List["ToolDescriptor"],
-        execution_params: Dict[str, Any],
-        context: Dict[str, Any],
-    ) -> Dict[str, "ExecutionResult"]:
+        tools: list["ToolDescriptor"],
+        execution_params: dict[str, Any],
+        context: dict[str, Any],
+    ) -> dict[str, "ExecutionResult"]:
         """
         Executa múltiplas ferramentas em paralelo com controle de concorrência.
 

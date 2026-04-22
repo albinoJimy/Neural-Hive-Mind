@@ -6,12 +6,12 @@ from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 from pymongo.errors import PyMongoError
-
-from neural_hive_resilience.circuit_breaker import CircuitBreakerError
 from src.activities import plan_validation, result_consolidation, ticket_generation
 
+from neural_hive_resilience.circuit_breaker import CircuitBreakerError
 
-@pytest.fixture
+
+@pytest.fixture()
 def minimal_config():
     """Config mínima para desabilitar caminhos pesados."""
     config = Mock()
@@ -20,7 +20,7 @@ def minimal_config():
     return config
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_audit_validation_calls_mongodb(monkeypatch):
     """audit_validation deve chamar save_validation_audit com workflow_id."""
     mock_client = AsyncMock()
@@ -39,7 +39,7 @@ async def test_audit_validation_calls_mongodb(monkeypatch):
     )
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_audit_validation_without_mongodb_client(monkeypatch):
     """Sem MongoDB client a activity deve completar sem erro."""
     plan_validation.set_activity_dependencies(
@@ -53,7 +53,7 @@ async def test_audit_validation_without_mongodb_client(monkeypatch):
         await plan_validation.audit_validation("plan-200", {"valid": False})
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_audit_validation_mongodb_failure(monkeypatch):
     """Erros na persistência devem ser fail-open."""
     mock_client = AsyncMock()
@@ -69,7 +69,7 @@ async def test_audit_validation_mongodb_failure(monkeypatch):
         await plan_validation.audit_validation("plan-210", {"valid": True})
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_consolidate_results_saves_workflow_result(minimal_config):
     """consolidate_results deve persistir resultado consolidado."""
     mock_client = AsyncMock()
@@ -92,7 +92,7 @@ async def test_consolidate_results_saves_workflow_result(minimal_config):
     mock_client.save_workflow_result.assert_awaited_once()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_trigger_self_healing_saves_incident(minimal_config):
     """trigger_self_healing deve persistir incidente via MongoDB."""
     mock_client = AsyncMock()
@@ -105,7 +105,7 @@ async def test_trigger_self_healing_saves_incident(minimal_config):
     mock_client.save_incident.assert_awaited_once()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_trigger_self_healing_fail_open(minimal_config):
     """Persistência com erro não deve lançar exceção."""
     mock_client = AsyncMock()
@@ -117,7 +117,7 @@ async def test_trigger_self_healing_fail_open(minimal_config):
     await result_consolidation.trigger_self_healing("wf-410", ["err"])
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_buffer_telemetry_saves_to_mongodb(minimal_config):
     """buffer_telemetry deve salvar frame no buffer MongoDB."""
     mock_client = AsyncMock()
@@ -130,7 +130,7 @@ async def test_buffer_telemetry_saves_to_mongodb(minimal_config):
     mock_client.save_telemetry_buffer.assert_awaited_once()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_buffer_telemetry_fail_open(minimal_config):
     """Erros na persistência do buffer não devem quebrar a activity."""
     mock_client = AsyncMock()
@@ -142,7 +142,7 @@ async def test_buffer_telemetry_fail_open(minimal_config):
     await result_consolidation.buffer_telemetry({"correlation": {"workflow_id": "wf-510"}})
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_consolidate_results_fail_open_on_mongodb_error(minimal_config):
     """Falha na persistência não deve quebrar consolidate_results."""
     mock_client = AsyncMock()
@@ -172,7 +172,7 @@ async def test_consolidate_results_fail_open_on_mongodb_error(minimal_config):
 # ======================================================
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_kafka_producer():
     """Kafka producer mockado com sucesso."""
     producer = AsyncMock()
@@ -187,7 +187,7 @@ def mock_kafka_producer():
     return producer
 
 
-@pytest.fixture
+@pytest.fixture()
 def config_fail_open_disabled():
     """Config com MONGODB_FAIL_OPEN_EXECUTION_TICKETS=False."""
     config = Mock()
@@ -195,7 +195,7 @@ def config_fail_open_disabled():
     return config
 
 
-@pytest.fixture
+@pytest.fixture()
 def config_fail_open_enabled():
     """Config com MONGODB_FAIL_OPEN_EXECUTION_TICKETS=True."""
     config = Mock()
@@ -203,7 +203,7 @@ def config_fail_open_enabled():
     return config
 
 
-@pytest.fixture
+@pytest.fixture()
 def valid_ticket():
     """Ticket válido para testes."""
     return {
@@ -216,7 +216,7 @@ def valid_ticket():
     }
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_publish_ticket_mongodb_failure_propagates_when_fail_open_disabled(
     mock_kafka_producer, config_fail_open_disabled, valid_ticket
 ):
@@ -242,7 +242,7 @@ async def test_publish_ticket_mongodb_failure_propagates_when_fail_open_disabled
     mock_kafka_producer.publish_ticket.assert_awaited_once()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_publish_ticket_mongodb_failure_degrades_when_fail_open_enabled(
     mock_kafka_producer, config_fail_open_enabled, valid_ticket
 ):
@@ -269,7 +269,7 @@ async def test_publish_ticket_mongodb_failure_degrades_when_fail_open_enabled(
     mock_kafka_producer.publish_ticket.assert_awaited_once()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_publish_ticket_circuit_breaker_open_degrades_gracefully(
     mock_kafka_producer, config_fail_open_disabled, valid_ticket
 ):
@@ -297,7 +297,7 @@ async def test_publish_ticket_circuit_breaker_open_degrades_gracefully(
     mock_kafka_producer.publish_ticket.assert_awaited_once()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_publish_ticket_mongodb_success_path(
     mock_kafka_producer, config_fail_open_disabled, valid_ticket
 ):

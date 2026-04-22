@@ -4,7 +4,7 @@ Implementa detecção de anomalias, tendências e sazonalidade.
 """
 
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Optional
 
 import numpy as np
 import structlog
@@ -34,7 +34,7 @@ class TimeSeriesAnalyzer:
         self.min_data_points = min_data_points
         self.cache_ttl_seconds = cache_ttl_seconds
 
-    def analyze_trend(self, data: List[Tuple[datetime, float]]) -> Dict[str, Any]:
+    def analyze_trend(self, data: list[tuple[datetime, float]]) -> dict[str, Any]:
         """
         Analisar tendência da série temporal.
 
@@ -68,8 +68,8 @@ class TimeSeriesAnalyzer:
         }
 
     def detect_anomalies_zscore(
-        self, data: List[Tuple[datetime, float]], threshold: Optional[float] = None
-    ) -> List[AnomalyPoint]:
+        self, data: list[tuple[datetime, float]], threshold: Optional[float] = None
+    ) -> list[AnomalyPoint]:
         """
         Detectar anomalias usando Z-Score.
 
@@ -120,8 +120,8 @@ class TimeSeriesAnalyzer:
         return anomalies
 
     def detect_anomalies_iqr(
-        self, data: List[Tuple[datetime, float]], multiplier: float = 1.5
-    ) -> List[AnomalyPoint]:
+        self, data: list[tuple[datetime, float]], multiplier: float = 1.5
+    ) -> list[AnomalyPoint]:
         """
         Detectar anomalias usando IQR (Interquartile Range).
 
@@ -176,8 +176,8 @@ class TimeSeriesAnalyzer:
         return anomalies
 
     def detect_anomalies_moving_avg(
-        self, data: List[Tuple[datetime, float]], window: int = 5, std_multiplier: float = 2.0
-    ) -> List[AnomalyPoint]:
+        self, data: list[tuple[datetime, float]], window: int = 5, std_multiplier: float = 2.0
+    ) -> list[AnomalyPoint]:
         """
         Detectar anomalias usando média móvel.
 
@@ -228,8 +228,8 @@ class TimeSeriesAnalyzer:
         return anomalies
 
     def detect_seasonality(
-        self, data: List[Tuple[datetime, float]], period: Optional[int] = None
-    ) -> Dict[str, Any]:
+        self, data: list[tuple[datetime, float]], period: Optional[int] = None
+    ) -> dict[str, Any]:
         """
         Detectar sazonalidade na série temporal.
 
@@ -269,7 +269,7 @@ class TimeSeriesAnalyzer:
             "strength": float(period_strength),
         }
 
-    def calculate_statistics(self, data: List[Tuple[datetime, float]]) -> Dict[str, float]:
+    def calculate_statistics(self, data: list[tuple[datetime, float]]) -> dict[str, float]:
         """Calcular estatísticas básicas da série temporal."""
         if not data:
             return {"min": 0.0, "max": 0.0, "mean": 0.0, "std": 0.0, "count": 0}
@@ -294,7 +294,7 @@ class TimeSeriesAnalyzer:
     async def analyze_timeseries(
         self,
         metric_name: str,
-        data: List[Tuple[datetime, float]],
+        data: list[tuple[datetime, float]],
         start: datetime,
         end: datetime,
         resolution: str,
@@ -335,7 +335,7 @@ class TimeSeriesAnalyzer:
         return response
 
     async def detect_anomalies_async(
-        self, query: AnomalyDetectionQuery, data: List[Tuple[datetime, float]]
+        self, query: AnomalyDetectionQuery, data: list[tuple[datetime, float]]
     ) -> AnomalyDetectionResponse:
         """
         Detectar anomalias de forma assíncrona.

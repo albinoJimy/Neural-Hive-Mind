@@ -6,9 +6,9 @@ Main orchestrator that coordinates all steps of plan generation.
 
 import time
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
-UTC = timezone.utc  # type: ignore, timedelta
+UTC = UTC  # type: ignore, timedelta
 
 import structlog
 from src.clients.mongodb_client import MongoDBClient

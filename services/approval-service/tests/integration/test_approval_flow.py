@@ -5,9 +5,9 @@ Testa fluxo completo: request → pending → approve/reject → response
 Requer MongoDB e Kafka (usando testcontainers ou mocks).
 """
 
-import pytest
-from unittest.mock import MagicMock, AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 
+import pytest
 from src.models.approval import (
     ApprovalStatus,
 )
@@ -17,7 +17,7 @@ from src.services.approval_service import ApprovalService
 class TestApprovalFlowEndToEnd:
     """Testes de fluxo end-to-end (com mocks)"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_mongodb_client(self):
         """MongoDB client mockado que simula persistencia"""
         storage = {}
@@ -49,7 +49,7 @@ class TestApprovalFlowEndToEnd:
 
         return client
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_producer(self):
         """Kafka producer mockado que captura mensagens"""
         messages = []
@@ -63,7 +63,7 @@ class TestApprovalFlowEndToEnd:
 
         return producer
 
-    @pytest.fixture
+    @pytest.fixture()
     def approval_service(self, mock_settings, mock_mongodb_client, mock_producer, mock_metrics):
         """Cria ApprovalService com mocks"""
         return ApprovalService(
@@ -73,7 +73,7 @@ class TestApprovalFlowEndToEnd:
             metrics=mock_metrics,
         )
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_full_approval_flow(self, approval_service, mock_mongodb_client, mock_producer):
         """Teste fluxo completo de aprovacao"""
         # 1. Receber request de aprovacao
@@ -117,7 +117,7 @@ class TestApprovalFlowEndToEnd:
         pending = await approval_service.get_pending_approvals()
         assert len(pending) == 0
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_full_rejection_flow(self, approval_service, mock_mongodb_client, mock_producer):
         """Teste fluxo completo de rejeicao"""
         # 1. Receber request de aprovacao
@@ -151,7 +151,7 @@ class TestApprovalFlowEndToEnd:
         # Para rejeicoes, cognitive_plan deve ser None
         assert kafka_msg.cognitive_plan is None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_multiple_plans_flow(self, approval_service, mock_mongodb_client, mock_producer):
         """Teste com multiplos planos simultaneos"""
         # Criar 3 planos
@@ -189,7 +189,7 @@ class TestApprovalFlowEndToEnd:
 class TestApprovalFlowConcurrency:
     """Testes de concorrencia no fluxo de aprovacao"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def approval_service(
         self, mock_settings, mock_mongodb_client, mock_response_producer, mock_metrics
     ):
@@ -201,7 +201,7 @@ class TestApprovalFlowConcurrency:
             metrics=mock_metrics,
         )
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_concurrent_approval_same_plan(
         self, approval_service, sample_approval_request, mock_mongodb_client
     ):
@@ -225,7 +225,7 @@ class TestApprovalFlowConcurrency:
 class TestApprovalFlowEdgeCases:
     """Testes de casos de borda"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def approval_service(
         self, mock_settings, mock_mongodb_client, mock_response_producer, mock_metrics
     ):
@@ -237,7 +237,7 @@ class TestApprovalFlowEdgeCases:
             metrics=mock_metrics,
         )
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_approval_with_large_plan(self, approval_service, mock_mongodb_client):
         """Teste aprovacao com plano grande"""
         large_plan = {
@@ -254,7 +254,7 @@ class TestApprovalFlowEdgeCases:
         assert result.plan_id == "large-plan-001"
         mock_mongodb_client.save_approval_request.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_approval_with_special_characters(self, approval_service, mock_mongodb_client):
         """Teste aprovacao com caracteres especiais"""
         special_plan = {
@@ -268,7 +268,7 @@ class TestApprovalFlowEdgeCases:
 
         assert result.plan_id == "plan-日本語-001"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_rejection_with_long_reason(
         self, approval_service, sample_approval_request, mock_mongodb_client, mock_response_producer
     ):

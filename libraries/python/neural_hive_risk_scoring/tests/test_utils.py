@@ -4,8 +4,8 @@ Testes para utilitários: get_domain_value, get_domain_enum
 
 import pytest
 
-from neural_hive_risk_scoring.utils import get_domain_value, get_domain_enum
 from neural_hive_domain import UnifiedDomain
+from neural_hive_risk_scoring.utils import get_domain_enum, get_domain_value
 
 
 class TestGetDomainValue:

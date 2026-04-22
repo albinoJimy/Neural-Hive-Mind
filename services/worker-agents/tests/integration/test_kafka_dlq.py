@@ -1,9 +1,10 @@
-import pytest
 import json
-from unittest.mock import Mock, AsyncMock, patch, MagicMock
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
+
+import pytest
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_config():
     config = Mock()
     config.kafka_bootstrap_servers = "localhost:9092"
@@ -21,7 +22,7 @@ def mock_config():
     return config
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_redis():
     redis = AsyncMock()
     redis.get = AsyncMock(return_value=None)
@@ -31,14 +32,14 @@ def mock_redis():
     return redis
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_execution_engine():
     engine = AsyncMock()
     engine.process_ticket = AsyncMock(side_effect=Exception("Processing failed"))
     return engine
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_metrics():
     metrics = Mock()
     metrics.kafka_consumer_initialized_total = Mock()
@@ -61,7 +62,7 @@ def mock_metrics():
 class TestKafkaTicketConsumerDLQ:
     """Testes para logica de DLQ no KafkaTicketConsumer"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_retry_count_incremented_on_failure(self, mock_config, mock_redis, mock_metrics):
         """Testar que retry count e incrementado apos falha"""
         from src.clients.kafka_ticket_consumer import KafkaTicketConsumer
@@ -81,7 +82,7 @@ class TestKafkaTicketConsumerDLQ:
         mock_redis.incr.assert_called_once_with("ticket:retry_count:test-ticket-123")
         mock_redis.expire.assert_called_once_with("ticket:retry_count:test-ticket-123", 604800)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_retry_count_cleared_on_success(self, mock_config, mock_redis, mock_metrics):
         """Testar que retry count e limpo apos sucesso"""
         from src.clients.kafka_ticket_consumer import KafkaTicketConsumer
@@ -97,7 +98,7 @@ class TestKafkaTicketConsumerDLQ:
 
         mock_redis.delete.assert_called_once_with("ticket:retry_count:test-ticket-456")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_fail_open_when_redis_unavailable(self, mock_config, mock_metrics):
         """Testar fail-open quando Redis falha"""
         from src.clients.kafka_ticket_consumer import KafkaTicketConsumer
@@ -116,7 +117,7 @@ class TestKafkaTicketConsumerDLQ:
         count = await consumer._increment_retry_count("test-ticket-999")
         assert count == 1
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_publish_to_dlq_on_max_retries(self, mock_config, mock_redis, mock_metrics):
         """Testar publicacao no DLQ apos max retries"""
         from src.clients.kafka_ticket_consumer import KafkaTicketConsumer
@@ -178,7 +179,7 @@ class TestKafkaTicketConsumerDLQ:
 class TestKafkaDLQConsumer:
     """Testes para KafkaDLQConsumer"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_dlq_consumer_persists_message(self, mock_config):
         """Testar que DLQ consumer persiste mensagem no MongoDB"""
         from src.clients.kafka_dlq_consumer import KafkaDLQConsumer
@@ -209,7 +210,7 @@ class TestKafkaDLQConsumer:
         assert "processed_at" in call_args
         assert "processed_at_ms" in call_args
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_dlq_consumer_sends_alert(self, mock_config):
         """Testar que DLQ consumer envia alerta"""
         from src.clients.kafka_dlq_consumer import KafkaDLQConsumer
@@ -239,7 +240,7 @@ class TestKafkaDLQConsumer:
         assert alert_payload["component"] == "worker-agents"
         assert "runbook_url" in alert_payload
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_dlq_consumer_handles_missing_mongodb(self, mock_config):
         """Testar que DLQ consumer lida com MongoDB indisponivel"""
         from src.clients.kafka_dlq_consumer import KafkaDLQConsumer
@@ -261,7 +262,7 @@ class TestKafkaDLQConsumer:
 class TestDLQMetrics:
     """Testes para metricas de DLQ"""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_dlq_metrics_recorded(self, mock_config, mock_redis, mock_metrics):
         """Testar que metricas sao registradas ao publicar no DLQ"""
         from src.clients.kafka_ticket_consumer import KafkaTicketConsumer

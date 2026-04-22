@@ -5,9 +5,10 @@ Fornece fallback automático para CPU quando GPU não está disponível,
 permitindo deployments híbridos.
 """
 
+from typing import Any
+
 import numpy as np
 import structlog
-from typing import Any
 
 logger = structlog.get_logger(__name__)
 

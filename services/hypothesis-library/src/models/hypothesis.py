@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 from uuid import uuid4
@@ -10,8 +10,7 @@ from uuid import uuid4
 from bson import ObjectId
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-
-UTC = timezone.utc
+UTC = UTC
 
 
 def utcnow() -> datetime:
@@ -32,7 +31,7 @@ class HypothesisStatus(str, Enum):
     ARCHIVED = "ARCHIVED"
 
     @classmethod
-    def active_states(cls) -> set["HypothesisStatus"]:
+    def active_states(cls) -> set[HypothesisStatus]:
         """Estados ativos (não terminais)."""
         return {
             cls.DRAFT,
@@ -43,7 +42,7 @@ class HypothesisStatus(str, Enum):
         }
 
     @classmethod
-    def terminal_states(cls) -> set["HypothesisStatus"]:
+    def terminal_states(cls) -> set[HypothesisStatus]:
         """Estados terminais (finais)."""
         return {cls.ACCEPTED, cls.REJECTED, cls.ARCHIVED}
 
@@ -63,28 +62,21 @@ class HypothesisResults(BaseModel):
     experiment_id: str | None = Field(None, description="ID do experimento")
     status: str = Field(default="completed", description="Status do experimento")
     outcome: str = Field(
-        default="inconclusive",
-        description="Outcome: validated, refuted, inconclusive"
+        default="inconclusive", description="Outcome: validated, refuted, inconclusive"
     )
     confidence_level: float = Field(
-        default=0.0,
-        ge=0.0,
-        le=1.0,
-        description="Nível de confiança estatística"
+        default=0.0, ge=0.0, le=1.0, description="Nível de confiança estatística"
     )
     improvement_percentage: float | None = Field(None, description="Melhoria observada")
     statistical_significance: bool = Field(default=False, description="Significância estatística")
     actual_baseline_metrics: dict[str, float] = Field(
-        default_factory=dict,
-        description="Métricas baseline observadas"
+        default_factory=dict, description="Métricas baseline observadas"
     )
     actual_target_metrics: dict[str, float] = Field(
-        default_factory=dict,
-        description="Métricas target observadas"
+        default_factory=dict, description="Métricas target observadas"
     )
     lessons_learned: list[str] = Field(
-        default_factory=list,
-        description="Aprendizados do experimento"
+        default_factory=list, description="Aprendizados do experimento"
     )
     completed_at: datetime | None = Field(None, description="Data de conclusão")
 
@@ -129,57 +121,31 @@ class Hypothesis(BaseModel):
 
     id: PyObjectId | None = Field(None, alias="_id", description="MongoDB ObjectId")
     hypothesis_id: str = Field(
-        default_factory=lambda: str(uuid4()),
-        description="Unique identifier (UUID)"
+        default_factory=lambda: str(uuid4()), description="Unique identifier (UUID)"
     )
     title: str = Field(..., min_length=1, max_length=200, description="Título da hipótese")
     description: str = Field(..., min_length=1, description="Descrição detalhada")
-    background: str = Field(
-        default="",
-        description="Contexto e razão para esta hipótese"
-    )
-    expected_outcome: str = Field(
-        ...,
-        min_length=1,
-        description="Resultado esperado"
-    )
-    metrics: list[str] = Field(
-        default_factory=list,
-        description="Métricas que serão afetadas"
-    )
+    background: str = Field(default="", description="Contexto e razão para esta hipótese")
+    expected_outcome: str = Field(..., min_length=1, description="Resultado esperado")
+    metrics: list[str] = Field(default_factory=list, description="Métricas que serão afetadas")
     baseline_metrics: dict[str, float] = Field(
-        default_factory=dict,
-        description="Métricas baseline atuais"
+        default_factory=dict, description="Métricas baseline atuais"
     )
     target_metrics: dict[str, float] = Field(
-        default_factory=dict,
-        description="Métricas target desejadas"
+        default_factory=dict, description="Métricas target desejadas"
     )
 
-    status: HypothesisStatus = Field(
-        default=HypothesisStatus.DRAFT,
-        description="Status atual"
-    )
+    status: HypothesisStatus = Field(default=HypothesisStatus.DRAFT, description="Status atual")
     priority: HypothesisPriority = Field(
-        default=HypothesisPriority.MEDIUM,
-        description="Prioridade"
+        default=HypothesisPriority.MEDIUM, description="Prioridade"
     )
 
     author: str = Field(..., min_length=1, description="Autor da hipótese")
-    reviewers: list[str] = Field(
-        default_factory=list,
-        description="Revisores atribuídos"
-    )
+    reviewers: list[str] = Field(default_factory=list, description="Revisores atribuídos")
     tags: list[str] = Field(default_factory=list, description="Tags para categorização")
 
-    created_at: datetime = Field(
-        default_factory=utcnow,
-        description="Data de criação"
-    )
-    updated_at: datetime = Field(
-        default_factory=utcnow,
-        description="Última atualização"
-    )
+    created_at: datetime = Field(default_factory=utcnow, description="Data de criação")
+    updated_at: datetime = Field(default_factory=utcnow, description="Última atualização")
     proposed_at: datetime | None = Field(None, description="Data de proposta")
     approved_at: datetime | None = Field(None, description="Data de aprovação")
     approved_by: str | None = Field(None, description="Aprovador")
@@ -193,18 +159,11 @@ class Hypothesis(BaseModel):
     results: HypothesisResults | None = Field(None, description="Resultados do experimento")
 
     requires_experiment: bool = Field(
-        default=True,
-        description="Se requer validação via experimento"
+        default=True, description="Se requer validação via experimento"
     )
-    auto_approve: bool = Field(
-        default=False,
-        description="Aprovação automática (bypass revisão)"
-    )
+    auto_approve: bool = Field(default=False, description="Aprovação automática (bypass revisão)")
 
-    metadata: dict[str, Any] = Field(
-        default_factory=dict,
-        description="Metadados adicionais"
-    )
+    metadata: dict[str, Any] = Field(default_factory=dict, description="Metadados adicionais")
 
     model_config = ConfigDict(
         populate_by_name=True,

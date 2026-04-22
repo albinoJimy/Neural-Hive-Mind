@@ -6,9 +6,9 @@ de chaos e medição de métricas de recuperação.
 """
 
 import asyncio
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from time import perf_counter
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 import structlog
 from prometheus_client import Counter, Gauge, Histogram
@@ -73,14 +73,14 @@ class PlaybookValidator:
         self.playbook_executor = playbook_executor
         self.prometheus_client = prometheus_client
         self.sla_management_client = sla_management_client
-        self._validation_history: Dict[str, List[ValidationResult]] = {}
+        self._validation_history: dict[str, list[ValidationResult]] = {}
 
     async def validate_playbook_effectiveness(
         self,
         playbook_name: str,
         injection: FaultInjection,
         criteria: ValidationCriteria,
-        context: Dict[str, Any],
+        context: dict[str, Any],
     ) -> ValidationResult:
         """
         Valida a eficácia de um playbook após injeção de falha.
@@ -152,7 +152,7 @@ class PlaybookValidator:
 
             # Validar disponibilidade
             availability = await self._measure_availability(
-                context, injection.start_time, datetime.now(timezone.utc)
+                context, injection.start_time, datetime.now(UTC)
             )
             availability_ok = availability >= criteria.min_availability_percent
             criteria_met["availability"] = availability_ok
@@ -165,7 +165,7 @@ class PlaybookValidator:
 
             # Validar taxa de erros
             error_rate = await self._measure_error_rate(
-                context, injection.start_time, datetime.now(timezone.utc)
+                context, injection.start_time, datetime.now(UTC)
             )
             error_rate_ok = error_rate <= criteria.max_error_rate_percent
             criteria_met["error_rate"] = error_rate_ok
@@ -253,7 +253,7 @@ class PlaybookValidator:
                 playbook_name=playbook_name,
                 success=False,
                 recovery_time_seconds=perf_counter() - start_time,
-                observations=[f"Erro durante validação: {str(e)}"],
+                observations=[f"Erro durante validação: {e!s}"],
                 criteria_met={},
             )
 
@@ -261,7 +261,7 @@ class PlaybookValidator:
         self,
         playbook_name: str,
         num_samples: int = 5,
-    ) -> Dict[str, float]:
+    ) -> dict[str, float]:
         """
         Calcula Mean Time To Recovery (MTTR) para um playbook.
 
@@ -298,8 +298,8 @@ class PlaybookValidator:
     async def check_blast_radius(
         self,
         injection: FaultInjection,
-        expected_affected: List[str],
-    ) -> Dict[str, Any]:
+        expected_affected: list[str],
+    ) -> dict[str, Any]:
         """
         Verifica se a falha ficou contida no blast radius esperado.
 
@@ -334,8 +334,8 @@ class PlaybookValidator:
         self,
         playbook_name: str,
         experiment: ChaosExperiment,
-        validations: List[ValidationResult],
-    ) -> Dict[str, Any]:
+        validations: list[ValidationResult],
+    ) -> dict[str, Any]:
         """
         Gera relatório detalhado de validação de playbook.
 
@@ -373,13 +373,13 @@ class PlaybookValidator:
             "mttr_stats": mttr_stats,
             "failed_criteria_frequency": failed_criteria,
             "recommendations": recommendations,
-            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "generated_at": datetime.now(UTC).isoformat(),
         }
 
     async def _wait_for_playbook_execution(
         self,
         playbook_name: str,
-        context: Dict[str, Any],
+        context: dict[str, Any],
         timeout_seconds: int,
     ) -> bool:
         """Aguarda execução automática do playbook pelo Self-Healing Engine."""
@@ -415,10 +415,10 @@ class PlaybookValidator:
 
         return False
 
-    async def _capture_metrics(self, context: Dict[str, Any]) -> Dict[str, Any]:
+    async def _capture_metrics(self, context: dict[str, Any]) -> dict[str, Any]:
         """Captura snapshot de métricas atuais."""
         metrics = {
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
         }
 
         if self.prometheus_client:
@@ -448,7 +448,7 @@ class PlaybookValidator:
 
     async def _measure_availability(
         self,
-        context: Dict[str, Any],
+        context: dict[str, Any],
         start_time: datetime,
         end_time: datetime,
     ) -> float:
@@ -478,7 +478,7 @@ class PlaybookValidator:
 
     async def _measure_error_rate(
         self,
-        context: Dict[str, Any],
+        context: dict[str, Any],
         start_time: datetime,
         end_time: datetime,
     ) -> float:
@@ -505,7 +505,7 @@ class PlaybookValidator:
 
         return 0.1
 
-    async def _measure_latency_p95(self, context: Dict[str, Any]) -> float:
+    async def _measure_latency_p95(self, context: dict[str, Any]) -> float:
         """Mede latência P95 atual."""
         if not self.prometheus_client:
             return 100.0  # 100ms default
@@ -529,7 +529,7 @@ class PlaybookValidator:
 
     def _calculate_effectiveness_score(
         self,
-        criteria_met: Dict[str, bool],
+        criteria_met: dict[str, bool],
         recovery_time: float,
         criteria: ValidationCriteria,
     ) -> float:
@@ -560,9 +560,9 @@ class PlaybookValidator:
     def _generate_recommendations(
         self,
         playbook_name: str,
-        mttr_stats: Dict[str, float],
-        failed_criteria: Dict[str, int],
-    ) -> List[str]:
+        mttr_stats: dict[str, float],
+        failed_criteria: dict[str, int],
+    ) -> list[str]:
         """Gera recomendações baseadas nos resultados de validação."""
         recommendations = []
 
@@ -605,7 +605,7 @@ class PlaybookValidator:
 
         return recommendations
 
-    def get_validation_history(self, playbook_name: str, limit: int = 10) -> List[ValidationResult]:
+    def get_validation_history(self, playbook_name: str, limit: int = 10) -> list[ValidationResult]:
         """Retorna histórico de validações para um playbook."""
         history = self._validation_history.get(playbook_name, [])
         return history[-limit:]

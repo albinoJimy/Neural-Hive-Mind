@@ -11,16 +11,19 @@ Cobre:
 - Tratamento de erros
 """
 
-import pytest
 from unittest.mock import AsyncMock, Mock
 
-from src.services.weight_recalibrator import WeightRecalibrator
-from src.models.optimization_hypothesis import OptimizationHypothesis, OptimizationType
+import pytest
+
 from src.models.optimization_event import (
-    OptimizationEvent,
-    OptimizationType as EventOptimizationType,
     Adjustment,
+    OptimizationEvent,
 )
+from src.models.optimization_event import (
+    OptimizationType as EventOptimizationType,
+)
+from src.models.optimization_hypothesis import OptimizationHypothesis, OptimizationType
+from src.services.weight_recalibrator import WeightRecalibrator
 
 
 @pytest.fixture

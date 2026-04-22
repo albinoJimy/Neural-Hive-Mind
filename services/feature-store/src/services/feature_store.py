@@ -5,7 +5,7 @@ Gerencia armazenamento, recuperação e computação de features.
 Coordena MongoDB, Redis cache, pipeline de computação e lineage tracker.
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 import structlog
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -275,7 +275,7 @@ class FeatureStoreService:
             message=f"Listados {len(features)} features",
         )
 
-    async def get_metrics(self) -> Dict[str, Any]:
+    async def get_metrics(self) -> dict[str, Any]:
         """
         Retorna métricas do Feature Store
 
@@ -304,7 +304,7 @@ class FeatureStoreService:
             "cache_available": self.cache_service.is_available(),
         }
 
-    async def get_features_by_plan_ids(self, plan_ids: List[str]) -> Dict[str, FeatureVector]:
+    async def get_features_by_plan_ids(self, plan_ids: list[str]) -> dict[str, FeatureVector]:
         """
         Busca features para múltiplos planos
 
@@ -330,7 +330,7 @@ class FeatureStoreService:
 
     async def get_feature_lineage(
         self, plan_id: str, feature_id: Optional[str] = None
-    ) -> Optional[Dict[str, Any]]:
+    ) -> Optional[dict[str, Any]]:
         """
         Obtém lineage de uma feature
 
@@ -358,7 +358,7 @@ class FeatureStoreService:
 
         return None
 
-    async def get_lineage_tree(self, plan_id: str, max_depth: int = 5) -> Optional[Dict[str, Any]]:
+    async def get_lineage_tree(self, plan_id: str, max_depth: int = 5) -> Optional[dict[str, Any]]:
         """
         Obtém árvore completa de lineage de uma feature
 
@@ -379,7 +379,7 @@ class FeatureStoreService:
         tree = await self.lineage_tracker.get_lineage_tree(feature_vector.feature_id, max_depth)
         return tree.model_dump(mode="json")
 
-    async def get_lineage_impact(self, plan_id: str) -> Optional[Dict[str, Any]]:
+    async def get_lineage_impact(self, plan_id: str) -> Optional[dict[str, Any]]:
         """
         Analisa impacto downstream de uma feature
 
@@ -399,7 +399,7 @@ class FeatureStoreService:
         impact = await self.lineage_tracker.get_impact_analysis(feature_vector.feature_id)
         return impact.model_dump(mode="json")
 
-    async def validate_lineage_integrity(self, plan_id: str) -> Optional[Dict[str, Any]]:
+    async def validate_lineage_integrity(self, plan_id: str) -> Optional[dict[str, Any]]:
         """
         Valida integridade do lineage de uma feature
 

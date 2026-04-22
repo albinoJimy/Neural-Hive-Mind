@@ -5,8 +5,9 @@ TDD: Testes escritos antes da implementação.
 Espec: GAPS-05 Scout Agents
 """
 
-import pytest
 from unittest.mock import AsyncMock
+
+import pytest
 from fastapi.testclient import TestClient
 
 # Import com skip automático se módulo não disponível
@@ -29,7 +30,7 @@ class TestScoutAPIInitialization:
 class TestHealthEndpoint:
     """Testes do endpoint de health."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def client(self):
         mock_orchestrator = AsyncMock()
         mock_ledger = AsyncMock()
@@ -47,7 +48,7 @@ class TestHealthEndpoint:
 class TestStartExplorationEndpoint:
     """Testes do endpoint POST /explorations."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def client(self):
         mock_orchestrator = AsyncMock()
         mock_orchestrator.coordinate_exploration = AsyncMock(
@@ -74,7 +75,7 @@ class TestStartExplorationEndpoint:
 class TestGetExplorationEndpoint:
     """Testes do endpoint GET /explorations/{id}."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def client(self):
         mock_orchestrator = AsyncMock()
         mock_ledger = AsyncMock()
@@ -112,7 +113,7 @@ class TestGetExplorationEndpoint:
 class TestListExplorationsEndpoint:
     """Testes do endpoint GET /explorations."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def client(self):
         mock_orchestrator = AsyncMock()
         mock_ledger = AsyncMock()
@@ -137,7 +138,7 @@ class TestListExplorationsEndpoint:
 class TestStatsEndpoint:
     """Testes do endpoint GET /stats."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def client(self):
         mock_orchestrator = AsyncMock()
         mock_ledger = AsyncMock()
@@ -159,7 +160,7 @@ class TestStatsEndpoint:
 class TestDeleteExplorationEndpoint:
     """Testes do endpoint DELETE /explorations/{id}."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def client(self):
         mock_orchestrator = AsyncMock()
         mock_ledger = AsyncMock()

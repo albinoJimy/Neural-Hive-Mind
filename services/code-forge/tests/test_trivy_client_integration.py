@@ -13,17 +13,17 @@ from src.clients.trivy_client import TrivyClient
 from src.models.artifact import ValidationStatus
 
 
-@pytest.fixture
+@pytest.fixture()
 def client():
     return TrivyClient(enabled=True, severity="CRITICAL,HIGH", timeout=600)
 
 
-@pytest.fixture
+@pytest.fixture()
 def disabled_client():
     return TrivyClient(enabled=False)
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_trivy_scan_disabled(disabled_client):
     """Testa que scan retorna SKIPPED quando disabled"""
     result = await disabled_client.scan_filesystem("/tmp/project")
@@ -33,7 +33,7 @@ async def test_trivy_scan_disabled(disabled_client):
     assert result.duration_ms == 0
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_trivy_filesystem_scan_success_no_vulnerabilities(client):
     """Testa scan filesystem sem vulnerabilidades"""
     mock_result = MagicMock()
@@ -50,7 +50,7 @@ async def test_trivy_filesystem_scan_success_no_vulnerabilities(client):
     assert result.issues_count == 0
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_trivy_filesystem_scan_with_vulnerabilities(client):
     """Testa scan filesystem com vulnerabilidades"""
     mock_result = MagicMock()
@@ -82,7 +82,7 @@ async def test_trivy_filesystem_scan_with_vulnerabilities(client):
     assert result.low_issues == 1
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_trivy_container_scan_critical(client):
     """Testa scan de container com vulnerabilidade crítica"""
     mock_result = MagicMock()
@@ -109,7 +109,7 @@ async def test_trivy_container_scan_critical(client):
     assert result.critical_issues == 1
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_trivy_iac_scan_with_misconfigurations(client):
     """Testa scan IaC com misconfigurations"""
     mock_result = MagicMock()
@@ -137,7 +137,7 @@ async def test_trivy_iac_scan_with_misconfigurations(client):
     assert result.medium_issues == 1
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_trivy_scan_timeout(client):
     """Testa timeout do Trivy"""
     with patch("subprocess.run", side_effect=subprocess.TimeoutExpired("trivy", 600)):
@@ -147,7 +147,7 @@ async def test_trivy_scan_timeout(client):
     assert result.score == 0.0
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_trivy_scan_cli_error(client):
     """Testa erro de CLI do Trivy"""
     mock_result = MagicMock()
@@ -161,7 +161,7 @@ async def test_trivy_scan_cli_error(client):
     assert result.status == ValidationStatus.FAILED
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_trivy_scan_invalid_json(client):
     """Testa parsing de JSON inválido"""
     mock_result = MagicMock()
@@ -175,7 +175,7 @@ async def test_trivy_scan_invalid_json(client):
     assert result.status == ValidationStatus.FAILED
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_trivy_scan_null_vulnerabilities(client):
     """Testa handling de Vulnerabilities null"""
     mock_result = MagicMock()
@@ -199,7 +199,7 @@ async def test_trivy_scan_null_vulnerabilities(client):
     assert result.issues_count == 0
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_trivy_uses_correct_scan_type_for_image(client):
     """Testa que scan de imagem usa 'image' como tipo"""
     mock_result = MagicMock()
@@ -215,7 +215,7 @@ async def test_trivy_uses_correct_scan_type_for_image(client):
     assert "image" in cmd
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_trivy_uses_correct_scan_type_for_fs(client):
     """Testa que scan filesystem usa 'fs' como tipo"""
     mock_result = MagicMock()
@@ -231,7 +231,7 @@ async def test_trivy_uses_correct_scan_type_for_fs(client):
     assert "fs" in cmd
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_trivy_uses_correct_scan_type_for_config(client):
     """Testa que scan IaC usa 'config' como tipo"""
     mock_result = MagicMock()

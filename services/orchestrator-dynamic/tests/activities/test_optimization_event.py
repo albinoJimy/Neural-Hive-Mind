@@ -1,15 +1,15 @@
 """Testes para activity de publicação de eventos de otimização."""
 
-import pytest
 from unittest.mock import AsyncMock, patch
 
+import pytest
 from src.activities.optimization_event import (
     publish_ticket_completed_event,
     publish_workflow_optimization_events,
 )
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 class TestOptimizationEventActivity:
     """Testes para activity de otimização."""
 

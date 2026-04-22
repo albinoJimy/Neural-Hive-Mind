@@ -3,8 +3,8 @@ Cliente para Prometheus HTTP API.
 """
 
 import asyncio
-from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, Optional
+from datetime import UTC, datetime, timedelta
+from typing import Any, Optional
 
 import httpx
 import structlog
@@ -16,13 +16,11 @@ from ..models.slo_definition import SLODefinition
 class PrometheusQueryError(Exception):
     """Erro em query ao Prometheus."""
 
-    pass
 
 
 class PrometheusConnectionError(Exception):
     """Erro de conexão com Prometheus."""
 
-    pass
 
 
 class PrometheusClient:
@@ -46,7 +44,7 @@ class PrometheusClient:
             await self.session.aclose()
             self.logger.info("prometheus_client_disconnected")
 
-    async def query(self, query: str, time: Optional[datetime] = None) -> Dict[str, Any]:
+    async def query(self, query: str, time: Optional[datetime] = None) -> dict[str, Any]:
         """Executa query PromQL instantânea."""
         params = {"query": query}
         if time:
@@ -72,7 +70,7 @@ class PrometheusClient:
 
     async def query_range(
         self, query: str, start: datetime, end: datetime, step: str = "1m"
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Executa query PromQL em range temporal."""
         params = {"query": query, "start": start.isoformat(), "end": end.isoformat(), "step": step}
 
@@ -96,7 +94,7 @@ class PrometheusClient:
 
     async def calculate_sli(self, slo_definition: SLODefinition, window_days: int = 30) -> float:
         """Calcula SLI atual baseado na definição do SLO."""
-        end = datetime.now(timezone.utc)
+        end = datetime.now(UTC)
         start = end - timedelta(days=window_days)
 
         try:
@@ -222,7 +220,7 @@ class PrometheusClient:
                     return count
 
             # Fallback: query com range para histórico
-            end = datetime.now(timezone.utc)
+            end = datetime.now(UTC)
             end - timedelta(hours=window_hours)
 
             # Query alternativa usando increase em contadores de alertas

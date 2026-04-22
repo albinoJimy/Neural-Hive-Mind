@@ -18,17 +18,17 @@ Uso:
     )
 """
 
-from .base import NeuralHiveError, error_code, ErrorContext
-from .validation import ValidationError, ValidationErrorCode, SchemaValidationError
-from .configuration import ConfigurationError, ConfigErrorCode
+from .base import ErrorContext, NeuralHiveError, error_code
+from .configuration import ConfigErrorCode, ConfigurationError
+from .grpc import GRPCError, HTTPStatusFromGRPC, grpc_error_to_status
 from .infrastructure import (
     ConnectionError,
-    TimeoutError,
     DatabaseError,
-    KafkaError,
     InfrastructureErrorCode,
+    KafkaError,
+    TimeoutError,
 )
-from .grpc import GRPCError, grpc_error_to_status, HTTPStatusFromGRPC
+from .validation import SchemaValidationError, ValidationError, ValidationErrorCode
 
 __all__ = [
     # Base

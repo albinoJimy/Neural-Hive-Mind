@@ -10,27 +10,26 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-
 # ============================================================================
 # Fixtures de Tickets D3
 # ============================================================================
 
 
-@pytest.fixture
+@pytest.fixture()
 def d3_build_ticket():
     """Ticket BUILD conforme especificação D3."""
     from src.models.execution_ticket import (
+        SLA,
+        Consistency,
+        DeliveryMode,
+        Durability,
         ExecutionTicket,
+        Priority,
+        QoS,
+        RiskBand,
+        SecurityLevel,
         TaskType,
         TicketStatus,
-        Priority,
-        RiskBand,
-        SLA,
-        QoS,
-        SecurityLevel,
-        DeliveryMode,
-        Consistency,
-        Durability,
     )
 
     ticket_id = str(uuid.uuid4())
@@ -71,21 +70,21 @@ def d3_build_ticket():
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def d3_build_ticket_with_container():
     """Ticket BUILD com parâmetros para geração de container."""
     from src.models.execution_ticket import (
+        SLA,
+        Consistency,
+        DeliveryMode,
+        Durability,
         ExecutionTicket,
+        Priority,
+        QoS,
+        RiskBand,
+        SecurityLevel,
         TaskType,
         TicketStatus,
-        Priority,
-        RiskBand,
-        SLA,
-        QoS,
-        SecurityLevel,
-        DeliveryMode,
-        Consistency,
-        Durability,
     )
 
     ticket_id = str(uuid.uuid4())
@@ -129,21 +128,21 @@ def d3_build_ticket_with_container():
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def d3_build_ticket_with_sbom():
     """Ticket BUILD com parâmetros para geração de SBOM."""
     from src.models.execution_ticket import (
+        SLA,
+        Consistency,
+        DeliveryMode,
+        Durability,
         ExecutionTicket,
+        Priority,
+        QoS,
+        RiskBand,
+        SecurityLevel,
         TaskType,
         TicketStatus,
-        Priority,
-        RiskBand,
-        SLA,
-        QoS,
-        SecurityLevel,
-        DeliveryMode,
-        Consistency,
-        Durability,
     )
 
     ticket_id = str(uuid.uuid4())
@@ -188,7 +187,7 @@ def d3_build_ticket_with_sbom():
 # ============================================================================
 
 
-@pytest.fixture
+@pytest.fixture()
 def d3_pipeline_context(d3_build_ticket):
     """PipelineContext para testes D3."""
     from src.models.pipeline_context import PipelineContext
@@ -202,15 +201,15 @@ def d3_pipeline_context(d3_build_ticket):
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def d3_pipeline_context_with_artifacts(d3_pipeline_context):
     """PipelineContext com artefatos D3 gerados."""
     from src.models.artifact import (
         CodeForgeArtifact,
         GenerationMethod,
         ValidationResult,
-        ValidationType,
         ValidationStatus,
+        ValidationType,
     )
     from src.types.artifact_types import ArtifactCategory
 
@@ -288,7 +287,7 @@ def d3_pipeline_context_with_artifacts(d3_pipeline_context):
 # ============================================================================
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_d3_kafka_producer():
     """Mock Kafka producer para publicação de resultados D3."""
     producer = AsyncMock()
@@ -310,7 +309,7 @@ def mock_d3_kafka_producer():
     return producer
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_d3_kafka_consumer():
     """Mock Kafka consumer para consumo de tickets D3."""
     consumer = AsyncMock()
@@ -339,7 +338,7 @@ def mock_d3_kafka_consumer():
 # ============================================================================
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_d3_template_selector():
     """Mock TemplateSelector para D3."""
     selector = AsyncMock()
@@ -369,7 +368,7 @@ def mock_d3_template_selector():
     return selector
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_d3_code_composer():
     """Mock CodeComposer para D3."""
     composer = AsyncMock()
@@ -383,13 +382,13 @@ def mock_d3_code_composer():
     return composer
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_d3_validator():
     """Mock Validator para D3."""
     validator = AsyncMock()
 
     async def _validate(context):
-        from src.models.artifact import ValidationResult, ValidationType, ValidationStatus
+        from src.models.artifact import ValidationResult, ValidationStatus, ValidationType
 
         validation = ValidationResult(
             validation_type=ValidationType.SAST,
@@ -412,7 +411,7 @@ def mock_d3_validator():
     return validator
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_d3_test_runner():
     """Mock TestRunner para D3."""
     runner = AsyncMock()
@@ -426,7 +425,7 @@ def mock_d3_test_runner():
     return runner
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_d3_packager():
     """Mock Packager para D3."""
     packager = AsyncMock()
@@ -464,7 +463,7 @@ def mock_d3_packager():
     return packager
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_d3_approval_gate():
     """Mock ApprovalGate para D3 (auto-aprovação em testes)."""
     gate = AsyncMock()
@@ -482,7 +481,7 @@ def mock_d3_approval_gate():
 # ============================================================================
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_d3_pipeline_engine(
     mock_d3_template_selector,
     mock_d3_code_composer,
@@ -542,7 +541,7 @@ def mock_d3_pipeline_engine(
 # ============================================================================
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_d3_metrics():
     """Mock de métricas Prometheus para testes D3."""
     metrics = MagicMock()
@@ -595,17 +594,17 @@ def mock_d3_metrics():
 # ============================================================================
 
 
-@pytest.fixture
+@pytest.fixture()
 def d3_expected_pipeline_result():
     """Resultado esperado de um pipeline D3 bem-sucedido."""
     from src.models.artifact import (
-        PipelineResult,
-        PipelineStatus,
-        PipelineStage,
-        StageStatus,
-        CodeForgeArtifact,
         ArtifactCategory,
+        CodeForgeArtifact,
         GenerationMethod,
+        PipelineResult,
+        PipelineStage,
+        PipelineStatus,
+        StageStatus,
     )
 
     pipeline_id = str(uuid.uuid4())
@@ -700,7 +699,7 @@ def d3_expected_pipeline_result():
 # ============================================================================
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_d3_mongodb_artifact():
     """Mock de artefato salvo no MongoDB para testes D3."""
     return {
@@ -717,7 +716,7 @@ def mock_d3_mongodb_artifact():
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_d3_postgres_pipeline():
     """Mock de pipeline salvo no PostgreSQL para testes D3."""
     return {

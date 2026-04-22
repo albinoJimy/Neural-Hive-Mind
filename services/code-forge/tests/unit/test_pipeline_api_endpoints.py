@@ -4,12 +4,13 @@ Testes para os endpoints da Pipeline API do Code Forge.
 Cobre trigger_pipeline, get_pipeline e estados de pipeline.
 """
 
-import pytest
-from unittest.mock import AsyncMock, MagicMock
 from datetime import datetime
+from unittest.mock import AsyncMock, MagicMock
+
+import pytest
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_trigger_pipeline_success():
     """Trigger de pipeline deve criar ticket e retornar pipeline_id."""
     from src.api.pipeline_api import set_pipeline_engine, trigger_pipeline
@@ -31,11 +32,11 @@ async def test_trigger_pipeline_success():
     assert "ticket_id" in response
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_trigger_pipeline_missing_artifact_id():
     """Trigger de pipeline deve falhar sem artifact_id."""
-    from src.api.pipeline_api import trigger_pipeline
     from fastapi import HTTPException
+    from src.api.pipeline_api import trigger_pipeline
 
     payload = {"parameters": {"language": "python"}}
 
@@ -46,7 +47,7 @@ async def test_trigger_pipeline_missing_artifact_id():
     assert "artifact_id is required" in exc_info.value.detail
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_trigger_pipeline_mock_mode():
     """Trigger de pipeline em modo mock quando engine nao disponivel."""
     from src.api.pipeline_api import trigger_pipeline
@@ -59,24 +60,24 @@ async def test_trigger_pipeline_mock_mode():
     assert response["status"] == "queued"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_get_pipeline_active_context():
     """Get pipeline deve retornar contexto ativo se disponivel."""
-    from src.api.pipeline_api import set_pipeline_engine, get_pipeline
-    from src.models.pipeline_context import PipelineContext
+    from src.api.pipeline_api import get_pipeline, set_pipeline_engine
     from src.models.execution_ticket import (
+        SLA,
+        Consistency,
+        DeliveryMode,
+        Durability,
         ExecutionTicket,
+        Priority,
+        QoS,
+        RiskBand,
+        SecurityLevel,
         TaskType,
         TicketStatus,
-        Priority,
-        RiskBand,
-        SLA,
-        QoS,
-        SecurityLevel,
-        DeliveryMode,
-        Consistency,
-        Durability,
     )
+    from src.models.pipeline_context import PipelineContext
 
     # Criar contexto mock
     ticket = ExecutionTicket(
@@ -113,10 +114,10 @@ async def test_get_pipeline_active_context():
     assert response["stage"] == "building"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_get_pipeline_from_redis():
     """Get pipeline deve buscar estado no Redis."""
-    from src.api.pipeline_api import set_pipeline_engine, set_redis_client, get_pipeline
+    from src.api.pipeline_api import get_pipeline, set_pipeline_engine, set_redis_client
 
     pipeline_id = "pipeline-123"
     state = {
@@ -144,11 +145,11 @@ async def test_get_pipeline_from_redis():
     assert response["stage"] == "completed"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_get_pipeline_not_found():
     """Get pipeline deve retornar 404 quando pipeline nao existe."""
-    from src.api.pipeline_api import set_pipeline_engine, set_redis_client, get_pipeline
     from fastapi import HTTPException
+    from src.api.pipeline_api import get_pipeline, set_pipeline_engine, set_redis_client
 
     mock_engine = MagicMock()
     mock_engine.get_pipeline_context = MagicMock(return_value=None)
@@ -166,7 +167,7 @@ async def test_get_pipeline_not_found():
     assert "not found" in exc_info.value.detail.lower()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_normalize_pipeline_status_completed():
     """Normalizacao deve manter status completed."""
     from src.api.pipeline_api import _normalize_pipeline_status
@@ -175,7 +176,7 @@ async def test_normalize_pipeline_status_completed():
     assert result == "completed"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_normalize_pipeline_status_requires_review():
     """Normalizacao deve mapear requires_review para completed."""
     from src.api.pipeline_api import _normalize_pipeline_status
@@ -184,7 +185,7 @@ async def test_normalize_pipeline_status_requires_review():
     assert result == "completed"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_normalize_pipeline_status_partial():
     """Normalizacao deve mapear partial para failed."""
     from src.api.pipeline_api import _normalize_pipeline_status
@@ -193,7 +194,7 @@ async def test_normalize_pipeline_status_partial():
     assert result == "failed"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_create_ticket_from_request():
     """Criacao de ticket deve mapear parametros corretamente."""
     from src.api.pipeline_api import _create_ticket_from_request
@@ -212,7 +213,7 @@ async def test_create_ticket_from_request():
     assert ticket.decision_id == "decision-123"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_save_pipeline_state():
     """Salvar estado no Redis deve usar chave correta."""
     from src.api.pipeline_api import _save_pipeline_state
@@ -230,7 +231,7 @@ async def test_save_pipeline_state():
     mock_redis.client.expire.assert_called_once()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_get_pipeline_state_empty():
     """Get pipeline state deve retornar None quando chave nao existe."""
     from src.api.pipeline_api import _get_pipeline_state
@@ -243,7 +244,7 @@ async def test_get_pipeline_state_empty():
     assert result is None
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_serialize_value_dict():
     """Serializacao deve converter dict para JSON string."""
     from src.api.pipeline_api import _serialize_value
@@ -256,7 +257,7 @@ async def test_serialize_value_dict():
     assert "value" in result
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_deserialize_value_json():
     """Deserializacao deve converter JSON string para dict."""
     from src.api.pipeline_api import _deserialize_value
@@ -269,7 +270,7 @@ async def test_deserialize_value_json():
     assert result["nested"]["a"] == 1
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_deserialize_value_plain_string():
     """Deserializacao deve retornar string plain quando nao é JSON."""
     from src.api.pipeline_api import _deserialize_value

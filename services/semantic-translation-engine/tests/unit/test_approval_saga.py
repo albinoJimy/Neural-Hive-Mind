@@ -5,17 +5,17 @@ Testa o Saga Pattern de aprovação com cenários de sucesso,
 falha na publicação, compensação e idempotência.
 """
 
-import pytest
-from datetime import datetime, timezone
-from unittest.mock import MagicMock, AsyncMock, patch
+from datetime import UTC, datetime
+from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
 from tenacity import RetryError
 
 
 class TestApprovalSagaSuccess:
     """Testes para execução bem-sucedida da saga"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def mongodb_client(self):
         """Mock MongoDB client"""
         client = MagicMock()
@@ -23,21 +23,21 @@ class TestApprovalSagaSuccess:
         client.revert_plan_approval_status = AsyncMock(return_value=True)
         return client
 
-    @pytest.fixture
+    @pytest.fixture()
     def plan_producer(self):
         """Mock plan producer"""
         producer = MagicMock()
         producer.send_plan = AsyncMock()
         return producer
 
-    @pytest.fixture
+    @pytest.fixture()
     def dlq_producer(self):
         """Mock DLQ producer"""
         producer = MagicMock()
         producer.send_dlq_entry = AsyncMock()
         return producer
 
-    @pytest.fixture
+    @pytest.fixture()
     def metrics(self):
         """Mock metrics"""
         m = MagicMock()
@@ -47,14 +47,14 @@ class TestApprovalSagaSuccess:
         m.observe_saga_duration = MagicMock()
         return m
 
-    @pytest.fixture
+    @pytest.fixture()
     def saga(self, mongodb_client, plan_producer, dlq_producer, metrics):
         """Create ApprovalSaga instance"""
         from src.sagas.approval_saga import ApprovalSaga
 
         return ApprovalSaga(mongodb_client, plan_producer, dlq_producer, metrics)
 
-    @pytest.fixture
+    @pytest.fixture()
     def sample_cognitive_plan(self):
         """Plano cognitivo de exemplo"""
         from src.models.cognitive_plan import CognitivePlan
@@ -75,7 +75,7 @@ class TestApprovalSagaSuccess:
             original_security_level="internal",
         )
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_saga_success_updates_ledger_and_publishes(
         self, saga, mongodb_client, plan_producer, metrics, sample_cognitive_plan
     ):
@@ -86,7 +86,7 @@ class TestApprovalSagaSuccess:
             plan_id="plan-saga-123",
             intent_id="intent-saga-456",
             approved_by="admin@example.com",
-            approved_at=datetime.now(timezone.utc),
+            approved_at=datetime.now(UTC),
             cognitive_plan=sample_cognitive_plan,
             trace_context=trace_context,
             risk_band="medium",
@@ -114,7 +114,7 @@ class TestApprovalSagaSuccess:
         call_args = metrics.observe_saga_duration.call_args
         assert call_args[0][1] == "completed"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_saga_success_no_compensation_called(
         self, saga, mongodb_client, dlq_producer, sample_cognitive_plan
     ):
@@ -123,7 +123,7 @@ class TestApprovalSagaSuccess:
             plan_id="plan-saga-123",
             intent_id="intent-saga-456",
             approved_by="admin@example.com",
-            approved_at=datetime.now(timezone.utc),
+            approved_at=datetime.now(UTC),
             cognitive_plan=sample_cognitive_plan,
             trace_context={},
             risk_band="low",
@@ -138,7 +138,7 @@ class TestApprovalSagaSuccess:
 class TestApprovalSagaCompensation:
     """Testes para compensação da saga após falha"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def mongodb_client(self):
         """Mock MongoDB client"""
         client = MagicMock()
@@ -146,21 +146,21 @@ class TestApprovalSagaCompensation:
         client.revert_plan_approval_status = AsyncMock(return_value=True)
         return client
 
-    @pytest.fixture
+    @pytest.fixture()
     def plan_producer(self):
         """Mock plan producer que falha"""
         producer = MagicMock()
         producer.send_plan = AsyncMock(side_effect=Exception("Kafka error"))
         return producer
 
-    @pytest.fixture
+    @pytest.fixture()
     def dlq_producer(self):
         """Mock DLQ producer"""
         producer = MagicMock()
         producer.send_dlq_entry = AsyncMock()
         return producer
 
-    @pytest.fixture
+    @pytest.fixture()
     def metrics(self):
         """Mock metrics"""
         m = MagicMock()
@@ -170,14 +170,14 @@ class TestApprovalSagaCompensation:
         m.observe_saga_duration = MagicMock()
         return m
 
-    @pytest.fixture
+    @pytest.fixture()
     def saga(self, mongodb_client, plan_producer, dlq_producer, metrics):
         """Create ApprovalSaga instance"""
         from src.sagas.approval_saga import ApprovalSaga
 
         return ApprovalSaga(mongodb_client, plan_producer, dlq_producer, metrics)
 
-    @pytest.fixture
+    @pytest.fixture()
     def sample_cognitive_plan(self):
         """Plano cognitivo de exemplo"""
         from src.models.cognitive_plan import CognitivePlan
@@ -198,7 +198,7 @@ class TestApprovalSagaCompensation:
             original_security_level="confidential",
         )
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_saga_failure_triggers_compensation(
         self, saga, mongodb_client, plan_producer, metrics, sample_cognitive_plan
     ):
@@ -211,7 +211,7 @@ class TestApprovalSagaCompensation:
                     plan_id="plan-comp-123",
                     intent_id="intent-comp-456",
                     approved_by="admin@example.com",
-                    approved_at=datetime.now(timezone.utc),
+                    approved_at=datetime.now(UTC),
                     cognitive_plan=sample_cognitive_plan,
                     trace_context=trace_context,
                     risk_band="high",
@@ -224,7 +224,7 @@ class TestApprovalSagaCompensation:
         assert call_args.kwargs["plan_id"] == "plan-comp-123"
         assert call_args.kwargs["saga_state"] == "compensated"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_saga_compensation_reverts_to_pending(
         self, saga, mongodb_client, sample_cognitive_plan
     ):
@@ -235,7 +235,7 @@ class TestApprovalSagaCompensation:
                     plan_id="plan-comp-123",
                     intent_id="intent-comp-456",
                     approved_by="admin@example.com",
-                    approved_at=datetime.now(timezone.utc),
+                    approved_at=datetime.now(UTC),
                     cognitive_plan=sample_cognitive_plan,
                     trace_context={},
                     risk_band="high",
@@ -247,7 +247,7 @@ class TestApprovalSagaCompensation:
         assert "compensation_reason" in call_args.kwargs
         assert "Kafka error" in call_args.kwargs["compensation_reason"]
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_saga_compensation_records_metric(self, saga, metrics, sample_cognitive_plan):
         """Compensação registra métrica"""
         with patch("src.sagas.approval_saga.wait_exponential", return_value=lambda x: 0):
@@ -256,7 +256,7 @@ class TestApprovalSagaCompensation:
                     plan_id="plan-comp-123",
                     intent_id="intent-comp-456",
                     approved_by="admin@example.com",
-                    approved_at=datetime.now(timezone.utc),
+                    approved_at=datetime.now(UTC),
                     cognitive_plan=sample_cognitive_plan,
                     trace_context={},
                     risk_band="high",
@@ -267,7 +267,7 @@ class TestApprovalSagaCompensation:
             reason="kafka_publish_failed", risk_band="high"
         )
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_saga_compensation_sends_to_dlq(self, saga, dlq_producer, sample_cognitive_plan):
         """Compensação envia entrada para DLQ"""
         with patch("src.sagas.approval_saga.wait_exponential", return_value=lambda x: 0):
@@ -276,7 +276,7 @@ class TestApprovalSagaCompensation:
                     plan_id="plan-comp-123",
                     intent_id="intent-comp-456",
                     approved_by="admin@example.com",
-                    approved_at=datetime.now(timezone.utc),
+                    approved_at=datetime.now(UTC),
                     cognitive_plan=sample_cognitive_plan,
                     trace_context={"correlation_id": "corr-123"},
                     risk_band="high",
@@ -292,7 +292,7 @@ class TestApprovalSagaCompensation:
 class TestApprovalSagaInitFailure:
     """Testes para falha na inicialização da saga"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def mongodb_client(self):
         """Mock MongoDB client que falha na primeira atualização"""
         client = MagicMock()
@@ -300,21 +300,21 @@ class TestApprovalSagaInitFailure:
         client.revert_plan_approval_status = AsyncMock(return_value=True)
         return client
 
-    @pytest.fixture
+    @pytest.fixture()
     def plan_producer(self):
         """Mock plan producer"""
         producer = MagicMock()
         producer.send_plan = AsyncMock()
         return producer
 
-    @pytest.fixture
+    @pytest.fixture()
     def dlq_producer(self):
         """Mock DLQ producer"""
         producer = MagicMock()
         producer.send_dlq_entry = AsyncMock()
         return producer
 
-    @pytest.fixture
+    @pytest.fixture()
     def metrics(self):
         """Mock metrics"""
         m = MagicMock()
@@ -324,14 +324,14 @@ class TestApprovalSagaInitFailure:
         m.observe_saga_duration = MagicMock()
         return m
 
-    @pytest.fixture
+    @pytest.fixture()
     def saga(self, mongodb_client, plan_producer, dlq_producer, metrics):
         """Create ApprovalSaga instance"""
         from src.sagas.approval_saga import ApprovalSaga
 
         return ApprovalSaga(mongodb_client, plan_producer, dlq_producer, metrics)
 
-    @pytest.fixture
+    @pytest.fixture()
     def sample_cognitive_plan(self):
         """Plano cognitivo de exemplo"""
         from src.models.cognitive_plan import CognitivePlan
@@ -352,7 +352,7 @@ class TestApprovalSagaInitFailure:
             original_security_level="internal",
         )
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_saga_init_failure_raises_exception(
         self, saga, plan_producer, metrics, sample_cognitive_plan
     ):
@@ -362,7 +362,7 @@ class TestApprovalSagaInitFailure:
                 plan_id="plan-init-fail-123",
                 intent_id="intent-init-fail-456",
                 approved_by="admin@example.com",
-                approved_at=datetime.now(timezone.utc),
+                approved_at=datetime.now(UTC),
                 cognitive_plan=sample_cognitive_plan,
                 trace_context={},
                 risk_band="medium",
@@ -381,7 +381,7 @@ class TestApprovalSagaInitFailure:
 class TestApprovalSagaCompensationFailure:
     """Testes para falha na compensação"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def mongodb_client(self):
         """Mock MongoDB client"""
         client = MagicMock()
@@ -390,21 +390,21 @@ class TestApprovalSagaCompensationFailure:
         client.revert_plan_approval_status = AsyncMock(return_value=False)
         return client
 
-    @pytest.fixture
+    @pytest.fixture()
     def plan_producer(self):
         """Mock plan producer que falha"""
         producer = MagicMock()
         producer.send_plan = AsyncMock(side_effect=Exception("Kafka error"))
         return producer
 
-    @pytest.fixture
+    @pytest.fixture()
     def dlq_producer(self):
         """Mock DLQ producer"""
         producer = MagicMock()
         producer.send_dlq_entry = AsyncMock()
         return producer
 
-    @pytest.fixture
+    @pytest.fixture()
     def metrics(self):
         """Mock metrics"""
         m = MagicMock()
@@ -414,14 +414,14 @@ class TestApprovalSagaCompensationFailure:
         m.observe_saga_duration = MagicMock()
         return m
 
-    @pytest.fixture
+    @pytest.fixture()
     def saga(self, mongodb_client, plan_producer, dlq_producer, metrics):
         """Create ApprovalSaga instance"""
         from src.sagas.approval_saga import ApprovalSaga
 
         return ApprovalSaga(mongodb_client, plan_producer, dlq_producer, metrics)
 
-    @pytest.fixture
+    @pytest.fixture()
     def sample_cognitive_plan(self):
         """Plano cognitivo de exemplo"""
         from src.models.cognitive_plan import CognitivePlan
@@ -442,7 +442,7 @@ class TestApprovalSagaCompensationFailure:
             original_security_level="restricted",
         )
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_compensation_failure_still_sends_to_dlq(
         self, saga, dlq_producer, sample_cognitive_plan
     ):
@@ -453,7 +453,7 @@ class TestApprovalSagaCompensationFailure:
                     plan_id="plan-comp-fail-123",
                     intent_id="intent-comp-fail-456",
                     approved_by="admin@example.com",
-                    approved_at=datetime.now(timezone.utc),
+                    approved_at=datetime.now(UTC),
                     cognitive_plan=sample_cognitive_plan,
                     trace_context={},
                     risk_band="critical",
@@ -464,7 +464,7 @@ class TestApprovalSagaCompensationFailure:
         dlq_entry = dlq_producer.send_dlq_entry.call_args[0][0]
         assert "[COMPENSATION_FAILED]" in dlq_entry.failure_reason
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_compensation_failure_does_not_block_exception(self, saga, sample_cognitive_plan):
         """Falha na compensação não bloqueia propagação da exceção original"""
         with patch("src.sagas.approval_saga.wait_exponential", return_value=lambda x: 0):
@@ -473,7 +473,7 @@ class TestApprovalSagaCompensationFailure:
                     plan_id="plan-comp-fail-123",
                     intent_id="intent-comp-fail-456",
                     approved_by="admin@example.com",
-                    approved_at=datetime.now(timezone.utc),
+                    approved_at=datetime.now(UTC),
                     cognitive_plan=sample_cognitive_plan,
                     trace_context={},
                     risk_band="critical",
@@ -485,7 +485,7 @@ class TestApprovalSagaCompensationFailure:
 class TestApprovalSagaNoDLQ:
     """Testes para saga sem DLQ configurado"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def mongodb_client(self):
         """Mock MongoDB client"""
         client = MagicMock()
@@ -493,14 +493,14 @@ class TestApprovalSagaNoDLQ:
         client.revert_plan_approval_status = AsyncMock(return_value=True)
         return client
 
-    @pytest.fixture
+    @pytest.fixture()
     def plan_producer(self):
         """Mock plan producer que falha"""
         producer = MagicMock()
         producer.send_plan = AsyncMock(side_effect=Exception("Kafka error"))
         return producer
 
-    @pytest.fixture
+    @pytest.fixture()
     def metrics(self):
         """Mock metrics"""
         m = MagicMock()
@@ -510,14 +510,14 @@ class TestApprovalSagaNoDLQ:
         m.observe_saga_duration = MagicMock()
         return m
 
-    @pytest.fixture
+    @pytest.fixture()
     def saga(self, mongodb_client, plan_producer, metrics):
         """Create ApprovalSaga instance without DLQ"""
         from src.sagas.approval_saga import ApprovalSaga
 
         return ApprovalSaga(mongodb_client, plan_producer, None, metrics)
 
-    @pytest.fixture
+    @pytest.fixture()
     def sample_cognitive_plan(self):
         """Plano cognitivo de exemplo"""
         from src.models.cognitive_plan import CognitivePlan
@@ -538,7 +538,7 @@ class TestApprovalSagaNoDLQ:
             original_security_level="internal",
         )
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_saga_without_dlq_still_compensates(
         self, saga, mongodb_client, sample_cognitive_plan
     ):
@@ -549,7 +549,7 @@ class TestApprovalSagaNoDLQ:
                     plan_id="plan-no-dlq-123",
                     intent_id="intent-no-dlq-456",
                     approved_by="admin@example.com",
-                    approved_at=datetime.now(timezone.utc),
+                    approved_at=datetime.now(UTC),
                     cognitive_plan=sample_cognitive_plan,
                     trace_context={},
                     risk_band="medium",
@@ -568,7 +568,7 @@ class TestApprovalSagaCompletionUpdateFailure:
     a saga deve marcar o ledger como 'failed' em vez de silenciosamente retornar sucesso.
     """
 
-    @pytest.fixture
+    @pytest.fixture()
     def mongodb_client(self):
         """Mock MongoDB client que falha na segunda atualização (completed)"""
         client = MagicMock()
@@ -580,21 +580,21 @@ class TestApprovalSagaCompletionUpdateFailure:
         client.update_plan_saga_state = AsyncMock(return_value=True)
         return client
 
-    @pytest.fixture
+    @pytest.fixture()
     def plan_producer(self):
         """Mock plan producer que funciona"""
         producer = MagicMock()
         producer.send_plan = AsyncMock()
         return producer
 
-    @pytest.fixture
+    @pytest.fixture()
     def dlq_producer(self):
         """Mock DLQ producer"""
         producer = MagicMock()
         producer.send_dlq_entry = AsyncMock()
         return producer
 
-    @pytest.fixture
+    @pytest.fixture()
     def metrics(self):
         """Mock metrics"""
         m = MagicMock()
@@ -605,14 +605,14 @@ class TestApprovalSagaCompletionUpdateFailure:
         m.increment_saga_compensation_failure = MagicMock()
         return m
 
-    @pytest.fixture
+    @pytest.fixture()
     def saga(self, mongodb_client, plan_producer, dlq_producer, metrics):
         """Create ApprovalSaga instance"""
         from src.sagas.approval_saga import ApprovalSaga
 
         return ApprovalSaga(mongodb_client, plan_producer, dlq_producer, metrics)
 
-    @pytest.fixture
+    @pytest.fixture()
     def sample_cognitive_plan(self):
         """Plano cognitivo de exemplo"""
         from src.models.cognitive_plan import CognitivePlan
@@ -633,7 +633,7 @@ class TestApprovalSagaCompletionUpdateFailure:
             original_security_level="internal",
         )
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_completion_update_failure_marks_saga_as_failed(
         self, saga, mongodb_client, metrics, sample_cognitive_plan
     ):
@@ -650,7 +650,7 @@ class TestApprovalSagaCompletionUpdateFailure:
             plan_id="plan-comp-fail-update-123",
             intent_id="intent-comp-fail-update-456",
             approved_by="admin@example.com",
-            approved_at=datetime.now(timezone.utc),
+            approved_at=datetime.now(UTC),
             cognitive_plan=sample_cognitive_plan,
             trace_context={"correlation_id": "corr-123"},
             risk_band="medium",
@@ -676,7 +676,7 @@ class TestApprovalSagaCompletionUpdateFailure:
         last_call = mongodb_client.update_plan_approval_status.call_args_list[-1]
         assert last_call.kwargs.get("saga_state") == "failed"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_completion_update_with_exception_marks_saga_as_failed(
         self, mongodb_client, plan_producer, dlq_producer, metrics
     ):
@@ -685,8 +685,8 @@ class TestApprovalSagaCompletionUpdateFailure:
 
         Verifica comportamento quando MongoDB lança exceção durante atualização final.
         """
-        from src.sagas.approval_saga import ApprovalSaga
         from src.models.cognitive_plan import CognitivePlan
+        from src.sagas.approval_saga import ApprovalSaga
 
         # Primeira chamada sucesso, próximas lançam exceção
         mongodb_client.update_plan_approval_status = AsyncMock(
@@ -721,7 +721,7 @@ class TestApprovalSagaCompletionUpdateFailure:
             plan_id="plan-exc-123",
             intent_id="intent-exc-456",
             approved_by="admin@example.com",
-            approved_at=datetime.now(timezone.utc),
+            approved_at=datetime.now(UTC),
             cognitive_plan=plan,
             trace_context={},
             risk_band="medium",
@@ -741,7 +741,7 @@ class TestApprovalSagaCompensationFailureMarksFailed:
     para não deixar o ledger em estado inconsistente (approved/executing).
     """
 
-    @pytest.fixture
+    @pytest.fixture()
     def mongodb_client(self):
         """Mock MongoDB client"""
         client = MagicMock()
@@ -753,21 +753,21 @@ class TestApprovalSagaCompensationFailureMarksFailed:
         client.update_plan_saga_state = AsyncMock(return_value=True)
         return client
 
-    @pytest.fixture
+    @pytest.fixture()
     def plan_producer(self):
         """Mock plan producer que falha"""
         producer = MagicMock()
         producer.send_plan = AsyncMock(side_effect=Exception("Kafka broker unavailable"))
         return producer
 
-    @pytest.fixture
+    @pytest.fixture()
     def dlq_producer(self):
         """Mock DLQ producer"""
         producer = MagicMock()
         producer.send_dlq_entry = AsyncMock()
         return producer
 
-    @pytest.fixture
+    @pytest.fixture()
     def metrics(self):
         """Mock metrics"""
         m = MagicMock()
@@ -778,14 +778,14 @@ class TestApprovalSagaCompensationFailureMarksFailed:
         m.increment_saga_compensation_failure = MagicMock()
         return m
 
-    @pytest.fixture
+    @pytest.fixture()
     def saga(self, mongodb_client, plan_producer, dlq_producer, metrics):
         """Create ApprovalSaga instance"""
         from src.sagas.approval_saga import ApprovalSaga
 
         return ApprovalSaga(mongodb_client, plan_producer, dlq_producer, metrics)
 
-    @pytest.fixture
+    @pytest.fixture()
     def sample_cognitive_plan(self):
         """Plano cognitivo de exemplo"""
         from src.models.cognitive_plan import CognitivePlan
@@ -806,7 +806,7 @@ class TestApprovalSagaCompensationFailureMarksFailed:
             original_security_level="confidential",
         )
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_compensation_failure_calls_mark_saga_as_failed(
         self, saga, mongodb_client, metrics, sample_cognitive_plan
     ):
@@ -822,7 +822,7 @@ class TestApprovalSagaCompensationFailureMarksFailed:
                     plan_id="plan-comp-mark-failed-123",
                     intent_id="intent-comp-mark-failed-456",
                     approved_by="admin@example.com",
-                    approved_at=datetime.now(timezone.utc),
+                    approved_at=datetime.now(UTC),
                     cognitive_plan=sample_cognitive_plan,
                     trace_context={"correlation_id": "corr-123"},
                     risk_band="high",
@@ -836,7 +836,7 @@ class TestApprovalSagaCompensationFailureMarksFailed:
         assert call_args.kwargs["saga_state"] == "failed"
         assert "Compensação falhou" in call_args.kwargs["saga_failure_reason"]
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_compensation_failure_records_specific_metric(
         self, saga, metrics, sample_cognitive_plan
     ):
@@ -852,7 +852,7 @@ class TestApprovalSagaCompensationFailureMarksFailed:
                     plan_id="plan-comp-mark-failed-123",
                     intent_id="intent-comp-mark-failed-456",
                     approved_by="admin@example.com",
-                    approved_at=datetime.now(timezone.utc),
+                    approved_at=datetime.now(UTC),
                     cognitive_plan=sample_cognitive_plan,
                     trace_context={},
                     risk_band="high",
@@ -861,7 +861,7 @@ class TestApprovalSagaCompensationFailureMarksFailed:
 
         metrics.increment_saga_compensation_failure.assert_called_once_with("high")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_compensation_failure_dlq_entry_contains_compensation_failed_flag(
         self, saga, dlq_producer, sample_cognitive_plan
     ):
@@ -876,7 +876,7 @@ class TestApprovalSagaCompensationFailureMarksFailed:
                     plan_id="plan-comp-mark-failed-123",
                     intent_id="intent-comp-mark-failed-456",
                     approved_by="admin@example.com",
-                    approved_at=datetime.now(timezone.utc),
+                    approved_at=datetime.now(UTC),
                     cognitive_plan=sample_cognitive_plan,
                     trace_context={},
                     risk_band="high",
@@ -887,7 +887,7 @@ class TestApprovalSagaCompensationFailureMarksFailed:
         dlq_entry = dlq_producer.send_dlq_entry.call_args[0][0]
         assert "[COMPENSATION_FAILED]" in dlq_entry.failure_reason
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_mark_saga_as_failed_is_best_effort(
         self, mongodb_client, plan_producer, dlq_producer, metrics
     ):
@@ -897,8 +897,8 @@ class TestApprovalSagaCompensationFailureMarksFailed:
         Verifica que se update_plan_saga_state também falhar, a exceção
         não é propagada e o fluxo continua.
         """
-        from src.sagas.approval_saga import ApprovalSaga
         from src.models.cognitive_plan import CognitivePlan
+        from src.sagas.approval_saga import ApprovalSaga
 
         # Configurar para que update_plan_saga_state lance exceção
         mongodb_client.update_plan_saga_state = AsyncMock(
@@ -930,7 +930,7 @@ class TestApprovalSagaCompensationFailureMarksFailed:
                     plan_id="plan-best-effort-123",
                     intent_id="intent-best-effort-456",
                     approved_by="admin@example.com",
-                    approved_at=datetime.now(timezone.utc),
+                    approved_at=datetime.now(UTC),
                     cognitive_plan=plan,
                     trace_context={},
                     risk_band="critical",

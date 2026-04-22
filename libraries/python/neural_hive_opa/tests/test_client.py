@@ -2,17 +2,16 @@
 Testes do cliente OPA.
 """
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
-import httpx
 
+import httpx
+import pytest
 from neural_hive_opa.client import (
+    CircuitBreaker,
     OPAClient,
     OPAClientConfig,
     OPARequestOptions,
     OPAResult,
-    CircuitBreaker,
-    CircuitBreakerOpenException,
 )
 
 
@@ -92,7 +91,13 @@ class TestOPAClient:
 
         # Usar HTTPStatusError que não está no retry_if_exception_type
         with patch.object(
-            client._client, "post", AsyncMock(side_effect=httpx.HTTPStatusError("Server error", request=MagicMock(), response=MagicMock()))
+            client._client,
+            "post",
+            AsyncMock(
+                side_effect=httpx.HTTPStatusError(
+                    "Server error", request=MagicMock(), response=MagicMock()
+                )
+            ),
         ):
             result = await client.check(
                 input_data={"user": {"id": "123"}},
@@ -113,7 +118,13 @@ class TestOPAClient:
 
         # Usar HTTPStatusError que não está no retry_if_exception_type
         with patch.object(
-            client._client, "post", AsyncMock(side_effect=httpx.HTTPStatusError("Server error", request=MagicMock(), response=MagicMock()))
+            client._client,
+            "post",
+            AsyncMock(
+                side_effect=httpx.HTTPStatusError(
+                    "Server error", request=MagicMock(), response=MagicMock()
+                )
+            ),
         ):
             with pytest.raises(httpx.HTTPStatusError):
                 await client.check(

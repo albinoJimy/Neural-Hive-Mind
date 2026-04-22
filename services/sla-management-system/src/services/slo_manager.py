@@ -2,8 +2,8 @@
 Serviço para gerenciar definições de SLO.
 """
 
-from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING, Any, Optional
 
 import structlog
 import yaml
@@ -11,7 +11,7 @@ from prometheus_client import Counter, Histogram
 
 from ..clients.postgresql_client import PostgreSQLClient
 from ..clients.prometheus_client import PrometheusClient
-from ..models.slo_definition import SLODefinition, SLIQuery
+from ..models.slo_definition import SLIQuery, SLODefinition
 
 if TYPE_CHECKING:
     from ..clients.kubernetes_client import KubernetesClient
@@ -58,7 +58,7 @@ class SLOManager:
         """Busca SLO por ID."""
         return await self.postgresql_client.get_slo(slo_id)
 
-    async def list_slos(self, filters: Optional[Dict[str, Any]] = None) -> List[SLODefinition]:
+    async def list_slos(self, filters: Optional[dict[str, Any]] = None) -> list[SLODefinition]:
         """Lista SLOs com filtros opcionais."""
         if not filters:
             return await self.postgresql_client.list_slos()
@@ -80,7 +80,7 @@ class SLOManager:
 
         return slos
 
-    async def update_slo(self, slo_id: str, updates: Dict[str, Any]) -> Optional[SLODefinition]:
+    async def update_slo(self, slo_id: str, updates: dict[str, Any]) -> Optional[SLODefinition]:
         """Atualiza campos do SLO."""
         # Validar campos permitidos
         allowed_fields = {
@@ -98,7 +98,7 @@ class SLOManager:
             raise ValueError(f"Invalid fields for update: {invalid_fields}")
 
         # Atualizar
-        updates["updated_at"] = datetime.now(timezone.utc)
+        updates["updated_at"] = datetime.now(UTC)
 
         success = await self.postgresql_client.update_slo(slo_id, updates)
         if not success:
@@ -118,10 +118,10 @@ class SLOManager:
 
         return success
 
-    async def import_from_alerts(self, alert_rules_path: str) -> List[str]:
+    async def import_from_alerts(self, alert_rules_path: str) -> list[str]:
         """Importa SLOs de arquivo de alertas Prometheus."""
         try:
-            with open(alert_rules_path, "r") as f:
+            with open(alert_rules_path) as f:
                 alert_rules = yaml.safe_load(f)
 
             slo_ids = []
@@ -178,7 +178,7 @@ class SLOManager:
             self.logger.error("slo_import_failed", error=str(e), source=alert_rules_path)
             raise
 
-    async def sync_from_crds(self, namespace: Optional[str] = None) -> List[str]:
+    async def sync_from_crds(self, namespace: Optional[str] = None) -> list[str]:
         """
         Sincroniza SLOs de CRDs Kubernetes para PostgreSQL.
 
@@ -204,7 +204,7 @@ class SLOManager:
             )
             return []
 
-        synced_ids: List[str] = []
+        synced_ids: list[str] = []
 
         with sla_crd_sync_duration.time():
             try:
@@ -243,7 +243,7 @@ class SLOManager:
                 self.logger.error("crd_sync.failed", error=str(e))
                 return []
 
-    async def _sync_single_crd(self, crd: Dict[str, Any]) -> Optional[str]:
+    async def _sync_single_crd(self, crd: dict[str, Any]) -> Optional[str]:
         """
         Sincroniza um unico CRD para PostgreSQL.
 
@@ -369,7 +369,7 @@ class SLOManager:
 
         return False
 
-    def validate_slo(self, slo: SLODefinition) -> Tuple[bool, Optional[str]]:
+    def validate_slo(self, slo: SLODefinition) -> tuple[bool, Optional[str]]:
         """Valida definição de SLO."""
         # Target entre 0 e 1
         if not (0 <= slo.target <= 1):
@@ -391,7 +391,7 @@ class SLOManager:
 
     async def test_slo_query(
         self, slo: SLODefinition
-    ) -> Tuple[bool, Optional[float], Optional[str]]:
+    ) -> tuple[bool, Optional[float], Optional[str]]:
         """Testa query do SLO contra Prometheus."""
         try:
             # Executar query

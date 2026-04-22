@@ -3,9 +3,10 @@ Configuração pytest para testes do Queen Agent
 """
 
 import sys
-import pytest_asyncio
 from pathlib import Path
-from httpx import AsyncClient, ASGITransport
+
+import pytest_asyncio
+from httpx import ASGITransport, AsyncClient
 
 # Adicionar src ao path para imports
 src_path = Path(__file__).parent.parent / "src"

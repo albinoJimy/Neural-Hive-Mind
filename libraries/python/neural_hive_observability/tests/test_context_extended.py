@@ -8,17 +8,18 @@ Este arquivo contém testes adicionais para aumentar a cobertura de:
 - Funções de contexto metadata
 """
 
-import pytest
 from unittest.mock import patch
+
+import pytest
 
 from neural_hive_observability.config import ObservabilityConfig
 from neural_hive_observability.context import (
     ContextManager,
     extract_context_from_headers,
     extract_context_from_metadata,
-    set_baggage_value,
-    inject_context_to_metadata,
     get_baggage,
+    inject_context_to_metadata,
+    set_baggage_value,
 )
 
 

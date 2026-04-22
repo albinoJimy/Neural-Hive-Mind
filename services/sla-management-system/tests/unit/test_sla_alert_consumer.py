@@ -3,13 +3,13 @@ Testes unitários para SLAAlertConsumer.
 """
 
 import json
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
 from src.consumers.sla_alert_consumer import SLAAlertConsumer
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_settings():
     """Configurações mock para testes."""
     settings = MagicMock()
@@ -21,7 +21,7 @@ def mock_settings():
     return settings
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_slack_client():
     """Mock SlackClient."""
     client = AsyncMock()
@@ -30,7 +30,7 @@ def mock_slack_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_pagerduty_client():
     """Mock PagerDutyClient."""
     client = AsyncMock()
@@ -39,7 +39,7 @@ def mock_pagerduty_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def sla_alert_consumer(mock_settings, mock_slack_client, mock_pagerduty_client):
     """Consumer SLA Alert para testes."""
     return SLAAlertConsumer(
@@ -53,7 +53,7 @@ def sla_alert_consumer(mock_settings, mock_slack_client, mock_pagerduty_client):
 class TestSLAAlertConsumer:
     """Testes para SLAAlertConsumer."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     @patch("src.consumers.sla_alert_consumer.AIOKafkaConsumer")
     async def test_start_creates_consumer(self, mock_kafka_consumer, sla_alert_consumer):
         """Testa que start cria o consumer Kafka."""
@@ -69,7 +69,7 @@ class TestSLAAlertConsumer:
         assert sla_alert_consumer.consumer is not None
         assert sla_alert_consumer.is_running is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     @patch("src.consumers.sla_alert_consumer.AIOKafkaConsumer")
     async def test_stop_stops_consumer(self, mock_kafka_consumer, sla_alert_consumer):
         """Testa que stop para o consumer."""
@@ -87,7 +87,7 @@ class TestSLAAlertConsumer:
         # Assert
         assert sla_alert_consumer.is_running is False
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_dispatch_critical_alert(self, sla_alert_consumer):
         """Testa despacho de alerta crítico para Slack + PagerDuty."""
         # Setup
@@ -108,7 +108,7 @@ class TestSLAAlertConsumer:
         sla_alert_consumer.slack_client.send_sla_alert.assert_called_once()
         sla_alert_consumer.pagerduty_client.send_sla_alert.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_dispatch_emergency_alert(self, sla_alert_consumer):
         """Testa despacho de alerta emergency para Slack + PagerDuty."""
         # Setup
@@ -127,7 +127,7 @@ class TestSLAAlertConsumer:
         sla_alert_consumer.slack_client.send_sla_alert.assert_called_once()
         sla_alert_consumer.pagerduty_client.send_sla_alert.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_dispatch_warning_alert(self, sla_alert_consumer):
         """Testa despacho de alerta warning apenas para Slack."""
         # Setup
@@ -146,7 +146,7 @@ class TestSLAAlertConsumer:
         sla_alert_consumer.slack_client.send_sla_alert.assert_called_once()
         sla_alert_consumer.pagerduty_client.send_sla_alert.assert_not_called()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_dispatch_info_alert(self, sla_alert_consumer):
         """Testa despacho de alerta info apenas para Slack."""
         # Setup
@@ -164,18 +164,20 @@ class TestSLAAlertConsumer:
         # Assert
         sla_alert_consumer.slack_client.send_sla_alert.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_process_alert_message_critical(self, sla_alert_consumer):
         """Testa processamento de mensagem de alerta crítico."""
         # Setup
         message = MagicMock()
-        message.value = json.dumps({
-            "alert_id": "alert-001",
-            "severity": "critical",
-            "title": "Test Alert",
-            "message": "Test message",
-            "service_name": "test-service",
-        }).encode()
+        message.value = json.dumps(
+            {
+                "alert_id": "alert-001",
+                "severity": "critical",
+                "title": "Test Alert",
+                "message": "Test message",
+                "service_name": "test-service",
+            }
+        ).encode()
 
         # Act
         await sla_alert_consumer._process_message(message)
@@ -184,18 +186,20 @@ class TestSLAAlertConsumer:
         sla_alert_consumer.slack_client.send_sla_alert.assert_called_once()
         sla_alert_consumer.pagerduty_client.send_sla_alert.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_process_alert_message_warning(self, sla_alert_consumer):
         """Testa processamento de mensagem de alerta warning."""
         # Setup
         message = MagicMock()
-        message.value = json.dumps({
-            "alert_id": "alert-002",
-            "severity": "warning",
-            "title": "Test Warning",
-            "message": "Test warning message",
-            "service_name": "test-service",
-        }).encode()
+        message.value = json.dumps(
+            {
+                "alert_id": "alert-002",
+                "severity": "warning",
+                "title": "Test Warning",
+                "message": "Test warning message",
+                "service_name": "test-service",
+            }
+        ).encode()
 
         # Act
         await sla_alert_consumer._process_message(message)
@@ -204,7 +208,7 @@ class TestSLAAlertConsumer:
         sla_alert_consumer.slack_client.send_sla_alert.assert_called_once()
         sla_alert_consumer.pagerduty_client.send_sla_alert.assert_not_called()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_process_invalid_json_message(self, sla_alert_consumer, caplog):
         """Testa processamento de mensagem JSON inválido."""
         # Setup
@@ -234,7 +238,7 @@ class TestSLAAlertConsumer:
 class TestSLAAlertConsumerFormatting:
     """Testes para formatação de mensagens Slack."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def consumer(self, mock_settings, mock_slack_client, mock_pagerduty_client):
         """Consumer para testes de formatação."""
         return SLAAlertConsumer(

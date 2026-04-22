@@ -1,6 +1,6 @@
 """ChaosMesh client for chaos engineering experiments"""
 
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 import structlog
 from kubernetes import client, config
@@ -80,9 +80,9 @@ class ChaosMeshClient:
         name: str,
         namespace: Optional[str] = None,
         action: str = "pod-kill",
-        selector: Optional[Dict[str, Any]] = None,
+        selector: Optional[dict[str, Any]] = None,
         duration: str = "30s",
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Cria experimento PodChaos.
 
@@ -166,11 +166,11 @@ class ChaosMeshClient:
         name: str,
         namespace: Optional[str] = None,
         action: str = "delay",
-        selector: Optional[Dict[str, Any]] = None,
+        selector: Optional[dict[str, Any]] = None,
         duration: str = "30s",
         delay_latency: str = "100ms",
         loss_percentage: int = 0,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Cria experimento NetworkChaos.
 
@@ -259,7 +259,7 @@ class ChaosMeshClient:
 
     async def delete_chaos_experiment(
         self, name: str, chaos_type: str = "podchaos", namespace: Optional[str] = None
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Remove um experimento de chaos.
 
@@ -327,7 +327,7 @@ class ChaosMeshClient:
 
     async def get_experiment_status(
         self, name: str, chaos_type: str = "podchaos", namespace: Optional[str] = None
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Obtém status de um experimento.
 

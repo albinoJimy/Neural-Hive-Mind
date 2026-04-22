@@ -1,7 +1,6 @@
-import grpc
 from types import SimpleNamespace
-from typing import List, Tuple
 
+import grpc
 from opentelemetry import trace
 from opentelemetry.context import detach
 from opentelemetry.sdk.trace import TracerProvider
@@ -18,7 +17,7 @@ from neural_hive_observability.tracing import trace_grpc_method
 
 
 class DummyContext:
-    def __init__(self, metadata: List[Tuple[str, str]]):
+    def __init__(self, metadata: list[tuple[str, str]]):
         self._metadata = metadata
 
     def invocation_metadata(self):
@@ -126,7 +125,7 @@ def test_trace_grpc_method_creates_span_with_metadata(monkeypatch):
     tracer, exporter = _setup_tracer()
 
     # patch tracer global in tracing module
-    import neural_hive_observability.tracing as tracing
+    from neural_hive_observability import tracing
 
     tracing._tracer = tracer
     tracing._config = ObservabilityConfig(

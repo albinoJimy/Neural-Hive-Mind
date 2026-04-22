@@ -1,5 +1,5 @@
 import json
-from typing import List, Optional
+from typing import Optional
 
 import redis.asyncio as redis
 import structlog
@@ -76,7 +76,7 @@ class RedisClient:
             return False
 
     async def cache_query_result(
-        self, query_key: str, results: List[dict], ttl: Optional[int] = None
+        self, query_key: str, results: list[dict], ttl: Optional[int] = None
     ) -> bool:
         """Cachear resultado de consulta"""
         try:
@@ -90,7 +90,7 @@ class RedisClient:
             logger.error("cache_query_result_failed", error=str(e))
             return False
 
-    async def get_cached_query_result(self, query_key: str) -> Optional[List[dict]]:
+    async def get_cached_query_result(self, query_key: str) -> Optional[list[dict]]:
         """Buscar resultado de consulta no cache"""
         try:
             key = f"insight:query:{query_key}"

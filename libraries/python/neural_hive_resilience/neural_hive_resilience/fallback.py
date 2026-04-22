@@ -8,24 +8,20 @@ Este módulo implementa padrões de fallback para degradação graciosa:
 """
 
 import asyncio
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from enum import Enum
 from typing import (
     Any,
-    Awaitable,
-    Callable,
-    List,
     Optional,
     TypeVar,
 )
 
-
 T = TypeVar("T")
-from prometheus_client import Counter
 import structlog
+from prometheus_client import Counter
 
 from .exceptions import AllFallbacksFailedError
-
 
 # Métricas Prometheus
 fallback_invocations_total = Counter(
@@ -118,7 +114,7 @@ class FallbackChain:
         self,
         service_name: str,
         operation_name: str,
-        fallbacks: List[FallbackConfig],
+        fallbacks: list[FallbackConfig],
         strategy: FallbackStrategy = FallbackStrategy.PRIMARY_FIRST,
     ):
         self.service_name = service_name

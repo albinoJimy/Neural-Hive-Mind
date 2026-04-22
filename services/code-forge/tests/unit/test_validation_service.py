@@ -4,12 +4,13 @@ Testes para o servico de Validacao do Code Forge.
 Cobre validacao de codigo, seguranca e qualidade.
 """
 
-import pytest
-from unittest.mock import AsyncMock, MagicMock
 from datetime import datetime
+from unittest.mock import AsyncMock, MagicMock
+
+import pytest
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_validator_init():
     """Validator deve inicializar com clientes de validacao."""
     from src.services.validator import Validator
@@ -33,25 +34,25 @@ async def test_validator_init():
     assert validator.trivy_client == mock_trivy
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_validate_success():
     """Validacao deve retornar resultado com sucesso."""
-    from src.services.validator import Validator
-    from src.models.pipeline_context import PipelineContext
+    from src.models.artifact import ValidationStatus
     from src.models.execution_ticket import (
+        SLA,
+        Consistency,
+        DeliveryMode,
+        Durability,
         ExecutionTicket,
+        Priority,
+        QoS,
+        RiskBand,
+        SecurityLevel,
         TaskType,
         TicketStatus,
-        Priority,
-        RiskBand,
-        SLA,
-        QoS,
-        SecurityLevel,
-        DeliveryMode,
-        Consistency,
-        Durability,
     )
-    from src.models.artifact import ValidationStatus
+    from src.models.pipeline_context import PipelineContext
+    from src.services.validator import Validator
 
     mock_sonar = AsyncMock()
     mock_snyk = AsyncMock()
@@ -95,11 +96,11 @@ async def test_validate_success():
     assert context is not None
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_validate_with_sonarqube():
     """Validacao com SonarQube deve analisar codigo."""
+    from src.models.artifact import ValidationStatus, ValidationType
     from src.services.validator import Validator
-    from src.models.artifact import ValidationType, ValidationStatus
 
     mock_sonar = AsyncMock()
     mock_snyk = AsyncMock()
@@ -129,11 +130,11 @@ async def test_validate_with_sonarqube():
     assert result.score >= 0.8
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_validate_with_snyk():
     """Validacao com Snyk deve escanear dependencias."""
+    from src.models.artifact import ValidationStatus, ValidationType
     from src.services.validator import Validator
-    from src.models.artifact import ValidationType, ValidationStatus
 
     mock_sonar = AsyncMock()
     mock_snyk = AsyncMock()
@@ -163,11 +164,11 @@ async def test_validate_with_snyk():
     mock_snyk.scan_dependencies.assert_called_once()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_validate_with_trivy():
     """Validacao com Trivy deve escanear filesystem."""
+    from src.models.artifact import ValidationStatus, ValidationType
     from src.services.validator import Validator
-    from src.models.artifact import ValidationType, ValidationStatus
 
     mock_sonar = AsyncMock()
     mock_snyk = AsyncMock()
@@ -197,7 +198,7 @@ async def test_validate_with_trivy():
     assert result.critical_issues == 0
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_validate_with_mcp():
     """Validacao com MCP deve usar ferramentas selecionadas."""
     from src.services.validator import Validator
@@ -225,24 +226,24 @@ async def test_validate_with_mcp():
     mock_mcp.request_tool_selection.assert_called_once()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_validate_all_disabled():
     """Validacao deve retornar sucesso quando todos estao disabled."""
-    from src.services.validator import Validator
-    from src.models.pipeline_context import PipelineContext
     from src.models.execution_ticket import (
+        SLA,
+        Consistency,
+        DeliveryMode,
+        Durability,
         ExecutionTicket,
+        Priority,
+        QoS,
+        RiskBand,
+        SecurityLevel,
         TaskType,
         TicketStatus,
-        Priority,
-        RiskBand,
-        SLA,
-        QoS,
-        SecurityLevel,
-        DeliveryMode,
-        Consistency,
-        Durability,
     )
+    from src.models.pipeline_context import PipelineContext
+    from src.services.validator import Validator
 
     mock_sonar = MagicMock()
     mock_sonar.enabled = False
@@ -286,7 +287,7 @@ async def test_validate_all_disabled():
     assert context is not None
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_calculate_quality_score():
     """Calculo de quality score deve ponderar validacoes."""
     from src.services.validator import Validator
@@ -316,24 +317,24 @@ async def test_calculate_quality_score():
     assert 0 <= score <= 1
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_validate_failure_handling():
     """Validacao deve tratar falhas graciosamente."""
-    from src.services.validator import Validator
-    from src.models.pipeline_context import PipelineContext
     from src.models.execution_ticket import (
+        SLA,
+        Consistency,
+        DeliveryMode,
+        Durability,
         ExecutionTicket,
+        Priority,
+        QoS,
+        RiskBand,
+        SecurityLevel,
         TaskType,
         TicketStatus,
-        Priority,
-        RiskBand,
-        SLA,
-        QoS,
-        SecurityLevel,
-        DeliveryMode,
-        Consistency,
-        Durability,
     )
+    from src.models.pipeline_context import PipelineContext
+    from src.services.validator import Validator
 
     mock_sonar = AsyncMock()
     mock_snyk = AsyncMock()

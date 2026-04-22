@@ -1,13 +1,13 @@
 import pytest
 from src.models.pipeline import PipelineRun, RollbackRequest
-from src.models.schemas import PipelineStatus, PipelineStage
+from src.models.schemas import PipelineStage, PipelineStatus
 from src.orchestrators.pipeline_orchestrator import (
-    PipelineOrchestrator,
     OrchestratorConfig,
+    PipelineOrchestrator,
 )
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_orchestrator_execute_staging_success():
     config = OrchestratorConfig(timeout_minutes=1)
     orchestrator = PipelineOrchestrator(config)
@@ -35,7 +35,7 @@ async def test_orchestrator_execute_staging_success():
     assert result.finished_at is not None
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_orchestrator_execute_test_failure():
     orchestrator = PipelineOrchestrator()
 
@@ -59,7 +59,7 @@ async def test_orchestrator_execute_test_failure():
     assert PipelineStage.SECURITY not in result.stages_completed  # Stopped at test
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_orchestrator_rollback():
     orchestrator = PipelineOrchestrator()
 
@@ -84,7 +84,7 @@ async def test_orchestrator_rollback():
     assert result.rollback_reason == "Health check failed"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_orchestrator_health_check():
     orchestrator = PipelineOrchestrator()
 
@@ -100,7 +100,7 @@ async def test_orchestrator_health_check():
     assert result is True
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_orchestrator_should_rollback_no_degradation():
     config = OrchestratorConfig(
         rollback_on_health_check=False,
@@ -121,7 +121,7 @@ async def test_orchestrator_should_rollback_no_degradation():
     assert reason == ""
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_orchestrator_production_sequence():
     orchestrator = PipelineOrchestrator()
 
@@ -149,7 +149,7 @@ async def test_orchestrator_production_sequence():
     assert len(result.stages_completed) == 7  # All stages including approval
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_orchestrator_production_approval_denied():
     orchestrator = PipelineOrchestrator()
 
@@ -177,7 +177,7 @@ async def test_orchestrator_production_approval_denied():
     assert PipelineStage.PRODUCTION not in result.stages_completed
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_orchestrator_security_failure():
     orchestrator = PipelineOrchestrator()
 
@@ -201,7 +201,7 @@ async def test_orchestrator_security_failure():
     assert PipelineStage.SECURITY in result.stages_failed
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_orchestrator_preflight_failure():
     orchestrator = PipelineOrchestrator()
 

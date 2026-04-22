@@ -1,6 +1,6 @@
 import sys
-from unittest.mock import MagicMock
 from enum import Enum
+from unittest.mock import MagicMock
 
 
 class UnifiedDomain(str, Enum):

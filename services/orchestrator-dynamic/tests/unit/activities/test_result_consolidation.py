@@ -11,20 +11,20 @@ Testes cobrem:
 - publish_telemetry e buffer_telemetry (fail-open)
 """
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
 from src.activities.result_consolidation import (
-    consolidate_results,
-    trigger_self_healing,
-    publish_telemetry,
     buffer_telemetry,
     compute_and_record_ml_error,
+    consolidate_results,
+    publish_telemetry,
     set_activity_dependencies,
+    trigger_self_healing,
 )
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_activity_info():
     """Mock activity.info() para contexto de workflow."""
     with patch("src.activities.result_consolidation.activity") as mock_activity:
@@ -35,7 +35,7 @@ def mock_activity_info():
         yield mock_activity
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_config():
     """Criar mock de configuração."""
     config = MagicMock()
@@ -47,7 +47,7 @@ def mock_config():
     return config
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_mongodb_client():
     """Criar mock de MongoDB client."""
     client = AsyncMock()
@@ -57,7 +57,7 @@ def mock_mongodb_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_kafka_producer():
     """Criar mock de Kafka producer."""
     producer = AsyncMock()
@@ -66,7 +66,7 @@ def mock_kafka_producer():
     return producer
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_metrics():
     """Criar mock de métricas."""
     metrics = MagicMock()
@@ -76,7 +76,7 @@ def mock_metrics():
     return metrics
 
 
-@pytest.fixture
+@pytest.fixture()
 def successful_tickets():
     """Lista de tickets completados com sucesso."""
     return [
@@ -107,7 +107,7 @@ def successful_tickets():
     ]
 
 
-@pytest.fixture
+@pytest.fixture()
 def mixed_tickets():
     """Lista de tickets com sucesso, falha e compensados."""
     return [
@@ -149,7 +149,7 @@ def mixed_tickets():
 class TestConsolidateResults:
     """Testes para consolidate_results activity."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_all_successful_returns_success_status(
         self, mock_activity_info, successful_tickets, mock_config
     ):
@@ -164,7 +164,7 @@ class TestConsolidateResults:
             assert result["metrics"]["failed_tickets"] == 0
             assert result["consistent"] is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_majority_failed_returns_failed_status(self, mock_activity_info, mock_config):
         """Maioria de tickets falhados deve retornar status FAILED."""
         failed_tickets = [
@@ -179,7 +179,7 @@ class TestConsolidateResults:
 
             assert result["status"] == "FAILED"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_mixed_results_returns_partial_status(
         self, mock_activity_info, mixed_tickets, mock_config
     ):
@@ -194,7 +194,7 @@ class TestConsolidateResults:
             assert result["metrics"]["failed_tickets"] == 1
             assert result["metrics"]["compensated_tickets"] == 1
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_invalid_status_marks_inconsistent(self, mock_activity_info, mock_config):
         """Tickets com status inválido devem marcar resultado como inconsistente."""
         invalid_tickets = [
@@ -215,7 +215,7 @@ class TestConsolidateResults:
             assert len(result["errors"]) > 0
             assert any("inválido" in e.lower() or "invalid" in e.lower() for e in result["errors"])
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_calculates_total_duration_and_retries(
         self, mock_activity_info, mixed_tickets, mock_config
     ):
@@ -228,7 +228,7 @@ class TestConsolidateResults:
             assert result["metrics"]["total_duration_ms"] == 135000  # 60000 + 45000 + 30000
             assert result["metrics"]["total_retries"] == 4  # 0 + 3 + 1
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_persists_result_to_mongodb(
         self, mock_activity_info, successful_tickets, mock_config, mock_mongodb_client
     ):
@@ -288,7 +288,7 @@ class TestComputeAndRecordMlError:
 class TestTriggerSelfHealing:
     """Testes para trigger_self_healing activity."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_infers_timeout_incident_type(
         self, mock_activity_info, mock_config, mock_kafka_producer
     ):
@@ -309,7 +309,7 @@ class TestTriggerSelfHealing:
                 call_args = mock_kafka_producer.publish_incident_avro.call_args[0][0]
                 assert call_args["incident_type"] == "TICKET_TIMEOUT"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_infers_worker_failure_incident_type(
         self, mock_activity_info, mock_config, mock_kafka_producer
     ):
@@ -328,7 +328,7 @@ class TestTriggerSelfHealing:
                 call_args = mock_kafka_producer.publish_incident_avro.call_args[0][0]
                 assert call_args["incident_type"] == "WORKER_FAILURE"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_infers_sla_violation_incident_type(
         self, mock_activity_info, mock_config, mock_kafka_producer
     ):
@@ -347,7 +347,7 @@ class TestTriggerSelfHealing:
                 call_args = mock_kafka_producer.publish_incident_avro.call_args[0][0]
                 assert call_args["incident_type"] == "SLA_VIOLATION"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_buffers_to_mongodb_when_kafka_fails(
         self, mock_activity_info, mock_config, mock_mongodb_client
     ):
@@ -377,7 +377,7 @@ class TestTriggerSelfHealing:
 class TestPublishTelemetry:
     """Testes para publish_telemetry activity."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_creates_telemetry_frame_with_sla_metrics(self, mock_activity_info):
         """Deve criar telemetry frame com métricas de SLA."""
         workflow_result = {
@@ -408,7 +408,7 @@ class TestPublishTelemetry:
 class TestBufferTelemetry:
     """Testes para buffer_telemetry activity."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_buffers_telemetry_to_mongodb(self, mock_activity_info, mock_mongodb_client):
         """Deve persistir telemetry frame no MongoDB."""
         telemetry_frame = {
@@ -421,7 +421,7 @@ class TestBufferTelemetry:
 
         mock_mongodb_client.save_telemetry_buffer.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_buffer_fail_open_when_mongodb_unavailable(self, mock_activity_info):
         """Deve não lançar exceção quando MongoDB indisponível (fail-open)."""
         telemetry_frame = {

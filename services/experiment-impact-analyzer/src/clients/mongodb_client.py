@@ -1,7 +1,6 @@
 """MongoDB client for Experiment Impact Analyzer."""
 
-import asyncio
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import structlog
@@ -11,7 +10,7 @@ from src.config.settings import Settings, get_settings
 
 logger = structlog.get_logger()
 
-UTC = timezone.utc
+UTC = UTC
 
 
 class MongoDBClient:
@@ -46,7 +45,11 @@ class MongoDBClient:
             logger.info(
                 "mongodb_connected",
                 database=self.settings.mongodb_database,
-                uri=self.settings.mongodb_uri.split("@")[-1] if "@" in self.settings.mongodb_uri else "localhost",
+                uri=(
+                    self.settings.mongodb_uri.split("@")[-1]
+                    if "@" in self.settings.mongodb_uri
+                    else "localhost"
+                ),
             )
 
         except Exception as e:
@@ -122,13 +125,10 @@ class MongoDBClient:
         collection = db[self.settings.mongodb_impacts_collection]
 
         return await collection.find_one(
-            {"experiment_id": experiment_id},
-            sort=[("created_at", -1)]
+            {"experiment_id": experiment_id}, sort=[("created_at", -1)]
         )
 
-    async def update_impact(
-        self, impact_id: str, updates: dict[str, Any]
-    ) -> bool:
+    async def update_impact(self, impact_id: str, updates: dict[str, Any]) -> bool:
         """Update impact analysis.
 
         Args:
@@ -143,10 +143,7 @@ class MongoDBClient:
 
         updates["updated_at"] = updates.get("updated_at", datetime.now(UTC))
 
-        result = await collection.update_one(
-            {"impact_id": impact_id},
-            {"$set": updates}
-        )
+        result = await collection.update_one({"impact_id": impact_id}, {"$set": updates})
         return result.modified_count > 0
 
     async def list_impacts(
@@ -291,23 +288,25 @@ class MongoDBClient:
         if match_stage:
             pipeline.append({"$match": match_stage})
 
-        pipeline.extend([
-            {"$unwind": "$categories"},
-            {
-                "$group": {
-                    "_id": "$categories",
-                    "count": {"$sum": 1},
-                    "positive_count": {
-                        "$sum": {"$cond": [{"$eq": ["$overall_direction", "positive"]}, 1, 0]}
-                    },
-                    "negative_count": {
-                        "$sum": {"$cond": [{"$eq": ["$overall_direction", "negative"]}, 1, 0]}
-                    },
-                    "avg_confidence": {"$avg": "$confidence_level"},
-                }
-            },
-            {"$sort": {"count": -1}},
-        ])
+        pipeline.extend(
+            [
+                {"$unwind": "$categories"},
+                {
+                    "$group": {
+                        "_id": "$categories",
+                        "count": {"$sum": 1},
+                        "positive_count": {
+                            "$sum": {"$cond": [{"$eq": ["$overall_direction", "positive"]}, 1, 0]}
+                        },
+                        "negative_count": {
+                            "$sum": {"$cond": [{"$eq": ["$overall_direction", "negative"]}, 1, 0]}
+                        },
+                        "avg_confidence": {"$avg": "$confidence_level"},
+                    }
+                },
+                {"$sort": {"count": -1}},
+            ]
+        )
 
         return await collection.aggregate(pipeline).to_list(length=None)
 

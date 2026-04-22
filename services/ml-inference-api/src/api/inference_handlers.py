@@ -1,13 +1,12 @@
 """API handlers para inferência ML."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 from uuid import uuid4
 
 from fastapi import HTTPException, Request
 from pydantic import ValidationError
-
-from src.models.inference import InferenceRequest, InferenceStatus, ModelType
+from src.models.inference import InferenceRequest, ModelType
 from src.services.inference_service import InferenceService
 
 
@@ -42,9 +41,7 @@ async def predict_handler(request: Request) -> dict[str, Any]:
     try:
         model_type = ModelType(model_type_str)
     except ValueError:
-        raise HTTPException(
-            status_code=400, detail=f"invalid_model_type: {model_type_str}"
-        )
+        raise HTTPException(status_code=400, detail=f"invalid_model_type: {model_type_str}")
 
     # Criar requisição de inferência
     try:
@@ -55,7 +52,7 @@ async def predict_handler(request: Request) -> dict[str, Any]:
             model_type=model_type,
             features=features,
             context=context,
-            created_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
         )
     except ValidationError as e:
         raise HTTPException(status_code=422, detail=str(e))
@@ -112,11 +109,13 @@ async def batch_predict_handler(request: Request) -> dict[str, Any]:
         try:
             model_type = ModelType(model_type_str)
         except ValueError:
-            results.append({
-                "request_id": request_id,
-                "status": "failed",
-                "error": f"invalid_model_type: {model_type_str}",
-            })
+            results.append(
+                {
+                    "request_id": request_id,
+                    "status": "failed",
+                    "error": f"invalid_model_type: {model_type_str}",
+                }
+            )
             continue
 
         inference_request = InferenceRequest(
@@ -126,19 +125,21 @@ async def batch_predict_handler(request: Request) -> dict[str, Any]:
             model_type=model_type,
             features=features,
             context=context,
-            created_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
         )
 
         response = await inference_service.predict(inference_request, use_cache=True)
 
-        results.append({
-            "request_id": response.request_id,
-            "status": response.status.value,
-            "prediction": response.prediction,
-            "confidence": response.confidence,
-            "cached": response.cached,
-            "error": response.error,
-        })
+        results.append(
+            {
+                "request_id": response.request_id,
+                "status": response.status.value,
+                "prediction": response.prediction,
+                "confidence": response.confidence,
+                "cached": response.cached,
+                "error": response.error,
+            }
+        )
 
     return {
         "total": len(results),

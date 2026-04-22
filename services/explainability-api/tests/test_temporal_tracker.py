@@ -4,11 +4,12 @@ Testes para TemporalTracker.
 Verifica operacoes de tracking temporal de decisoes e mudancas de senioridade.
 """
 
-import pytest
-from datetime import datetime, timezone, timedelta
-from unittest.mock import AsyncMock, MagicMock
-from pathlib import Path
 import sys
+from datetime import UTC, datetime, timedelta
+from pathlib import Path
+from unittest.mock import AsyncMock, MagicMock
+
+import pytest
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -134,13 +135,13 @@ def _create_mock_mongo_client(explainability_data=None, seniority_data=None):
     return client, explainability_collection, seniority_collection
 
 
-@pytest.fixture
+@pytest.fixture()
 def mongo_client():
     """Mock MongoDB client."""
     return _create_mock_mongo_client()[0]
 
 
-@pytest.fixture
+@pytest.fixture()
 def tracker(mongo_client):
     """TemporalTracker instance."""
     from src.services.temporal_tracker import TemporalTracker
@@ -151,11 +152,11 @@ def tracker(mongo_client):
 class TestGetCurrentSession:
     """Testes de análise de sessão atual."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_current_session_with_plan_id(self):
         """Testa análise de sessão com plan_id."""
         # Setup test data
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         plan_id = "plan_123"
 
         test_data = [
@@ -199,7 +200,7 @@ class TestGetCurrentSession:
         assert result["last_decision"]["decision_id"] == "decision_3"
         assert result["duration_hours"] > 0
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_current_session_reference_not_found(self):
         """Testa sessão quando decisão de referência não existe."""
         mongo_client, explainability_collection, _ = _create_mock_mongo_client()
@@ -216,14 +217,14 @@ class TestGetCurrentSession:
         assert result["timeline"] == []
         assert result["duration_hours"] == 0.0
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_current_session_without_plan_id(self):
         """Testa sessão quando decisão não tem plan_id."""
         test_data = [
             {
                 "_id": "dec_1",
                 "decision_id": "decision_1",
-                "generated_at": datetime.now(timezone.utc).isoformat(),
+                "generated_at": datetime.now(UTC).isoformat(),
                 "final_decision": {"decision": "approve"},
             }
         ]
@@ -245,10 +246,10 @@ class TestGetCurrentSession:
 class TestGetWindowAnalysis:
     """Testes de análise de janela temporal."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_window_analysis_7_days(self):
         """Testa análise de janela de 7 dias."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         test_data = [
             {
@@ -286,10 +287,10 @@ class TestGetWindowAnalysis:
         assert abs(result["approve_rate"] - 2 / 3) < 0.001
         assert len(result["daily_breakdown"]) == 3
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_window_analysis_30_days(self):
         """Testa análise de janela de 30 dias."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         test_data = [
             {
@@ -313,7 +314,7 @@ class TestGetWindowAnalysis:
         assert result["reject_count"] == 0
         assert result["approve_rate"] == 1.0
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_window_analysis_empty(self):
         """Testa análise de janela vazia."""
         mongo_client, _, _ = _create_mock_mongo_client([])
@@ -330,10 +331,10 @@ class TestGetWindowAnalysis:
         assert result["approve_rate"] == 0.0
         assert result["daily_breakdown"] == {}
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_window_analysis_daily_breakdown(self):
         """Testa breakdown diário das decisões."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         test_data = [
             {
@@ -372,10 +373,10 @@ class TestGetWindowAnalysis:
 class TestGetSeniorityChanges:
     """Testes de mudanças de senioridade."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_seniority_changes_recent(self):
         """Testa busca de mudanças recentes de senioridade."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         seniority_data = [
             {
@@ -413,7 +414,7 @@ class TestGetSeniorityChanges:
         assert "spec_1" in result["specialists_with_changes"]
         assert "spec_2" in result["specialists_with_changes"]
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_seniority_changes_no_changes(self):
         """Testa quando não há mudanças de senioridade."""
         mongo_client, _, _ = _create_mock_mongo_client(seniority_data=[])
@@ -430,10 +431,10 @@ class TestGetSeniorityChanges:
         assert result["changes"] == []
         assert result["specialists_with_changes"] == []
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_seniority_changes_filtered_by_specialist(self):
         """Testa filtro por lista de especialistas."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         seniority_data = [
             {
@@ -476,10 +477,10 @@ class TestGetSeniorityChanges:
 class TestGetSeniorityDistribution:
     """Testes de distribuição de senioridade."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_seniority_distribution_all_levels(self):
         """Testa distribuição de senioridade com todos os níveis."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         seniority_data = [
             {
@@ -530,10 +531,10 @@ class TestGetSeniorityDistribution:
         assert result["by_level"]["expert"] == 1
         assert result["percentages"]["trainee"] == 0.2
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_seniority_distribution_with_duplicates(self):
         """Testa que mudanças recentes sobrescrevem antigas."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         seniority_data = [
             {
@@ -566,7 +567,7 @@ class TestGetSeniorityDistribution:
         assert result["by_level"]["senior"] == 1
         assert result["by_level"]["mid_level"] == 0
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_seniority_distribution_empty(self):
         """Testa distribuição com dados vazios."""
         mongo_client, _, _ = _create_mock_mongo_client(seniority_data=[])
@@ -574,7 +575,7 @@ class TestGetSeniorityDistribution:
 
         tracker_instance = TemporalTracker(mongo_client)
 
-        since = datetime.now(timezone.utc) - timedelta(days=30)
+        since = datetime.now(UTC) - timedelta(days=30)
         result = await tracker_instance._get_seniority_distribution(since)
 
         assert result["total_count"] == 0
@@ -584,7 +585,7 @@ class TestGetSeniorityDistribution:
 class TestParseCursor:
     """Testes do helper _parse_cursor."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_parse_cursor_removes_id(self):
         """Testa que _id é removido dos resultados."""
         test_data = [
@@ -608,7 +609,7 @@ class TestParseCursor:
         assert "_id" not in results[0]
         assert results[0]["decision_id"] == "decision_1"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_parse_cursor_empty(self):
         """Testa cursor vazio."""
         cursor = AsyncIteratorMock([])
@@ -622,7 +623,7 @@ class TestParseCursor:
 
         assert results == []
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_parse_cursor_multiple_items(self):
         """Testa cursor com múltiplos itens."""
         test_data = [

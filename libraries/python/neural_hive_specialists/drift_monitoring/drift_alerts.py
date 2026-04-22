@@ -5,9 +5,10 @@ Integra com Prometheus Alertmanager e pode enviar notificações
 para Slack, email ou outros canais.
 """
 
+from datetime import UTC, datetime
+from typing import Any
+
 import aiohttp
-from typing import Dict, List, Any
-from datetime import datetime, timezone
 import structlog
 
 logger = structlog.get_logger(__name__)
@@ -16,7 +17,7 @@ logger = structlog.get_logger(__name__)
 class DriftAlerter:
     """Envia alertas de drift."""
 
-    def __init__(self, config: Dict[str, Any], ledger_client=None):
+    def __init__(self, config: dict[str, Any], ledger_client=None):
         """
         Inicializa alerter.
 
@@ -45,7 +46,7 @@ class DriftAlerter:
         )
 
     async def send_alert(
-        self, drift_score: float, drifted_features: List[str], report: Dict[str, Any]
+        self, drift_score: float, drifted_features: list[str], report: dict[str, Any]
     ):
         """
         Envia alerta de drift.
@@ -60,7 +61,7 @@ class DriftAlerter:
             return
 
         alert_data = {
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "severity": self._calculate_severity(drift_score),
             "drift_score": drift_score,
             "num_drifted_features": len(drifted_features),
@@ -87,7 +88,7 @@ class DriftAlerter:
         else:
             return "info"
 
-    def _generate_alert_message(self, drift_score: float, drifted_features: List[str]) -> str:
+    def _generate_alert_message(self, drift_score: float, drifted_features: list[str]) -> str:
         """Gera mensagem de alerta."""
         return (
             f"🚨 Drift detectado nos especialistas neurais!\n"
@@ -96,7 +97,7 @@ class DriftAlerter:
             f"Ação recomendada: Revisar modelos e considerar re-treinamento."
         )
 
-    async def _send_to_alertmanager(self, alert_data: Dict[str, Any]):
+    async def _send_to_alertmanager(self, alert_data: dict[str, Any]):
         """Envia alerta para Prometheus Alertmanager."""
         try:
             alert_payload = [
@@ -132,7 +133,7 @@ class DriftAlerter:
         except Exception as e:
             logger.error("Error sending alert to Alertmanager", error=str(e))
 
-    async def _send_to_slack(self, alert_data: Dict[str, Any]):
+    async def _send_to_slack(self, alert_data: dict[str, Any]):
         """Envia alerta para Slack."""
         try:
             # Mapear severidade para cor
@@ -162,7 +163,7 @@ class DriftAlerter:
                             },
                         ],
                         "footer": "Neural Hive Specialists",
-                        "ts": int(datetime.now(timezone.utc).timestamp()),
+                        "ts": int(datetime.now(UTC).timestamp()),
                     }
                 ]
             }

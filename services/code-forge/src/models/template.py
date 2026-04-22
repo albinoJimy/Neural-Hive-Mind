@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -25,7 +25,7 @@ class TemplateMetadata(BaseModel):
     version: str = Field(..., description="Versão do template")
     description: str = Field(..., description="Descrição do template")
     author: str = Field(..., description="Autor do template")
-    tags: List[str] = Field(default_factory=list, description="Tags para classificação")
+    tags: list[str] = Field(default_factory=list, description="Tags para classificação")
     language: CodeLanguage = Field(..., description="Linguagem principal")
     type: TemplateType = Field(..., description="Tipo de template")
 
@@ -47,13 +47,13 @@ class Template(BaseModel):
 
     template_id: str = Field(..., description="Identificador único do template")
     metadata: TemplateMetadata = Field(..., description="Metadados do template")
-    parameters: List[TemplateParameter] = Field(
+    parameters: list[TemplateParameter] = Field(
         default_factory=list, description="Parâmetros do template"
     )
     content_path: str = Field(..., description="Caminho para o conteúdo do template")
-    examples: Dict[str, Any] = Field(default_factory=dict, description="Exemplos de uso")
+    examples: dict[str, Any] = Field(default_factory=dict, description="Exemplos de uso")
 
-    def validate_parameters(self, provided_params: Dict[str, Any]) -> tuple[bool, List[str]]:
+    def validate_parameters(self, provided_params: dict[str, Any]) -> tuple[bool, list[str]]:
         """Valida se os parâmetros fornecidos são válidos"""
         errors = []
 
@@ -79,7 +79,7 @@ class Template(BaseModel):
 
         return len(errors) == 0, errors
 
-    def calculate_match_score(self, criteria: Dict[str, Any]) -> float:
+    def calculate_match_score(self, criteria: dict[str, Any]) -> float:
         """Calcula score de match baseado em critérios"""
         score = 0.0
         max_score = 0.0
@@ -108,7 +108,7 @@ class Template(BaseModel):
 class TemplateRegistry(BaseModel):
     """Registro de templates disponíveis"""
 
-    templates: Dict[str, Template] = Field(
+    templates: dict[str, Template] = Field(
         default_factory=dict, description="Templates indexados por ID"
     )
 
@@ -120,7 +120,7 @@ class TemplateRegistry(BaseModel):
         """Busca um template por ID"""
         return self.templates.get(template_id)
 
-    def search(self, criteria: Dict[str, Any]) -> List[tuple[Template, float]]:
+    def search(self, criteria: dict[str, Any]) -> list[tuple[Template, float]]:
         """Busca templates que matcham critérios e retorna com scores"""
         results = []
         for template in self.templates.values():
@@ -132,6 +132,6 @@ class TemplateRegistry(BaseModel):
         results.sort(key=lambda x: x[1], reverse=True)
         return results
 
-    def index_by_type(self, template_type: TemplateType) -> List[Template]:
+    def index_by_type(self, template_type: TemplateType) -> list[Template]:
         """Indexa templates por tipo"""
         return [t for t in self.templates.values() if t.metadata.type == template_type]

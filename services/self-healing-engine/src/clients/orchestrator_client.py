@@ -6,7 +6,7 @@ automated remediation workflows using the OrchestratorStrategic gRPC service.
 """
 
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Optional
 from uuid import uuid4
 
 import grpc
@@ -74,13 +74,11 @@ ORCHESTRATOR_CALL_DURATION = Histogram(
 class OrchestratorClientError(Exception):
     """Base exception for Orchestrator client errors."""
 
-    pass
 
 
 class OrchestratorConnectionError(OrchestratorClientError):
     """Connection to Orchestrator failed."""
 
-    pass
 
 
 class OrchestratorClient:
@@ -207,7 +205,7 @@ class OrchestratorClient:
         self._initialized = False
         logger.info("orchestrator_client.closed")
 
-    async def _get_grpc_metadata(self) -> List[Tuple[str, str]]:
+    async def _get_grpc_metadata(self) -> list[tuple[str, str]]:
         """Get gRPC metadata with JWT-SVID for authentication."""
         if not self.spiffe_manager or not SECURITY_LIB_AVAILABLE:
             return []
@@ -232,7 +230,7 @@ class OrchestratorClient:
         reason: str,
         duration_seconds: Optional[int] = None,
         adjustment_id: Optional[str] = None,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Pause a running workflow.
 
@@ -319,7 +317,7 @@ class OrchestratorClient:
 
     async def resume_workflow(
         self, workflow_id: str, reason: str, adjustment_id: Optional[str] = None
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Resume a paused workflow.
 
@@ -401,7 +399,7 @@ class OrchestratorClient:
 
     async def get_workflow_status(
         self, workflow_id: str, include_tickets: bool = True, include_history: bool = False
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Get detailed workflow status.
 
@@ -545,9 +543,9 @@ class OrchestratorClient:
         reason: str,
         trigger_type: str = "TRIGGER_TYPE_STRATEGIC",
         preserve_progress: bool = True,
-        context: Optional[Dict[str, str]] = None,
+        context: Optional[dict[str, str]] = None,
         adjustment_id: Optional[str] = None,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Trigger replanning for a workflow plan.
 

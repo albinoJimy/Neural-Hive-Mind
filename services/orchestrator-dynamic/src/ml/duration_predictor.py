@@ -12,9 +12,9 @@ from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from .model_promotion import ModelPromotionManager
-from datetime import timezone
+from datetime import UTC
 
-UTC = timezone.utc  # type: ignore
+UTC = UTC  # type: ignore
 import numpy as np
 import structlog
 from sklearn.ensemble import RandomForestRegressor

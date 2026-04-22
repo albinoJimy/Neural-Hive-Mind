@@ -5,42 +5,43 @@ TDD: Testes escritos antes da implementação.
 Espec: @.agent-os/specs/2026-03-17-active-learning-feedback/
 """
 
-import pytest
+from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock
-from datetime import datetime, timedelta, timezone
+
+import pytest
 from pymongo.collection import Collection
 from pymongo.errors import DuplicateKeyError
 
 from neural_hive_specialists.feedback.active_learning.feedback_queue import (
+    DEFAULT_CLAIM_EXPIRY_HOURS,
     PriorityFeedbackQueue,
     QueuedCase,
     QueueStatus,
-    DEFAULT_CLAIM_EXPIRY_HOURS,
 )
 
 
 class TestPriorityFeedbackQueue:
     """Testes do PriorityFeedbackQueue."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_collection(self):
         """Mock da coleção active_learning_queue."""
         collection = MagicMock(spec=Collection)
         return collection
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_strategy(self):
         """Mock do ActiveLearningStrategy."""
         strategy = MagicMock()
         strategy.calculate_from_prediction.return_value = 0.75
         return strategy
 
-    @pytest.fixture
+    @pytest.fixture()
     def queue(self, mock_collection, mock_strategy):
         """Instância da fila."""
         return PriorityFeedbackQueue(collection=mock_collection, strategy=mock_strategy)
 
-    @pytest.fixture
+    @pytest.fixture()
     def sample_plan(self):
         """Dados de um plano para enfileirar."""
         return {
@@ -135,7 +136,7 @@ class TestPriorityFeedbackQueue:
             "intent_preview": "Implementar...",
             "information_value": 0.85,
             "status": QueueStatus.PENDING,
-            "created_at": datetime.now(timezone.utc),
+            "created_at": datetime.now(UTC),
         }
 
         case = queue.dequeue_next_case()
@@ -190,8 +191,8 @@ class TestPriorityFeedbackQueue:
             "plan_id": "plan-123",
             "status": QueueStatus.IN_REVIEW,
             "assigned_to": "user@example.com",
-            "claimed_at": datetime.now(timezone.utc),
-            "expires_at": datetime.now(timezone.utc),
+            "claimed_at": datetime.now(UTC),
+            "expires_at": datetime.now(UTC),
         }
 
         result = queue.claim_case(queue_id="queue-123", assigned_to="user@example.com")
@@ -207,7 +208,7 @@ class TestPriorityFeedbackQueue:
         mock_result.matched_count = 1
         queue.collection.update_one.return_value = mock_result
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         queue.collection.find_one.return_value = {
             "queue_id": "queue-123",
             "status": QueueStatus.IN_REVIEW,

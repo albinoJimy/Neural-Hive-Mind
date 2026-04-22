@@ -9,13 +9,14 @@ Responsável por:
 - Atualizar métricas Prometheus
 """
 
-from typing import Dict, List, Any, Optional
-from datetime import datetime, timedelta, timezone
+import time
+from collections import defaultdict
+from datetime import UTC, datetime, timedelta
+from typing import Any, Optional
+
+import structlog
 from pymongo import MongoClient
 from pymongo.errors import PyMongoError
-import structlog
-from collections import defaultdict
-import time
 
 logger = structlog.get_logger(__name__)
 
@@ -23,7 +24,7 @@ logger = structlog.get_logger(__name__)
 class BusinessMetricsCollector:
     """Coleta métricas de negócio correlacionando opiniões com decisões de consenso."""
 
-    def __init__(self, config: Dict[str, Any], metrics_registry: Dict[str, Any]):
+    def __init__(self, config: dict[str, Any], metrics_registry: dict[str, Any]):
         """
         Inicializa coletor de business metrics.
 
@@ -59,7 +60,7 @@ class BusinessMetricsCollector:
         self._consensus_client: Optional[MongoClient] = None
 
         # Cache de resultados (5 minutos)
-        self._cache: Dict[str, Any] = {}
+        self._cache: dict[str, Any] = {}
         self._cache_timestamp: float = 0
         self._cache_ttl: int = 300  # 5 minutos
 
@@ -95,7 +96,7 @@ class BusinessMetricsCollector:
         db = self.consensus_client[self.consensus_database]
         return db[self.consensus_collection_name]
 
-    def collect_business_metrics(self, window_hours: Optional[int] = None) -> Dict[str, Any]:
+    def collect_business_metrics(self, window_hours: Optional[int] = None) -> dict[str, Any]:
         """
         Coleta métricas de negócio para janela de tempo especificada.
 
@@ -250,7 +251,7 @@ class BusinessMetricsCollector:
 
     def calculate_auto_approval_metrics(
         self, window_hours: Optional[int] = None, confidence_threshold: float = 0.9
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Calcula métricas de auto-approval baseadas em confidence score.
 
@@ -327,10 +328,10 @@ class BusinessMetricsCollector:
             logger.error("Error calculating auto-approval metrics", error=str(e), exc_info=True)
             return {"status": "error", "error": str(e)}
 
-    def _fetch_opinions_with_confidence(self, window_hours: int) -> List[Dict]:
+    def _fetch_opinions_with_confidence(self, window_hours: int) -> list[dict]:
         """Busca opiniões com confidence score da janela de tempo."""
         try:
-            cutoff_time = datetime.now(timezone.utc) - timedelta(hours=window_hours)
+            cutoff_time = datetime.now(UTC) - timedelta(hours=window_hours)
 
             query = {
                 "evaluated_at": {"$gte": cutoff_time},
@@ -355,7 +356,7 @@ class BusinessMetricsCollector:
     # Approval Time Metrics
     # ============================================================================
 
-    def calculate_approval_time_metrics(self, window_hours: Optional[int] = None) -> Dict[str, Any]:
+    def calculate_approval_time_metrics(self, window_hours: Optional[int] = None) -> dict[str, Any]:
         """
         Calcula métricas de tempo de aprovação humana.
 
@@ -448,10 +449,10 @@ class BusinessMetricsCollector:
             logger.error("Error calculating approval time metrics", error=str(e), exc_info=True)
             return {"status": "error", "error": str(e)}
 
-    def _fetch_approval_decisions(self, window_hours: int) -> List[Dict]:
+    def _fetch_approval_decisions(self, window_hours: int) -> list[dict]:
         """Busca decisões de aprovação/rejeição da janela de tempo."""
         try:
-            cutoff_time = datetime.now(timezone.utc) - timedelta(hours=window_hours)
+            cutoff_time = datetime.now(UTC) - timedelta(hours=window_hours)
 
             # Buscar do approval-service MongoDB
             approval_db = self.ledger_client[self.ledger_database]
@@ -487,7 +488,7 @@ class BusinessMetricsCollector:
         self,
         window_hours: Optional[int] = None,
         estimated_review_time_minutes: float = 5.0,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Calcula tempo economizado em revisões humanas.
 
@@ -553,7 +554,7 @@ class BusinessMetricsCollector:
     # Model Uptime Metrics
     # ============================================================================
 
-    def calculate_model_uptime_metrics(self, window_hours: Optional[int] = None) -> Dict[str, Any]:
+    def calculate_model_uptime_metrics(self, window_hours: Optional[int] = None) -> dict[str, Any]:
         """
         Calcula métricas de uptime dos modelos.
 
@@ -652,10 +653,10 @@ class BusinessMetricsCollector:
             logger.error("Error calculating model uptime metrics", error=str(e), exc_info=True)
             return {"status": "error", "error": str(e)}
 
-    def _fetch_model_health_checks(self, window_hours: int) -> List[Dict]:
+    def _fetch_model_health_checks(self, window_hours: int) -> list[dict]:
         """Busca health checks dos modelos da janela de tempo."""
         try:
-            cutoff_time = datetime.now(timezone.utc) - timedelta(hours=window_hours)
+            cutoff_time = datetime.now(UTC) - timedelta(hours=window_hours)
 
             # Buscar de collection de health checks
             health_db = self.ledger_client[self.ledger_database]
@@ -683,10 +684,10 @@ class BusinessMetricsCollector:
             logger.error("Error fetching model health checks", error=str(e))
             return []
 
-    def _fetch_inference_failures(self, window_hours: int) -> List[Dict]:
+    def _fetch_inference_failures(self, window_hours: int) -> list[dict]:
         """Busca falhas de inferência da janela de tempo."""
         try:
-            cutoff_time = datetime.now(timezone.utc) - timedelta(hours=window_hours)
+            cutoff_time = datetime.now(UTC) - timedelta(hours=window_hours)
 
             # Buscar opiniões com erro de inferência
             query = {
@@ -708,7 +709,7 @@ class BusinessMetricsCollector:
             logger.error("Error fetching inference failures", error=str(e))
             return []
 
-    def _fetch_opinions(self, window_hours: int) -> List[Dict]:
+    def _fetch_opinions(self, window_hours: int) -> list[dict]:
         """
         Busca opiniões do ledger para janela de tempo especificada.
 
@@ -719,7 +720,7 @@ class BusinessMetricsCollector:
             Lista de opiniões
         """
         try:
-            cutoff_time = datetime.now(timezone.utc) - timedelta(hours=window_hours)
+            cutoff_time = datetime.now(UTC) - timedelta(hours=window_hours)
 
             query = {
                 "evaluated_at": {"$gte": cutoff_time},
@@ -736,7 +737,7 @@ class BusinessMetricsCollector:
             logger.error("Error fetching opinions", error=str(e))
             return []
 
-    def _fetch_consensus_decisions(self, window_hours: int) -> List[Dict]:
+    def _fetch_consensus_decisions(self, window_hours: int) -> list[dict]:
         """
         Busca decisões de consenso para janela de tempo especificada.
 
@@ -747,7 +748,7 @@ class BusinessMetricsCollector:
             Lista de decisões
         """
         try:
-            cutoff_time = datetime.now(timezone.utc) - timedelta(hours=window_hours)
+            cutoff_time = datetime.now(UTC) - timedelta(hours=window_hours)
 
             query = {
                 self.consensus_timestamp_field: {"$gte": cutoff_time},
@@ -769,8 +770,8 @@ class BusinessMetricsCollector:
             return []
 
     def _correlate_opinions_with_decisions(
-        self, opinions: List[Dict], decisions: List[Dict]
-    ) -> List[Dict]:
+        self, opinions: list[dict], decisions: list[dict]
+    ) -> list[dict]:
         """
         Correlaciona opiniões com decisões de consenso via opinion_id.
 
@@ -868,7 +869,7 @@ class BusinessMetricsCollector:
         else:
             return "unknown"
 
-    def _calculate_derived_metrics(self, confusion_matrix: Dict) -> Dict[str, float]:
+    def _calculate_derived_metrics(self, confusion_matrix: dict) -> dict[str, float]:
         """
         Calcula métricas derivadas da confusion matrix.
 
@@ -925,7 +926,7 @@ class BusinessMetricsCollector:
         }
 
     def _update_prometheus_metrics(
-        self, specialist_type: str, confusion_matrix: Dict, derived_metrics: Dict
+        self, specialist_type: str, confusion_matrix: dict, derived_metrics: dict
     ):
         """
         Atualiza métricas Prometheus para especialista.
@@ -964,7 +965,7 @@ class BusinessMetricsCollector:
             **derived_metrics,
         )
 
-    def _fetch_execution_outcomes(self, plan_ids: List[str]) -> Dict[str, str]:
+    def _fetch_execution_outcomes(self, plan_ids: list[str]) -> dict[str, str]:
         """
         Busca status de execução de tickets da Execution Ticket API.
 
@@ -1046,8 +1047,8 @@ class BusinessMetricsCollector:
             return {}
 
     def _calculate_business_value(
-        self, correlations: List[Dict], execution_outcomes: Dict[str, str]
-    ) -> Dict[str, float]:
+        self, correlations: list[dict], execution_outcomes: dict[str, str]
+    ) -> dict[str, float]:
         """
         Calcula valor de negócio gerado por especialista.
 
@@ -1072,7 +1073,7 @@ class BusinessMetricsCollector:
 
         return dict(business_value)
 
-    def _calculate_ab_test_metrics(self, correlations: List[Dict]) -> Dict[str, Dict]:
+    def _calculate_ab_test_metrics(self, correlations: list[dict]) -> dict[str, dict]:
         """
         Calcula métricas de A/B test por variante.
 
@@ -1140,7 +1141,7 @@ class BusinessMetricsCollector:
 
         return result
 
-    def _update_ab_test_prometheus_metrics(self, ab_test_metrics: Dict[str, Dict]):
+    def _update_ab_test_prometheus_metrics(self, ab_test_metrics: dict[str, dict]):
         """
         Atualiza métricas Prometheus de A/B test.
 
@@ -1191,8 +1192,8 @@ class BusinessMetricsCollector:
                 )
 
     def _calculate_statistical_significance(
-        self, variant_a_data: Dict, variant_b_data: Dict
-    ) -> Dict[str, Any]:
+        self, variant_a_data: dict, variant_b_data: dict
+    ) -> dict[str, Any]:
         """
         Calcula significância estatística entre variantes A e B.
 
@@ -1262,7 +1263,7 @@ class BusinessMetricsCollector:
     # Daily Metrics Collection (Public API for CronJob/Scripts)
     # ============================================================================
 
-    def collect_daily_metrics(self) -> Dict[str, Any]:
+    def collect_daily_metrics(self) -> dict[str, Any]:
         """
         Coleta métricas de negócio das últimas 24 horas.
 
@@ -1277,7 +1278,7 @@ class BusinessMetricsCollector:
             - metrics_summary: resumo das métricas calculadas
             - errors: lista de erros encontrados (se houver)
         """
-        collection_timestamp = datetime.now(timezone.utc).isoformat()
+        collection_timestamp = datetime.now(UTC).isoformat()
 
         logger.info(
             "Starting daily metrics collection",

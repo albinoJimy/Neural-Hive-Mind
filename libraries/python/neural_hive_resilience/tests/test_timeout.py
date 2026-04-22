@@ -1,21 +1,22 @@
 """Testes para módulo timeout."""
 
-import pytest
 import asyncio
 
+import pytest
+
+from neural_hive_resilience.exceptions import TimeoutError as ResilienceTimeoutError
 from neural_hive_resilience.timeout import (
-    timeout,
-    timeout_with_fallback,
     TimeoutContext,
     TimeoutWithFallback,
+    timeout,
+    timeout_with_fallback,
 )
-from neural_hive_resilience.exceptions import TimeoutError as ResilienceTimeoutError
 
 
 class TestTimeoutDecorator:
     """Testes para decorator timeout."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_timeout_success_before_limit(self):
         """Testa sucesso antes do limite."""
 
@@ -27,7 +28,7 @@ class TestTimeoutDecorator:
         result = await quick_function()
         assert result == "success"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_timeout_exceeded(self):
         """Testa erro quando timeout é excedido."""
 
@@ -42,7 +43,7 @@ class TestTimeoutDecorator:
         assert exc_info.value.service == "test-service"
         assert exc_info.value.timeout_seconds == 0.1
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_timeout_with_operation_name(self):
         """Testa timeout com nome de operação customizado."""
 
@@ -79,7 +80,7 @@ class TestTimeoutDecorator:
 class TestTimeoutWithFallbackDecorator:
     """Testes para decorator timeout_with_fallback."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_fallback_not_triggered_on_success(self):
         """Testa que fallback não é executado em caso de sucesso."""
         fallback_called = False
@@ -101,7 +102,7 @@ class TestTimeoutWithFallbackDecorator:
         assert result == "success"
         assert fallback_called is False
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_fallback_triggered_on_timeout(self):
         """Testa que fallback é executado em timeout."""
         fallback_called = False
@@ -124,7 +125,7 @@ class TestTimeoutWithFallbackDecorator:
         assert result == "fallback_result"
         assert fallback_called is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_fallback_with_args(self):
         """Testa que fallback recebe os mesmos argumentos."""
         received_args = None
@@ -150,7 +151,7 @@ class TestTimeoutWithFallbackDecorator:
 class TestTimeoutContext:
     """Testes para TimeoutContext."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_context_success(self):
         """Testa execução bem-sucedida no contexto."""
         context = TimeoutContext(timeout_seconds=1.0)
@@ -163,7 +164,7 @@ class TestTimeoutContext:
 
         assert result == "result"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_context_timeout_exceeded(self):
         """Testa timeout no contexto."""
         context = TimeoutContext(
@@ -179,7 +180,7 @@ class TestTimeoutContext:
             async with context:
                 await context.execute(slow_func())
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_context_cancel_on_timeout(self):
         """Testa que tarefa é cancelada em timeout."""
         context = TimeoutContext(timeout_seconds=0.1)
@@ -209,7 +210,7 @@ class TestTimeoutContext:
 class TestTimeoutWithFallback:
     """Testes para classe TimeoutWithFallback."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_success(self):
         """Testa execução bem-sucedida."""
         fallback_called = False
@@ -232,7 +233,7 @@ class TestTimeoutWithFallback:
         assert result == "main_result"
         assert fallback_called is False
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_with_fallback(self):
         """Testa execução com fallback em timeout."""
         fallback_called = False

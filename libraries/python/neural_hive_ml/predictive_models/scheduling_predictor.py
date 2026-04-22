@@ -1,20 +1,21 @@
 """Preditor de duração e recursos para scheduling de tickets."""
 
-import time
-from typing import Dict, Any, List, Optional
 import logging
+import time
+from typing import Any, Optional
+
+import lightgbm as lgb
 import numpy as np
+import optuna
 import pandas as pd
 import xgboost as xgb
-import lightgbm as lgb
-import optuna
-from sklearn.model_selection import cross_val_score, train_test_split
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+from sklearn.model_selection import cross_val_score, train_test_split
 
 from neural_hive_ml.predictive_models.base_predictor import BasePredictor
 from neural_hive_ml.predictive_models.feature_engineering import (
-    extract_ticket_features,
     create_feature_vector,
+    extract_ticket_features,
 )
 
 logger = logging.getLogger(__name__)
@@ -25,7 +26,7 @@ class SchedulingPredictor(BasePredictor):
 
     def __init__(
         self,
-        config: Dict[str, Any],
+        config: dict[str, Any],
         model_registry: Optional[Any] = None,
         metrics: Optional[Any] = None,
     ):
@@ -73,7 +74,7 @@ class SchedulingPredictor(BasePredictor):
         except Exception as e:
             logger.error(f"Erro ao inicializar SchedulingPredictor: {e}")
 
-    async def predict_duration(self, ticket: Dict[str, Any]) -> Dict[str, Any]:
+    async def predict_duration(self, ticket: dict[str, Any]) -> dict[str, Any]:
         """
         Prediz duração de execução do ticket.
 
@@ -132,7 +133,7 @@ class SchedulingPredictor(BasePredictor):
                 "error": str(e),
             }
 
-    async def predict_resources(self, ticket: Dict[str, Any]) -> Dict[str, Any]:
+    async def predict_resources(self, ticket: dict[str, Any]) -> dict[str, Any]:
         """
         Prediz requisitos de recursos (CPU/memória).
 
@@ -171,7 +172,7 @@ class SchedulingPredictor(BasePredictor):
 
     async def train_model(
         self, training_data: pd.DataFrame, enable_tuning: bool = True
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Treina modelo com dados históricos.
 
@@ -241,12 +242,12 @@ class SchedulingPredictor(BasePredictor):
             logger.error(f"Erro ao treinar modelo: {e}")
             raise
 
-    def _extract_features(self, data: Dict[str, Any]) -> np.ndarray:
+    def _extract_features(self, data: dict[str, Any]) -> np.ndarray:
         """Extrai features de um ticket."""
         features_dict = extract_ticket_features(data, self.historical_stats)
         return create_feature_vector(features_dict, self.feature_names)
 
-    def _get_feature_names(self) -> List[str]:
+    def _get_feature_names(self) -> list[str]:
         """Define lista ordenada de nomes de features."""
         return [
             "risk_weight",
@@ -271,7 +272,7 @@ class SchedulingPredictor(BasePredictor):
             "estimated_to_sla_ratio",
         ]
 
-    def _calculate_confidence(self, prediction: float, features: Dict[str, Any]) -> float:
+    def _calculate_confidence(self, prediction: float, features: dict[str, Any]) -> float:
         """
         Calcula score de confiança da predição.
 
@@ -296,7 +297,7 @@ class SchedulingPredictor(BasePredictor):
 
         return min(max(confidence, 0.0), 1.0)
 
-    def _hyperparameter_tuning(self, X_train: np.ndarray, y_train: np.ndarray) -> Dict[str, Any]:
+    def _hyperparameter_tuning(self, X_train: np.ndarray, y_train: np.ndarray) -> dict[str, Any]:
         """Otimiza hiperparâmetros usando Optuna."""
 
         def objective(trial):
@@ -332,7 +333,7 @@ class SchedulingPredictor(BasePredictor):
         logger.info(f"Melhores hiperparâmetros: {study.best_params}")
         return study.best_params
 
-    def _evaluate_model(self, X_test: np.ndarray, y_test: np.ndarray) -> Dict[str, float]:
+    def _evaluate_model(self, X_test: np.ndarray, y_test: np.ndarray) -> dict[str, float]:
         """Calcula métricas de avaliação."""
         if self.model_type == "ensemble":
             xgb_pred = self.xgb_model.predict(X_test)
@@ -350,7 +351,7 @@ class SchedulingPredictor(BasePredictor):
 
         return {"mae": float(mae), "rmse": float(rmse), "r2": float(r2), "mape": float(mape)}
 
-    def _heuristic_duration_estimate(self, ticket: Dict[str, Any]) -> float:
+    def _heuristic_duration_estimate(self, ticket: dict[str, Any]) -> float:
         """Estimativa heurística de duração como fallback."""
         base_duration = ticket.get("estimated_duration_ms", 60000)
         risk_weight = ticket.get("risk_weight", 0)

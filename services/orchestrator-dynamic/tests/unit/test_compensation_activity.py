@@ -4,10 +4,10 @@ Testes unitarios para activities de compensacao (Saga Pattern).
 Nota: Os testes usam mocks para evitar dependencias circulares de imports.
 """
 
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
 import sys
+from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
 
 # Mock dos modulos problematicos antes de importar
 sys.modules["src.clients.kafka_producer"] = MagicMock()
@@ -105,7 +105,7 @@ class TestGetCompensationAction:
 class TestBuildCompensationOrder:
     """Testes para funcao build_compensation_order."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_single_failed_ticket_returns_self(self):
         """Ticket falhado unico deve retornar apenas ele mesmo."""
         from src.activities.compensation import build_compensation_order
@@ -123,7 +123,7 @@ class TestBuildCompensationOrder:
         assert len(result) == 1
         assert result[0]["ticket_id"] == "ticket-1"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_chain_dependency_returns_reverse_order(self):
         """Cadeia A -> B -> C deve compensar na ordem C, B, A."""
         from src.activities.compensation import build_compensation_order
@@ -152,7 +152,7 @@ class TestBuildCompensationOrder:
         assert ticket_ids.index("ticket-c") < ticket_ids.index("ticket-b")
         assert ticket_ids.index("ticket-b") < ticket_ids.index("ticket-a")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_pending_tickets_excluded(self):
         """Tickets PENDING nao devem ser compensados."""
         from src.activities.compensation import build_compensation_order
@@ -185,7 +185,7 @@ class TestBuildCompensationOrder:
 class TestCompensateTicket:
     """Testes para funcao compensate_ticket."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_creates_compensation_ticket_with_correct_fields(self):
         """Deve criar ticket de compensacao com campos corretos."""
         from src.activities.compensation import compensate_ticket, set_compensation_dependencies
@@ -226,7 +226,7 @@ class TestCompensateTicket:
         assert published_ticket["status"] == "PENDING"
         assert published_ticket["parameters"]["action"] == "rollback_deployment"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_records_metric_on_compensation(self):
         """Deve registrar metrica quando compensacao e criada."""
         from src.activities.compensation import compensate_ticket, set_compensation_dependencies
@@ -247,7 +247,7 @@ class TestCompensateTicket:
 
         mock_metrics.record_compensation.assert_called_once_with(reason="task_failed")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_continues_without_kafka(self):
         """Deve continuar mesmo sem Kafka (fail-open)."""
         from src.activities.compensation import compensate_ticket, set_compensation_dependencies
@@ -268,12 +268,12 @@ class TestCompensateTicket:
 class TestUpdateTicketCompensationStatus:
     """Testes para funcao update_ticket_compensation_status."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_updates_mongodb_with_compensation_reference(self):
         """Deve atualizar MongoDB com referencia ao ticket de compensacao."""
         from src.activities.compensation import (
-            update_ticket_compensation_status,
             set_compensation_dependencies,
+            update_ticket_compensation_status,
         )
 
         mock_mongodb = AsyncMock()
@@ -295,12 +295,12 @@ class TestUpdateTicketCompensationStatus:
             status="COMPENSATING",
         )
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_returns_false_without_mongodb(self):
         """Deve retornar False sem MongoDB."""
         from src.activities.compensation import (
-            update_ticket_compensation_status,
             set_compensation_dependencies,
+            update_ticket_compensation_status,
         )
 
         set_compensation_dependencies(

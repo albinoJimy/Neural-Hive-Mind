@@ -1,13 +1,14 @@
 """Testes para módulo bulkhead."""
 
-import pytest
 import asyncio
 
+import pytest
+
 from neural_hive_resilience.bulkhead import (
+    BulkheadConfig,
+    BulkheadFactory,
     SemaphoreBulkhead,
     ThreadPoolBulkhead,
-    BulkheadFactory,
-    BulkheadConfig,
     bulkhead,
 )
 from neural_hive_resilience.exceptions import BulkheadRejectedError
@@ -40,7 +41,7 @@ class TestBulkheadConfig:
 class TestSemaphoreBulkhead:
     """Testes para SemaphoreBulkhead."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_initialization(self):
         """Testa inicialização com parâmetros válidos."""
         config = BulkheadConfig(max_concurrent=5, max_queue_size=2)
@@ -54,7 +55,7 @@ class TestSemaphoreBulkhead:
         assert bulkhead.bulkhead_name == "test-bulkhead"
         assert bulkhead.config.max_concurrent == 5
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_acquire_release(self):
         """Testa aquisição e liberação."""
         bulkhead = SemaphoreBulkhead(
@@ -72,7 +73,7 @@ class TestSemaphoreBulkhead:
         bulkhead.release()
         assert bulkhead.active_count == 1
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_context_manager(self):
         """Testa uso como context manager."""
         bulkhead = SemaphoreBulkhead(
@@ -86,7 +87,7 @@ class TestSemaphoreBulkhead:
 
         assert bulkhead.active_count == 0
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_concurrent_limit(self):
         """Testa limite de concorrência."""
         bulkhead = SemaphoreBulkhead(
@@ -112,7 +113,7 @@ class TestSemaphoreBulkhead:
 
         assert max_active <= 2
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_queue_timeout(self):
         """Testa timeout na fila."""
         bulkhead = SemaphoreBulkhead(
@@ -132,7 +133,7 @@ class TestSemaphoreBulkhead:
         with pytest.raises(BulkheadRejectedError):
             await bulkhead.acquire()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_success(self):
         """Testa execução bem-sucedida."""
         bulkhead = SemaphoreBulkhead(
@@ -148,7 +149,7 @@ class TestSemaphoreBulkhead:
         result = await bulkhead.execute(task())
         assert result == "result"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_execute_with_error(self):
         """Testa execução que levanta erro."""
         bulkhead = SemaphoreBulkhead(
@@ -168,7 +169,7 @@ class TestSemaphoreBulkhead:
 class TestThreadPoolBulkhead:
     """Testes para ThreadPoolBulkhead."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_initialization(self):
         """Testa inicialização."""
         bulkhead = ThreadPoolBulkhead(
@@ -180,7 +181,7 @@ class TestThreadPoolBulkhead:
         assert bulkhead.service_name == "test-service"
         assert bulkhead.bulkhead_name == "test"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_run_in_thread(self):
         """Testa execução em thread separada."""
         bulkhead = ThreadPoolBulkhead(
@@ -195,7 +196,7 @@ class TestThreadPoolBulkhead:
         result = await bulkhead.run_in_thread(blocking_function, 5, 3)
         assert result == 8
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_run_blocking_io(self):
         """Testa execução de operação bloqueante."""
         bulkhead = ThreadPoolBulkhead(
@@ -217,7 +218,7 @@ class TestThreadPoolBulkhead:
         assert result == "done"
         assert elapsed >= 0.1
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_concurrent_execution(self):
         """Testa execução concorrente em threads."""
         bulkhead = ThreadPoolBulkhead(
@@ -286,7 +287,7 @@ class TestBulkheadFactory:
 class TestBulkheadDecorator:
     """Testes para decorator bulkhead."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_decorator_success(self):
         """Testa execução bem-sucedida com decorator."""
 
@@ -302,7 +303,7 @@ class TestBulkheadDecorator:
         result = await task("test")
         assert result == "test"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_decorator_concurrent_limit(self):
         """Testa limite de concorrência com decorator."""
 

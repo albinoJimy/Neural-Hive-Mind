@@ -1,22 +1,20 @@
 """Aplicação principal Approval Gateway."""
 
-import asyncio
 from contextlib import asynccontextmanager
 from typing import Optional
 
+import structlog
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-import structlog
 
+# Import proto para AgentType (arquivos locais)
+from proto import service_registry_pb2
+from src.api.routers.approvals import router as approvals_router
+from src.api.routers.auth import router as auth_router
 from src.clients.engineering_service_registry_client import (
     EngineeringServiceRegistryClient,
 )
 from src.config.settings import get_settings
-from src.api.routers.approvals import router as approvals_router
-from src.api.routers.auth import router as auth_router
-
-# Import proto para AgentType (arquivos locais)
-from proto import service_registry_pb2
 
 settings = get_settings()
 
@@ -34,7 +32,7 @@ structlog.configure(
         structlog.processors.StackInfoRenderer(),
         structlog.processors.format_exc_info,
         structlog.processors.UnicodeDecoder(),
-        structlog.processors.JSONRenderer()
+        structlog.processors.JSONRenderer(),
     ],
     context_class=dict,
     logger_factory=structlog.stdlib.LoggerFactory(),
@@ -49,11 +47,7 @@ async def lifespan(app: FastAPI):
     """Gerencia ciclo de vida da aplicação."""
     global _registry_client
 
-    logger.info(
-        "starting_service",
-        service=settings.service_name,
-        version=settings.service_version
-    )
+    logger.info("starting_service", service=settings.service_name, version=settings.service_version)
 
     # Registrar no Service Registry
     try:
@@ -107,11 +101,7 @@ async def lifespan(app: FastAPI):
             logger.error("service_deregister_failed", error=str(e))
 
 
-app = FastAPI(
-    title=settings.api_title,
-    version=settings.api_version,
-    lifespan=lifespan
-)
+app = FastAPI(title=settings.api_title, version=settings.api_version, lifespan=lifespan)
 
 # CORS
 app.add_middleware(
@@ -133,7 +123,7 @@ async def root():
     return {
         "service": settings.service_name,
         "version": settings.service_version,
-        "status": "running"
+        "status": "running",
     }
 
 
@@ -145,9 +135,5 @@ async def health():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(
-        "src.main:app",
-        host=settings.host,
-        port=settings.port,
-        reload=True
-    )
+
+    uvicorn.run("src.main:app", host=settings.host, port=settings.port, reload=True)

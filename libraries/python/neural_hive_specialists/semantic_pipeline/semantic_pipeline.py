@@ -5,12 +5,13 @@ Orquestra SemanticAnalyzer, OntologyBasedEvaluator e FeatureExtractor
 para fornecer avaliação 100% semântica sem string-match.
 """
 
-from typing import Dict, List, Any
+from typing import Any
+
 import structlog
 
-from .semantic_analyzer import SemanticAnalyzer
-from .ontology_evaluator import OntologyBasedEvaluator
 from ..feature_extraction.feature_extractor import FeatureExtractor
+from .ontology_evaluator import OntologyBasedEvaluator
+from .semantic_analyzer import SemanticAnalyzer
 
 logger = structlog.get_logger(__name__)
 
@@ -18,7 +19,7 @@ logger = structlog.get_logger(__name__)
 class SemanticPipeline:
     """Pipeline completo de avaliação semântica."""
 
-    def __init__(self, config: Dict[str, Any], feature_extractor: FeatureExtractor):
+    def __init__(self, config: dict[str, Any], feature_extractor: FeatureExtractor):
         """
         Inicializa pipeline semântico.
 
@@ -44,8 +45,8 @@ class SemanticPipeline:
         )
 
     def evaluate_plan(
-        self, cognitive_plan: Dict[str, Any], context: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, cognitive_plan: dict[str, Any], context: dict[str, Any]
+    ) -> dict[str, Any]:
         """
         Avalia plano cognitivo usando pipeline semântico completo.
 
@@ -240,7 +241,7 @@ class SemanticPipeline:
                 "confidence_score": 0.5,
                 "risk_score": 0.5,
                 "recommendation": "review_required",
-                "reasoning_summary": f"Avaliação semântica falhou: {str(e)}",
+                "reasoning_summary": f"Avaliação semântica falhou: {e!s}",
                 "reasoning_factors": [],
                 "mitigations": [],
                 "metadata": {"evaluation_method": "fallback", "error": str(e)},
@@ -273,7 +274,7 @@ class SemanticPipeline:
         architecture_score: float,
         performance_score: float,
         quality_score: float,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Gera sugestões de mitigação."""
         mitigations = []
 

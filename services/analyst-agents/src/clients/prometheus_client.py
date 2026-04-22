@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional
+from typing import Optional
 
 import httpx
 import structlog
@@ -22,7 +22,7 @@ class PrometheusClient:
             await self.client.aclose()
             logger.info("prometheus_client_closed")
 
-    async def query(self, promql: str, time: Optional[int] = None) -> List[dict]:
+    async def query(self, promql: str, time: Optional[int] = None) -> list[dict]:
         """Executar consulta PromQL instantânea"""
         try:
             params = {"query": promql}
@@ -40,7 +40,7 @@ class PrometheusClient:
             logger.error("prometheus_query_failed", error=str(e), query=promql[:100])
             return []
 
-    async def query_range(self, promql: str, start: int, end: int, step: str = "60s") -> List[dict]:
+    async def query_range(self, promql: str, start: int, end: int, step: str = "60s") -> list[dict]:
         """Executar consulta PromQL em range temporal"""
         try:
             params = {"query": promql, "start": start, "end": end, "step": step}
@@ -69,7 +69,7 @@ class PrometheusClient:
 
     async def get_metric_statistics(
         self, metric_name: str, start: int, end: int, aggregation: str = "avg"
-    ) -> Dict:
+    ) -> dict:
         """Estatísticas de métrica"""
         queries = {
             "avg": f"avg_over_time({metric_name}[5m])",

@@ -5,10 +5,11 @@ Usa ontologias carregadas (intents_taxonomy.json, architecture_patterns.json)
 para classificação e raciocínio semântico sem string-match.
 """
 
-from typing import Dict, Any, Optional
-import structlog
 import json
 from pathlib import Path
+from typing import Any, Optional
+
+import structlog
 
 logger = structlog.get_logger(__name__)
 
@@ -16,7 +17,7 @@ logger = structlog.get_logger(__name__)
 class OntologyBasedEvaluator:
     """Avaliador baseado em ontologia e regras semânticas."""
 
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, config: dict[str, Any]):
         """
         Inicializa avaliador baseado em ontologia.
 
@@ -27,8 +28,8 @@ class OntologyBasedEvaluator:
         self.ontology_path = config.get("ontology_path")
 
         # Ontologias carregadas
-        self.intents_taxonomy: Optional[Dict[str, Any]] = None
-        self.architecture_patterns: Optional[Dict[str, Any]] = None
+        self.intents_taxonomy: Optional[dict[str, Any]] = None
+        self.architecture_patterns: Optional[dict[str, Any]] = None
 
         # Carregar ontologias
         self._load_ontologies()
@@ -52,7 +53,7 @@ class OntologyBasedEvaluator:
         intents_file = ontology_dir / "intents_taxonomy.json"
         if intents_file.exists():
             try:
-                with open(intents_file, "r", encoding="utf-8") as f:
+                with open(intents_file, encoding="utf-8") as f:
                     self.intents_taxonomy = json.load(f)
                 logger.info("Intents taxonomy loaded", file=str(intents_file))
             except Exception as e:
@@ -62,14 +63,14 @@ class OntologyBasedEvaluator:
         patterns_file = ontology_dir / "architecture_patterns.json"
         if patterns_file.exists():
             try:
-                with open(patterns_file, "r", encoding="utf-8") as f:
+                with open(patterns_file, encoding="utf-8") as f:
                     self.architecture_patterns = json.load(f)
                 logger.info("Architecture patterns loaded", file=str(patterns_file))
             except Exception as e:
                 logger.error("Failed to load architecture patterns", error=str(e))
 
     def evaluate_security_level(
-        self, cognitive_plan: Dict[str, Any], extracted_features: Dict[str, Any]
+        self, cognitive_plan: dict[str, Any], extracted_features: dict[str, Any]
     ) -> float:
         """
         Avalia nível de segurança baseado em ontologia.
@@ -134,7 +135,7 @@ class OntologyBasedEvaluator:
             return 0.5
 
     def evaluate_architecture_compliance(
-        self, cognitive_plan: Dict[str, Any], extracted_features: Dict[str, Any]
+        self, cognitive_plan: dict[str, Any], extracted_features: dict[str, Any]
     ) -> float:
         """
         Avalia conformidade arquitetural baseada em padrões conhecidos.
@@ -188,7 +189,7 @@ class OntologyBasedEvaluator:
             return 0.5
 
     def evaluate_complexity(
-        self, cognitive_plan: Dict[str, Any], extracted_features: Dict[str, Any]
+        self, cognitive_plan: dict[str, Any], extracted_features: dict[str, Any]
     ) -> float:
         """
         Avalia complexidade do plano baseado em ontologia e features.
@@ -249,7 +250,7 @@ class OntologyBasedEvaluator:
             return 0.5
 
     def evaluate_risk_patterns(
-        self, cognitive_plan: Dict[str, Any], extracted_features: Dict[str, Any]
+        self, cognitive_plan: dict[str, Any], extracted_features: dict[str, Any]
     ) -> float:
         """
         Detecta padrões de risco conhecidos na ontologia.

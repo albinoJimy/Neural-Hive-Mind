@@ -1,10 +1,10 @@
 """Producer Kafka para publicar eventos de Saga."""
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any, Optional
 
-UTC = timezone.utc  # type: ignore
+UTC = UTC  # type: ignore
 
 from aiokafka import AIOKafkaProducer
 from aiokafka.errors import KafkaConnectionError

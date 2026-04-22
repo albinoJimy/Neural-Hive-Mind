@@ -1,13 +1,14 @@
 """Testes para MLManagementRouter - API de Gestão ML."""
 
-import pytest
 from unittest.mock import AsyncMock
+
+import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from src.api.routers.ml_management import MLManagementRouter
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_mlflow_client():
     """Mock MLflowClient."""
     client = AsyncMock()
@@ -16,7 +17,7 @@ def mock_mlflow_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_model_repo():
     """Mock ModelVersionRepository."""
     repo = AsyncMock()
@@ -30,7 +31,7 @@ def mock_model_repo():
     return repo
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_retraining_job():
     """Mock RetrainingJob."""
     job = AsyncMock()
@@ -41,7 +42,7 @@ def mock_retraining_job():
     return job
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_drift_detector():
     """Mock DriftDetector."""
     detector = AsyncMock()
@@ -51,7 +52,7 @@ def mock_drift_detector():
     return detector
 
 
-@pytest.fixture
+@pytest.fixture()
 def app(mock_mlflow_client, mock_model_repo, mock_retraining_job, mock_drift_detector):
     """Fixture para app FastAPI com router ML."""
     app = FastAPI()
@@ -65,7 +66,7 @@ def app(mock_mlflow_client, mock_model_repo, mock_retraining_job, mock_drift_det
     return app
 
 
-@pytest.fixture
+@pytest.fixture()
 def client(app):
     """Test client."""
     return TestClient(app)

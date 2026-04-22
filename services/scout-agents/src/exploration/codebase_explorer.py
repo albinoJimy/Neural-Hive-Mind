@@ -10,9 +10,9 @@ Responsável por:
 
 import ast
 from collections import defaultdict
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Optional
 
 import structlog
 
@@ -34,7 +34,7 @@ except ImportError:
 class CodebaseExplorer:
     """Explorador de codebase para análise estática."""
 
-    def __init__(self, root_path: str, file_extensions: Optional[List[str]] = None):
+    def __init__(self, root_path: str, file_extensions: Optional[list[str]] = None):
         """
         Inicializa o CodebaseExplorer.
 
@@ -46,8 +46,8 @@ class CodebaseExplorer:
         self.file_extensions = file_extensions or [".py", ".ts", ".js", ".yaml", ".yml", ".json"]
 
         # Cache de arquivos analisados
-        self._parsed_files: Dict[str, Dict] = {}
-        self._parse_errors: Set[str] = set()
+        self._parsed_files: dict[str, dict] = {}
+        self._parse_errors: set[str] = set()
 
         # Métricas agregadas
         self.metrics = {
@@ -83,7 +83,7 @@ class CodebaseExplorer:
         try:
             tree = ast.parse(code)
             self._parsed_files[filename] = {
-                "parsed_at": datetime.now(timezone.utc),
+                "parsed_at": datetime.now(UTC),
                 "has_errors": False,
             }
             return tree
@@ -101,7 +101,7 @@ class CodebaseExplorer:
     # Multi-Language Parsing Methods
     # ========================================================================
 
-    def parse_typescript(self, code: str, filename: str) -> Optional[Dict[str, Any]]:
+    def parse_typescript(self, code: str, filename: str) -> Optional[dict[str, Any]]:
         """
         Faz parsing de código TypeScript.
 
@@ -120,7 +120,7 @@ class CodebaseExplorer:
             result = self.ts_parser.parse(code, filename)
             if result and not result.get("has_errors"):
                 self._parsed_files[filename] = {
-                    "parsed_at": datetime.now(timezone.utc),
+                    "parsed_at": datetime.now(UTC),
                     "has_errors": False,
                 }
                 self.metrics["total_functions"] += len(result.get("functions", []))
@@ -136,7 +136,7 @@ class CodebaseExplorer:
             self._parse_errors.add(filename)
             return None
 
-    def parse_javascript(self, code: str, filename: str) -> Optional[Dict[str, Any]]:
+    def parse_javascript(self, code: str, filename: str) -> Optional[dict[str, Any]]:
         """
         Faz parsing de código JavaScript.
 
@@ -155,7 +155,7 @@ class CodebaseExplorer:
             result = self.js_parser.parse(code, filename)
             if result and not result.get("has_errors"):
                 self._parsed_files[filename] = {
-                    "parsed_at": datetime.now(timezone.utc),
+                    "parsed_at": datetime.now(UTC),
                     "has_errors": False,
                 }
                 self.metrics["total_functions"] += len(result.get("functions", []))
@@ -173,7 +173,7 @@ class CodebaseExplorer:
             self._parse_errors.add(filename)
             return None
 
-    def parse_yaml(self, code: str, filename: str) -> Optional[Dict[str, Any]]:
+    def parse_yaml(self, code: str, filename: str) -> Optional[dict[str, Any]]:
         """
         Faz parsing de arquivo YAML.
 
@@ -192,7 +192,7 @@ class CodebaseExplorer:
             result = self.yaml_parser.parse(code, filename)
             if result and not result.get("has_errors"):
                 self._parsed_files[filename] = {
-                    "parsed_at": datetime.now(timezone.utc),
+                    "parsed_at": datetime.now(UTC),
                     "has_errors": False,
                 }
                 return result
@@ -205,7 +205,7 @@ class CodebaseExplorer:
             self._parse_errors.add(filename)
             return None
 
-    def parse_json(self, code: str, filename: str) -> Optional[Dict[str, Any]]:
+    def parse_json(self, code: str, filename: str) -> Optional[dict[str, Any]]:
         """
         Faz parsing de arquivo JSON.
 
@@ -224,7 +224,7 @@ class CodebaseExplorer:
             result = self.json_parser.parse(code, filename)
             if result and not result.get("has_errors"):
                 self._parsed_files[filename] = {
-                    "parsed_at": datetime.now(timezone.utc),
+                    "parsed_at": datetime.now(UTC),
                     "has_errors": False,
                 }
                 return result
@@ -237,7 +237,7 @@ class CodebaseExplorer:
             self._parse_errors.add(filename)
             return None
 
-    def extract_functions(self, tree: ast.Module) -> List[Dict[str, Any]]:
+    def extract_functions(self, tree: ast.Module) -> list[dict[str, Any]]:
         """
         Extrai informações de funções da AST.
 
@@ -274,7 +274,7 @@ class CodebaseExplorer:
         self.metrics["total_functions"] += len(functions)
         return functions
 
-    def extract_classes(self, tree: ast.Module) -> List[Dict[str, Any]]:
+    def extract_classes(self, tree: ast.Module) -> list[dict[str, Any]]:
         """
         Extrai informações de classes da AST.
 
@@ -306,7 +306,7 @@ class CodebaseExplorer:
         self.metrics["total_classes"] += len(classes)
         return classes
 
-    def _extract_decorators(self, node: ast.AST) -> List[str]:
+    def _extract_decorators(self, node: ast.AST) -> list[str]:
         """Extrai decorators de um nó AST como strings."""
         decorators = []
 
@@ -345,7 +345,7 @@ class CodebaseExplorer:
         else:
             return str(node.value)
 
-    def extract_imports(self, tree: ast.Module, filename: str) -> Dict[str, List[str]]:
+    def extract_imports(self, tree: ast.Module, filename: str) -> dict[str, list[str]]:
         """
         Extrai imports de um AST categorizados por tipo.
 
@@ -418,7 +418,7 @@ class CodebaseExplorer:
         # Converter sets para lists
         return {k: list(v) for k, v in imports.items()}
 
-    def build_dependency_graph(self, files_data: Dict[str, Dict]) -> Dict[str, Any]:
+    def build_dependency_graph(self, files_data: dict[str, dict]) -> dict[str, Any]:
         """
         Constrói grafo de dependências entre arquivos.
 
@@ -470,7 +470,7 @@ class CodebaseExplorer:
         return dict(graph)
 
     def _resolve_import_filename(
-        self, import_name: str, source_file: str, available_files: List[str]
+        self, import_name: str, source_file: str, available_files: list[str]
     ) -> Optional[str]:
         """
         Resolve nome de import para nome de arquivo.
@@ -548,7 +548,7 @@ class CodebaseExplorer:
         """
         return filename in self._parse_errors
 
-    def explore_directory(self, max_files: int = 100) -> Dict[str, Any]:
+    def explore_directory(self, max_files: int = 100) -> dict[str, Any]:
         """
         Explora diretório recursivamente analisando arquivos.
 
@@ -581,7 +581,7 @@ class CodebaseExplorer:
                     break
 
                 try:
-                    with open(filepath, "r", encoding="utf-8") as f:
+                    with open(filepath, encoding="utf-8") as f:
                         code = f.read()
 
                     if ext == ".py":
@@ -667,7 +667,7 @@ class CodebaseExplorer:
 
         return results
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """Retorna estatísticas da exploração."""
         return {
             **self.metrics,

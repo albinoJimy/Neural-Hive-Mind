@@ -4,12 +4,13 @@ Testes para os serviços de memória do Memory Layer API.
 Cobre UnifiedMemoryClient, LineageTracker e DataQualityMonitor.
 """
 
-import pytest
-from unittest.mock import AsyncMock, MagicMock
 from datetime import datetime
+from unittest.mock import AsyncMock, MagicMock
+
+import pytest
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_unified_memory_client_init():
     """UnifiedMemoryClient deve inicializar com clientes corretos."""
     from src.clients.unified_memory_client import UnifiedMemoryClient
@@ -34,7 +35,7 @@ async def test_unified_memory_client_init():
     assert client.mongodb_client == mock_mongo
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_query_redis_layer():
     """Query deve usar camada Redis para dados quentes."""
     from src.clients.unified_memory_client import UnifiedMemoryClient
@@ -61,7 +62,7 @@ async def test_query_redis_layer():
     assert result["data"]["key"] == "value"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_query_mongodb_layer():
     """Query deve usar camada MongoDB para dados persistentes."""
     from src.clients.unified_memory_client import UnifiedMemoryClient
@@ -89,7 +90,7 @@ async def test_query_mongodb_layer():
     assert result["source"] == "mongodb"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_store_memory():
     """Store memory deve persistir em camadas apropriadas."""
     from src.clients.unified_memory_client import UnifiedMemoryClient
@@ -118,7 +119,7 @@ async def test_store_memory():
     assert result["success"] is True
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_lineage_tracker_init():
     """LineageTracker deve inicializar com clientes."""
     from src.services.lineage_tracker import LineageTracker
@@ -134,7 +135,7 @@ async def test_lineage_tracker_init():
     assert tracker.mongodb_client == mock_mongo
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_get_lineage_tree():
     """Obter arvore de lineage deve retornar ancestrais e descendentes."""
     from src.services.lineage_tracker import LineageTracker
@@ -161,7 +162,7 @@ async def test_get_lineage_tree():
     assert "ancestors" in result
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_track_lineage():
     """Rastrear lineage deve criar relacionamentos."""
     from src.services.lineage_tracker import LineageTracker
@@ -183,7 +184,7 @@ async def test_track_lineage():
     assert result is not None
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_data_quality_monitor_init():
     """DataQualityMonitor deve inicializar com cliente MongoDB."""
     from src.services.data_quality_monitor import DataQualityMonitor
@@ -196,7 +197,7 @@ async def test_data_quality_monitor_init():
     assert monitor.mongodb_client == mock_mongo
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_get_quality_trends():
     """Obter trends de qualidade deve retornar metricas historicas."""
     from src.services.data_quality_monitor import DataQualityMonitor
@@ -219,7 +220,7 @@ async def test_get_quality_trends():
         assert "completeness" in result[0]
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_record_quality_metrics():
     """Registrar metricas de qualidade deve persistir."""
     from src.services.data_quality_monitor import DataQualityMonitor
@@ -239,7 +240,7 @@ async def test_record_quality_metrics():
     assert result["success"] is True
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_invalidate_cache():
     """Invalidar cache deve remover entradas."""
     from src.clients.unified_memory_client import UnifiedMemoryClient
@@ -267,7 +268,7 @@ async def test_invalidate_cache():
     assert result["success"] is True
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_sync_to_clickhouse():
     """Sync para ClickHouse deve inserir dados."""
     from src.clients.unified_memory_client import UnifiedMemoryClient
@@ -296,7 +297,7 @@ async def test_sync_to_clickhouse():
     assert result["success"] is True
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_retention_policy_manager():
     """Gerenciador de retention deve expirar dados antigos."""
     from src.services.retention_policy_manager import RetentionPolicyManager

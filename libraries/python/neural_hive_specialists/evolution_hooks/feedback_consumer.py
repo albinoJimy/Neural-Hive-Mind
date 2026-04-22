@@ -7,7 +7,8 @@ do Approval Service e atualiza o Pattern Registry com os resultados.
 
 import asyncio
 import json
-from typing import Optional, Dict, Any
+from typing import Any, Optional
+
 import structlog
 
 try:
@@ -220,7 +221,7 @@ class EvolutionFeedbackConsumer:
             logger.error("evolution_feedback_consumer.consume_loop_error", error=str(e))
             self._running = False
 
-    async def _poll_with_timeout(self, timeout_ms: Optional[int] = None) -> Dict[Any, Any]:
+    async def _poll_with_timeout(self, timeout_ms: Optional[int] = None) -> dict[Any, Any]:
         """
         Poll mensagens do Kafka com timeout.
 
@@ -305,7 +306,7 @@ class EvolutionFeedbackConsumer:
                 error_type=type(e).__name__,
             )
 
-    async def process_message(self, message_data: Dict[str, Any]) -> bool:
+    async def process_message(self, message_data: dict[str, Any]) -> bool:
         """
         Processa uma mensagem de feedback (método público).
 

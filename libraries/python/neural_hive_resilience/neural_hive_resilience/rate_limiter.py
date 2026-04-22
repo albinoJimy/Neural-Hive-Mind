@@ -13,11 +13,11 @@ from collections import deque
 from dataclasses import dataclass
 from enum import Enum
 from typing import Optional
-from prometheus_client import Counter, Gauge, Histogram
+
 import structlog
+from prometheus_client import Counter, Gauge, Histogram
 
-from .exceptions import RateLimitExceededError, ConcurrencyLimitExceededError
-
+from .exceptions import ConcurrencyLimitExceededError, RateLimitExceededError
 
 # Métricas Prometheus
 rate_limit_requests_total = Counter(

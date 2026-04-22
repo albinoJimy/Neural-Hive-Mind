@@ -1,8 +1,8 @@
 """Testes unitários para o modelo IntentEnvelope"""
 
-import pytest
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
+import pytest
 from models.intent_envelope import IntentEnvelope, IntentRequest, VoiceIntentRequest
 
 
@@ -26,7 +26,7 @@ class TestIntentEnvelope:
             },
             confidence=0.85,
             context=sample_user_context,
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
         )
 
         assert envelope.id == "test-id"
@@ -49,7 +49,7 @@ class TestIntentEnvelope:
                 "keywords": [],
             },
             confidence=0.85,
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
         )
 
         partition_key = envelope.get_partition_key()
@@ -69,7 +69,7 @@ class TestIntentEnvelope:
                 "keywords": [],
             },
             confidence=0.85,
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
         )
 
         idempotency_key = envelope.get_idempotency_key()
@@ -77,7 +77,7 @@ class TestIntentEnvelope:
 
     def test_intent_envelope_to_avro_dict(self, sample_user_context):
         """Teste de serialização para Avro"""
-        timestamp = datetime.now(timezone.utc)
+        timestamp = datetime.now(UTC)
         envelope = IntentEnvelope(
             id="test-id",
             correlation_id="test-correlation",
@@ -120,7 +120,7 @@ class TestIntentEnvelope:
             IntentEnvelope(
                 # Missing required fields
                 id="",
-                timestamp=datetime.now(timezone.utc),
+                timestamp=datetime.now(UTC),
             )
 
     def test_confidence_bounds(self):
@@ -137,7 +137,7 @@ class TestIntentEnvelope:
                 "keywords": [],
             },
             confidence=0.5,  # Valid range [0, 1]
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
         )
         assert 0.0 <= envelope.confidence <= 1.0
 
@@ -153,7 +153,7 @@ class TestIntentEnvelope:
                 "keywords": [],
             },
             confidence=0.0,
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
         )
         assert envelope_min.confidence == 0.0
 
@@ -168,7 +168,7 @@ class TestIntentEnvelope:
                 "keywords": [],
             },
             confidence=1.0,
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
         )
         assert envelope_max.confidence == 1.0
 

@@ -1,7 +1,7 @@
 """Tests para KnowledgeGraphRAG service."""
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 from knowledge_graph_rag.models.knowledge import (
     NodeType,
     RelationType,
@@ -23,7 +23,7 @@ class TestKnowledgeGraphRAG:
             node_type=NodeType.REQUIREMENT,
             name="Login Functionality",
             description="Sistema deve permitir login via email e senha",
-            properties={"priority": "high", "complexity": 5}
+            properties={"priority": "high", "complexity": 5},
         )
 
         assert node.node_type == NodeType.REQUIREMENT
@@ -42,7 +42,7 @@ class TestKnowledgeGraphRAG:
             source_id="REQ:001",
             target_id="USR:001",
             relation_type=RelationType.IMPLEMENTS,
-            properties={"confidence": 0.9}
+            properties={"confidence": 0.9},
         )
 
         assert relation.source_id == "REQ:001"
@@ -72,20 +72,19 @@ class TestKnowledgeGraphRAG:
                 node_type=NodeType.REQUIREMENT,
                 name="Login",
                 description="Requisito de login",
-                properties={"priority": "high"}
+                properties={"priority": "high"},
             ),
             KnowledgeNode(
                 id="USR:001",
                 node_type=NodeType.USER_STORY,
                 name="Auth Story",
                 description="História de autenticação",
-                properties={"story_points": 5}
-            )
+                properties={"story_points": 5},
+            ),
         ]
 
         context = await service.generate_rag_context(
-            query="autenticação e login",
-            retrieved_nodes=nodes
+            query="autenticação e login", retrieved_nodes=nodes
         )
 
         assert context.query == "autenticação e login"
@@ -108,20 +107,18 @@ class TestKnowledgeGraphRAG:
         service = KnowledgeGraphRAG(llm_client=mock_openai_client)
 
         # Mock search para retornar um nó
-        with patch.object(service, 'search', new_callable=AsyncMock) as mock_search:
+        with patch.object(service, "search", new_callable=AsyncMock) as mock_search:
             node = KnowledgeNode(
                 id="DOC:001",
                 node_type=NodeType.DOCUMENT,
                 name="Architecture",
                 description="Arquitetura do sistema",
-                embedding=[0.1] * 1536
+                embedding=[0.1] * 1536,
             )
             from knowledge_graph_rag.models.knowledge import GraphSearchResult
+
             mock_search.return_value = GraphSearchResult(
-                nodes=[node],
-                relations=[],
-                total_found=1,
-                query_id="Q-test"
+                nodes=[node], relations=[], total_found=1, query_id="Q-test"
             )
 
             response = await service.query_with_rag("explique a arquitetura")
@@ -161,7 +158,7 @@ class TestKnowledgeGraphRAGSync:
             id="REQ:001",
             node_type=NodeType.REQUIREMENT,
             name="autenticação",
-            description="Sistema de autenticação"
+            description="Sistema de autenticação",
         )
 
         score = service._calculate_relevance("preciso de autenticação", node)
@@ -176,7 +173,7 @@ class TestKnowledgeGraphRAGSync:
             id="REQ:001",
             node_type=NodeType.REQUIREMENT,
             name="pagamento",
-            description="Sistema de pagamentos"
+            description="Sistema de pagamentos",
         )
 
         score = service._calculate_relevance("autenticação de usuários", node)

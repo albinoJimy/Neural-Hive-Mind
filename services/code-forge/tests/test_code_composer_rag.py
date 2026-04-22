@@ -1,16 +1,17 @@
 """Testes unitários para métodos RAG do CodeComposer"""
 
-import pytest
-from unittest.mock import AsyncMock, MagicMock
-import sys
 import os
+import sys
+from unittest.mock import AsyncMock, MagicMock
+
+import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from src.services.code_composer import CodeComposer
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_mongodb_client():
     """Mock do MongoDBClient"""
     client = AsyncMock()
@@ -18,7 +19,7 @@ def mock_mongodb_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_llm_client():
     """Mock do LLMClient"""
     client = AsyncMock()
@@ -28,7 +29,7 @@ def mock_llm_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_analyst_client():
     """Mock do AnalystAgentsClient"""
     client = AsyncMock()
@@ -45,7 +46,7 @@ def mock_analyst_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_ticket():
     """Criar ticket de exemplo"""
     ticket = MagicMock()
@@ -61,7 +62,7 @@ def sample_ticket():
     return ticket
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_build_rag_context_success(mock_mongodb_client, mock_analyst_client, sample_ticket):
     """Testar construção de contexto RAG bem-sucedida"""
     composer = CodeComposer(
@@ -79,7 +80,7 @@ async def test_build_rag_context_success(mock_mongodb_client, mock_analyst_clien
     mock_analyst_client.get_architectural_patterns.assert_called_once_with(domain="TECHNICAL")
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_build_rag_context_no_analyst_client(mock_mongodb_client, sample_ticket):
     """Testar construção de contexto RAG sem analyst_client"""
     composer = CodeComposer(
@@ -91,7 +92,7 @@ async def test_build_rag_context_no_analyst_client(mock_mongodb_client, sample_t
     assert rag_context == {"similar_templates": [], "architectural_patterns": []}
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_build_rag_context_analyst_failure(mock_mongodb_client, sample_ticket):
     """Testar construção de contexto RAG com falha no analyst"""
     mock_analyst_client = AsyncMock()

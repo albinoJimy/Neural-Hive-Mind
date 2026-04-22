@@ -6,13 +6,12 @@ configurando observability e graceful shutdown.
 """
 
 import sys
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from typing import AsyncGenerator
 
 import structlog
 import uvicorn
 from fastapi import FastAPI
-
 from scout_mcp_server.config import get_settings
 from scout_mcp_server.server import mcp
 

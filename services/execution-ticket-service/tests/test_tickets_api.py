@@ -1,6 +1,6 @@
 """Testes para API de Tickets."""
 
-from datetime import datetime, timezone, timedelta
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -14,7 +14,7 @@ from src.api import tickets as tickets_api
 from src.models import TicketStatus
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_settings():
     """Configurações mockadas para testes."""
     return SimpleNamespace(
@@ -69,7 +69,7 @@ def mock_settings():
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_ticket_dict():
     """Ticket de exemplo."""
     return {
@@ -93,7 +93,7 @@ def sample_ticket_dict():
         "parameters": {},
         "required_capabilities": [],
         "security_level": "INTERNAL",
-        "created_at": int(datetime.now(timezone.utc).timestamp() * 1000),
+        "created_at": int(datetime.now(UTC).timestamp() * 1000),
         "started_at": None,
         "completed_at": None,
         "retry_count": 0,
@@ -116,7 +116,7 @@ def make_orm_mock(ticket_dict: dict) -> MagicMock:
     return mock_orm
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_postgres_client(sample_ticket_dict):
     """Cliente PostgreSQL mockado."""
     client = AsyncMock()
@@ -145,7 +145,7 @@ def mock_postgres_client(sample_ticket_dict):
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_mongodb_client():
     """Cliente MongoDB mockado."""
     client = AsyncMock()
@@ -166,7 +166,7 @@ def mock_mongodb_client():
 
 
 # Tests for retry endpoint
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_retry_ticket_success(
     mock_settings, mock_postgres_client, mock_mongodb_client, sample_ticket_dict
 ):
@@ -192,7 +192,7 @@ async def test_retry_ticket_success(
         mock_mongodb_client.log_status_change.assert_called_once()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_retry_ticket_not_found(mock_settings, mock_postgres_client):
     """Testa retry de ticket inexistente."""
     ticket_id = str(uuid4())
@@ -205,7 +205,7 @@ async def test_retry_ticket_not_found(mock_settings, mock_postgres_client):
         assert exc_info.value.status_code == 404
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_retry_ticket_not_failed(mock_settings, mock_postgres_client, sample_ticket_dict):
     """Testa retry de ticket que não está FAILED."""
     ticket_id = sample_ticket_dict["ticket_id"]
@@ -223,7 +223,7 @@ async def test_retry_ticket_not_failed(mock_settings, mock_postgres_client, samp
         assert "FAILED" in exc_info.value.detail
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_retry_ticket_max_retries_exceeded(
     mock_settings, mock_postgres_client, sample_ticket_dict
 ):
@@ -246,7 +246,7 @@ async def test_retry_ticket_max_retries_exceeded(
 
 
 # Tests for history endpoint
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_get_ticket_history_success(
     mock_settings, mock_postgres_client, mock_mongodb_client, sample_ticket_dict
 ):
@@ -254,7 +254,7 @@ async def test_get_ticket_history_success(
     ticket_id = sample_ticket_dict["ticket_id"]
 
     # Mock do histórico MongoDB
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     history_docs = [
         {
             "ticket_id": ticket_id,
@@ -298,7 +298,7 @@ async def test_get_ticket_history_success(
         assert result[1].old_status == "RUNNING"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_get_ticket_history_not_found(mock_settings, mock_postgres_client):
     """Testa busca de histórico de ticket inexistente."""
     ticket_id = str(uuid4())
@@ -311,7 +311,7 @@ async def test_get_ticket_history_not_found(mock_settings, mock_postgres_client)
         assert exc_info.value.status_code == 404
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_get_ticket_history_mongodb_error(
     mock_settings, mock_postgres_client, mock_mongodb_client, sample_ticket_dict
 ):
@@ -334,7 +334,7 @@ async def test_get_ticket_history_mongodb_error(
 
 
 # Tests for list tickets with additional filters
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_list_tickets_with_filters(mock_settings, mock_postgres_client):
     """Testa listagem de tickets com filtros."""
     mock_postgres_client.list_tickets.return_value = []
@@ -351,7 +351,7 @@ async def test_list_tickets_with_filters(mock_settings, mock_postgres_client):
 
 
 # Tests for create ticket endpoint
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_create_ticket_success(mock_settings, mock_postgres_client, sample_ticket_dict):
     """Testa criação de ticket com sucesso."""
     ticket_data = {
@@ -394,7 +394,7 @@ async def test_create_ticket_success(mock_settings, mock_postgres_client, sample
 
 
 # Tests for get ticket
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_get_ticket_success(mock_settings, mock_postgres_client, sample_ticket_dict):
     """Testa busca de ticket por ID com sucesso."""
     ticket_id = sample_ticket_dict["ticket_id"]
@@ -406,7 +406,7 @@ async def test_get_ticket_success(mock_settings, mock_postgres_client, sample_ti
         assert result is not None
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_get_ticket_not_found(mock_settings, mock_postgres_client):
     """Testa busca de ticket inexistente."""
     ticket_id = str(uuid4())
@@ -419,7 +419,7 @@ async def test_get_ticket_not_found(mock_settings, mock_postgres_client):
         assert exc_info.value.status_code == 404
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_update_ticket_status_success(
     mock_settings, mock_postgres_client, mock_mongodb_client, sample_ticket_dict
 ):
@@ -443,7 +443,7 @@ async def test_update_ticket_status_success(
         assert result.status == "RUNNING"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_get_ticket_token_success(mock_settings, mock_postgres_client, sample_ticket_dict):
     """Testa geração de token JWT com sucesso."""
     ticket_id = sample_ticket_dict["ticket_id"]
@@ -463,7 +463,7 @@ async def test_get_ticket_token_success(mock_settings, mock_postgres_client, sam
         assert result.expires_at is not None
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_get_ticket_token_invalid_status(
     mock_settings, mock_postgres_client, sample_ticket_dict
 ):

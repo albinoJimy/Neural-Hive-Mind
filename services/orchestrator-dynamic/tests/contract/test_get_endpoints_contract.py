@@ -10,10 +10,10 @@ Estes testes são independentes de mocks unitários e focam na estrutura
 da resposta conforme esperado pelos consumidores da API.
 """
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
-from httpx import AsyncClient, ASGITransport
 
+import pytest
+from httpx import ASGITransport, AsyncClient
 
 # =============================================================================
 # Schemas de Contrato
@@ -138,14 +138,14 @@ def validate_field_types(data: dict, required_fields: dict, optional_fields: dic
 # =============================================================================
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_app_state():
     """Mock do app_state para testes."""
     with patch("src.main.app_state") as mock_state:
         yield mock_state
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_mongodb_client():
     """Mock do cliente MongoDB."""
     client = AsyncMock()
@@ -154,7 +154,7 @@ def mock_mongodb_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_temporal_client():
     """Mock do cliente Temporal."""
     client = MagicMock()
@@ -169,7 +169,7 @@ def mock_temporal_client():
 class TestGetTicketContract:
     """Testes de contrato para GET /api/v1/tickets/{ticket_id}."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_success_response_schema(self, mock_app_state, mock_mongodb_client):
         """Valida schema de resposta de sucesso."""
         from src.main import app
@@ -198,7 +198,7 @@ class TestGetTicketContract:
         validate_field_types(data, TICKET_REQUIRED_FIELDS, TICKET_OPTIONAL_FIELDS)
         assert data["status"] in VALID_TICKET_STATUSES
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_not_found_error_schema(self, mock_app_state, mock_mongodb_client):
         """Valida schema de erro 404."""
         from src.main import app
@@ -216,7 +216,7 @@ class TestGetTicketContract:
         validate_field_types(data, ERROR_RESPONSE_REQUIRED_FIELDS)
         assert "not found" in data["detail"].lower()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_service_unavailable_error_schema(self, mock_app_state):
         """Valida schema de erro 503 quando MongoDB indisponível."""
         from src.main import app
@@ -242,7 +242,7 @@ class TestGetTicketContract:
 class TestGetTicketsByPlanContract:
     """Testes de contrato para GET /api/v1/tickets/by-plan/{plan_id}."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_success_response_schema(self, mock_app_state, mock_mongodb_client):
         """Valida schema de resposta de sucesso com lista de tickets."""
         from src.main import app
@@ -276,7 +276,7 @@ class TestGetTicketsByPlanContract:
             assert "ticket_id" in ticket
             assert "status" in ticket
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_empty_list_response_schema(self, mock_app_state, mock_mongodb_client):
         """Valida schema de resposta com lista vazia."""
         from src.main import app
@@ -302,7 +302,7 @@ class TestGetTicketsByPlanContract:
         assert data["tickets"] == []
         assert data["total"] == 0
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_invalid_limit_error_schema(self, mock_app_state, mock_mongodb_client):
         """Valida schema de erro 400 para limit inválido."""
         from src.main import app
@@ -319,7 +319,7 @@ class TestGetTicketsByPlanContract:
         validate_field_types(data, ERROR_RESPONSE_REQUIRED_FIELDS)
         assert "500" in data["detail"] or "limit" in data["detail"].lower()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_invalid_status_error_schema(self, mock_app_state, mock_mongodb_client):
         """Valida schema de erro 400 para status inválido."""
         from src.main import app
@@ -337,7 +337,7 @@ class TestGetTicketsByPlanContract:
         validate_field_types(data, ERROR_RESPONSE_REQUIRED_FIELDS)
         assert "status" in data["detail"].lower() or "invalid" in data["detail"].lower()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_service_unavailable_error_schema(self, mock_app_state):
         """Valida schema de erro 503 quando MongoDB indisponível."""
         from src.main import app
@@ -362,7 +362,7 @@ class TestGetTicketsByPlanContract:
 class TestGetWorkflowStatusContract:
     """Testes de contrato para GET /api/v1/workflows/{workflow_id}."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_success_response_schema(self, mock_app_state, mock_temporal_client):
         """Valida schema de resposta de sucesso."""
         from src.main import app
@@ -392,7 +392,7 @@ class TestGetWorkflowStatusContract:
         validate_field_types(data, WORKFLOW_STATUS_REQUIRED_FIELDS, WORKFLOW_STATUS_OPTIONAL_FIELDS)
         assert data["status"] in VALID_WORKFLOW_STATUSES
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_not_found_error_schema(self, mock_app_state, mock_temporal_client):
         """Valida schema de erro 404 quando workflow não existe."""
         from src.main import app
@@ -413,7 +413,7 @@ class TestGetWorkflowStatusContract:
         validate_field_types(data, ERROR_RESPONSE_REQUIRED_FIELDS)
         assert "not found" in data["detail"].lower()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_service_unavailable_error_schema(self, mock_app_state):
         """Valida schema de erro 503 quando Temporal indisponível."""
         from src.main import app
@@ -439,7 +439,7 @@ class TestGetWorkflowStatusContract:
 class TestCrossEndpointConsistency:
     """Testes de consistência entre endpoints."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_cached_flag_present_in_all_success_responses(
         self, mock_app_state, mock_mongodb_client
     ):
@@ -475,7 +475,7 @@ class TestCrossEndpointConsistency:
             assert response.status_code == 200
             assert "cached" in response.json()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_error_responses_have_consistent_format(self, mock_app_state):
         """Valida formato consistente de erros entre endpoints."""
         from src.main import app

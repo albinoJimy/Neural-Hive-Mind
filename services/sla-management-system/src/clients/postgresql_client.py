@@ -2,7 +2,8 @@
 Cliente para PostgreSQL usando asyncpg.
 """
 
-from typing import Any, Dict, List, Optional
+from datetime import UTC
+from typing import Any, Optional
 
 import asyncpg
 import structlog
@@ -60,7 +61,7 @@ class PostgreSQLClient:
             self.logger.error("postgresql_connection_error", error=str(error))
         raise error
 
-    def _parse_slo_row(self, row) -> Dict[str, Any]:
+    def _parse_slo_row(self, row) -> dict[str, Any]:
         """Parse row from slo_definitions, converting JSON fields."""
         import json
 
@@ -311,7 +312,7 @@ class PostgreSQLClient:
 
     async def list_slos(
         self, service_name: Optional[str] = None, enabled_only: bool = True
-    ) -> List[SLODefinition]:
+    ) -> list[SLODefinition]:
         """Lista SLOs com filtros opcionais."""
         query = "SELECT * FROM slo_definitions WHERE 1=1"
         params = []
@@ -349,17 +350,17 @@ class PostgreSQLClient:
                 return SLODefinition(**self._parse_slo_row(row))
             return None
 
-    async def update_slo(self, slo_id: str, updates: Dict[str, Any]) -> bool:
+    async def update_slo(self, slo_id: str, updates: dict[str, Any]) -> bool:
         """Atualiza campos permitidos de um SLO."""
         import json
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         if not updates:
             return False
 
         # Sempre atualizar updated_at
         updates = updates.copy()
-        updates["updated_at"] = datetime.now(timezone.utc)
+        updates["updated_at"] = datetime.now(UTC)
 
         set_clauses = []
         params = []
@@ -403,7 +404,7 @@ class PostgreSQLClient:
 
     async def delete_slo(self, slo_id: str) -> bool:
         """Soft delete de SLO (marca como disabled)."""
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         try:
             async with self.pool.acquire() as conn:
@@ -414,7 +415,7 @@ class PostgreSQLClient:
                     WHERE slo_id = $1
                 """,
                     slo_id,
-                    datetime.now(timezone.utc),
+                    datetime.now(UTC),
                 )
                 success = result == "UPDATE 1"
                 if success:
@@ -519,7 +520,7 @@ class PostgreSQLClient:
 
     async def get_budget_history(
         self, slo_id: str, days: int = 7, aggregation: Optional[str] = None
-    ) -> List[ErrorBudget]:
+    ) -> list[ErrorBudget]:
         """
         Busca histórico de budgets para um SLO.
 
@@ -664,7 +665,7 @@ class PostgreSQLClient:
             )
             raise
 
-    async def get_budget_trends(self, slo_id: str, days: int = 30) -> Dict[str, Any]:
+    async def get_budget_trends(self, slo_id: str, days: int = 30) -> dict[str, Any]:
         """
         Calcula tendências e estatísticas de budget para um SLO.
 
@@ -810,7 +811,7 @@ class PostgreSQLClient:
                 return FreezePolicy(**dict(row))
             return None
 
-    async def list_policies(self, enabled_only: bool = True) -> List[FreezePolicy]:
+    async def list_policies(self, enabled_only: bool = True) -> list[FreezePolicy]:
         """Lista políticas."""
         query = "SELECT * FROM freeze_policies"
         if enabled_only:
@@ -840,7 +841,7 @@ class PostgreSQLClient:
                 return FreezePolicy(**dict(row))
             return None
 
-    async def update_policy(self, policy_id: str, updates: Dict[str, Any]) -> bool:
+    async def update_policy(self, policy_id: str, updates: dict[str, Any]) -> bool:
         """Atualiza campos permitidos de uma política."""
         import json
 
@@ -932,7 +933,7 @@ class PostgreSQLClient:
             )
             return event.event_id
 
-    async def get_active_freezes(self, service_name: Optional[str] = None) -> List[FreezeEvent]:
+    async def get_active_freezes(self, service_name: Optional[str] = None) -> list[FreezeEvent]:
         """Busca freezes ativos."""
         query = "SELECT * FROM freeze_events WHERE active = TRUE"
         params = []
@@ -960,7 +961,7 @@ class PostgreSQLClient:
 
     async def get_freeze_history(
         self, service_name: Optional[str] = None, days: int = 7
-    ) -> List[FreezeEvent]:
+    ) -> list[FreezeEvent]:
         """
         Retorna histórico de freezes (ativos e resolvidos).
 
@@ -1056,7 +1057,7 @@ class PostgreSQLClient:
         service_name: Optional[str] = None,
         acknowledged: Optional[bool] = None,
         resolved: Optional[bool] = None,
-    ) -> List[Alert]:
+    ) -> list[Alert]:
         """Lista alertas com filtros."""
         import json
 
@@ -1106,7 +1107,7 @@ class PostgreSQLClient:
 
     async def acknowledge_alert(self, alert_id: str, acknowledged_by: str) -> bool:
         """Marca alerta como reconhecido."""
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         async with self.pool.acquire() as conn:
             result = await conn.execute(
@@ -1119,7 +1120,7 @@ class PostgreSQLClient:
             """,
                 alert_id,
                 acknowledged_by,
-                datetime.now(timezone.utc),
+                datetime.now(UTC),
             )
             success = result == "UPDATE 1"
             if success:
@@ -1128,7 +1129,7 @@ class PostgreSQLClient:
 
     async def resolve_alert(self, alert_id: str, resolved_by: str) -> bool:
         """Marca alerta como resolvido."""
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         async with self.pool.acquire() as conn:
             result = await conn.execute(
@@ -1139,14 +1140,14 @@ class PostgreSQLClient:
                 WHERE alert_id = $1
             """,
                 alert_id,
-                datetime.now(timezone.utc),
+                datetime.now(UTC),
             )
             success = result == "UPDATE 1"
             if success:
                 self.logger.info("alert_resolved", alert_id=alert_id, by=resolved_by)
             return success
 
-    async def get_alert_statistics(self) -> Dict[str, Any]:
+    async def get_alert_statistics(self) -> dict[str, Any]:
         """Retorna estatísticas de alertas."""
         async with self.pool.acquire() as conn:
             # Contagem total

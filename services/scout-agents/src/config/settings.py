@@ -1,7 +1,7 @@
 """Configuration settings for Scout Agents using Pydantic"""
 
 from functools import lru_cache
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 from pydantic import BaseModel, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -42,7 +42,7 @@ class ServiceRegistryConfig(BaseModel):
     port: int = Field(default=50051, description="Service Registry port")
     registration_interval: int = Field(default=300, description="Registration interval in seconds")
     heartbeat_interval: int = Field(default=30, description="Heartbeat interval in seconds")
-    capabilities: Dict[str, Any] = Field(
+    capabilities: dict[str, Any] = Field(
         default_factory=lambda: {
             "agent_type": "scout",
             "exploration_domains": ["BUSINESS", "TECHNICAL"],

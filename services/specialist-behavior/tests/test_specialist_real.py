@@ -4,10 +4,11 @@ Testes reais para BehaviorSpecialist - importando código de src/.
 Estes testes importam o BehaviorSpecialist real do código fonte.
 """
 
-import sys
 import os
-import pytest
+import sys
 from unittest.mock import MagicMock, patch
+
+import pytest
 
 # Configurar path para importar código real
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
@@ -49,7 +50,7 @@ def env_setup():
     os.environ.update(original_env)
 
 
-@pytest.fixture
+@pytest.fixture()
 def real_config(env_setup):
     """Configuração real do BehaviorSpecialistConfig."""
     from config import BehaviorSpecialistConfig
@@ -57,7 +58,7 @@ def real_config(env_setup):
     return BehaviorSpecialistConfig()
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_mlflow_client():
     """Mock do cliente MLflow."""
     mock_client = MagicMock()
@@ -65,7 +66,7 @@ def mock_mlflow_client():
     return mock_client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_ledger_client():
     """Mock do cliente Ledger."""
     mock_client = MagicMock()
@@ -73,7 +74,7 @@ def mock_ledger_client():
     return mock_client
 
 
-@pytest.fixture
+@pytest.fixture()
 def real_specialist(real_config, mock_mlflow_client, mock_ledger_client):
     """Instância real do BehaviorSpecialist."""
     from specialist import BehaviorSpecialist

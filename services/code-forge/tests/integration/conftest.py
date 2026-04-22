@@ -12,15 +12,15 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "unit"))
 
 # Importar fixtures do conftest unitário explicitamente
 from tests.unit.conftest import (
-    event_loop,
     code_forge_settings,
-    mock_metrics,
-    mock_git_client,
-    mock_redis_client,
-    mock_mongodb_client,
-    mock_mcp_client,
-    mock_llm_client,
+    event_loop,
     mock_analyst_client,
+    mock_git_client,
+    mock_llm_client,
+    mock_mcp_client,
+    mock_metrics,
+    mock_mongodb_client,
+    mock_redis_client,
     mock_sonarqube_client,
 )
 

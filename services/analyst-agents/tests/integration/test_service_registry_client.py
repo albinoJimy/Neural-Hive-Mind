@@ -1,8 +1,8 @@
 """Integration tests for Analyst Agent Service Registry client."""
 
-import pytest
 import socket
 
+import pytest
 from src.clients.service_registry_client import ServiceRegistryClient
 
 
@@ -24,7 +24,7 @@ def _is_service_registry_available(
 SERVICE_REGISTRY_AVAILABLE = _is_service_registry_available()
 
 
-@pytest.fixture
+@pytest.fixture()
 def service_registry_host():
     """Service Registry host for integration tests."""
     import os
@@ -32,7 +32,7 @@ def service_registry_host():
     return os.environ.get("SERVICE_REGISTRY_HOST", "localhost")
 
 
-@pytest.fixture
+@pytest.fixture()
 def service_registry_port():
     """Service Registry port for integration tests."""
     import os
@@ -40,7 +40,7 @@ def service_registry_port():
     return int(os.environ.get("SERVICE_REGISTRY_PORT", "50051"))
 
 
-@pytest.fixture
+@pytest.fixture()
 async def analyst_client(service_registry_host, service_registry_port):
     """Create an Analyst Agent Service Registry client for testing."""
     client = ServiceRegistryClient(host=service_registry_host, port=service_registry_port)
@@ -49,8 +49,8 @@ async def analyst_client(service_registry_host, service_registry_port):
     await client.close()
 
 
-@pytest.mark.asyncio
-@pytest.mark.integration
+@pytest.mark.asyncio()
+@pytest.mark.integration()
 @pytest.mark.skipif(not SERVICE_REGISTRY_AVAILABLE, reason="Service Registry not available")
 async def test_register_analyst_agent(analyst_client):
     """Test Analyst Agent registration."""
@@ -62,8 +62,8 @@ async def test_register_analyst_agent(analyst_client):
     assert analyst_client.agent_id == agent_id
 
 
-@pytest.mark.asyncio
-@pytest.mark.integration
+@pytest.mark.asyncio()
+@pytest.mark.integration()
 @pytest.mark.skipif(not SERVICE_REGISTRY_AVAILABLE, reason="Service Registry not available")
 async def test_heartbeat_updates_health(analyst_client):
     """Test that heartbeat updates health status."""
@@ -77,8 +77,8 @@ async def test_heartbeat_updates_health(analyst_client):
     assert success is True
 
 
-@pytest.mark.asyncio
-@pytest.mark.integration
+@pytest.mark.asyncio()
+@pytest.mark.integration()
 @pytest.mark.skipif(not SERVICE_REGISTRY_AVAILABLE, reason="Service Registry not available")
 async def test_update_health_status(analyst_client):
     """Test health status update."""
@@ -91,8 +91,8 @@ async def test_update_health_status(analyst_client):
     assert success is True
 
 
-@pytest.mark.asyncio
-@pytest.mark.integration
+@pytest.mark.asyncio()
+@pytest.mark.integration()
 @pytest.mark.skipif(not SERVICE_REGISTRY_AVAILABLE, reason="Service Registry not available")
 async def test_deregister_agent(analyst_client):
     """Test agent deregistration."""
@@ -106,8 +106,8 @@ async def test_deregister_agent(analyst_client):
     assert analyst_client.agent_id is None
 
 
-@pytest.mark.asyncio
-@pytest.mark.integration
+@pytest.mark.asyncio()
+@pytest.mark.integration()
 @pytest.mark.skipif(not SERVICE_REGISTRY_AVAILABLE, reason="Service Registry not available")
 async def test_discover_agents(analyst_client):
     """Test agent discovery by capabilities."""
@@ -123,8 +123,8 @@ async def test_discover_agents(analyst_client):
     assert isinstance(agents, list)
 
 
-@pytest.mark.asyncio
-@pytest.mark.integration
+@pytest.mark.asyncio()
+@pytest.mark.integration()
 async def test_register_without_initialization():
     """Test that registration fails if client not initialized."""
     client = ServiceRegistryClient(host="localhost", port=50051)
@@ -137,8 +137,8 @@ async def test_register_without_initialization():
     assert result is None
 
 
-@pytest.mark.asyncio
-@pytest.mark.integration
+@pytest.mark.asyncio()
+@pytest.mark.integration()
 @pytest.mark.skipif(not SERVICE_REGISTRY_AVAILABLE, reason="Service Registry not available")
 async def test_heartbeat_without_registration(analyst_client):
     """Test that heartbeat fails if not registered."""
@@ -149,8 +149,8 @@ async def test_heartbeat_without_registration(analyst_client):
     assert success is False
 
 
-@pytest.mark.asyncio
-@pytest.mark.integration
+@pytest.mark.asyncio()
+@pytest.mark.integration()
 @pytest.mark.skipif(not SERVICE_REGISTRY_AVAILABLE, reason="Service Registry not available")
 async def test_get_available_agents_without_registration(analyst_client):
     """Test agent discovery works without registration."""
@@ -160,8 +160,8 @@ async def test_get_available_agents_without_registration(analyst_client):
     assert isinstance(agents, list)
 
 
-@pytest.mark.asyncio
-@pytest.mark.integration
+@pytest.mark.asyncio()
+@pytest.mark.integration()
 @pytest.mark.skipif(not SERVICE_REGISTRY_AVAILABLE, reason="Service Registry not available")
 async def test_full_lifecycle(analyst_client):
     """Test complete agent lifecycle."""

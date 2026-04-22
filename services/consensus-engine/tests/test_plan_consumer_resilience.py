@@ -9,11 +9,11 @@ Cobre cenários de:
 - Shutdown gracioso
 """
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
-from confluent_kafka import KafkaError
-import grpc
 
+import grpc
+import pytest
+from confluent_kafka import KafkaError
 from src.consumers.plan_consumer import PlanConsumer
 from src.observability.metrics import ConsensusMetrics
 
@@ -51,13 +51,13 @@ class MockConfigWithResilience:
     enable_bayesian_averaging = True
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_config_resilience():
     """Configuração mock com parâmetros de resiliência."""
     return MockConfigWithResilience()
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_specialists_client():
     """Cliente de especialistas mock."""
     client = AsyncMock()
@@ -78,7 +78,7 @@ def mock_specialists_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_mongodb_client():
     """Cliente MongoDB mock."""
     client = AsyncMock()
@@ -86,7 +86,7 @@ def mock_mongodb_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_pheromone_client():
     """Cliente de feromônios mock."""
     client = AsyncMock()
@@ -96,7 +96,7 @@ def mock_pheromone_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def plan_consumer(
     mock_config_resilience, mock_specialists_client, mock_mongodb_client, mock_pheromone_client
 ):
@@ -115,7 +115,7 @@ def plan_consumer(
 # ===========================
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestConsumerConfiguration:
     """Testes para verificar uso correto de parâmetros de configuração."""
 
@@ -132,7 +132,7 @@ class TestConsumerConfiguration:
 # ===========================
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestExponentialBackoff:
     """Testes para cálculo de backoff exponencial."""
 
@@ -163,8 +163,8 @@ class TestExponentialBackoff:
 # ===========================
 
 
-@pytest.mark.unit
-@pytest.mark.asyncio
+@pytest.mark.unit()
+@pytest.mark.asyncio()
 class TestCircuitBreaker:
     """Testes para comportamento do circuit breaker."""
 
@@ -317,7 +317,7 @@ class TestCircuitBreaker:
 # ===========================
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 class TestErrorClassification:
     """Testes para classificação de erros sistêmicos vs negócio."""
 
@@ -360,8 +360,8 @@ class TestErrorClassification:
 # ===========================
 
 
-@pytest.mark.unit
-@pytest.mark.asyncio
+@pytest.mark.unit()
+@pytest.mark.asyncio()
 class TestMessageProcessing:
     """Testes para processamento de mensagens e métricas."""
 
@@ -414,8 +414,8 @@ class TestMessageProcessing:
 # ===========================
 
 
-@pytest.mark.unit
-@pytest.mark.asyncio
+@pytest.mark.unit()
+@pytest.mark.asyncio()
 class TestOffsetCommit:
     """Testes para comportamento de commit de offset."""
 
@@ -511,8 +511,8 @@ class TestOffsetCommit:
 # ===========================
 
 
-@pytest.mark.unit
-@pytest.mark.asyncio
+@pytest.mark.unit()
+@pytest.mark.asyncio()
 class TestMetricsEmission:
     """Testes para verificar emissão correta de métricas."""
 
@@ -616,8 +616,8 @@ class TestMetricsEmission:
 # ===========================
 
 
-@pytest.mark.unit
-@pytest.mark.asyncio
+@pytest.mark.unit()
+@pytest.mark.asyncio()
 class TestTransientErrorRecovery:
     """Testes para recuperação após erros transientes."""
 
@@ -688,8 +688,8 @@ class TestTransientErrorRecovery:
 # ===========================
 
 
-@pytest.mark.unit
-@pytest.mark.asyncio
+@pytest.mark.unit()
+@pytest.mark.asyncio()
 class TestGracefulShutdown:
     """Testes para shutdown gracioso do consumer."""
 
@@ -704,7 +704,6 @@ class TestGracefulShutdown:
             call_count += 1
             if call_count >= 2:
                 plan_consumer.running = False
-            return None
 
         plan_consumer.consumer.poll = poll_side_effect
 

@@ -8,12 +8,12 @@ Este módulo implementa funcionalidades de conformidade com LGPD/GDPR:
 - Políticas de retenção de dados
 """
 
+from .audit_logger import AuditLogger
 from .compliance_layer import ComplianceLayer
 from .field_encryptor import FieldEncryptor
-from .audit_logger import AuditLogger
 from .pii_detector import PIIDetector, PIIDetectorLite
-from .pii_masker import PIIMasker, MaskStrategy, create_masker
-from .pii_patterns import PIIType, PIICategory, get_pattern_registry
+from .pii_masker import MaskStrategy, PIIMasker, create_masker
+from .pii_patterns import PIICategory, PIIType, get_pattern_registry
 
 __all__ = [
     "ComplianceLayer",

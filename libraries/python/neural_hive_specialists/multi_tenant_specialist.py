@@ -5,11 +5,12 @@ Este módulo implementa isolamento de dados, configurações customizadas
 e modelos ML específicos por tenant.
 """
 
-from typing import Dict, Any, Optional, List
 import json
 from pathlib import Path
-from pydantic import BaseModel, Field, field_validator
+from typing import Any, Optional
+
 import structlog
+from pydantic import BaseModel, Field, field_validator
 
 from .base_specialist import BaseSpecialist
 from .config import SpecialistConfig
@@ -56,7 +57,7 @@ class TenantConfig(BaseModel):
     rate_limit_per_second: int = Field(
         default=100, ge=0, description="Rate limit específico em req/s"
     )
-    metadata: Dict[str, Any] = Field(default_factory=dict, description="Metadados adicionais")
+    metadata: dict[str, Any] = Field(default_factory=dict, description="Metadados adicionais")
 
     @field_validator("tenant_id")
     def validate_tenant_id(cls, v):
@@ -108,8 +109,8 @@ class MultiTenantSpecialist(BaseSpecialist):
         super().__init__(config)
 
         # Carregar configurações de tenants
-        self.tenant_configs: Dict[str, TenantConfig] = {}
-        self._tenant_models: Dict[str, Any] = {}  # Cache de modelos por tenant
+        self.tenant_configs: dict[str, TenantConfig] = {}
+        self._tenant_models: dict[str, Any] = {}  # Cache de modelos por tenant
 
         if config.enable_multi_tenancy:
             self._load_tenant_configs()
@@ -142,7 +143,7 @@ class MultiTenantSpecialist(BaseSpecialist):
         logger.info("Carregando tenant configs", path=str(config_path))
 
         try:
-            with open(config_path, "r", encoding="utf-8") as f:
+            with open(config_path, encoding="utf-8") as f:
                 if config_path.suffix in [".yaml", ".yml"]:
                     import yaml
 
@@ -292,7 +293,7 @@ class MultiTenantSpecialist(BaseSpecialist):
             self._tenant_models[tenant_id] = self.model
             return self.model
 
-    def evaluate_plan(self, request, context=None) -> Dict[str, Any]:
+    def evaluate_plan(self, request, context=None) -> dict[str, Any]:
         """
         Avalia plano cognitivo com suporte a multi-tenancy.
 
@@ -451,7 +452,7 @@ class MultiTenantSpecialist(BaseSpecialist):
             logger.error("Tenant inativo", tenant_id=tenant_id)
             raise ValueError(f"Tenant inativo: {tenant_id}")
 
-    def _apply_tenant_config_overrides(self, tenant_config: TenantConfig) -> Dict[str, Any]:
+    def _apply_tenant_config_overrides(self, tenant_config: TenantConfig) -> dict[str, Any]:
         """
         Aplica overrides de configuração do tenant.
 
@@ -479,7 +480,7 @@ class MultiTenantSpecialist(BaseSpecialist):
 
         return original_values
 
-    def _restore_config_overrides(self, original_values: Dict[str, Any]):
+    def _restore_config_overrides(self, original_values: dict[str, Any]):
         """
         Restaura valores originais de configuração.
 
@@ -507,7 +508,7 @@ class MultiTenantSpecialist(BaseSpecialist):
 
         return self.tenant_configs[tenant_id]
 
-    def get_active_tenants(self) -> List[str]:
+    def get_active_tenants(self) -> list[str]:
         """
         Lista tenants ativos.
 

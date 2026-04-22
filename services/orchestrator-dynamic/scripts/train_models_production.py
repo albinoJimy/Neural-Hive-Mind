@@ -9,15 +9,16 @@ import asyncio
 import json
 import logging
 import sys
-from datetime import datetime, timezone, timedelta
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 import pandas as pd
 
 # Adicionar path das bibliotecas
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
+from clients.mongodb_client import MongoDBClient
 from config.settings import get_settings
 from ml.anomaly_detector import AnomalyDetector
 from ml.drift_detector import DriftDetector
@@ -27,7 +28,6 @@ from ml.load_predictor import LoadPredictor
 from ml.model_registry import ModelRegistry
 from ml.training_pipeline import TrainingPipeline
 from observability.metrics import OrchestratorMetrics
-from clients.mongodb_client import MongoDBClient
 
 
 class ProductionModelTrainer:
@@ -56,7 +56,7 @@ class ProductionModelTrainer:
         self.drift_detector: Optional[DriftDetector] = None
         self.training_pipeline: Optional[TrainingPipeline] = None
 
-        self.training_results: Dict[str, Any] = {}
+        self.training_results: dict[str, Any] = {}
 
         self.logger = logging.getLogger("production_model_trainer")
 
@@ -120,7 +120,6 @@ class ProductionModelTrainer:
             self.logger.info(
                 "dry_run_skip_promote_model", extra={"model_name": kwargs.get("model_name")}
             )
-            return None
 
         self.model_registry.save_model = _noop_save_model  # type: ignore[assignment]
         self.model_registry.promote_model = _noop_promote_model  # type: ignore[assignment]
@@ -130,7 +129,7 @@ class ProductionModelTrainer:
         if not self.mongo_client:
             return 0
 
-        cutoff_date = datetime.now(timezone.utc) - timedelta(days=self.window_days)
+        cutoff_date = datetime.now(UTC) - timedelta(days=self.window_days)
         tickets_collection = self.mongo_client.db[self.config.mongodb_collection_tickets]
 
         query = {
@@ -146,7 +145,7 @@ class ProductionModelTrainer:
         if not self.mongo_client:
             return pd.DataFrame()
 
-        cutoff_date = datetime.now(timezone.utc) - timedelta(days=self.window_days)
+        cutoff_date = datetime.now(UTC) - timedelta(days=self.window_days)
         tickets_collection = self.mongo_client.db[self.config.mongodb_collection_tickets]
 
         tickets = await tickets_collection.find(
@@ -162,7 +161,7 @@ class ProductionModelTrainer:
 
         return pd.DataFrame(tickets)
 
-    async def train_all_models(self) -> Dict[str, Any]:
+    async def train_all_models(self) -> dict[str, Any]:
         """Executa ciclo completo de treinamento."""
         if not self.training_pipeline:
             raise RuntimeError("Training pipeline not initialized")
@@ -180,7 +179,7 @@ class ProductionModelTrainer:
         self.logger.info("training_finished", extra={"status": results.get("status")})
         return results
 
-    def validate_models(self, results: Dict[str, Any]) -> Dict[str, Any]:
+    def validate_models(self, results: dict[str, Any]) -> dict[str, Any]:
         """Valida métricas contra critérios mínimos."""
         duration_metrics = results.get("duration_predictor", {}) or {}
         anomaly_metrics = results.get("anomaly_detector", {}) or {}
@@ -207,7 +206,7 @@ class ProductionModelTrainer:
         )
         return validation
 
-    async def save_feature_baseline(self) -> Dict[str, Any]:
+    async def save_feature_baseline(self) -> dict[str, Any]:
         """Extrai features e salva baseline para detecção de drift."""
         if not self.drift_detector or self.dry_run:
             return {"saved": False, "reason": "drift_detector_disabled_or_dry_run"}
@@ -258,17 +257,17 @@ class ProductionModelTrainer:
 
     def generate_report(
         self,
-        results: Dict[str, Any],
-        validation: Dict[str, Any],
-        baseline_info: Dict[str, Any],
+        results: dict[str, Any],
+        validation: dict[str, Any],
+        baseline_info: dict[str, Any],
         samples_available: int,
     ) -> Path:
         """Gera relatório JSON no /tmp com métricas e status."""
-        timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S")
+        timestamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%S")
         report_path = Path("/tmp") / f"ml_training_report_{timestamp}.json"
 
         report = {
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "window_days": self.window_days,
             "min_samples": self.min_samples,
             "backfill_errors": self.backfill_errors,
@@ -340,7 +339,7 @@ class ProductionModelTrainer:
             self.logger.exception("training_script_failed", extra={"error": str(exc)})
 
             failure_report = {
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
                 "error": str(exc),
                 "window_days": self.window_days,
                 "backfill_errors": self.backfill_errors,
@@ -348,7 +347,7 @@ class ProductionModelTrainer:
             }
             report_path = (
                 Path("/tmp")
-                / f"ml_training_report_error_{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S')}.json"
+                / f"ml_training_report_error_{datetime.now(UTC).strftime('%Y%m%dT%H%M%S')}.json"
             )
             report_path.write_text(json.dumps(failure_report, indent=2, default=str))
 

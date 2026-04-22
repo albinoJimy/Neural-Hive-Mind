@@ -2,10 +2,12 @@
 Testes de integração para circuit breakers com serviços reais.
 """
 
-import pytest
 import asyncio
 import sys
-from unittest.mock import patch, MagicMock, AsyncMock
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
+
 from neural_hive_resilience.circuit_breaker import CircuitBreakerError
 
 # Mock proto stubs que podem não estar disponíveis no ambiente de teste
@@ -21,11 +23,11 @@ sys.modules["neural_hive_integration.proto_stubs"].ticket_service_pb2 = _mock_pr
 sys.modules["neural_hive_integration.proto_stubs"].ticket_service_pb2_grpc = _mock_proto_grpc
 
 
-@pytest.mark.integration
+@pytest.mark.integration()
 class TestCircuitBreakerTransitions:
     """Testes de transições de estado dos circuit breakers."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def mock_config(self):
         """Fixture para configuração mock."""
         config = MagicMock()
@@ -58,7 +60,7 @@ class TestCircuitBreakerTransitions:
         config.redis_ssl_enabled = False
         return config
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_temporal_circuit_breaker_wrapper_with_mock_breaker(self, mock_config):
         """
         Testa wrapper do Temporal com circuit breaker mockado.
@@ -86,12 +88,12 @@ class TestCircuitBreakerTransitions:
         with pytest.raises(CircuitBreakerError):
             await wrapper.start_workflow("TestWorkflow", {}, id="test-open", task_queue="test")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_redis_circuit_breaker_fail_open_behavior(self, mock_config):
         """
         Testa comportamento fail-open do Redis quando circuit breaker abre.
         """
-        import src.clients.redis_client as redis_client
+        from src.clients import redis_client
 
         # Resetar estado
         redis_client._redis_client_instance = None
@@ -106,7 +108,7 @@ class TestCircuitBreakerTransitions:
             # Fail-open: retorna None ao invés de exceção
             assert client is None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_circuit_breaker_metrics_registered(self, mock_config):
         """
         Testa que métricas Prometheus são registradas corretamente.
@@ -122,11 +124,11 @@ class TestCircuitBreakerTransitions:
         assert breaker.service_name == "test-service"
 
 
-@pytest.mark.integration
+@pytest.mark.integration()
 class TestCircuitBreakerRecovery:
     """Testes de recuperação de circuit breakers."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_circuit_breaker_wrapper_success_path(self):
         """
         Testa caminho de sucesso do wrapper com circuit breaker mockado.
@@ -158,11 +160,11 @@ class TestCircuitBreakerRecovery:
         wrapper.breaker.call_async.assert_called_once()
 
 
-@pytest.mark.integration
+@pytest.mark.integration()
 class TestCircuitBreakerConcurrency:
     """Testes de concorrência para circuit breakers."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_concurrent_requests_with_mocked_circuit_breaker(self):
         """
         Testa comportamento com requisições concorrentes usando breaker mockado.

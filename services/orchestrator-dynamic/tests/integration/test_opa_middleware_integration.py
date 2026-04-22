@@ -5,15 +5,15 @@ Estes testes validam que o middleware de autorização OPA está funcionando
 corretamente para proteger endpoints da API HTTP.
 """
 
-import pytest
-from httpx import AsyncClient, ASGITransport
 from unittest.mock import patch
-from fastapi import FastAPI
 
+import pytest
+from fastapi import FastAPI
+from httpx import ASGITransport, AsyncClient
 from src.config.settings import get_settings
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 class TestOPAMiddlewareIntegration:
     """Testes de integração do OPAAuthorizationMiddleware."""
 
@@ -140,7 +140,7 @@ class TestOPAMiddlewareIntegration:
             assert response.status_code != 403
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 class TestOPAMiddlewareMetrics:
     """Testes de métricas do OPAAuthorizationMiddleware."""
 
@@ -167,7 +167,7 @@ class TestOPAMiddlewareMetrics:
                 assert True  # Métrica existe
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 class TestOPAMiddlewareFailClosed:
     """Testes de comportamento fail-closed quando OPA está indisponível."""
 
@@ -194,7 +194,7 @@ class TestOPAMiddlewareFailClosed:
 # =============================================================================
 
 
-@pytest.fixture
+@pytest.fixture()
 def test_app():
     """
     Fixture que cria uma aplicação FastAPI de teste com o middleware OPA.
@@ -204,7 +204,7 @@ def test_app():
     return app
 
 
-@pytest.fixture
+@pytest.fixture()
 def test_app_with_opa_down():
     """
     Fixture que cria uma app com OPA mockado para retornar erro.

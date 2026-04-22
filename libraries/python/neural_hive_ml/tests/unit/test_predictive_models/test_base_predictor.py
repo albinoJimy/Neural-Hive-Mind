@@ -1,9 +1,10 @@
 """Testes para BasePredictor - Classe base para modelos preditivos."""
 
-import pytest
+from unittest.mock import Mock, patch
+
 import numpy as np
 import pandas as pd
-from unittest.mock import Mock, patch
+import pytest
 
 from neural_hive_ml.predictive_models.base_predictor import BasePredictor
 
@@ -28,13 +29,13 @@ class DummyPredictor(BasePredictor):
         return np.array([1, 2, 3])
 
 
-@pytest.fixture
+@pytest.fixture()
 def base_config():
     """Configuração base para o preditor."""
     return {"model_name": "test-model", "model_type": "test-type"}
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_registry():
     """ModelRegistry mock."""
     registry = Mock()
@@ -43,7 +44,7 @@ def mock_registry():
     return registry
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_metrics():
     """Metrics client mock."""
     metrics = Mock()
@@ -52,13 +53,13 @@ def mock_metrics():
     return metrics
 
 
-@pytest.fixture
+@pytest.fixture()
 def predictor(base_config, mock_registry, mock_metrics):
     """Fixture para DummyPredictor."""
     return DummyPredictor(config=base_config, model_registry=mock_registry, metrics=mock_metrics)
 
 
-@pytest.fixture
+@pytest.fixture()
 def training_data():
     """Dados de treinamento de exemplo."""
     return pd.DataFrame(
@@ -147,7 +148,7 @@ class TestPredictRaisesOnInvalidInput:
 class TestPredictWithTimeout:
     """Testes para test_predict_with_timeout."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_train_model_with_timeout_simulation(self, predictor, training_data):
         """Testa treinamento com simulação de timeout."""
         # Simula treinamento rápido
@@ -326,7 +327,7 @@ class TestNormalizeFeatures:
 class TestInitializeAbstract:
     """Testes para método abstrato initialize."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_initialize_sets_model_attributes(self, predictor):
         """Testa que initialize define atributos do modelo."""
         await predictor.initialize()
@@ -339,7 +340,7 @@ class TestInitializeAbstract:
 class TestTrainModelAbstract:
     """Testes para método abstrato train_model."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_train_model_returns_metrics(self, predictor, training_data):
         """Testa que train_model retorna métricas."""
         metrics = await predictor.train_model(training_data)

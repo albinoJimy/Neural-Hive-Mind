@@ -5,13 +5,13 @@ Testa o consumer que processa execution.results e envia signals
 para workflows Temporal, fechando o feedback loop de execução.
 """
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
 from src.consumers.execution_result_consumer import ExecutionResultConsumer
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_config():
     """Config mock para testes."""
     config = MagicMock()
@@ -21,7 +21,7 @@ def mock_config():
     return config
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_temporal_client():
     """Temporal client mock."""
     client = MagicMock()
@@ -31,14 +31,14 @@ def mock_temporal_client():
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_redis_client():
     """Redis client mock."""
     redis = AsyncMock()
     return redis
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_metrics():
     """Metrics mock."""
     metrics = MagicMock()
@@ -48,7 +48,7 @@ def mock_metrics():
     return metrics
 
 
-@pytest.fixture
+@pytest.fixture()
 def consumer(mock_config, mock_temporal_client, mock_redis_client, mock_metrics):
     """Consumer instance para testes."""
     return ExecutionResultConsumer(
@@ -74,7 +74,7 @@ class TestExecutionResultConsumerInitialization:
 class TestWorkflowCache:
     """Testes de cache de workflow_id."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_workflow_from_cache(self, consumer, mock_redis_client):
         """Deve recuperar workflow_id do cache Redis."""
         ticket_id = "ticket-123"
@@ -89,7 +89,7 @@ class TestWorkflowCache:
         assert result == workflow_id
         mock_redis_client.get.assert_called_once_with(f"workflow:by:ticket:{ticket_id}")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_workflow_not_in_cache(self, consumer, mock_redis_client):
         """Deve retornar None quando workflow não está em cache."""
         ticket_id = "ticket-123"
@@ -103,7 +103,7 @@ class TestWorkflowCache:
         assert result is None
         mock_redis_client.get.assert_called_once_with(f"workflow:by:ticket:{ticket_id}")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_get_workflow_redis_unavailable(self, consumer):
         """Deve retornar None quando Redis não está disponível."""
         consumer_without_redis = ExecutionResultConsumer(
@@ -121,7 +121,7 @@ class TestWorkflowCache:
 class TestWorkflowSignal:
     """Testes de envio de signal para workflow Temporal."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_send_signal_success(self, consumer, mock_temporal_client):
         """Deve enviar signal ticket_completed para workflow."""
         workflow_id = "workflow-789"
@@ -139,7 +139,7 @@ class TestWorkflowSignal:
             "ticket_completed", ticket_id=ticket_id, result=result
         )
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_send_signal_with_metrics(self, consumer, mock_temporal_client, mock_metrics):
         """Deve registrar métrica ao enviar signal."""
         workflow_id = "workflow-789"
@@ -183,7 +183,7 @@ class TestResultDeserialization:
 class TestResultProcessing:
     """Testes de processamento de resultados."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_process_result_with_workflow_id_in_message(
         self, consumer, mock_temporal_client, mock_redis_client
     ):
@@ -214,7 +214,7 @@ class TestResultProcessing:
         # Verificar signal enviado com workflow_id da mensagem
         mock_temporal_client.get_workflow_handle.assert_called_once_with("workflow-789")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_process_result_with_workflow_id_from_cache(
         self, consumer, mock_temporal_client, mock_redis_client
     ):
@@ -250,7 +250,7 @@ class TestResultProcessing:
         # Verificar signal enviado com workflow_id do cache
         mock_temporal_client.get_workflow_handle.assert_called_once_with("workflow-789")
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_process_result_missing_workflow_id_logs_warning(
         self, consumer, mock_temporal_client, mock_redis_client
     ):
@@ -286,7 +286,7 @@ class TestResultProcessing:
         # Deve fazer commit mesmo assim
         mock_consumer.commit.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_process_result_records_metrics(
         self, consumer, mock_temporal_client, mock_redis_client, mock_metrics
     ):
@@ -323,7 +323,7 @@ class TestResultProcessing:
 class TestConsumerLifecycle:
     """Testes de ciclo de vida do consumer."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_initialize_starts_consumer(self, consumer):
         """Initialize deve iniciar consumer Kafka."""
         with patch("src.consumers.execution_result_consumer.AIOKafkaConsumer") as mock_kafka:
@@ -336,7 +336,7 @@ class TestConsumerLifecycle:
             assert consumer.consumer is not None
             mock_kafka_instance.start.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_stop_stops_consumer(self, consumer):
         """Stop deve parar consumer gracefulmente."""
         with patch("src.consumers.execution_result_consumer.AIOKafkaConsumer") as mock_kafka:

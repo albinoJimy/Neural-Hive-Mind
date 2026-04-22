@@ -4,13 +4,13 @@ Testes unitários para QueryEngine.
 Testes simplificados que focam na lógica de consulta multi-source.
 """
 
-import pytest
 from unittest.mock import AsyncMock
 
+import pytest
 from src.services.query_engine import QueryEngine
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_clients():
     """Mock dos clientes de dados."""
     return {
@@ -23,7 +23,7 @@ def mock_clients():
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def query_engine(mock_clients):
     """Instância do QueryEngine."""
     from src.services.data_fusion_engine import DataFusionEngine
@@ -92,7 +92,7 @@ class TestGenerateQueryKey:
 class TestQueryMultiSource:
     """Testes para consulta multi-source."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_query_multi_source_with_cache_hit(self, query_engine):
         """Testa query com cache hit."""
         query_spec = {"sources": ["clickhouse"], "use_cache": True}
@@ -105,7 +105,7 @@ class TestQueryMultiSource:
         assert result["cached"] is True
         assert result["results"] == cached_result
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_query_multi_source_cache_miss(self, query_engine):
         """Testa query com cache miss."""
         query_spec = {"sources": ["clickhouse"], "use_cache": True, "enable_fusion": False}
@@ -120,7 +120,7 @@ class TestQueryMultiSource:
         assert result["cached"] is False
         assert "clickhouse" in result["results"]
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_query_multi_source_with_fusion(self, query_engine):
         """Testa query com fusão de dados."""
         query_spec = {
@@ -138,7 +138,7 @@ class TestQueryMultiSource:
         assert result["cached"] is False
         assert "fused" in result["results"]
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_query_multi_source_error_handling(self, query_engine):
         """Testa tratamento de erros."""
         query_spec = {"sources": ["clickhouse"], "use_cache": False}
@@ -154,7 +154,7 @@ class TestQueryMultiSource:
 class TestQueryClickHouse:
     """Testes para consulta ClickHouse."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_query_clickhouse_success(self, query_engine):
         """Testa consulta ClickHouse bem-sucedida."""
         query_spec = {
@@ -171,7 +171,7 @@ class TestQueryClickHouse:
         assert result["source"] == "clickhouse"
         assert "data" in result
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_query_clickhouse_error(self, query_engine):
         """Testa consulta ClickHouse com erro."""
         query_spec = {}
@@ -189,7 +189,7 @@ class TestQueryClickHouse:
 class TestQueryPostgreSQL:
     """Testes para consulta PostgreSQL."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_query_postgresql_insights(self, query_engine):
         """Testa consulta de insights."""
         query_spec = {"query_type": "insights", "filters": {"analyst_id": "analyst-1"}, "limit": 10}
@@ -203,7 +203,7 @@ class TestQueryPostgreSQL:
         assert result["source"] == "postgresql"
         assert result["data"][0]["id"] == "1"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_query_postgresql_actions(self, query_engine):
         """Testa consulta de ações."""
         query_spec = {"query_type": "actions", "filters": {"analyst_id": "analyst-1"}, "limit": 10}
@@ -217,7 +217,7 @@ class TestQueryPostgreSQL:
         assert result["source"] == "postgresql"
         assert len(result["data"]) == 1
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_query_postgresql_without_client(self, query_engine):
         """Testa consulta sem cliente PostgreSQL."""
         query_engine.postgresql = None
@@ -260,7 +260,7 @@ class TestConsolidateResults:
 class TestJoinSources:
     """Testes para junção de fontes."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_join_sources_basic(self, query_engine):
         """Testa junção básica de fontes."""
         query_spec = {"sources": ["clickhouse", "postgresql"]}
@@ -281,7 +281,7 @@ class TestJoinSources:
 class TestCorrelateMetrics:
     """Testes para correlação de métricas."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_correlate_metrics_success(self, query_engine):
         """Testa cálculo de correlação."""
         query_spec = {"sources": ["clickhouse", "postgresql"], "use_cache": False}
@@ -299,7 +299,7 @@ class TestCorrelateMetrics:
         if result is not None:
             assert -1 <= result <= 1
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_correlate_metrics_error(self, query_engine):
         """Testa correlação com erro."""
         query_spec = {"sources": ["clickhouse"]}

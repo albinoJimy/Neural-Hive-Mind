@@ -2,8 +2,9 @@
 Detector e anonimizador de PII usando Presidio.
 """
 
+from typing import Any
+
 import structlog
-from typing import Dict, List, Any, Tuple
 
 logger = structlog.get_logger(__name__)
 
@@ -111,7 +112,7 @@ class PIIDetector:
             logger.error("Falha ao inicializar Presidio engines", error=str(e))
             self.enabled = False
 
-    def detect_pii(self, text: str, language: str = "pt") -> List[Any]:
+    def detect_pii(self, text: str, language: str = "pt") -> list[Any]:
         """
         Detecta entidades PII em texto.
 
@@ -158,7 +159,7 @@ class PIIDetector:
             )
             return []
 
-    def anonymize_text(self, text: str, language: str = "pt") -> Tuple[str, List[Dict]]:
+    def anonymize_text(self, text: str, language: str = "pt") -> tuple[str, list[dict]]:
         """
         Anonimiza texto detectando e substituindo PII.
 
@@ -231,8 +232,8 @@ class PIIDetector:
             return text, []
 
     def anonymize_dict(
-        self, data: Dict[str, Any], fields_to_scan: List[str], language: str = "pt"
-    ) -> Tuple[Dict[str, Any], List[Dict]]:
+        self, data: dict[str, Any], fields_to_scan: list[str], language: str = "pt"
+    ) -> tuple[dict[str, Any], list[dict]]:
         """
         Varre dicionário recursivamente anonimizando campos especificados.
 
@@ -266,7 +267,7 @@ class PIIDetector:
 
         return anonymized_data, all_metadata
 
-    def _get_anonymization_operators(self) -> Dict[str, Any]:
+    def _get_anonymization_operators(self) -> dict[str, Any]:
         """
         Mapeia estratégia de anonimização para operadores Presidio.
 
@@ -316,7 +317,7 @@ class PIIDetector:
             return None
 
     @staticmethod
-    def _get_nested_value(data: Dict, path: str) -> Any:
+    def _get_nested_value(data: dict, path: str) -> Any:
         """Obtém valor de path aninhado (ex: 'opinion.reasoning')."""
         keys = path.split(".")
         value = data
@@ -328,7 +329,7 @@ class PIIDetector:
         return value
 
     @staticmethod
-    def _set_nested_value(data: Dict, path: str, value: Any) -> None:
+    def _set_nested_value(data: dict, path: str, value: Any) -> None:
         """Define valor de path aninhado."""
         keys = path.split(".")
         current = data
@@ -358,8 +359,8 @@ class PIIDetectorLite:
             config: Config (opcional, usa defaults se não fornecido)
         """
         try:
-            from .pii_masker import PIIMasker, MaskStrategy
-            from .pii_patterns import get_pattern_registry, PIIType
+            from .pii_masker import MaskStrategy, PIIMasker
+            from .pii_patterns import PIIType, get_pattern_registry
 
             self.masker = PIIMasker(
                 strategy=MaskStrategy.PARTIAL,
@@ -378,7 +379,7 @@ class PIIDetectorLite:
             self.masker = None
             self.pattern_registry = None
 
-    def detect_pii(self, text: str, language: str = "pt") -> List[Dict]:
+    def detect_pii(self, text: str, language: str = "pt") -> list[dict]:
         """
         Detecta PII em texto.
 
@@ -412,7 +413,7 @@ class PIIDetectorLite:
 
         return detected
 
-    def anonymize_text(self, text: str, language: str = "pt") -> Tuple[str, List[Dict[str, Any]]]:
+    def anonymize_text(self, text: str, language: str = "pt") -> tuple[str, list[dict[str, Any]]]:
         """
         Anonimiza texto (interface compatível com PIIDetector).
 

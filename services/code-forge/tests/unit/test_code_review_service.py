@@ -4,11 +4,12 @@ Testes para o servico de Code Review Integration do Code Forge.
 Cobre integracao com analise de codigo, comentarios e feedback.
 """
 
-import pytest
 from unittest.mock import AsyncMock
 
+import pytest
 
-@pytest.mark.asyncio
+
+@pytest.mark.asyncio()
 async def test_code_review_service_init():
     """CodeReviewService deve inicializar com clientes corretos."""
     from src.services.code_review_integration import CodeReviewService
@@ -26,7 +27,7 @@ async def test_code_review_service_init():
     assert service.mcp_client == mock_mcp
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_analyze_code_success():
     """Analise de codigo deve retornar feedback estruturado."""
     from src.services.code_review_integration import CodeReviewService
@@ -56,7 +57,7 @@ async def test_analyze_code_success():
     assert "suggestions" in result
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_analyze_code_with_embedding():
     """Analise de codigo deve usar embedding quando disponivel."""
     from src.services.code_review_integration import CodeReviewService
@@ -85,7 +86,7 @@ async def test_analyze_code_with_embedding():
     assert "confidence_score" in result
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_generate_review_comment():
     """Geracao de comentario de review deve ser formatada."""
     from src.services.code_review_integration import CodeReviewService
@@ -115,7 +116,7 @@ async def test_generate_review_comment():
     assert result["severity"] == "medium"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_review_security_issues():
     """Review de seguranca deve identificar problemas potenciais."""
     from src.services.code_review_integration import CodeReviewService
@@ -146,7 +147,7 @@ async def test_review_security_issues():
     assert len(result["security_issues"]) >= 0
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_suggest_improvements():
     """Sugestoes de melhoria devem ser acionaveis."""
     from src.services.code_review_integration import CodeReviewService
@@ -176,7 +177,7 @@ for x in items:
     assert isinstance(result["improvements"], list)
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_check_code_quality():
     """Verificacao de qualidade deve retornar score."""
     from src.services.code_review_integration import CodeReviewService
@@ -206,7 +207,7 @@ async def test_check_code_quality():
     assert 0 <= result["quality_score"] <= 1
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_analyze_with_mcp_tools():
     """Analise com ferramentas MCP deve enriquecer feedback."""
     from src.services.code_review_integration import CodeReviewService
@@ -237,7 +238,7 @@ async def test_analyze_with_mcp_tools():
     assert "mcp_feedback" in result
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_batch_review():
     """Review em lote deve processar multiplos arquivos."""
     from src.services.code_review_integration import CodeReviewService
@@ -260,7 +261,7 @@ async def test_batch_review():
     assert "file2.py" in result
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_review_without_llm():
     """Review deve funcionar sem LLM (modo basico)."""
     from src.services.code_review_integration import CodeReviewService

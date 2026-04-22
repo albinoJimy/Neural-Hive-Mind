@@ -11,12 +11,13 @@ Cobertura:
 - Retry logic
 """
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
+
 import httpx
+import pytest
 
 
-@pytest.fixture
+@pytest.fixture()
 def opa_client():
     """Fixture para OPAClient."""
     from clients.opa_client import OPAClient
@@ -32,7 +33,7 @@ def opa_client():
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def policy_request():
     """Fixture para PolicyEvaluationRequest."""
     from clients.opa_client import PolicyEvaluationRequest
@@ -88,7 +89,7 @@ class TestOPAClientInit:
 class TestEvaluatePolicy:
     """Testes de avaliacao de politica."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_evaluate_policy_success_dict_result(self, opa_client, policy_request):
         """Deve avaliar politica com sucesso (resultado dicionario)."""
         mock_response = MagicMock()
@@ -105,7 +106,7 @@ class TestEvaluatePolicy:
             assert len(result.violations) == 0
             mock_post.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_evaluate_policy_success_boolean_result(self, opa_client, policy_request):
         """Deve tratar resultado booleano corretamente."""
         mock_response = MagicMock()
@@ -121,7 +122,7 @@ class TestEvaluatePolicy:
             assert result.allow is True
             assert len(result.violations) == 0
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_evaluate_policy_success_boolean_false(self, opa_client, policy_request):
         """Deve tratar resultado booleano false corretamente."""
         mock_response = MagicMock()
@@ -137,7 +138,7 @@ class TestEvaluatePolicy:
             assert result.allow is False
             assert len(result.violations) == 0
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_evaluate_policy_success_list_result(self, opa_client, policy_request):
         """Deve tratar resultado lista como violacoes."""
         mock_response = MagicMock()
@@ -160,7 +161,7 @@ class TestEvaluatePolicy:
             assert result.violations[0].rule_id == "rule1"
             assert result.violations[1].rule_id == "rule2"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_evaluate_policy_with_violations(self, opa_client, policy_request):
         """Deve retornar violacoes parseadas."""
         mock_response = MagicMock()
@@ -194,7 +195,7 @@ class TestEvaluatePolicy:
             assert result.violations[0].rule_id == "auth_required"
             assert result.violations[0].severity.value == "HIGH"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_evaluate_policy_timeout(self, opa_client, policy_request):
         """Deve lancar OPATimeoutError em timeout."""
         from clients.opa_client import OPATimeoutError
@@ -205,7 +206,7 @@ class TestEvaluatePolicy:
             with pytest.raises(OPATimeoutError):
                 await opa_client.evaluate_policy(policy_request)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_evaluate_policy_api_error(self, opa_client, policy_request):
         """Deve lancar OPAAPIError em erro HTTP."""
         from clients.opa_client import OPAAPIError
@@ -361,7 +362,7 @@ class TestCountViolationsBySeverity:
 class TestHealthCheck:
     """Testes de health check."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_health_check_success(self, opa_client):
         """Deve retornar True quando OPA esta saudavel."""
         mock_response = MagicMock()
@@ -374,7 +375,7 @@ class TestHealthCheck:
 
             assert result is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_health_check_failure(self, opa_client):
         """Deve retornar False quando OPA esta indisponivel."""
         with patch.object(opa_client.client, "get", new_callable=AsyncMock) as mock_get:

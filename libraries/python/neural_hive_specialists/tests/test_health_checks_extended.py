@@ -4,9 +4,10 @@ Testes para SpecialistHealthChecker.
 Cobertura para observability/health_checks.py
 """
 
-import pytest
-from unittest.mock import patch
 from datetime import datetime
+from unittest.mock import patch
+
+import pytest
 
 
 class TestComponentHealth:
@@ -58,7 +59,7 @@ class TestComponentHealth:
 class TestSpecialistHealthChecker:
     """Testes para SpecialistHealthChecker."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def config(self):
         """Configuração de teste."""
         return {
@@ -82,7 +83,7 @@ class TestSpecialistHealthChecker:
         assert checker.specialist_type == "technical"
         assert checker._health_cache is None
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_check_all_health(self, config):
         """Testa verificação de saúde completa."""
         from neural_hive_specialists.observability.health_checks import (
@@ -114,9 +115,9 @@ class TestSpecialistHealthChecker:
     def test_determine_overall_status_all_healthy(self):
         """Testa status geral quando todos estão saudáveis."""
         from neural_hive_specialists.observability.health_checks import (
-            SpecialistHealthChecker,
             ComponentHealth,
             HealthStatus,
+            SpecialistHealthChecker,
         )
 
         checker = SpecialistHealthChecker({}, "technical")
@@ -133,9 +134,9 @@ class TestSpecialistHealthChecker:
     def test_determine_overall_status_with_degraded(self):
         """Testa status geral com componente degradado."""
         from neural_hive_specialists.observability.health_checks import (
-            SpecialistHealthChecker,
             ComponentHealth,
             HealthStatus,
+            SpecialistHealthChecker,
         )
 
         checker = SpecialistHealthChecker({}, "technical")
@@ -152,9 +153,9 @@ class TestSpecialistHealthChecker:
     def test_determine_overall_status_critical_unhealthy(self):
         """Testa status geral com componente crítico não saudável."""
         from neural_hive_specialists.observability.health_checks import (
-            SpecialistHealthChecker,
             ComponentHealth,
             HealthStatus,
+            SpecialistHealthChecker,
         )
 
         checker = SpecialistHealthChecker({}, "technical")
@@ -172,9 +173,9 @@ class TestSpecialistHealthChecker:
     def test_generate_summary(self):
         """Testa geração de resumo."""
         from neural_hive_specialists.observability.health_checks import (
-            SpecialistHealthChecker,
             ComponentHealth,
             HealthStatus,
+            SpecialistHealthChecker,
         )
 
         checker = SpecialistHealthChecker({}, "technical")

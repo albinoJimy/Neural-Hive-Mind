@@ -6,15 +6,14 @@ from types import SimpleNamespace
 
 import pytest
 from confluent_kafka import Producer
-from confluent_kafka.serialization import SerializationContext, MessageField
 from confluent_kafka.schema_registry import SchemaRegistryClient
 from confluent_kafka.schema_registry.avro import AvroSerializer
+from confluent_kafka.serialization import MessageField, SerializationContext
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.append(str(ROOT / "src"))
 
-from clients.kafka_ticket_consumer import KafkaTicketConsumer  # noqa: E402
-
+from clients.kafka_ticket_consumer import KafkaTicketConsumer
 
 pytestmark = pytest.mark.skipif(
     not os.getenv("RUN_KAFKA_INTEGRATION_TESTS"),
@@ -32,7 +31,7 @@ def _schema_serializer():
     return registry, serializer
 
 
-@pytest.fixture
+@pytest.fixture()
 def worker_config():
     return SimpleNamespace(
         kafka_bootstrap_servers=os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092"),
@@ -53,7 +52,7 @@ def worker_config():
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def avro_producer():
     _, serializer = _schema_serializer()
     producer = Producer(
@@ -68,7 +67,7 @@ def avro_producer():
     return _send
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_ticket():
     return {
         "ticket_id": "worker-ticket-1",
@@ -81,7 +80,7 @@ def sample_ticket():
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def execution_engine_mock():
     called = asyncio.Event()
 
@@ -92,7 +91,7 @@ def execution_engine_mock():
     return SimpleNamespace(engine=_Engine(), called=called)
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_worker_consumes_avro_ticket(
     worker_config, avro_producer, sample_ticket, execution_engine_mock
 ):
@@ -108,7 +107,7 @@ async def test_worker_consumes_avro_ticket(
     await consumer.stop()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_worker_validates_required_fields(
     worker_config, avro_producer, execution_engine_mock
 ):
@@ -126,7 +125,7 @@ async def test_worker_validates_required_fields(
     await consumer.stop()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_worker_filters_by_task_type(
     worker_config, avro_producer, execution_engine_mock, sample_ticket
 ):
@@ -144,7 +143,7 @@ async def test_worker_filters_by_task_type(
     await consumer.stop()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_worker_skips_non_pending_tickets(
     worker_config, avro_producer, execution_engine_mock, sample_ticket
 ):
@@ -162,7 +161,7 @@ async def test_worker_skips_non_pending_tickets(
     await consumer.stop()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_worker_calls_execution_engine(
     worker_config, avro_producer, execution_engine_mock, sample_ticket
 ):

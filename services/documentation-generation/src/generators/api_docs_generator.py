@@ -1,7 +1,7 @@
 """Gerador de documentação de API (OpenAPI/Swagger)."""
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import structlog
@@ -303,7 +303,7 @@ Use formatação Markdown clara com tabelas e blocos de código.
             content += "---\n\n"
 
         content += (
-            f"\n*Generated on {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')} UTC*\n"
+            f"\n*Generated on {datetime.now(UTC).strftime('%Y-%m-%d %H:%M:%S')} UTC*\n"
         )
 
         return content

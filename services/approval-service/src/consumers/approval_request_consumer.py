@@ -7,8 +7,9 @@ Consome Cognitive Plans que requerem aprovacao humana do topico de requests.
 import asyncio
 import json
 import os
-from datetime import datetime, timezone
-from typing import Any, Awaitable, Callable, Optional
+from collections.abc import Awaitable, Callable
+from datetime import UTC, datetime
+from typing import Any, Optional
 
 import structlog
 from confluent_kafka import Consumer, KafkaError, Message
@@ -75,7 +76,7 @@ class ApprovalRequestConsumer:
                 )
 
                 # Carrega schema Avro
-                with open(schema_path, "r") as f:
+                with open(schema_path) as f:
                     schema_str = f.read()
 
                 self.avro_deserializer = AvroDeserializer(self.schema_registry_client, schema_str)
@@ -114,7 +115,7 @@ class ApprovalRequestConsumer:
             try:
                 # Poll com timeout de 1 segundo
                 msg: Optional[Message] = self.consumer.poll(timeout=1.0)
-                self._last_poll_time = datetime.now(timezone.utc)
+                self._last_poll_time = datetime.now(UTC)
 
                 if msg is None:
                     await asyncio.sleep(0.1)
@@ -229,7 +230,7 @@ class ApprovalRequestConsumer:
             return False, "Consumer nao inicializado"
 
         if self._last_poll_time:
-            age = (datetime.now(timezone.utc) - self._last_poll_time).total_seconds()
+            age = (datetime.now(UTC) - self._last_poll_time).total_seconds()
             if age > max_poll_age_seconds:
                 return False, f"Ultimo poll ha {age:.1f}s (max: {max_poll_age_seconds}s)"
 
