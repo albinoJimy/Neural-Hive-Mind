@@ -34,7 +34,7 @@ variable "redis_auth_token" {
 
 variable "vpc_peer_ids" {
   description = "IDs das VPCs peer das outras regiões"
-  type = map(string)
+  type        = map(string)
   default = {
     "us-west-2" = ""
     "eu-west-1" = ""
@@ -43,7 +43,7 @@ variable "vpc_peer_ids" {
 
 variable "redis_secondary_ids" {
   description = "IDs dos clusters Redis secundários"
-  type = map(string)
+  type        = map(string)
   default = {
     "us-west-2" = ""
     "eu-west-1" = ""

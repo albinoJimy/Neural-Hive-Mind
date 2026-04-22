@@ -36,8 +36,8 @@ output "zookeeper_connect" {
 output "metrics_endpoints" {
   description = "Endpoints de métricas Prometheus"
   value = var.enable_metrics ? {
-    kafka      = "${var.cluster_name}-kafka-brokers.${kubernetes_namespace.kafka.metadata[0].name}.svc.cluster.local:9308"
-    zookeeper  = "${var.cluster_name}-zookeeper-nodes.${kubernetes_namespace.kafka.metadata[0].name}.svc.cluster.local:9308"
+    kafka          = "${var.cluster_name}-kafka-brokers.${kubernetes_namespace.kafka.metadata[0].name}.svc.cluster.local:9308"
+    zookeeper      = "${var.cluster_name}-zookeeper-nodes.${kubernetes_namespace.kafka.metadata[0].name}.svc.cluster.local:9308"
     cruise_control = var.enable_cruise_control ? "${var.cluster_name}-cruise-control.${kubernetes_namespace.kafka.metadata[0].name}.svc.cluster.local:9308" : null
   } : null
 }
@@ -74,16 +74,16 @@ output "exactly_once_config" {
     acks                                     = "all"
     min_insync_replicas                      = "2"
     transaction_state_log_replication_factor = var.transaction_state_log_replication_factor
-    transaction_state_log_min_isr           = var.transaction_state_log_min_isr
+    transaction_state_log_min_isr            = var.transaction_state_log_min_isr
   }
 }
 
 output "security_config" {
   description = "Configurações de segurança"
   value = {
-    tls_enabled         = var.enable_tls
-    sasl_enabled        = var.enable_sasl
-    ssl_protocol        = var.ssl_protocol
+    tls_enabled          = var.enable_tls
+    sasl_enabled         = var.enable_sasl
+    ssl_protocol         = var.ssl_protocol
     client_auth_required = "true"
   }
 }
@@ -91,23 +91,23 @@ output "security_config" {
 output "performance_config" {
   description = "Configurações de performance"
   value = {
-    num_network_threads        = var.num_network_threads
-    num_io_threads            = var.num_io_threads
-    socket_send_buffer_bytes   = var.socket_send_buffer_bytes
+    num_network_threads         = var.num_network_threads
+    num_io_threads              = var.num_io_threads
+    socket_send_buffer_bytes    = var.socket_send_buffer_bytes
     socket_receive_buffer_bytes = var.socket_receive_buffer_bytes
-    num_partitions            = var.num_partitions
-    compression_type          = var.compression_type
+    num_partitions              = var.num_partitions
+    compression_type            = var.compression_type
   }
 }
 
 output "monitoring_config" {
   description = "Configurações de monitoramento"
   value = var.enable_metrics ? {
-    metrics_enabled = true
-    jmx_port        = var.metrics_port
-    jmx_enabled     = var.enable_jmx
+    metrics_enabled        = true
+    jmx_port               = var.metrics_port
+    jmx_enabled            = var.enable_jmx
     cruise_control_enabled = var.enable_cruise_control
-  } : {
+    } : {
     metrics_enabled = false
   }
 }

@@ -52,7 +52,7 @@ resource "helm_release" "strimzi_operator" {
       }
     }
     createGlobalResources = false
-    logLevel = "INFO"
+    logLevel              = "INFO"
   })]
 
   depends_on = [kubernetes_namespace.kafka]
@@ -67,10 +67,10 @@ resource "kubernetes_manifest" "kafka_cluster" {
       name      = var.cluster_name
       namespace = kubernetes_namespace.kafka.metadata[0].name
       labels = {
-        "app.kubernetes.io/name"       = "kafka"
-        "app.kubernetes.io/instance"   = var.cluster_name
-        "app.kubernetes.io/version"    = var.kafka_version
-        "neural-hive-mind.org/layer"   = "infrastructure"
+        "app.kubernetes.io/name"     = "kafka"
+        "app.kubernetes.io/instance" = var.cluster_name
+        "app.kubernetes.io/version"  = var.kafka_version
+        "neural-hive-mind.org/layer" = "infrastructure"
       }
     }
     spec = {
@@ -102,35 +102,35 @@ resource "kubernetes_manifest" "kafka_cluster" {
           "enable.idempotence"                       = "true"
           "acks"                                     = "all"
           "retries"                                  = "2147483647"
-          "max.in.flight.requests.per.connection"   = "5"
+          "max.in.flight.requests.per.connection"    = "5"
           "min.insync.replicas"                      = "2"
           "default.replication.factor"               = var.default_replication_factor
-          "offsets.topic.replication.factor"        = var.default_replication_factor
+          "offsets.topic.replication.factor"         = var.default_replication_factor
           "transaction.state.log.replication.factor" = var.transaction_state_log_replication_factor
-          "transaction.state.log.min.isr"           = var.transaction_state_log_min_isr
+          "transaction.state.log.min.isr"            = var.transaction_state_log_min_isr
 
           # Performance optimizations
-          "num.network.threads"                     = "8"
-          "num.io.threads"                          = "16"
-          "socket.send.buffer.bytes"                = "102400"
-          "socket.receive.buffer.bytes"             = "102400"
-          "socket.request.max.bytes"                = "104857600"
-          "num.partitions"                          = "6"
-          "num.recovery.threads.per.data.dir"      = "1"
-          "log.retention.hours"                     = var.log_retention_hours
-          "log.segment.bytes"                       = "1073741824"
-          "log.retention.check.interval.ms"        = "300000"
-          "log.cleanup.policy"                      = "delete"
-          "compression.type"                        = "snappy"
+          "num.network.threads"               = "8"
+          "num.io.threads"                    = "16"
+          "socket.send.buffer.bytes"          = "102400"
+          "socket.receive.buffer.bytes"       = "102400"
+          "socket.request.max.bytes"          = "104857600"
+          "num.partitions"                    = "6"
+          "num.recovery.threads.per.data.dir" = "1"
+          "log.retention.hours"               = var.log_retention_hours
+          "log.segment.bytes"                 = "1073741824"
+          "log.retention.check.interval.ms"   = "300000"
+          "log.cleanup.policy"                = "delete"
+          "compression.type"                  = "snappy"
 
           # Security configurations
-          "ssl.client.auth"                         = "required"
-          "ssl.protocol"                            = "TLSv1.3"
-          "ssl.enabled.protocols"                   = "TLSv1.3"
-          "ssl.cipher.suites"                       = "TLS_AES_256_GCM_SHA384,TLS_CHACHA20_POLY1305_SHA256"
+          "ssl.client.auth"       = "required"
+          "ssl.protocol"          = "TLSv1.3"
+          "ssl.enabled.protocols" = "TLSv1.3"
+          "ssl.cipher.suites"     = "TLS_AES_256_GCM_SHA384,TLS_CHACHA20_POLY1305_SHA256"
 
           # Monitoring
-          "jmx.port"                                = "9999"
+          "jmx.port" = "9999"
         }
         storage = {
           type        = "persistent-claim"

@@ -23,12 +23,12 @@ module "network" {
   tags        = local.common_tags
 
   # Configurações de rede
-  vpc_cidr                  = var.vpc_cidr
-  availability_zones        = var.availability_zones
-  public_subnet_cidrs       = var.public_subnet_cidrs
-  private_subnet_cidrs      = var.private_subnet_cidrs
-  enable_nat_gateway        = var.enable_nat_gateway
-  enable_vpc_endpoints      = var.enable_vpc_endpoints
+  vpc_cidr                 = var.vpc_cidr
+  availability_zones       = var.availability_zones
+  public_subnet_cidrs      = var.public_subnet_cidrs
+  private_subnet_cidrs     = var.private_subnet_cidrs
+  enable_nat_gateway       = var.enable_nat_gateway
+  enable_vpc_endpoints     = var.enable_vpc_endpoints
   enable_flow_logs         = var.enable_flow_logs
   flow_logs_retention_days = var.flow_logs_retention_days
 
@@ -54,22 +54,22 @@ module "k8s-cluster" {
   availability_zones = var.availability_zones
 
   # Configurações do cluster
-  cluster_name                    = var.cluster_name
-  kubernetes_version              = var.kubernetes_version
-  enable_private_endpoint         = var.enable_private_endpoint
-  enable_public_endpoint          = var.enable_public_endpoint
-  public_access_cidrs            = var.public_access_cidrs
-  enabled_log_types              = var.enabled_log_types
+  cluster_name            = var.cluster_name
+  kubernetes_version      = var.kubernetes_version
+  enable_private_endpoint = var.enable_private_endpoint
+  enable_public_endpoint  = var.enable_public_endpoint
+  public_access_cidrs     = var.public_access_cidrs
+  enabled_log_types       = var.enabled_log_types
 
   # Configurações dos nós
-  node_instance_types            = var.node_instance_types
-  min_nodes_per_zone            = var.min_nodes_per_zone
-  max_nodes_per_zone            = var.max_nodes_per_zone
-  desired_nodes_per_zone        = var.desired_nodes_per_zone
-  disk_size_gb                  = var.disk_size_gb
+  node_instance_types    = var.node_instance_types
+  min_nodes_per_zone     = var.min_nodes_per_zone
+  max_nodes_per_zone     = var.max_nodes_per_zone
+  desired_nodes_per_zone = var.desired_nodes_per_zone
+  disk_size_gb           = var.disk_size_gb
 
   # Add-ons
-  enable_cluster_autoscaler      = var.enable_cluster_autoscaler
+  enable_cluster_autoscaler       = var.enable_cluster_autoscaler
   enable_load_balancer_controller = var.enable_load_balancer_controller
 }
 
@@ -83,15 +83,15 @@ module "container-registry" {
   tags        = local.common_tags
 
   # Configurações do registry
-  registry_name                   = var.registry_name
+  registry_name                  = var.registry_name
   repository_names               = var.repository_names
   enable_vulnerability_scanning  = var.enable_vulnerability_scanning
   block_critical_vulnerabilities = var.block_critical_vulnerabilities
   critical_severity_threshold    = var.critical_severity_threshold
-  image_tag_mutability          = var.image_tag_mutability
-  image_retention_count         = var.image_retention_count
-  untagged_retention_days       = var.untagged_retention_days
-  enable_image_signing          = var.enable_image_signing
+  image_tag_mutability           = var.image_tag_mutability
+  image_retention_count          = var.image_retention_count
+  untagged_retention_days        = var.untagged_retention_days
+  enable_image_signing           = var.enable_image_signing
 
   # Configurações OIDC - populadas após criação do cluster
   oidc_provider_arn = module.k8s-cluster.oidc_provider_arn
@@ -179,7 +179,7 @@ module "mongodb_cluster" {
   cluster_name    = "neural-hive-mongodb-${var.environment}"
   namespace       = "mongodb-cluster"
   mongodb_version = var.mongodb_version
-  replica_count   = var.environment == "prod" ? 3 : 3  # Mínimo 3 sempre
+  replica_count   = var.environment == "prod" ? 3 : 3 # Mínimo 3 sempre
   storage_size    = var.environment == "prod" ? "100Gi" : "20Gi"
   storage_class   = var.storage_class
 

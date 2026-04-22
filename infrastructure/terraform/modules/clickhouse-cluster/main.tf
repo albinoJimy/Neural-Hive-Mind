@@ -168,10 +168,10 @@ resource "kubernetes_manifest" "clickhouse_installation" {
 
         users = {
           admin = {
-            password     = var.admin_password
-            networks     = { ip = ["::/0"] }
-            profile      = "default"
-            quota        = "default"
+            password          = var.admin_password
+            networks          = { ip = ["::/0"] }
+            profile           = "default"
+            quota             = "default"
             access_management = 1
           }
           readonly = {
@@ -190,11 +190,11 @@ resource "kubernetes_manifest" "clickhouse_installation" {
 
         profiles = {
           default = {
-            max_memory_usage               = var.max_memory_usage
-            max_threads                    = var.max_threads
-            load_balancing                 = "random"
-            log_queries                    = 1
-            log_query_threads              = 1
+            max_memory_usage  = var.max_memory_usage
+            max_threads       = var.max_threads
+            load_balancing    = "random"
+            log_queries       = 1
+            log_query_threads = 1
           }
           readonly = {
             readonly = 1
@@ -204,11 +204,11 @@ resource "kubernetes_manifest" "clickhouse_installation" {
         quotas = {
           default = {
             interval = {
-              duration      = 3600
-              queries       = 0
-              errors        = 0
-              result_rows   = 0
-              read_rows     = 0
+              duration       = 3600
+              queries        = 0
+              errors         = 0
+              result_rows    = 0
+              read_rows      = 0
               execution_time = 0
             }
           }
@@ -284,7 +284,7 @@ resource "kubernetes_manifest" "clickhouse_installation" {
           {
             name = "data-volume"
             spec = {
-              accessModes = ["ReadWriteOnce"]
+              accessModes      = ["ReadWriteOnce"]
               storageClassName = var.storage_class
               resources = {
                 requests = {
@@ -324,9 +324,9 @@ resource "kubernetes_manifest" "clickhouse_installation" {
 
       defaults = {
         templates = {
-          podTemplate              = "clickhouse-pod"
-          dataVolumeClaimTemplate  = "data-volume"
-          serviceTemplate          = "service-template"
+          podTemplate             = "clickhouse-pod"
+          dataVolumeClaimTemplate = "data-volume"
+          serviceTemplate         = "service-template"
         }
       }
     }

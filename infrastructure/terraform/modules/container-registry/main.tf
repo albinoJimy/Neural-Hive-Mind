@@ -32,7 +32,7 @@ resource "aws_ecr_repository" "neural_hive" {
 
   encryption_configuration {
     encryption_type = "KMS"
-    kms_key        = aws_kms_key.registry.arn
+    kms_key         = aws_kms_key.registry.arn
   }
 
   image_scanning_configuration {
@@ -191,7 +191,7 @@ resource "aws_cloudwatch_event_rule" "vulnerability_findings" {
     source      = ["aws.ecr"]
     detail-type = ["ECR Image Scan"]
     detail = {
-      scan-status = ["COMPLETE"]
+      scan-status     = ["COMPLETE"]
       repository-name = [for repo in var.repository_names : "${var.registry_name}/${repo}"]
     }
   })
@@ -286,15 +286,15 @@ resource "aws_lambda_function" "vulnerability_processor" {
   filename         = data.archive_file.vulnerability_processor[0].output_path
   source_code_hash = data.archive_file.vulnerability_processor[0].output_base64sha256
   function_name    = "${var.registry_name}-vulnerability-processor"
-  role            = aws_iam_role.lambda_execution[0].arn
-  handler         = "vulnerability_processor.handler"
-  runtime         = "python3.11"
-  timeout         = 60
+  role             = aws_iam_role.lambda_execution[0].arn
+  handler          = "vulnerability_processor.handler"
+  runtime          = "python3.11"
+  timeout          = 60
 
   environment {
     variables = {
-      REGISTRY_NAME = var.registry_name
-      SNS_TOPIC_ARN = aws_sns_topic.vulnerability_notifications[0].arn
+      REGISTRY_NAME               = var.registry_name
+      SNS_TOPIC_ARN               = aws_sns_topic.vulnerability_notifications[0].arn
       CRITICAL_SEVERITY_THRESHOLD = var.critical_severity_threshold
     }
   }
@@ -474,7 +474,7 @@ resource "aws_kms_key" "signing" {
   tags = merge(
     local.common_tags,
     {
-      Name = "${var.registry_name}-signing-kms"
+      Name    = "${var.registry_name}-signing-kms"
       Purpose = "image-signing"
     }
   )

@@ -42,9 +42,9 @@ locals {
   common_tags = merge(
     var.tags,
     {
-      Environment = var.environment
-      Project     = "neural-hive-mind"
-      ManagedBy   = "terraform"
+      Environment   = var.environment
+      Project       = "neural-hive-mind"
+      ManagedBy     = "terraform"
       CloudProvider = var.cloud_provider
     }
   )
@@ -57,11 +57,11 @@ locals {
 module "cloud_network" {
   source = "./submodules/${var.cloud_provider}/network"
 
-  environment       = var.environment
-  region            = local.normalized_region
-  vpc_cidr          = var.vpc_cidr
+  environment        = var.environment
+  region             = local.normalized_region
+  vpc_cidr           = var.vpc_cidr
   availability_zones = var.availability_zones
-  tags              = local.common_tags
+  tags               = local.common_tags
 
   # Parâmetros específicos por provider são mapeados no submodule
 }
@@ -69,21 +69,21 @@ module "cloud_network" {
 module "cloud_cluster" {
   source = "./submodules/${var.cloud_provider}/cluster"
 
-  environment          = var.environment
-  region               = local.normalized_region
-  cluster_name         = var.cluster_name
-  kubernetes_version   = var.kubernetes_version
+  environment        = var.environment
+  region             = local.normalized_region
+  cluster_name       = var.cluster_name
+  kubernetes_version = var.kubernetes_version
 
   # Rede
-  vpc_id              = module.cloud_network.vpc_id
-  private_subnet_ids  = module.cloud_network.private_subnet_ids
-  public_subnet_ids   = module.cloud_network.public_subnet_ids
-  availability_zones  = var.availability_zones
+  vpc_id             = module.cloud_network.vpc_id
+  private_subnet_ids = module.cloud_network.private_subnet_ids
+  public_subnet_ids  = module.cloud_network.public_subnet_ids
+  availability_zones = var.availability_zones
 
   # Configurações dos nós
-  node_instance_types = var.node_instance_types
-  min_nodes_per_zone  = var.min_nodes_per_zone
-  max_nodes_per_zone  = var.max_nodes_per_zone
+  node_instance_types    = var.node_instance_types
+  min_nodes_per_zone     = var.min_nodes_per_zone
+  max_nodes_per_zone     = var.max_nodes_per_zone
   desired_nodes_per_zone = var.desired_nodes_per_zone
 
   # Configurações de acesso
@@ -111,14 +111,14 @@ provider "kubernetes" {
       module.cloud_cluster.cluster_name,
       "--region",
       local.normalized_region
-    ] : var.cloud_provider == "azure" ? [
+      ] : var.cloud_provider == "azure" ? [
       "aks",
       "get-credentials",
       "--resource-group",
       "${var.cluster_name}-rg",
       "--name",
       module.cloud_cluster.cluster_name
-    ] : [
+      ] : [
       "container",
       "clusters",
       "get-credentials",
@@ -152,9 +152,9 @@ resource "kubernetes_config_map" "cloud_info" {
   }
 
   data = {
-    cloud_provider  = var.cloud_provider
-    region          = local.normalized_region
-    cluster_name    = module.cloud_cluster.cluster_name
-    cluster_id      = module.cloud_cluster.cluster_id
+    cloud_provider = var.cloud_provider
+    region         = local.normalized_region
+    cluster_name   = module.cloud_cluster.cluster_name
+    cluster_id     = module.cloud_cluster.cluster_id
   }
 }

@@ -28,19 +28,19 @@ module "eks" {
   availability_zones = var.availability_zones
 
   # Cluster
-  cluster_name              = var.cluster_name
-  kubernetes_version        = var.kubernetes_version
-  enable_private_endpoint   = var.enable_private_endpoint
-  enable_public_endpoint    = !var.enable_private_endpoint
-  public_access_cidrs       = var.enable_private_endpoint ? [] : ["0.0.0.0/0"]
+  cluster_name            = var.cluster_name
+  kubernetes_version      = var.kubernetes_version
+  enable_private_endpoint = var.enable_private_endpoint
+  enable_public_endpoint  = !var.enable_private_endpoint
+  public_access_cidrs     = var.enable_private_endpoint ? [] : ["0.0.0.0/0"]
 
   # Nós
-  node_instance_types     = var.node_instance_types
-  min_nodes_per_zone      = var.min_nodes_per_zone
-  max_nodes_per_zone      = var.max_nodes_per_zone
-  desired_nodes_per_zone  = var.desired_nodes_per_zone
+  node_instance_types    = var.node_instance_types
+  min_nodes_per_zone     = var.min_nodes_per_zone
+  max_nodes_per_zone     = var.max_nodes_per_zone
+  desired_nodes_per_zone = var.desired_nodes_per_zone
 
   # Add-ons
-  enable_cluster_autoscaler        = true
+  enable_cluster_autoscaler       = true
   enable_load_balancer_controller = true
 }

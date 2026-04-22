@@ -25,12 +25,12 @@ resource "azurerm_kubernetes_cluster" "main" {
 
   # Network Profile
   network_profile {
-    network_plugin     = "azure"
-    network_mode       = "transparent"
-    network_policy     = "azure"
-    dns_service_ip     = "10.0.0.10"
-    service_cidr       = "10.0.0.0/24"
-    outbound_type      = var.environment == "prod" ? "userDefinedRouting" : "loadBalancer"
+    network_plugin = "azure"
+    network_mode   = "transparent"
+    network_policy = "azure"
+    dns_service_ip = "10.0.0.10"
+    service_cidr   = "10.0.0.0/24"
+    outbound_type  = var.environment == "prod" ? "userDefinedRouting" : "loadBalancer"
   }
 
   # Default Node Pool
@@ -56,13 +56,13 @@ resource "azurerm_kubernetes_cluster" "main" {
   dynamic "node_pool" {
     for_each = var.availability_zones
     content {
-      name                 = "user-${node_pool.value}"
-      node_count           = var.desired_nodes_per_zone
-      min_count            = var.min_nodes_per_zone
-      max_count            = var.max_nodes_per_zone
-      vm_size              = var.node_instance_types[0]
-      vnet_subnet_id       = var.private_subnet_ids[node_pool.index]
-      enable_auto_scaling  = true
+      name                   = "user-${node_pool.value}"
+      node_count             = var.desired_nodes_per_zone
+      min_count              = var.min_nodes_per_zone
+      max_count              = var.max_nodes_per_zone
+      vm_size                = var.node_instance_types[0]
+      vnet_subnet_id         = var.private_subnet_ids[node_pool.index]
+      enable_auto_scaling    = true
       enable_host_encryption = true
       enable_node_public_ip  = false
       orchestrator_version   = var.kubernetes_version
@@ -80,9 +80,9 @@ resource "azurerm_kubernetes_cluster" "main" {
   }
 
   # Private Cluster
-  private_cluster_enabled            = var.enable_private_endpoint
+  private_cluster_enabled             = var.enable_private_endpoint
   private_cluster_public_fqdn_enabled = !var.enable_private_endpoint
-  private_dns_zone_id                = var.enable_private_endpoint ? azurerm_private_dns_zone.main[0].id : null
+  private_dns_zone_id                 = var.enable_private_endpoint ? azurerm_private_dns_zone.main[0].id : null
 
   # Azure AD Integration
   azure_active_directory_role_based_access_control {

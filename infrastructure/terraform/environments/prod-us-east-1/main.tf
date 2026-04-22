@@ -11,7 +11,7 @@
 terraform {
   source = "../../../modules/vpc"
   region = "us-east-1"
-  cidr = "10.0.0.0/16"
+  cidr   = "10.0.0.0/16"
 }
 
 # -----------------------------------------------------------------------------
@@ -90,10 +90,10 @@ module "vpc" {
     "10.0.23.0/24"
   ]
 
-  enable_nat_gateway        = true
-  enable_vpc_endpoints      = true
-  enable_dns_hostnames      = true
-  enable_dns_support        = true
+  enable_nat_gateway   = true
+  enable_vpc_endpoints = true
+  enable_dns_hostnames = true
+  enable_dns_support   = true
 
   tags = {
     RegionRole = "primary"
@@ -160,10 +160,10 @@ module "kubernetes_cluster" {
   enable_public_endpoint  = true
 
   public_access_cidrs = [
-    "0.0.0.0/0"  # Restrito via Security Groups
+    "0.0.0.0/0" # Restrito via Security Groups
   ]
 
-  enable_cluster_autoscaler      = true
+  enable_cluster_autoscaler       = true
   enable_load_balancer_controller = true
 
   tags = {
@@ -225,7 +225,7 @@ module "route53" {
   # Records multi-região
   records = {
     "api" = {
-      type        = "A"
+      type = "A"
       alias = {
         name                   = module.kubernetes_cluster.api_endpoint
         zone_id                = module.kubernetes_cluster.hosted_zone_id
@@ -257,7 +257,7 @@ module "route53" {
     }
 
     "grafana" = {
-      type        = "A"
+      type = "A"
       alias = {
         name                   = module.kubernetes_cluster.ingress_endpoint
         zone_id                = module.kubernetes_cluster.hosted_zone_id
@@ -267,7 +267,7 @@ module "route53" {
     }
 
     "mlflow" = {
-      type        = "A"
+      type = "A"
       alias = {
         name                   = module.kubernetes_cluster.ingress_endpoint
         zone_id                = module.kubernetes_cluster.hosted_zone_id
@@ -314,34 +314,34 @@ module "mongodb_replica_set" {
 
   members = [
     {
-      region      = "US_EAST_1"
-      node_type   = "M50"
-      priority    = 1
-      electable   = true
-      votes       = 1
+      region    = "US_EAST_1"
+      node_type = "M50"
+      priority  = 1
+      electable = true
+      votes     = 1
     },
     {
-      region      = "US_WEST_2"
-      node_type   = "M50"
-      priority    = 2
-      electable   = true
-      votes       = 1
+      region    = "US_WEST_2"
+      node_type = "M50"
+      priority  = 2
+      electable = true
+      votes     = 1
     },
     {
-      region      = "EU_WEST_1"
-      node_type   = "M50"
-      priority    = 3
-      electable   = true
-      votes       = 1
+      region    = "EU_WEST_1"
+      node_type = "M50"
+      priority  = 3
+      electable = true
+      votes     = 1
     }
   ]
 
   # Configurações avançadas
-  replication_factor   = 3
+  replication_factor     = 3
   write_concern_majority = true
-  read_concern          = "majority"
-  connect_timeout_ms    = 10000
-  max_time_ms           = 30000
+  read_concern           = "majority"
+  connect_timeout_ms     = 10000
+  max_time_ms            = 30000
 
   # Backup e restore
   continuous_backup_enabled = true
@@ -368,9 +368,9 @@ module "mongodb_replica_set" {
 module "redis_cluster" {
   source = "../../../modules/redis"
 
-  cluster_name      = "neural-hive-prod"
-  node_type         = "cache.r6g.xlarge"
-  engine_version    = "7.1"
+  cluster_name   = "neural-hive-prod"
+  node_type      = "cache.r6g.xlarge"
+  engine_version = "7.1"
 
   # Multi-AZ na região primária
   num_cache_nodes   = 3
@@ -392,9 +392,9 @@ module "redis_cluster" {
   ]
 
   # Configurações
-  port                      = 6379
+  port                       = 6379
   automatic_failover_enabled = true
-  multi_az_enabled          = true
+  multi_az_enabled           = true
 
   # Parâmetros
   parameter_group_name = "default.redis7"
@@ -410,9 +410,9 @@ module "redis_cluster" {
   ]
 
   # Security
-  auth_token            = var.redis_auth_token
-  transit_encryption    = true
-  at_rest_encryption    = true
+  auth_token         = var.redis_auth_token
+  transit_encryption = true
+  at_rest_encryption = true
 
   # Maintenance
   maintenance_window = "sun:03:00-sun:04:00"

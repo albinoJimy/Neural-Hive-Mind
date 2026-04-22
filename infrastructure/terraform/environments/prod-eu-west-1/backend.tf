@@ -5,16 +5,16 @@
 terraform {
   backend "s3" {
     # Bucket compartilhado para todas as regiões
-    bucket         = "neural-hive-mind-terraform-state"
+    bucket = "neural-hive-mind-terraform-state"
 
     # Key único para esta região
-    key            = "environments/prod-eu-west-1/terraform.tfstate"
+    key = "environments/prod-eu-west-1/terraform.tfstate"
 
     # Região do bucket (us-east-1 para centralização)
-    region         = "us-east-1"
+    region = "us-east-1"
 
     # Criptografia do state
-    encrypt        = true
+    encrypt = true
 
     # Lock table compartilhada
     dynamodb_table = "neural-hive-mind-terraform-locks"

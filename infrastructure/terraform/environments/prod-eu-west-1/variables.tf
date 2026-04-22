@@ -4,7 +4,7 @@
 
 variable "vpc_peer_ids" {
   description = "IDs das VPCs peer das outras regiões"
-  type = map(string)
+  type        = map(string)
   default = {
     "us-east-1" = ""
     "us-west-2" = ""

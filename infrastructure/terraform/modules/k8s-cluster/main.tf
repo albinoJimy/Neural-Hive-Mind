@@ -19,11 +19,11 @@ locals {
   common_tags = merge(
     var.tags,
     {
-      Module        = "k8s-cluster"
-      Environment   = var.environment
-      ManagedBy     = "terraform"
-      Project       = "neural-hive-mind"
-      ClusterName   = var.cluster_name
+      Module      = "k8s-cluster"
+      Environment = var.environment
+      ManagedBy   = "terraform"
+      Project     = "neural-hive-mind"
+      ClusterName = var.cluster_name
     }
   )
 }
@@ -268,9 +268,9 @@ resource "aws_eks_node_group" "main" {
   tags = merge(
     local.common_tags,
     {
-      Name                                                    = "${var.cluster_name}-ng-${var.availability_zones[count.index]}"
-      "k8s.io/cluster-autoscaler/${var.cluster_name}"        = "owned"
-      "k8s.io/cluster-autoscaler/enabled"                    = "true"
+      Name                                            = "${var.cluster_name}-ng-${var.availability_zones[count.index]}"
+      "k8s.io/cluster-autoscaler/${var.cluster_name}" = "owned"
+      "k8s.io/cluster-autoscaler/enabled"             = "true"
     }
   )
 
@@ -503,10 +503,10 @@ resource "aws_iam_role_policy_attachment" "ebs_csi_driver" {
 
 # Addon EBS CSI Driver
 resource "aws_eks_addon" "ebs_csi_driver" {
-  cluster_name             = aws_eks_cluster.main.name
-  addon_name               = "aws-ebs-csi-driver"
-  addon_version            = "v1.33.0-eksbuild.1"
-  service_account_role_arn = aws_iam_role.ebs_csi_driver.arn
+  cluster_name                = aws_eks_cluster.main.name
+  addon_name                  = "aws-ebs-csi-driver"
+  addon_version               = "v1.33.0-eksbuild.1"
+  service_account_role_arn    = aws_iam_role.ebs_csi_driver.arn
   resolve_conflicts_on_update = "OVERWRITE"
 
   tags = merge(

@@ -88,10 +88,10 @@ module "vpc" {
     "10.1.23.0/24"
   ]
 
-  enable_nat_gateway        = true
-  enable_vpc_endpoints      = true
-  enable_dns_hostnames      = true
-  enable_dns_support        = true
+  enable_nat_gateway   = true
+  enable_vpc_endpoints = true
+  enable_dns_hostnames = true
+  enable_dns_support   = true
 
   tags = {
     RegionRole = "secondary"
@@ -149,7 +149,7 @@ module "kubernetes_cluster" {
     "0.0.0.0/0"
   ]
 
-  enable_cluster_autoscaler      = true
+  enable_cluster_autoscaler       = true
   enable_load_balancer_controller = true
 
   tags = {
