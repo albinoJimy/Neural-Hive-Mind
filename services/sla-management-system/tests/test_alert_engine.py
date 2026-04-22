@@ -270,9 +270,7 @@ class TestCooldown:
         )
 
         # Simular último alerta há 5 minutos
-        alert_engine._last_alert_times["test-rule"] = datetime.now(UTC) - timedelta(
-            minutes=5
-        )
+        alert_engine._last_alert_times["test-rule"] = datetime.now(UTC) - timedelta(minutes=5)
 
         # Verificar que está em cooldown
         in_cooldown = await alert_engine._is_in_cooldown("test-rule")
@@ -295,9 +293,7 @@ class TestCooldown:
         )
 
         # Simular último alerta há 31 minutos
-        alert_engine._last_alert_times["test-rule"] = datetime.now(UTC) - timedelta(
-            minutes=31
-        )
+        alert_engine._last_alert_times["test-rule"] = datetime.now(UTC) - timedelta(minutes=31)
 
         # Verificar que não está mais em cooldown
         in_cooldown = await alert_engine._is_in_cooldown("test-rule")

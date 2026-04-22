@@ -40,15 +40,12 @@ class OnlineLearningServiceError(Exception):
     """Exceção base para erros do OnlineLearningService."""
 
 
-
 class OnlineLearningNotEnabledError(OnlineLearningServiceError):
     """Exceção quando online learning não está habilitado."""
 
 
-
 class FeatureExtractionError(OnlineLearningServiceError):
     """Exceção para erros na extração de features."""
-
 
 
 class OnlineLearningService:

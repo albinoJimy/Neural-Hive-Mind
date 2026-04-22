@@ -75,9 +75,7 @@ class TestVaultAuthentication:
         require_real_env()
         assert vault_client.token is not None, "Token deve ser obtido"
         assert vault_client.token_expiry is not None, "Expiry deve ser definido"
-        assert vault_client.token_expiry > datetime.now(
-            UTC
-        ), "Token expiry deve estar no futuro"
+        assert vault_client.token_expiry > datetime.now(UTC), "Token expiry deve estar no futuro"
 
     @pytest.mark.asyncio()
     async def test_02_kubernetes_sa_token_expirado(self, expired_token_fixture):

@@ -567,7 +567,9 @@ class DisasterRecoveryManager:
 
             # Executar mongodump
             try:
-                result = subprocess.run(cmd, capture_output=True, text=True, timeout=300, check=False)
+                result = subprocess.run(
+                    cmd, capture_output=True, text=True, timeout=300, check=False
+                )
 
                 if result.returncode != 0:
                     raise Exception(f"mongodump falhou: {result.stderr}")
@@ -1113,9 +1115,7 @@ class DisasterRecoveryManager:
             all_snapshots = self.storage_client.list_backups(prefix=snapshot_prefix)
 
             # Filtrar snapshots não expirados
-            cutoff_date = datetime.now(UTC) - timedelta(
-                days=self.config.backup_retention_days
-            )
+            cutoff_date = datetime.now(UTC) - timedelta(days=self.config.backup_retention_days)
             active_snapshots = []
 
             for snapshot_obj in all_snapshots:
@@ -2281,7 +2281,9 @@ class DisasterRecoveryManager:
                     dump_dir,
                 ]
 
-                result = subprocess.run(cmd, capture_output=True, text=True, timeout=300, check=False)
+                result = subprocess.run(
+                    cmd, capture_output=True, text=True, timeout=300, check=False
+                )
 
                 if result.returncode != 0:
                     raise Exception(f"mongorestore falhou: {result.stderr}")

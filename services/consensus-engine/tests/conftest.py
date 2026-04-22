@@ -129,7 +129,6 @@ def clear_settings_and_env(monkeypatch):
         pass
 
 
-
 # ===========================
 # Fixtures de Configuração
 # ===========================

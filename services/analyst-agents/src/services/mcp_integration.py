@@ -17,7 +17,6 @@ class MCPIntegrationError(Exception):
     """Erro na integração MCP."""
 
 
-
 class MCPIntegration:
     """Cliente para integração com MCP Servers."""
 

@@ -97,8 +97,7 @@ class TestAnomalyDetectorAccuracy:
                     "actual_duration_ms": duration,
                     "estimated_duration_ms": duration * np.random.uniform(0.8, 1.2),
                     "status": "COMPLETED",
-                    "created_at": datetime.now(UTC)
-                    - timedelta(days=np.random.randint(1, 30)),
+                    "created_at": datetime.now(UTC) - timedelta(days=np.random.randint(1, 30)),
                     "retry_count": np.random.choice([0, 0, 0, 1]),  # Maioria sem retry
                     "required_capabilities": ["cpu"][: np.random.randint(1, 3)],
                     "parameters": {},

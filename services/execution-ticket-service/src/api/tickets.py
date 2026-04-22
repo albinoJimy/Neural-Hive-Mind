@@ -283,9 +283,7 @@ async def create_compensation_ticket(request: CompensationTicketRequest):
     try:
         await postgres_client.create_ticket(compensation_ticket_data)
     except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"Falha ao criar ticket de compensacao: {e!s}"
-        )
+        raise HTTPException(status_code=500, detail=f"Falha ao criar ticket de compensacao: {e!s}")
 
     # Atualizar ticket original com referencia ao ticket de compensacao
     try:

@@ -30,7 +30,8 @@ class TestContainerBuildE2E:
                 ["docker", "--version"],
                 capture_output=True,
                 text=True,
-                timeout=5, check=False,
+                timeout=5,
+                check=False,
             )
             if result.returncode != 0:
                 pytest.skip("Docker não está disponível")
@@ -102,7 +103,8 @@ uvicorn[standard]==0.24.0
             # Limpar imagem
             subprocess.run(
                 ["docker", "rmi", "test-python:latest", "--force"],
-                capture_output=True, check=False,
+                capture_output=True,
+                check=False,
             )
 
     @pytest.mark.asyncio()
@@ -196,7 +198,8 @@ CMD ["node", "index.js"]
             # Limpar
             subprocess.run(
                 ["docker", "rmi", "test-nodejs:latest", "--force"],
-                capture_output=True, check=False,
+                capture_output=True,
+                check=False,
             )
 
     @pytest.mark.asyncio()
@@ -255,7 +258,8 @@ go 1.21
             # Limpar
             subprocess.run(
                 ["docker", "rmi", "test-golang:latest", "--force"],
-                capture_output=True, check=False,
+                capture_output=True,
+                check=False,
             )
 
     @pytest.mark.asyncio()
@@ -398,7 +402,8 @@ CMD ["node", "dist/main.js"]
             # Limpar
             subprocess.run(
                 ["docker", "rmi", "test-nestjs:latest", "--force"],
-                capture_output=True, check=False,
+                capture_output=True,
+                check=False,
             )
 
     @pytest.mark.asyncio()
@@ -454,7 +459,8 @@ app.Run();
                 # Limpar
                 subprocess.run(
                     ["docker", "rmi", "test-aspnet:latest", "--force"],
-                    capture_output=True, check=False,
+                    capture_output=True,
+                    check=False,
                 )
             else:
                 # Se falhar, verificar se é por falta do .NET SDK
@@ -490,7 +496,8 @@ CMD echo "Hello from custom container"
             # Limpar
             subprocess.run(
                 ["docker", "rmi", "test-custom:latest", "--force"],
-                capture_output=True, check=False,
+                capture_output=True,
+                check=False,
             )
 
     @pytest.mark.asyncio()

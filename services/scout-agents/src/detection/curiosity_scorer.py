@@ -1,6 +1,5 @@
 """Adaptive curiosity scorer for signal prioritization"""
 
-
 import numpy as np
 import structlog
 

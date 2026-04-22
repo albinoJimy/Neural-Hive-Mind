@@ -1258,9 +1258,7 @@ class TestApprovalProcessorIdempotencyWithSagaState:
             "intent_id": "intent-crash-001",
             "decision": "approved",
             "approved_by": "original-admin",
-            "approved_at": int(
-                (datetime.now(UTC) - timedelta(minutes=30)).timestamp() * 1000
-            ),
+            "approved_at": int((datetime.now(UTC) - timedelta(minutes=30)).timestamp() * 1000),
         }
 
         await processor.process_approval_response(approval_response, {})

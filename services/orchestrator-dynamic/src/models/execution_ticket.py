@@ -22,7 +22,6 @@ else:
         """Polyfill for _StrEnum on Python 3.10"""
 
 
-
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator

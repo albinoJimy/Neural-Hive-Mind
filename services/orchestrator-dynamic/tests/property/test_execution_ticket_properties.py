@@ -8,7 +8,6 @@ Autor: Neural-Hive-Mind
 Criado: 2026-04-19 (HYP-02)
 """
 
-
 from uuid import uuid4
 
 import pytest

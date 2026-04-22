@@ -68,7 +68,6 @@ class SnykAPIError(SnykClientError):
     """API request errors."""
 
 
-
 class SnykClient:
     """
     Snyk REST API Client for vulnerability scanning.

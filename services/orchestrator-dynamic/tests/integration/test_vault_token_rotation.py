@@ -183,9 +183,7 @@ async def test_credential_renewal_task_interval_calculation(mock_config, mock_va
 
             # Configurar TTLs
             mock_vault_client.token_expiry = datetime.now(UTC) + timedelta(seconds=3600)
-            vault_client._postgres_credentials_expiry = datetime.now(UTC) + timedelta(
-                seconds=1800
-            )
+            vault_client._postgres_credentials_expiry = datetime.now(UTC) + timedelta(seconds=1800)
 
             # Calcular intervalo
             interval = await vault_client._calculate_next_check_interval()

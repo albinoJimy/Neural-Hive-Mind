@@ -29,7 +29,6 @@ class CircuitBreakerError(ResilienceError):
     """Exceção base para erros de circuit breaker."""
 
 
-
 class CircuitBreakerOpenError(CircuitBreakerError):
     """Levantada quando o circuit breaker está em estado OPEN.
 
@@ -69,7 +68,6 @@ class RetryError(ResilienceError):
     """Exceção base para erros de retry."""
 
 
-
 class RetryableError(RetryError):
     """Exceção que indica que a operação pode ser retriada.
 
@@ -93,7 +91,6 @@ class NonRetryableError(RetryError):
 
     Usada para marcar exceções que devem falhar imediatamente.
     """
-
 
 
 class MaxRetriesExceededError(RetryError):
@@ -121,7 +118,6 @@ class MaxRetriesExceededError(RetryError):
 
 class RateLimitError(ResilienceError):
     """Exceção base para erros de rate limiting."""
-
 
 
 class RateLimitExceededError(RateLimitError):
@@ -185,7 +181,6 @@ class FallbackError(ResilienceError):
     """Exceção base para erros de fallback."""
 
 
-
 class AllFallbacksFailedError(FallbackError):
     """Levantada quando todas as opções de fallback falham.
 
@@ -210,7 +205,6 @@ class AllFallbacksFailedError(FallbackError):
 
 class BulkheadError(ResilienceError):
     """Exceção base para erros de bulkhead."""
-
 
 
 class BulkheadRejectedError(BulkheadError):
@@ -239,7 +233,6 @@ class BulkheadRejectedError(BulkheadError):
 
 class RegistryError(ResilienceError):
     """Exceção base para erros do registro de resiliência."""
-
 
 
 class PolicyNotFoundError(RegistryError):

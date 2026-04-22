@@ -1,6 +1,5 @@
 """Weight adaptation based on historical patterns."""
 
-
 import structlog
 
 from .models import DEFAULT_WEIGHTS, Fingerprint, PatternRecord

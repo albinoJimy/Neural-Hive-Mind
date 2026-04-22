@@ -17,10 +17,8 @@ class PrometheusQueryError(Exception):
     """Erro em query ao Prometheus."""
 
 
-
 class PrometheusConnectionError(Exception):
     """Erro de conexão com Prometheus."""
-
 
 
 class PrometheusClient:

@@ -1,6 +1,5 @@
 """Bayesian filter for noise reduction in signal detection"""
 
-
 import numpy as np
 import structlog
 from scipy import stats

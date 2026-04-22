@@ -1,4 +1,3 @@
-
 import structlog
 from neo4j import AsyncGraphDatabase
 

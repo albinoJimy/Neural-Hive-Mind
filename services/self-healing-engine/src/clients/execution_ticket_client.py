@@ -44,7 +44,6 @@ class CircuitBreakerOpen(Exception):
     """Circuit breaker is open, refusing requests."""
 
 
-
 class SelfHealingTicketClient:
     """
     Extended Execution Ticket Client for Self-Healing Engine operations.

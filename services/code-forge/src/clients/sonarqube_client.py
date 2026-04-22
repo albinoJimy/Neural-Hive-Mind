@@ -76,7 +76,12 @@ class SonarQubeClient:
         ]
 
         result = subprocess.run(
-            cmd, capture_output=True, text=True, timeout=self.scanner_timeout, cwd=source_path, check=False
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=self.scanner_timeout,
+            cwd=source_path,
+            check=False,
         )
 
         if "EXECUTION SUCCESS" in result.stdout:

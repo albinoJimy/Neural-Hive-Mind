@@ -84,10 +84,8 @@ class CheckovNotFoundError(CheckovError):
     """Checkov CLI not found."""
 
 
-
 class CheckovExecutionError(CheckovError):
     """Error executing Checkov scan."""
-
 
 
 class CheckovClient:

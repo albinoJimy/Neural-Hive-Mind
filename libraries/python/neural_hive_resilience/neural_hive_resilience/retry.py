@@ -460,4 +460,3 @@ class RetryContext:
 # Exceções customizadas para retry
 class RetryConfigError(ValueError):
     """Erro de configuração de política de retry."""
-

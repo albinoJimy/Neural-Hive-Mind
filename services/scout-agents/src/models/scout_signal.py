@@ -81,13 +81,9 @@ class ScoutSignal(BaseModel):
     raw_data: dict[str, str]
     features: list[float]
     metadata: dict[str, str] = Field(default_factory=dict)
-    timestamp: int = Field(
-        default_factory=lambda: int(datetime.now(UTC).timestamp() * 1000)
-    )
+    timestamp: int = Field(default_factory=lambda: int(datetime.now(UTC).timestamp() * 1000))
     expires_at: int = Field(
-        default_factory=lambda: int(
-            (datetime.now(UTC) + timedelta(hours=24)).timestamp() * 1000
-        )
+        default_factory=lambda: int((datetime.now(UTC) + timedelta(hours=24)).timestamp() * 1000)
     )
     requires_validation: bool = False
 

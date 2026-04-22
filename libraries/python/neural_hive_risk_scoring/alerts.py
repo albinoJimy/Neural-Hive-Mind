@@ -405,9 +405,7 @@ class RiskAlertManager:
     ) -> Optional[RiskAlert]:
         """Cria alerta baseado na regra."""
         self._alert_id_counter += 1
-        alert_id = (
-            f"ALT-{datetime.now(UTC).strftime('%Y%m%d')}-{self._alert_id_counter:06d}"
-        )
+        alert_id = f"ALT-{datetime.now(UTC).strftime('%Y%m%d')}-{self._alert_id_counter:06d}"
 
         # Determinar severidade
         severity = self._determine_severity(rule, assessment, context)

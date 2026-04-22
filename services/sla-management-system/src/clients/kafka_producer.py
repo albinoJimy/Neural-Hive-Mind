@@ -17,7 +17,6 @@ class KafkaPublishError(Exception):
     """Erro ao publicar evento no Kafka."""
 
 
-
 class KafkaProducerClient:
     """Producer Kafka para eventos de SLA."""
 

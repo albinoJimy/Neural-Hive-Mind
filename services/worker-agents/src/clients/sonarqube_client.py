@@ -94,10 +94,8 @@ class SonarQubeAPIError(SonarQubeClientError):
     """API request errors."""
 
 
-
 class SonarQubeTimeoutError(SonarQubeClientError):
     """Analysis timeout."""
-
 
 
 class SonarQubeClient:

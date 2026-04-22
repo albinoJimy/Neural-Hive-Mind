@@ -172,7 +172,9 @@ def check_prerequisites() -> dict:
 
     # Python
     try:
-        result = subprocess.run(["python3", "--version"], capture_output=True, text=True, check=False)
+        result = subprocess.run(
+            ["python3", "--version"], capture_output=True, text=True, check=False
+        )
         results["python"] = {
             "available": True,
             "version": result.stdout.strip(),
@@ -183,7 +185,9 @@ def check_prerequisites() -> dict:
 
     # Docker
     try:
-        result = subprocess.run(["docker", "--version"], capture_output=True, text=True, check=False)
+        result = subprocess.run(
+            ["docker", "--version"], capture_output=True, text=True, check=False
+        )
         results["docker"] = {
             "available": True,
             "version": result.stdout.strip(),
@@ -195,7 +199,10 @@ def check_prerequisites() -> dict:
     # kubectl
     try:
         result = subprocess.run(
-            ["kubectl", "version", "--client", "--short"], capture_output=True, text=True, check=False
+            ["kubectl", "version", "--client", "--short"],
+            capture_output=True,
+            text=True,
+            check=False,
         )
         results["kubectl"] = {
             "available": True,
@@ -442,7 +449,8 @@ def run_tc004():
                 output = subprocess.run(
                     ["docker", "images", "test-python:latest", "--format", "{{.ID}}"],
                     capture_output=True,
-                    text=True, check=False,
+                    text=True,
+                    check=False,
                 )
                 if output.stdout.strip():
                     print_success(f"Imagem criada: {output.stdout.strip()}")
@@ -574,7 +582,8 @@ def clean_environment():
         result = subprocess.run(
             ["docker", "images", "--format", "{{.Repository}}:{{.Tag}}"],
             capture_output=True,
-            text=True, check=False,
+            text=True,
+            check=False,
         )
         test_images = [
             "test-python:latest",

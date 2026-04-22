@@ -31,7 +31,6 @@ class AdapterError(Exception):
     """Erro durante execução de adapter."""
 
 
-
 class BaseToolAdapter(ABC):
     """Classe base para adaptadores de ferramentas."""
 

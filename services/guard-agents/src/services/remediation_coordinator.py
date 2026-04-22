@@ -167,9 +167,7 @@ class RemediationCoordinator:
 
     async def _start_remediation(self, incident: dict[str, Any], playbook: dict[str, Any]) -> str:
         """Inicia remediação e retorna ID"""
-        remediation_id = (
-            f"REM-{incident.get('incident_id')}-{int(datetime.now(UTC).timestamp())}"
-        )
+        remediation_id = f"REM-{incident.get('incident_id')}-{int(datetime.now(UTC).timestamp())}"
 
         self.active_remediations[remediation_id] = {
             "remediation_id": remediation_id,
@@ -942,9 +940,7 @@ class RemediationCoordinator:
                 },
             }
 
-        experiment_name = (
-            f"guard-chaos-{incident_id[:8]}-{int(datetime.now(UTC).timestamp())}"
-        )
+        experiment_name = f"guard-chaos-{incident_id[:8]}-{int(datetime.now(UTC).timestamp())}"
         details = {
             "chaos_type": chaos_type,
             "experiment_name": experiment_name,

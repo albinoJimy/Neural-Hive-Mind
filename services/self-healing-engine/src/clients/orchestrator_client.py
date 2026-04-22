@@ -75,10 +75,8 @@ class OrchestratorClientError(Exception):
     """Base exception for Orchestrator client errors."""
 
 
-
 class OrchestratorConnectionError(OrchestratorClientError):
     """Connection to Orchestrator failed."""
-
 
 
 class OrchestratorClient:

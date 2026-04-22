@@ -32,7 +32,6 @@ class FeedbackStoreUnavailable(Exception):
     """
 
 
-
 class FeedbackDocument(BaseModel):
     """
     Schema Pydantic para documento de feedback humano.

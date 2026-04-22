@@ -29,7 +29,11 @@ def mock_asyncpg_pool():
     mock_conn.fetch = AsyncMock(
         return_value=[
             MagicMock(
-                id="1", plan_id="plan-123", analyst_type="text", insight_data={}, created_at=datetime.now(UTC)
+                id="1",
+                plan_id="plan-123",
+                analyst_type="text",
+                insight_data={},
+                created_at=datetime.now(UTC),
             )
         ]
     )

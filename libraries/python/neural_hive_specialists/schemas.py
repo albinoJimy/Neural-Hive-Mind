@@ -291,15 +291,12 @@ class PlanValidationError(ValueError):
     """Exceção base para erros de validação de plano cognitivo."""
 
 
-
 class PlanVersionIncompatibleError(PlanValidationError):
     """Levantada quando a versão do plano não é suportada pelo especialista."""
 
 
-
 class TaskDependencyError(PlanValidationError):
     """Levantada quando dependências de tarefas são inválidas (referências faltando, ciclos, etc)."""
-
 
 
 class TaskSchema(BaseModel):

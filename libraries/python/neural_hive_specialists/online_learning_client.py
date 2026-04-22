@@ -21,7 +21,6 @@ class OnlineLearningClientError(Exception):
     """Exceção base para erros do cliente de online learning."""
 
 
-
 class OnlineLearningClient:
     """
     Cliente para integração de specialists com online learning.

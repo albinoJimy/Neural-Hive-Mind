@@ -57,9 +57,7 @@ class AnalystInsight(BaseModel):
     recommendations: list[Recommendation]
     related_entities: list[RelatedEntity]
     time_window: TimeWindow
-    created_at: int = Field(
-        default_factory=lambda: int(datetime.now(UTC).timestamp() * 1000)
-    )
+    created_at: int = Field(default_factory=lambda: int(datetime.now(UTC).timestamp() * 1000))
     valid_until: Optional[int] = None
     tags: list[str] = Field(default_factory=list)
     metadata: dict[str, str] = Field(default_factory=dict)

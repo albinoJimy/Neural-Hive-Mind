@@ -108,7 +108,9 @@ class TrivyClient:
             target,
         ]
 
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=self.timeout, check=False)
+        result = subprocess.run(
+            cmd, capture_output=True, text=True, timeout=self.timeout, check=False
+        )
 
         if result.stdout:
             try:

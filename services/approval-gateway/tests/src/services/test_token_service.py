@@ -1,6 +1,5 @@
 """Testes unitários para TokenService."""
 
-
 from src.services.token_service import TokenPair, TokenPayload, TokenService, get_token_service
 
 

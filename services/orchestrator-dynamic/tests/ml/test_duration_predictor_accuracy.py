@@ -102,8 +102,7 @@ class TestDurationPredictorAccuracy:
                     "actual_duration_ms": actual_duration,
                     "estimated_duration_ms": estimated_duration,
                     "status": "COMPLETED",
-                    "created_at": datetime.now(UTC)
-                    - timedelta(days=np.random.randint(1, 30)),
+                    "created_at": datetime.now(UTC) - timedelta(days=np.random.randint(1, 30)),
                     "completed_at": datetime.now(UTC),
                     "required_capabilities": ["cpu", "memory"][: np.random.randint(1, 3)],
                     "parameters": {"key": "value"},

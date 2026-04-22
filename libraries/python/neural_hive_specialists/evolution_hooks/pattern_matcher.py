@@ -1,6 +1,5 @@
 """Pattern matching for similar plans."""
 
-
 import structlog
 
 from .models import Fingerprint, PatternRecord

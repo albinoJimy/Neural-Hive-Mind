@@ -207,9 +207,7 @@ class DataQualityChecker:
         logger.info(f"Verificando frescor em {collection}...")
 
         # Calcula threshold de frescor usando valor carregado das regras
-        freshness_cutoff = datetime.now(UTC) - timedelta(
-            hours=self.freshness_threshold_hours
-        )
+        freshness_cutoff = datetime.now(UTC) - timedelta(hours=self.freshness_threshold_hours)
 
         # Conta documentos recentes vs antigos
         total_docs = await self.mongodb_client.count_documents(collection=collection, filter={})

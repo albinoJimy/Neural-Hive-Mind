@@ -157,9 +157,7 @@ class ThresholdService:
         if self._last_cache_refresh is None:
             return True  # Cache nunca foi carregado
 
-        elapsed = (
-            datetime.now(UTC) - self._last_cache_refresh
-        ).total_seconds()
+        elapsed = (datetime.now(UTC) - self._last_cache_refresh).total_seconds()
         return elapsed > self.cache_ttl_seconds
 
     async def _ensure_cache_fresh(self) -> None:

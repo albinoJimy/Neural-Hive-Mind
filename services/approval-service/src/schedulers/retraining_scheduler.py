@@ -383,9 +383,7 @@ class RetrainingScheduler:
             "model_b_id": model_b_id,
             "traffic_split": traffic_split,
             "started_at": datetime.now(UTC).isoformat(),
-            "estimated_end": (
-                datetime.now(UTC) + timedelta(minutes=duration_minutes)
-            ).isoformat(),
+            "estimated_end": (datetime.now(UTC) + timedelta(minutes=duration_minutes)).isoformat(),
         }
 
     async def get_scheduler_status(self) -> dict[str, Any]:

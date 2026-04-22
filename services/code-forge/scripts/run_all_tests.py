@@ -406,7 +406,9 @@ require github.com/gin-gonic/gin v1.9.1
                 # Limpar imagem
                 try:
                     subprocess.run(
-                        ["docker", "rmi", "-f", "test-python:latest"], capture_output=True, check=False
+                        ["docker", "rmi", "-f", "test-python:latest"],
+                        capture_output=True,
+                        check=False,
                     )
                 except:
                     pass
@@ -583,7 +585,9 @@ require github.com/gin-gonic/gin v1.9.1
 
         # Remover imagens de teste
         try:
-            subprocess.run(["docker", "rmi", "-f", "test-python:latest"], capture_output=True, check=False)
+            subprocess.run(
+                ["docker", "rmi", "-f", "test-python:latest"], capture_output=True, check=False
+            )
         except:
             pass
 

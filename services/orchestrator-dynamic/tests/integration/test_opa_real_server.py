@@ -74,7 +74,8 @@ def opa_container():
             result = subprocess.run(
                 ["docker", "exec", "opa-test", "curl", "-s", "http://localhost:8181/health"],
                 capture_output=True,
-                timeout=2, check=False,
+                timeout=2,
+                check=False,
             )
             if result.returncode == 0:
                 break

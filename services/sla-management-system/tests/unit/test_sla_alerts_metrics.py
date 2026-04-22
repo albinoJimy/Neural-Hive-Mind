@@ -2,7 +2,6 @@
 Testes unitários para métricas de SLA Alerts.
 """
 
-
 from src.observability.metrics import sla_metrics
 
 

@@ -1,6 +1,5 @@
 """Testes de integração para API de documentos."""
 
-
 import pytest
 from fastapi.testclient import TestClient
 

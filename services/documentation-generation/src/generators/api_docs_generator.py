@@ -302,9 +302,7 @@ Use formatação Markdown clara com tabelas e blocos de código.
 
             content += "---\n\n"
 
-        content += (
-            f"\n*Generated on {datetime.now(UTC).strftime('%Y-%m-%d %H:%M:%S')} UTC*\n"
-        )
+        content += f"\n*Generated on {datetime.now(UTC).strftime('%Y-%m-%d %H:%M:%S')} UTC*\n"
 
         return content
 
