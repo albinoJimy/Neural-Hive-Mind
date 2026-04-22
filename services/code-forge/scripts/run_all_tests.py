@@ -86,8 +86,7 @@ class TestSuite:
         project_dir = self.test_dir / "python-fastapi"
         project_dir.mkdir(exist_ok=True)
 
-        (project_dir / "main.py").write_text(
-            """from fastapi import FastAPI
+        (project_dir / "main.py").write_text("""from fastapi import FastAPI
 app = FastAPI()
 
 @app.get("/")
@@ -97,14 +96,11 @@ def read_root():
 @app.get("/health")
 def health():
     return {"status": "healthy"}
-"""
-        )
+""")
 
-        (project_dir / "requirements.txt").write_text(
-            """fastapi==0.104.1
+        (project_dir / "requirements.txt").write_text("""fastapi==0.104.1
 uvicorn==0.24.0
-"""
-        )
+""")
 
         return project_dir
 
@@ -113,8 +109,7 @@ uvicorn==0.24.0
         project_dir = self.test_dir / "nodejs-express"
         project_dir.mkdir(exist_ok=True)
 
-        (project_dir / "package.json").write_text(
-            """{
+        (project_dir / "package.json").write_text("""{
   "name": "test-express",
   "version": "1.0.0",
   "main": "index.js",
@@ -122,16 +117,13 @@ uvicorn==0.24.0
     "express": "^4.18.2"
   }
 }
-"""
-        )
+""")
 
-        (project_dir / "index.js").write_text(
-            """const express = require('express');
+        (project_dir / "index.js").write_text("""const express = require('express');
 const app = express();
 app.get('/', (req, res) => res.json({message: 'Hello World'}));
 app.listen(3000);
-"""
-        )
+""")
 
         return project_dir
 
@@ -140,8 +132,7 @@ app.listen(3000);
         project_dir = self.test_dir / "go-gin"
         project_dir.mkdir(exist_ok=True)
 
-        (project_dir / "main.go").write_text(
-            """package main
+        (project_dir / "main.go").write_text("""package main
 
 import "github.com/gin-gonic/gin"
 
@@ -152,17 +143,14 @@ func main() {
     })
     r.Run(":8080")
 }
-"""
-        )
+""")
 
-        (project_dir / "go.mod").write_text(
-            """module test-gin
+        (project_dir / "go.mod").write_text("""module test-gin
 
 go 1.21
 
 require github.com/gin-gonic/gin v1.9.1
-"""
-        )
+""")
 
         return project_dir
 

@@ -515,7 +515,7 @@ def set_baggage_value(key: str, value: str) -> None:
 
 
 def inject_context_to_metadata(
-    metadata: Optional[list[tuple[str, str]]] = None
+    metadata: Optional[list[tuple[str, str]]] = None,
 ) -> list[tuple[str, str]]:
     """
     Injeta contexto Neural Hive em metadados gRPC.

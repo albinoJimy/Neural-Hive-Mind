@@ -5,7 +5,6 @@ from unittest.mock import Mock
 import pytest
 from fastapi import FastAPI
 
-
 # Mock service_registry_pb2 antes de importar main
 sys.modules["proto"] = Mock()
 sys.modules["proto"].service_registry_pb2 = Mock()

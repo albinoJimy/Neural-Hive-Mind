@@ -243,23 +243,19 @@ class TestCodebaseExplorerDependencyGraph:
         circular_dir = Path(temp_codebase_dir) / "circular"
         circular_dir.mkdir()
 
-        (circular_dir / "module_a.py").write_text(
-            """
+        (circular_dir / "module_a.py").write_text("""
 # Importa b para criar dependência circular
 from circular import module_b
 class ClassA:
     pass
-"""
-        )
+""")
 
-        (circular_dir / "module_b.py").write_text(
-            """
+        (circular_dir / "module_b.py").write_text("""
 # Importa a para criar dependência circular
 from circular import module_a
 class ClassB:
     pass
-"""
-        )
+""")
 
         explorer_circular = CodebaseExplorer(temp_codebase_dir, file_extensions=[".py"])
         results = explorer_circular.explore_directory()
@@ -316,8 +312,7 @@ class TestCodebaseExplorerMultiLanguage:
         """Testa exploração com arquivos TypeScript."""
         # Criar arquivo TypeScript
         ts_file = Path(temp_codebase_dir) / "service.ts"
-        ts_file.write_text(
-            """
+        ts_file.write_text("""
 interface User {
     id: string;
     name: string;
@@ -330,8 +325,7 @@ class UserService {
         return Array.from(this.users.values());
     }
 }
-"""
-        )
+""")
 
         explorer = CodebaseExplorer(temp_codebase_dir, file_extensions=[".ts", ".py"])
         results = explorer.explore_directory()
@@ -341,14 +335,12 @@ class UserService {
     def test_explore_with_yaml(self, temp_codebase_dir):
         """Testa exploração com arquivos YAML."""
         yaml_file = Path(temp_codebase_dir) / "config.yaml"
-        yaml_file.write_text(
-            """
+        yaml_file.write_text("""
 version: "1.0"
 services:
   scout:
     image: scout:latest
-"""
-        )
+""")
 
         explorer = CodebaseExplorer(temp_codebase_dir, file_extensions=[".yaml"])
         results = explorer.explore_directory()

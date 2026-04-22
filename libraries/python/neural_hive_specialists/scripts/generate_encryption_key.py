@@ -6,6 +6,7 @@ Uso:
     python generate_encryption_key.py --output-path /path/to/encryption.key
     python generate_encryption_key.py --print-key
 """
+
 import argparse
 import os
 import sys

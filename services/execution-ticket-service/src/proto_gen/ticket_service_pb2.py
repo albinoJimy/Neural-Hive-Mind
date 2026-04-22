@@ -3,6 +3,7 @@
 # source: ticket_service.proto
 # Protobuf Python Version: 5.28.1
 """Generated protocol buffer code."""
+
 from google.protobuf import (
     descriptor as _descriptor,
     descriptor_pool as _descriptor_pool,

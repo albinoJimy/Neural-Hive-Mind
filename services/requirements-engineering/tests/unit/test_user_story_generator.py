@@ -13,11 +13,7 @@ def mock_llm_client():
     """Fixture para mock LLM client."""
     mock_client = AsyncMock()
     mock_client.chat.completions.create = AsyncMock(
-        return_value=Mock(
-            choices=[
-                Mock(
-                    message=Mock(
-                        content="""```json
+        return_value=Mock(choices=[Mock(message=Mock(content="""```json
 [
   {
     "id": "US-001",
@@ -34,11 +30,7 @@ def mock_llm_client():
     "size": "s"
   }
 ]
-```"""
-                    )
-                )
-            ]
-        )
+```"""))])
     )
     return mock_client
 
@@ -99,20 +91,12 @@ async def test_generate_user_stories_parses_size_correctly(mock_llm_client):
     """Testa que tamanhos são parseados corretamente."""
     mock_client = AsyncMock()
     mock_client.chat.completions.create = AsyncMock(
-        return_value=Mock(
-            choices=[
-                Mock(
-                    message=Mock(
-                        content="""```json
+        return_value=Mock(choices=[Mock(message=Mock(content="""```json
 [
   {"id": "US-001", "role": "user", "action": "login", "benefit": "acessar", "size": "xs"},
   {"id": "US-002", "role": "user", "action": "logout", "benefit": "sair", "size": "xl"}
 ]
-```"""
-                    )
-                )
-            ]
-        )
+```"""))])
     )
 
     generator = UserStoryGenerator(llm_client=mock_client)
@@ -136,20 +120,12 @@ async def test_generate_user_stories_handles_invalid_story_data(mock_llm_client)
     """Testa que stories inválidas são ignoradas."""
     mock_client = AsyncMock()
     mock_client.chat.completions.create = AsyncMock(
-        return_value=Mock(
-            choices=[
-                Mock(
-                    message=Mock(
-                        content="""```json
+        return_value=Mock(choices=[Mock(message=Mock(content="""```json
 [
   {"id": "US-001", "role": "user", "action": "login", "benefit": "acessar", "size": "m"},
   {"id": "US-002", "role": "user", "action": "logout", "benefit": "sair", "size": "invalid_size"}
 ]
-```"""
-                    )
-                )
-            ]
-        )
+```"""))])
     )
 
     generator = UserStoryGenerator(llm_client=mock_client)
@@ -235,19 +211,11 @@ async def test_generate_user_stories_default_size_to_medium():
     """Testa que user stories sem tamanho definido usam MEDIUM como padrão."""
     mock_client = AsyncMock()
     mock_client.chat.completions.create = AsyncMock(
-        return_value=Mock(
-            choices=[
-                Mock(
-                    message=Mock(
-                        content="""```json
+        return_value=Mock(choices=[Mock(message=Mock(content="""```json
 [
   {"id": "US-001", "role": "user", "action": "action", "benefit": "benefit"}
 ]
-```"""
-                    )
-                )
-            ]
-        )
+```"""))])
     )
 
     generator = UserStoryGenerator(llm_client=mock_client)
@@ -271,20 +239,12 @@ async def test_generate_user_stories_set_calculates_total_points():
     """Testa que UserStorySet calcula total de story points."""
     mock_client = AsyncMock()
     mock_client.chat.completions.create = AsyncMock(
-        return_value=Mock(
-            choices=[
-                Mock(
-                    message=Mock(
-                        content="""```json
+        return_value=Mock(choices=[Mock(message=Mock(content="""```json
 [
   {"id": "US-001", "role": "user", "action": "small task", "benefit": "value", "size": "s"},
   {"id": "US-002", "role": "user", "action": "medium task", "benefit": "value", "size": "m"}
 ]
-```"""
-                    )
-                )
-            ]
-        )
+```"""))])
     )
 
     generator = UserStoryGenerator(llm_client=mock_client)

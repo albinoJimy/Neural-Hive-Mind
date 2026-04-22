@@ -64,12 +64,10 @@ class TestKanikoK8sReal:
         with tempfile.TemporaryDirectory() as tmpdir:
             dockerfile_path = os.path.join(tmpdir, "Dockerfile")
             with open(dockerfile_path, "w") as f:
-                f.write(
-                    """FROM alpine:3.19
+                f.write("""FROM alpine:3.19
 RUN echo "Kaniko E2E Test" > /tmp/test.txt
 CMD cat /tmp/test.txt
-"""
-                )
+""")
 
             # Criar builder Kaniko
             builder = ContainerBuilder(

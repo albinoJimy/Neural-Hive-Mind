@@ -212,11 +212,7 @@ async def test_generate_markdown_with_mock_llm(sample_endpoints):
 
     mock_client = AsyncMock()
     mock_client.chat.completions.create = AsyncMock(
-        return_value=Mock(
-            choices=[
-                Mock(
-                    message=Mock(
-                        content="""# Test API Documentation
+        return_value=Mock(choices=[Mock(message=Mock(content="""# Test API Documentation
 
 ## Overview
 
@@ -239,11 +235,7 @@ List all users.
 - **400**: Bad request
 
 ---
-"""
-                    )
-                )
-            ]
-        )
+"""))])
     )
 
     generator = APIDocsGenerator(llm_client=mock_client)

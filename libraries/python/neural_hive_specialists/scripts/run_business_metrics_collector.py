@@ -11,6 +11,7 @@ Uso:
     python run_business_metrics_collector.py --window-hours 48
     python run_business_metrics_collector.py --specialist-type technical
 """
+
 import argparse
 import os
 import sys

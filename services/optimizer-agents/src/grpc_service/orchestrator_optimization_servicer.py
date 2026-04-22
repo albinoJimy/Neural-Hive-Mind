@@ -805,8 +805,7 @@ class OrchestratorOptimizationServicer(
             # Buscar métricas do ClickHouse se disponível
             if self.clickhouse_client:
                 try:
-                    result = await self.clickhouse_client.query(
-                        f"""
+                    result = await self.clickhouse_client.query(f"""
                         SELECT
                             avg(latency_ms) as avg_latency,
                             quantile(0.95)(latency_ms) as p95_latency,
@@ -818,8 +817,7 @@ class OrchestratorOptimizationServicer(
                         FROM request_metrics
                         WHERE service = '{service}'
                         AND timestamp >= now() - INTERVAL {time_seconds} SECOND
-                        """
-                    )
+                        """)
 
                     if result and len(result) > 0:
                         row = result[0]
@@ -976,14 +974,12 @@ class OrchestratorOptimizationServicer(
                     # Calcular burn rate
                     if self.clickhouse_client:
                         try:
-                            result = await self.clickhouse_client.query(
-                                f"""
+                            result = await self.clickhouse_client.query(f"""
                                 SELECT countIf(slo_violated = 1) / count() as burn_rate
                                 FROM request_metrics
                                 WHERE service = '{service}'
                                 AND timestamp >= now() - INTERVAL 1 HOUR
-                                """
-                            )
+                                """)
                             if result and len(result) > 0:
                                 budget_data["burn_rate_per_hour"] = result[0].get(
                                     "burn_rate", 0.001

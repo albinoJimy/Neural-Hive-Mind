@@ -48,8 +48,7 @@ class TestContainerBuildE2E:
             app_dir = Path(tmpdir) / "app"
             app_dir.mkdir()
 
-            (app_dir / "main.py").write_text(
-                """
+            (app_dir / "main.py").write_text("""
 from fastapi import FastAPI
 app = FastAPI()
 
@@ -60,15 +59,12 @@ def health():
 @app.get("/")
 def root():
     return {"message": "Hello World"}
-"""
-            )
+""")
 
-            (app_dir / "requirements.txt").write_text(
-                """
+            (app_dir / "requirements.txt").write_text("""
 fastapi==0.104.1
 uvicorn[standard]==0.24.0
-"""
-            )
+""")
 
             # Gerar Dockerfile
             generator = DockerfileGenerator()
@@ -114,8 +110,7 @@ uvicorn[standard]==0.24.0
             app_dir = Path(tmpdir) / "app"
             app_dir.mkdir()
 
-            (app_dir / "package.json").write_text(
-                """
+            (app_dir / "package.json").write_text("""
 {
   "name": "test-app",
   "version": "1.0.0",
@@ -124,11 +119,9 @@ uvicorn[standard]==0.24.0
     "express": "^4.18.0"
   }
 }
-"""
-            )
+""")
 
-            (app_dir / "index.js").write_text(
-                """
+            (app_dir / "index.js").write_text("""
 const express = require('express');
 const app = express();
 
@@ -137,8 +130,7 @@ app.get('/', (req, res) => res.json({message: 'Hello World'}));
 
 const port = process.env.PORT || 3000;
 app.listen(port, () => console.log(`Server running on port ${port}`));
-"""
-            )
+""")
 
             generator = DockerfileGenerator()
             # Usar template customizado com npm install para teste E2E (sem package-lock.json)
@@ -209,8 +201,7 @@ CMD ["node", "index.js"]
             app_dir = Path(tmpdir) / "app"
             app_dir.mkdir()
 
-            (app_dir / "main.go").write_text(
-                """
+            (app_dir / "main.go").write_text("""
 package main
 
 import (
@@ -226,16 +217,13 @@ func main() {
     http.HandleFunc("/health", healthHandler)
     http.ListenAndServe(":8080", nil)
 }
-"""
-            )
+""")
 
-            (app_dir / "go.mod").write_text(
-                """
+            (app_dir / "go.mod").write_text("""
 module test-app
 
 go 1.21
-"""
-            )
+""")
 
             generator = DockerfileGenerator()
             dockerfile = generator.generate_dockerfile(
@@ -269,8 +257,7 @@ go 1.21
             app_dir = Path(tmpdir) / "app"
             app_dir.mkdir()
 
-            (app_dir / "package.json").write_text(
-                """
+            (app_dir / "package.json").write_text("""
 {
   "name": "test-nest-app",
   "version": "1.0.0",
@@ -288,11 +275,9 @@ go 1.21
     "typescript": "^5.0.0"
   }
 }
-"""
-            )
+""")
 
-            (app_dir / "tsconfig.json").write_text(
-                """
+            (app_dir / "tsconfig.json").write_text("""
 {
   "compilerOptions": {
     "module": "commonjs",
@@ -309,24 +294,20 @@ go 1.21
   "include": ["src/**/*"],
   "exclude": ["node_modules"]
 }
-"""
-            )
+""")
 
             src_dir = app_dir / "src"
             src_dir.mkdir()
 
             # Criar AppModule
-            (src_dir / "app.module.ts").write_text(
-                """
+            (src_dir / "app.module.ts").write_text("""
 import { Module } from '@nestjs/common';
 
 @Module({})
 export class AppModule {}
-"""
-            )
+""")
 
-            (src_dir / "main.ts").write_text(
-                """
+            (src_dir / "main.ts").write_text("""
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 
@@ -336,8 +317,7 @@ async function bootstrap() {
 }
 
 bootstrap();
-"""
-            )
+""")
 
             generator = DockerfileGenerator()
             # Usar template customizado com npm install para teste E2E (sem package-lock.json)
@@ -413,8 +393,7 @@ CMD ["node", "dist/main.js"]
             app_dir = Path(tmpdir) / "app"
             app_dir.mkdir()
 
-            (app_dir / "App.csproj").write_text(
-                """
+            (app_dir / "App.csproj").write_text("""
 <Project Sdk="Microsoft.NET.Sdk.Web">
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
@@ -422,11 +401,9 @@ CMD ["node", "dist/main.js"]
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
 </Project>
-"""
-            )
+""")
 
-            (app_dir / "Program.cs").write_text(
-                """
+            (app_dir / "Program.cs").write_text("""
 var app = WebApplication.CreateBuilder(args).Build();
 
 app.MapGet("/", () => "Hello World");
@@ -434,8 +411,7 @@ app.MapGet("/", () => "Hello World");
 app.MapGet("/health", () => new { status = "ok" });
 
 app.Run();
-"""
-            )
+""")
 
             generator = DockerfileGenerator()
             dockerfile = generator.generate_dockerfile(

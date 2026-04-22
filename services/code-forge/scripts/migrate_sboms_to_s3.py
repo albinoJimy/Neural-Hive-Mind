@@ -6,6 +6,7 @@ Uso:
     python migrate_sboms_to_s3.py --dry-run  # Apenas mostra o que seria feito
     python migrate_sboms_to_s3.py            # Executa a migração
 """
+
 import argparse
 import asyncio
 import os

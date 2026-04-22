@@ -14,6 +14,7 @@ Tipos de incidente:
     - malicious_payload
     - data_exfiltration
 """
+
 import argparse
 import asyncio
 import json

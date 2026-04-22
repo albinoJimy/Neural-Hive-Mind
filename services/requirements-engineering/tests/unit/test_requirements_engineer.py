@@ -17,9 +17,7 @@ def mock_llm_response():
     mock = Mock()
     mock.choices = [Mock()]
     mock.choices[0].message = Mock()
-    mock.choices[
-        0
-    ].message.content = """
+    mock.choices[0].message.content = """
 [
   {
     "id": "REQ-001",
@@ -135,9 +133,7 @@ async def test_identify_dependencies(engineer):
     mock_response = Mock()
     mock_response.choices = [Mock()]
     mock_response.choices[0].message = Mock()
-    mock_response.choices[
-        0
-    ].message.content = """[
+    mock_response.choices[0].message.content = """[
   {"id": "REQ-001", "dependencies": [], "conflicts": []},
   {"id": "REQ-002", "dependencies": ["REQ-001"], "conflicts": []}
 ]"""

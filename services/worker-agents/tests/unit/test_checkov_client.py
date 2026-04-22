@@ -68,8 +68,7 @@ class TestCheckovClientScan:
         with tempfile.TemporaryDirectory() as tmpdir:
             # Create a dummy Terraform file
             tf_file = Path(tmpdir) / "main.tf"
-            tf_file.write_text(
-                """
+            tf_file.write_text("""
 resource "aws_s3_bucket" "example" {
   bucket = "my-test-bucket"
 }
@@ -77,8 +76,7 @@ resource "aws_s3_bucket" "example" {
 resource "aws_s3_bucket" "example2" {
   bucket = "another-test-bucket"
 }
-"""
-            )
+""")
 
             with patch.object(client, "_verify_checkov_installed", return_value="Checkov v2.3.0"):
                 with patch(

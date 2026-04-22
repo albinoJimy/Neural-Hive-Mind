@@ -101,29 +101,23 @@ async def create_partitions_for_next_months(months: int = 3):
 
             # Criar partição na tabela parent correta
             try:
-                await conn.execute(
-                    f"""
+                await conn.execute(f"""
                     CREATE TABLE IF NOT EXISTS {partition_name}
                     PARTITION OF {PARENT_TABLE}
                     FOR VALUES FROM ('{start_date.strftime("%Y-%m-%d")}')
                     TO ('{end_date.strftime("%Y-%m-%d")}')
-                """
-                )
+                """)
 
                 # Criar índices na nova partição (mesmo padrão da migração)
-                await conn.execute(
-                    f"""
+                await conn.execute(f"""
                     CREATE INDEX IF NOT EXISTS idx_{partition_name}_slo_calc_status
                     ON {partition_name}(slo_id, calculated_at DESC, status)
-                """
-                )
+                """)
 
-                await conn.execute(
-                    f"""
+                await conn.execute(f"""
                     CREATE INDEX IF NOT EXISTS idx_{partition_name}_service_calc
                     ON {partition_name}(service_name, calculated_at DESC)
-                """
-                )
+                """)
 
                 partitions_created += 1
                 logger.info(

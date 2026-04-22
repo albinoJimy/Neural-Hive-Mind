@@ -201,9 +201,7 @@ class TestGenerateSchemaMapping:
         # Resposta mock do OpenAI
         mock_response = Mock()
         mock_response.choices = [Mock()]
-        mock_response.choices[
-            0
-        ].message.content = """```json
+        mock_response.choices[0].message.content = """```json
         {
           "tables": [
             {
@@ -268,9 +266,7 @@ class TestGenerateSchemaMapping:
         # Resposta mock do Anthropic
         mock_response = Mock()
         mock_response.content = [Mock()]
-        mock_response.content[
-            0
-        ].text = """```json
+        mock_response.content[0].text = """```json
         {
           "tables": [
             {
@@ -317,9 +313,7 @@ class TestGenerateSchemaMapping:
 
         mock_response = Mock()
         mock_response.choices = [Mock()]
-        mock_response.choices[
-            0
-        ].message.content = """{
+        mock_response.choices[0].message.content = """{
           "tables": [
             {
               "legacy_name": "orders",

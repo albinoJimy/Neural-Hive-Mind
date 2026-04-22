@@ -34,11 +34,7 @@ def mock_llm_client():
     """Fixture para mock LLM client."""
     mock_client = AsyncMock()
     mock_client.chat.completions.create = AsyncMock(
-        return_value=Mock(
-            choices=[
-                Mock(
-                    message=Mock(
-                        content="""# Test Project README
+        return_value=Mock(choices=[Mock(message=Mock(content="""# Test Project README
 
 Test project description.
 
@@ -61,11 +57,7 @@ See API documentation at /docs
 - Python 3.12
 - FastAPI
 - Kafka
-"""
-                    )
-                )
-            ]
-        )
+"""))])
     )
     return mock_client
 
@@ -336,11 +328,7 @@ async def test_markdown_generator_user_guide():
 async def test_architecture_docs_generator(mock_llm_client):
     """Testa geração de documentação de arquitetura."""
     mock_llm_client.chat.completions.create = AsyncMock(
-        return_value=Mock(
-            choices=[
-                Mock(
-                    message=Mock(
-                        content="""# System Architecture
+        return_value=Mock(choices=[Mock(message=Mock(content="""# System Architecture
 
 ## Overview
 
@@ -366,11 +354,7 @@ graph TD
     Gateway --> UserSvc
     UserSvc --> DB
 ```
-"""
-                    )
-                )
-            ]
-        )
+"""))])
     )
 
     generator = ArchitectureDocsGenerator(llm_client=mock_llm_client)
@@ -403,11 +387,7 @@ graph TD
 async def test_diagram_generator_sequence(mock_llm_client):
     """Testa geração de diagrama de sequência."""
     mock_llm_client.chat.completions.create = AsyncMock(
-        return_value=Mock(
-            choices=[
-                Mock(
-                    message=Mock(
-                        content="""sequenceDiagram
+        return_value=Mock(choices=[Mock(message=Mock(content="""sequenceDiagram
     participant User
     participant API
     participant DB
@@ -415,11 +395,7 @@ async def test_diagram_generator_sequence(mock_llm_client):
     API->>DB: INSERT user
     DB-->>API: user created
     API-->>User: 201 Created
-"""
-                    )
-                )
-            ]
-        )
+"""))])
     )
 
     generator = DiagramGenerator(llm_client=mock_llm_client)

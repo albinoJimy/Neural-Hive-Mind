@@ -87,8 +87,7 @@ class PostgreSQLClient:
         """
         async with self.pool.acquire() as conn:
             # Tabela slo_definitions
-            await conn.execute(
-                """
+            await conn.execute("""
                 CREATE TABLE IF NOT EXISTS slo_definitions (
                     slo_id VARCHAR(255) PRIMARY KEY,
                     name VARCHAR(255) NOT NULL,
@@ -106,25 +105,21 @@ class PostgreSQLClient:
                     updated_at TIMESTAMP NOT NULL,
                     metadata JSONB
                 )
-            """
-            )
+            """)
 
             # Verificar se error_budgets já existe (particionada ou não)
-            error_budgets_exists = await conn.fetchval(
-                """
+            error_budgets_exists = await conn.fetchval("""
                 SELECT EXISTS (
                     SELECT 1 FROM information_schema.tables
                     WHERE table_name = 'error_budgets' AND table_schema = 'public'
                 )
-            """
-            )
+            """)
 
             # Só criar tabela error_budgets se não existir
             # Quando as migrações forem aplicadas, a tabela será particionada
             if not error_budgets_exists:
                 self.logger.info("error_budgets_table_not_found_creating_basic")
-                await conn.execute(
-                    """
+                await conn.execute("""
                     CREATE TABLE IF NOT EXISTS error_budgets (
                         budget_id VARCHAR(255) NOT NULL,
                         slo_id VARCHAR(255) NOT NULL,
@@ -144,19 +139,15 @@ class PostgreSQLClient:
                         metadata JSONB,
                         PRIMARY KEY (budget_id, calculated_at)
                     ) PARTITION BY RANGE (calculated_at)
-                """
-                )
+                """)
                 # Criar partição default para evitar erros de insert
-                await conn.execute(
-                    """
+                await conn.execute("""
                     CREATE TABLE IF NOT EXISTS error_budgets_default
                     PARTITION OF error_budgets DEFAULT
-                """
-                )
+                """)
 
             # Tabela freeze_policies
-            await conn.execute(
-                """
+            await conn.execute("""
                 CREATE TABLE IF NOT EXISTS freeze_policies (
                     policy_id VARCHAR(255) PRIMARY KEY,
                     name VARCHAR(255) NOT NULL,
@@ -171,12 +162,10 @@ class PostgreSQLClient:
                     created_at TIMESTAMP NOT NULL,
                     metadata JSONB
                 )
-            """
-            )
+            """)
 
             # Tabela freeze_events
-            await conn.execute(
-                """
+            await conn.execute("""
                 CREATE TABLE IF NOT EXISTS freeze_events (
                     event_id VARCHAR(255) PRIMARY KEY,
                     policy_id VARCHAR(255) NOT NULL REFERENCES freeze_policies(policy_id),
@@ -191,12 +180,10 @@ class PostgreSQLClient:
                     active BOOLEAN DEFAULT TRUE,
                     metadata JSONB
                 )
-            """
-            )
+            """)
 
             # Tabela alerts
-            await conn.execute(
-                """
+            await conn.execute("""
                 CREATE TABLE IF NOT EXISTS alerts (
                     alert_id VARCHAR(255) PRIMARY KEY,
                     rule_id VARCHAR(255) NOT NULL,
@@ -217,60 +204,43 @@ class PostgreSQLClient:
                     dispatch_errors JSONB,
                     created_at TIMESTAMP NOT NULL DEFAULT NOW()
                 )
-            """
-            )
+            """)
 
             # Criar índices (exceto para error_budgets que são gerenciados pela migração)
             # Índice para error_budgets só é criado se a tabela foi criada neste método
             if not error_budgets_exists:
-                await conn.execute(
-                    """
+                await conn.execute("""
                     CREATE INDEX IF NOT EXISTS idx_error_budgets_slo_id_calculated_at
                     ON error_budgets(slo_id, calculated_at DESC)
-                """
-                )
-            await conn.execute(
-                """
+                """)
+            await conn.execute("""
                 CREATE INDEX IF NOT EXISTS idx_slo_definitions_service_enabled
                 ON slo_definitions(service_name, enabled)
-            """
-            )
-            await conn.execute(
-                """
+            """)
+            await conn.execute("""
                 CREATE INDEX IF NOT EXISTS idx_freeze_events_active_triggered
                 ON freeze_events(active, triggered_at DESC)
-            """
-            )
-            await conn.execute(
-                """
+            """)
+            await conn.execute("""
                 CREATE INDEX IF NOT EXISTS idx_alerts_triggered_at
                 ON alerts(triggered_at DESC)
-            """
-            )
-            await conn.execute(
-                """
+            """)
+            await conn.execute("""
                 CREATE INDEX IF NOT EXISTS idx_alerts_severity_triggered
                 ON alerts(severity, triggered_at DESC)
-            """
-            )
-            await conn.execute(
-                """
+            """)
+            await conn.execute("""
                 CREATE INDEX IF NOT EXISTS idx_alerts_slo_id
                 ON alerts(slo_id, triggered_at DESC)
-            """
-            )
-            await conn.execute(
-                """
+            """)
+            await conn.execute("""
                 CREATE INDEX IF NOT EXISTS idx_alerts_service_name
                 ON alerts(service_name, triggered_at DESC)
-            """
-            )
-            await conn.execute(
-                """
+            """)
+            await conn.execute("""
                 CREATE INDEX IF NOT EXISTS idx_alerts_resolved_acknowledged
                 ON alerts(resolved, acknowledged, triggered_at DESC)
-            """
-            )
+            """)
 
     # Métodos de SLO Definitions
     async def create_slo(self, slo: SLODefinition) -> str:
@@ -1154,35 +1124,29 @@ class PostgreSQLClient:
             total = await conn.fetchval("SELECT COUNT(*) FROM alerts")
 
             # Contagem por severidade
-            severity_counts = await conn.fetch(
-                """
+            severity_counts = await conn.fetch("""
                 SELECT severity, COUNT(*) as count
                 FROM alerts
                 GROUP BY severity
-            """
-            )
+            """)
             alerts_by_severity = {row["severity"]: row["count"] for row in severity_counts}
 
             # Contagem por canal (extraindo de dispatched_channels)
-            channel_counts = await conn.fetch(
-                """
+            channel_counts = await conn.fetch("""
                 SELECT jsonb_array_elements_text(dispatched_channels)::TEXT as channel, COUNT(*) as count
                 FROM alerts
                 WHERE jsonb_array_length(dispatched_channels) > 0
                 GROUP BY channel
-            """
-            )
+            """)
             alerts_by_channel = {row["channel"]: row["count"] for row in channel_counts}
 
             # Alertas recentes (últimas 24h)
-            recent_rows = await conn.fetch(
-                """
+            recent_rows = await conn.fetch("""
                 SELECT * FROM alerts
                 WHERE triggered_at >= NOW() - INTERVAL '24 hours'
                 ORDER BY triggered_at DESC
                 LIMIT 20
-            """
-            )
+            """)
 
             recent_alerts = []
             for row in recent_rows:

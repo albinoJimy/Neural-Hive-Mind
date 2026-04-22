@@ -60,13 +60,11 @@ class TestKanikoRealBuild:
         with tempfile.TemporaryDirectory() as tmpdir:
             dockerfile_path = os.path.join(tmpdir, "Dockerfile")
             with open(dockerfile_path, "w") as f:
-                f.write(
-                    """FROM alpine:3.19
+                f.write("""FROM alpine:3.19
 RUN echo "CodeForge Kaniko E2E Test" > /tmp/test.txt
 RUN cat /tmp/test.txt
 CMD ["/bin/sh"]
-"""
-                )
+""")
 
             # Criar builder Kaniko
             builder = ContainerBuilder(
@@ -115,8 +113,7 @@ CMD ["/bin/sh"]
             # Criar Dockerfile de microserviço Python
             dockerfile_path = os.path.join(tmpdir, "Dockerfile")
             with open(dockerfile_path, "w") as f:
-                f.write(
-                    """FROM python:3.11-slim
+                f.write("""FROM python:3.11-slim
 
 WORKDIR /app
 
@@ -134,8 +131,7 @@ RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
 USER appuser
 
 CMD ["python", "-c", "import uvicorn; uvicorn.run('main:app', host='0.0.0.0', port=8000)"]
-"""
-                )
+""")
 
             # Criar builder Kaniko
             builder = ContainerBuilder(
@@ -176,15 +172,13 @@ CMD ["python", "-c", "import uvicorn; uvicorn.run('main:app', host='0.0.0.0', po
         with tempfile.TemporaryDirectory() as tmpdir:
             dockerfile_path = os.path.join(tmpdir, "Dockerfile")
             with open(dockerfile_path, "w") as f:
-                f.write(
-                    """FROM alpine:3.19
+                f.write("""FROM alpine:3.19
 ARG APP_VERSION=1.0.0
 ARG ENVIRONMENT=development
 RUN echo "Version: ${APP_VERSION}" > /tmp/build-info.txt
 RUN echo "Environment: ${ENVIRONMENT}" >> /tmp/build-info.txt
 CMD cat /tmp/build-info.txt
-"""
-                )
+""")
 
             builder = ContainerBuilder(builder_type=BuilderType.KANIKO, timeout_seconds=600)
 
@@ -215,8 +209,7 @@ CMD cat /tmp/build-info.txt
         with tempfile.TemporaryDirectory() as tmpdir:
             dockerfile_path = os.path.join(tmpdir, "Dockerfile")
             with open(dockerfile_path, "w") as f:
-                f.write(
-                    """# Stage de build
+                f.write("""# Stage de build
 FROM python:3.11-slim AS builder
 
 WORKDIR /app
@@ -234,8 +227,7 @@ COPY --from=builder /tmp/code.py /app/code.py
 RUN ls -la /app/
 
 CMD ["/bin/sh", "-c", "python /app/code.py"]
-"""
-                )
+""")
 
             builder = ContainerBuilder(builder_type=BuilderType.KANIKO, timeout_seconds=600)
 
@@ -264,8 +256,7 @@ CMD ["/bin/sh", "-c", "python /app/code.py"]
         with tempfile.TemporaryDirectory() as tmpdir:
             dockerfile_path = os.path.join(tmpdir, "Dockerfile")
             with open(dockerfile_path, "w") as f:
-                f.write(
-                    """# Stage de build
+                f.write("""# Stage de build
 FROM python:3.11-slim AS builder
 
 RUN echo "Builder stage" > /tmp/stage.txt
@@ -281,8 +272,7 @@ FROM alpine:3.19 AS production
 RUN echo "Production stage" > /tmp/stage.txt
 
 CMD cat /tmp/stage.txt
-"""
-                )
+""")
 
             builder = ContainerBuilder(builder_type=BuilderType.KANIKO, timeout_seconds=600)
 
@@ -314,13 +304,11 @@ CMD cat /tmp/stage.txt
         with tempfile.TemporaryDirectory() as tmpdir:
             dockerfile_path = os.path.join(tmpdir, "Dockerfile")
             with open(dockerfile_path, "w") as f:
-                f.write(
-                    """FROM alpine:3.19
+                f.write("""FROM alpine:3.19
 RUN apk add --no-cache curl
 RUN curl --version
 CMD ["/bin/sh"]
-"""
-                )
+""")
 
             builder = ContainerBuilder(
                 builder_type=BuilderType.KANIKO,
@@ -361,12 +349,10 @@ class TestKanikoBuildMetrics:
         with tempfile.TemporaryDirectory() as tmpdir:
             dockerfile_path = os.path.join(tmpdir, "Dockerfile")
             with open(dockerfile_path, "w") as f:
-                f.write(
-                    """FROM alpine:3.19
+                f.write("""FROM alpine:3.19
 RUN sleep 1
 CMD ["/bin/sh"]
-"""
-                )
+""")
 
             builder = ContainerBuilder(builder_type=BuilderType.KANIKO, timeout_seconds=600)
 
@@ -395,13 +381,11 @@ CMD ["/bin/sh"]
         with tempfile.TemporaryDirectory() as tmpdir:
             dockerfile_path = os.path.join(tmpdir, "Dockerfile")
             with open(dockerfile_path, "w") as f:
-                f.write(
-                    """FROM alpine:3.19
+                f.write("""FROM alpine:3.19
 RUN echo "Test log line 1"
 RUN echo "Test log line 2"
 CMD ["/bin/sh"]
-"""
-                )
+""")
 
             builder = ContainerBuilder(builder_type=BuilderType.KANIKO, timeout_seconds=600)
 

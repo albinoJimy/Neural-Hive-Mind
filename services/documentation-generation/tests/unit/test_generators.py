@@ -19,9 +19,7 @@ def mock_llm_response():
     mock = Mock()
     mock.choices = [Mock()]
     mock.choices[0].message = Mock()
-    mock.choices[
-        0
-    ].message.content = """# Test Project
+    mock.choices[0].message.content = """# Test Project
 
 This is a test project.
 
@@ -77,9 +75,7 @@ async def test_diagram_generator():
     mock_response = Mock()
     mock_response.choices = [Mock()]
     mock_response.choices[0].message = Mock()
-    mock_response.choices[
-        0
-    ].message.content = """sequenceDiagram
+    mock_response.choices[0].message.content = """sequenceDiagram
     participant User
     participant System
     User->>System: Request
@@ -105,9 +101,7 @@ async def test_code_doc_generator():
     mock_response = Mock()
     mock_response.choices = [Mock()]
     mock_response.choices[0].message = Mock()
-    mock_response.choices[
-        0
-    ].message.content = """# Code Documentation
+    mock_response.choices[0].message.content = """# Code Documentation
 
 ## Purpose
 This function calculates the sum of two numbers.

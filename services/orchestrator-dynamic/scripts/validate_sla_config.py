@@ -7,6 +7,7 @@ Valida que:
 2. Valores estão dentro dos limites recomendados
 3. Fórmula está calculando corretamente
 """
+
 import os
 import sys
 

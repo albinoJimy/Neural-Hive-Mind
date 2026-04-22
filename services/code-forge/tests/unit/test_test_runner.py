@@ -25,8 +25,7 @@ class TestTestRunnerExecution:
         from src.services.test_runner import TestRunner
 
         # Configurar mock para retornar código Python válido
-        mock_mongodb_client.get_artifact_content = AsyncMock(
-            return_value='''"""
+        mock_mongodb_client.get_artifact_content = AsyncMock(return_value='''"""
 FastAPI service auto-generated.
 """
 from fastapi import FastAPI
@@ -39,8 +38,7 @@ def health():
 @app.get("/")
 def root():
     return {"message": "Hello World"}
-'''
-        )
+''')
 
         runner = TestRunner(min_coverage=0.8, mongodb_client=mock_mongodb_client)
 

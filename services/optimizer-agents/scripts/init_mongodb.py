@@ -4,6 +4,7 @@ Script para inicializar coleções e índices MongoDB para o Optimizer Agents.
 
 Cria as coleções necessárias e configura índices para performance otimizada.
 """
+
 import asyncio
 import os
 

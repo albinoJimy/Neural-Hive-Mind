@@ -644,8 +644,7 @@ class ConsensusOptimizationServicer(
             # Buscar métricas do ClickHouse se disponível
             if self.clickhouse_client:
                 try:
-                    metrics_data = await self.clickhouse_client.query(
-                        f"""
+                    metrics_data = await self.clickhouse_client.query(f"""
                         SELECT
                             avg(divergence) as avg_divergence,
                             avg(confidence) as avg_confidence,
@@ -658,8 +657,7 @@ class ConsensusOptimizationServicer(
                         FROM consensus_decisions
                         WHERE timestamp >= now() - INTERVAL {time_seconds} SECOND
                         GROUP BY specialist_type
-                        """
-                    )
+                        """)
 
                     if metrics_data:
                         for row in metrics_data:

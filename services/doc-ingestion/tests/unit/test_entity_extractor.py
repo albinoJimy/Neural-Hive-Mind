@@ -14,9 +14,7 @@ def mock_openai_response():
     mock_response = Mock()
     mock_response.choices = [Mock()]
     mock_response.choices[0].message = Mock()
-    mock_response.choices[
-        0
-    ].message.content = """[
+    mock_response.choices[0].message.content = """[
         {
             "type": "functionality",
             "name": "User Authentication",
@@ -105,9 +103,7 @@ async def test_extract_entities_with_low_confidence():
     mock_response = Mock()
     mock_response.choices = [Mock()]
     mock_response.choices[0].message = Mock()
-    mock_response.choices[
-        0
-    ].message.content = """[
+    mock_response.choices[0].message.content = """[
         {
             "type": "functionality",
             "name": "High Confidence",
@@ -141,9 +137,7 @@ async def test_extract_entities_with_context():
     mock_response = Mock()
     mock_response.choices = [Mock()]
     mock_response.choices[0].message = Mock()
-    mock_response.choices[
-        0
-    ].message.content = """[
+    mock_response.choices[0].message.content = """[
         {
             "type": "tech_stack",
             "name": "PostgreSQL",
@@ -173,9 +167,7 @@ async def test_extract_entities_filters_invalid_json():
     mock_response = Mock()
     mock_response.choices = [Mock()]
     mock_response.choices[0].message = Mock()
-    mock_response.choices[
-        0
-    ].message.content = """[
+    mock_response.choices[0].message.content = """[
         {
             "type": "functionality",
             "name": "Valid Entity",
@@ -209,9 +201,7 @@ async def test_extract_entities_with_markdown_response():
     mock_response = Mock()
     mock_response.choices = [Mock()]
     mock_response.choices[0].message = Mock()
-    mock_response.choices[
-        0
-    ].message.content = """```json
+    mock_response.choices[0].message.content = """```json
 [
     {
         "type": "dependency",

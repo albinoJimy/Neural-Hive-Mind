@@ -47,8 +47,7 @@ class ClickHouseClient:
         self.client.command(f"CREATE DATABASE IF NOT EXISTS {self.database}")
 
         # cognitive_plans_history table
-        self.client.command(
-            f"""
+        self.client.command(f"""
             CREATE TABLE IF NOT EXISTS {self.database}.cognitive_plans_history (
                 plan_id String,
                 intent_id String,
@@ -64,12 +63,10 @@ class ClickHouseClient:
             ORDER BY (created_at, plan_id)
             TTL created_at + INTERVAL {self.settings.clickhouse_retention_months} MONTH
             SETTINGS index_granularity = 8192
-        """
-        )
+        """)
 
         # consensus_decisions_history table
-        self.client.command(
-            f"""
+        self.client.command(f"""
             CREATE TABLE IF NOT EXISTS {self.database}.consensus_decisions_history (
                 decision_id String,
                 plan_id String,
@@ -84,12 +81,10 @@ class ClickHouseClient:
             ORDER BY (created_at, decision_id)
             TTL created_at + INTERVAL {self.settings.clickhouse_retention_months} MONTH
             SETTINGS index_granularity = 8192
-        """
-        )
+        """)
 
         # specialist_opinions_history table
-        self.client.command(
-            f"""
+        self.client.command(f"""
             CREATE TABLE IF NOT EXISTS {self.database}.specialist_opinions_history (
                 opinion_id String,
                 specialist_type String,
@@ -104,12 +99,10 @@ class ClickHouseClient:
             ORDER BY (created_at, opinion_id)
             TTL created_at + INTERVAL {self.settings.clickhouse_retention_months} MONTH
             SETTINGS index_granularity = 8192
-        """
-        )
+        """)
 
         # telemetry_events table
-        self.client.command(
-            f"""
+        self.client.command(f"""
             CREATE TABLE IF NOT EXISTS {self.database}.telemetry_events (
                 event_id String,
                 event_type String,
@@ -123,8 +116,7 @@ class ClickHouseClient:
             ORDER BY (timestamp, event_id)
             TTL timestamp + INTERVAL 12 MONTH
             SETTINGS index_granularity = 8192
-        """
-        )
+        """)
 
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10))
     async def insert_cognitive_plan(self, plan: dict) -> bool:

@@ -69,8 +69,7 @@ def setup_python_fastapi(test_dir: Path) -> Path:
     project_dir.mkdir(exist_ok=True)
 
     # main.py
-    (project_dir / "main.py").write_text(
-        """from fastapi import FastAPI
+    (project_dir / "main.py").write_text("""from fastapi import FastAPI
 app = FastAPI()
 
 @app.get("/")
@@ -80,15 +79,12 @@ def read_root():
 @app.get("/health")
 def health():
     return {"status": "healthy"}
-"""
-    )
+""")
 
     # requirements.txt
-    (project_dir / "requirements.txt").write_text(
-        """fastapi==0.104.1
+    (project_dir / "requirements.txt").write_text("""fastapi==0.104.1
 uvicorn==0.24.0
-"""
-    )
+""")
 
     print_success(f"Projeto Python criado em {project_dir}")
     return project_dir
@@ -100,8 +96,7 @@ def setup_nodejs_express(test_dir: Path) -> Path:
     project_dir.mkdir(exist_ok=True)
 
     # package.json
-    (project_dir / "package.json").write_text(
-        """{
+    (project_dir / "package.json").write_text("""{
   "name": "test-express",
   "version": "1.0.0",
   "main": "index.js",
@@ -109,18 +104,15 @@ def setup_nodejs_express(test_dir: Path) -> Path:
     "express": "^4.18.2"
   }
 }
-"""
-    )
+""")
 
     # index.js
-    (project_dir / "index.js").write_text(
-        """const express = require('express');
+    (project_dir / "index.js").write_text("""const express = require('express');
 const app = express();
 app.get('/', (req, res) => res.json({message: 'Hello World'}));
 app.get('/health', (req, res) => res.json({status: 'healthy'}));
 app.listen(3000);
-"""
-    )
+""")
 
     print_success(f"Projeto Node.js criado em {project_dir}")
     return project_dir
@@ -132,8 +124,7 @@ def setup_go_gin(test_dir: Path) -> Path:
     project_dir.mkdir(exist_ok=True)
 
     # main.go
-    (project_dir / "main.go").write_text(
-        """package main
+    (project_dir / "main.go").write_text("""package main
 
 import "github.com/gin-gonic/gin"
 
@@ -147,18 +138,15 @@ func main() {
     })
     r.Run(":8080")
 }
-"""
-    )
+""")
 
     # go.mod
-    (project_dir / "go.mod").write_text(
-        """module test-gin
+    (project_dir / "go.mod").write_text("""module test-gin
 
 go 1.21
 
 require github.com/gin-gonic/gin v1.9.1
-"""
-    )
+""")
 
     print_success(f"Projeto Go criado em {project_dir}")
     return project_dir
@@ -276,8 +264,7 @@ def print_help():
     """Imprime ajuda."""
     print_header("AJUDA - TESTE MANUAL")
 
-    print(
-        f"""
+    print(f"""
 {Colors.BOLD}Fluxo Recomendado:{Colors.END}
 
   1. Execute {Colors.GREEN}'p'{Colors.END} para verificar pré-requisitos
@@ -296,8 +283,7 @@ def print_help():
   - Ambiente de teste: /tmp/codeforge-test/
   - Métricas: metrics/build_metrics.jsonl
   - Logs: Ver logs durante execução dos testes
-    """
-    )
+    """)
 
 
 def run_tc001():

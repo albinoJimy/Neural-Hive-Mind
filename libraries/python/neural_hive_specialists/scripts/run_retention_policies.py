@@ -10,6 +10,7 @@ Uso:
     python run_retention_policies.py --dry-run
     python run_retention_policies.py --policy-name high_risk_extended
 """
+
 import argparse
 import os
 import sys

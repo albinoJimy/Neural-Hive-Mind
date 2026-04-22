@@ -10,6 +10,7 @@ Uso:
     python train_anomaly_detector.py --specialist-type technical
     python train_anomaly_detector.py --contamination 0.05 --validate
 """
+
 import argparse
 import os
 import sys
