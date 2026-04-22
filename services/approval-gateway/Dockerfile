@@ -9,17 +9,25 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Copiar requirements primeiro para cache
-COPY services/approval-gateway/requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+COPY requirements-base.txt ./requirements-base.txt
+COPY services/approval-gateway/requirements.txt ./requirements-service.txt
+# Substituir caminho relativo e instalar
+RUN cat requirements-service.txt | sed 's|-r ../../requirements-base.txt|-r requirements-base.txt|' > requirements.txt && \
+    pip install --no-cache-dir -r requirements.txt
 
 # Copiar código fonte
 COPY services/approval-gateway/src/ ./src/
 
-# Copiar arquivos proto compilados do service-registry
-COPY --chown=appuser:appuser services/service-registry/src/proto/ ./src/proto/
+# Copiar arquivos proto compilados do service-registry para top-level
+# Isso permite imports como "from proto import service_registry_pb2"
+COPY --chown=appuser:appuser services/service-registry/src/proto/ ./proto/
 
 # Criar usuário não-root
 RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
+
+# Configurar PYTHONPATH para permitir imports de src/ e proto/
+ENV PYTHONPATH=/app
+
 USER appuser
 
 # Expor porta
