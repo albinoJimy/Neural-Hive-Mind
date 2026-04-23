@@ -1,0 +1,43 @@
+[tool.poetry]
+name = "neural-hive-context"
+version = "0.1.0"
+description = "Context Layer library for Neural Hive Mind - RichContext, Workflow Classification, PII Detection"
+authors = ["Neural Hive Mind Team"]
+readme = "README.md"
+packages = [
+    { include = "neural_hive_context", from = "src" }
+]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+pydantic = "^2.9.0"
+pydantic-settings = "^2.6.0"
+python-dateutil = "^2.9.0"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.3.0"
+pytest-asyncio = "^0.24.0"
+pytest-cov = "^6.0.0"
+ruff = "^0.8.0"
+black = "^24.10.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W", "UP"]
+ignore = ["E501"]
+
+[tool.black]
+line-length = 100
+target-version = ['py312']
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+pythonpath = ["src"]
