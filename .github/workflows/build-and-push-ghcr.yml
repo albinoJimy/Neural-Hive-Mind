@@ -107,15 +107,23 @@ jobs:
           # Lista completa de servicos
           ALL_SERVICES=(
             "analyst-agents"
+            "approval-gateway"
+            "architect-agent"
             "code-forge"
+            "data-migration"
+            "doc-ingestion"
+            "documentation-generation"
             "execution-ticket-service"
             "explainability-api"
+            "fluxo-g-dashboard"
             "gateway-intencoes"
             "guard-agents"
+            "knowledge-graph-rag"
             "mcp-tool-catalog"
             "memory-layer-api"
             "orchestrator-dynamic"
             "queen-agent"
+            "requirements-engineering"
             "scout-agents"
             "self-healing-engine"
             "service-registry"
@@ -125,6 +133,7 @@ jobs:
             "worker-agents"
             "optimizer-agents"
             "approval-service"
+            "test-generation"
           )
 
           # Mapeamento de dependencias: servicos que usam cada library
