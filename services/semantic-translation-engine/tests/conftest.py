@@ -13,9 +13,12 @@ import logging
 import os
 import uuid
 from collections.abc import Generator
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Any
 from unittest.mock import MagicMock
+
+# UTC compatível com Python 3.10
+UTC = timezone.utc
 
 import pytest
 

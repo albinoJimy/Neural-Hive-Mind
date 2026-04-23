@@ -46,6 +46,16 @@ class ApprovalStatus(StrEnum):
     REJECTED = "rejected"
 
 
+class WorkflowType(StrEnum):
+    """Workflow type classification for routing"""
+
+    ORCHESTRATION = "orchestration"
+    """Workflow de orquestração: aprovação, coordenação, múltiplos especialistas."""
+
+    GENERATION = "generation"
+    """Workflow de geração: criação de conteúdo, código, relatórios."""
+
+
 class TaskNode(BaseModel):
     """Individual task node in the DAG"""
 
@@ -86,6 +96,26 @@ class CognitivePlan(BaseModel):
     correlation_id: str | None = Field(None, description="Correlation ID")
     trace_id: str | None = Field(None, description="OpenTelemetry trace ID")
     span_id: str | None = Field(None, description="OpenTelemetry span ID")
+
+    # Workflow classification fields (Context Layer)
+    workflow_type: WorkflowType = Field(
+        default=WorkflowType.ORCHESTRATION,
+        description="Tipo de workflow a executar (ORCHESTRATION ou GENERATION)"
+    )
+    context_id: str | None = Field(
+        None,
+        description="ID do contexto de decisão para rastreabilidade"
+    )
+    workflow_confidence: float = Field(
+        default=0.5,
+        ge=0.0,
+        le=1.0,
+        description="Confiança da classificação do workflow (0.0 a 1.0)"
+    )
+    workflow_reasoning: str | None = Field(
+        None,
+        description="Explicação da decisão de classificação do workflow"
+    )
 
     # DAG of tasks
     tasks: list[TaskNode] = Field(..., description="List of tasks in the plan")
@@ -188,6 +218,15 @@ class CognitivePlan(BaseModel):
             "correlation_id": self.correlation_id,
             "trace_id": self.trace_id,
             "span_id": self.span_id,
+            # Workflow classification fields (Context Layer)
+            "workflow_type": (
+                self.workflow_type.value
+                if hasattr(self.workflow_type, "value")
+                else self.workflow_type
+            ),
+            "context_id": self.context_id,
+            "workflow_confidence": self.workflow_confidence,
+            "workflow_reasoning": self.workflow_reasoning,
             "tasks": [
                 {
                     "task_id": task.task_id,
