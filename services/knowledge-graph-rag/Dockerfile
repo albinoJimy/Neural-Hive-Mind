@@ -34,5 +34,5 @@ EXPOSE 8016
 # Configure PYTHONPATH to find knowledge_graph_rag package
 ENV PYTHONPATH="/app/src:$PYTHONPATH"
 
-# Run application
-CMD ["uvicorn", "knowledge_graph_rag.main:app", "--host", "0.0.0.0", "--port", "8016"]
+# Run application (main.py is in /app/src/)
+CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8016"]

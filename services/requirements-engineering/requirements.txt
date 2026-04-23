@@ -3,7 +3,7 @@ fastapi==0.104.1
 uvicorn[standard]==0.24.0
 pydantic==2.5.0
 pydantic-settings==2.1.0
-motor==3.3.2
+# motor version from requirements-base.txt (3.7.1)
 redis[hiredis]==5.0.1
 aiokafka==0.9.0
 structlog==23.2.0
