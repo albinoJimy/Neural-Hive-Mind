@@ -19,14 +19,15 @@ RUN cat requirements-service.txt | sed 's|-r ../../requirements-base.txt|-r requ
 # Copiar código fonte
 COPY services/knowledge-graph-rag/src/ ./src/
 
+# Install knowledge_graph_rag as a package to make imports work
+WORKDIR /app/src
+RUN pip install --no-cache-dir -e .
+
 # Copiar arquivos proto compilados do service-registry
 COPY --chown=appuser:appuser services/service-registry/src/proto/ ./src/proto/
 
 # Criar usuário não-root
 RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
-
-# Configure PYTHONPATH to allow imports from src/
-ENV PYTHONPATH="/app/src:$PYTHONPATH"
 
 USER appuser
 
@@ -38,4 +39,5 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:8016/health || exit 1
 
 # Comando de启动
+WORKDIR /app
 CMD ["python", "-m", "uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8016"]
