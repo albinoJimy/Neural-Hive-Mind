@@ -24,6 +24,10 @@ COPY --chown=appuser:appuser services/service-registry/src/proto/ ./src/proto/
 
 # Criar usuário não-root
 RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
+
+# Configure PYTHONPATH to allow imports from src/
+ENV PYTHONPATH="/app/src:$PYTHONPATH"
+
 USER appuser
 
 # Expor porta
