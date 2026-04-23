@@ -9,11 +9,13 @@ RUN apt-get update && apt-get install -y \
     libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements
-COPY services/data-migration/requirements.txt services/data-migration/requirements-dev.txt ./
+# Copy requirements-base.txt first (required by service requirements)
+COPY requirements-base.txt ./requirements-base.txt
+COPY services/data-migration/requirements.txt ./requirements-service.txt
 
-# Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+# Replace relative path and install dependencies
+RUN cat requirements-service.txt | sed 's|-r ../../requirements-base.txt|-r requirements-base.txt|' > requirements.txt && \
+    pip install --no-cache-dir -r requirements.txt
 
 # Copy application
 COPY services/data-migration/src ./src

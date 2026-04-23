@@ -8,9 +8,13 @@ RUN apt-get update && apt-get install -y \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Copiar requirements primeiro para cache
-COPY services/test-generation/requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# Copy requirements-base.txt first (required by service requirements)
+COPY requirements-base.txt ./requirements-base.txt
+COPY services/test-generation/requirements.txt ./requirements-service.txt
+
+# Replace relative path and install dependencies
+RUN cat requirements-service.txt | sed 's|-r ../../requirements-base.txt|-r requirements-base.txt|' > requirements.txt && \
+    pip install --no-cache-dir -r requirements.txt
 
 # Copiar código fonte
 COPY services/test-generation/src/ ./src/

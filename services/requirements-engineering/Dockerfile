@@ -7,11 +7,14 @@ RUN apt-get update && apt-get install -y \
     gcc \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements
-COPY services/requirements-engineering/requirements.txt services/requirements-engineering/requirements-dev.txt ./
+# Copy requirements-base.txt first (required by service requirements)
+COPY requirements-base.txt ./requirements-base.txt
+COPY services/requirements-engineering/requirements.txt ./requirements-service.txt
+COPY services/requirements-engineering/requirements-dev.txt ./requirements-dev.txt
 
-# Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+# Replace relative path and install dependencies
+RUN cat requirements-service.txt | sed 's|-r ../../requirements-base.txt|-r requirements-base.txt|' > requirements.txt && \
+    pip install --no-cache-dir -r requirements.txt
 RUN pip install --no-cache-dir -r requirements-dev.txt
 
 # Copy application
