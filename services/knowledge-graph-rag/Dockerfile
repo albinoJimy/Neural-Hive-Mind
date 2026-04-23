@@ -8,7 +8,7 @@ RUN apt-get update && apt-get install -y \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Criar diretório temporário com permissões corretas
+# Criar diretório temporário com permissões corretas (fix portalocker/qdrant_client)
 RUN mkdir -p /tmp && chmod 1777 /tmp
 
 # Copy requirements-base.txt first (required by service requirements)
