@@ -19,12 +19,8 @@ RUN cat requirements-service.txt | sed 's|-r ../../requirements-base.txt|-r requ
 # Copiar código fonte
 COPY services/knowledge-graph-rag/src/ ./src/
 
-# Install knowledge_graph_rag as a package to make imports work
-WORKDIR /app/src
-RUN pip install --no-cache-dir -e .
-
 # Copiar arquivos proto compilados do service-registry
-COPY --chown=appuser:appuser services/service-registry/src/proto/ ./src/proto/
+COPY services/service-registry/src/proto/ ./src/proto/
 
 # Criar usuário não-root
 RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
@@ -38,6 +34,10 @@ EXPOSE 8016
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:8016/health || exit 1
 
-# Comando de启动
+# Configure PYTHONPATH to find knowledge_graph_rag package
+# The package is at /app/src/knowledge_graph_rag/
+ENV PYTHONPATH="/app/src:/app/src/knowledge_graph_rag:$PYTHONPATH"
+
+# Comando de启动 - run from /app with PYTHONPATH configured
 WORKDIR /app
-CMD ["python", "-m", "uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8016"]
+CMD ["python", "-c", "import sys; sys.path.insert(0, '/app/src'); from knowledge_graph_rag.main import app; import uvicorn; uvicorn.run(app, host='0.0.0.0', port=8016)"]
