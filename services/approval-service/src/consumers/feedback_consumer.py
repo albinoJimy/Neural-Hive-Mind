@@ -9,7 +9,7 @@ import asyncio
 import json
 from collections import deque
 from collections.abc import Awaitable, Callable
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 import structlog
@@ -244,7 +244,7 @@ class FeedbackConsumer:
             try:
                 # Poll com timeout
                 msg: Optional[Message] = self.consumer.poll(timeout=poll_timeout)
-                self._last_poll_time = datetime.now(UTC)
+                self._last_poll_time = datetime.now(timezone.utc)
 
                 if msg is None:
                     await asyncio.sleep(0.1)
@@ -451,7 +451,7 @@ class FeedbackConsumer:
             return False, "Consumer nao inicializado"
 
         if self._last_poll_time:
-            age = (datetime.now(UTC) - self._last_poll_time).total_seconds()
+            age = (datetime.now(timezone.utc) - self._last_poll_time).total_seconds()
             if age > max_poll_age_seconds:
                 return False, f"Ultimo poll ha {age:.1f}s (max: {max_poll_age_seconds}s)"
 

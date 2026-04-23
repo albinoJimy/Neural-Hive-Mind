@@ -5,7 +5,8 @@ Utilitários compartilhados para extração e normalização de features de tick
 para modelos de predição de duração e detecção de anomalias.
 """
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
+UTC = timezone.utc
 
 UTC = UTC  # type: ignore, timedelta
 from typing import Any

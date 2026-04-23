@@ -4,7 +4,8 @@ Testes unitários para PreemptionManager e PreemptionRules.
 Testa regras de preempção e gerenciamento de preempção de tickets.
 """
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
+UTC = timezone.utc
 from unittest.mock import Mock
 
 import pytest

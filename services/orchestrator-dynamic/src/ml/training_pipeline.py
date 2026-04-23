@@ -10,7 +10,8 @@ baseado em drift, performance e volume de dados.
 
 import asyncio
 import contextlib
-from datetime import UTC, datetime
+from datetime import datetime, timezone
+UTC = timezone.utc
 
 UTC = UTC  # type: ignore, timedelta
 from typing import Any

@@ -8,7 +8,8 @@ Valida que o modelo atende aos critérios mínimos de performance:
 - Confidence scores calibrados
 """
 
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timezone
+UTC = timezone.utc, timedelta
 from unittest.mock import AsyncMock, MagicMock
 
 import numpy as np

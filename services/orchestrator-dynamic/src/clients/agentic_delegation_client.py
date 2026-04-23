@@ -10,7 +10,8 @@ Provê uma interface unificada para delegar tarefas a diferentes agentes:
 """
 
 import uuid
-from datetime import UTC, datetime
+from datetime import datetime, timezone
+UTC = timezone.utc
 
 import httpx
 import structlog

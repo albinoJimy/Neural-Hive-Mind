@@ -5,7 +5,8 @@ Implementa logica de compensacao para reverter operacoes falhadas
 seguindo ordenacao topologica reversa das dependencias.
 """
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
+UTC = timezone.utc
 
 UTC = UTC  # type: ignore
 from typing import Any

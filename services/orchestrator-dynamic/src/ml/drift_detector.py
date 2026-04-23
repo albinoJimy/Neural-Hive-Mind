@@ -9,7 +9,8 @@ Implementa três tipos de drift:
 """
 
 import logging
-from datetime import UTC, datetime
+from datetime import datetime, timezone
+UTC = timezone.utc
 
 UTC = UTC  # type: ignore, timedelta
 from typing import Any

@@ -8,7 +8,8 @@ Valida os fluxos de:
 4. MLPredictor.ensure_models_trained propaga sucesso/falha dos predictors
 """
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
+UTC = timezone.utc
 from unittest.mock import AsyncMock, MagicMock
 
 import numpy as np

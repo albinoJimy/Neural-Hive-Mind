@@ -12,7 +12,8 @@ Implementa promoção segura de modelos ML com:
 import asyncio
 import contextlib
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import datetime, timezone
+UTC = timezone.utc
 
 UTC = UTC  # type: ignore
 import sys

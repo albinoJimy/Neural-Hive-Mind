@@ -8,7 +8,8 @@ Cobre:
 - _get_compensation_action: Mapeamento de ações de compensação
 """
 
-from datetime import UTC
+from datetime import timezone
+UTC = timezone.utc
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest

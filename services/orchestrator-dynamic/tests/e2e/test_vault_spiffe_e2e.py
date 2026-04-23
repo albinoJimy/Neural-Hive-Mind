@@ -17,7 +17,8 @@ Ou execute dentro do container test-runner:
 import asyncio
 import os
 import time
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timezone
+UTC = timezone.utc, timedelta
 
 import httpx
 import pytest

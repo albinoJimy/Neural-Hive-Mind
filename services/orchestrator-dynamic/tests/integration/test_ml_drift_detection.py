@@ -10,7 +10,8 @@ Testa detecção de drift em modelos ML incluindo:
 - Status overall (ok/warning/critical)
 """
 
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timezone
+UTC = timezone.utc, timedelta
 from unittest.mock import Mock
 
 import numpy as np

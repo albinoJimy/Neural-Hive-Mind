@@ -7,7 +7,8 @@ intent_id e plan_id para facilitar troubleshooting distribuído.
 
 import logging
 import sys
-from datetime import UTC, datetime
+from datetime import datetime, timezone
+UTC = timezone.utc
 from typing import Any, Optional
 
 import structlog

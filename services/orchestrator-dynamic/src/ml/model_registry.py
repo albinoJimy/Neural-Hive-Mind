@@ -5,7 +5,8 @@ Gerencia ciclo de vida de modelos ML: versionamento, registro, promoção e carr
 """
 
 import asyncio
-from datetime import UTC, datetime
+from datetime import datetime, timezone
+UTC = timezone.utc
 
 UTC = UTC  # type: ignore
 from typing import Any

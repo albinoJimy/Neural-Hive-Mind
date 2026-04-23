@@ -8,7 +8,8 @@ com janela deslizante, e dispara alertas quando drift detectado.
 import asyncio
 import contextlib
 from collections import deque
-from datetime import UTC, datetime
+from datetime import datetime, timezone
+UTC = timezone.utc
 
 UTC = UTC  # type: ignore, timedelta
 import sys

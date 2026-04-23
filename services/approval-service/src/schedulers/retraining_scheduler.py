@@ -6,7 +6,7 @@ Inclui shadow validation e A/B testing antes de deploy.
 """
 
 import asyncio
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from enum import Enum
 from typing import Any, Optional
 
@@ -154,7 +154,7 @@ class RetrainingScheduler:
                     await asyncio.sleep(5)
                     continue
 
-                now = datetime.now(UTC)
+                now = datetime.now(timezone.utc)
 
                 # Verifica se é hora do retreino agendado
                 if self._should_run_scheduled_retrain(now):
@@ -193,7 +193,7 @@ class RetrainingScheduler:
     async def _run_scheduled_retraining(self):
         """Executa retreino agendado."""
         logger.info("iniciando_retreino_agendado", trigger=RetrainingTrigger.SCHEDULED)
-        self._last_schedule_run = datetime.now(UTC)
+        self._last_schedule_run = datetime.now(timezone.utc)
 
         try:
             # Salvar checkpoints dos modelos atuais
@@ -215,7 +215,7 @@ class RetrainingScheduler:
 
     async def _check_and_trigger_drift_retraining(self):
         """Verifica drift e triggera retreino se necessário."""
-        self._last_drift_check = datetime.now(UTC)
+        self._last_drift_check = datetime.now(timezone.utc)
 
         if not self.drift_detector:
             return
@@ -283,13 +283,13 @@ class RetrainingScheduler:
         """
         sample_size = sample_size or self._shadow_validation_sample_size
 
-        validation_id = f"validation_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}"
+        validation_id = f"validation_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}"
 
         result = {
             "validation_id": validation_id,
             "status": ValidationStatus.PENDING,
             "sample_size": sample_size,
-            "started_at": datetime.now(UTC).isoformat(),
+            "started_at": datetime.now(timezone.utc).isoformat(),
         }
 
         self._validation_results[validation_id] = result
@@ -310,7 +310,7 @@ class RetrainingScheduler:
                 "latency_ratio": 1.1,  # 110% do baseline
                 "predictions_match_rate": 0.95,
             }
-            result["completed_at"] = datetime.now(UTC).isoformat()
+            result["completed_at"] = datetime.now(timezone.utc).isoformat()
 
         except Exception as e:
             result["status"] = ValidationStatus.FAILED
@@ -340,7 +340,7 @@ class RetrainingScheduler:
             "triggered": True,
             "trigger_type": RetrainingTrigger.MANUAL,
             "requested_by": requested_by,
-            "timestamp": datetime.now(UTC).isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
     async def run_ab_test(
@@ -362,7 +362,7 @@ class RetrainingScheduler:
         Returns:
             Resultados do A/B test
         """
-        test_id = f"ab_test_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}"
+        test_id = f"ab_test_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}"
 
         logger.info(
             "ab_test_iniciado",
@@ -382,8 +382,8 @@ class RetrainingScheduler:
             "model_a_id": model_a_id,
             "model_b_id": model_b_id,
             "traffic_split": traffic_split,
-            "started_at": datetime.now(UTC).isoformat(),
-            "estimated_end": (datetime.now(UTC) + timedelta(minutes=duration_minutes)).isoformat(),
+            "started_at": datetime.now(timezone.utc).isoformat(),
+            "estimated_end": (datetime.now(timezone.utc) + timedelta(minutes=duration_minutes)).isoformat(),
         }
 
     async def get_scheduler_status(self) -> dict[str, Any]:
@@ -435,7 +435,7 @@ class RetrainingScheduler:
         Args:
             older_than_hours: Idade mínima em horas
         """
-        cutoff = datetime.now(UTC) - timedelta(hours=older_than_hours)
+        cutoff = datetime.now(timezone.utc) - timedelta(hours=older_than_hours)
         to_remove = []
 
         for validation_id, result in self._validation_results.items():

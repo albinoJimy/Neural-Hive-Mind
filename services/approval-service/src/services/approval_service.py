@@ -5,7 +5,7 @@ Camada de servico que coordena operacoes entre API, MongoDB e Kafka.
 """
 
 import asyncio
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 import structlog
@@ -637,7 +637,7 @@ class ApprovalService:
         Raises:
             ValueError: Se plano nao encontrado ou nao esta pendente
         """
-        start_time = datetime.now(UTC)
+        start_time = datetime.now(timezone.utc)
 
         # Busca plano
         approval = await self.mongodb_client.get_approval_by_plan_id(plan_id)
@@ -652,7 +652,7 @@ class ApprovalService:
             plan_id=plan_id,
             decision="approved",
             approved_by=user_id,
-            approved_at=datetime.now(UTC),
+            approved_at=datetime.now(timezone.utc),
             comments=comments,
         )
 
@@ -686,7 +686,7 @@ class ApprovalService:
         await self.response_producer.send_approval_response(response)
 
         # Emite metricas
-        duration = (datetime.now(UTC) - start_time).total_seconds()
+        duration = (datetime.now(timezone.utc) - start_time).total_seconds()
         time_to_decision = (decision.approved_at - approval.requested_at).total_seconds()
 
         self.metrics.increment_approvals_total("approved", approval.risk_band)
@@ -733,7 +733,7 @@ class ApprovalService:
         if not reason or not reason.strip():
             raise ValueError("Motivo da rejeicao e obrigatorio")
 
-        start_time = datetime.now(UTC)
+        start_time = datetime.now(timezone.utc)
 
         # Busca plano
         approval = await self.mongodb_client.get_approval_by_plan_id(plan_id)
@@ -748,7 +748,7 @@ class ApprovalService:
             plan_id=plan_id,
             decision="rejected",
             approved_by=user_id,
-            approved_at=datetime.now(UTC),
+            approved_at=datetime.now(timezone.utc),
             rejection_reason=reason,
             comments=comments,
         )
@@ -771,7 +771,7 @@ class ApprovalService:
         await self.response_producer.send_approval_response(response)
 
         # Emite metricas
-        duration = (datetime.now(UTC) - start_time).total_seconds()
+        duration = (datetime.now(timezone.utc) - start_time).total_seconds()
         time_to_decision = (decision.approved_at - approval.requested_at).total_seconds()
 
         self.metrics.increment_approvals_total("rejected", approval.risk_band)
@@ -819,7 +819,7 @@ class ApprovalService:
         Raises:
             ValueError: Se plano nao encontrado ou nao esta aprovado
         """
-        start_time = datetime.now(UTC)
+        start_time = datetime.now(timezone.utc)
 
         # Busca plano
         approval = await self.mongodb_client.get_approval_by_plan_id(plan_id)
@@ -853,7 +853,7 @@ class ApprovalService:
             intent_id=approval.intent_id,
             decision="approved",
             approved_by=approval.approved_by or user_id,
-            approved_at=approval.approved_at or datetime.now(UTC),
+            approved_at=approval.approved_at or datetime.now(timezone.utc),
             cognitive_plan=approval.cognitive_plan,
         )
 
@@ -867,7 +867,7 @@ class ApprovalService:
             raise
 
         # Emite metricas de sucesso
-        duration = (datetime.now(UTC) - start_time).total_seconds()
+        duration = (datetime.now(timezone.utc) - start_time).total_seconds()
         self.metrics.increment_republish_total("success", force)
         self.metrics.observe_republish_duration(duration)
         self.metrics.increment_api_requests("republish", "200")
@@ -916,7 +916,7 @@ class ApprovalService:
         """
         from src.models.approval import RevertResponse
 
-        start_time = datetime.now(UTC)
+        start_time = datetime.now(timezone.utc)
 
         logger.info(
             "Revertendo aprovacao",
@@ -952,7 +952,7 @@ class ApprovalService:
             comments=comments,
         )
 
-        duration = (datetime.now(UTC) - start_time).total_seconds()
+        duration = (datetime.now(timezone.utc) - start_time).total_seconds()
 
         # Emitir metrica de reversao (se existir)
         if hasattr(self.metrics, "increment_revert_total"):
@@ -974,7 +974,7 @@ class ApprovalService:
             plan_id=plan_id,
             previous_status=previous_status,
             new_status="PENDING",
-            reverted_at=datetime.now(UTC),
+            reverted_at=datetime.now(timezone.utc),
             reverted_by=user_id,
         )
 

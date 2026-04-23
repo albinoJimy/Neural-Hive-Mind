@@ -7,7 +7,8 @@ detectar anomalias e triggerar rollback durante cutover.
 
 import asyncio
 import sys
-from datetime import UTC, datetime
+from datetime import datetime, timezone
+UTC = timezone.utc
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 

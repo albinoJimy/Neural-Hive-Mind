@@ -10,7 +10,8 @@ import asyncio
 import contextlib
 from collections import deque
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import datetime, timezone
+UTC = timezone.utc
 
 UTC = UTC  # type: ignore, timedelta
 from typing import Any

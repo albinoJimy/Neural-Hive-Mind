@@ -8,7 +8,8 @@ Cobertura:
 - Alocação paralela de múltiplos tickets
 """
 
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timezone
+UTC = timezone.utc, timedelta
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 

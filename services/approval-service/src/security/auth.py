@@ -4,7 +4,7 @@ Autenticacao JWT com Keycloak
 Fornece validacao de tokens JWT e verificacao de roles para admin.
 """
 
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from typing import Any, Optional
 
 import jwt
@@ -37,7 +37,7 @@ def get_jwks_client(settings: Settings) -> PyJWKClient:
     """
     global _jwks_client, _jwks_cache_time
 
-    now = datetime.now(UTC)
+    now = datetime.now(timezone.utc)
 
     # Verifica se cache ainda e valido
     if _jwks_client and _jwks_cache_time:

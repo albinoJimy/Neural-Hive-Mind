@@ -5,7 +5,7 @@ Define metricas customizadas para observabilidade do servico de aprovacoes.
 """
 
 import asyncio
-from datetime import UTC
+from datetime import timezone
 
 import structlog
 from prometheus_client import Counter, Gauge, Histogram
@@ -238,7 +238,7 @@ class NeuralHiveMetrics:
                     length=10
                 )
 
-                now = datetime.now(UTC)
+                now = datetime.now(timezone.utc)
                 for item in age_results:
                     risk_band = item["_id"]
                     oldest = item.get("oldest_requested_at")

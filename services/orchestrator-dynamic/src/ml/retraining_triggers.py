@@ -10,7 +10,8 @@ Implementa múltiplos gatilhos:
 
 import asyncio
 from collections.abc import Callable
-from datetime import UTC, datetime
+from datetime import datetime, timezone
+UTC = timezone.utc
 
 UTC = UTC  # type: ignore, timedelta
 import sys

@@ -6,7 +6,8 @@ legado e target, incluindo shadow mode e rollback de emergência.
 """
 
 import sys
-from datetime import UTC
+from datetime import timezone
+UTC = timezone.utc
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
 

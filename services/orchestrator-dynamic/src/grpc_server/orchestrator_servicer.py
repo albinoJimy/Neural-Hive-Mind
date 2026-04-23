@@ -11,7 +11,8 @@ Este servicer recebe comandos estratégicos da Queen Agent para:
 
 import time
 import uuid
-from datetime import UTC, datetime
+from datetime import datetime, timezone
+UTC = timezone.utc
 
 UTC = UTC  # type: ignore
 from typing import TYPE_CHECKING, Any, Optional

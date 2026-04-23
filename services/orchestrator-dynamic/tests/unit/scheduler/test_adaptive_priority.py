@@ -4,7 +4,8 @@ Testes unitários para AdaptivePriorityCalculator.
 Testa cálculo de prioridade adaptativa baseado em histórico.
 """
 
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timezone
+UTC = timezone.utc, timedelta
 
 import pytest
 from src.scheduler.adaptive_priority import AdaptivePriorityCalculator

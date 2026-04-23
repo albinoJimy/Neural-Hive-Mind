@@ -11,7 +11,8 @@ Testa o pipeline end-to-end de treinamento de modelos ML incluindo:
 - Integração com MLPredictor (predict_and_enrich)
 """
 
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timezone
+UTC = timezone.utc, timedelta
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import numpy as np

@@ -23,7 +23,8 @@ Manual (decisão humana):
 import asyncio
 from contextlib import suppress
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import datetime, timezone
+UTC = timezone.utc
 from enum import Enum
 from typing import Any
 

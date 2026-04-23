@@ -5,7 +5,8 @@ Coordena a preempção de tickets de baixa prioridade
 para dar lugar a tickets de alta prioridade.
 """
 
-from datetime import UTC
+from datetime import timezone
+UTC = timezone.utc
 
 UTC = UTC  # type: ignore
 import sys

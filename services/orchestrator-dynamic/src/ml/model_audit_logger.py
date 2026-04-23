@@ -8,7 +8,8 @@ Provides full traceability for compliance, debugging, and operational insights.
 import sys
 import uuid
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import datetime, timezone
+UTC = timezone.utc
 from enum import Enum
 from typing import Any, Optional
 

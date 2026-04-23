@@ -5,7 +5,8 @@ Testa a integração entre RePrioritizer, SLARePrioritizer,
 PreemptionManager e AdaptivePriorityCalculator.
 """
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
+UTC = timezone.utc
 from unittest.mock import Mock
 
 import pytest

@@ -10,7 +10,8 @@ Testa cenários de:
 """
 
 import asyncio
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timezone
+UTC = timezone.utc, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest

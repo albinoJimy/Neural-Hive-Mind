@@ -6,7 +6,8 @@ jitter para evitar thundering herd e logica de retry.
 """
 
 import sys
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timezone
+UTC = timezone.utc, timedelta
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest

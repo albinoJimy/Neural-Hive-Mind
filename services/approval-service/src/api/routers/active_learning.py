@@ -5,7 +5,7 @@ Fornece endpoints para consultar métricas de balanceamento,
 gerenciar fila de casos prioritários e submeter feedbacks.
 """
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 import structlog
@@ -127,7 +127,7 @@ async def get_metrics(http_request: Request, analyzer=Depends(get_balance_analyz
         metrics = await analyzer.calculate_balance_metrics()
 
         # Adicionar timestamp
-        metrics.last_updated = datetime.now(UTC).isoformat()
+        metrics.last_updated = datetime.now(timezone.utc).isoformat()
 
         return MetricsResponse(**metrics.model_dump())
 
@@ -256,7 +256,7 @@ async def submit_feedback(
             queue_id=queue_id,
             feedback_id=feedback_id or "",
             status=result["status"],
-            submitted_at=datetime.now(UTC).isoformat(),
+            submitted_at=datetime.now(timezone.utc).isoformat(),
         )
 
     except HTTPException:

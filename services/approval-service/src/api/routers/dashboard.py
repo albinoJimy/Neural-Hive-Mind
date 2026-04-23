@@ -4,7 +4,7 @@ Dashboard API Endpoints
 Endpoints REST para dashboard de aprovações com métricas e estatísticas.
 """
 
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timezone, timedelta
 
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
@@ -95,7 +95,7 @@ async def get_dashboard_stats(
     logger.info("Obtendo estatísticas do dashboard", user_id=user["user_id"], days=days)
 
     # Calcular data de início
-    start_date = datetime.now(UTC) - timedelta(days=days)
+    start_date = datetime.now(timezone.utc) - timedelta(days=days)
 
     # Buscar estatísticas do MongoDB
     try:
@@ -106,7 +106,7 @@ async def get_dashboard_stats(
         pending_approvals = await service.db.plan_approvals.count_documents({"status": "pending"})
 
         # Aprovações de hoje
-        today_start = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
+        today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
 
         approved_today = await service.db.plan_approvals.count_documents(
             {"status": "approved", "decision_timestamp": {"$gte": today_start}}
@@ -117,7 +117,7 @@ async def get_dashboard_stats(
         )
 
         # Taxa de auto-aprovação (últimos 7 dias)
-        week_start = datetime.now(UTC) - timedelta(days=7)
+        week_start = datetime.now(timezone.utc) - timedelta(days=7)
         total_week = await service.db.plan_approvals.count_documents(
             {"created_at": {"$gte": week_start}}
         )
@@ -173,7 +173,7 @@ async def get_approval_trends(
 
     trends = []
     for i in range(days):
-        date = datetime.now(UTC) - timedelta(days=i)
+        date = datetime.now(timezone.utc) - timedelta(days=i)
         day_start = date.replace(hour=0, minute=0, second=0, microsecond=0)
         day_end = day_start + timedelta(days=1)
 

@@ -6,7 +6,8 @@ e queries especializadas.
 """
 
 import asyncio
-from datetime import UTC, datetime
+from datetime import datetime, timezone
+UTC = timezone.utc
 
 UTC = UTC  # type: ignore
 

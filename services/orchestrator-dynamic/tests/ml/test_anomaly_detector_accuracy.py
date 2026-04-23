@@ -9,7 +9,8 @@ Valida que o modelo atende aos critérios mínimos de performance:
 """
 
 import sys
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timezone
+UTC = timezone.utc, timedelta
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 

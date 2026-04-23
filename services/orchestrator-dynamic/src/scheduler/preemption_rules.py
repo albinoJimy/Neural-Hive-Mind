@@ -5,7 +5,8 @@ Define quando um ticket de alta prioridade pode preemptar
 um ticket de baixa prioridade que está em execução.
 """
 
-from datetime import UTC
+from datetime import timezone
+UTC = timezone.utc
 
 UTC = UTC  # type: ignore
 import sys

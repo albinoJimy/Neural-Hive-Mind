@@ -5,7 +5,8 @@ Testa criação de canal seguro com X.509-SVID, handshake, renovação e fallbac
 """
 
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timezone
+UTC = timezone.utc, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import grpc

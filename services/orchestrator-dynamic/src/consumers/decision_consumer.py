@@ -27,6 +27,7 @@ except ImportError:
     AVRO_AVAILABLE = False
 
 from src.workflows.orchestration_workflow import OrchestrationWorkflow
+from src.workflows.fluxo_g_workflow import FluxoGWorkflow
 
 logger = structlog.get_logger()
 
@@ -138,6 +139,34 @@ def _deserialize_avro_or_json(raw_bytes: bytes, schema_registry_url: str | None 
                 ) from e
 
     raise ValueError("Avro deserialization not available")
+
+
+def _get_workflow_type_from_plan(plan: dict) -> str:
+    """
+    Extrai workflow_type do Cognitive Plan.
+
+    Args:
+        plan: Dicionário do Cognitive Plan
+
+    Returns:
+        "orchestration" (default) ou "generation"
+    """
+    return plan.get("workflow_type", "orchestration")
+
+
+def _select_workflow_class(workflow_type: str):
+    """
+    Seleciona a classe de workflow baseado no tipo.
+
+    Args:
+        workflow_type: "orchestration" ou "generation"
+
+    Returns:
+        OrchestrationWorkflow ou FluxoGWorkflow
+    """
+    if workflow_type == "generation":
+        return FluxoGWorkflow
+    return OrchestrationWorkflow
 
 
 class DecisionConsumer:
@@ -552,21 +581,31 @@ class DecisionConsumer:
                 "is_direct_plan": is_direct_plan,
             }
 
+            # Routing dinâmico baseado no workflow_type do Cognitive Plan
+            workflow_type = _get_workflow_type_from_plan(cognitive_plan_json)
+            workflow_class = _select_workflow_class(workflow_type)
+
             logger.info(
                 "Iniciando workflow Temporal",
                 workflow_id=workflow_id,
                 plan_id=plan_id,
                 is_direct_plan=is_direct_plan,
+                workflow_type=workflow_type,
+                workflow_class=workflow_class.__name__,
             )
 
             await self.temporal_client.start_workflow(
-                OrchestrationWorkflow.run,
+                workflow_class.run,
                 input_data,
                 id=workflow_id,
                 task_queue=self.config.temporal_task_queue,
             )
 
-            logger.info("Workflow Temporal iniciado com sucesso", workflow_id=workflow_id)
+            logger.info(
+                "Workflow Temporal iniciado com sucesso",
+                workflow_id=workflow_id,
+                workflow_type=workflow_type,
+            )
 
             # Commit manual do offset
             await self.consumer.commit()

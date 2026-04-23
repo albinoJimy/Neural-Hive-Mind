@@ -14,7 +14,8 @@ import asyncio
 import os
 import time
 from collections.abc import Generator
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timezone
+UTC = timezone.utc, timedelta
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 

@@ -6,7 +6,8 @@ Testa cenários de sucesso, falhas, cache e fallback de JWT-SVID.
 
 import asyncio
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timezone
+UTC = timezone.utc, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import grpc
