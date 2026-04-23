@@ -23,7 +23,7 @@ sr_path = Path(__file__).parent.parent.parent.parent.parent / "service-registry"
 if str(sr_path) not in sys.path:
     sys.path.insert(0, str(sr_path))
 
-from proto import service_registry_pb2
+from src.proto import service_registry_pb2
 
 settings = get_settings()
 

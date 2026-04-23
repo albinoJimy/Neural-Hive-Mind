@@ -15,7 +15,7 @@ import grpc
 import structlog
 
 # Import proto do service-registry (arquivos locais)
-from proto import service_registry_pb2, service_registry_pb2_grpc
+from src.proto import service_registry_pb2, service_registry_pb2_grpc
 from src.config.settings import get_settings
 
 logger = structlog.get_logger(__name__)

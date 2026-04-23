@@ -24,6 +24,9 @@ RUN cat requirements-service.txt | sed 's|-r ../../requirements-base.txt|-r requ
 # Copy application
 COPY services/documentation-generation/src ./src
 
+# Copy proto files from service-registry
+COPY services/service-registry/src/proto/ ./src/proto/
+
 # Expose port
 EXPOSE 8012
 

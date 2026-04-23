@@ -30,8 +30,8 @@ except ImportError:
         sys.path.insert(0, str(sr_path))
 
     try:
-        from proto import service_registry_pb2
-        from proto import service_registry_pb2_grpc
+        from knowledge_graph_rag.proto import service_registry_pb2
+        from knowledge_graph_rag.proto import service_registry_pb2_grpc
 
         AgentType = service_registry_pb2.AgentType
         ServiceRegistryStub = service_registry_pb2_grpc.ServiceRegistryStub
@@ -95,7 +95,7 @@ class EngineeringServiceRegistryClient:
 
             # Importar e criar stub dinamicamente
             if ServiceRegistryStub is not None:
-                from proto import service_registry_pb2_grpc
+                from knowledge_graph_rag.proto import service_registry_pb2_grpc
 
                 self.stub = service_registry_pb2_grpc.ServiceRegistryStub(self.channel)
             else:
@@ -140,7 +140,7 @@ class EngineeringServiceRegistryClient:
                 return None
 
             # Importar proto dinamicamente
-            from proto import service_registry_pb2
+            from knowledge_graph_rag.proto import service_registry_pb2
 
             # Metadados padrão
             base_metadata = {
@@ -199,7 +199,7 @@ class EngineeringServiceRegistryClient:
             return True
 
         try:
-            from proto import service_registry_pb2
+            from knowledge_graph_rag.proto import service_registry_pb2
 
             request = service_registry_pb2.DeregisterRequest(agent_id=self.agent_id)
             response = await self.stub.Deregister(request)
@@ -235,7 +235,7 @@ class EngineeringServiceRegistryClient:
             return False
 
         try:
-            from proto import service_registry_pb2
+            from knowledge_graph_rag.proto import service_registry_pb2
 
             telemetry = service_registry_pb2.AgentTelemetry(
                 success_rate=metrics.get("success_rate", 1.0) if metrics else 1.0,
