@@ -12,8 +12,14 @@ RUN apt-get update && apt-get install -y \
 COPY requirements-base.txt ./requirements-base.txt
 COPY services/knowledge-graph-rag/requirements.txt ./requirements-service.txt
 
-# Replace relative path and install dependencies
+# Copy local libraries needed by the service
+COPY libraries/neural_hive_integration /tmp/neural_hive_integration
+COPY libraries/python/neural_hive_resilience /tmp/neural_hive_resilience
+
+# Replace relative path and install dependencies including local libraries
 RUN cat requirements-service.txt | sed 's|-r ../../requirements-base.txt|-r requirements-base.txt|' > requirements.txt && \
+    pip install --no-cache-dir /tmp/neural_hive_integration && \
+    pip install --no-cache-dir /tmp/neural_hive_resilience && \
     pip install --no-cache-dir -r requirements.txt
 
 # Copiar código fonte
@@ -22,22 +28,11 @@ COPY services/knowledge-graph-rag/src/ ./src/
 # Copiar arquivos proto compilados do service-registry
 COPY services/service-registry/src/proto/ ./src/proto/
 
-# Criar usuário não-root
-RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
-
-USER appuser
-
 # Expor porta
 EXPOSE 8016
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:8016/health || exit 1
-
 # Configure PYTHONPATH to find knowledge_graph_rag package
-# The package is at /app/src/knowledge_graph_rag/
-ENV PYTHONPATH="/app/src:/app/src/knowledge_graph_rag:$PYTHONPATH"
+ENV PYTHONPATH="/app/src:$PYTHONPATH"
 
-# Comando de启动 - run from /app with PYTHONPATH configured
-WORKDIR /app
-CMD ["python", "-c", "import sys; sys.path.insert(0, '/app/src'); from knowledge_graph_rag.main import app; import uvicorn; uvicorn.run(app, host='0.0.0.0', port=8016)"]
+# Run application
+CMD ["uvicorn", "knowledge_graph_rag.main:app", "--host", "0.0.0.0", "--port", "8016"]
