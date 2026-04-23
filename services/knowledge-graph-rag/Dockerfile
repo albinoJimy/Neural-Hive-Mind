@@ -8,6 +8,9 @@ RUN apt-get update && apt-get install -y \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
+# Criar diretório temporário com permissões corretas
+RUN mkdir -p /tmp && chmod 1777 /tmp
+
 # Copy requirements-base.txt first (required by service requirements)
 COPY requirements-base.txt ./requirements-base.txt
 COPY services/knowledge-graph-rag/requirements.txt ./requirements-service.txt
