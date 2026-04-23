@@ -12,12 +12,9 @@ RUN apt-get update && apt-get install -y \
 COPY requirements-base.txt ./requirements-base.txt
 COPY services/knowledge-graph-rag/requirements.txt ./requirements-service.txt
 
-# Replace relative path and install PyTorch CPU-only first (much faster)
+# Replace relative path and install dependencies
 RUN cat requirements-service.txt | sed 's|-r ../../requirements-base.txt|-r requirements-base.txt|' > requirements.txt && \
-    pip install --no-cache-dir torch==2.1.0 --index-url https://download.pytorch.org/whl/cpu
-
-# Then install remaining dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+    pip install --no-cache-dir -r requirements.txt
 
 # Copiar código fonte
 COPY services/knowledge-graph-rag/src/ ./src/

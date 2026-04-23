@@ -4,7 +4,7 @@ replicaCount: 2
 image:
   repository: ghcr.io/albinojimy/neural-hive-mind/requirements-engineering
   pullPolicy: IfNotPresent
-  tag: "1.0.1"
+  tag: "1.0.0"
 
 imagePullSecrets:
   - name: ghcr-credentials

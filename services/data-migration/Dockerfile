@@ -13,8 +13,13 @@ RUN apt-get update && apt-get install -y \
 COPY requirements-base.txt ./requirements-base.txt
 COPY services/data-migration/requirements.txt ./requirements-service.txt
 
-# Replace relative path and install dependencies
+# Copy neural_hive_integration library (required for service_registry_client)
+COPY libraries/neural_hive_integration /tmp/neural_hive_integration
+COPY libraries/python/neural_hive_resilience /tmp/neural_hive_resilience
+
+# Replace relative path and install dependencies including local libraries
 RUN cat requirements-service.txt | sed 's|-r ../../requirements-base.txt|-r requirements-base.txt|' > requirements.txt && \
+    pip install --no-cache-dir /tmp/neural_hive_integration && \
     pip install --no-cache-dir -r requirements.txt
 
 # Copy application
