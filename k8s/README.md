@@ -22,6 +22,70 @@ k8s/
 | `mlflow` | MLflow e operacoes de ML |
 | `neural-hive-mind` | Aplicacao core |
 | `neural-hive-specialists` | Especialistas |
+| `semantic-translation-engine` | Semantic Translation Engine com Context Layer |
+| `orchestrator-dynamic` | Orchestrator Dynamic com Context Layer |
+| `gateway` | Gateway Intencoes com Context Layer |
+
+## Context Layer Deployment
+
+O Context Layer fornece classificacao de workflow, deteccao de PII e gerenciamento de contexto para decisoes de roteamento.
+
+### Manifests Disponiveis
+
+| Manifest | Descricao |
+|----------|-----------|
+| `context-layer-configmap.yaml` | ConfigMap compartilhado do Context Layer |
+| `semantic-translation-engine-deployment.yaml` | STE com Context Layer (enrich_context, workflow_type) |
+| `orchestrator-dynamic-deployment.yaml` | Orchestrator com Context Layer (routing dinamico C↔G) |
+| `gateway-intencoes-context-layer-deployment.yaml` | Gateway com Context Layer (PII detection) |
+| `context-layer-example-deployment.yaml` | Exemplo de integracao do Context Layer |
+
+### Deploy do Context Layer
+
+```bash
+# 1. Validar manifests
+./k8s/validate-context-layer.sh
+
+# 2. Aplicar todos os manifests do Context Layer
+./k8s/context-layer-deploy.sh
+
+# Ou aplicar individualmente:
+kubectl apply -f k8s/context-layer-configmap.yaml
+kubectl apply -f k8s/semantic-translation-engine-deployment.yaml
+kubectl apply -f k8s/orchestrator-dynamic-deployment.yaml
+kubectl apply -f k8s/gateway-intencoes-context-layer-deployment.yaml
+```
+
+### Verificacao do Deploy
+
+```bash
+# Verificar pods
+kubectl get pods -n semantic-translation-engine
+kubectl get pods -n orchestrator-dynamic
+kubectl get pods -n gateway
+
+# Verificar ConfigMaps
+kubectl get configmap -A | grep context-layer
+
+# Verificar se neural_hive_context foi instalado
+kubectl exec -n semantic-translation-engine deployment/semantic-translation-engine -- python -c "import neural_hive_context; print(neural_hive_context.__version__)"
+```
+
+### Troubleshooting Context Layer
+
+```bash
+# Verificar logs do initContainer
+kubectl logs -n semantic-translation-engine deployment/semantic-translation-engine -c install-neural-hive-context
+
+# Verificar PYTHONPATH
+kubectl exec -n semantic-translation-engine deployment/semantic-translation-engine -- env | grep PYTHONPATH
+
+# Verificar se neural_hive_context foi importado
+kubectl exec -n semantic-translation-engine deployment/semantic-translation-engine -- python -c "from neural_hive_context.services import MultiSignalWorkflowClassifier; print('OK')"
+
+# Verificar eventos do pod
+kubectl get events -n semantic-translation-engine --sort-by='.lastTimestamp'
+```
 
 ## Ordem de Aplicacao
 

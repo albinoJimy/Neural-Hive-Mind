@@ -1,0 +1,290 @@
+# Gateway Intenções - Context Layer Integration
+# Deployment com neural_hive_context para PII detection em tempo real
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: gateway
+  labels:
+    name: gateway
+    neuralhive/layer: application
+    neuralhive/phase: phase3
+---
+# ConfigMap do Gateway com Context Layer
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gateway-config
+  namespace: gateway
+data:
+  KAFKA_BOOTSTRAP_SERVERS: "neural-hive-kafka-kafka-bootstrap.kafka.svc.cluster.local:9092"
+  KAFKA_BROKERS: "neural-hive-kafka-kafka-bootstrap.kafka.svc.cluster.local:9092"
+  KAFKA_TOPIC_INTENTIONS: "intentions.validation"
+  REDIS_HOST: "redis.redis-cluster.svc.cluster.local"
+  REDIS_PORT: "6379"
+  MONGODB_HOST: "mongodb.mongodb-cluster.svc.cluster.local"
+  MONGODB_PORT: "27017"
+  MONGODB_DATABASE: "neural_hive"
+  LOG_LEVEL: "INFO"
+  ENVIRONMENT: "kubernetes"
+  SCHEMA_PATH: "/app/schemas/intent-envelope.avsc"
+
+  # OAuth2/Keycloak - Token Validation
+  TOKEN_VALIDATION_ENABLED: "true"
+  KEYCLOAK_URL: "https://keycloak.neural-hive.local"
+  KEYCLOAK_REALM: "neural-hive"
+  KEYCLOAK_CLIENT_ID: "gateway-intencoes"
+  JWKS_URI: "https://keycloak.neural-hive.local/auth/realms/neural-hive/protocol/openid-connect/certs"
+  SCHEMA_REGISTRY_URL: "http://schema-registry.kafka.svc.cluster.local:8081/apis/ccompat/v6"
+
+  # NLU Settings
+  NLU_CONFIDENCE_THRESHOLD: "0.5"
+  NLU_CONFIDENCE_THRESHOLD_STRICT: "0.75"
+  NLU_ADAPTIVE_THRESHOLD_ENABLED: "true"
+  NLU_RULES_CONFIG_PATH: "/app/config/nlu_rules.yaml"
+
+  # Context Layer - PII Detection
+  GATEWAY_PII_DETECTION_ENABLED: "true"
+  GATEWAY_PII_MASK_IN_LOGS: "true"
+  GATEWAY_PII_STRICT_MODE: "false"
+
+  # Neural Hive Observability Metadata
+  NEURAL_HIVE_SERVICE_NAME: "gateway-intencoes"
+  NEURAL_HIVE_COMPONENT: "gateway"
+  NEURAL_HIVE_LAYER: "experiencia"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: gateway-secrets
+  namespace: gateway
+type: Opaque
+stringData:
+  REDIS_PASSWORD: ""
+  MONGODB_USERNAME: "root"
+  MONGODB_PASSWORD: "local_dev_password"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gateway-intencoes
+  namespace: gateway
+  labels:
+    app: gateway-intencoes
+    component: gateway
+    neuralhive/layer: application
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: gateway-intencoes
+  template:
+    metadata:
+      labels:
+        app: gateway-intencoes
+        component: gateway
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8000"
+        prometheus.io/path: "/metrics"
+    spec:
+      imagePullSecrets:
+      - name: ghcr-secret
+      # Init container para instalar neural_hive_context
+      initContainers:
+      - name: install-neural-hive-context
+        image: python:3.12-slim
+        command:
+          - sh
+          - -c
+          - |
+            pip install --no-cache-dir --target=/app/libs \
+              git+https://github.com/albinojimy/Neural-Hive-Mind.git@main#subdirectory=libs/neural_hive_context
+        volumeMounts:
+        - name: python-libs
+          mountPath: /app/libs
+      containers:
+      - name: gateway
+        image: ghcr.io/albinojimy/neural-hive-mind/gateway-intencoes:1.1.2
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8000
+          name: http
+          protocol: TCP
+        env:
+        # PYTHONPATH para encontrar neural_hive_context
+        - name: PYTHONPATH
+          value: "/app/libs:/usr/local/lib/python3.12/site-packages"
+        envFrom:
+        - configMapRef:
+            name: gateway-config
+        - configMapRef:
+            name: context-layer-config
+        - secretRef:
+            name: gateway-secrets
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 60
+          periodSeconds: 30
+          timeoutSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+        volumeMounts:
+        - name: python-libs
+          mountPath: /app/libs
+          readOnly: true
+      volumes:
+      - name: python-libs
+        emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gateway-intencoes
+  namespace: gateway
+  labels:
+    app: gateway-intencoes
+    component: gateway
+spec:
+  selector:
+    app: gateway-intencoes
+  ports:
+  - name: http
+    port: 8000
+    targetPort: 8000
+    protocol: TCP
+  type: ClusterIP
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: gateway-intencoes-hpa
+  namespace: gateway
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: gateway-intencoes
+  minReplicas: 1
+  maxReplicas: 5
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: gateway-intencoes
+  namespace: gateway
+  labels:
+    app: gateway-intencoes
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      app: gateway-intencoes
+  endpoints:
+  - port: http
+    path: /metrics
+    interval: 30s
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: gateway-network-policy
+  namespace: gateway
+spec:
+  podSelector:
+    matchLabels:
+      app: gateway-intencoes
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  # Permitir acesso externo (Ingress Controller)
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: ingress-nginx
+    ports:
+    - protocol: TCP
+      port: 8000
+  # Permitir scrape do Prometheus
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: observability
+    ports:
+    - protocol: TCP
+      port: 8000
+  egress:
+  # Kafka
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: kafka
+    ports:
+    - protocol: TCP
+      port: 9092
+  # Redis
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: redis-cluster
+    ports:
+    - protocol: TCP
+      port: 6379
+  # MongoDB
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: mongodb-cluster
+    ports:
+    - protocol: TCP
+      port: 27017
+  # Schema Registry
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: kafka
+    ports:
+    - protocol: TCP
+      port: 8081
+  # Keycloak
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: keycloak
+    ports:
+    - protocol: TCP
+      port: 8080
+  # DNS
+  - to:
+    - namespaceSelector: {}
+    ports:
+    - protocol: UDP
+      port: 53
+  # External (para pip install)
+  - to:
+    - podSelector: {}
+    ports:
+    - protocol: TCP
+      port: 443

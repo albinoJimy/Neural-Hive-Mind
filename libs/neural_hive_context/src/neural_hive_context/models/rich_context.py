@@ -12,6 +12,8 @@ class IntentContext(BaseModel):
     """Contexto derivado do intent do usuário."""
 
     raw_text: str = Field(..., description="Texto original do intent")
+    intent_id: Optional[str] = Field(None, description="ID único do intent")
+    user_id: Optional[str] = Field(None, description="ID do usuário")
     intent_type: Optional[str] = Field(None, description="Tipo de intent classificado")
     entities: Dict[str, Any] = Field(default_factory=dict, description="Entidades extraídas")
     semantic_features: Dict[str, float] = Field(
@@ -76,6 +78,8 @@ class SecurityContext(BaseModel):
 class ConversationContext(BaseModel):
     """Histórico conversacional simplificado."""
 
+    conversation_id: Optional[str] = Field(None, description="ID da conversa")
+    user_id: Optional[str] = Field(None, description="ID do usuário")
     turn_count: int = Field(default=0, description="Número de turnos da conversa")
     previous_intents: List[str] = Field(
         default_factory=list,
@@ -84,6 +88,10 @@ class ConversationContext(BaseModel):
     has_repetition: bool = Field(
         default=False,
         description="Se o atual intent é uma repetição"
+    )
+    has_escalation: bool = Field(
+        default=False,
+        description="Se houve escalamento para humano"
     )
 
 

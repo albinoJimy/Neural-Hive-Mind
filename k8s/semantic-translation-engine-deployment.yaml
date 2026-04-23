@@ -1,0 +1,285 @@
+# Semantic Translation Engine - Context Layer Integration
+# Deployment com neural_hive_context para enrich_context e workflow classification
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: semantic-translation-engine
+  labels:
+    name: semantic-translation-engine
+    neuralhive/layer: cognitive
+    neuralhive/phase: phase3
+---
+# ConfigMap específico do STE com Context Layer
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ste-config
+  namespace: semantic-translation-engine
+data:
+  ENVIRONMENT: "kubernetes"
+  LOG_LEVEL: "INFO"
+  SERVICE_NAME: "semantic-translation-engine"
+  SERVICE_VERSION: "1.0.0"
+
+  # Kafka
+  KAFKA_BOOTSTRAP_SERVERS: "neural-hive-kafka-kafka-bootstrap.kafka.svc.cluster.local:9092"
+  KAFKA_CONSUMER_GROUP_ID: "semantic-translation-engine"
+  KAFKA_INTENTIONS_TOPIC: "intentions.validation"
+  KAFKA_TRANSLATED_TOPIC: "intentions.translated"
+  KAFKA_AUTO_OFFSET_RESET: "earliest"
+
+  # MongoDB
+  MONGODB_URI: "mongodb://mongodb.mongodb-cluster.svc.cluster.local:27017"
+  MONGODB_DATABASE: "neural_hive"
+  MONGODB_COLLECTION: "cognitive_plans"
+
+  # Temporal
+  TEMPORAL_HOST: "neural-hive-temporal.temporal.svc.cluster.local"
+  TEMPORAL_PORT: "7233"
+  TEMPORAL_NAMESPACE: "default"
+
+  # Context Layer Settings
+  STE_ENABLE_CONTEXT_ENRICHMENT: "true"
+  STE_CONTEXT_CLASSIFIER_TYPE: "multi_signal"
+  STE_CONTEXT_PII_DETECTION: "true"
+
+  # Observability
+  OTEL_ENDPOINT: "http://opentelemetry-collector.observability.svc.cluster.local:4317"
+  OTEL_TLS_VERIFY: "false"
+  PROMETHEUS_PORT: "8000"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: ste-secrets
+  namespace: semantic-translation-engine
+type: Opaque
+stringData:
+  MONGODB_USERNAME: "root"
+  MONGODB_PASSWORD: "local_dev_password"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: semantic-translation-engine
+  namespace: semantic-translation-engine
+  labels:
+    app: semantic-translation-engine
+    component: translation
+    neuralhive/layer: cognitive
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: semantic-translation-engine
+  template:
+    metadata:
+      labels:
+        app: semantic-translation-engine
+        neuralhive/layer: cognitive
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8000"
+        prometheus.io/path: "/metrics"
+    spec:
+      # Init container para instalar neural_hive_context
+      initContainers:
+      - name: install-neural-hive-context
+        image: python:3.12-slim
+        command:
+          - sh
+          - -c
+          - |
+            pip install --no-cache-dir --target=/app/libs \
+              git+https://github.com/albinojimy/Neural-Hive-Mind.git@main#subdirectory=libs/neural_hive_context
+        volumeMounts:
+        - name: python-libs
+          mountPath: /app/libs
+      containers:
+      - name: semantic-translation-engine
+        image: ghcr.io/albinojimy/neural-hive-mind/semantic-translation-engine:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8001
+          name: http
+          protocol: TCP
+        - containerPort: 8000
+          name: metrics
+          protocol: TCP
+        env:
+        # PYTHONPATH para encontrar neural_hive_context
+        - name: PYTHONPATH
+          value: "/app/libs:/usr/local/lib/python3.12/site-packages"
+        envFrom:
+        - configMapRef:
+            name: ste-config
+        - configMapRef:
+            name: context-layer-config
+        - secretRef:
+            name: ste-secrets
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "200m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8001
+          initialDelaySeconds: 30
+          periodSeconds: 30
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 8001
+          initialDelaySeconds: 20
+          periodSeconds: 10
+        volumeMounts:
+        - name: python-libs
+          mountPath: /app/libs
+          readOnly: true
+      volumes:
+      - name: python-libs
+        emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: semantic-translation-engine
+  namespace: semantic-translation-engine
+  labels:
+    app: semantic-translation-engine
+spec:
+  selector:
+    app: semantic-translation-engine
+  ports:
+  - name: http
+    port: 8001
+    targetPort: 8001
+    protocol: TCP
+  - name: metrics
+    port: 8000
+    targetPort: 8000
+    protocol: TCP
+  type: ClusterIP
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: semantic-translation-engine-hpa
+  namespace: semantic-translation-engine
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: semantic-translation-engine
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: semantic-translation-engine
+  namespace: semantic-translation-engine
+  labels:
+    app: semantic-translation-engine
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      app: semantic-translation-engine
+  endpoints:
+  - port: metrics
+    path: /metrics
+    interval: 30s
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: ste-network-policy
+  namespace: semantic-translation-engine
+spec:
+  podSelector:
+    matchLabels:
+      app: semantic-translation-engine
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  # Permitir acesso do Gateway
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: gateway
+    ports:
+    - protocol: TCP
+      port: 8001
+  # Permitir scrape do Prometheus
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: observability
+    ports:
+    - protocol: TCP
+      port: 8000
+  egress:
+  # Kafka
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: kafka
+    ports:
+    - protocol: TCP
+      port: 9092
+  # MongoDB
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: mongodb-cluster
+    ports:
+    - protocol: TCP
+      port: 27017
+  # Temporal
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: temporal
+    ports:
+    - protocol: TCP
+      port: 7233
+  # OTEL Collector
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: observability
+    ports:
+    - protocol: TCP
+      port: 4317
+  # DNS
+  - to:
+    - namespaceSelector: {}
+    ports:
+    - protocol: UDP
+      port: 53
+  # External (para pip install git+https://...)
+  - to:
+    - podSelector: {}
+    ports:
+    - protocol: TCP
+      port: 443

@@ -1,0 +1,72 @@
+# Context Layer Configuration
+# ConfigMap compartilhado para serviços que usam neural_hive_context
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: context-layer-config
+  namespace: neural-hive-mind
+  labels:
+    app: context-layer
+    component: foundation
+    neuralhive/layer: context
+data:
+  # Context Layer Settings
+  CONTEXT_LAYER_ENABLED: "true"
+  CONTEXT_CACHE_ENABLED: "true"
+  CONTEXT_CACHE_TTL_SECONDS: "300"
+  CONTEXT_CACHE_MAX_SIZE: "1000"
+
+  # Workflow Classifier Settings
+  WORKFLOW_CLASSIFIER_TYPE: "multi_signal"
+  WORKFLOW_CLASSIFIER_THRESHOLD: "0.45"
+  WORKFLOW_CLASSIFIER_SIGNAL_WEIGHTS_SYSTEM: "0.30"
+  WORKFLOW_CLASSIFIER_SIGNAL_WEIGHTS_SERVICES: "0.25"
+  WORKFLOW_CLASSIFIER_SIGNAL_WEIGHTS_PII: "0.20"
+  WORKFLOW_CLASSIFIER_SIGNAL_WEIGHTS_USER_INPUT: "0.25"
+
+  # PII Detector Settings
+  PII_DETECTOR_ENABLED: "true"
+  PII_DETECTOR_MIN_CONFIDENCE: "0.7"
+  PII_DETECTOR_MASK_BY_DEFAULT: "false"
+  PII_DETECTOR_STRICT_MODE: "false"
+  PII_DETECTOR_TYPES_ENABLED: "email,phone,cpf,credit_card,passport,drivers_license,bank_account,address,ssn,ip_address,url"
+
+  # Angolan PII Settings
+  PII_DETECTOR_ANGOLAN_ENABLED: "true"
+  PII_DETECTOR_ANGOLAN_INCLUDE_BRAZILIAN: "true"
+
+  # Active Learning Settings
+  ACTIVE_LEARNING_ENABLED: "true"
+  ACTIVE_LEARNING_MIN_INFORMATION_VALUE: "0.5"
+  ACTIVE_LEARNING_ENQUEUE_RATE: "0.2"
+
+  # System State Client Settings
+  SYSTEM_STATE_CLIENT_ENABLED: "false"
+  SYSTEM_STATE_CLIENT_URL: ""
+
+  # Security Client Settings
+  SECURITY_CLIENT_ENABLED: "false"
+  SECURITY_CLIENT_URL: ""
+---
+# Context Layer Python Package Config
+# Usado para configurar imports e paths
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: neural-hive-context-package-config
+  namespace: neural-hive-mind
+  labels:
+    app: context-layer
+    component: foundation
+data:
+  # Package version and metadata
+  PACKAGE_VERSION: "1.0.0"
+  PACKAGE_NAME: "neural_hive_context"
+
+  # Python path configuration
+  PYTHONPATH: "/app/libs:/usr/local/lib/python3.12/site-packages"
+
+  # Logging configuration for Context Layer
+  CONTEXT_LOG_LEVEL: "INFO"
+  CONTEXT_LOG_FORMAT: "json"
+  CONTEXT_LOG_STRUCTURED: "true"

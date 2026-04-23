@@ -25,6 +25,10 @@ class PIIType(str, Enum):
     URL = "url"
     CUSTOMER_ID = "customer_id"
     USERNAME = "username"
+    # PII Angolanos
+    NIF = "nif"  # Número de Identificação Fiscal (Angola)
+    BI = "bi"  # Bilhete de Identidade (Angola)
+    NUIT = "nuit"  # Número Único de Identificação Tributária (Angola)
 
 
 class PIIRiskLevel(str, Enum):

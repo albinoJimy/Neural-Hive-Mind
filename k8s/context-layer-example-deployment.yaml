@@ -1,0 +1,261 @@
+# Context Layer - Example Deployment for Consumer Services
+# Este é um exemplo de como configurar serviços que usam neural_hive_context
+---
+# Namespace para Context Layer e serviços consumidores
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: neural-hive-mind
+  labels:
+    name: neural-hive-mind
+    neuralhive/layer: foundation
+---
+# ConfigMap para Semantic Translation Engine com Context Layer
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ste-context-layer-config
+  namespace: neural-hive-mind
+data:
+  # Context Layer Settings
+  CONTEXT_LAYER_ENABLED: "true"
+  WORKFLOW_CLASSIFIER_TYPE: "multi_signal"
+  WORKFLOW_CLASSIFIER_THRESHOLD: "0.45"
+
+  # Habilitar enrich_context no STE
+  STE_ENABLE_CONTEXT_ENRICHMENT: "true"
+  STE_CONTEXT_CLASSIFIER_TYPE: "multi_signal"
+  STE_CONTEXT_PII_DETECTION: "true"
+
+  # PII Settings
+  PII_DETECTOR_ENABLED: "true"
+  PII_DETECTOR_TYPES_ENABLED: "email,phone,cpf,credit_card,ssn,ip_address,url"
+  PII_DETECTOR_ANGOLAN_ENABLED: "true"
+---
+# Deployment Example: Semantic Translation Engine com Context Layer
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: semantic-translation-engine-example
+  namespace: neural-hive-mind
+  labels:
+    app: semantic-translation-engine
+    component: translation
+    neuralhive/layer: cognitive
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: semantic-translation-engine
+  template:
+    metadata:
+      labels:
+        app: semantic-translation-engine
+        neuralhive/layer: cognitive
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8001"
+        prometheus.io/path: "/metrics"
+    spec:
+      # Init container para instalar neural_hive_context
+      initContainers:
+      - name: install-neural-hive-context
+        image: python:3.12-slim
+        command:
+          - sh
+          - -c
+          - |
+            pip install --no-cache-dir --target=/app/libs \
+              git+https://github.com/albinojimy/Neural-Hive-Mind.git@main#subdirectory=libs/neural_hive_context
+        volumeMounts:
+        - name: python-libs
+          mountPath: /app/libs
+      containers:
+      - name: semantic-translation-engine
+        image: ghcr.io/albinojimy/neural-hive-mind/semantic-translation-engine:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8001
+          name: http
+          protocol: TCP
+        - containerPort: 8000
+          name: metrics
+          protocol: TCP
+        env:
+        # PYTHONPATH para encontrar neural_hive_context
+        - name: PYTHONPATH
+          value: "/app/libs:/usr/local/lib/python3.12/site-packages"
+        envFrom:
+        - configMapRef:
+            name: context-layer-config
+        - configMapRef:
+            name: ste-context-layer-config
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "200m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8001
+          initialDelaySeconds:30
+          periodSeconds: 30
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 8001
+          initialDelaySeconds: 20
+          periodSeconds: 10
+        volumeMounts:
+        - name: python-libs
+          mountPath: /app/libs
+          readOnly: true
+      volumes:
+      - name: python-libs
+        emptyDir: {}
+---
+# Service para Semantic Translation Engine
+apiVersion: v1
+kind: Service
+metadata:
+  name: semantic-translation-engine
+  namespace: neural-hive-mind
+  labels:
+    app: semantic-translation-engine
+spec:
+  selector:
+    app: semantic-translation-engine
+  ports:
+  - name: http
+    port: 8001
+    targetPort: 8001
+    protocol: TCP
+  - name: metrics
+    port: 8000
+    targetPort: 8000
+    protocol: TCP
+  type: ClusterIP
+---
+# HPA para Semantic Translation Engine
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: semantic-translation-engine-hpa
+  namespace: neural-hive-mind
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: semantic-translation-engine-example
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+---
+# ServiceMonitor para Context Layer Metrics
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: semantic-translation-engine
+  namespace: neural-hive-mind
+  labels:
+    app: semantic-translation-engine
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      app: semantic-translation-engine
+  endpoints:
+  - port: metrics
+    path: /metrics
+    interval: 30s
+---
+# Network Policy para Context Layer Services
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: context-layer-network-policy
+  namespace: neural-hive-mind
+spec:
+  podSelector:
+    matchLabels:
+      neuralhive/layer: cognitive
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  # Permitir acesso do Gateway
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: gateway
+    ports:
+    - protocol: TCP
+      port: 8001
+  # Permitir acesso do Ingress Controller
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: ingress-nginx
+    ports:
+    - protocol: TCP
+      port: 8001
+  # Permitir scrape do Prometheus
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: observability
+    ports:
+    - protocol: TCP
+      port: 8000
+  egress:
+  # Kafka
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: kafka
+    ports:
+    - protocol: TCP
+      port: 9092
+  # MongoDB
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: mongodb-cluster
+    ports:
+    - protocol: TCP
+      port: 27017
+  # OTEL Collector
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: observability
+    ports:
+    - protocol: TCP
+      port: 4317
+  # DNS
+  - to:
+    - namespaceSelector: {}
+    ports:
+    - protocol: UDP
+      port: 53
+  # External (para pip install git+https://...)
+  - to:
+    - podSelector: {}
+    ports:
+    - protocol: TCP
+      port: 443
