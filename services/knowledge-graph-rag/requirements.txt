@@ -3,9 +3,8 @@
 -r ../../requirements-base.txt
 
 # Dependências específicas do serviço
-openai==1.7.2
-anthropic==0.18.0
+# openai e anthropic já estão no requirements-base.txt (versões compatíveis com httpx 0.28.1)
 numpy==1.26.0
 sentence-transformers==2.2.2
-qdrant-client==1.7.0
+qdrant-client==1.12.1
 # hiredis já incluído em redis[hiredis] do requirements-base.txt
