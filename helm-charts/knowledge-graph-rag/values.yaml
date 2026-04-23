@@ -3,7 +3,7 @@ replicaCount: 2
 image:
   repository: ghcr.io/albinojimy/neural-hive-mind/knowledge-graph-rag
   pullPolicy: IfNotPresent
-  tag: "1.0.0"
+  tag: "1.0.1"
 
 imagePullSecrets:
   - name: ghcr-credentials
