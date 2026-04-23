@@ -1,0 +1,10 @@
+# Deploy Service Requirements
+fastapi==0.115.0
+uvicorn[standard]==0.32.1
+pydantic==2.10.4
+pydantic-settings==2.6.1
+structlog==25.2.0
+httpx==0.28.1
+
+# NHM Libraries
+neural-hive-observability==1.0.0
