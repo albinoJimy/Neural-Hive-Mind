@@ -50,7 +50,7 @@ async def main():
     architecture_plan_producer = None
 
     # Verificar se Kafka está habilitado
-    if getattr(settings, "kafka_enabled", True):
+    if settings.kafka.bootstrap_servers != "disabled":
         # Inicializar producer
         architecture_plan_producer = ArchitecturePlanProducer()
         await architecture_plan_producer.start()

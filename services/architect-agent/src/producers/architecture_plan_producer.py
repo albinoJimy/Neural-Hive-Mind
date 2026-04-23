@@ -27,9 +27,7 @@ class ArchitecturePlanProducer:
             topic: Tópico para publicar
         """
         settings = get_settings()
-        self._bootstrap_servers = bootstrap_servers or getattr(
-            settings, "kafka_bootstrap_servers", "localhost:9092"
-        )
+        self._bootstrap_servers = bootstrap_servers or settings.kafka.bootstrap_servers
         self._topic = topic
         self._producer: AIOKafkaProducer | None = None
         self._logger = logger
