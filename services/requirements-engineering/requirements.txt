@@ -1,19 +1,6 @@
 # Requirements Engineering Service Dependencies
-fastapi==0.104.1
-uvicorn[standard]==0.24.0
-pydantic==2.5.0
-pydantic-settings==2.1.0
-# motor version from requirements-base.txt (3.7.1)
-redis[hiredis]==5.0.1
-aiokafka==0.9.0
-structlog==23.2.0
-openai==1.7.2
-anthropic==0.18.0
-python-multipart==0.0.6
+# Usando requirements-base consolidado
+-r ../../requirements-base.txt
 
-# Observabilidade
-opentelemetry-api==1.21.0
-opentelemetry-sdk==1.21.0
-opentelemetry-instrumentation-fastapi==0.42b0
-opentelemetry-instrumentation-httpx==0.42b0
-opentelemetry-exporter-otlp==1.21.0
+# Dependências específicas do serviço (se necessário)
+# openai e anthropic já estão no requirements-base.txt

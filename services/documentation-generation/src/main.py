@@ -46,20 +46,25 @@ async def lifespan(app: FastAPI):
     _readme_generator = ReadmeGenerator()
     _code_doc_generator = CodeDocGenerator()
 
-    # Inicializar Kafka Producer
-    _kafka_producer = DocumentationProducer()
-    await _kafka_producer.start()
+    # Verificar se Kafka está habilitado
+    if settings.kafka.bootstrap_servers != "disabled":
+        # Inicializar Kafka Producer
+        _kafka_producer = DocumentationProducer()
+        await _kafka_producer.start()
 
-    # Inicializar Kafka Consumer
-    _kafka_consumer = ArchitecturePlanConsumer(
-        readme_generator=_readme_generator,
-        code_doc_generator=_code_doc_generator,
-        producer=_kafka_producer,
-    )
-    await _kafka_consumer.start()
+        # Inicializar Kafka Consumer
+        _kafka_consumer = ArchitecturePlanConsumer(
+            readme_generator=_readme_generator,
+            code_doc_generator=_code_doc_generator,
+            producer=_kafka_producer,
+        )
+        await _kafka_consumer.start()
 
-    # Iniciar consumer em background
-    _consumer_task = asyncio.create_task(_kafka_consumer.consume())
+        # Iniciar consumer em background
+        _consumer_task = asyncio.create_task(_kafka_consumer.consume())
+        logger.info("kafka_consumer_enabled")
+    else:
+        logger.info("kafka_consumer_disabled")
 
     # Registrar no Service Registry
     try:

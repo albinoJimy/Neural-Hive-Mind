@@ -6,6 +6,24 @@ from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
+class KafkaSettings(BaseSettings):
+    """Configurações do Kafka."""
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=False,
+        env_prefix="KAFKA_",
+        env_nested_delimiter="__",
+    )
+
+    bootstrap_servers: str = "disabled"
+    consumer_group: str = "documentation-generation-consumers"
+    input_topic: str = "architecture.plans.generated"
+    output_topic: str = "documentation.generated"
+    dlq_topic: str = "documentation.dlq"
+
+
 class Settings(BaseSettings):
     """Configurações centralizadas."""
 
@@ -41,14 +59,8 @@ class Settings(BaseSettings):
     # Redis
     redis_url: str = Field(default="redis://localhost:6379/0", validation_alias="REDIS_URL")
 
-    # Kafka
-    kafka_bootstrap_servers: str = Field(
-        default="localhost:9092", validation_alias="KAFKA_BOOTSTRAP_SERVERS"
-    )
-    kafka_consumer_group: str = "documentation-generation-consumers"
-    kafka_input_topic: str = "architecture.plans.generated"
-    kafka_output_topic: str = "documentation.generated"
-    kafka_dlq_topic: str = "documentation.dlq"
+    # Kafka (aninhado)
+    kafka: KafkaSettings = Field(default_factory=KafkaSettings)
 
     # Neural Hive-Mind Integration
     requirements_engineering_url: str = Field(

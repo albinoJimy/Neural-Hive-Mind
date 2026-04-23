@@ -18,9 +18,9 @@ class DocumentationProducer:
         """Inicializa o producer."""
         settings = get_settings()
         self._producer: AIOKafkaProducer | None = None
-        self._bootstrap_servers = settings.kafka_bootstrap_servers
-        self._output_topic = getattr(settings, "kafka_output_topic", "documentation.generated")
-        self._dlq_topic = getattr(settings, "kafka_dlq_topic", "documentation.dlq")
+        self._bootstrap_servers = settings.kafka.bootstrap_servers
+        self._output_topic = settings.kafka.output_topic
+        self._dlq_topic = settings.kafka.dlq_topic
         self._logger = logger
         self._running = False
 
