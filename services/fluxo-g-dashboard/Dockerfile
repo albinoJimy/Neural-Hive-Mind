@@ -12,7 +12,7 @@ COPY requirements-base.txt ./requirements-base.txt
 COPY services/fluxo-g-dashboard/requirements.txt ./requirements-service.txt
 
 # Copy local libraries needed by the service
-COPY libraries/python/neural_hive_integration /tmp/neural_hive_integration
+COPY libraries/neural_hive_integration /tmp/neural_hive_integration
 COPY libraries/python/neural_hive_resilience /tmp/neural_hive_resilience
 
 # Replace relative path and install dependencies including local libraries

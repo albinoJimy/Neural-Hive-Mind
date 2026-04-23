@@ -21,7 +21,7 @@ COPY services/architect-agent/requirements.txt ./requirements-service.txt
 
 # Copy local libraries needed by the service
 COPY libraries/python/neural_hive_security /tmp/neural_hive_security
-COPY libraries/python/neural_hive_integration /tmp/neural_hive_integration
+COPY libraries/neural_hive_integration /tmp/neural_hive_integration
 COPY libraries/python/neural_hive_resilience /tmp/neural_hive_resilience
 
 # Replace relative path and install dependencies including local libraries
