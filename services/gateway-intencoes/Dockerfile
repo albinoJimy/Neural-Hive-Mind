@@ -40,7 +40,8 @@ WORKDIR /app
 
 # Copiar requirements e instalar dependências Python
 # Modelos ML (Whisper e spaCy) são gerenciados via init containers e volumes persistentes
-COPY services/gateway-intencoes/requirements.txt .
+COPY requirements-base.txt ./requirements-base.txt
+COPY services/gateway-intencoes/requirements.txt ./requirements-service.txt
 
 # Copiar biblioteca interna neural_hive_domain
 COPY libraries/python/neural_hive_domain /tmp/neural_hive_domain
@@ -54,6 +55,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     pip install --no-cache-dir --upgrade pip==24.0 && \
     pip install --no-cache-dir /tmp/neural_hive_domain && \
     pip install --no-cache-dir --force-reinstall /tmp/neural_hive_observability && \
+    cat requirements-service.txt | sed 's|-r ../../requirements-base.txt|-r requirements-base.txt|' > requirements.txt && \
     pip install --no-cache-dir -r requirements.txt && \
     pip install --no-cache-dir --no-deps openai-whisper && \
     rm -rf /tmp/neural_hive_domain /tmp/neural_hive_observability
