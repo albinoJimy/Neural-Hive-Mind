@@ -230,3 +230,77 @@ class TestMetricsInitialization:
                 if "orchestration_mtls_handshake_failures_total" in str(call)
             ]
             assert len(calls) == 1
+
+
+class TestDriftMetrics:
+    """Testes de métricas de drift ML."""
+
+    def test_record_drift_detected_feature_warning(self):
+        """Testa registro de drift detectado com severity warning."""
+        with (
+            patch("observability.metrics.Histogram"),
+            patch("observability.metrics.Counter"),
+            patch("observability.metrics.Gauge"),
+        ):
+            from observability.metrics import OrchestratorMetrics
+
+            metrics = OrchestratorMetrics(service_name="test", component="test")
+
+            mock_labels = MagicMock()
+            metrics.ml_drift_detected_total.labels = MagicMock(return_value=mock_labels)
+
+            metrics.record_drift_detected(
+                model_version="v7",
+                drift_type="feature",
+                feature="complexity",
+                severity="warning",
+            )
+
+            metrics.ml_drift_detected_total.labels.assert_called_once_with(
+                model_version="v7", drift_type="feature", feature="complexity", severity="warning"
+            )
+            mock_labels.inc.assert_called_once()
+
+    def test_record_drift_detected_prediction_critical(self):
+        """Testa registro de drift detectado com severity critical."""
+        with (
+            patch("observability.metrics.Histogram"),
+            patch("observability.metrics.Counter"),
+            patch("observability.metrics.Gauge"),
+        ):
+            from observability.metrics import OrchestratorMetrics
+
+            metrics = OrchestratorMetrics(service_name="test", component="test")
+
+            mock_labels = MagicMock()
+            metrics.ml_drift_detected_total.labels = MagicMock(return_value=mock_labels)
+
+            metrics.record_drift_detected(
+                model_version="v7",
+                drift_type="prediction",
+                feature="duration_ms",
+                severity="critical",
+            )
+
+            metrics.ml_drift_detected_total.labels.assert_called_once_with(
+                model_version="v7", drift_type="prediction", feature="duration_ms", severity="critical"
+            )
+            mock_labels.inc.assert_called_once()
+
+    def test_drift_detected_counter_initialized(self):
+        """Verifica que Counter de drift detectado foi inicializado."""
+        with (
+            patch("observability.metrics.Histogram"),
+            patch("observability.metrics.Counter") as mock_counter,
+            patch("observability.metrics.Gauge"),
+        ):
+            from observability.metrics import OrchestratorMetrics
+
+            metrics = OrchestratorMetrics(service_name="test", component="test")
+
+            calls = [
+                call
+                for call in mock_counter.call_args_list
+                if "ml_drift_detected_total" in str(call)
+            ]
+            assert len(calls) == 1

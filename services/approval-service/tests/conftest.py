@@ -2,6 +2,7 @@
 Configuracao e fixtures compartilhadas para testes do Approval Service
 """
 
+import os
 from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock
 
@@ -15,11 +16,20 @@ from src.models.approval import (
     ApprovalStatus,
     RiskBand,
 )
+from src.models.continuous_feedback import (
+    ContinuousFeedbackRequest,
+    ContinuousFeedbackResponse,
+)
 
 
 @pytest.fixture()
 def mock_settings():
     """Mock Settings object"""
+    # Set required env vars for Settings initialization
+    os.environ.setdefault("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
+    os.environ.setdefault("MONGODB_URI", "mongodb://localhost:27017")
+    os.environ.setdefault("APPROVAL_SERVICE_REQUIRE_AUTH", "false")
+
     settings = MagicMock(spec=Settings)
     settings.environment = "test"
     settings.debug = True
@@ -266,3 +276,48 @@ def sample_opinions():
             "confidence_score": 0.72,
         },
     ]
+
+
+# EPIC 3.3: Continuous Feedback fixtures
+@pytest.fixture()
+def sample_continuous_feedback_request():
+    """ContinuousFeedbackRequest de exemplo para testes"""
+    return ContinuousFeedbackRequest(
+        prediction_id="pred-001",
+        prediction="approve",
+        actual_result="approve",
+        intent_text="Adicionar novo endpoint de autenticacao",
+        plan_id="plan-001",
+        user_id="user-001",
+        confidence=0.85,
+        model_version="v1.0.0",
+    )
+
+
+@pytest.fixture()
+def mock_training_data_producer():
+    """Mock TrainingDataProducer para testes"""
+    producer = MagicMock()
+    producer.initialize = AsyncMock()
+    producer.send_training_data = AsyncMock()
+    producer.flush = AsyncMock()
+    producer.close = AsyncMock()
+    return producer
+
+
+@pytest.fixture()
+def mock_nlp_extractor():
+    """Mock NLPFeatureExtractor para testes"""
+    extractor = MagicMock()
+    extractor.extract_features = MagicMock(
+        return_value={
+            "primary_domain": "security",
+            "domain_security": 0.3,
+            "text_length_chars": 50,
+            "text_length_words": 8,
+            "action_create": 1,
+            "primary_action": "create",
+        }
+    )
+    return extractor
+

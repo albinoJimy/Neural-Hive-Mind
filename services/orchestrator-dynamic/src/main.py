@@ -900,6 +900,11 @@ async def lifespan(app: FastAPI):
                     metrics=OrchestratorMetrics(),
                 )
                 logger.info("Drift Detector inicializado")
+
+                # Integrar drift_detector no DecisionConsumer
+                if app_state.kafka_consumer:
+                    app_state.kafka_consumer.drift_detector = app_state.drift_detector
+                    logger.info("Drift Detector integrado no DecisionConsumer")
             except Exception as e:
                 logger.warning(f"Falha ao inicializar Drift Detector: {e}")
 

@@ -4,9 +4,17 @@ Approval Predictor - Carrega e usa o modelo v6 para predições de aprovação
 Este módulo fornece uma interface para carregar o modelo ML treinado
 e fazer predições sobre aprovação de planos cognitivos.
 
+Suporta dois modos de extração de features:
+1. LEGADO (padrão): Usa regex manuais (backward compatibility)
+2. PROFISSIONAL: Usa FeatureAdapter com NLPFeatureExtractor
+
 Usage:
     from ml_pipelines.inference.approval_predictor import ApprovalPredictor
 
+    # Modo legado (default)
+    predictor = ApprovalPredictor()
+
+    # Modo profissional (requer USE_PROFESSIONAL_FEATURES=true)
     predictor = ApprovalPredictor()
     result = predictor.predict_from_text("Create new user with email verification")
     print(result['decision'])  # approve, reject, review_required
@@ -15,9 +23,13 @@ Usage:
 
 import os
 import pickle
-from typing import Dict, Any, List, Optional
-from pathlib import Path
 import re
+from pathlib import Path
+from typing import Any, Optional
+
+import structlog
+
+logger = structlog.get_logger(__name__)
 
 
 class ApprovalPredictor:
@@ -45,6 +57,30 @@ class ApprovalPredictor:
         self.model = None
         self._load_model()
 
+        # Configurar modo de extração de features
+        self.use_professional_features = (
+            os.getenv("USE_PROFESSIONAL_FEATURES", "false").lower() == "true"
+        )
+        self._feature_adapter = None
+
+        if self.use_professional_features:
+            try:
+                from ml_pipelines.inference.feature_adapter import get_feature_adapter
+
+                self._feature_adapter = get_feature_adapter()
+                logger.info(
+                    "ApprovalPredictor: Usando FeatureAdapter profissional",
+                    mode="professional",
+                )
+            except ImportError as e:
+                logger.warning(
+                    "ApprovalPredictor: FeatureAdapter não disponível, usando regex manuais",
+                    error=str(e),
+                )
+                self.use_professional_features = False
+        else:
+            logger.info("ApprovalPredictor: Usando regex manuais (modo legado)", mode="legacy")
+
     def _load_model(self) -> None:
         """Carrega o modelo do arquivo pickle."""
         if not self.model_path.exists():
@@ -56,9 +92,13 @@ class ApprovalPredictor:
             self.model_data = pickle.load(f)
             self.model = self.model_data["model"]
 
-    def extract_nlp_features(self, text: str) -> Dict[str, float]:
+    def extract_nlp_features(self, text: str) -> dict[str, float]:
         """
         Extrai features NLP do texto da intenção.
+
+        Suporta dois modos:
+        1. PROFISSIONAL (FeatureAdapter): Usa NLPFeatureExtractor
+        2. LEGADO (fallback): Usa regex manuais para backward compatibility
 
         Args:
             text: Texto da intenção
@@ -69,7 +109,44 @@ class ApprovalPredictor:
         if not text:
             return {}
 
-        # Domínios
+        # MODO PROFISSIONAL: Usar FeatureAdapter se disponível
+        if self.use_professional_features and self._feature_adapter:
+            try:
+                return self._feature_adapter.extract_legacy_features(
+                    text=text,
+                    cognitive_plan={},  # Placeholder para compatibilidade futura
+                    specialist_confidence=0.5,  # Default, será overridden pelo caller
+                )
+            except Exception as e:
+                logger.warning(
+                    "FeatureAdapter falhou, usando regex manuais (fallback)",
+                    error=str(e),
+                )
+                # Fallback para regex manuais
+
+        # MODO LEGADO: Regex manuais (backward compatibility)
+        return self._extract_legacy_features(text)
+
+    def _extract_legacy_features(
+        self, text: str, specialist_confidence: float = 0.5
+    ) -> dict[str, float]:
+        """
+        Extrai features usando regex manuais (modo legado).
+
+        Preservado para backward compatibility quando USE_PROFESSIONAL_FEATURES=false
+        ou quando FeatureAdapter não está disponível.
+
+        Args:
+            text: Texto da intenção
+            specialist_confidence: Confiança do especialista (default 0.5)
+
+        Returns:
+            Dicionário com 30 features NLP
+        """
+        # specialist_confidence é a primeira feature
+        features = {"specialist_confidence": specialist_confidence}
+
+        # Domínios (5 regex)
         domain_keywords = {
             "security": r"\b(security|ssl|tls|authentication|authorization|password|login)\b",
             "performance": r"\b(performance|optimize|index|cache|speed|latency|query)\b",
@@ -82,7 +159,7 @@ class ApprovalPredictor:
         for domain, pattern in domain_keywords.items():
             domains[f"domain_{domain}"] = 1.0 if re.search(pattern, text, re.I) else 0.0
 
-        # Ações
+        # Ações (5 regex)
         action_keywords = {
             "create": r"\b(create|add|insert|new|make)\b",
             "update": r"\b(update|modify|change|edit|alter)\b",
@@ -95,31 +172,42 @@ class ApprovalPredictor:
         for action, pattern in action_keywords.items():
             actions[f"action_{action}"] = 1.0 if re.search(pattern, text, re.I) else 0.0
 
-        # Palavras-chave de risco
-        features = {
-            "has_backup": (
-                1.0 if re.search(r"\bbackup|save|preserve|restore\b", text, re.I) else 0.0
-            ),
-            "has_verification": (
-                1.0 if re.search(r"\bverify|validation|check|confirm|test\b", text, re.I) else 0.0
-            ),
-            "has_all": (
-                1.0 if re.search(r"\ball\b.*\b(users|records|data|tables)\b", text, re.I) else 0.0
-            ),
-            # Métricas de texto
-            "text_length_chars": len(text),
-            "text_length_words": len(text.split()),
-            # Risco
-            "risk_high": (
-                1.0 if re.search(r"\b(delete|drop|destroy|remove|disable)\b", text, re.I) else 0.0
-            ),
-            "risk_medium": (
-                1.0 if re.search(r"\b(update|change|modify|alter)\b", text, re.I) else 0.0
-            ),
-            "risk_low": (
-                1.0 if re.search(r"\b(create|add|verify|check|test|backup)\b", text, re.I) else 0.0
-            ),
-        }
+        # Adicionar mais features ao dicionário existente (mantém specialist_confidence)
+        features.update(
+            {
+                # Palavras-chave de risco (3 regex)
+                "has_backup": (
+                    1.0 if re.search(r"\bbackup|save|preserve|restore\b", text, re.I) else 0.0
+                ),
+                "has_verification": (
+                    1.0
+                    if re.search(r"\bverify|validation|check|confirm|test\b", text, re.I)
+                    else 0.0
+                ),
+                "has_all": (
+                    1.0
+                    if re.search(r"\ball\b.*\b(users|records|data|tables)\b", text, re.I)
+                    else 0.0
+                ),
+                # Métricas de texto
+                "text_length_chars": len(text),
+                "text_length_words": len(text.split()),
+                # Risco (3 regex)
+                "risk_high": (
+                    1.0
+                    if re.search(r"\b(delete|drop|destroy|remove|disable)\b", text, re.I)
+                    else 0.0
+                ),
+                "risk_medium": (
+                    1.0 if re.search(r"\b(update|change|modify|alter)\b", text, re.I) else 0.0
+                ),
+                "risk_low": (
+                    1.0
+                    if re.search(r"\b(create|add|verify|check|test|backup)\b", text, re.I)
+                    else 0.0
+                ),
+            }
+        )
 
         # Score de risco simples
         dangerous_keywords = ["delete", "drop", "destroy", "remove", "disable", "without", "all"]
@@ -138,10 +226,10 @@ class ApprovalPredictor:
         for action in ["create", "update", "delete", "read", "deploy"]:
             features[f"primary_action_{action}"] = 1.0 if primary_action == action else 0.0
 
-        # Combinar todas as features
+        # Combinar todas as features (specialist_confidence + domains + actions + features)
         return {**domains, **actions, **features}
 
-    def predict_from_text(self, text: str, specialist_confidence: float = 0.5) -> Dict[str, Any]:
+    def predict_from_text(self, text: str, specialist_confidence: float = 0.5) -> dict[str, Any]:
         """
         Faz predição a partir do texto da intenção.
 
@@ -219,8 +307,8 @@ class ApprovalPredictor:
         }
 
     def predict_from_nlp_features(
-        self, nlp_features: Dict[str, float], specialist_confidence: float = 0.5
-    ) -> Dict[str, Any]:
+        self, nlp_features: dict[str, float], specialist_confidence: float = 0.5
+    ) -> dict[str, Any]:
         """
         Faz predição a partir de features NLP já extraídas.
 
@@ -288,7 +376,7 @@ class ApprovalPredictor:
             "model_version": self.model_data.get("version", "unknown"),
         }
 
-    def get_model_info(self) -> Dict[str, Any]:
+    def get_model_info(self) -> dict[str, Any]:
         """Retorna informações sobre o modelo carregado."""
         if not self.model_data:
             return {}
@@ -299,7 +387,14 @@ class ApprovalPredictor:
             "features": self.model_data.get("features", []),
             "metrics": self.model_data.get("metrics", {}),
             "training_samples": self.model_data.get("training_samples"),
+            "feature_extraction_mode": (
+                "professional" if self.use_professional_features else "legacy"
+            ),
         }
+
+    def is_using_professional_features(self) -> bool:
+        """Retorna True se estiver usando FeatureAdapter profissional."""
+        return self.use_professional_features
 
 
 # Singleton para uso na aplicação

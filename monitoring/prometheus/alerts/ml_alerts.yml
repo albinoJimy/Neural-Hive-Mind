@@ -1,0 +1,160 @@
+# Prometheus Alert Rules for ML Pipeline Monitoring
+# FASE 0 - IA/ML Integration: EPIC 4.4
+# Ref: .agent-os/specs/2026-04-24-ia-ml-integracao-fase0/spec.md
+
+groups:
+  - name: ml_model_health
+    interval: 30s
+    rules:
+      # Alerta: Acurácia do modelo abaixo do threshold crítico
+      # Métrica baseada em approval_service_ml_accuracy (se disponível) ou proxy via approval_rate
+      - alert: MLModelAccuracyLow
+        expr: |
+          # Proxy: taxa de aprovação como indicador de accuracy do modelo
+          sum by (model_name) (rate(approval_service_approvals_total{result="approved"}[5m])) /
+          sum by (model_name) (rate(approval_service_approvals_total[5m])) < 0.8
+        for: 5m
+        labels:
+          severity: warning
+          service: ml-pipeline
+          component: approval-service
+        annotations:
+          summary: "Acurácia do modelo ML {{ $labels.model_name }} abaixo de 80%"
+          description: "A taxa de aprovação do modelo {{ $labels.model_name }} está em {{ $value | humanizePercentage }} por mais de 5 minutos, indicando possível degradação do modelo"
+
+  - name: ml_drift_detection
+    interval: 30s
+    rules:
+      # Alerta: Drift detectado no modelo
+      # Métrica: orchestration_ml_drift_score (Gauge) - valores > 0.5 indicam drift significativo
+      - alert: MLModelDriftDetected
+        expr: |
+          orchestration_ml_drift_score > 0.5
+        for: 2m
+        labels:
+          severity: critical
+          service: ml-pipeline
+          component: drift-detector
+        annotations:
+          summary: "Drift detectado no modelo {{ $labels.model_name }}"
+          description: "Score de drift ({{ $labels.drift_type }}) para feature '{{ $labels.feature }}' está em {{ $value }}, acima do threshold de 0.5 por mais de 2 minutos"
+
+      # Alerta: Status de drift crítico
+      # Métrica: orchestration_ml_drift_status (Gauge: 0=ok, 1=warning, 2=critical)
+      - alert: MLModelDriftStatusCritical
+        expr: |
+          orchestration_ml_drift_status >= 2
+        for: 1m
+        labels:
+          severity: critical
+          service: ml-pipeline
+          component: drift-detector
+        annotations:
+          summary: "Status de drift crítico para modelo {{ $labels.model_name }}"
+          description: "O status de drift para {{ $labels.model_name }} está crítico ({{ $labels.drift_type }}), ação imediata necessária"
+
+      # Alerta: Contagem de drifts detectados acima do normal
+      - alert: MLModelDriftRateHigh
+        expr: |
+          sum by (model_name) (rate(ml_drift_detected_total[5m])) > 0.1
+        for: 10m
+        labels:
+          severity: warning
+          service: ml-pipeline
+          component: drift-detector
+        annotations:
+          summary: "Alta taxa de drifts detectados no modelo {{ $labels.model_name }}"
+          description: "Foram detectados {{ $value }} drifts por minuto nos últimos 10 minutos, acima do baseline normal"
+
+  - name: ml_training_pipeline
+    interval: 30s
+    rules:
+      # Alerta: Falha no job de retrain
+      # Métrica: orchestration_ml_training_jobs_total com label status="failed"
+      - alert: MLRetrainFailed
+        expr: |
+          sum by (model_name, trigger) (rate(orchestration_ml_training_jobs_total{status="failed"}[1m])) > 0
+        for: 1m
+        labels:
+          severity: critical
+          service: ml-pipeline
+          component: training
+        annotations:
+          summary: "Job de retrain falhou para modelo {{ $labels.model_name }}"
+          description: "O job de retrain (trigger: {{ $labels.trigger }}) falhou para o modelo {{ $labels.model_name }}. Verifique os logs de treinamento para detalhes"
+
+      # Alerta: Falha na promoção de modelo
+      # Métrica: orchestration_ml_model_promotion_total com label result="failed"
+      - alert: MLModelPromotionFailed
+        expr: |
+          sum by (model_name) (rate(orchestration_ml_model_promotion_total{result="failed"}[5m])) > 0
+        for: 5m
+        labels:
+          severity: critical
+          service: ml-pipeline
+          component: model-promotion
+        annotations:
+          summary: "Falha na promoção do modelo {{ $labels.model_name }}"
+          description: "A tentativa de promover o modelo {{ $labels.model_name }} de {{ $labels.from_stage }} para {{ $labels.to_stage }} falhou"
+
+      # Alerta: Jobs de treinamento pendentes por muito tempo
+      - alert: MLTrainingJobStuck
+        expr: |
+          sum by (model_name) (orchestration_ml_training_jobs_total{status="running"}) > 0
+        for: 30m
+        labels:
+          severity: warning
+          service: ml-pipeline
+          component: training
+        annotations:
+          summary: "Job de treinamento {{ $labels.model_name }} está rodando há mais de 30 minutos"
+          description: "O job de treinamento pode estar travado. Verifique os recursos e logs do MLflow"
+
+  - name: ml_shadow_mode
+    interval: 60s
+    rules:
+      # Alerta: Baixa taxa de agreement entre modelo de produção e shadow
+      # Métrica: neural_hive_shadow_agreement_rate
+      - alert: MLShadowModeDisagreementHigh
+        expr: |
+          neural_hive_shadow_agreement_rate < 0.7
+        for: 15m
+        labels:
+          severity: warning
+          service: ml-pipeline
+          component: shadow-mode
+        annotations:
+          summary: "Baixa taxa de agreement no modo shadow para {{ $labels.model_name }}"
+          description: "A taxa de agreement ({{ $labels.agreement_type }}) entre produção e shadow é {{ $value | humanizePercentage }}, abaixo de 70%. O novo modelo pode não estar pronto para produção"
+
+      # Alerta: Erros durante comparação shadow
+      # Métrica: neural_hive_shadow_comparison_errors_total
+      - alert: MLShadowComparisonErrors
+        expr: |
+          sum by (model_name) (rate(neural_hive_shadow_comparison_errors_total[5m])) > 0.1
+        for: 10m
+        labels:
+          severity: warning
+          service: ml-pipeline
+          component: shadow-mode
+        annotations:
+          summary: "Erros na comparação shadow para {{ $labels.model_name }}"
+          description: "Foram detectados {{ $value }} erros por segundo durante comparação shadow nos últimos 10 minutos"
+
+  - name: ml_prediction_cache
+    interval: 60s
+    rules:
+      # Alerta: Baixa taxa de cache hit pode indicar problemas
+      # Métrica: orchestration_ml_prediction_cache_hits_total
+      - alert: MLPredictionCacheMissRateHigh
+        expr: |
+          sum by (model_name) (rate(orchestration_ml_prediction_cache_hits_total[5m])) /
+          (sum by (model_name) (rate(orchestration_ml_prediction_cache_hits_total[5m])) + 1) < 0.5
+        for: 15m
+        labels:
+          severity: info
+          service: ml-pipeline
+          component: cache
+        annotations:
+          summary: "Baixa taxa de cache hit para {{ $labels.model_name }}"
+          description: "A taxa de cache hit está abaixo de 50%, o que pode indicar que as features de cache não estão efetivas ou os dados estão muito voláteis"

@@ -791,6 +791,12 @@ class OrchestratorMetrics:
         )
 
         # ML Drift Detection Metrics
+        self.ml_drift_detected_total = Counter(
+            "ml_drift_detected_total",
+            "Total de drifts detectados por tipo e feature",
+            ["model_version", "drift_type", "feature", "severity"],
+        )
+
         self.ml_drift_score = Gauge(
             "orchestration_ml_drift_score",
             "Scores de drift detection (PSI, MAE ratio, K-S statistic)",
@@ -1635,6 +1641,29 @@ class OrchestratorMetrics:
         """
         status_value = {"ok": 0, "warning": 1, "critical": 2}.get(status, 0)
         self.ml_drift_status.labels(model_name=model_name, drift_type=drift_type).set(status_value)
+
+    def record_drift_detected(
+        self,
+        model_version: str,
+        drift_type: str,
+        feature: str,
+        severity: str,
+    ):
+        """
+        Registra detecção de drift.
+
+        Args:
+            model_version: Versão do modelo (ex: 'v7')
+            drift_type: Tipo de drift (feature, prediction, target)
+            feature: Nome da feature (ou 'overall' para drift geral)
+            severity: Severidade (warning, critical)
+        """
+        self.ml_drift_detected_total.labels(
+            model_version=model_version,
+            drift_type=drift_type,
+            feature=feature,
+            severity=severity,
+        ).inc()
 
     # ML Training Job Methods
     def record_training_job(self, status: str, trigger: str = "scheduled"):

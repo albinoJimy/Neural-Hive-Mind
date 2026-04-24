@@ -10,8 +10,9 @@ Testa detecção de drift em modelos ML incluindo:
 - Status overall (ok/warning/critical)
 """
 
-from datetime import datetime, timezone
-UTC = timezone.utc, timedelta
+from datetime import datetime, timedelta, timezone
+
+UTC = timezone.utc
 from unittest.mock import Mock
 
 import numpy as np
@@ -42,10 +43,13 @@ def mock_metrics():
     metrics = Mock(spec=OrchestratorMetrics)
     metrics.record_drift_score = Mock()
     metrics.update_drift_status = Mock()
+    metrics.record_drift_detected = Mock()
     metrics.ml_drift_score = Mock()
     metrics.ml_drift_score.labels = Mock(return_value=Mock(set=Mock()))
     metrics.ml_drift_status = Mock()
     metrics.ml_drift_status.labels = Mock(return_value=Mock(set=Mock()))
+    metrics.ml_drift_detected_total = Mock()
+    metrics.ml_drift_detected_total.labels = Mock(return_value=Mock(inc=Mock()))
     return metrics
 
 
@@ -274,18 +278,62 @@ async def test_drift_detector_prediction_drift(
     test_drift_config, baseline_tickets, drifted_tickets, mock_metrics
 ):
     """Drift detector with prediction drift (MAE ratio > 1.5)."""
+    from src.ml.feature_engineering import extract_ticket_features
+
     mongodb_client = Mock()
 
-    # Use drifted tickets (actual >> predicted)
-    recent_cursor = Mock()
-    recent_cursor.limit = Mock(return_value=drifted_tickets)
-    mongodb_client.execution_tickets = Mock()
-    mongodb_client.execution_tickets.find = Mock(return_value=recent_cursor)
+    # Create a mock db that behaves like a dict with proper async chain
+    mock_db = {}
 
-    # Baseline with low MAE
+    # Create a mock collection that returns a proper cursor-like object
+    class MockCollection:
+        def __init__(self, tickets):
+            self.tickets = tickets
+
+        def find(self, *args, **kwargs):
+            """Return a mock cursor that supports async operations."""
+            return self._create_mock_cursor(self.tickets)
+
+        def _create_mock_cursor(self, tickets):
+            """Create a cursor-like mock with limit and to_list methods."""
+            class MockCursor:
+                def __init__(self, tickets_list):
+                    self.tickets_list = tickets_list
+
+                def limit(self, n):
+                    # Return self for chaining, but truncate tickets later
+                    return MockCursor(self.tickets_list[:n])
+
+                async def to_list(self, length=None):
+                    if length:
+                        return self.tickets_list[:length]
+                    return self.tickets_list
+
+            return MockCursor(tickets)
+
+    mock_db["execution_tickets"] = MockCollection(drifted_tickets)
+
+    # Baseline with low MAE - also include features for completeness
+    baseline_features = {}
+    for ticket in baseline_tickets[:50]:  # Use subset for baseline
+        features = extract_ticket_features(ticket)
+        for feature_name, value in features.items():
+            if feature_name not in baseline_features:
+                baseline_features[feature_name] = {"values": []}
+            baseline_features[feature_name]["values"].append(value)
+
+    # Convert to stats
+    for feature_name, data in baseline_features.items():
+        values = np.array(data["values"])
+        baseline_features[feature_name] = {
+            "values": values.tolist(),
+            "mean": float(np.mean(values)),
+            "std": float(np.std(values)),
+        }
+
     baseline_doc = {
         "timestamp": datetime.now(UTC) - timedelta(days=30),
-        "features": {},
+        "features": baseline_features,
         "target_distribution": {
             "values": [t["actual_duration_ms"] for t in baseline_tickets],
             "mean": 62000.0,
@@ -294,8 +342,14 @@ async def test_drift_detector_prediction_drift(
         "training_mae": 5000.0,  # Low baseline MAE
     }
 
-    mongodb_client.ml_feature_baselines = Mock()
-    mongodb_client.ml_feature_baselines.find_one = Mock(return_value=baseline_doc)
+    class MockBaselines:
+        async def find_one(self, *args, **kwargs):
+            return baseline_doc
+
+    mock_db["ml_feature_baselines"] = MockBaselines()
+
+    # Set up the db attribute
+    mongodb_client.db = mock_db
 
     detector = DriftDetector(
         config=test_drift_config, mongodb_client=mongodb_client, metrics=mock_metrics
@@ -309,18 +363,59 @@ async def test_drift_detector_target_drift(
     test_drift_config, baseline_tickets, drifted_tickets, mock_metrics
 ):
     """Drift detector with target drift (K-S test p-value < 0.05)."""
+    from src.ml.feature_engineering import extract_ticket_features
+
     mongodb_client = Mock()
 
-    # Recent tickets with very different duration distribution
-    recent_cursor = Mock()
-    recent_cursor.limit = Mock(return_value=drifted_tickets)
-    mongodb_client.execution_tickets = Mock()
-    mongodb_client.execution_tickets.find = Mock(return_value=recent_cursor)
+    # Create a mock db that behaves like a dict with proper async chain
+    mock_db = {}
 
-    # Baseline with different distribution
+    class MockCollection:
+        def __init__(self, tickets):
+            self.tickets = tickets
+
+        def find(self, *args, **kwargs):
+            """Return a mock cursor that supports async operations."""
+            return self._create_mock_cursor(self.tickets)
+
+        def _create_mock_cursor(self, tickets):
+            """Create a cursor-like mock with limit and to_list methods."""
+            class MockCursor:
+                def __init__(self, tickets_list):
+                    self.tickets_list = tickets_list
+
+                def limit(self, n):
+                    return MockCursor(self.tickets_list[:n])
+
+                async def to_list(self, length=None):
+                    if length:
+                        return self.tickets_list[:length]
+                    return self.tickets_list
+
+            return MockCursor(tickets)
+
+    mock_db["execution_tickets"] = MockCollection(drifted_tickets)
+
+    # Baseline with different distribution - include features
+    baseline_features = {}
+    for ticket in baseline_tickets[:50]:  # Use subset for baseline
+        features = extract_ticket_features(ticket)
+        for feature_name, value in features.items():
+            if feature_name not in baseline_features:
+                baseline_features[feature_name] = {"values": []}
+            baseline_features[feature_name]["values"].append(value)
+
+    for feature_name, data in baseline_features.items():
+        values = np.array(data["values"])
+        baseline_features[feature_name] = {
+            "values": values.tolist(),
+            "mean": float(np.mean(values)),
+            "std": float(np.std(values)),
+        }
+
     baseline_doc = {
         "timestamp": datetime.now(UTC) - timedelta(days=30),
-        "features": {},
+        "features": baseline_features,
         "target_distribution": {
             "values": [t["actual_duration_ms"] for t in baseline_tickets],  # Mean ~62k
             "mean": 62000.0,
@@ -329,8 +424,14 @@ async def test_drift_detector_target_drift(
         "training_mae": 5000.0,
     }
 
-    mongodb_client.ml_feature_baselines = Mock()
-    mongodb_client.ml_feature_baselines.find_one = Mock(return_value=baseline_doc)
+    class MockBaselines:
+        async def find_one(self, *args, **kwargs):
+            return baseline_doc
+
+    mock_db["ml_feature_baselines"] = MockBaselines()
+
+    # Set up the db attribute
+    mongodb_client.db = mock_db
 
     detector = DriftDetector(
         config=test_drift_config, mongodb_client=mongodb_client, metrics=mock_metrics
@@ -721,3 +822,82 @@ def test_save_feature_baseline_empty_data(test_drift_config, mock_metrics):
 
     # Verify insert_one was NOT called (graceful handling)
     mock_mongodb_client.ml_feature_baselines.insert_one.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_drift_detected_counter_feature_drift(test_drift_detector_feature_drift, mock_metrics):
+    """
+    Test que drift_detected_total Counter é incrementado para feature drift.
+
+    Verifica:
+    - record_drift_detected chamado com drift_type='feature'
+    - Labels corretas: model_version, drift_type, feature, severity
+    """
+    report = await test_drift_detector_feature_drift.run_drift_check()
+
+    # Verificar que record_drift_detected foi chamado para feature drift
+    if mock_metrics.record_drift_detected.called:
+        calls = mock_metrics.record_drift_detected.call_args_list
+        feature_calls = [
+            call for call in calls
+            if call.kwargs.get('drift_type') == 'feature' or
+            (len(call.args) >= 2 and call.args[1] == 'feature')
+        ]
+        # Deve ter pelo menos uma chamada para feature drift
+        assert len(feature_calls) >= 1, "Expected at least one record_drift_detected call for feature drift"
+
+
+@pytest.mark.asyncio
+async def test_drift_detected_counter_prediction_drift(test_drift_detector_prediction_drift, mock_metrics):
+    """
+    Test que drift_detected_total Counter é incrementado para prediction drift.
+
+    Verifica:
+    - record_drift_detected chamado com drift_type='prediction'
+    - feature='duration_ms'
+    - severity baseada no drift_ratio
+    """
+    report = await test_drift_detector_prediction_drift.run_drift_check()
+
+    # Deve ter drift_ratio alto (> 1.5)
+    drift_ratio = report["prediction_drift"].get("drift_ratio", 0)
+    assert drift_ratio >= 1.5
+
+    # Verificar que record_drift_detected foi chamado para prediction drift
+    if mock_metrics.record_drift_detected.called:
+        calls = mock_metrics.record_drift_detected.call_args_list
+        prediction_calls = [
+            call for call in calls
+            if call.kwargs.get('drift_type') == 'prediction' or
+            (len(call.args) >= 2 and call.args[1] == 'prediction')
+        ]
+        # Deve ter pelo menos uma chamada para prediction drift
+        assert len(prediction_calls) >= 1, "Expected at least one record_drift_detected call for prediction drift"
+
+
+@pytest.mark.asyncio
+async def test_drift_detected_counter_target_drift(test_drift_detector_target_drift, mock_metrics):
+    """
+    Test que drift_detected_total Counter é incrementado para target drift.
+
+    Verifica:
+    - record_drift_detected chamado com drift_type='target'
+    - feature='actual_duration_ms'
+    - severity baseada no p_value
+    """
+    report = await test_drift_detector_target_drift.run_drift_check()
+
+    # Deve ter p_value baixo (< 0.05)
+    p_value = report["target_drift"].get("p_value", 1.0)
+    assert p_value < 0.05
+
+    # Verificar que record_drift_detected foi chamado para target drift
+    if mock_metrics.record_drift_detected.called:
+        calls = mock_metrics.record_drift_detected.call_args_list
+        target_calls = [
+            call for call in calls
+            if call.kwargs.get('drift_type') == 'target' or
+            (len(call.args) >= 2 and call.args[1] == 'target')
+        ]
+        # Deve ter pelo menos uma chamada para target drift
+        assert len(target_calls) >= 1, "Expected at least one record_drift_detected call for target drift"

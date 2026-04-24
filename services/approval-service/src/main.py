@@ -16,7 +16,13 @@ from fastapi.middleware.cors import CORSMiddleware
 # SEC-001: Security Headers
 from neural_hive_security import SecurityHeadersMiddleware
 from src.adapters.feedback_config_adapter import create_feedback_collector_config
-from src.api.routers import active_learning, approvals, dashboard, health
+from src.api.routers import (
+    active_learning,
+    approvals,
+    continuous_feedback,
+    dashboard,
+    health,
+)
 from src.clients.cognitive_ledger_client import CognitiveLedgerClient
 from src.clients.feature_store_client import FeatureStoreClient
 from src.clients.mongodb_client import MongoDBClient
@@ -32,7 +38,9 @@ try:
 except ImportError:
     HAS_OBSERVABILITY = False
 from src.producers.approval_response_producer import ApprovalResponseProducer
+from src.producers.training_data_producer import TrainingDataProducer
 from src.services.approval_service import ApprovalService
+from src.services.continuous_feedback_service import ContinuousFeedbackService
 from src.services.ml_predictor_service import get_ml_predictor_service
 
 # Import opcional - pode nao estar disponivel em todos os ambientes
@@ -278,6 +286,12 @@ async def lifespan(app: FastAPI):
         await response_producer.initialize()
         state["producer"] = response_producer
 
+        # EPIC 3.3: Inicializa Training Data Producer para continuous feedback
+        logger.info("Inicializando Training Data Producer (continuous feedback)...")
+        training_data_producer = TrainingDataProducer(settings)
+        await training_data_producer.initialize()
+        state["training_data_producer"] = training_data_producer
+
         # Inicializa Kafka consumer
         logger.info("Inicializando Kafka consumer...")
         request_consumer = ApprovalRequestConsumer(settings)
@@ -314,6 +328,18 @@ async def lifespan(app: FastAPI):
         approvals.set_approval_service(approval_service)
         health.set_app_state(state)
 
+        # EPIC 3.3: Inicializa Continuous Feedback Service
+        logger.info("Inicializando Continuous Feedback Service...")
+        continuous_feedback_service = ContinuousFeedbackService(
+            settings=settings,
+            mongodb_client=mongodb_client,
+            training_data_producer=training_data_producer,
+        )
+        await continuous_feedback_service.initialize()
+        state["continuous_feedback_service"] = continuous_feedback_service
+        continuous_feedback.set_continuous_feedback_service(continuous_feedback_service)
+        logger.info("Continuous Feedback Service inicializado")
+
         # Configurar Active Learning no app.state para router
         app.state.balance_analyzer = balance_analyzer
         app.state.feedback_queue = priority_queue
@@ -349,6 +375,10 @@ async def lifespan(app: FastAPI):
 
         if "producer" in state:
             await state["producer"].close()
+
+        # EPIC 3.3: Fecha Training Data Producer
+        if "training_data_producer" in state:
+            await state["training_data_producer"].close()
 
         if "mongodb" in state:
             await state["mongodb"].close()
@@ -395,6 +425,7 @@ app.include_router(health.router)
 app.include_router(approvals.router)
 app.include_router(active_learning.router)
 app.include_router(dashboard.router)
+app.include_router(continuous_feedback.router)  # EPIC 3.3
 
 
 if __name__ == "__main__":

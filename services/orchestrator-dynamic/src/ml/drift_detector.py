@@ -9,10 +9,9 @@ Implementa três tipos de drift:
 """
 
 import logging
-from datetime import datetime, timezone
-UTC = timezone.utc
+from datetime import datetime, timedelta, timezone
 
-UTC = UTC  # type: ignore, timedelta
+UTC = timezone.utc
 from typing import Any
 
 import numpy as np
@@ -184,6 +183,16 @@ class DriftDetector:
                                 extra={"psi_score": psi, "threshold": self.psi_threshold},
                             )
 
+                            # Registrar contador de drift detectado
+                            severity = "warning" if psi < 0.5 else "critical"
+                            if self.metrics:
+                                self.metrics.record_drift_detected(
+                                    model_version="v7",
+                                    drift_type="feature",
+                                    feature=feature_name,
+                                    severity=severity,
+                                )
+
                 except Exception as e:
                     logger.exception(f"Error calculating PSI for feature {feature_name}: {e}")
 
@@ -281,6 +290,16 @@ class DriftDetector:
                                 "threshold": self.mae_ratio_threshold,
                             },
                         )
+
+                        # Registrar contador de drift detectado
+                        severity = "critical" if drift_ratio > 2.0 else "warning"
+                        if self.metrics:
+                            self.metrics.record_drift_detected(
+                                model_version="v7",
+                                drift_type="prediction",
+                                feature="duration_ms",
+                                severity=severity,
+                            )
 
             return mae_results
 
@@ -395,6 +414,16 @@ class DriftDetector:
                         "mean_shift_pct": mean_shift_pct,
                     },
                 )
+
+                # Registrar contador de drift detectado
+                severity = "critical" if p_value < 0.01 else "warning"
+                if self.metrics:
+                    self.metrics.record_drift_detected(
+                        model_version="v7",
+                        drift_type="target",
+                        feature="actual_duration_ms",
+                        severity=severity,
+                    )
 
             return result
 
