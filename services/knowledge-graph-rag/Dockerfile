@@ -36,6 +36,13 @@ EXPOSE 8016
 
 # Configure PYTHONPATH to find knowledge_graph_rag package
 ENV PYTHONPATH="/app/src:$PYTHONPATH"
+ENV TMPDIR="/app/tmp"
 
-# Run application (main.py is in /app/src/)
+# Create entrypoint script to ensure /tmp exists at runtime
+RUN echo '#!/bin/bash\n\
+mkdir -p /tmp /app/tmp\n\
+chmod 1777 /tmp /app/tmp\n\
+exec "$@"' > /entrypoint.sh && chmod +x /entrypoint.sh
+
+ENTRYPOINT ["/entrypoint.sh"]
 CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8016"]
