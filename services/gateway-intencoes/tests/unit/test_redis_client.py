@@ -484,7 +484,6 @@ async def test_initialization_with_settings(monkeypatch):
             assert call_kwargs["max_connections_per_node"] == 100 // 3
             assert call_kwargs["socket_timeout"] == 5.0
             assert call_kwargs["decode_responses"] is True
-            assert call_kwargs["skip_full_coverage_check"] is False
 
 
 @pytest.mark.asyncio()

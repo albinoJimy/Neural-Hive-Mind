@@ -211,7 +211,6 @@ class RedisClient:
                         decode_responses=True,
                         health_check_interval=30,
                         full_coverage=True,  # Assegura cobertura completa de slots do cluster
-                        skip_full_coverage_check=False,  # Verifica cobertura ao inicializar
                         max_connections=self.settings.redis_connection_pool_max_connections,
                     )
 

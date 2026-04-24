@@ -31,7 +31,6 @@ class RedisClient:
                     password=self.settings.redis_password if self.settings.redis_password else None,
                     ssl=self.settings.redis_ssl_enabled,
                     decode_responses=True,
-                    skip_full_coverage_check=True,
                     max_connections=50,
                 )
 
