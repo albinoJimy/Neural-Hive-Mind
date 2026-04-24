@@ -27,7 +27,8 @@ class RedisClient:
                         cluster_nodes.append({"host": host, "port": int(port)})
 
                 self.client = RedisCluster(
-                    cluster_nodes,
+                    host=cluster_nodes[0]["host"],
+                    port=cluster_nodes[0]["port"],
                     password=self.settings.redis_password if self.settings.redis_password else None,
                     ssl=self.settings.redis_ssl_enabled,
                     decode_responses=True,
