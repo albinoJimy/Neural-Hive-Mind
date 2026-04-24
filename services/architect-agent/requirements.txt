@@ -2,7 +2,12 @@
 # Nota: No contexto Docker build, requirements-base.txt está no mesmo diretório
 -r ../../requirements-base.txt
 
+# neural_hive_llm - Biblioteca centralizada de LLM clients
+../../libs/neural_hive_llm
+
 # Service-specific dependencies
+# openai e anthropic agora são geridos por neural_hive_llm
+# mas mantemos aqui para outros usos diretos (se necessário)
 openai==1.10.0; python_version >= "3.12"
 anthropic==0.18.0; python_version >= "3.12"
 

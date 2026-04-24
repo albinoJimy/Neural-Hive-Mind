@@ -1,4 +1,7 @@
 # Dependências base consolidadas para Neural-Hive-Mind
 -r ../../requirements-base.txt
 
+# neural_hive_llm - Biblioteca centralizada de LLM clients
+../../libs/neural_hive_llm
+
 # Service-specific dependencies (a serem adicionadas manualmente)

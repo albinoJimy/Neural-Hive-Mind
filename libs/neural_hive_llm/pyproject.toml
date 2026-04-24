@@ -1,0 +1,95 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "neural-hive-llm"
+version = "0.1.0"
+description = "Biblioteca centralizada de LLM clients para Neural Hive Mind"
+readme = "README.md"
+authors = [
+    {name = "Neural Hive Mind Team", email = "dev@neuralhive.ai"}
+]
+license = {text = "MIT"}
+requires-python = ">=3.10"
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+keywords = ["llm", "openai", "anthropic", "ollama", "ai", "neural-hive"]
+
+dependencies = [
+    "httpx>=0.25.0",
+    "tenacity>=8.2.0",
+    "pydantic>=2.0.0",
+    "pydantic-settings>=2.0.0",
+    "structlog>=23.1.0",
+    "prometheus-client>=0.17.0",
+    "opentelemetry-api>=1.21.0",
+    # Optional dependencies - só instalados se explicitamente necessários
+    "openai>=1.40.0; extra == 'openai'",
+    "anthropic>=0.40.0; extra == 'anthropic'",
+]
+
+[project.optional-dependencies]
+openai = ["openai>=1.40.0"]
+anthropic = ["anthropic>=0.40.0"]
+all = [
+    "neural-hive-llm[openai,anthropic]",
+]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-asyncio>=0.21.0",
+    "pytest-mock>=3.11.0",
+    "pytest-cov>=4.1.0",
+    "ruff>=0.8.0",
+    "black>=23.7.0",
+    "mypy>=1.4.0",
+    "types-requests",
+]
+
+[project.urls]
+Homepage = "https://github.com/albinoJimy/Neural-Hive-Mind"
+Documentation = "https://github.com/albinoJimy/Neural-Hive-Mind/tree/main/libs/neural_hive_llm"
+Repository = "https://github.com/albinoJimy/Neural-Hive-Mind.git"
+
+[tool.setuptools.packages.find]
+where = ["."]
+
+[tool.black]
+line-length = 100
+target-version = ["py310", "py311", "py312"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W", "UP", "B", "C4"]
+ignore = ["E501"]
+
+[tool.mypy]
+python_version = "3.12"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false
+check_untyped_defs = true
+
+[[tool.mypy.overrides]]
+module = ["openai.*", "anthropic.*"]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+pythonpath = ["."]
+markers = [
+    "unit: marks tests as unit tests",
+    "integration: marks tests as integration tests",
+    "slow: marks tests as slow",
+]
