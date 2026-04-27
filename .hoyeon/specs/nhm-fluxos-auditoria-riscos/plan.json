@@ -42,7 +42,9 @@
         "R-B5.2"
       ],
       "depends_on": [],
-      "parallel_safe": false
+      "parallel_safe": false,
+      "status": "done",
+      "summary": "Estrutura do relatório criada em markdown com template top-10"
     },
     {
       "id": "T2",
@@ -54,7 +56,9 @@
         "R-I6.3"
       ],
       "depends_on": [],
-      "parallel_safe": false
+      "parallel_safe": false,
+      "status": "done",
+      "summary": "Controlos de acesso estabelecidos (confidencialidade, ACCESS_CONTROL.md)"
     },
     {
       "id": "T3",
@@ -71,7 +75,9 @@
         "T1",
         "T2"
       ],
-      "parallel_safe": false
+      "parallel_safe": false,
+      "status": "done",
+      "summary": "Análise de arquitectura completa: SPOFs, acoplamento, dependências externas"
     },
     {
       "id": "T4",
@@ -87,7 +93,9 @@
       "depends_on": [
         "T1"
       ],
-      "parallel_safe": true
+      "parallel_safe": true,
+      "status": "done",
+      "summary": "Análise de performance e disponibilidade completa: gaps de latência, throughput e RTO/RPO documentados"
     },
     {
       "id": "T5",
@@ -103,7 +111,8 @@
       "depends_on": [
         "T1"
       ],
-      "parallel_safe": true
+      "parallel_safe": true,
+      "status": "done"
     },
     {
       "id": "T6",
@@ -118,7 +127,9 @@
       "depends_on": [
         "T1"
       ],
-      "parallel_safe": true
+      "parallel_safe": true,
+      "status": "done",
+      "summary": "Analise de confiabilidade de mensagens completa: DLQ gaps identificados, circuit breaker coverage avaliada, retry patterns analisados"
     },
     {
       "id": "T7",
@@ -133,7 +144,9 @@
       "depends_on": [
         "T1"
       ],
-      "parallel_safe": true
+      "parallel_safe": true,
+      "status": "done",
+      "summary": "Analise de privacidade completa: PII em logs, encryption at-rest/in-transit, retention/erasure"
     },
     {
       "id": "T8",
@@ -148,7 +161,9 @@
       "depends_on": [
         "T1"
       ],
-      "parallel_safe": true
+      "parallel_safe": true,
+      "status": "done",
+      "summary": "Análise de infraestrutura Kubernetes completa: identificados 10 riscos (3 criticos, 3 medios, 3 baixos), incluindo SPOF no queen-agent, falta de zone distribution e servicos sem HPA/PDB. Documento ANALISE_KUBERNETES.md criado com recomendacoes priorizadas."
     },
     {
       "id": "T9",
@@ -162,7 +177,9 @@
       "depends_on": [
         "T1"
       ],
-      "parallel_safe": true
+      "parallel_safe": true,
+      "status": "done",
+      "summary": "Análise de compatibilidade completa: 13 conflitos identificados (gRPC 1.68.1 vs 1.71.2, OpenTelemetry drift 1.29 vs 1.39, FastAPI/Pydantic fragmentation)"
     },
     {
       "id": "T10",
@@ -177,7 +194,9 @@
       "depends_on": [
         "T1"
       ],
-      "parallel_safe": true
+      "parallel_safe": true,
+      "status": "done",
+      "summary": "Security hardening analysis complete - document created with mTLS, Vault, and network policies assessment"
     },
     {
       "id": "T11",
@@ -192,7 +211,8 @@
       "depends_on": [
         "T1"
       ],
-      "parallel_safe": true
+      "parallel_safe": true,
+      "status": "done"
     },
     {
       "id": "T12",
@@ -207,7 +227,9 @@
       "depends_on": [
         "T1"
       ],
-      "parallel_safe": true
+      "parallel_safe": true,
+      "status": "done",
+      "summary": "Analise de timeouts completa: 9 gaps identificados, 4 criticos (time.sleep, subprocess.run, backpressure, timeout global)"
     },
     {
       "id": "T13",
