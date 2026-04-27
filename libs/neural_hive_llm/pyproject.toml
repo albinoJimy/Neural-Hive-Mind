@@ -24,7 +24,7 @@ classifiers = [
 keywords = ["llm", "openai", "anthropic", "ollama", "ai", "neural-hive"]
 
 dependencies = [
-    "httpx>=0.25.0",
+    "httpx>=0.25.0,<0.28",
     "tenacity>=8.2.0",
     "pydantic>=2.0.0",
     "pydantic-settings>=2.0.0",
@@ -32,12 +32,12 @@ dependencies = [
     "prometheus-client>=0.17.0",
     "opentelemetry-api>=1.21.0",
     # Optional dependencies - só instalados se explicitamente necessários
-    "openai>=1.40.0; extra == 'openai'",
+    "openai>=1.40.0,<1.58; extra == 'openai'",
     "anthropic>=0.40.0; extra == 'anthropic'",
 ]
 
 [project.optional-dependencies]
-openai = ["openai>=1.40.0"]
+openai = ["openai>=1.40.0,<1.58"]
 anthropic = ["anthropic>=0.40.0"]
 all = [
     "neural-hive-llm[openai,anthropic]",
