@@ -1352,6 +1352,10 @@ class ModelPromotionManager:
                     result=request.result.value if request.result else "unknown",
                 )
 
+        # Feedback-Driven Replay: Disparar replay se modelo melhorou
+        if request.result == PromotionResult.SUCCESS:
+            await self._trigger_feedback_replay(request)
+
         # Audit logging - promoção finalizada
         if self.audit_logger and request.result == PromotionResult.SUCCESS:
             try:
@@ -1392,6 +1396,64 @@ class ModelPromotionManager:
             stage=request.stage.value,
             result=request.result.value if request.result else None,
         )
+
+    async def _trigger_feedback_replay(self, request: PromotionRequest) -> None:
+        """
+        Dispara replay de workflows que falharam devido ao modelo antigo.
+
+        Chamado automaticamente quando um modelo é promovido com sucesso.
+        """
+        try:
+            from .feedback_replay_integration import get_feedback_replay_integration
+
+            integration = get_feedback_replay_integration()
+            await integration.initialize()
+
+            # Extrair métricas do request
+            old_metrics = request.metrics.get("baseline_metrics", {})
+            new_metrics = request.metrics.get("new_model_metrics", {})
+
+            # Se não tiver métricas suficientes, tentar obter do ModelComparator
+            if not old_metrics or not new_metrics:
+                if self.model_comparator:
+                    try:
+                        comparison = await self.model_comparator.compare_models(
+                            candidate_version=request.source_version,
+                            baseline_model_name=request.model_name,
+                        )
+                        if comparison:
+                            old_metrics = comparison.get("baseline_metrics", {}) or old_metrics
+                            new_metrics = comparison.get("candidate_metrics", {}) or new_metrics
+                    except Exception as e:
+                        self.logger.warning("failed_to_fetch_comparison_metrics", error=str(e))
+
+            # Disparar replay se tiver métricas suficientes
+            if old_metrics and new_metrics:
+                result = await integration.on_model_promoted(
+                    model_name=request.model_name,
+                    old_version=request.baseline_version or "unknown",
+                    new_version=request.source_version,
+                    old_metrics=old_metrics,
+                    new_metrics=new_metrics,
+                    promote_initiated_by=request.initiated_by,
+                )
+
+                self.logger.info(
+                    "feedback_replay_integration_result",
+                    request_id=request.request_id,
+                    result_status=result.get("status"),
+                    scheduled_count=result.get("replay_result", {}).get("scheduled_count", 0),
+                )
+            else:
+                self.logger.info(
+                    "skipping_feedback_replay_no_metrics",
+                    request_id=request.request_id,
+                    has_old_metrics=bool(old_metrics),
+                    has_new_metrics=bool(new_metrics),
+                )
+
+        except Exception as e:
+            self.logger.warning("feedback_replay_integration_failed", error=str(e))
 
     def get_canary_traffic_split(self, model_name: str) -> float:
         """
