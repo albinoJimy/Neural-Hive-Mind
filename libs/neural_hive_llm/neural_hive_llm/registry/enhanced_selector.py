@@ -128,7 +128,7 @@ class EnhancedIntelligentSelector(IntelligentSelector):
         elif criteria == ExtendedSelectionCriteria.BEST_COMPLIANCE:
             return self._select_best_compliance(filtered_models, context)
         elif criteria == ExtendedSelectionCriteria.PRIORITY_AWARE:
-            return self._select_priority_aware(filtered_models, context)
+            return await self._select_priority_aware(filtered_models, context)
         elif criteria == ExtendedSelectionCriteria.CUSTOM:
             if not weights:
                 weights = ExtendedSelectionWeights()
