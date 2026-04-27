@@ -139,15 +139,15 @@ class TestKnowledgeGraphRAG:
         """Testa fallback quando embedding falha."""
         service = KnowledgeGraphRAG(llm_client=mock_llm_client)
 
-        # Patch para simular erro na API OpenAI (embeddings ainda usam AsyncOpenAI)
-        with patch("openai.AsyncOpenAI") as mock_openai_class:
+        # Patch para simular erro na API neural_hive_llm
+        with patch("neural_hive_llm.LLMClient") as mock_llm_class:
             from unittest.mock import Mock
 
             mock_instance = Mock()
-            mock_embeddings = Mock()
-            mock_embeddings.create = AsyncMock(side_effect=Exception("API error"))
-            mock_instance.embeddings = mock_embeddings
-            mock_openai_class.return_value = mock_instance
+            mock_instance.start = AsyncMock()
+            mock_instance.stop = AsyncMock()
+            mock_instance.generate_embeddings = AsyncMock(side_effect=Exception("API error"))
+            mock_llm_class.return_value = mock_instance
 
             embedding = await service._generate_embedding("texto")
 
