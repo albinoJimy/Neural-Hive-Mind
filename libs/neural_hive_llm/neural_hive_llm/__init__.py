@@ -40,6 +40,23 @@ __all__ = [
     "LLMProviderError",
     "LLMCircuitBreakerOpenError",
     "LLMConfigurationError",
+    # Registry System
+    "ModelRegistry",
+    "ModelMetadata",
+    "ModelCapabilities",
+    "ModelPricing",
+    "TaskType",
+    "Priority",
+    "get_registry",
+    "PerformanceTracker",
+    "RequestMetric",
+    "get_tracker",
+    "IntelligentSelector",
+    "SelectionContext",
+    "SelectionResult",
+    "SelectionCriteria",
+    "SelectionWeights",
+    "get_selector",
 ]
 
 # Imports públicos principais
@@ -64,4 +81,22 @@ from neural_hive_llm.models import (
     LLMResponse,
     LLMStreamChunk,
     TokenUsage,
+)
+from neural_hive_llm.registry import (
+    IntelligentSelector,
+    ModelCapabilities,
+    ModelMetadata,
+    ModelPricing,
+    ModelRegistry,
+    PerformanceTracker,
+    Priority,
+    RequestMetric,
+    SelectionContext,
+    SelectionCriteria,
+    SelectionResult,
+    SelectionWeights,
+    TaskType,
+    get_registry,
+    get_selector,
+    get_tracker,
 )

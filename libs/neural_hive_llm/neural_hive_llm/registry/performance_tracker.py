@@ -7,8 +7,7 @@ Coleta métricas de latência, throughput e successo para cada modelo.
 import asyncio
 from collections import deque
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
-from typing import Optional
+from datetime import datetime, timedelta, timezone
 
 import numpy as np
 
@@ -23,8 +22,8 @@ class RequestMetric:
     prompt_tokens: int
     completion_tokens: int
     estimated_cost_usd: float
-    timestamp: datetime = field(default_factory=datetime.utcnow)
-    error_message: Optional[str] = None
+    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    error_message: str | None = None
 
 
 class PerformanceTracker:
@@ -71,7 +70,7 @@ class PerformanceTracker:
     async def get_metrics(
         self,
         model_id: str,
-        window_minutes: Optional[int] = None,
+        window_minutes: int | None = None,
     ) -> dict:
         """
         Retorna métricas agregadas para um modelo.
@@ -85,19 +84,19 @@ class PerformanceTracker:
         """
         async with self._lock:
             if model_id not in self._metrics:
-                return self._empty_metrics()
+                return self._empty_metrics(model_id)
 
             window = timedelta(minutes=window_minutes) if window_minutes else self._window
-            cutoff = datetime.utcnow() - window
+            cutoff = datetime.now(timezone.utc) - window
 
             # Filtra métricas na janela
             recent_metrics = [m for m in self._metrics[model_id] if m.timestamp >= cutoff]
 
             if not recent_metrics:
-                return self._empty_metrics()
+                return self._empty_metrics(model_id)
 
             # Calcula latências
-            latencies = [m.latency_ms for m in recent_metrics if m.success]
+            latencies = [m.latency_ms for m in recent_metrics if m.success and m.latency_ms > 0]
             successes = [m for m in recent_metrics if m.success]
             failures = [m for m in recent_metrics if not m.success]
 
@@ -109,9 +108,9 @@ class PerformanceTracker:
 
             # Métricas de latência
             avg_latency = np.mean(latencies) if latencies else 0.0
-            p50_latency = np.percentile(latencies, 50) if latencies else 0.0
-            p95_latency = np.percentile(latencies, 95) if latencies else 0.0
-            p99_latency = np.percentile(latencies, 99) if latencies else 0.0
+            p50_latency = float(np.percentile(latencies, 50)) if len(latencies) > 0 else 0.0
+            p95_latency = float(np.percentile(latencies, 95)) if len(latencies) > 0 else 0.0
+            p99_latency = float(np.percentile(latencies, 99)) if len(latencies) > 0 else 0.0
 
             # Métricas de custo
             total_cost = sum(m.estimated_cost_usd for m in successes)
@@ -133,15 +132,15 @@ class PerformanceTracker:
 
             return {
                 "model_id": model_id,
-                "window_minutes": window_minutes,
+                "window_minutes": int(window.total_seconds() / 60),
                 "request_count": total_count,
                 "success_count": success_count,
                 "failure_count": failure_count,
                 "success_rate": success_rate,
                 "avg_latency_ms": float(avg_latency),
-                "p50_latency_ms": float(p50_latency),
-                "p95_latency_ms": float(p95_latency),
-                "p99_latency_ms": float(p99_latency),
+                "p50_latency_ms": p50_latency,
+                "p95_latency_ms": p95_latency,
+                "p99_latency_ms": p99_latency,
                 "avg_tokens_per_second": float(avg_tokens_per_sec),
                 "total_tokens_in": total_tokens_in,
                 "total_tokens_out": total_tokens_out,
@@ -151,12 +150,10 @@ class PerformanceTracker:
                     if (total_tokens_in + total_tokens_out) > 0
                     else 0.0
                 ),
-                "last_updated": datetime.utcnow().isoformat(),
+                "last_updated": datetime.now(timezone.utc).isoformat(),
             }
 
-    async def compare_models(
-        self, model_ids: list[str], window_minutes: Optional[int] = None
-    ) -> dict:
+    async def compare_models(self, model_ids: list[str], window_minutes: int | None = None) -> dict:
         """
         Compara métricas entre múltiplos modelos.
 
@@ -175,10 +172,10 @@ class PerformanceTracker:
             "models": metrics,
             "best_performance": self._find_best_performance(metrics),
             "best_cost": self._find_best_cost(metrics),
-            "comparison_timestamp": datetime.utcnow().isoformat(),
+            "comparison_timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
-    def _find_best_performance(self, metrics: dict) -> Optional[str]:
+    def _find_best_performance(self, metrics: dict) -> str | None:
         """Encontra modelo com melhor performance."""
         candidates = {
             mid: data
@@ -192,7 +189,7 @@ class PerformanceTracker:
         # Minimiza latência média
         return min(candidates.items(), key=lambda x: x[1].get("avg_latency_ms", float("inf")))[0]
 
-    def _find_best_cost(self, metrics: dict) -> Optional[str]:
+    def _find_best_cost(self, metrics: dict) -> str | None:
         """Encontra modelo com melhor custo."""
         candidates = {
             mid: data
@@ -238,21 +235,21 @@ class PerformanceTracker:
             "health": health,
             "success_rate": success_rate,
             "request_count": request_count,
-            "last_updated": datetime.utcnow().isoformat(),
+            "last_updated": datetime.now(timezone.utc).isoformat(),
         }
 
     def _cleanup_old_metrics(self, model_id: str) -> None:
         """Remove métricas antigas fora da janela."""
-        cutoff = datetime.utcnow() - self._window
+        cutoff = datetime.now(timezone.utc) - self._window
 
         while self._metrics[model_id] and self._metrics[model_id][0].timestamp < cutoff:
             self._metrics[model_id].popleft()
 
     @staticmethod
-    def _empty_metrics() -> dict:
+    def _empty_metrics(model_id: str = "unknown") -> dict:
         """Retorna dict de métricas vazio."""
         return {
-            "model_id": "unknown",
+            "model_id": model_id,
             "window_minutes": 0,
             "request_count": 0,
             "success_count": 0,
@@ -267,7 +264,7 @@ class PerformanceTracker:
             "total_tokens_out": 0,
             "total_cost_usd": 0.0,
             "avg_cost_per_1k_tokens": 0.0,
-            "last_updated": datetime.utcnow().isoformat(),
+            "last_updated": datetime.now(timezone.utc).isoformat(),
         }
 
     async def cleanup(self) -> None:
@@ -277,7 +274,7 @@ class PerformanceTracker:
 
 
 # Singleton global
-_tracker: Optional[PerformanceTracker] = None
+_tracker: PerformanceTracker | None = None
 
 
 def get_tracker() -> PerformanceTracker:
