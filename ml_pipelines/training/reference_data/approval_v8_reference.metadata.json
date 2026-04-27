@@ -1,0 +1,311 @@
+{
+  "model_name": "approval_predictor",
+  "model_version": "v8",
+  "created_at": "2026-04-24T15:09:58.121441+00:00",
+  "training_samples": 100,
+  "features": [
+    "specialist_confidence",
+    "domain_security",
+    "domain_performance",
+    "domain_database",
+    "domain_devops",
+    "domain_testing",
+    "action_create",
+    "action_update",
+    "action_delete",
+    "action_read",
+    "action_deploy",
+    "has_backup",
+    "has_verification",
+    "has_all",
+    "text_length_chars",
+    "text_length_words",
+    "risk_high",
+    "risk_medium",
+    "risk_low",
+    "simple_risk_score",
+    "primary_domain_security",
+    "primary_domain_performance",
+    "primary_domain_database",
+    "primary_domain_devops",
+    "primary_domain_testing",
+    "primary_action_create",
+    "primary_action_update",
+    "primary_action_delete",
+    "primary_action_read",
+    "primary_action_deploy"
+  ],
+  "feature_stats": {
+    "specialist_confidence": {
+      "mean": 0.5845227423412137,
+      "std": 0.1984942633902517,
+      "min": 0.0,
+      "max": 1.0,
+      "q25": 0.4807861604422041,
+      "q50": 0.5956814798863109,
+      "q75": 0.7058663579243778
+    },
+    "domain_security": {
+      "mean": 0.21,
+      "std": 0.40730823708832603,
+      "min": 0.0,
+      "max": 1.0,
+      "q25": 0.0,
+      "q50": 0.0,
+      "q75": 0.0
+    },
+    "domain_performance": {
+      "mean": 0.2,
+      "std": 0.40000000000000013,
+      "min": 0.0,
+      "max": 1.0,
+      "q25": 0.0,
+      "q50": 0.0,
+      "q75": 0.0
+    },
+    "domain_database": {
+      "mean": 0.27,
+      "std": 0.44395945760846234,
+      "min": 0.0,
+      "max": 1.0,
+      "q25": 0.0,
+      "q50": 0.0,
+      "q75": 1.0
+    },
+    "domain_devops": {
+      "mean": 0.19,
+      "std": 0.39230090491866065,
+      "min": 0.0,
+      "max": 1.0,
+      "q25": 0.0,
+      "q50": 0.0,
+      "q75": 0.0
+    },
+    "domain_testing": {
+      "mean": 0.13,
+      "std": 0.33630343441600474,
+      "min": 0.0,
+      "max": 1.0,
+      "q25": 0.0,
+      "q50": 0.0,
+      "q75": 0.0
+    },
+    "action_create": {
+      "mean": 0.38,
+      "std": 0.48538644398046366,
+      "min": 0.0,
+      "max": 1.0,
+      "q25": 0.0,
+      "q50": 0.0,
+      "q75": 1.0
+    },
+    "action_update": {
+      "mean": 0.33,
+      "std": 0.4702127178203498,
+      "min": 0.0,
+      "max": 1.0,
+      "q25": 0.0,
+      "q50": 0.0,
+      "q75": 1.0
+    },
+    "action_delete": {
+      "mean": 0.22,
+      "std": 0.4142463035441595,
+      "min": 0.0,
+      "max": 1.0,
+      "q25": 0.0,
+      "q50": 0.0,
+      "q75": 0.0
+    },
+    "action_read": {
+      "mean": 0.24,
+      "std": 0.4270831300812525,
+      "min": 0.0,
+      "max": 1.0,
+      "q25": 0.0,
+      "q50": 0.0,
+      "q75": 0.0
+    },
+    "action_deploy": {
+      "mean": 0.11,
+      "std": 0.3128897569432403,
+      "min": 0.0,
+      "max": 1.0,
+      "q25": 0.0,
+      "q50": 0.0,
+      "q75": 0.0
+    },
+    "has_backup": {
+      "mean": 0.21,
+      "std": 0.40730823708832603,
+      "min": 0.0,
+      "max": 1.0,
+      "q25": 0.0,
+      "q50": 0.0,
+      "q75": 0.0
+    },
+    "has_verification": {
+      "mean": 0.49,
+      "std": 0.4998999899979999,
+      "min": 0.0,
+      "max": 1.0,
+      "q25": 0.0,
+      "q50": 0.0,
+      "q75": 1.0
+    },
+    "has_all": {
+      "mean": 0.02,
+      "std": 0.13999999999999999,
+      "min": 0.0,
+      "max": 1.0,
+      "q25": 0.0,
+      "q50": 0.0,
+      "q75": 0.0
+    },
+    "text_length_chars": {
+      "mean": 78.64,
+      "std": 38.71214796417269,
+      "min": 20,
+      "max": 187,
+      "q25": 49,
+      "q50": 75,
+      "q75": 109
+    },
+    "text_length_words": {
+      "mean": 15.34,
+      "std": 7.693139801147515,
+      "min": 4,
+      "max": 37,
+      "q25": 9,
+      "q50": 15,
+      "q75": 21
+    },
+    "risk_high": {
+      "mean": 0.13,
+      "std": 0.33630343441600474,
+      "min": 0.0,
+      "max": 1.0,
+      "q25": 0.0,
+      "q50": 0.0,
+      "q75": 0.0
+    },
+    "risk_medium": {
+      "mean": 0.25,
+      "std": 0.4330127018922193,
+      "min": 0.0,
+      "max": 1.0,
+      "q25": 0.0,
+      "q50": 0.0,
+      "q75": 1.0
+    },
+    "risk_low": {
+      "mean": 0.62,
+      "std": 0.4853864439804642,
+      "min": 0.0,
+      "max": 1.0,
+      "q25": 0.0,
+      "q50": 1.0,
+      "q75": 1.0
+    },
+    "simple_risk_score": {
+      "mean": 0.07649999999999997,
+      "std": 0.10711092381265322,
+      "min": 0.0,
+      "max": 0.3,
+      "q25": 0.0,
+      "q50": 0.0,
+      "q75": 0.15
+    },
+    "primary_domain_security": {
+      "mean": 0.21,
+      "std": 0.40730823708832603,
+      "min": 0.0,
+      "max": 1.0,
+      "q25": 0.0,
+      "q50": 0.0,
+      "q75": 0.0
+    },
+    "primary_domain_performance": {
+      "mean": 0.2,
+      "std": 0.40000000000000013,
+      "min": 0.0,
+      "max": 1.0,
+      "q25": 0.0,
+      "q50": 0.0,
+      "q75": 0.0
+    },
+    "primary_domain_database": {
+      "mean": 0.27,
+      "std": 0.44395945760846234,
+      "min": 0.0,
+      "max": 1.0,
+      "q25": 0.0,
+      "q50": 0.0,
+      "q75": 1.0
+    },
+    "primary_domain_devops": {
+      "mean": 0.19,
+      "std": 0.39230090491866065,
+      "min": 0.0,
+      "max": 1.0,
+      "q25": 0.0,
+      "q50": 0.0,
+      "q75": 0.0
+    },
+    "primary_domain_testing": {
+      "mean": 0.13,
+      "std": 0.33630343441600474,
+      "min": 0.0,
+      "max": 1.0,
+      "q25": 0.0,
+      "q50": 0.0,
+      "q75": 0.0
+    },
+    "primary_action_create": {
+      "mean": 0.35,
+      "std": 0.4769696007084725,
+      "min": 0.0,
+      "max": 1.0,
+      "q25": 0.0,
+      "q50": 0.0,
+      "q75": 1.0
+    },
+    "primary_action_update": {
+      "mean": 0.25,
+      "std": 0.4330127018922193,
+      "min": 0.0,
+      "max": 1.0,
+      "q25": 0.0,
+      "q50": 0.0,
+      "q75": 1.0
+    },
+    "primary_action_delete": {
+      "mean": 0.13,
+      "std": 0.33630343441600474,
+      "min": 0.0,
+      "max": 1.0,
+      "q25": 0.0,
+      "q50": 0.0,
+      "q75": 0.0
+    },
+    "primary_action_read": {
+      "mean": 0.2,
+      "std": 0.40000000000000013,
+      "min": 0.0,
+      "max": 1.0,
+      "q25": 0.0,
+      "q50": 0.0,
+      "q75": 0.0
+    },
+    "primary_action_deploy": {
+      "mean": 0.07,
+      "std": 0.25514701644346144,
+      "min": 0.0,
+      "max": 1.0,
+      "q25": 0.0,
+      "q50": 0.0,
+      "q75": 0.0
+    }
+  },
+  "source": "synthetic_generator"
+}
