@@ -7,7 +7,7 @@ no formato Avro e pode ser deserializado de volta para dict.
 
 import json
 import uuid
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 import pytest
 from src.models.consolidated_decision import (
@@ -48,7 +48,7 @@ def sample_cognitive_plan_for_avro():
         "explainability_token": "exp-token-123",
         "reasoning_summary": "Plan approved by all specialists",
         "status": "approved",
-        "created_at": datetime.now(UTC).isoformat(),
+        "created_at": datetime.now(timezone.utc).isoformat(),
         "metadata": {"created_by": "semantic-translation-engine"},
     }
 

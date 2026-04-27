@@ -1,7 +1,7 @@
 """Repositório para persistência de documentos."""
 
 import builtins
-from datetime import datetime
+from datetime import datetime, timezone
 
 from src.db.mongodb import get_mongodb
 from src.models import Document
@@ -27,7 +27,7 @@ class DocumentsRepository:
         db = await self._get_db()
 
         doc = document.model_dump()
-        doc["created_at"] = datetime.utcnow()
+        doc["created_at"] = datetime.now(timezone.utc)
 
         # Verificar se já existe
         existing = await db.documents_collection.find_one({"id": document.id})

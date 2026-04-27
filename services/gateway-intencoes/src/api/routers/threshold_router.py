@@ -4,7 +4,7 @@ Autor: Neural Hive Mind
 Criado: 2026-04-20 (FEAT-A-005)
 """
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -67,7 +67,7 @@ async def get_threshold_config(
                 "domain": domain,
                 "tenant_id": tenant_id,
                 "config": config.to_dict(),
-                "timestamp": datetime.now(UTC).isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
             }
 
         # Retornar configuração global
@@ -75,7 +75,7 @@ async def get_threshold_config(
             "global": service.global_config.to_dict(),
             "domains": service.domain_configs,
             "tenants": service.tenant_configs,
-            "timestamp": datetime.now(UTC).isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
     except Exception as err:
         raise HTTPException(
@@ -132,7 +132,7 @@ async def update_threshold(
         "message": f"Threshold {threshold_type} atualizado para {value}",
         "domain": domain,
         "tenant_id": tenant_id,
-        "timestamp": datetime.now(UTC).isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
 
@@ -158,7 +158,7 @@ async def reload_threshold_config(
     return {
         "success": True,
         "message": "Configuração recarregada com sucesso",
-        "timestamp": datetime.now(UTC).isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
 

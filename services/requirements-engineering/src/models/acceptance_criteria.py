@@ -1,6 +1,6 @@
 """Modelos de dados para Critérios de Aceitação."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any
 
@@ -95,7 +95,7 @@ class AcceptanceCriteriaSet(BaseModel):
     def add_criterion(self, criterion: AcceptanceCriterion) -> None:
         """Adiciona critério ao conjunto."""
         self.criteria.append(criterion)
-        self.updated_at = datetime.utcnow()
+        self.updated_at = datetime.now(timezone.utc)
 
 
 class AcceptanceCriterionCreate(BaseModel):

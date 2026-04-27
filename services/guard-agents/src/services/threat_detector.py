@@ -1,7 +1,7 @@
 """Threat detection service for identifying security anomalies (Fluxo E1)"""
 
 import time
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import TYPE_CHECKING, Any, Optional
 
@@ -127,7 +127,7 @@ class ThreatDetector:
                     "failed_attempts": failed_count,
                     "source_ip": event.get("source_ip"),
                 },
-                "detected_at": datetime.now(UTC).isoformat(),
+                "detected_at": datetime.now(timezone.utc).isoformat(),
                 "raw_event": event,
             }
 
@@ -150,7 +150,7 @@ class ThreatDetector:
                     "threshold": self.detection_rules["request_rate_threshold"],
                     "source": event.get("source"),
                 },
-                "detected_at": datetime.now(UTC).isoformat(),
+                "detected_at": datetime.now(timezone.utc).isoformat(),
                 "raw_event": event,
             }
 
@@ -174,7 +174,7 @@ class ThreatDetector:
                         "matched_pattern": pattern,
                         "payload_snippet": payload[:200],
                     },
-                    "detected_at": datetime.now(UTC).isoformat(),
+                    "detected_at": datetime.now(timezone.utc).isoformat(),
                     "raw_event": event,
                 }
 
@@ -200,7 +200,7 @@ class ThreatDetector:
                     "threshold": self.adaptive_thresholds["cpu_usage"],
                     "resource": event.get("resource_name"),
                 },
-                "detected_at": datetime.now(UTC).isoformat(),
+                "detected_at": datetime.now(timezone.utc).isoformat(),
                 "raw_event": event,
             }
 
@@ -217,7 +217,7 @@ class ThreatDetector:
                     "threshold": self.adaptive_thresholds["memory_usage"],
                     "resource": event.get("resource_name"),
                 },
-                "detected_at": datetime.now(UTC).isoformat(),
+                "detected_at": datetime.now(timezone.utc).isoformat(),
                 "raw_event": event,
             }
 
@@ -261,7 +261,7 @@ class ThreatDetector:
                             "features": event.get("features", {}),
                             "inference_latency_ms": latency_seconds * 1000,
                         },
-                        "detected_at": datetime.now(UTC).isoformat(),
+                        "detected_at": datetime.now(timezone.utc).isoformat(),
                         "raw_event": event,
                     }
             except Exception as e:
@@ -281,7 +281,7 @@ class ThreatDetector:
                     "features": event.get("features", {}),
                     "detection_method": "heuristic",
                 },
-                "detected_at": datetime.now(UTC).isoformat(),
+                "detected_at": datetime.now(timezone.utc).isoformat(),
                 "raw_event": event,
             }
 
@@ -296,7 +296,7 @@ class ThreatDetector:
             "capabilities": event.get("capabilities", []),
             "qos": event.get("qos", {}),
             "parameters": event.get("parameters", {}),
-            "timestamp": event.get("timestamp", datetime.now(UTC).timestamp()),
+            "timestamp": event.get("timestamp", datetime.now(timezone.utc).timestamp()),
             "estimated_duration_ms": event.get("estimated_duration_ms", 0),
             "sla_timeout_ms": event.get("sla_timeout_ms", 300000),
             "retry_count": event.get("retry_count", 0),
@@ -321,7 +321,7 @@ class ThreatDetector:
         try:
             import json
 
-            anomaly_id = f"anomaly:{anomaly.get('threat_type')}:{datetime.now(UTC).timestamp()}"
+            anomaly_id = f"anomaly:{anomaly.get('threat_type')}:{datetime.now(timezone.utc).timestamp()}"
             await self.redis.set(anomaly_id, json.dumps(anomaly), ex=3600)  # 1 hora
         except Exception as e:
             logger.warning("threat_detector.cache_failed", error=str(e))

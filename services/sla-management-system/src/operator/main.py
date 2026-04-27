@@ -7,7 +7,7 @@ synchronizing them with the PostgreSQL database and maintaining state.
 
 import asyncio
 import os
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 import kopf
@@ -138,13 +138,13 @@ async def slo_create_handler(
         # Return status to update CRD
         return {
             "synced": True,
-            "lastSyncTime": datetime.now(UTC).isoformat(),
+            "lastSyncTime": datetime.now(timezone.utc).isoformat(),
             "sloId": str(slo_id),
             "conditions": [
                 {
                     "type": "Synced",
                     "status": "True",
-                    "lastTransitionTime": datetime.now(UTC).isoformat(),
+                    "lastTransitionTime": datetime.now(timezone.utc).isoformat(),
                     "reason": "SyncSuccessful",
                     "message": f"SLO created in database with ID {slo_id}",
                 }
@@ -156,12 +156,12 @@ async def slo_create_handler(
         sla_metrics.record_crd_sync_error(crd_type="slodefinition")
         return {
             "synced": False,
-            "lastSyncTime": datetime.now(UTC).isoformat(),
+            "lastSyncTime": datetime.now(timezone.utc).isoformat(),
             "conditions": [
                 {
                     "type": "Synced",
                     "status": "False",
-                    "lastTransitionTime": datetime.now(UTC).isoformat(),
+                    "lastTransitionTime": datetime.now(timezone.utc).isoformat(),
                     "reason": "SyncFailed",
                     "message": f"Failed to create SLO: {e!s}",
                 }
@@ -221,13 +221,13 @@ async def slo_update_handler(
                 # Retornar status atualizado com o novo ID
                 return {
                     "synced": True,
-                    "lastSyncTime": datetime.now(UTC).isoformat(),
+                    "lastSyncTime": datetime.now(timezone.utc).isoformat(),
                     "sloId": str(slo_id),
                     "conditions": [
                         {
                             "type": "Synced",
                             "status": "True",
-                            "lastTransitionTime": datetime.now(UTC).isoformat(),
+                            "lastTransitionTime": datetime.now(timezone.utc).isoformat(),
                             "reason": "AutoRecoverySuccessful",
                             "message": f"SLO created via auto-recovery with ID {slo_id}",
                         }
@@ -261,13 +261,13 @@ async def slo_update_handler(
 
         return {
             "synced": True,
-            "lastSyncTime": datetime.now(UTC).isoformat(),
+            "lastSyncTime": datetime.now(timezone.utc).isoformat(),
             "sloId": slo_id,
             "conditions": [
                 {
                     "type": "Synced",
                     "status": "True",
-                    "lastTransitionTime": datetime.now(UTC).isoformat(),
+                    "lastTransitionTime": datetime.now(timezone.utc).isoformat(),
                     "reason": "SyncSuccessful",
                     "message": "SLO updated in database",
                 }
@@ -279,12 +279,12 @@ async def slo_update_handler(
         sla_metrics.record_crd_sync_error(crd_type="slodefinition")
         return {
             "synced": False,
-            "lastSyncTime": datetime.now(UTC).isoformat(),
+            "lastSyncTime": datetime.now(timezone.utc).isoformat(),
             "conditions": [
                 {
                     "type": "Synced",
                     "status": "False",
-                    "lastTransitionTime": datetime.now(UTC).isoformat(),
+                    "lastTransitionTime": datetime.now(timezone.utc).isoformat(),
                     "reason": "SyncFailed",
                     "message": f"Failed to update SLO: {e!s}",
                 }
@@ -346,14 +346,14 @@ async def policy_create_handler(spec: dict[str, Any], name: str, namespace: str,
 
         return {
             "synced": True,
-            "lastSyncTime": datetime.now(UTC).isoformat(),
+            "lastSyncTime": datetime.now(timezone.utc).isoformat(),
             "policyId": str(policy_id),
             "activeFreezes": 0,
             "conditions": [
                 {
                     "type": "Synced",
                     "status": "True",
-                    "lastTransitionTime": datetime.now(UTC).isoformat(),
+                    "lastTransitionTime": datetime.now(timezone.utc).isoformat(),
                     "reason": "SyncSuccessful",
                     "message": f"Policy created in database with ID {policy_id}",
                 }
@@ -365,12 +365,12 @@ async def policy_create_handler(spec: dict[str, Any], name: str, namespace: str,
         sla_metrics.record_crd_sync_error(crd_type="slapolicy")
         return {
             "synced": False,
-            "lastSyncTime": datetime.now(UTC).isoformat(),
+            "lastSyncTime": datetime.now(timezone.utc).isoformat(),
             "conditions": [
                 {
                     "type": "Synced",
                     "status": "False",
-                    "lastTransitionTime": datetime.now(UTC).isoformat(),
+                    "lastTransitionTime": datetime.now(timezone.utc).isoformat(),
                     "reason": "SyncFailed",
                     "message": f"Failed to create policy: {e!s}",
                 }
@@ -424,14 +424,14 @@ async def policy_update_handler(
                 # Retornar status atualizado com o novo ID
                 return {
                     "synced": True,
-                    "lastSyncTime": datetime.now(UTC).isoformat(),
+                    "lastSyncTime": datetime.now(timezone.utc).isoformat(),
                     "policyId": str(policy_id),
                     "activeFreezes": 0,
                     "conditions": [
                         {
                             "type": "Synced",
                             "status": "True",
-                            "lastTransitionTime": datetime.now(UTC).isoformat(),
+                            "lastTransitionTime": datetime.now(timezone.utc).isoformat(),
                             "reason": "AutoRecoverySuccessful",
                             "message": f"Policy created via auto-recovery with ID {policy_id}",
                         }
@@ -459,13 +459,13 @@ async def policy_update_handler(
 
         return {
             "synced": True,
-            "lastSyncTime": datetime.now(UTC).isoformat(),
+            "lastSyncTime": datetime.now(timezone.utc).isoformat(),
             "policyId": policy_id,
             "conditions": [
                 {
                     "type": "Synced",
                     "status": "True",
-                    "lastTransitionTime": datetime.now(UTC).isoformat(),
+                    "lastTransitionTime": datetime.now(timezone.utc).isoformat(),
                     "reason": "SyncSuccessful",
                     "message": "Policy updated in database",
                 }
@@ -477,12 +477,12 @@ async def policy_update_handler(
         sla_metrics.record_crd_sync_error(crd_type="slapolicy")
         return {
             "synced": False,
-            "lastSyncTime": datetime.now(UTC).isoformat(),
+            "lastSyncTime": datetime.now(timezone.utc).isoformat(),
             "conditions": [
                 {
                     "type": "Synced",
                     "status": "False",
-                    "lastTransitionTime": datetime.now(UTC).isoformat(),
+                    "lastTransitionTime": datetime.now(timezone.utc).isoformat(),
                     "reason": "SyncFailed",
                     "message": f"Failed to update policy: {e!s}",
                 }
@@ -551,13 +551,13 @@ async def slo_reconciliation_timer(
 
                 return {
                     "synced": True,
-                    "lastSyncTime": datetime.now(UTC).isoformat(),
+                    "lastSyncTime": datetime.now(timezone.utc).isoformat(),
                     "sloId": str(slo_id),
                     "conditions": [
                         {
                             "type": "Synced",
                             "status": "True",
-                            "lastTransitionTime": datetime.now(UTC).isoformat(),
+                            "lastTransitionTime": datetime.now(timezone.utc).isoformat(),
                             "reason": "AutoRecoverySuccessful",
                             "message": f"SLO ID recovered: {slo_id}",
                         }
@@ -568,12 +568,12 @@ async def slo_reconciliation_timer(
                 logger.error(f"Auto-recovery failed: SLO not found for {name}")
                 return {
                     "synced": False,
-                    "lastSyncTime": datetime.now(UTC).isoformat(),
+                    "lastSyncTime": datetime.now(timezone.utc).isoformat(),
                     "conditions": [
                         {
                             "type": "Synced",
                             "status": "False",
-                            "lastTransitionTime": datetime.now(UTC).isoformat(),
+                            "lastTransitionTime": datetime.now(timezone.utc).isoformat(),
                             "reason": "AutoRecoveryFailed",
                             "message": "SLO ID not found and no matching SLO in database",
                         }
@@ -586,12 +586,12 @@ async def slo_reconciliation_timer(
             logger.warning(f"SLO {slo_id} not found in database - may need re-sync")
             return {
                 "synced": False,
-                "lastSyncTime": datetime.now(UTC).isoformat(),
+                "lastSyncTime": datetime.now(timezone.utc).isoformat(),
                 "conditions": [
                     {
                         "type": "Synced",
                         "status": "False",
-                        "lastTransitionTime": datetime.now(UTC).isoformat(),
+                        "lastTransitionTime": datetime.now(timezone.utc).isoformat(),
                         "reason": "NotFoundInDatabase",
                         "message": "SLO not found in database",
                     }
@@ -604,7 +604,7 @@ async def slo_reconciliation_timer(
         # Update status with current values
         return {
             "synced": True,
-            "lastSyncTime": datetime.now(UTC).isoformat(),
+            "lastSyncTime": datetime.now(timezone.utc).isoformat(),
             "sloId": slo_id,
             "currentSLI": budget.current_sli if budget else None,
             "budgetRemaining": budget.remaining_percent if budget else None,
@@ -613,7 +613,7 @@ async def slo_reconciliation_timer(
                 {
                     "type": "Synced",
                     "status": "True",
-                    "lastTransitionTime": datetime.now(UTC).isoformat(),
+                    "lastTransitionTime": datetime.now(timezone.utc).isoformat(),
                     "reason": "ReconciliationSuccessful",
                     "message": "Periodic reconciliation completed",
                 }
@@ -661,14 +661,14 @@ async def policy_reconciliation_timer(
 
                 return {
                     "synced": True,
-                    "lastSyncTime": datetime.now(UTC).isoformat(),
+                    "lastSyncTime": datetime.now(timezone.utc).isoformat(),
                     "policyId": str(policy_id),
                     "activeFreezes": 0,
                     "conditions": [
                         {
                             "type": "Synced",
                             "status": "True",
-                            "lastTransitionTime": datetime.now(UTC).isoformat(),
+                            "lastTransitionTime": datetime.now(timezone.utc).isoformat(),
                             "reason": "AutoRecoverySuccessful",
                             "message": f"Policy ID recovered: {policy_id}",
                         }
@@ -679,12 +679,12 @@ async def policy_reconciliation_timer(
                 logger.error(f"Auto-recovery failed: Policy not found for {name}")
                 return {
                     "synced": False,
-                    "lastSyncTime": datetime.now(UTC).isoformat(),
+                    "lastSyncTime": datetime.now(timezone.utc).isoformat(),
                     "conditions": [
                         {
                             "type": "Synced",
                             "status": "False",
-                            "lastTransitionTime": datetime.now(UTC).isoformat(),
+                            "lastTransitionTime": datetime.now(timezone.utc).isoformat(),
                             "reason": "AutoRecoveryFailed",
                             "message": "Policy ID not found and no matching Policy in database",
                         }
@@ -697,12 +697,12 @@ async def policy_reconciliation_timer(
             logger.warning(f"Policy {policy_id} not found in database - may need re-sync")
             return {
                 "synced": False,
-                "lastSyncTime": datetime.now(UTC).isoformat(),
+                "lastSyncTime": datetime.now(timezone.utc).isoformat(),
                 "conditions": [
                     {
                         "type": "Synced",
                         "status": "False",
-                        "lastTransitionTime": datetime.now(UTC).isoformat(),
+                        "lastTransitionTime": datetime.now(timezone.utc).isoformat(),
                         "reason": "NotFoundInDatabase",
                         "message": "Policy not found in database",
                     }
@@ -717,7 +717,7 @@ async def policy_reconciliation_timer(
         # Update status with current values
         return {
             "synced": True,
-            "lastSyncTime": datetime.now(UTC).isoformat(),
+            "lastSyncTime": datetime.now(timezone.utc).isoformat(),
             "policyId": policy_id,
             "activeFreezes": len(active_freezes) if active_freezes else 0,
             "lastTriggeredAt": (
@@ -729,7 +729,7 @@ async def policy_reconciliation_timer(
                 {
                     "type": "Synced",
                     "status": "True",
-                    "lastTransitionTime": datetime.now(UTC).isoformat(),
+                    "lastTransitionTime": datetime.now(timezone.utc).isoformat(),
                     "reason": "ReconciliationSuccessful",
                     "message": "Periodic reconciliation completed",
                 }

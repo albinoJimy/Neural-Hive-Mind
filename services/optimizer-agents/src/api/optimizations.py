@@ -1,7 +1,7 @@
 """Optimizations API endpoints."""
 
 import logging
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 UTC = UTC  # type: ignore
 
@@ -145,7 +145,7 @@ async def approve_recommendation(
         "id": recommendation_id,
         "status": "approved",
         "approved_recommendations": body.recommendation_ids,
-        "approved_at": datetime.now(UTC).isoformat(),
+        "approved_at": datetime.now(timezone.utc).isoformat(),
     }
 
 
@@ -174,7 +174,7 @@ async def apply_recommendation(
         "id": recommendation_id,
         "status": "applied",
         "applied_recommendations": body.recommendation_ids,
-        "applied_at": datetime.now(UTC).isoformat(),
+        "applied_at": datetime.now(timezone.utc).isoformat(),
         "files_modified": [],
     }
 

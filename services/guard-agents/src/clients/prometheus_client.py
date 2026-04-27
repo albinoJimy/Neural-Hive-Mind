@@ -1,6 +1,6 @@
 """Cliente HTTP para consultas ao Prometheus"""
 
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from typing import Any, Optional
 
 import httpx
@@ -135,7 +135,7 @@ class PrometheusClient:
         Returns:
             Dict com success_rate, latency_p99, error_rate
         """
-        end = datetime.now(UTC)
+        end = datetime.now(timezone.utc)
         end - timedelta(minutes=lookback_minutes)
 
         metrics = {}
@@ -239,7 +239,7 @@ class PrometheusClient:
             "metrics": metrics,
             "targets": sla_targets,
             "violations": violations,
-            "timestamp": datetime.now(UTC).isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
         logger.info(

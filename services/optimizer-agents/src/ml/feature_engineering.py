@@ -6,7 +6,7 @@ e métricas em tempo real para alimentar LoadPredictor e SchedulingOptimizer.
 """
 
 import logging
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 UTC = UTC  # type: ignore, timedelta
 
@@ -160,7 +160,7 @@ class FeatureEngineering:
         optimizations_norm = min(1.0, recent_optimizations / 10.0)
 
         # Features temporais cíclicas
-        now = datetime.now(UTC)
+        now = datetime.now(timezone.utc)
         hour = now.hour
         hour_sin = np.sin(2 * np.pi * hour / 24)
         hour_cos = np.cos(2 * np.pi * hour / 24)
@@ -200,7 +200,7 @@ class FeatureEngineering:
         if cached:
             return cached
 
-        end_time = datetime.now(UTC)
+        end_time = datetime.now(timezone.utc)
         start_time = end_time - timedelta(days=window_days)
 
         try:

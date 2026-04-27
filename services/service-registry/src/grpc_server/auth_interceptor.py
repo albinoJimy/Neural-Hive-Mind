@@ -5,7 +5,7 @@ gRPC server interceptor para verificação de tokens SPIFFE JWT-SVID
 import base64
 import json
 from collections.abc import Callable
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 import grpc
@@ -299,7 +299,7 @@ class SPIFFEAuthInterceptor(aio.ServerInterceptor):
 
                 # Check expiry
                 exp = payload.get("exp")
-                if exp and datetime.utcfromtimestamp(exp) < datetime.now(UTC):
+                if exp and datetime.utcfromtimestamp(exp) < datetime.now(timezone.utc):
                     self.logger.warning("token_expired", method=method, exp=exp)
                     return None
 

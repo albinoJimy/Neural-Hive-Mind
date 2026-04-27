@@ -1,6 +1,6 @@
 import asyncio
 import uuid
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 UTC = UTC  # type: ignore
 from typing import Any
@@ -178,7 +178,7 @@ class ExecutionEngine:
                 ticket_id,
                 "PENDING",
                 metadata={
-                    "processing_started_at": datetime.now(UTC).isoformat(),
+                    "processing_started_at": datetime.now(timezone.utc).isoformat(),
                     "dedup_method": "mongodb_fallback",
                 },
             )
@@ -238,7 +238,7 @@ class ExecutionEngine:
                     ticket_id,
                     "COMPLETED",
                     metadata={
-                        "processed_at": datetime.now(UTC).isoformat(),
+                        "processed_at": datetime.now(timezone.utc).isoformat(),
                         "dedup_method": "mongodb_fallback",
                     },
                 )
@@ -281,7 +281,7 @@ class ExecutionEngine:
                     ticket_id,
                     "PENDING",
                     metadata={
-                        "processing_cleared_at": datetime.now(UTC).isoformat(),
+                        "processing_cleared_at": datetime.now(timezone.utc).isoformat(),
                         "dedup_method": "mongodb_fallback",
                     },
                 )

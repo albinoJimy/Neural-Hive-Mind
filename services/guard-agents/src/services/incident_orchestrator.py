@@ -1,6 +1,6 @@
 """Orquestrador de incidentes que coordena todo o fluxo E1-E6"""
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 import structlog
@@ -61,7 +61,7 @@ class IncidentOrchestrator:
         Returns:
             Dict com resultado completo do fluxo
         """
-        flow_start_time = datetime.now(UTC)
+        flow_start_time = datetime.now(timezone.utc)
 
         try:
             logger.info(
@@ -132,11 +132,11 @@ class IncidentOrchestrator:
         """E1: Detectar anomalia (Thresholds adaptativos)"""
         logger.debug("incident_orchestrator.e1_detecting", event_id=event.get("event_id"))
 
-        detection_start = datetime.now(UTC)
+        detection_start = datetime.now(timezone.utc)
 
         anomaly = await self.threat_detector.detect_anomaly(event)
 
-        detection_time = (datetime.now(UTC) - detection_start).total_seconds()
+        detection_time = (datetime.now(timezone.utc) - detection_start).total_seconds()
 
         if anomaly:
             logger.info(
@@ -239,7 +239,7 @@ class IncidentOrchestrator:
         )
 
         # Calcular MTTR
-        recovery_time = (datetime.now(UTC) - flow_start_time).total_seconds()
+        recovery_time = (datetime.now(timezone.utc) - flow_start_time).total_seconds()
 
         # Verificar se SLA foi restaurado
         sla_met = True
@@ -313,7 +313,7 @@ class IncidentOrchestrator:
             "mttr_target_s": self.sla_targets["mttr_seconds"],
             "prometheus_metrics": prometheus_metrics,
             "issues": issues,
-            "validated_at": datetime.now(UTC).isoformat(),
+            "validated_at": datetime.now(timezone.utc).isoformat(),
         }
 
         logger.info(
@@ -366,7 +366,7 @@ class IncidentOrchestrator:
                 "recovery_time_s": sla_validation.get("recovery_time_s"),
             },
             "recommendations": self._generate_recommendations(incident, sla_validation),
-            "documented_at": datetime.now(UTC).isoformat(),
+            "documented_at": datetime.now(timezone.utc).isoformat(),
         }
 
         # Persistir no Knowledge Base (colecao de post-mortems)
@@ -399,7 +399,7 @@ class IncidentOrchestrator:
                     "incident_id": incident_id,
                     "violation": "E6_DOCUMENTATION_DELAYED",
                     "error": error,
-                    "timestamp": datetime.now(UTC).isoformat(),
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
                 }
                 # Tentar publicar via metodo generico do producer
                 if hasattr(self.kafka_producer, "publish_compliance_alert"):
@@ -567,7 +567,7 @@ class IncidentOrchestrator:
             "issues": issues,
             "severity": severity,
             "threat_type": threat_type,
-            "created_at": datetime.now(UTC).isoformat(),
+            "created_at": datetime.now(timezone.utc).isoformat(),
         }
 
         # Usar itsm_client injetado via construtor
@@ -657,13 +657,13 @@ class IncidentOrchestrator:
         self, event: dict[str, Any], flow_start_time: datetime
     ) -> dict[str, Any]:
         """Cria resultado quando não há incidente"""
-        duration_ms = (datetime.now(UTC) - flow_start_time).total_seconds() * 1000
+        duration_ms = (datetime.now(timezone.utc) - flow_start_time).total_seconds() * 1000
 
         return {
             "incident_detected": False,
             "event_id": event.get("event_id"),
             "duration_ms": duration_ms,
-            "processed_at": datetime.now(UTC).isoformat(),
+            "processed_at": datetime.now(timezone.utc).isoformat(),
         }
 
     def _create_final_result(
@@ -678,7 +678,7 @@ class IncidentOrchestrator:
         flow_start_time: datetime,
     ) -> dict[str, Any]:
         """Cria resultado final do fluxo completo"""
-        duration_ms = (datetime.now(UTC) - flow_start_time).total_seconds() * 1000
+        duration_ms = (datetime.now(timezone.utc) - flow_start_time).total_seconds() * 1000
 
         return {
             "incident_id": incident.get("incident_id"),
@@ -705,7 +705,7 @@ class IncidentOrchestrator:
             "e5_sla_validation": sla_validation,
             "e6_lessons_learned": lessons_learned,
             "duration_ms": duration_ms,
-            "completed_at": datetime.now(UTC).isoformat(),
+            "completed_at": datetime.now(timezone.utc).isoformat(),
         }
 
     async def _persist_incident_outcome(self, result: dict[str, Any]):

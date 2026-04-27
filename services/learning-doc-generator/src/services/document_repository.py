@@ -1,6 +1,6 @@
 """Repositório MongoDB para documentos de aprendizado"""
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 import structlog
@@ -82,8 +82,8 @@ class DocumentRepository:
         """
         try:
             doc_dict = document.model_dump(exclude={"id"}, exclude_none=True)
-            doc_dict["created_at"] = doc_dict.get("created_at", datetime.utcnow())
-            doc_dict["updated_at"] = datetime.utcnow()
+            doc_dict["created_at"] = doc_dict.get("created_at", datetime.now(timezone.utc))
+            doc_dict["updated_at"] = datetime.now(timezone.utc)
 
             result = await self._collection.insert_one(doc_dict)
             doc_id = str(result.inserted_id)
@@ -110,7 +110,7 @@ class DocumentRepository:
         """
         try:
             doc_dict = document.model_dump(exclude={"id"}, exclude_none=True)
-            doc_dict["updated_at"] = datetime.utcnow()
+            doc_dict["updated_at"] = datetime.now(timezone.utc)
 
             result = await self._collection.update_one({"_id": doc_id}, {"$set": doc_dict})
 
@@ -235,10 +235,10 @@ class DocumentRepository:
             True se atualizado
         """
         try:
-            update_dict: dict[str, Any] = {"status": status.value, "updated_at": datetime.utcnow()}
+            update_dict: dict[str, Any] = {"status": status.value, "updated_at": datetime.now(timezone.utc)}
 
             if status == DocumentStatus.COMPLETED:
-                update_dict["generated_at"] = datetime.utcnow()
+                update_dict["generated_at"] = datetime.now(timezone.utc)
             elif status == DocumentStatus.FAILED and error_message:
                 update_dict["metadata"] = {"error": error_message}
 

@@ -194,7 +194,7 @@ class IntentEnvelope(BaseModel):
     qos: QualityOfService | None = Field(None, description="QoS")
 
     timestamp: datetime = Field(
-        default_factory=lambda: datetime.now(UTC), description="Timestamp de criação"
+        default_factory=lambda: datetime.now(timezone.utc), description="Timestamp de criação"
     )
 
     @field_validator("id")
@@ -348,7 +348,7 @@ class IntentEnvelope(BaseModel):
             "confidence": self.confidence,
             "confidence_status": self.confidence_status,
             "timestamp": self.timestamp.isoformat(),
-            "cached_at": datetime.now(UTC).isoformat(),
+            "cached_at": datetime.now(timezone.utc).isoformat(),
         }
 
     model_config = ConfigDict(use_enum_values=True, validate_assignment=True)

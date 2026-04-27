@@ -3,17 +3,18 @@
 from unittest.mock import AsyncMock, Mock
 
 import pytest
+from neural_hive_llm import LLMResponse, LLMProvider
 from src.recommenders.tech_stack import TechStackRecommender
 
 
 @pytest.fixture
 def mock_llm_client():
-    """Mock do cliente LLM."""
+    """Mock do cliente LLM usando neural_hive_llm."""
     client = Mock()
-    response = Mock()
-    choice = Mock()
-    message = Mock()
-    message.content = """{
+    client.start = AsyncMock()
+    client.generate = AsyncMock(
+        return_value=LLMResponse(
+            text="""{
       "choices": [
         {"category": "backend", "name": "FastAPI", "version": "0.104", "rationale": "Async nativo"},
         {"category": "database", "name": "PostgreSQL", "version": "15", "rationale": "ACID compliant"}
@@ -23,10 +24,15 @@ def mock_llm_client():
       "confidence_score": 0.9,
       "estimated_complexity": "media",
       "estimated_cost": "$$"
-    }"""
-    choice.message = message
-    response.choices = [choice]
-    client.chat.completions.create = AsyncMock(return_value=response)
+    }""",
+            prompt_tokens=50,
+            completion_tokens=50,
+            total_tokens=100,
+            model="gpt-4",
+            provider=LLMProvider.OPENAI,
+            latency_ms=100,
+        )
+    )
     return client
 
 

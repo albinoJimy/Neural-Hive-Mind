@@ -5,7 +5,7 @@ Parses intents, maps entities to ontology, and enriches with historical context.
 """
 
 import hashlib
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 UTC = UTC  # type: ignore
 from typing import TYPE_CHECKING, Any, Optional
@@ -282,7 +282,7 @@ class SemanticParser:
         return {
             "similar_intents": similar_intents,
             "operational_context": operational_context,
-            "enrichment_timestamp": datetime.now(UTC).isoformat(),
+            "enrichment_timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
     async def _identify_patterns(

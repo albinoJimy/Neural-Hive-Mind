@@ -6,7 +6,7 @@ baseado em dados históricos de 18 meses do ClickHouse.
 """
 
 import logging
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 UTC = UTC  # type: ignore, timedelta
 
@@ -69,7 +69,7 @@ class LoadPredictor:
             return
 
         logger.info("Inicializando LoadPredictor...")
-        start_time = datetime.now(UTC)
+        start_time = datetime.now(timezone.utc)
 
         try:
             for horizon in self.forecast_horizons:
@@ -112,7 +112,7 @@ class LoadPredictor:
                     f"{valid_models}/{len(self.forecast_horizons)} modelos Prophet carregados"
                 )
 
-            duration = (datetime.now(UTC) - start_time).total_seconds()
+            duration = (datetime.now(timezone.utc) - start_time).total_seconds()
             self.metrics.record_ml_model_load("load_predictor", "success", duration)
 
             self._initialized = True
@@ -170,7 +170,7 @@ class LoadPredictor:
                 - confidence_intervals: Intervalos de confiança (80%, 95%) se solicitado
                 - metadata: Info sobre modelo, MAPE, última atualização
         """
-        start_time = datetime.now(UTC)
+        start_time = datetime.now(timezone.utc)
 
         try:
             # Verificar cache
@@ -259,7 +259,7 @@ class LoadPredictor:
                 "metadata": {
                     "model_horizon": model_horizon,
                     "horizon_requested": horizon_minutes,
-                    "forecast_generated_at": datetime.now(UTC).isoformat(),
+                    "forecast_generated_at": datetime.now(timezone.utc).isoformat(),
                     "data_points_used": len(historical_data),
                     "confidence_level": 0.95 if include_confidence_intervals else None,
                 },
@@ -268,7 +268,7 @@ class LoadPredictor:
             # Cachear resultado
             await self._cache_forecast(cache_key, result, ttl=self.cache_ttl)
 
-            duration = (datetime.now(UTC) - start_time).total_seconds()
+            duration = (datetime.now(timezone.utc) - start_time).total_seconds()
             self.metrics.record_load_prediction(horizon_minutes, "success", duration, None)
 
             logger.info(f"Previsão gerada para {horizon_minutes}m em {duration:.3f}s")
@@ -276,7 +276,7 @@ class LoadPredictor:
 
         except Exception as e:
             logger.error(f"Erro ao prever carga: {e}")
-            duration = (datetime.now(UTC) - start_time).total_seconds()
+            duration = (datetime.now(timezone.utc) - start_time).total_seconds()
             self.metrics.record_load_prediction(horizon_minutes, "error", duration, None)
             raise
 
@@ -352,7 +352,7 @@ class LoadPredictor:
             Dict com métricas de treinamento (MAE, MAPE, RMSE) por horizonte
         """
         logger.info(f"Iniciando treinamento com janela de {training_window_days} dias")
-        start_time = datetime.now(UTC)
+        start_time = datetime.now(timezone.utc)
 
         training_results = {}
 
@@ -424,7 +424,7 @@ class LoadPredictor:
 
                 training_results[horizon] = metrics
 
-            duration = (datetime.now(UTC) - start_time).total_seconds()
+            duration = (datetime.now(timezone.utc) - start_time).total_seconds()
             self.metrics.record_ml_training("load_predictor", duration, training_results)
 
             logger.info(f"Treinamento concluído em {duration:.2f}s")
@@ -539,7 +539,7 @@ class LoadPredictor:
 
     async def _fetch_recent_historical_data(self, days: int) -> list[dict]:
         """Busca dados históricos recentes do ClickHouse."""
-        end_time = datetime.now(UTC)
+        end_time = datetime.now(timezone.utc)
         start_time = end_time - timedelta(days=days)
 
         try:
@@ -566,7 +566,7 @@ class LoadPredictor:
         """
         try:
             # Consultar métricas de utilização recente (última hora)
-            end_time = datetime.now(UTC)
+            end_time = datetime.now(timezone.utc)
             start_time = end_time - timedelta(hours=1)
 
             resource_metrics = await self.clickhouse.query_resource_utilization(
@@ -678,7 +678,7 @@ class LoadPredictor:
                     "model_type": "ARIMA",
                     "model_order": str(model.order),
                     "horizon_requested": horizon_minutes,
-                    "forecast_generated_at": datetime.now(UTC).isoformat(),
+                    "forecast_generated_at": datetime.now(timezone.utc).isoformat(),
                 },
             }
 

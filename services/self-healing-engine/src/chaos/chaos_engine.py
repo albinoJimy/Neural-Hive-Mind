@@ -6,7 +6,7 @@ playbooks e geração de relatórios.
 """
 
 import asyncio
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from time import perf_counter
 from typing import Any, Optional
 
@@ -438,7 +438,7 @@ class ChaosEngine:
     ) -> ExperimentReport:
         """Execução interna do experimento."""
         start_time = perf_counter()
-        experiment.started_at = datetime.now(UTC)
+        experiment.started_at = datetime.now(timezone.utc)
         experiment.executed_by = executed_by
         experiment.status = ChaosExperimentStatus.INJECTING
 
@@ -574,14 +574,14 @@ class ChaosEngine:
                     if all_validations_passed
                     else ChaosExperimentStatus.FAILED
                 )
-                experiment.completed_at = datetime.now(UTC)
+                experiment.completed_at = datetime.now(timezone.utc)
 
         except Exception as e:
             logger.error(
                 "chaos_engine.experiment_failed", experiment_id=experiment.id, error=str(e)
             )
             experiment.status = ChaosExperimentStatus.FAILED
-            experiment.completed_at = datetime.now(UTC)
+            experiment.completed_at = datetime.now(timezone.utc)
 
             # Rollback de emergência
             await self._rollback_all_injections(experiment)
@@ -652,7 +652,7 @@ class ChaosEngine:
 
         if success:
             experiment.status = ChaosExperimentStatus.ROLLED_BACK
-            experiment.completed_at = datetime.now(UTC)
+            experiment.completed_at = datetime.now(timezone.utc)
             await self._update_experiment_status(experiment)
             self._active_experiments.pop(experiment_id, None)
             ACTIVE_EXPERIMENTS.dec()
@@ -932,8 +932,8 @@ class ChaosEngine:
             experiment_id=experiment.id,
             experiment_name=experiment.name,
             environment=experiment.environment,
-            start_time=experiment.started_at or datetime.now(UTC),
-            end_time=experiment.completed_at or datetime.now(UTC),
+            start_time=experiment.started_at or datetime.now(timezone.utc),
+            end_time=experiment.completed_at or datetime.now(timezone.utc),
             duration_seconds=duration,
             status=experiment.status,
             fault_injections=experiment.fault_injections,
@@ -1091,7 +1091,7 @@ class ChaosEngine:
                 "experiment_name": experiment.name,
                 "status": experiment.status.value,
                 "environment": experiment.environment,
-                "timestamp": datetime.now(UTC).isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
             }
 
             await self.kafka_producer.send(KAFKA_TOPICS["experiments"], event)

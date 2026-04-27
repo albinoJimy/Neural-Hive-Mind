@@ -1,6 +1,6 @@
 """Modelos de dados para User Stories."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any
 
@@ -101,7 +101,7 @@ class UserStorySet(BaseModel):
         self.stories.append(story)
         self.total_story_points += self._size_to_points(story.size)
         self.breakdown[story.size] = self.breakdown.get(story.size, 0) + 1
-        self.updated_at = datetime.utcnow()
+        self.updated_at = datetime.now(timezone.utc)
 
     @staticmethod
     def _size_to_points(size: StorySize) -> int:

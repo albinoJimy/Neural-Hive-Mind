@@ -11,7 +11,7 @@ import asyncio
 import json
 import os
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any
 
@@ -188,7 +188,7 @@ class CheckovClient:
         Returns:
             CheckovReport with scan findings
         """
-        start_time = datetime.now(UTC)
+        start_time = datetime.now(timezone.utc)
         logs = []
 
         try:
@@ -242,7 +242,7 @@ class CheckovClient:
             except asyncio.TimeoutError:
                 proc.kill()
                 await proc.wait()
-                duration = (datetime.now(UTC) - start_time).total_seconds()
+                duration = (datetime.now(timezone.utc) - start_time).total_seconds()
                 return CheckovReport(
                     passed=False,
                     findings=[],
@@ -260,7 +260,7 @@ class CheckovClient:
                     error="Scan timeout",
                 )
 
-            duration = (datetime.now(UTC) - start_time).total_seconds()
+            duration = (datetime.now(timezone.utc) - start_time).total_seconds()
 
             # Parse output
             findings = []
@@ -336,7 +336,7 @@ class CheckovClient:
             )
 
         except CheckovNotFoundError as e:
-            duration = (datetime.now(UTC) - start_time).total_seconds()
+            duration = (datetime.now(timezone.utc) - start_time).total_seconds()
             return CheckovReport(
                 passed=False,
                 findings=[],
@@ -355,7 +355,7 @@ class CheckovClient:
             )
 
         except Exception as e:
-            duration = (datetime.now(UTC) - start_time).total_seconds()
+            duration = (datetime.now(timezone.utc) - start_time).total_seconds()
             self.logger.exception("checkov_scan_exception")
             return CheckovReport(
                 passed=False,

@@ -1,6 +1,6 @@
 """Unit tests for GitLab CI client."""
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -292,8 +292,8 @@ class TestPipelineStatus:
             ref="main",
             sha="abc123",
             web_url="https://gitlab.com",
-            created_at=datetime.now(UTC),
-            updated_at=datetime.now(UTC),
+            created_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc),
         )
         assert status.is_terminal is True
 
@@ -306,8 +306,8 @@ class TestPipelineStatus:
             ref="main",
             sha="abc123",
             web_url="https://gitlab.com",
-            created_at=datetime.now(UTC),
-            updated_at=datetime.now(UTC),
+            created_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc),
         )
         assert status.is_terminal is False
 
@@ -320,8 +320,8 @@ class TestPipelineStatus:
             ref="main",
             sha="abc123",
             web_url="https://gitlab.com",
-            created_at=datetime.now(UTC),
-            updated_at=datetime.now(UTC),
+            created_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc),
         )
         assert status.is_success is True
 
@@ -334,7 +334,7 @@ class TestPipelineStatus:
             ref="main",
             sha="abc123",
             web_url="https://gitlab.com",
-            created_at=datetime.now(UTC),
-            updated_at=datetime.now(UTC),
+            created_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc),
         )
         assert status.is_failed is True

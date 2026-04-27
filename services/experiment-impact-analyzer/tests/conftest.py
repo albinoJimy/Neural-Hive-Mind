@@ -2,7 +2,7 @@
 
 import asyncio
 from collections.abc import AsyncGenerator, Generator
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -88,7 +88,7 @@ def sample_experiment() -> dict:
             "throughput": [1050.0, 1020.0, 1040.0, 1030.0, 1045.0],
         },
         "sample_size": 1000,
-        "created_at": int(datetime.now(UTC).timestamp() * 1000),
+        "created_at": int(datetime.now(timezone.utc).timestamp() * 1000),
         "status": "COMPLETED",
     }
 
@@ -125,8 +125,8 @@ def sample_impact() -> dict:
         "categories": ["performance", "reliability"],
         "recommendation": "ACCEPT: Positive impact observed.",
         "confidence_level": 0.85,
-        "created_at": datetime.now(UTC),
-        "updated_at": datetime.now(UTC),
+        "created_at": datetime.now(timezone.utc),
+        "updated_at": datetime.now(timezone.utc),
         "analysis_version": 1,
     }
 

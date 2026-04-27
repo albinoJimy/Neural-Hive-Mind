@@ -5,7 +5,7 @@ Implementa injeção de falhas de recursos como stress de CPU, memória,
 preenchimento de disco e esgotamento de file descriptors.
 """
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 import structlog
@@ -38,7 +38,7 @@ class ResourceFaultInjector(BaseFaultInjector):
 
     async def inject(self, injection: FaultInjection) -> InjectionResult:
         """Injeta falha de recursos no sistema."""
-        start_time = datetime.now(UTC)
+        start_time = datetime.now(timezone.utc)
 
         if injection.fault_type not in self.supported_fault_types:
             return InjectionResult(
@@ -165,7 +165,7 @@ class ResourceFaultInjector(BaseFaultInjector):
             fault_type=injection.fault_type,
             affected_resources=affected_pods,
             blast_radius=len(affected_pods),
-            start_time=datetime.now(UTC),
+            start_time=datetime.now(timezone.utc),
             rollback_data={
                 "type": "cpu_stress",
                 "pods": affected_pods,
@@ -237,7 +237,7 @@ class ResourceFaultInjector(BaseFaultInjector):
             fault_type=injection.fault_type,
             affected_resources=affected_pods,
             blast_radius=len(affected_pods),
-            start_time=datetime.now(UTC),
+            start_time=datetime.now(timezone.utc),
             rollback_data={
                 "type": "memory_stress",
                 "pods": affected_pods,
@@ -313,7 +313,7 @@ class ResourceFaultInjector(BaseFaultInjector):
             fault_type=injection.fault_type,
             affected_resources=affected_pods,
             blast_radius=len(affected_pods),
-            start_time=datetime.now(UTC),
+            start_time=datetime.now(timezone.utc),
             rollback_data={
                 "type": "disk_fill",
                 "pods": affected_pods,
@@ -382,7 +382,7 @@ class ResourceFaultInjector(BaseFaultInjector):
             fault_type=injection.fault_type,
             affected_resources=affected_pods,
             blast_radius=len(affected_pods),
-            start_time=datetime.now(UTC),
+            start_time=datetime.now(timezone.utc),
             rollback_data={
                 "type": "fd_exhaust",
                 "pods": affected_pods,
@@ -521,14 +521,14 @@ class ResourceFaultInjector(BaseFaultInjector):
                 injection_id=injection_id,
                 fault_type=FaultType.DISK_FILL,
                 error_message=f"Cleanup falhou em pods: {failed_pods}",
-                end_time=datetime.now(UTC),
+                end_time=datetime.now(timezone.utc),
             )
 
         return InjectionResult(
             success=True,
             injection_id=injection_id,
             fault_type=FaultType.DISK_FILL,
-            end_time=datetime.now(UTC),
+            end_time=datetime.now(timezone.utc),
         )
 
     async def _kill_stress_processes(
@@ -579,14 +579,14 @@ class ResourceFaultInjector(BaseFaultInjector):
                 injection_id=injection_id,
                 fault_type=fault_type,
                 error_message=f"Kill falhou em pods: {failed_pods}",
-                end_time=datetime.now(UTC),
+                end_time=datetime.now(timezone.utc),
             )
 
         return InjectionResult(
             success=True,
             injection_id=injection_id,
             fault_type=fault_type,
-            end_time=datetime.now(UTC),
+            end_time=datetime.now(timezone.utc),
         )
 
     async def get_blast_radius(self, target: TargetSelector) -> int:

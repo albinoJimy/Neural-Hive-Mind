@@ -1,6 +1,6 @@
 """Tests para modelos de aprovação."""
 
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 
 from src.models.approval import (
     ApprovalDecision,
@@ -56,7 +56,7 @@ class TestApprovalRequest:
 
     def test_create_full_request(self):
         """Cria solicitação completa."""
-        expires_at = datetime.utcnow() + timedelta(hours=24)
+        expires_at = datetime.now(timezone.utc) + timedelta(hours=24)
         context = {"complexity": 3, "priority": "high", "is_critical": False}
 
         request = ApprovalRequest(

@@ -1,7 +1,7 @@
 """Repository MongoDB para recomendações de otimização."""
 
 import logging
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 UTC = UTC  # type: ignore
 from typing import Any
@@ -56,8 +56,8 @@ class OptimizationRepository:
         Returns:
             ID do documento criado
         """
-        data["created_at"] = datetime.now(UTC)
-        data["updated_at"] = datetime.now(UTC)
+        data["created_at"] = datetime.now(timezone.utc)
+        data["updated_at"] = datetime.now(timezone.utc)
 
         result = await self.collection.insert_one(data)
         logger.info(f"optimization_created id={result.inserted_id}")
@@ -148,15 +148,15 @@ class OptimizationRepository:
             obj_id = ObjectId(recommendation_id)
             update_data = {
                 "status": status,
-                "updated_at": datetime.now(UTC),
+                "updated_at": datetime.now(timezone.utc),
             }
 
             if approved_by:
                 update_data["approved_by"] = approved_by
-                update_data["approved_at"] = datetime.now(UTC)
+                update_data["approved_at"] = datetime.now(timezone.utc)
 
             if status == "applied":
-                update_data["applied_at"] = datetime.now(UTC)
+                update_data["applied_at"] = datetime.now(timezone.utc)
 
             result = await self.collection.update_one({"_id": obj_id}, {"$set": update_data})
 
@@ -194,9 +194,9 @@ class OptimizationRepository:
                             "before_duration_ms": before_duration_ms,
                             "after_duration_ms": after_duration_ms,
                             "improvement_pct": improvement_pct,
-                            "validated_at": datetime.now(UTC),
+                            "validated_at": datetime.now(timezone.utc),
                         },
-                        "updated_at": datetime.now(UTC),
+                        "updated_at": datetime.now(timezone.utc),
                     }
                 },
             )

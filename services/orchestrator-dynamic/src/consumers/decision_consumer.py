@@ -9,6 +9,8 @@ Implementa deduplicação baseada em Redis para idempotência.
 import io
 import json
 import os
+from datetime import datetime, timezone
+from typing import Any
 
 import structlog
 from aiokafka import AIOKafkaConsumer
@@ -26,10 +28,34 @@ try:
 except ImportError:
     AVRO_AVAILABLE = False
 
-from src.workflows.orchestration_workflow import OrchestrationWorkflow
 from src.workflows.fluxo_g_workflow import FluxoGWorkflow
+from src.workflows.orchestration_workflow import OrchestrationWorkflow
 
 logger = structlog.get_logger()
+
+
+# Drift detection support
+try:
+    from src.ml.drift_detector import DriftDetector
+    DRIFT_DETECTION_AVAILABLE = True
+except ImportError:
+    DRIFT_DETECTION_AVAILABLE = False
+    logger.warning("drift_detector_not_available", message="DriftDetector module not found")
+
+# Drift-retrain connector support (FASE 0)
+try:
+    from src.ml.drift_retrain_connector import (
+        DriftAlert,
+        DriftRetrainConnector,
+        get_drift_retrain_connector,
+    )
+    DRIFT_RETRAIN_AVAILABLE = True
+except ImportError:
+    DRIFT_RETRAIN_AVAILABLE = False
+    logger.warning(
+        "drift_retrain_connector_not_available",
+        message="DriftRetrainConnector module not found"
+    )
 
 
 def _deserialize_avro_or_json(raw_bytes: bytes, schema_registry_url: str | None = None) -> dict:
@@ -184,6 +210,8 @@ class DecisionConsumer:
         mongodb_client,
         redis_client=None,
         metrics=None,
+        drift_detector=None,
+        drift_retrain_connector=None,
         sasl_username_override: str | None = None,
         sasl_password_override: str | None = None,
     ):
@@ -196,6 +224,8 @@ class DecisionConsumer:
             mongodb_client: Cliente MongoDB para buscar Cognitive Plans
             redis_client: Cliente Redis para deduplicação (opcional)
             metrics: Instância de OrchestratorMetrics para métricas compartilhadas
+            drift_detector: Instância de DriftDetector para verificar drift ML
+            drift_retrain_connector: Instância de DriftRetrainConnector (FASE 0)
             sasl_username_override: Username SASL (ex: obtido do Vault)
             sasl_password_override: Password SASL (ex: obtido do Vault)
         """
@@ -204,6 +234,8 @@ class DecisionConsumer:
         self.mongodb_client = mongodb_client
         self.redis_client = redis_client
         self.metrics = metrics
+        self.drift_detector = drift_detector
+        self.drift_retrain_connector = drift_retrain_connector
         self.consumer: AIOKafkaConsumer | None = None
         self.running = False
         self.sasl_username = (
@@ -222,6 +254,9 @@ class DecisionConsumer:
             "SCHEMA_REGISTRY_URL",
             "http://schema-registry.kafka.svc.cluster.local:8080/apis/ccompat/v6",
         )
+
+        # Configuração de drift detection
+        self.ml_drift_check_enabled = getattr(config, "ml_drift_check_enabled", False)
 
     async def initialize(self):
         """Inicializa o consumer Kafka."""
@@ -408,6 +443,133 @@ class DecisionConsumer:
                 "clear_decision_processing_failed", decision_id=decision_id, error=str(e)
             )
 
+    async def _check_ml_drift(self) -> dict[str, Any] | None:
+        """
+        Verifica drift em modelos ML antes de processar decisão.
+
+        Returns:
+            Dict com relatório de drift ou None se drift detection não disponível
+        """
+        if not self.ml_drift_check_enabled:
+            return None
+
+        if not self.drift_detector:
+            logger.debug("drift_detector_not_configured", message="Drift detector not available")
+            return None
+
+        try:
+            drift_report = await self.drift_detector.run_drift_check()
+
+            if drift_report.get("overall_status") != "ok":
+                overall_status = drift_report.get("overall_status")
+                logger.warning(
+                    "ml_drift_detected",
+                    status=overall_status,
+                    recommendations=drift_report.get("recommendations", []),
+                    feature_drift=drift_report.get("feature_drift", {}),
+                    prediction_drift=drift_report.get("prediction_drift", {}),
+                    target_drift=drift_report.get("target_drift", {}),
+                )
+
+                # Registrar métrica de drift detectado
+                if self.metrics:
+                    self.metrics.record_drift_score(
+                        drift_type="overall",
+                        score=1.0 if overall_status == "critical" else 0.5,
+                        model_name="orchestrator-ml",
+                    )
+
+                # FASE 0: Trigger auto-retrain se connector disponível
+                if self.drift_retrain_connector:
+                    await self._trigger_retrain_on_drift(drift_report)
+
+            return drift_report
+
+        except Exception as e:
+            logger.exception("ml_drift_check_failed", error=str(e))
+            # Não falhar o processamento por erro no drift check
+            return None
+
+    async def _trigger_retrain_on_drift(self, drift_report: dict[str, Any]) -> None:
+        """
+        Trigger auto-retrain quando drift significativo é detectado.
+
+        Args:
+            drift_report: Relatório de drift do DriftDetector
+        """
+        if not DRIFT_RETRAIN_AVAILABLE:
+            return
+
+        if not self.drift_retrain_connector:
+            return
+
+        try:
+            # Determinar severidade e tipo de drift
+            overall_status = drift_report.get("overall_status", "ok")
+            feature_drift = drift_report.get("feature_drift", {})
+            prediction_drift = drift_report.get("prediction_drift", {})
+            target_drift = drift_report.get("target_drift", {})
+
+            # Encontrar o drift mais significativo
+            max_drift_score = 0.0
+            drift_type = "unknown"
+            drift_details = {}
+
+            for dt, data in [
+                ("feature", feature_drift),
+                ("prediction", prediction_drift),
+                ("target", target_drift),
+            ]:
+                score = data.get("max_drift_score", 0.0)
+                if score > max_drift_score:
+                    max_drift_score = score
+                    drift_type = dt
+                    drift_details = data
+
+            severity = "ok" if overall_status == "ok" else ("warning" if overall_status == "warning" else "critical")
+
+            # Parse timestamp (pode ser string ISO ou datetime)
+            timestamp_str = drift_report.get("timestamp")
+            if isinstance(timestamp_str, str):
+                try:
+                    timestamp = datetime.fromisoformat(timestamp_str.replace("Z", "+00:00"))
+                except ValueError:
+                    timestamp = datetime.now(timezone.utc)
+            else:
+                timestamp = timestamp_str or datetime.now(timezone.utc)
+
+            # Criar alerta de drift
+            alert = DriftAlert(
+                timestamp=timestamp,
+                model_name="nhm_approval_model",
+                model_version=drift_report.get("model_version", "unknown"),
+                drift_type=drift_type,
+                severity=severity,
+                score=max_drift_score,
+                details=drift_details,
+            )
+
+            # Trigger retrain se necessário
+            retrain_result = await self.drift_retrain_connector.trigger_retrain_if_needed(alert)
+
+            if retrain_result.get("triggered"):
+                logger.info(
+                    "ml_retrain_triggered",
+                    reason=retrain_result.get("reason"),
+                    priority=retrain_result.get("priority"),
+                    drift_type=drift_type,
+                    drift_score=max_drift_score,
+                )
+            else:
+                logger.debug(
+                    "ml_retrain_not_triggered",
+                    reason=retrain_result.get("reason"),
+                )
+
+        except Exception as e:
+            logger.exception("trigger_retrain_on_drift_failed", error=str(e))
+            # Não falhar o processamento por erro no trigger
+
     @trace_plan()
     async def _process_message(self, message):
         """
@@ -482,6 +644,18 @@ class DecisionConsumer:
                 "duplicate_decision_skipped", decision_id=decision_id, offset=message.offset
             )
             return
+
+        # Verificar drift em modelos ML antes de processar
+        drift_report = await self._check_ml_drift()
+        if drift_report and drift_report.get("overall_status") != "ok":
+            # Marcar decisão com drift detectado para tracking
+            consolidated_decision["drift_detected"] = True
+            consolidated_decision["drift_status"] = drift_report.get("overall_status")
+            consolidated_decision["drift_timestamp"] = drift_report.get("timestamp")
+
+            # Adicionar ao span para tracing
+            span.set_attribute("neural.hive.ml.drift_detected", True)
+            span.set_attribute("neural.hive.ml.drift_status", drift_report.get("overall_status"))
 
         try:
             # Detectar se é um Cognitive Plan direto do STE (sem approval)

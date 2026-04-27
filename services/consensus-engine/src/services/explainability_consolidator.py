@@ -1,7 +1,7 @@
 import asyncio
 import uuid
 from collections import Counter
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Any
 
 import structlog
@@ -134,7 +134,7 @@ class ExplainabilityConsolidator:
                 ),
             },
             "compliance": {"is_compliant": len(violations) == 0, "violations": violations},
-            "timestamp": datetime.now(UTC).isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "version": "1.1.0",  # Incrementado para GAPS-04
         }
 
@@ -211,7 +211,7 @@ class ExplainabilityConsolidator:
                 {
                     "token": token,
                     "explanation": explanation,
-                    "timestamp": datetime.now(UTC),
+                    "timestamp": datetime.now(timezone.utc),
                 }
             )
             logger.info("Explicação consolidada persistida", token=token)

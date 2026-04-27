@@ -2,7 +2,7 @@ import asyncio
 import time
 from collections.abc import Callable
 from dataclasses import asdict, dataclass, field
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Optional
 from uuid import uuid4
@@ -137,7 +137,7 @@ class RemediationManager:
             ).inc()
 
             state.status = RemediationStatus.RUNNING
-            state.started_at = datetime.now(UTC).isoformat()
+            state.started_at = datetime.now(timezone.utc).isoformat()
             await self._persist_state(state)
 
             async def on_action_completed(action_result: dict):
@@ -157,7 +157,7 @@ class RemediationManager:
                 )
                 state.status = final_status
                 state.error = result.get("error")
-                state.completed_at = datetime.now(UTC).isoformat()
+                state.completed_at = datetime.now(timezone.utc).isoformat()
 
                 # Registrar métricas de conclusão
                 self._remediation_duration_seconds.labels(
@@ -204,7 +204,7 @@ class RemediationManager:
                 total_duration = time.time() - remediation_start_time
                 state.status = RemediationStatus.TIMEOUT
                 state.error = "Playbook timeout"
-                state.completed_at = datetime.now(UTC).isoformat()
+                state.completed_at = datetime.now(timezone.utc).isoformat()
 
                 # Registrar métricas de timeout
                 self._remediation_duration_seconds.labels(
@@ -229,7 +229,7 @@ class RemediationManager:
                 total_duration = time.time() - remediation_start_time
                 state.status = RemediationStatus.CANCELLED
                 state.error = "Cancelled"
-                state.completed_at = datetime.now(UTC).isoformat()
+                state.completed_at = datetime.now(timezone.utc).isoformat()
 
                 # Registrar métricas de cancelamento
                 self._remediation_duration_seconds.labels(
@@ -252,7 +252,7 @@ class RemediationManager:
                 total_duration = time.time() - remediation_start_time
                 state.status = RemediationStatus.FAILED
                 state.error = str(exc)
-                state.completed_at = datetime.now(UTC).isoformat()
+                state.completed_at = datetime.now(timezone.utc).isoformat()
 
                 # Registrar métricas de falha
                 self._remediation_duration_seconds.labels(
@@ -298,7 +298,7 @@ class RemediationManager:
             return None
 
         state.status = RemediationStatus.CANCELLED
-        state.completed_at = datetime.now(UTC).isoformat()
+        state.completed_at = datetime.now(timezone.utc).isoformat()
         asyncio.create_task(self._persist_state(state))
 
         logger.info("remediation_manager.remediation_cancelled", remediation_id=remediation_id)

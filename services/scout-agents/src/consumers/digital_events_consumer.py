@@ -9,7 +9,7 @@ Created: 2026-03-31 (CR-02)
 """
 
 import json
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any, Optional
 
 if TYPE_CHECKING:
@@ -220,7 +220,7 @@ class DigitalEventsConsumer:
             ).inc()
 
         self.stats["events_processed"] += 1
-        self.stats["last_event_at"] = datetime.now(UTC)
+        self.stats["last_event_at"] = datetime.now(timezone.utc)
 
         logger.debug("evento_digital_processado", event_id=event.event_id)
 

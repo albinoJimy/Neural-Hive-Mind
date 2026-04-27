@@ -3,7 +3,7 @@ Teste end-to-end do fluxo de resiliência E1-E6.
 Valida que um incidente Kafka percorre toda a pipeline até validação de SLA.
 """
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from unittest.mock import AsyncMock, Mock
 
 import pytest
@@ -20,7 +20,7 @@ def mock_incident_event():
         "source_ip": "10.0.0.100",
         "user_id": "malicious_user",
         "payload": {"attack_type": "syn_flood"},
-        "timestamp": datetime.now(UTC).isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
         "raw_data": {
             "incident_id": "INC-TEST-001",
             "affected_resources": ["neural-hive-resilience/deployment/api-gateway"],
@@ -274,7 +274,7 @@ async def test_e2e_with_sla_violation():
         "event_id": "INC-FAIL-001",
         "severity": "critical",
         "threat_type": "data_exfiltration",
-        "timestamp": datetime.now(UTC).isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
     result = await orchestrator.process_incident_flow(event=event)

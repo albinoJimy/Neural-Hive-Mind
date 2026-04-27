@@ -3,6 +3,7 @@
 from unittest.mock import AsyncMock, Mock
 
 import pytest
+from neural_hive_llm import LLMResponse, LLMProvider
 from src.generators.architecture_diagram_generator import ArchitectureDiagramGenerator
 from src.models.bounded_context import BoundedContext
 from src.models.diagrams import DiagramType
@@ -10,15 +11,21 @@ from src.models.diagrams import DiagramType
 
 @pytest.fixture
 def mock_llm_client():
-    """Mock do cliente LLM."""
+    """Mock do cliente LLM usando neural_hive_llm."""
     client = Mock()
-    response = Mock()
-    choice = Mock()
-    message = Mock()
-    message.content = "sequenceDiagram\n    User->>System: Request\n    System-->>User: Response"
-    choice.message = message
-    response.choices = [choice]
-    client.chat.completions.create = AsyncMock(return_value=response)
+    client.start = AsyncMock()
+    # Resposta padrão para generate_from_description
+    client.generate = AsyncMock(
+        return_value=LLMResponse(
+            text="sequenceDiagram\n    User->>System: Request\n    System-->>User: Response",
+            prompt_tokens=20,
+            completion_tokens=30,
+            total_tokens=50,
+            model="gpt-4",
+            provider=LLMProvider.OPENAI,
+            latency_ms=100,
+        )
+    )
     return client
 
 
@@ -219,12 +226,11 @@ async def test_generate_from_description_uses_llm(mock_llm_client):
     result = await generator.generate_from_description(description=description, render=False)
 
     # Verificar que o LLM foi chamado
-    mock_llm_client.chat.completions.create.assert_called_once()
+    mock_llm_client.generate.assert_called_once()
 
     # Verificar argumentos da chamada
-    call_args = mock_llm_client.chat.completions.create.call_args
-    assert call_args[1]["model"] == "gpt-4"
-    assert "sequenceDiagram" in call_args[1]["messages"][1]["content"]
+    call_args = mock_llm_client.generate.call_args
+    assert "sequenceDiagram" in call_args[1]["prompt"]
 
     # Verificar resultado
     assert result.type == DiagramType.SEQUENCE
@@ -236,13 +242,17 @@ async def test_generate_from_description_cleans_markdown(mock_llm_client):
     """Testa que generate_from_description limpa markdown do response."""
 
     # Mock com markdown code blocks
-    response = Mock()
-    choice = Mock()
-    message = Mock()
-    message.content = "```mermaid\nsequenceDiagram\n    A->>B: Test\n```"
-    choice.message = message
-    response.choices = [choice]
-    mock_llm_client.chat.completions.create = AsyncMock(return_value=response)
+    mock_llm_client.generate = AsyncMock(
+        return_value=LLMResponse(
+            text="```mermaid\nsequenceDiagram\n    A->>B: Test\n```",
+            prompt_tokens=20,
+            completion_tokens=20,
+            total_tokens=40,
+            model="gpt-4",
+            provider=LLMProvider.OPENAI,
+            latency_ms=100,
+        )
+    )
 
     generator = ArchitectureDiagramGenerator(
         llm_client=mock_llm_client, output_dir="/tmp/test_diagrams"

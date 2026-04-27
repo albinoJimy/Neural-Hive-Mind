@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Optional
 from uuid import UUID, uuid4
 
@@ -89,8 +89,8 @@ class RegistryService:
                 cluster=cluster,
                 version=version,
                 status=AgentStatus.HEALTHY,
-                registered_at=int(datetime.now(UTC).timestamp()),
-                last_seen=int(datetime.now(UTC).timestamp()),
+                registered_at=int(datetime.now(timezone.utc).timestamp()),
+                last_seen=int(datetime.now(timezone.utc).timestamp()),
             )
 
             # Salvar no Redis
@@ -135,7 +135,7 @@ class RegistryService:
                 raise ValueError(f"Agente {agent_id} não encontrado")
 
             # Atualizar last_seen
-            agent_info.last_seen = int(datetime.now(UTC).timestamp())
+            agent_info.last_seen = int(datetime.now(timezone.utc).timestamp())
 
             # Atualizar telemetria se fornecida
             if telemetry:

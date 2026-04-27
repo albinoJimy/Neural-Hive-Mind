@@ -9,7 +9,7 @@ A migração 001_add_budget_history_partitioning.sql deve ser aplicada primeiro.
 
 import asyncio
 import os
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timezone, timedelta
 
 import asyncpg
 import structlog
@@ -70,7 +70,7 @@ async def create_partitions_for_next_months(months: int = 3):
         logger.info("table_is_partitioned", table=PARENT_TABLE)
 
         # Calcular meses futuros a partir do próximo mês
-        current_date = datetime.now(UTC).replace(day=1)
+        current_date = datetime.now(timezone.utc).replace(day=1)
         next_month = current_date + timedelta(days=32)
         next_month = next_month.replace(day=1)
 

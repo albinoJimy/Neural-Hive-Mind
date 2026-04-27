@@ -1,7 +1,7 @@
 """Repositório para persistência de documentos."""
 
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Optional
 
 from structlog import get_logger
@@ -60,7 +60,7 @@ class DocumentRepository:
             "entity_count": 0,
             "extracted_entity_types": [],
             "parsing_error": None,
-            "created_at": datetime.utcnow(),
+            "created_at": datetime.now(timezone.utc),
             "updated_at": None,
             "parsed_at": None,
             "extracted_at": None,
@@ -167,7 +167,7 @@ class DocumentRepository:
         if not update_dict:
             return await self.get_by_id(document_id)
 
-        update_dict["updated_at"] = datetime.utcnow()
+        update_dict["updated_at"] = datetime.now(timezone.utc)
 
         result = await db.documents_collection.update_one(
             {"id": document_id}, {"$set": update_dict}
@@ -232,7 +232,7 @@ class DocumentRepository:
         update_data = DocumentUpdate(
             status=DocumentStatus.PARSED,
             parsed_text=parsed_text,
-            parsed_at=datetime.utcnow(),
+            parsed_at=datetime.now(timezone.utc),
         )
         return await self.update(document_id, update_data)
 
@@ -256,6 +256,6 @@ class DocumentRepository:
             status=DocumentStatus.EXTRACTED,
             entity_count=entity_count,
             extracted_entity_types=extracted_entity_types,
-            extracted_at=datetime.utcnow(),
+            extracted_at=datetime.now(timezone.utc),
         )
         return await self.update(document_id, update_data)

@@ -6,7 +6,7 @@ de chaos e medição de métricas de recuperação.
 """
 
 import asyncio
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from time import perf_counter
 from typing import Any, Optional
 
@@ -152,7 +152,7 @@ class PlaybookValidator:
 
             # Validar disponibilidade
             availability = await self._measure_availability(
-                context, injection.start_time, datetime.now(UTC)
+                context, injection.start_time, datetime.now(timezone.utc)
             )
             availability_ok = availability >= criteria.min_availability_percent
             criteria_met["availability"] = availability_ok
@@ -165,7 +165,7 @@ class PlaybookValidator:
 
             # Validar taxa de erros
             error_rate = await self._measure_error_rate(
-                context, injection.start_time, datetime.now(UTC)
+                context, injection.start_time, datetime.now(timezone.utc)
             )
             error_rate_ok = error_rate <= criteria.max_error_rate_percent
             criteria_met["error_rate"] = error_rate_ok
@@ -373,7 +373,7 @@ class PlaybookValidator:
             "mttr_stats": mttr_stats,
             "failed_criteria_frequency": failed_criteria,
             "recommendations": recommendations,
-            "generated_at": datetime.now(UTC).isoformat(),
+            "generated_at": datetime.now(timezone.utc).isoformat(),
         }
 
     async def _wait_for_playbook_execution(
@@ -418,7 +418,7 @@ class PlaybookValidator:
     async def _capture_metrics(self, context: dict[str, Any]) -> dict[str, Any]:
         """Captura snapshot de métricas atuais."""
         metrics = {
-            "timestamp": datetime.now(UTC).isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
         if self.prometheus_client:

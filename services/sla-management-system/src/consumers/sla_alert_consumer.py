@@ -3,7 +3,7 @@ Consumer Kafka para alertas SLA e despacho para canais de notificação.
 """
 
 import json
-from datetime import UTC
+from datetime import timezone
 from typing import Any
 
 import structlog
@@ -294,7 +294,7 @@ class SLAAlertConsumer:
                     {"type": "mrkdwn", "text": f"*SLO ID:*\n{alert_data.get('slo_id', 'N/A')}"},
                     {
                         "type": "mrkdwn",
-                        "text": f"*Triggered:*\n{datetime.now(UTC).strftime('%Y-%m-%d %H:%M:%S UTC')}",
+                        "text": f"*Triggered:*\n{datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')}",
                     },
                 ],
             },

@@ -9,7 +9,7 @@ Responsável por:
 - Estatísticas agregadas
 """
 
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from typing import Any, Optional
 
 import structlog
@@ -60,7 +60,7 @@ class ScoutLedger:
         exploration_id = exploration_data.get("exploration_id")
 
         # Adicionar timestamps
-        now = datetime.now(UTC)
+        now = datetime.now(timezone.utc)
         if "created_at" not in exploration_data:
             exploration_data["created_at"] = now
         exploration_data["updated_at"] = now
@@ -177,12 +177,12 @@ class ScoutLedger:
         """
         collection = self._get_collection()
 
-        update_data = {"status": status, "updated_at": datetime.now(UTC)}
+        update_data = {"status": status, "updated_at": datetime.now(timezone.utc)}
 
         if status == "completed":
-            update_data["completed_at"] = datetime.now(UTC)
+            update_data["completed_at"] = datetime.now(timezone.utc)
         elif status in ["failed", "error"]:
-            update_data["failed_at"] = datetime.now(UTC)
+            update_data["failed_at"] = datetime.now(timezone.utc)
 
         if results:
             update_data["results"] = results
@@ -278,7 +278,7 @@ class ScoutLedger:
         """
         collection = self._get_collection()
 
-        cutoff_date = datetime.now(UTC) - timedelta(days=days_older_than)
+        cutoff_date = datetime.now(timezone.utc) - timedelta(days=days_older_than)
 
         filter_query = {"created_at": {"$lt": cutoff_date}}
 

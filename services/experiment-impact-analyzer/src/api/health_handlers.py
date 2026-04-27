@@ -1,6 +1,6 @@
 """Health check and metrics handlers."""
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 from fastapi import Response
 from prometheus_client import REGISTRY, Counter, Histogram, generate_latest
@@ -33,7 +33,7 @@ async def root_handler() -> dict:
         "service": settings.service_name,
         "version": settings.service_version,
         "status": "operational",
-        "timestamp": datetime.now(UTC).isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
 
@@ -44,7 +44,7 @@ async def health_handler() -> dict:
         "status": "healthy",
         "service": settings.service_name,
         "version": settings.service_version,
-        "timestamp": datetime.now(UTC).isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
 
@@ -64,7 +64,7 @@ async def readiness_handler() -> dict:
 
     return {
         "ready": is_ready,
-        "timestamp": datetime.now(UTC).isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
 

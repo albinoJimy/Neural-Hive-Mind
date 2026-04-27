@@ -10,7 +10,7 @@ Responsável por:
 Explainability API v3 - Task 5
 """
 
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from typing import Any, Optional
 
 import structlog
@@ -136,7 +136,7 @@ class TemporalTracker:
                 - daily_breakdown: decisões por dia
         """
         # Calcular data de corte
-        since = datetime.now(UTC) - timedelta(days=days)
+        since = datetime.now(timezone.utc) - timedelta(days=days)
 
         # Buscar decisões dentro da janela
         cursor = self.explainability_collection.find(
@@ -198,7 +198,7 @@ class TemporalTracker:
                 - specialists_with_changes: IDs com mudanças
         """
         # Calcular data de corte
-        since = datetime.now(UTC) - timedelta(days=days)
+        since = datetime.now(timezone.utc) - timedelta(days=days)
 
         # Buscar mudanças recentes
         cursor = self.seniority_collection.find(
@@ -232,7 +232,7 @@ class TemporalTracker:
                 - percentages: porcentagem por nível
         """
         if since is None:
-            since = datetime.now(UTC) - timedelta(days=30)
+            since = datetime.now(timezone.utc) - timedelta(days=30)
 
         # Buscar mudanças no período, ordenadas por data (mais recente primeiro)
         cursor = self.seniority_collection.find({"changed_at": {"$gte": since}}).sort(

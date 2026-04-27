@@ -5,7 +5,7 @@ Implementa endpoints REST para insights, time-series, e dashboard.
 
 import asyncio
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from typing import Optional
 
 import structlog
@@ -413,7 +413,7 @@ async def get_dashboard_stream(
 
                 # Criar payload
                 dashboard_data = {
-                    "timestamp": datetime.utcnow().isoformat(),
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
                     "time_range": time_range,
                     "insights_by_type": summary.get("insights_by_type", {}),
                     "anomalies_detected": summary.get("anomalies_detected", 0),
@@ -448,7 +448,7 @@ async def get_dashboard_stream(
         except Exception as e:
             logger.error("dashboard_stream_error", error=str(e))
             # Enviar erro via SSE e terminar loop
-            error_data = {"error": str(e), "timestamp": datetime.utcnow().isoformat()}
+            error_data = {"error": str(e), "timestamp": datetime.now(timezone.utc).isoformat()}
             yield f"event: error\ndata: {json.dumps(error_data)}\n\n"
             # Break para evitar memory leak - cliente desconectou ou erro grave
             break

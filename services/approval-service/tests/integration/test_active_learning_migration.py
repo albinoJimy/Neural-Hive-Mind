@@ -8,7 +8,7 @@ Execute com: docker-compose up -d mongodb
 """
 
 import os
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from unittest.mock import MagicMock
 
 import pytest
@@ -127,7 +127,7 @@ async def test_active_learning_queue_document_structure(mongo_client):
         "confidence": 0.5,
         "predicted_decision": "approve",
         "status": "pending",
-        "created_at": datetime.now(UTC),
+        "created_at": datetime.now(timezone.utc),
     }
 
     await collection.insert_one(test_doc)

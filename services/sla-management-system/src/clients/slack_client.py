@@ -2,7 +2,7 @@
 Cliente Slack para envio de notificações via webhook.
 """
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Any
 
 import httpx
@@ -204,7 +204,7 @@ class SlackClient:
                     {"type": "mrkdwn", "text": f"*SLO ID:*\n{slo_id or 'N/A'}"},
                     {
                         "type": "mrkdwn",
-                        "text": f"*Triggered:*\n{datetime.now(UTC).strftime('%Y-%m-%d %H:%M:%S UTC')}",
+                        "text": f"*Triggered:*\n{datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')}",
                     },
                 ],
             },

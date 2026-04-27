@@ -7,7 +7,7 @@ disponiveis para execucao completa.
 
 import socket
 import uuid
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 import grpc
 import pytest
@@ -331,7 +331,7 @@ class TestQueryInsightsE2E:
         """Consultar insights com filtro de tempo."""
         request = analyst_agent_pb2.QueryInsightsRequest(
             start_timestamp=1704067200000,
-            end_timestamp=int(datetime.now(UTC).timestamp() * 1000) + 86400000,
+            end_timestamp=int(datetime.now(timezone.utc).timestamp() * 1000) + 86400000,
             limit=10,
         )
         response = await grpc_stub.QueryInsights(request)

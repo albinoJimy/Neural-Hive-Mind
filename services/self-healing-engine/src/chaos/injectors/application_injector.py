@@ -5,7 +5,7 @@ Implementa injeção de falhas em nível de aplicação como erros HTTP,
 respostas lentas e trigger de circuit breakers.
 """
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Any
 
 import structlog
@@ -47,7 +47,7 @@ class ApplicationFaultInjector(BaseFaultInjector):
 
     async def inject(self, injection: FaultInjection) -> InjectionResult:
         """Injeta falha em nível de aplicação."""
-        start_time = datetime.now(UTC)
+        start_time = datetime.now(timezone.utc)
 
         if injection.fault_type not in self.supported_fault_types:
             return InjectionResult(
@@ -149,7 +149,7 @@ class ApplicationFaultInjector(BaseFaultInjector):
                     },
                     "annotations": {
                         "chaos.neuralhive.io/experiment-id": injection.id,
-                        "chaos.neuralhive.io/created-at": datetime.now(UTC).isoformat(),
+                        "chaos.neuralhive.io/created-at": datetime.now(timezone.utc).isoformat(),
                     },
                 },
                 "spec": {
@@ -195,7 +195,7 @@ class ApplicationFaultInjector(BaseFaultInjector):
                 fault_type=injection.fault_type,
                 affected_resources=[service_name],
                 blast_radius=1,
-                start_time=datetime.now(UTC),
+                start_time=datetime.now(timezone.utc),
                 rollback_data={
                     "type": "istio_virtual_service",
                     "vs_name": vs_name,
@@ -255,7 +255,7 @@ class ApplicationFaultInjector(BaseFaultInjector):
                     },
                     "annotations": {
                         "chaos.neuralhive.io/experiment-id": injection.id,
-                        "chaos.neuralhive.io/created-at": datetime.now(UTC).isoformat(),
+                        "chaos.neuralhive.io/created-at": datetime.now(timezone.utc).isoformat(),
                     },
                 },
                 "spec": {
@@ -301,7 +301,7 @@ class ApplicationFaultInjector(BaseFaultInjector):
                 fault_type=injection.fault_type,
                 affected_resources=[service_name],
                 blast_radius=1,
-                start_time=datetime.now(UTC),
+                start_time=datetime.now(timezone.utc),
                 rollback_data={
                     "type": "istio_virtual_service",
                     "vs_name": vs_name,
@@ -389,7 +389,7 @@ class ApplicationFaultInjector(BaseFaultInjector):
                     fault_type=injection.fault_type,
                     affected_resources=[service_name],
                     blast_radius=1,
-                    start_time=datetime.now(UTC),
+                    start_time=datetime.now(timezone.utc),
                     rollback_data={
                         "type": "istio_virtual_service",
                         "vs_name": vs_name,
@@ -409,7 +409,7 @@ class ApplicationFaultInjector(BaseFaultInjector):
                     fault_type=injection.fault_type,
                     affected_resources=[service_name],
                     blast_radius=1,
-                    start_time=datetime.now(UTC),
+                    start_time=datetime.now(timezone.utc),
                     rollback_data={
                         "type": "manual",
                         "service": service_name,
@@ -482,7 +482,7 @@ class ApplicationFaultInjector(BaseFaultInjector):
                     success=True,
                     injection_id=injection_id,
                     fault_type=injection.fault_type,
-                    end_time=datetime.now(UTC),
+                    end_time=datetime.now(timezone.utc),
                     metadata={"note": "Rollback manual - nenhuma ação automática"},
                 )
             else:
@@ -545,7 +545,7 @@ class ApplicationFaultInjector(BaseFaultInjector):
                 success=True,
                 injection_id=injection_id,
                 fault_type=FaultType.HTTP_ERROR,
-                end_time=datetime.now(UTC),
+                end_time=datetime.now(timezone.utc),
             )
 
         except Exception as e:

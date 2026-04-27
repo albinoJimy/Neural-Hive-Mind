@@ -286,7 +286,7 @@ class SagaRepository:
             query = {"status": SagaStatus.PENDING.value}
 
             if older_than_ms:
-                cutoff = int(datetime.now(UTC).timestamp() * 1000) - older_than_ms
+                cutoff = int(datetime.now(timezone.utc).timestamp() * 1000) - older_than_ms
                 query["created_at"] = {"$lt": cutoff}
 
             cursor = await asyncio.wait_for(
@@ -367,7 +367,7 @@ class SagaRepository:
             update_data = {"status": status.value}
 
             # Adicionar timestamp baseado no status
-            now = int(datetime.now(UTC).timestamp() * 1000)
+            now = int(datetime.now(timezone.utc).timestamp() * 1000)
             if status == SagaStatus.STARTED:
                 update_data["started_at"] = now
             elif status == SagaStatus.COMPLETED:

@@ -1,6 +1,6 @@
 """Testes da API de otimizações."""
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -20,8 +20,8 @@ def mock_repository():
         "ticket_id": "TICKET-001",
         "workflow_id": "workflow-001",
         "status": "approved",
-        "created_at": datetime.now(UTC).isoformat(),
-        "updated_at": datetime.now(UTC).isoformat(),
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "updated_at": datetime.now(timezone.utc).isoformat(),
         "performance_analysis": {"total_duration_ms": 5000, "peak_memory_mb": 128},
         "recommendations": [
             {
@@ -132,8 +132,8 @@ class TestOptimizationsAPI:
                     "ticket_id": "TICKET-001",
                     "workflow_id": "workflow-001",
                     "status": "approved",  # Precisa estar approved para apply
-                    "created_at": datetime.now(UTC).isoformat(),
-                    "updated_at": datetime.now(UTC).isoformat(),
+                    "created_at": datetime.now(timezone.utc).isoformat(),
+                    "updated_at": datetime.now(timezone.utc).isoformat(),
                     "performance_analysis": {"total_duration_ms": 5000, "peak_memory_mb": 128},
                     "recommendations": [{"id": "rec-001"}],
                 }

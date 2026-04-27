@@ -153,7 +153,7 @@ class AdaptivePriorityCalculator:
         history = self.execution_history.get(ticket_type, [])
 
         # Filtrar por janela de tempo
-        cutoff = datetime.now(UTC) - timedelta(days=self.history_window_days)
+        cutoff = datetime.now(timezone.utc) - timedelta(days=self.history_window_days)
 
         return [
             entry
@@ -307,7 +307,7 @@ class AdaptivePriorityCalculator:
 
     def _get_timestamp(self) -> int:
         """Retorna timestamp atual em milissegundos."""
-        return int(datetime.now(UTC).timestamp() * 1000)
+        return int(datetime.now(timezone.utc).timestamp() * 1000)
 
     def get_history_statistics(self) -> dict[str, Any]:
         """
@@ -354,7 +354,7 @@ class AdaptivePriorityCalculator:
             days: Dias de retenção (default: history_window_days)
         """
         retention_days = days or self.history_window_days
-        cutoff = datetime.now(UTC) - timedelta(days=retention_days)
+        cutoff = datetime.now(timezone.utc) - timedelta(days=retention_days)
         cutoff_ms = int(cutoff.timestamp() * 1000)
 
         removed = 0

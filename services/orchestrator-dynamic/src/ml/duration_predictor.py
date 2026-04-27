@@ -195,7 +195,7 @@ class DurationPredictor:
         from datetime import datetime, timedelta
 
         try:
-            cutoff_date = datetime.now(UTC) - timedelta(days=self.config.ml_training_window_days)
+            cutoff_date = datetime.now(timezone.utc) - timedelta(days=self.config.ml_training_window_days)
 
             count = await self.mongodb_client.db["execution_tickets"].count_documents(
                 {
@@ -533,7 +533,7 @@ class DurationPredictor:
 
         try:
             window_days = training_window_days or self.config.ml_training_window_days
-            cutoff_date = datetime.now(UTC) - timedelta(days=window_days)
+            cutoff_date = datetime.now(timezone.utc) - timedelta(days=window_days)
 
             # Tenta carregar dados de treino via ClickHouse se habilitado
             tickets = []
@@ -653,7 +653,7 @@ class DurationPredictor:
 
             tags = {
                 "model_type": "duration_predictor",
-                "timestamp": datetime.now(UTC).isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
             }
 
             run_id = await self.model_registry.save_model(

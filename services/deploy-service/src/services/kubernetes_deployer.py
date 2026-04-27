@@ -6,7 +6,7 @@ Gerencia deployments em Kubernetes usando kubectl.
 
 import asyncio
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 import structlog
@@ -43,7 +43,7 @@ class KubernetesDeployer:
         Returns:
             Deployment response
         """
-        deployment_id = f"{request.service_name}-{request.version}-{int(datetime.utcnow().timestamp())}"
+        deployment_id = f"{request.service_name}-{request.version}-{int(datetime.now(timezone.utc).timestamp())}"
 
         logger.info(
             "kubernetes_deploy_start",

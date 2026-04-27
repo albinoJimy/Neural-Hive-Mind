@@ -2,7 +2,7 @@
 Cliente PagerDuty para envio de eventos via Events API v2.
 """
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Any
 
 import httpx
@@ -128,7 +128,7 @@ class PagerDutyClient:
             await self.connect()
 
         if not timestamp:
-            timestamp = datetime.now(UTC).isoformat()
+            timestamp = datetime.now(timezone.utc).isoformat()
 
         payload = {
             "routing_key": self.routing_key,

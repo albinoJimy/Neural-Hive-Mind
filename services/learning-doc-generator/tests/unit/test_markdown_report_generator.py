@@ -1,6 +1,6 @@
 """Testes unitários para MarkdownReportGenerator"""
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 import pytest
 from src.models import (
@@ -40,7 +40,7 @@ async def test_generate_experiment_report(output_dir, mock_experiment_runs, mock
             title="Relatório de Experimentos",
             type=DocumentType.EXPERIMENT_REPORT,
             status=DocumentStatus.COMPLETED,
-            generated_at=datetime.utcnow(),
+            generated_at=datetime.now(timezone.utc),
             summary="Resumo executivo do relatório",
             insights=mock_insights,
             experiment_runs=mock_experiment_runs,
@@ -68,7 +68,7 @@ async def test_generate_weekly_summary(output_dir, mock_experiment_runs):
             title="Relatório Semanal",
             type=DocumentType.WEEKLY_SUMMARY,
             status=DocumentStatus.COMPLETED,
-            generated_at=datetime.utcnow(),
+            generated_at=datetime.now(timezone.utc),
             period_start=datetime(2026, 1, 1),
             period_end=datetime(2026, 1, 7),
             summary="Resumo da semana",
@@ -94,7 +94,7 @@ async def test_generate_promotion_report(output_dir, mock_experiment_runs):
             title="Relatório de Promoção",
             type=DocumentType.PROMOTION_REPORT,
             status=DocumentStatus.COMPLETED,
-            generated_at=datetime.utcnow(),
+            generated_at=datetime.now(timezone.utc),
             summary="Modelo pronto para produção",
             experiment_runs=mock_experiment_runs,
             metadata={"approved_by": "data_scientist", "approved_for_production": True},
@@ -119,7 +119,7 @@ async def test_generate_rollback_analysis(output_dir):
             title="Análise de Rollback",
             type=DocumentType.ROLLBACK_ANALYSIS,
             status=DocumentStatus.COMPLETED,
-            generated_at=datetime.utcnow(),
+            generated_at=datetime.now(timezone.utc),
             summary="Rollback devido à degradação de performance",
             metadata={"rollback_reason": "high_latency", "detected_by": "monitoring"},
         )

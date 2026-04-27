@@ -4,7 +4,7 @@ Implementa geração periódica (diária, semanal, mensal) usando APScheduler.
 Publica eventos em Kafka quando documentos são gerados.
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from typing import Optional
 
 import structlog
@@ -137,7 +137,7 @@ class DocumentScheduler:
 
         try:
             # Período: dia anterior (UTC)
-            today = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+            today = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
             yesterday = today - timedelta(days=1)
 
             # Buscar experimentos do período
@@ -168,7 +168,7 @@ class DocumentScheduler:
                 experiment_runs=experiment_runs,
                 recommendations=self._generate_recommendations(insights),
                 metadata={"generated_by": "scheduler", "period_type": "daily"},
-                generated_at=datetime.utcnow(),
+                generated_at=datetime.now(timezone.utc),
             )
 
             # Salvar no MongoDB
@@ -184,7 +184,7 @@ class DocumentScheduler:
 
         try:
             # Período: semana anterior (7 dias)
-            today = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+            today = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
             week_start = today - timedelta(days=7)
 
             # Buscar experimentos do período
@@ -223,7 +223,7 @@ class DocumentScheduler:
                 experiment_runs=experiment_runs,
                 recommendations=self._generate_recommendations(insights),
                 metadata={"generated_by": "scheduler", "period_type": "weekly"},
-                generated_at=datetime.utcnow(),
+                generated_at=datetime.now(timezone.utc),
             )
 
             # Salvar no MongoDB
@@ -241,7 +241,7 @@ class DocumentScheduler:
 
         try:
             # Período: mês anterior
-            today = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+            today = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
 
             # Primeiro dia do mês atual
             if today.day >= self.settings.scheduler_monthly_day:
@@ -289,7 +289,7 @@ class DocumentScheduler:
                 experiment_runs=experiment_runs,
                 recommendations=self._generate_recommendations(insights),
                 metadata={"generated_by": "scheduler", "period_type": "monthly"},
-                generated_at=datetime.utcnow(),
+                generated_at=datetime.now(timezone.utc),
             )
 
             # Salvar no MongoDB
@@ -415,7 +415,7 @@ class DocumentScheduler:
                 experiment_runs=experiment_runs,
                 recommendations=self._generate_recommendations(insights),
                 metadata={"generated_by": "manual_trigger", "period_type": period_name.lower()},
-                generated_at=datetime.utcnow(),
+                generated_at=datetime.now(timezone.utc),
             )
 
             # Salvar no MongoDB

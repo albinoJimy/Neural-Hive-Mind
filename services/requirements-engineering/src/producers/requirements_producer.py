@@ -1,7 +1,7 @@
 """Kafka producer para Requirements events."""
 
 import json
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 import structlog
 from aiokafka import AIOKafkaProducer
@@ -69,8 +69,8 @@ class RequirementsProducer:
 
         event = {
             "event_type": "requirements.generated",
-            "event_id": f"evt-{datetime.now(UTC).strftime('%Y%m%d%H%M%S%f')}",
-            "timestamp": datetime.now(UTC).isoformat(),
+            "event_id": f"evt-{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S%f')}",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "requirements_set_id": requirements_set_id,
             "cognitive_plan_id": cognitive_plan_id,
             "requirements_count": requirements_count,
@@ -113,8 +113,8 @@ class RequirementsProducer:
 
         event = {
             "event_type": "user_stories.generated",
-            "event_id": f"evt-{datetime.now(UTC).strftime('%Y%m%d%H%M%S%f')}",
-            "timestamp": datetime.now(UTC).isoformat(),
+            "event_id": f"evt-{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S%f')}",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "user_story_set_id": user_story_set_id,
             "requirements_set_id": requirements_set_id,
             "stories_count": stories_count,
@@ -154,7 +154,7 @@ class RequirementsProducer:
         dlq_event = {
             "original_topic": self._output_topic,
             "reason": reason,
-            "timestamp": datetime.now(UTC).isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "original_value": value.decode("utf-8", errors="replace"),
         }
 

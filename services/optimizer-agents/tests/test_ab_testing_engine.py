@@ -2,7 +2,7 @@
 Testes unitarios para o ABTestingEngine.
 """
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -528,7 +528,7 @@ class TestMongoDBClientABTestingPersistence:
             "confidence_level": 0.95,
             "early_stopped": False,
             "early_stop_reason": None,
-            "analysis_timestamp": datetime.now(UTC),
+            "analysis_timestamp": datetime.now(timezone.utc),
             "metadata": {},
         }
 

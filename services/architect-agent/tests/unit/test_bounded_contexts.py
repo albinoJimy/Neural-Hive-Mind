@@ -3,6 +3,7 @@
 from unittest.mock import AsyncMock, Mock
 
 import pytest
+from neural_hive_llm import LLMResponse, LLMProvider
 from src.identifiers.bounded_contexts import BoundedContextsIdentifier
 from src.models.bounded_context import (
     BoundedContext,
@@ -13,12 +14,12 @@ from src.models.bounded_context import (
 
 @pytest.fixture
 def mock_llm_client():
-    """Mock do cliente LLM."""
+    """Mock do cliente LLM usando neural_hive_llm."""
     client = Mock()
-    response = Mock()
-    choice = Mock()
-    message = Mock()
-    message.content = """{
+    client.start = AsyncMock()
+    client.generate = AsyncMock(
+        return_value=LLMResponse(
+            text="""{
       "contexts": [
         {
           "name": "Identity",
@@ -38,10 +39,15 @@ def mock_llm_client():
         }
       ],
       "confidence_score": 0.9
-    }"""
-    choice.message = message
-    response.choices = [choice]
-    client.chat.completions.create = AsyncMock(return_value=response)
+    }""",
+            prompt_tokens=50,
+            completion_tokens=100,
+            total_tokens=150,
+            model="gpt-4",
+            provider=LLMProvider.OPENAI,
+            latency_ms=100,
+        )
+    )
     return client
 
 

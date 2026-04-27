@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Any
 
 import structlog
@@ -140,6 +140,6 @@ async def startup_check() -> JSONResponse:
             "status": "started",
             "service": "queen-agent",
             "version": "1.0.0",
-            "started_at": datetime.now(UTC).isoformat(),
+            "started_at": datetime.now(timezone.utc).isoformat(),
         },
     )

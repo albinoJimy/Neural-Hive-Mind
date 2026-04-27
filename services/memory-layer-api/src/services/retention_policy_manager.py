@@ -4,7 +4,7 @@ Retention Policy Manager
 Gerencia políticas de retenção e TTL nas camadas de memória.
 """
 
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timezone, timedelta
 
 import structlog
 
@@ -104,7 +104,7 @@ class RetentionPolicyManager:
         if ttl == 0:
             return False
 
-        age = datetime.now(UTC) - timestamp
+        age = datetime.now(timezone.utc) - timestamp
 
         if layer == "redis":
             return age.total_seconds() > ttl
@@ -175,7 +175,7 @@ class RetentionPolicyManager:
         for collection_name, data_type in collections:
             try:
                 retention_days = self.get_ttl_for_data_type(data_type, "mongodb")
-                cutoff_date = datetime.now(UTC) - timedelta(days=retention_days)
+                cutoff_date = datetime.now(timezone.utc) - timedelta(days=retention_days)
 
                 filter_query = {"created_at": {"$lt": cutoff_date}}
 
@@ -230,7 +230,7 @@ class RetentionPolicyManager:
         for table_name, data_type in tables:
             try:
                 retention_months = self.get_ttl_for_data_type(data_type, "clickhouse")
-                cutoff_date = datetime.now(UTC) - timedelta(days=retention_months * 30)
+                cutoff_date = datetime.now(timezone.utc) - timedelta(days=retention_months * 30)
 
                 if dry_run:
                     count_query = f"""

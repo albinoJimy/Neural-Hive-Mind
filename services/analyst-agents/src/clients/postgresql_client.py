@@ -4,7 +4,7 @@ PostgreSQL Client para Analyst Agents.
 Implementa conexão assíncrona com PostgreSQL usando asyncpg.
 """
 
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from typing import Any, Optional
 
 import structlog
@@ -396,7 +396,7 @@ class PostgreSQLClient:
         Returns:
             Dicionário com estatísticas
         """
-        since = datetime.now(UTC) - timedelta(hours=time_range_hours)
+        since = datetime.now(timezone.utc) - timedelta(hours=time_range_hours)
 
         query = """
             SELECT
@@ -561,9 +561,9 @@ class PostgreSQLClient:
             Dicionário com status de saúde
         """
         try:
-            start = datetime.now(UTC)
+            start = datetime.now(timezone.utc)
             result = await self.execute_query("SELECT 1 as health_check", fetch="val")
-            latency_ms = (datetime.now(UTC) - start).total_seconds() * 1000
+            latency_ms = (datetime.now(timezone.utc) - start).total_seconds() * 1000
 
             return {
                 "status": "healthy" if result == 1 else "unhealthy",

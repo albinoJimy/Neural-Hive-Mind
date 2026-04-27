@@ -7,7 +7,7 @@ ajuste de prioridades e balanceamento de carga.
 
 import logging
 import pickle
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 UTC = UTC  # type: ignore
 from enum import Enum
@@ -128,7 +128,7 @@ class SchedulingOptimizer:
                 - risk_score: Risco da ação (0-1)
                 - confidence: Confiança na recomendação (0-1)
         """
-        start_time = datetime.now(UTC)
+        start_time = datetime.now(timezone.utc)
 
         try:
             # Enriquecer estado com previsão de carga
@@ -159,10 +159,10 @@ class SchedulingOptimizer:
                 "risk_score": risk_score,
                 "confidence": confidence,
                 "state_hash": state_hash,
-                "timestamp": datetime.now(UTC).isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
             }
 
-            duration = (datetime.now(UTC) - start_time).total_seconds()
+            duration = (datetime.now(timezone.utc) - start_time).total_seconds()
             self.metrics.record_scheduling_optimization(
                 action.value, duration, expected_improvement
             )
@@ -594,7 +594,7 @@ class SchedulingOptimizer:
                     "$set": {
                         "q_table_snapshot": pickle.dumps(self.q_table).hex(),
                         "metrics": policy_metrics,
-                        "updated_at": datetime.now(UTC),
+                        "updated_at": datetime.now(timezone.utc),
                     }
                 },
                 upsert=True,

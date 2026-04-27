@@ -3,7 +3,7 @@ Lineage Tracker
 """
 
 import uuid
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from typing import Any
 
 import structlog
@@ -64,7 +64,7 @@ class LineageTracker:
                 "entity_type": entity_type,
                 "source_ids": source_ids,
                 "transformation_type": transformation_type,
-                "timestamp": datetime.now(UTC),
+                "timestamp": datetime.now(timezone.utc),
                 "metadata": metadata,
             }
 
@@ -90,7 +90,7 @@ class LineageTracker:
                         "entity_type": entity_type,
                         "transformation_type": transformation_type,
                         "lineage_id": lineage_id,
-                        "timestamp": datetime.now(UTC).isoformat(),
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
                     },
                 )
 

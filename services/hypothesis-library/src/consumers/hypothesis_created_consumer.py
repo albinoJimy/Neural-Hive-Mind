@@ -2,7 +2,7 @@
 
 import asyncio
 import json
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Any
 from uuid import uuid4
 
@@ -143,8 +143,8 @@ class HypothesisCreatedConsumer:
                 experiment_id=experiment_id,
                 status=HypothesisStatus.PENDING,
                 priority=self._extract_priority(context),
-                created_at=datetime.now(UTC),
-                updated_at=datetime.now(UTC),
+                created_at=datetime.now(timezone.utc),
+                updated_at=datetime.now(timezone.utc),
             )
 
             # Salvar via serviço

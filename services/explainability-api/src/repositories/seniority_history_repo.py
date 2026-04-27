@@ -4,7 +4,7 @@ Seniority History Repository.
 Repository para tracking de mudancas de senioridade de especialistas.
 """
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 import structlog
@@ -39,7 +39,7 @@ class SeniorityHistoryRepository:
             "specialist_id": specialist_id,
             "specialist_name": specialist_name,
             "domain": domain,
-            "changed_at": datetime.now(UTC),
+            "changed_at": datetime.now(timezone.utc),
             "previous_level": previous_level,
             "previous_multiplier": previous_multiplier,
             "new_level": new_level,

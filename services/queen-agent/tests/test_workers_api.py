@@ -4,7 +4,7 @@ Testes de API REST para Load Balancer
 Testa endpoints de gerenciamento de workers e atribuição de tarefas.
 """
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -47,7 +47,7 @@ def mock_app_state():
         return_value=TaskAssignment(
             worker_id="worker-1",
             strategy=BalancingStrategy.ROUND_ROBIN,
-            assigned_at=datetime.now(UTC),
+            assigned_at=datetime.now(timezone.utc),
         )
     )
     state.load_balancer.complete_task = AsyncMock(return_value=True)

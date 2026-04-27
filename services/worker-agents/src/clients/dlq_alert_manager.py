@@ -6,7 +6,7 @@ Responsável por enviar alertas para SRE quando tickets falham definitivamente.
 
 import json
 import uuid
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 UTC = UTC  # type: ignore
 
@@ -119,7 +119,7 @@ class DLQAlertManager:
                     f'Execution ticket {ticket_id} enviado para DLQ apos {alert_payload.get("retry_count")} tentativas',
                 ),
                 "runbook_url": "https://docs.neural-hive.io/runbooks/dlq-ticket-recovery",
-                "timestamp": datetime.now(UTC).isoformat() + "Z",
+                "timestamp": datetime.now(timezone.utc).isoformat() + "Z",
                 "metadata": {
                     "plan_id": alert_payload.get("plan_id"),
                     "workflow_id": alert_payload.get("workflow_id"),

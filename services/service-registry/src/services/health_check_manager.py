@@ -1,5 +1,5 @@
 import asyncio
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 import structlog
@@ -116,7 +116,7 @@ class HealthCheckManager:
                 for status in AgentStatus:
                     agents_active.labels(agent_type=agent_type.value, status=status.value).set(0)
 
-            current_time = int(datetime.now(UTC).timestamp())
+            current_time = int(datetime.now(timezone.utc).timestamp())
 
             for agent in all_agents:
                 # Verificar se agente está expirado
@@ -264,7 +264,7 @@ class HealthCheckManager:
             if not agent:
                 return None
 
-            current_time = int(datetime.now(UTC).timestamp())
+            current_time = int(datetime.now(timezone.utc).timestamp())
             time_since_last_seen = current_time - agent.last_seen
 
             if time_since_last_seen > self.heartbeat_timeout:

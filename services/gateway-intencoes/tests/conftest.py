@@ -71,7 +71,7 @@ sys.modules["neural_hive_integration"] = MagicMock()
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 import asyncio
-from datetime import UTC
+from datetime import timezone
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
@@ -203,7 +203,7 @@ def sample_intent_envelope(sample_user_context) -> IntentEnvelope:
         },
         confidence=0.85,
         context=sample_user_context,
-        timestamp=datetime.now(UTC),
+        timestamp=datetime.now(timezone.utc),
     )
 
 

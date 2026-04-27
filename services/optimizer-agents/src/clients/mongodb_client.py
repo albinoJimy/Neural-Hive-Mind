@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 UTC = UTC  # type: ignore, timedelta
 from typing import Any
@@ -101,7 +101,7 @@ class MongoDBClient:
         """Salvar evento de otimização no ledger."""
         try:
             doc = optimization_event.to_avro_dict()
-            doc["_created_at"] = datetime.now(UTC)
+            doc["_created_at"] = datetime.now(timezone.utc)
 
             await self.optimization_collection.insert_one(doc)
 
@@ -169,7 +169,7 @@ class MongoDBClient:
         """Salvar requisição de experimento."""
         try:
             doc = experiment_request.to_avro_dict()
-            doc["_created_at"] = datetime.now(UTC)
+            doc["_created_at"] = datetime.now(timezone.utc)
             doc["status"] = "PENDING"
             doc["results"] = None
 
@@ -194,7 +194,7 @@ class MongoDBClient:
     ) -> bool:
         """Atualizar status de experimento."""
         try:
-            update_doc = {"status": status, "_updated_at": datetime.now(UTC)}
+            update_doc = {"status": status, "_updated_at": datetime.now(timezone.utc)}
 
             if results:
                 update_doc["results"] = results
@@ -232,7 +232,7 @@ class MongoDBClient:
                 {
                     "$set": {
                         "hypothesis_library_id": hypothesis_library_id,
-                        "_updated_at": datetime.now(UTC),
+                        "_updated_at": datetime.now(timezone.utc),
                     }
                 },
             )
@@ -256,7 +256,7 @@ class MongoDBClient:
     async def get_optimization_history(self, component: str, days: int = 30) -> list[dict]:
         """Histórico de otimizações por componente."""
         try:
-            cutoff_date = datetime.now(UTC).timestamp() * 1000 - (days * 24 * 60 * 60 * 1000)
+            cutoff_date = datetime.now(timezone.utc).timestamp() * 1000 - (days * 24 * 60 * 60 * 1000)
 
             cursor = (
                 self.optimization_collection.find(
@@ -281,7 +281,7 @@ class MongoDBClient:
     async def get_success_rate(self, optimization_type: OptimizationType, days: int = 30) -> float:
         """Taxa de sucesso por tipo de otimização."""
         try:
-            cutoff_date = datetime.now(UTC).timestamp() * 1000 - (days * 24 * 60 * 60 * 1000)
+            cutoff_date = datetime.now(timezone.utc).timestamp() * 1000 - (days * 24 * 60 * 60 * 1000)
 
             pipeline = [
                 {
@@ -397,7 +397,7 @@ class MongoDBClient:
         """
         try:
             # Calcular timestamp de corte (milissegundos desde epoch)
-            cutoff_timestamp = datetime.now(UTC).timestamp() * 1000 - (hours * 60 * 60 * 1000)
+            cutoff_timestamp = datetime.now(timezone.utc).timestamp() * 1000 - (hours * 60 * 60 * 1000)
 
             count = await self.optimization_collection.count_documents(
                 {"applied_at": {"$gte": cutoff_timestamp}}
@@ -448,7 +448,7 @@ class MongoDBClient:
             experiment_name = results.get("experiment_name", "Unnamed Experiment")
 
             # Preparar documento com timestamps
-            now = datetime.now(UTC)
+            now = datetime.now(timezone.utc)
             doc = {
                 "experiment_id": experiment_id,
                 "experiment_name": experiment_name,
@@ -599,7 +599,7 @@ class MongoDBClient:
             Lista com snapshot atual do experimento (ou vazia se não encontrado)
         """
         try:
-            since = datetime.now(UTC) - timedelta(days=days)
+            since = datetime.now(timezone.utc) - timedelta(days=days)
 
             doc = await self.ab_test_results_collection.find_one(
                 {"experiment_id": experiment_id, "created_at": {"$gte": since}}
@@ -640,7 +640,7 @@ class MongoDBClient:
                 - metric_breakdown: Breakdown por métrica (se metric_name fornecido)
         """
         try:
-            since = datetime.now(UTC) - timedelta(days=days)
+            since = datetime.now(timezone.utc) - timedelta(days=days)
 
             # Pipeline de agregação base
             pipeline = [
@@ -687,7 +687,7 @@ class MongoDBClient:
                     "period": {
                         "days": days,
                         "from": since.isoformat(),
-                        "to": datetime.now(UTC).isoformat(),
+                        "to": datetime.now(timezone.utc).isoformat(),
                     },
                     "total_experiments": 0,
                     "completed_experiments": 0,
@@ -709,7 +709,7 @@ class MongoDBClient:
                 "period": {
                     "days": days,
                     "from": since.isoformat(),
-                    "to": datetime.now(UTC).isoformat(),
+                    "to": datetime.now(timezone.utc).isoformat(),
                 },
                 "total_experiments": total,
                 "completed_experiments": agg["completed_experiments"],
@@ -809,7 +809,7 @@ class MongoDBClient:
 
             # Top experimentos (maior efeito positivo)
             top_pipeline = [
-                {"$match": {"created_at": {"$gte": datetime.now(UTC) - timedelta(days=days)}}},
+                {"$match": {"created_at": {"$gte": datetime.now(timezone.utc) - timedelta(days=days)}}},
                 {"$unwind": "$primary_metrics_analysis"},
                 {
                     "$match": {
@@ -841,7 +841,7 @@ class MongoDBClient:
 
             # Breakdown por métrica (todas as métricas primárias)
             metrics_pipeline = [
-                {"$match": {"created_at": {"$gte": datetime.now(UTC) - timedelta(days=days)}}},
+                {"$match": {"created_at": {"$gte": datetime.now(timezone.utc) - timedelta(days=days)}}},
                 {"$unwind": "$primary_metrics_analysis"},
                 {
                     "$group": {

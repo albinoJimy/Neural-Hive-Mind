@@ -6,7 +6,7 @@ import hashlib
 import hmac
 import json
 import os
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 import structlog
@@ -283,8 +283,8 @@ class WebhookHandler:
                     ),
                     git_mr_url=payload.metadata.get("git_mr_url"),
                     metadata={k: str(v) for k, v in payload.metadata.items()},
-                    created_at=datetime.now(UTC),
-                    completed_at=datetime.now(UTC),
+                    created_at=datetime.now(timezone.utc),
+                    completed_at=datetime.now(timezone.utc),
                 )
 
                 await self.postgres_client.save_pipeline(pipeline_result)

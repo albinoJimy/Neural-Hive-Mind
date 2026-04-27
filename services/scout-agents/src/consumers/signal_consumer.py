@@ -13,7 +13,7 @@ Created: 2026-03-30 (Epic J)
 
 import json
 from collections import defaultdict
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 import structlog
@@ -182,7 +182,7 @@ class SignalFeedbackConsumer:
         key = f"{exploration_domain}:{signal_type}"
 
         self.signal_stats[key]["total"] += 1
-        self.signal_stats[key]["last_updated"] = datetime.now(UTC)
+        self.signal_stats[key]["last_updated"] = datetime.now(timezone.utc)
 
         # Atualizar média de curiosity (média móvel simples)
         current_avg = self.signal_stats[key]["avg_curiosity"]

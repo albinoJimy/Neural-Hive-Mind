@@ -61,7 +61,7 @@ class DriftAlert:
         self.message = message
         self.metrics = metrics
         self.model_name = model_name
-        self.timestamp = datetime.now(UTC)
+        self.timestamp = datetime.now(timezone.utc)
         self.alert_id = f"drift_{drift_type}_{self.timestamp.strftime('%Y%m%d%H%M%S')}"
 
     def to_dict(self) -> dict[str, Any]:
@@ -145,7 +145,7 @@ class DriftMonitor:
                 "predicted_duration_ms": predicted_duration_ms,
                 "confidence": confidence,
                 "features": features,
-                "timestamp": datetime.now(UTC),
+                "timestamp": datetime.now(timezone.utc),
             }
         )
 
@@ -161,7 +161,7 @@ class DriftMonitor:
             {
                 "ticket_id": ticket_id,
                 "actual_duration_ms": actual_duration_ms,
-                "timestamp": datetime.now(UTC),
+                "timestamp": datetime.now(timezone.utc),
             }
         )
 
@@ -205,7 +205,7 @@ class DriftMonitor:
                 # Atualizar métricas
                 self._update_monitoring_metrics(report)
 
-                self._last_check_time = datetime.now(UTC)
+                self._last_check_time = datetime.now(timezone.utc)
 
             except Exception as e:
                 self.logger.exception("monitoring_loop_error", error=str(e))
@@ -227,7 +227,7 @@ class DriftMonitor:
             Relatório consolidado de drift
         """
         report = {
-            "timestamp": datetime.now(UTC).isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "model_name": "duration-predictor",
             "windows": {},
         }
@@ -359,7 +359,7 @@ class DriftMonitor:
         alert_key = f"{drift_type}_{window}"
         if alert_key in self._alert_cache:
             cached_time = self._alert_cache[alert_key]
-            if datetime.now(UTC) - cached_time < self._alert_ttl:
+            if datetime.now(timezone.utc) - cached_time < self._alert_ttl:
                 self.logger.debug("alert_deduplicated", alert_key=alert_key)
                 return
 
@@ -379,7 +379,7 @@ class DriftMonitor:
         )
 
         # Atualizar cache
-        self._alert_cache[alert_key] = datetime.now(UTC)
+        self._alert_cache[alert_key] = datetime.now(timezone.utc)
 
         # Enviar para handlers
         await self._send_alert(alert)
@@ -468,7 +468,7 @@ class DriftMonitor:
             Lista de relatórios de drift
         """
         try:
-            cutoff = datetime.now(UTC) - timedelta(days=days)
+            cutoff = datetime.now(timezone.utc) - timedelta(days=days)
 
             return (
                 await self.mongodb_client.db["ml_drift_reports"]
@@ -496,7 +496,7 @@ class DriftMonitor:
             Lista de alertas
         """
         try:
-            cutoff = datetime.now(UTC) - timedelta(days=days)
+            cutoff = datetime.now(timezone.utc) - timedelta(days=days)
 
             query = {"timestamp": {"$gte": cutoff.isoformat()}}
             if severity:

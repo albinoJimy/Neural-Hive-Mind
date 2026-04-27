@@ -3,7 +3,7 @@ Data Quality Monitor
 """
 
 import statistics
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from typing import Any, Optional
 
 import structlog
@@ -174,7 +174,7 @@ class DataQualityMonitor:
         if not sample:
             return 0.0
 
-        threshold = datetime.now(UTC) - timedelta(hours=self.settings.freshness_threshold_hours)
+        threshold = datetime.now(timezone.utc) - timedelta(hours=self.settings.freshness_threshold_hours)
         fresh_records = 0
 
         for doc in sample:
@@ -247,7 +247,7 @@ class DataQualityMonitor:
             Lista de anomalias detectadas com timestamp, valor, z_score e severidade
         """
         try:
-            now = datetime.now(UTC)
+            now = datetime.now(timezone.utc)
             baseline_start = now - timedelta(days=baseline_days)
             window_start = now - timedelta(hours=window_hours)
 
@@ -521,7 +521,7 @@ class DataQualityMonitor:
             if isinstance(created_at, str):
                 created_at = datetime.fromisoformat(created_at)
 
-            age = datetime.now(UTC) - created_at
+            age = datetime.now(timezone.utc) - created_at
             age_hours = age.total_seconds() / 3600
 
             status = "fresh"
@@ -549,7 +549,7 @@ class DataQualityMonitor:
         try:
             document = {
                 "data_type": data_type,
-                "timestamp": datetime.now(UTC),
+                "timestamp": datetime.now(timezone.utc),
                 "quality_scores": quality_scores,
                 "anomalies": anomalies,
                 "freshness": freshness,
@@ -572,7 +572,7 @@ class DataQualityMonitor:
     async def get_quality_trends(self, data_type: str, days: int = 7) -> list[dict]:
         """Get quality trends over time"""
         try:
-            start_date = datetime.now(UTC) - timedelta(days=days)
+            start_date = datetime.now(timezone.utc) - timedelta(days=days)
 
             trends = await self.mongodb.find(
                 collection=self.settings.mongodb_quality_collection,

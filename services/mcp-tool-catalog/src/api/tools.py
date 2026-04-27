@@ -2,7 +2,7 @@
 API REST endpoints para operações com ferramentas MCP.
 """
 
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from typing import Any, Optional
 
 import structlog
@@ -264,7 +264,7 @@ async def check_tool_health(tool_id: str = Path(..., description="ID da ferramen
                 # Se TTL < 300, foi definido há (300 - TTL) segundos
                 default_ttl = 300
                 seconds_ago = default_ttl - ttl
-                last_check_time = datetime.now(UTC) - timedelta(seconds=seconds_ago)
+                last_check_time = datetime.now(timezone.utc) - timedelta(seconds=seconds_ago)
                 last_check_str = last_check_time.isoformat() + "Z"
 
         return ToolHealthResponse(

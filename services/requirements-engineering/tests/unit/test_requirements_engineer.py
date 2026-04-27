@@ -16,8 +16,8 @@ def mock_llm_response():
     """Fixture para mock LLM response."""
     mock = Mock()
     mock.choices = [Mock()]
-    mock.choices[0].message = Mock()
-    mock.choices[0].message.content = """
+    mock.choices[0].message = {
+        "content": """
 [
   {
     "id": "REQ-001",
@@ -36,7 +36,9 @@ def mock_llm_response():
     "rationale": "Requisito de SLA"
   }
 ]
-"""
+""",
+        "role": "assistant"
+    }
     return mock
 
 
@@ -44,7 +46,7 @@ def mock_llm_response():
 def engineer(mock_llm_response):
     """Fixture para RequirementsEngineer."""
     mock_client = AsyncMock()
-    mock_client.chat.completions.create = AsyncMock(return_value=mock_llm_response)
+    mock_client.generate = AsyncMock(return_value=mock_llm_response)
     return RequirementsEngineer(llm_client=mock_client)
 
 
@@ -132,12 +134,11 @@ async def test_identify_dependencies(engineer):
     # Mock da resposta do LLM para análise de dependências
     mock_response = Mock()
     mock_response.choices = [Mock()]
-    mock_response.choices[0].message = Mock()
-    mock_response.choices[0].message.content = """[
+    mock_response.choices[0].message = {"content": """[
   {"id": "REQ-001", "dependencies": [], "conflicts": []},
   {"id": "REQ-002", "dependencies": ["REQ-001"], "conflicts": []}
-]"""
-    engineer._llm_client.chat.completions.create = AsyncMock(return_value=mock_response)
+]""", "role": "assistant"}
+    engineer._llm_client.generate = AsyncMock(return_value=mock_response)
 
     # Act
     analyzed = await engineer.analyze_dependencies(requirements)

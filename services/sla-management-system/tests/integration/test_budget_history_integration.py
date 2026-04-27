@@ -1,6 +1,6 @@
 """Testes de integração para funcionalidades de histórico de budget."""
 
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -37,7 +37,7 @@ def mock_slo():
 def mock_budget_history_data():
     """Fixture com dados de histórico de budgets simulando cenário real."""
     budgets = []
-    base_time = datetime.now(UTC)
+    base_time = datetime.now(timezone.utc)
 
     # Simular 50 budgets ao longo de 7 dias
     for i in range(50):
@@ -129,9 +129,9 @@ class TestBudgetHistoryEndToEnd:
                 budget_id=f"daily-{i}",
                 slo_id="slo-test-001",
                 service_name="test-service",
-                calculated_at=datetime.now(UTC) - timedelta(days=i),
-                window_start=datetime.now(UTC) - timedelta(days=i),
-                window_end=datetime.now(UTC) - timedelta(days=i - 1),
+                calculated_at=datetime.now(timezone.utc) - timedelta(days=i),
+                window_start=datetime.now(timezone.utc) - timedelta(days=i),
+                window_end=datetime.now(timezone.utc) - timedelta(days=i - 1),
                 sli_value=99.0,
                 slo_target=99.0,
                 error_budget_total=1.0,
@@ -162,9 +162,9 @@ class TestBudgetHistoryEndToEnd:
                 budget_id=f"hourly-{i}",
                 slo_id="slo-test-001",
                 service_name="test-service",
-                calculated_at=datetime.now(UTC) - timedelta(hours=i),
-                window_start=datetime.now(UTC) - timedelta(hours=i),
-                window_end=datetime.now(UTC) - timedelta(hours=i - 1),
+                calculated_at=datetime.now(timezone.utc) - timedelta(hours=i),
+                window_start=datetime.now(timezone.utc) - timedelta(hours=i),
+                window_end=datetime.now(timezone.utc) - timedelta(hours=i - 1),
                 sli_value=99.0,
                 slo_target=99.0,
                 error_budget_total=1.0,

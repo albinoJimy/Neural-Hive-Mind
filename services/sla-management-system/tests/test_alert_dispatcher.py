@@ -2,7 +2,7 @@
 Testes para AlertDispatcher do SLA Management System.
 """
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -27,7 +27,7 @@ def sample_alert():
         details={"budget_remaining": 15.0, "slo_target": 0.99},
         slo_id="slo-123",
         service_name="test-service",
-        triggered_at=datetime.now(UTC),
+        triggered_at=datetime.now(timezone.utc),
     )
 
 

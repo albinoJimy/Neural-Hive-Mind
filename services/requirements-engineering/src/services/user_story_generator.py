@@ -4,7 +4,7 @@ import json
 import uuid
 
 import structlog
-from openai import AsyncOpenAI
+from src.clients.llm_client_wrapper import LLMClient
 from src.config.settings import get_settings
 from src.models.requirements import Requirement
 from src.models.user_story import StorySize, UserStory, UserStorySet
@@ -40,14 +40,14 @@ Você é um especialista em Product Ownership e User Stories. Analise o seguinte
 class UserStoryGenerator:
     """Serviço para geração de User Stories usando LLM."""
 
-    def __init__(self, llm_client: AsyncOpenAI | None = None):
+    def __init__(self, llm_client: LLMClient | None = None):
         """Inicializa o UserStoryGenerator.
 
         Args:
-            llm_client: Cliente OpenAI (opcional, cria padrão se não fornecido)
+            llm_client: Cliente LLM (opcional, cria padrão se não fornecido)
         """
         settings = get_settings()
-        self._llm_client = llm_client or AsyncOpenAI(api_key=settings.openai_api_key)
+        self._llm_client = llm_client or LLMClient(api_key=settings.openai_api_key)
         self._model = settings.llm_model
         self._logger = logger
 
@@ -71,8 +71,7 @@ class UserStoryGenerator:
         )
 
         try:
-            response = await self._llm_client.chat.completions.create(
-                model=self._model,
+            response = await self._llm_client.generate(
                 messages=[
                     {
                         "role": "system",
@@ -80,11 +79,12 @@ class UserStoryGenerator:
                     },
                     {"role": "user", "content": prompt},
                 ],
+                model=self._model,
                 temperature=0.7,
                 max_tokens=2000,
             )
 
-            content = response.choices[0].message.content
+            content = response.choices[0].message["content"]
 
             # Extrair JSON da resposta
             json_match = self._extract_json(content)

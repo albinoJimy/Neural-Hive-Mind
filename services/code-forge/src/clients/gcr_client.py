@@ -10,7 +10,7 @@ Suporta:
 
 import json
 import logging
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timezone, timedelta
 
 UTC = UTC  # type: ignore
 
@@ -33,11 +33,11 @@ class GCRToken:
 
     def is_expired(self) -> bool:
         """Verifica se o token está expirado."""
-        return datetime.now(UTC) >= self.expires_at
+        return datetime.now(timezone.utc) >= self.expires_at
 
     def should_refresh(self, ttl_seconds: int) -> bool:
         """Verifica se o token deve ser renovado baseado no TTL."""
-        age = (datetime.now(UTC) - self.obtained_at).total_seconds()
+        age = (datetime.now(timezone.utc) - self.obtained_at).total_seconds()
         return age >= ttl_seconds
 
     def get_credentials(self) -> str:
@@ -198,8 +198,8 @@ class GCRClient:
             )
 
         # Calcular expiração (tokens GCR expire em 1 hora por padrão)
-        expires_at = datetime.now(UTC) + timedelta(hours=1)
-        obtained_at = datetime.now(UTC)
+        expires_at = datetime.now(timezone.utc) + timedelta(hours=1)
+        obtained_at = datetime.now(timezone.utc)
 
         token = GCRToken(
             access_token=access_token,

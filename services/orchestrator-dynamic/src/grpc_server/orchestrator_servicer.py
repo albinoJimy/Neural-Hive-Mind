@@ -136,7 +136,7 @@ class OrchestratorStrategicServicer(orchestrator_strategic_pb2_grpc.Orchestrator
                 "request_data": request_data,
                 "success": success,
                 "message": message,
-                "timestamp": datetime.now(UTC),
+                "timestamp": datetime.now(timezone.utc),
                 "source": "queen-agent",
             }
             await self.mongodb_client.db.strategic_operations_audit.insert_one(audit_record)
@@ -223,7 +223,7 @@ class OrchestratorStrategicServicer(orchestrator_strategic_pb2_grpc.Orchestrator
                     {
                         "$set": {
                             "priority": request.new_priority,
-                            "priority_updated_at": datetime.now(UTC),
+                            "priority_updated_at": datetime.now(timezone.utc),
                             "priority_reason": request.reason,
                         }
                     },
@@ -265,7 +265,7 @@ class OrchestratorStrategicServicer(orchestrator_strategic_pb2_grpc.Orchestrator
                         "new_priority": request.new_priority,
                         "reason": request.reason,
                         "adjustment_id": request.adjustment_id,
-                        "timestamp": datetime.now(UTC).isoformat(),
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
                         "source": "queen-agent",
                     }
                     await self.kafka_producer.send_and_wait(
@@ -300,7 +300,7 @@ class OrchestratorStrategicServicer(orchestrator_strategic_pb2_grpc.Orchestrator
                         "adjustment_id": request.adjustment_id,
                         "success": True,
                         "message": f"Prioridade ajustada de {previous_priority} para {request.new_priority}",
-                        "timestamp": datetime.now(UTC),
+                        "timestamp": datetime.now(timezone.utc),
                         "source": "queen-agent",
                     }
                     await self.mongodb_client.db.strategic_adjustments.insert_one(audit_record)
@@ -314,7 +314,7 @@ class OrchestratorStrategicServicer(orchestrator_strategic_pb2_grpc.Orchestrator
                 message=f"Prioridade ajustada com sucesso para {request.new_priority}",
                 previous_priority=previous_priority,
                 applied_priority=request.new_priority,
-                applied_at=int(datetime.now(UTC).timestamp() * 1000),
+                applied_at=int(datetime.now(timezone.utc).timestamp() * 1000),
             )
 
         except grpc.RpcError:
@@ -428,7 +428,7 @@ class OrchestratorStrategicServicer(orchestrator_strategic_pb2_grpc.Orchestrator
                                         "max_parallel_tickets": target.max_parallel_tickets,
                                         "scheduling_priority": target.scheduling_priority,
                                     },
-                                    "resources_updated_at": datetime.now(UTC),
+                                    "resources_updated_at": datetime.now(timezone.utc),
                                 }
                             },
                             upsert=True,
@@ -474,7 +474,7 @@ class OrchestratorStrategicServicer(orchestrator_strategic_pb2_grpc.Orchestrator
                 success=all(r.success for r in results),
                 message=f"Rebalanceamento concluído para {len(results)} workflows",
                 results=results,
-                applied_at=int(datetime.now(UTC).timestamp() * 1000),
+                applied_at=int(datetime.now(timezone.utc).timestamp() * 1000),
             )
 
         except grpc.RpcError:
@@ -528,11 +528,11 @@ class OrchestratorStrategicServicer(orchestrator_strategic_pb2_grpc.Orchestrator
                             success=True,
                             message="Workflow já está pausado",
                             paused_at=int(
-                                wf_doc.get("paused_at", datetime.now(UTC)).timestamp() * 1000
+                                wf_doc.get("paused_at", datetime.now(timezone.utc)).timestamp() * 1000
                             ),
                         )
 
-            paused_at = datetime.now(UTC)
+            paused_at = datetime.now(timezone.utc)
             scheduled_resume_at = None
 
             if request.pause_duration_seconds and request.pause_duration_seconds > 0:
@@ -648,10 +648,10 @@ class OrchestratorStrategicServicer(orchestrator_strategic_pb2_grpc.Orchestrator
                     paused_at = wf_doc.get("paused_at")
                     if paused_at:
                         pause_duration_seconds = int(
-                            (datetime.now(UTC) - paused_at).total_seconds()
+                            (datetime.now(timezone.utc) - paused_at).total_seconds()
                         )
 
-            resumed_at = datetime.now(UTC)
+            resumed_at = datetime.now(timezone.utc)
 
             # Sinalizar workflow Temporal
             if self.temporal_client:
@@ -757,7 +757,7 @@ class OrchestratorStrategicServicer(orchestrator_strategic_pb2_grpc.Orchestrator
 
             # Gerar ID do replanejamento
             replanning_id = f"replan-{uuid.uuid4().hex[:12]}"
-            triggered_at = datetime.now(UTC)
+            triggered_at = datetime.now(timezone.utc)
 
             # Publicar evento Kafka para Consensus Engine
             if self.kafka_producer:
@@ -928,7 +928,7 @@ class OrchestratorStrategicServicer(orchestrator_strategic_pb2_grpc.Orchestrator
                         WorkflowEvent(
                             event_type=event.get("event_type", ""),
                             timestamp=int(
-                                event.get("timestamp", datetime.now(UTC)).timestamp() * 1000
+                                event.get("timestamp", datetime.now(timezone.utc)).timestamp() * 1000
                             ),
                             description=event.get("description", ""),
                             metadata=event.get("metadata", {}),
@@ -936,8 +936,8 @@ class OrchestratorStrategicServicer(orchestrator_strategic_pb2_grpc.Orchestrator
                     )
 
             # Timestamps
-            started_at = workflow_data.get("started_at", datetime.now(UTC))
-            updated_at = workflow_data.get("updated_at", datetime.now(UTC))
+            started_at = workflow_data.get("started_at", datetime.now(timezone.utc))
+            updated_at = workflow_data.get("updated_at", datetime.now(timezone.utc))
 
             self.metrics.grpc_requests_total.labels(method=method_name, status="success").inc()
 
@@ -959,7 +959,7 @@ class OrchestratorStrategicServicer(orchestrator_strategic_pb2_grpc.Orchestrator
             if "sla_deadline" in workflow_data:
                 sla_deadline = workflow_data["sla_deadline"]
                 response.sla_deadline = int(sla_deadline.timestamp() * 1000)
-                remaining = (sla_deadline - datetime.now(UTC)).total_seconds()
+                remaining = (sla_deadline - datetime.now(timezone.utc)).total_seconds()
                 response.sla_remaining_seconds = max(0, int(remaining))
 
             return response

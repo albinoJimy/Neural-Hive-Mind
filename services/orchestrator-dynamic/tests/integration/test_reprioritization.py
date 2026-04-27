@@ -64,7 +64,7 @@ class TestRePrioritizationIntegration:
     @pytest.fixture()
     def sample_ticket(self):
         """Ticket de exemplo."""
-        now_ms = int(datetime.now(UTC).timestamp() * 1000)
+        now_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
         return {
             "ticket_id": "ticket-001",
             "task_type": "query",
@@ -82,7 +82,7 @@ class TestRePrioritizationIntegration:
         """Testa mudança de prioridade de ticket."""
         # Simular ticket criado há algum tempo (consumiu parte do SLA)
 
-        now_ms = int(datetime.now(UTC).timestamp() * 1000)
+        now_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
         # Ticket criado há 2 minutos (120000ms), deadline em 5 minutos
         sample_ticket["created_at"] = now_ms - 120000  # 40% decorrido
         sample_ticket["sla"]["deadline"] = now_ms + 180000  # 3min restantes
@@ -171,7 +171,7 @@ class TestRePrioritizationIntegration:
         """Testa re-priorização quando deadline se aproxima."""
         event = {
             "ticket_id": "ticket-003",
-            "deadline_timestamp": int(datetime.now(UTC).timestamp() * 1000) + 30000,
+            "deadline_timestamp": int(datetime.now(timezone.utc).timestamp() * 1000) + 30000,
             "remaining_ms": 30000,  # 30 segundos restantes
         }
 

@@ -4,7 +4,7 @@ Nova funcionalidade de exploração e detecção de sinais.
 """
 
 import sys
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from enum import Enum
 from unittest.mock import AsyncMock, MagicMock
 
@@ -103,7 +103,7 @@ class TestExplorationsEndpoints:
         _explorations["exp_1"] = {
             "target": "/src",
             "status": "active",
-            "created_at": datetime.now(UTC).isoformat(),
+            "created_at": datetime.now(timezone.utc).isoformat(),
             "scouts_assigned": 2,
             "files_scanned": 10,
             "patterns_found": 3,
@@ -123,7 +123,7 @@ class TestExplorationsEndpoints:
         _explorations["exp_1"] = {
             "target": "/src",
             "status": "active",
-            "created_at": datetime.now(UTC).isoformat(),
+            "created_at": datetime.now(timezone.utc).isoformat(),
             "scouts_assigned": 1,
         }
 
@@ -147,7 +147,7 @@ class TestExplorationsEndpoints:
         _explorations["exp_1"] = {
             "target": "/src",
             "status": "completed",
-            "created_at": datetime.now(UTC).isoformat(),
+            "created_at": datetime.now(timezone.utc).isoformat(),
         }
 
         response = client.delete("/api/v1/explorations/exp_1")
@@ -162,7 +162,7 @@ class TestExplorationsEndpoints:
         _explorations["exp_1"] = {
             "target": "/src",
             "status": "active",
-            "created_at": datetime.now(UTC).isoformat(),
+            "created_at": datetime.now(timezone.utc).isoformat(),
             "scouts_assigned": 1,
             "scouts": ["scout_1"],
         }

@@ -3,7 +3,7 @@ Serviço de despacho de alertas para múltiplos canais.
 """
 
 import asyncio
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 import httpx
@@ -101,7 +101,7 @@ class AlertDispatcher:
                         channel=channel,
                         success=False,
                         error_message=str(result),
-                        dispatched_at=datetime.now(UTC),
+                        dispatched_at=datetime.now(timezone.utc),
                     )
                 )
 
@@ -117,7 +117,7 @@ class AlertDispatcher:
                     channel=AlertChannel.SLACK,
                     success=False,
                     error_message="No webhook URL configured",
-                    dispatched_at=datetime.now(UTC),
+                    dispatched_at=datetime.now(timezone.utc),
                 )
 
             # Formatar mensagem Slack
@@ -174,7 +174,7 @@ class AlertDispatcher:
                 alert_id=alert.alert_id,
                 channel=AlertChannel.SLACK,
                 success=True,
-                dispatched_at=datetime.now(UTC),
+                dispatched_at=datetime.now(timezone.utc),
             )
 
         except Exception as e:
@@ -184,7 +184,7 @@ class AlertDispatcher:
                 channel=AlertChannel.SLACK,
                 success=False,
                 error_message=str(e),
-                dispatched_at=datetime.now(UTC),
+                dispatched_at=datetime.now(timezone.utc),
             )
 
     async def _dispatch_to_pagerduty(
@@ -199,7 +199,7 @@ class AlertDispatcher:
                     channel=AlertChannel.PAGERDUTY,
                     success=False,
                     error_message="No routing key configured",
-                    dispatched_at=datetime.now(UTC),
+                    dispatched_at=datetime.now(timezone.utc),
                 )
 
             # PagerDuty Events API v2
@@ -232,7 +232,7 @@ class AlertDispatcher:
                 alert_id=alert.alert_id,
                 channel=AlertChannel.PAGERDUTY,
                 success=True,
-                dispatched_at=datetime.now(UTC),
+                dispatched_at=datetime.now(timezone.utc),
             )
 
         except Exception as e:
@@ -242,7 +242,7 @@ class AlertDispatcher:
                 channel=AlertChannel.PAGERDUTY,
                 success=False,
                 error_message=str(e),
-                dispatched_at=datetime.now(UTC),
+                dispatched_at=datetime.now(timezone.utc),
             )
 
     async def _dispatch_to_email(self, alert: Alert, config: dict[str, Any]) -> AlertDispatchResult:
@@ -257,7 +257,7 @@ class AlertDispatcher:
                     channel=AlertChannel.EMAIL,
                     success=False,
                     error_message="No recipients configured",
-                    dispatched_at=datetime.now(UTC),
+                    dispatched_at=datetime.now(timezone.utc),
                 )
 
             # Simular envio de email (em produção, usar aiosmtplib)
@@ -285,7 +285,7 @@ class AlertDispatcher:
                 alert_id=alert.alert_id,
                 channel=AlertChannel.EMAIL,
                 success=True,
-                dispatched_at=datetime.now(UTC),
+                dispatched_at=datetime.now(timezone.utc),
             )
 
         except Exception as e:
@@ -295,7 +295,7 @@ class AlertDispatcher:
                 channel=AlertChannel.EMAIL,
                 success=False,
                 error_message=str(e),
-                dispatched_at=datetime.now(UTC),
+                dispatched_at=datetime.now(timezone.utc),
             )
 
     async def _dispatch_to_webhook(
@@ -310,7 +310,7 @@ class AlertDispatcher:
                     channel=AlertChannel.WEBHOOK,
                     success=False,
                     error_message="No webhook URL configured",
-                    dispatched_at=datetime.now(UTC),
+                    dispatched_at=datetime.now(timezone.utc),
                 )
 
             headers = config.get("headers", {})
@@ -351,7 +351,7 @@ class AlertDispatcher:
                 alert_id=alert.alert_id,
                 channel=AlertChannel.WEBHOOK,
                 success=True,
-                dispatched_at=datetime.now(UTC),
+                dispatched_at=datetime.now(timezone.utc),
             )
 
         except Exception as e:
@@ -361,7 +361,7 @@ class AlertDispatcher:
                 channel=AlertChannel.WEBHOOK,
                 success=False,
                 error_message=str(e),
-                dispatched_at=datetime.now(UTC),
+                dispatched_at=datetime.now(timezone.utc),
             )
 
     async def _dispatch_to_alertmanager(
@@ -376,7 +376,7 @@ class AlertDispatcher:
                     channel=AlertChannel.ALERTMANAGER,
                     success=False,
                     error_message="No Alertmanager URL configured",
-                    dispatched_at=datetime.now(UTC),
+                    dispatched_at=datetime.now(timezone.utc),
                 )
 
             # Formatar alerta para Alertmanager API
@@ -417,7 +417,7 @@ class AlertDispatcher:
                 alert_id=alert.alert_id,
                 channel=AlertChannel.ALERTMANAGER,
                 success=True,
-                dispatched_at=datetime.now(UTC),
+                dispatched_at=datetime.now(timezone.utc),
             )
 
         except Exception as e:
@@ -427,7 +427,7 @@ class AlertDispatcher:
                 channel=AlertChannel.ALERTMANAGER,
                 success=False,
                 error_message=str(e),
-                dispatched_at=datetime.now(UTC),
+                dispatched_at=datetime.now(timezone.utc),
             )
 
     def _get_color_for_severity(self, severity: str) -> str:

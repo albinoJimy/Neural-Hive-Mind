@@ -4,7 +4,7 @@ Unit tests para ScheduleManager.
 Testa gerenciamento de schedules de workflows Temporal.
 """
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -122,8 +122,8 @@ class TestScheduleManagerRetrieval:
             "trigger_data": dumps({"cron_expression": "0 * * * *", "parameters": {}}),
             "priority": "medium",
             "status": "active",
-            "created_at": datetime.now(UTC),
-            "updated_at": datetime.now(UTC),
+            "created_at": datetime.now(timezone.utc),
+            "updated_at": datetime.now(timezone.utc),
             "last_run_at": None,
             "next_run_at": None,
             "total_runs": 0,
@@ -161,8 +161,8 @@ class TestScheduleManagerRetrieval:
                 "trigger_data": dumps({"cron_expression": "0 * * * *"}),
                 "priority": "medium",
                 "status": "active",
-                "created_at": datetime.now(UTC),
-                "updated_at": datetime.now(UTC),
+                "created_at": datetime.now(timezone.utc),
+                "updated_at": datetime.now(timezone.utc),
                 "last_run_at": None,
                 "next_run_at": None,
                 "total_runs": 0,
@@ -196,8 +196,8 @@ class TestScheduleManagerTrigger:
             "trigger_data": dumps({"parameters": {"test": "value"}}),
             "priority": "medium",
             "status": "active",
-            "created_at": datetime.now(UTC),
-            "updated_at": datetime.now(UTC),
+            "created_at": datetime.now(timezone.utc),
+            "updated_at": datetime.now(timezone.utc),
             "last_run_at": None,
             "next_run_at": None,
             "total_runs": 0,
@@ -232,8 +232,8 @@ class TestScheduleManagerTrigger:
             "trigger_data": dumps({}),
             "priority": "medium",
             "status": "paused",
-            "created_at": datetime.now(UTC),
-            "updated_at": datetime.now(UTC),
+            "created_at": datetime.now(timezone.utc),
+            "updated_at": datetime.now(timezone.utc),
             "last_run_at": None,
             "next_run_at": None,
             "total_runs": 0,
@@ -270,8 +270,8 @@ class TestScheduleManagerPauseResume:
             "trigger_data": dumps({"cron_expression": "0 * * * *"}),
             "priority": "medium",
             "status": "paused",
-            "created_at": datetime.now(UTC),
-            "updated_at": datetime.now(UTC),
+            "created_at": datetime.now(timezone.utc),
+            "updated_at": datetime.now(timezone.utc),
             "last_run_at": None,
             "next_run_at": None,
             "total_runs": 0,
@@ -301,9 +301,9 @@ class TestNextRunCalculation:
         next_run = schedule_manager._calculate_next_run("0 * * * *")
 
         assert next_run is not None
-        assert next_run > datetime.now(UTC)
+        assert next_run > datetime.now(timezone.utc)
         # Deve ser dentro de 1-2 horas
-        diff = (next_run - datetime.now(UTC)).total_seconds()
+        diff = (next_run - datetime.now(timezone.utc)).total_seconds()
         assert 0 < diff <= 7200
 
     def test_calculate_next_run_daily(self, schedule_manager):
@@ -315,7 +315,7 @@ class TestNextRunCalculation:
         assert next_run.hour == 0
         assert next_run.minute == 0
         # Deve ser no futuro
-        assert next_run > datetime.now(UTC)
+        assert next_run > datetime.now(timezone.utc)
 
     def test_calculate_next_run_weekly(self, schedule_manager):
         """Deve calcular próxima execução para semanal."""
@@ -323,7 +323,7 @@ class TestNextRunCalculation:
 
         assert next_run is not None
         # Deve ser dentro de 1-7 dias
-        diff = (next_run - datetime.now(UTC)).total_seconds()
+        diff = (next_run - datetime.now(timezone.utc)).total_seconds()
         assert 0 < diff <= 604800
 
 

@@ -401,7 +401,7 @@ class TestRetryPolicyGetRetryCount:
     def test_get_retry_count_immediate(self):
         """Tempo zero deve retornar 1."""
         policy = RetryPolicy()
-        now = datetime.now(UTC)
+        now = datetime.now(timezone.utc)
 
         assert policy.get_retry_count(now) == 1
 
@@ -410,7 +410,7 @@ class TestRetryPolicyGetRetryCount:
         config = SagaRetryConfig(initial_delay_ms=1000, jitter=False)
         policy = RetryPolicy(config=config)
 
-        started = datetime.now(UTC) - timedelta(milliseconds=1500)
+        started = datetime.now(timezone.utc) - timedelta(milliseconds=1500)
 
         # 1500ms > 1000ms (primeiro delay), logo na tentativa 2
         assert policy.get_retry_count(started) == 2
@@ -423,11 +423,11 @@ class TestRetryPolicyGetRetryCount:
         policy = RetryPolicy(config=config)
 
         # Apos 3000ms: 1000 + 2000, iniciando tentativa 3
-        started = datetime.now(UTC) - timedelta(milliseconds=3000)
+        started = datetime.now(timezone.utc) - timedelta(milliseconds=3000)
         assert policy.get_retry_count(started) == 3
 
         # Apos 7000ms: 1000 + 2000 + 4000, iniciando tentativa 4
-        started = datetime.now(UTC) - timedelta(milliseconds=7000)
+        started = datetime.now(timezone.utc) - timedelta(milliseconds=7000)
         assert policy.get_retry_count(started) == 4
 
 

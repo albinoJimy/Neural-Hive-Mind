@@ -8,7 +8,7 @@ Testes para o módulo LineageTracker com foco em:
 - Métricas Prometheus
 """
 
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from unittest.mock import AsyncMock
 
 import pytest
@@ -55,7 +55,7 @@ class TestValidateLineageIntegrity:
         self, settings, mock_mongodb, mock_neo4j
     ):
         """Testa validação com timestamps corretos"""
-        now = datetime.now(UTC)
+        now = datetime.now(timezone.utc)
         source_timestamp = now - timedelta(hours=2)
         entity_timestamp = now - timedelta(hours=1)
 
@@ -91,7 +91,7 @@ class TestValidateLineageIntegrity:
         self, settings, mock_mongodb, mock_neo4j
     ):
         """Testa detecção de violação de timestamp"""
-        now = datetime.now(UTC)
+        now = datetime.now(timezone.utc)
         # Source criada DEPOIS da entidade (violação)
         source_timestamp = now - timedelta(hours=1)
         entity_timestamp = now - timedelta(hours=2)
@@ -150,7 +150,7 @@ class TestValidateLineageIntegrity:
                 return {
                     "entity_id": "entity-1",
                     "source_ids": ["source-1"],
-                    "timestamp": datetime.now(UTC),
+                    "timestamp": datetime.now(timezone.utc),
                 }
             else:
                 # Source não existe
@@ -173,7 +173,7 @@ class TestValidateLineageIntegrity:
             return_value={
                 "entity_id": "entity-1",
                 "source_ids": ["source-1"],
-                "timestamp": datetime.now(UTC),
+                "timestamp": datetime.now(timezone.utc),
             }
         )
 
@@ -191,7 +191,7 @@ class TestValidateLineageIntegrity:
         self, settings, mock_mongodb, mock_neo4j
     ):
         """Testa validação com timestamps em formato string ISO"""
-        now = datetime.now(UTC)
+        now = datetime.now(timezone.utc)
         source_timestamp = (now - timedelta(hours=2)).isoformat()
         entity_timestamp = (now - timedelta(hours=1)).isoformat()
 
@@ -226,7 +226,7 @@ class TestValidateLineageIntegrity:
             return_value={
                 "entity_id": "root-entity",
                 "source_ids": [],
-                "timestamp": datetime.now(UTC),
+                "timestamp": datetime.now(timezone.utc),
             }
         )
         mock_neo4j.run_query = AsyncMock(return_value=[{"cycle_count": 0}])

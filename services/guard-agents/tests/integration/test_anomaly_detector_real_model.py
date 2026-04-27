@@ -11,7 +11,7 @@ Valida que o modelo carregado do MLflow atende aos criterios minimos:
 import asyncio
 import sys
 import time
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock
@@ -51,7 +51,7 @@ def generate_test_tickets_with_labels(
                 "capabilities": ["cpu"][: np.random.randint(1, 3)],
                 "qos": {"priority": "normal"},
                 "parameters": {},
-                "timestamp": datetime.now(UTC).timestamp(),
+                "timestamp": datetime.now(timezone.utc).timestamp(),
                 "estimated_duration_ms": base_duration,
                 "actual_duration_ms": base_duration * np.random.uniform(0.8, 1.2),
                 "sla_timeout_ms": 300000,
@@ -73,7 +73,7 @@ def generate_test_tickets_with_labels(
             "type": task_type,
             "qos": {"priority": "high"},
             "parameters": {},
-            "timestamp": datetime.now(UTC).timestamp(),
+            "timestamp": datetime.now(timezone.utc).timestamp(),
             "sla_timeout_ms": 300000,
             "expected_anomaly": True,
         }

@@ -176,7 +176,7 @@ async def vault_client_real(settings_e2e: OrchestratorSettings) -> AsyncMock:
     client.client = httpx.AsyncClient(
         base_url=VAULT_ADDR, timeout=10.0, headers={"X-Vault-Token": VAULT_TOKEN}
     )
-    client.token_expiry = datetime.now(UTC) + timedelta(hours=1)
+    client.token_expiry = datetime.now(timezone.utc) + timedelta(hours=1)
 
     yield client
 
@@ -195,7 +195,7 @@ def vault_client_mock() -> AsyncMock:
     """Mock Vault client para testes unitários."""
     client = AsyncMock()
     client.token = "mock_token"
-    client.token_expiry = datetime.now(UTC) + timedelta(hours=1)
+    client.token_expiry = datetime.now(timezone.utc) + timedelta(hours=1)
     client.read_secret = AsyncMock(
         return_value={
             "uri": "mongodb://mock:mock@localhost:27017/test",
@@ -276,7 +276,7 @@ def spiffe_manager_mock() -> AsyncMock:
     mock_jwt_svid = MagicMock(spec=JWTSVID) if JWTSVID else MagicMock()
     mock_jwt_svid.token = "mock_jwt_token_ey...mock"
     mock_jwt_svid.spiffe_id = "spiffe://neural-hive.local/test/orchestrator"
-    mock_jwt_svid.expiry = datetime.now(UTC) + timedelta(hours=1)
+    mock_jwt_svid.expiry = datetime.now(timezone.utc) + timedelta(hours=1)
     mock_jwt_svid.is_placeholder = False
 
     # Mock X509SVID
@@ -285,7 +285,7 @@ def spiffe_manager_mock() -> AsyncMock:
     mock_x509_svid.private_key = "-----BEGIN PRIVATE KEY-----\nmock_key\n-----END PRIVATE KEY-----"
     mock_x509_svid.spiffe_id = "spiffe://neural-hive.local/test/orchestrator"
     mock_x509_svid.ca_bundle = "-----BEGIN CERTIFICATE-----\nmock_ca\n-----END CERTIFICATE-----"
-    mock_x509_svid.expires_at = datetime.now(UTC) + timedelta(hours=24)
+    mock_x509_svid.expires_at = datetime.now(timezone.utc) + timedelta(hours=24)
 
     manager.initialize = AsyncMock()
     manager.close = AsyncMock()
@@ -451,7 +451,7 @@ async def expired_token_fixture() -> tuple[str, datetime]:
     Fixture que fornece um token expirado e data de expiração.
     """
     expired_token = "s.expired_token_12345"
-    expired_time = datetime.now(UTC) - timedelta(hours=1)
+    expired_time = datetime.now(timezone.utc) - timedelta(hours=1)
     return expired_token, expired_time
 
 

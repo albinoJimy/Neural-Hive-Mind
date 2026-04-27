@@ -10,7 +10,7 @@ Responsável por:
 
 import asyncio
 import uuid
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 import structlog
@@ -100,7 +100,7 @@ class ScoutOrchestrator:
             "exploration_type": exploration_type,
             "scouts_deployed": scouts_to_deploy,
             "status": "running",
-            "started_at": datetime.now(UTC),
+            "started_at": datetime.now(timezone.utc),
             "timeout_ms": timeout,
         }
 
@@ -353,7 +353,7 @@ class ScoutOrchestrator:
             "exploration_id": exploration_id,
             "plan_id": plan_id,
             "scout_agent_id": self.scout_agent_id,
-            "timestamp": datetime.now(UTC).isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             **kwargs,
         }
 
@@ -404,7 +404,7 @@ class ScoutOrchestrator:
         if exploration_id in self.active_explorations:
             exploration = self.active_explorations.pop(exploration_id)
             exploration["status"] = "completed"
-            exploration["completed_at"] = datetime.now(UTC)
+            exploration["completed_at"] = datetime.now(timezone.utc)
             exploration["duration_ms"] = int(
                 (exploration["completed_at"] - exploration["started_at"]).total_seconds() * 1000
             )
@@ -416,7 +416,7 @@ class ScoutOrchestrator:
         if exploration_id in self.active_explorations:
             exploration = self.active_explorations.pop(exploration_id)
             exploration["status"] = "timeout"
-            exploration["completed_at"] = datetime.now(UTC)
+            exploration["completed_at"] = datetime.now(timezone.utc)
             exploration["partial_results"] = partial_results
             self.completed_explorations[exploration_id] = exploration
 
@@ -425,7 +425,7 @@ class ScoutOrchestrator:
         if exploration_id in self.active_explorations:
             exploration = self.active_explorations.pop(exploration_id)
             exploration["status"] = "failed"
-            exploration["completed_at"] = datetime.now(UTC)
+            exploration["completed_at"] = datetime.now(timezone.utc)
             exploration["error"] = error
             self.completed_explorations[exploration_id] = exploration
 

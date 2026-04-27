@@ -6,7 +6,7 @@ Verifica se ferramentas estão acessíveis e funcionais.
 
 import asyncio
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Optional
 
@@ -49,7 +49,7 @@ class ConnectivityResult:
     status_code: Optional[int] = None
     error_message: Optional[str] = None
     details: dict[str, Any] = field(default_factory=dict)
-    timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))
+    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 class ConnectivityReport(BaseModel):
@@ -66,7 +66,7 @@ class ConnectivityReport(BaseModel):
         default=None, description="Tempo médio de resposta"
     )
     recommendations: list[str] = Field(default_factory=list, description="Recomendações")
-    last_check: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    last_check: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 class ConnectivityTester:

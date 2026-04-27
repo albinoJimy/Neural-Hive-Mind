@@ -103,7 +103,7 @@ class SystemHealth(BaseModel):
     disk_usage: float = Field(default=0.0, ge=0.0, le=1.0, description="Uso de disco (0-1)")
 
     # Timestamp
-    last_check: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    last_check: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     # Anomalias detectadas
     anomalies: list[str] = Field(default_factory=list, description="Anomalias detectadas")
@@ -133,7 +133,7 @@ class HealthComparison(BaseModel):
     should_rollback: bool = Field(default=False)
     rollback_reason: str | None = Field(default=None)
 
-    timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 class HealthMonitorConfig(BaseModel):

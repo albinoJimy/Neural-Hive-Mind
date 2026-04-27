@@ -8,7 +8,7 @@ Responsável por:
 - Guardrails de custo (resource limits, cost thresholds)
 """
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 import structlog
 
@@ -646,7 +646,7 @@ class GuardrailEnforcer:
             for violation in violations:
                 document = violation.to_dict()
                 document["ticket_id"] = ticket_id
-                document["created_at"] = datetime.now(UTC).isoformat()
+                document["created_at"] = datetime.now(timezone.utc).isoformat()
 
                 await collection.insert_one(document)
 

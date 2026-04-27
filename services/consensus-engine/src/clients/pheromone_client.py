@@ -1,5 +1,5 @@
 import json
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from typing import Optional, Union
 
 import structlog
@@ -37,7 +37,7 @@ class PheromoneClient:
             plan_id=plan_id,
             intent_id=intent_id,
             decision_id=decision_id,
-            expires_at=datetime.now(UTC) + timedelta(seconds=self.config.pheromone_ttl),
+            expires_at=datetime.now(timezone.utc) + timedelta(seconds=self.config.pheromone_ttl),
             decay_rate=self.config.pheromone_decay_rate,
         )
 

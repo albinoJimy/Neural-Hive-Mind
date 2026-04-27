@@ -8,7 +8,7 @@ Publica eventos relacionados a:
 """
 
 import json
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Optional
 
@@ -93,7 +93,7 @@ class SelfHealingEvent:
         self.source = source
         self.data = data
         self.severity = severity
-        self.timestamp = timestamp or datetime.now(UTC)
+        self.timestamp = timestamp or datetime.now(timezone.utc)
         self.correlation_id = correlation_id
         self.metadata = metadata or {}
 

@@ -4,7 +4,7 @@ Testes para Dashboard API
 Testa endpoints de dashboard com métricas e estatísticas.
 """
 
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -30,7 +30,7 @@ def mock_user():
     return {
         "user_id": "test-admin",
         "role": "neural-hive-admin",
-        "exp": (datetime.now(UTC) + timedelta(hours=1)).timestamp(),
+        "exp": (datetime.now(timezone.utc) + timedelta(hours=1)).timestamp(),
     }
 
 
@@ -209,7 +209,7 @@ async def test_get_recent_activity(mock_approval_service, mock_user):
                 "status": "approved",
                 "risk_band": "normal",
                 "is_destructive": False,
-                "created_at": datetime.now(UTC),
+                "created_at": datetime.now(timezone.utc),
                 "auto_decided": True,
                 "specialist_id": "spec-001",
             },
@@ -218,7 +218,7 @@ async def test_get_recent_activity(mock_approval_service, mock_user):
                 "status": "pending",
                 "risk_band": "high",
                 "is_destructive": True,
-                "created_at": datetime.now(UTC) - timedelta(hours=1),
+                "created_at": datetime.now(timezone.utc) - timedelta(hours=1),
                 "auto_decided": False,
                 "specialist_id": "spec-002",
             },

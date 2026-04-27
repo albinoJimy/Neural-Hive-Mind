@@ -6,7 +6,7 @@ Provides async interface to MongoDB for context storage and immutable ledger.
 
 import hashlib
 import json
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 UTC = UTC  # type: ignore, timedelta
 
@@ -93,8 +93,8 @@ class MongoDBClient:
         document = {
             "intent_id": intent_id,
             "context": context,
-            "timestamp": datetime.now(UTC),
-            "ttl_expires_at": datetime.now(UTC) + timedelta(days=30),
+            "timestamp": datetime.now(timezone.utc),
+            "ttl_expires_at": datetime.now(timezone.utc) + timedelta(days=30),
         }
 
         await self.context_collection.update_one(
@@ -140,7 +140,7 @@ class MongoDBClient:
             # Dados completos do plano aninhados (para integridade e histórico)
             "plan_data": plan_dict,
             "hash": plan_hash,
-            "timestamp": datetime.now(UTC),
+            "timestamp": datetime.now(timezone.utc),
             "immutable": True,
         }
 
@@ -242,7 +242,7 @@ class MongoDBClient:
             "plan_data.approved_by": approved_by,
             "plan_data.approved_at": approved_at,
             "plan_data.status": approval_status,
-            "updated_at": datetime.now(UTC),
+            "updated_at": datetime.now(timezone.utc),
         }
 
         if rejection_reason:
@@ -304,10 +304,10 @@ class MongoDBClient:
             "plan_data.status": "pending",
             "plan_data.saga_state": saga_state,
             "plan_data.compensation_metadata": {
-                "compensated_at": datetime.now(UTC),
+                "compensated_at": datetime.now(timezone.utc),
                 "compensation_reason": compensation_reason,
             },
-            "updated_at": datetime.now(UTC),
+            "updated_at": datetime.now(timezone.utc),
         }
 
         try:
@@ -353,7 +353,7 @@ class MongoDBClient:
         """
         update_fields = {
             "plan_data.saga_state": saga_state,
-            "updated_at": datetime.now(UTC),
+            "updated_at": datetime.now(timezone.utc),
         }
 
         if saga_failure_reason:
@@ -408,7 +408,7 @@ class MongoDBClient:
             "plan_data.dlq_failure_reason": failure_reason,
             "plan_data.dlq_retry_count": retry_count,
             "plan_data.dlq_last_failure_at": last_failure_at,
-            "updated_at": datetime.now(UTC),
+            "updated_at": datetime.now(timezone.utc),
         }
 
         try:

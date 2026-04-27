@@ -5,7 +5,7 @@ Testa registro de workers, atribuição de tarefas, e estratégias de balanceame
 """
 
 import asyncio
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -208,7 +208,7 @@ class TestGetHealthyWorkers:
         await load_balancer.register_worker("worker-2")
 
         # Simular timeout em worker-2
-        old_time = datetime.now(UTC) - timedelta(seconds=60)
+        old_time = datetime.now(timezone.utc) - timedelta(seconds=60)
         load_balancer._local_cache["worker-2"].last_heartbeat = old_time
 
         healthy = await load_balancer._get_healthy_workers()

@@ -5,7 +5,7 @@ Testes para integração com Google Container Registry (GCR).
 """
 
 import json
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -55,8 +55,8 @@ class TestGCRToken:
 
     def test_token_creation(self):
         """Testa criação de token."""
-        expires_at = datetime.now(UTC) + timedelta(hours=1)
-        obtained_at = datetime.now(UTC)
+        expires_at = datetime.now(timezone.utc) + timedelta(hours=1)
+        obtained_at = datetime.now(timezone.utc)
 
         token = GCRToken(
             access_token="test-token",
@@ -70,38 +70,38 @@ class TestGCRToken:
 
     def test_token_is_expired(self):
         """Testa verificação de expiração."""
-        past = datetime.now(UTC) - timedelta(hours=1)
+        past = datetime.now(timezone.utc) - timedelta(hours=1)
 
         token = GCRToken(
             access_token="test-token",
             token_type="oauth2_access_token",
             expires_at=past,
-            obtained_at=datetime.now(UTC),
+            obtained_at=datetime.now(timezone.utc),
         )
 
         assert token.is_expired() is True
 
     def test_token_is_not_expired(self):
         """Testa verificação de token não expirado."""
-        future = datetime.now(UTC) + timedelta(hours=1)
+        future = datetime.now(timezone.utc) + timedelta(hours=1)
 
         token = GCRToken(
             access_token="test-token",
             token_type="oauth2_access_token",
             expires_at=future,
-            obtained_at=datetime.now(UTC),
+            obtained_at=datetime.now(timezone.utc),
         )
 
         assert token.is_expired() is False
 
     def test_token_should_refresh(self):
         """Testa verificação de renovação."""
-        old_time = datetime.now(UTC) - timedelta(hours=2)
+        old_time = datetime.now(timezone.utc) - timedelta(hours=2)
 
         token = GCRToken(
             access_token="test-token",
             token_type="oauth2_access_token",
-            expires_at=datetime.now(UTC) + timedelta(hours=1),
+            expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
             obtained_at=old_time,
         )
 
@@ -110,12 +110,12 @@ class TestGCRToken:
 
     def test_token_should_not_refresh(self):
         """Testa que token novo não precisa de renovação."""
-        recent = datetime.now(UTC)
+        recent = datetime.now(timezone.utc)
 
         token = GCRToken(
             access_token="test-token",
             token_type="oauth2_access_token",
-            expires_at=datetime.now(UTC) + timedelta(hours=1),
+            expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
             obtained_at=recent,
         )
 
@@ -127,8 +127,8 @@ class TestGCRToken:
         token = GCRToken(
             access_token="test-token-abc123",
             token_type="oauth2_access_token",
-            expires_at=datetime.now(UTC) + timedelta(hours=1),
-            obtained_at=datetime.now(UTC),
+            expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
+            obtained_at=datetime.now(timezone.utc),
         )
 
         credentials = token.get_credentials()
@@ -293,8 +293,8 @@ class TestGetGCRToken:
         cached_token = GCRToken(
             access_token="cached-token",
             token_type="oauth2_access_token",
-            expires_at=datetime.now(UTC) + timedelta(hours=1),
-            obtained_at=datetime.now(UTC),
+            expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
+            obtained_at=datetime.now(timezone.utc),
         )
         client._cached_token = cached_token
 
@@ -433,11 +433,11 @@ class TestRefreshIfNeeded:
         client = GCRClient(token_ttl=3600)
 
         # Criar token antigo (2 horas)
-        old_time = datetime.now(UTC) - timedelta(hours=2)
+        old_time = datetime.now(timezone.utc) - timedelta(hours=2)
         client._cached_token = GCRToken(
             access_token="old-token",
             token_type="oauth2_access_token",
-            expires_at=datetime.now(UTC) + timedelta(hours=1),
+            expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
             obtained_at=old_time,
         )
 
@@ -453,11 +453,11 @@ class TestRefreshIfNeeded:
         client = GCRClient(token_ttl=3600)
 
         # Criar token recente (5 minutos)
-        recent = datetime.now(UTC) - timedelta(minutes=5)
+        recent = datetime.now(timezone.utc) - timedelta(minutes=5)
         client._cached_token = GCRToken(
             access_token="current-token",
             token_type="oauth2_access_token",
-            expires_at=datetime.now(UTC) + timedelta(hours=1),
+            expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
             obtained_at=recent,
         )
 

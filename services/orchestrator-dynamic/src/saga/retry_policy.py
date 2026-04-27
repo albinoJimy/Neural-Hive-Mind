@@ -81,7 +81,7 @@ class RetryPolicy:
             ...     operation_name='create_ticket'
             ... )
         """
-        started_at = datetime.now(UTC)
+        started_at = datetime.now(timezone.utc)
         last_error: Exception | None = None
 
         for attempt in range(1, self.config.max_attempts + 1):
@@ -95,7 +95,7 @@ class RetryPolicy:
                 result = await func(*args, **kwargs)
 
                 # Sucesso
-                elapsed_ms = int((datetime.now(UTC) - started_at).total_seconds() * 1000)
+                elapsed_ms = int((datetime.now(timezone.utc) - started_at).total_seconds() * 1000)
                 logger.info(
                     f"retry.execute_success operation={operation_name} "
                     f"attempt={attempt} elapsed_ms={elapsed_ms}"
@@ -138,7 +138,7 @@ class RetryPolicy:
                     await asyncio.sleep(delay_ms / 1000)
 
         # Todas as tentativas falharam
-        elapsed_ms = int((datetime.now(UTC) - started_at).total_seconds() * 1000)
+        elapsed_ms = int((datetime.now(timezone.utc) - started_at).total_seconds() * 1000)
         logger.error(
             f"retry.all_attempts_failed operation={operation_name} "
             f"total_attempts={self.config.max_attempts} elapsed_ms={elapsed_ms}"
@@ -170,7 +170,7 @@ class RetryPolicy:
             >>> policy.get_retry_count(started)
             1
         """
-        elapsed_ms = int((datetime.now(UTC) - started_at).total_seconds() * 1000)
+        elapsed_ms = int((datetime.now(timezone.utc) - started_at).total_seconds() * 1000)
 
         # Tentar encontrar o numero de tentativas baseado no delay acumulado
         accumulated = 0

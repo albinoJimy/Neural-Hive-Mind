@@ -8,7 +8,7 @@ Suporta deserialização Avro e JSON (fallback).
 import asyncio
 import io
 import json
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 
@@ -303,7 +303,7 @@ class SyncEventConsumer:
         Args:
             msg: Mensagem do Kafka
         """
-        start_time = datetime.now(UTC)
+        start_time = datetime.now(timezone.utc)
 
         try:
             # Deserializa evento (Avro ou JSON)
@@ -330,7 +330,7 @@ class SyncEventConsumer:
                 SYNC_EVENTS_CONSUMED.labels(status="failed", data_type=data_type).inc()
 
             # Registra latência
-            latency = (datetime.now(UTC) - start_time).total_seconds()
+            latency = (datetime.now(timezone.utc) - start_time).total_seconds()
             SYNC_CONSUME_LATENCY.labels(data_type=data_type).observe(latency)
 
         except ValueError as e:
@@ -403,7 +403,7 @@ class SyncEventConsumer:
         table_name = table_mapping.get(data_type, "operational_context_history")
 
         # Prepara dados para inserção
-        timestamp = event.get("timestamp", int(datetime.now(UTC).timestamp() * 1000))
+        timestamp = event.get("timestamp", int(datetime.now(timezone.utc).timestamp() * 1000))
         created_at = datetime.fromtimestamp(timestamp / 1000)
 
         # Verifica idempotência no ClickHouse
@@ -556,7 +556,7 @@ class SyncEventConsumer:
             dlq_event = {
                 "original_event": event,
                 "failure_reason": reason,
-                "failed_at": datetime.now(UTC).isoformat(),
+                "failed_at": datetime.now(timezone.utc).isoformat(),
             }
             await self.dlq_producer.publish_sync_event(dlq_event)
             DLQ_EVENTS_SENT.labels(reason=reason).inc()

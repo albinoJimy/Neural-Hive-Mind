@@ -1,7 +1,7 @@
 """Remediation coordinator for self-healing playbooks (Fluxo E4)"""
 
 import asyncio
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Optional
 
@@ -167,14 +167,14 @@ class RemediationCoordinator:
 
     async def _start_remediation(self, incident: dict[str, Any], playbook: dict[str, Any]) -> str:
         """Inicia remediação e retorna ID"""
-        remediation_id = f"REM-{incident.get('incident_id')}-{int(datetime.now(UTC).timestamp())}"
+        remediation_id = f"REM-{incident.get('incident_id')}-{int(datetime.now(timezone.utc).timestamp())}"
 
         self.active_remediations[remediation_id] = {
             "remediation_id": remediation_id,
             "incident_id": incident.get("incident_id"),
             "playbook_name": playbook.get("name"),
             "status": RemediationStatus.IN_PROGRESS,
-            "started_at": datetime.now(UTC).isoformat(),
+            "started_at": datetime.now(timezone.utc).isoformat(),
             "actions_completed": 0,
             "total_actions": len(playbook.get("actions", [])),
         }
@@ -263,7 +263,7 @@ class RemediationCoordinator:
                 "status": status,
                 "engine_result": final_result,
                 "playbook": playbook.get("name"),
-                "completed_at": datetime.now(UTC).isoformat(),
+                "completed_at": datetime.now(timezone.utc).isoformat(),
             }
 
         except Exception as e:
@@ -353,7 +353,7 @@ class RemediationCoordinator:
                     "actions": executed_actions,
                     "errors": errors,
                     "requires_human_intervention": True,
-                    "completed_at": datetime.now(UTC).isoformat(),
+                    "completed_at": datetime.now(timezone.utc).isoformat(),
                 }
 
         # Sucesso
@@ -364,7 +364,7 @@ class RemediationCoordinator:
             "status": RemediationStatus.COMPLETED,
             "actions": executed_actions,
             "playbook": playbook.get("name"),
-            "completed_at": datetime.now(UTC).isoformat(),
+            "completed_at": datetime.now(timezone.utc).isoformat(),
         }
 
     async def _execute_remediation_action(
@@ -940,7 +940,7 @@ class RemediationCoordinator:
                 },
             }
 
-        experiment_name = f"guard-chaos-{incident_id[:8]}-{int(datetime.now(UTC).timestamp())}"
+        experiment_name = f"guard-chaos-{incident_id[:8]}-{int(datetime.now(timezone.utc).timestamp())}"
         details = {
             "chaos_type": chaos_type,
             "experiment_name": experiment_name,

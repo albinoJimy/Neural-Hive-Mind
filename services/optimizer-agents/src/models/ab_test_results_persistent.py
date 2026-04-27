@@ -6,7 +6,7 @@ incluindo conversão de/para dicionário e serialização.
 """
 
 from dataclasses import asdict, dataclass, field
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 UTC = UTC  # type: ignore
 from typing import Any
@@ -99,7 +99,7 @@ class ABTestResultsPersistent:
             experiment_id=results.experiment_id,
             experiment_name=experiment_name,
             created_at=results.analysis_timestamp,
-            completed_at=completed_at or datetime.now(UTC),
+            completed_at=completed_at or datetime.now(timezone.utc),
             analysis_timestamp=results.analysis_timestamp,
             status=results.status,
             control_size=results.control_size,

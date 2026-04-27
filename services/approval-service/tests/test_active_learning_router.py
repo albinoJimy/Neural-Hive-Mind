@@ -5,7 +5,7 @@ TDD: Testes escritos antes da implementação.
 Espec: @.agent-os/specs/2026-03-17-active-learning-feedback/
 """
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from unittest.mock import MagicMock
 
 import pytest
@@ -40,7 +40,7 @@ class TestMetricsEndpoint:
             "semantic_features_count": 46,
             "semantic_features_percentage": 9.5,
             "priority_recommendations": [{"type": "class", "value": "reject", "gap": 26.0}],
-            "last_updated": datetime.now(UTC).isoformat(),
+            "last_updated": datetime.now(timezone.utc).isoformat(),
         }
 
         analyzer = MagicMock()
@@ -180,8 +180,8 @@ class TestClaimEndpoint:
             "queue_id": "queue-1",
             "status": "in_review",
             "assigned_to": "user@example.com",
-            "claimed_at": datetime.now(UTC),
-            "expires_at": datetime.now(UTC),
+            "claimed_at": datetime.now(timezone.utc),
+            "expires_at": datetime.now(timezone.utc),
         }
         return queue
 

@@ -6,7 +6,7 @@ com metadados e versionamento.
 
 import hashlib
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from typing import Any, Optional
 
 import structlog
@@ -87,8 +87,8 @@ class ArtifactStore:
             "size_bytes": len(content_bytes),
             "version": version,
             "metadata": metadata or {},
-            "created_at": datetime.utcnow(),
-            "updated_at": datetime.utcnow(),
+            "created_at": datetime.now(timezone.utc),
+            "updated_at": datetime.now(timezone.utc),
         }
 
         # Armazenar no GridFS para arquivos grandes
@@ -246,7 +246,7 @@ class ArtifactStore:
         """
         result = self._collection.update_one(
             {"artifact_id": artifact_id},
-            {"$set": {"metadata": metadata, "updated_at": datetime.utcnow()}},
+            {"$set": {"metadata": metadata, "updated_at": datetime.now(timezone.utc)}},
         )
 
         if result.modified_count > 0:
@@ -356,7 +356,7 @@ class ArtifactStore:
         Returns:
             Número de artefatos removidos
         """
-        cutoff_date = datetime.utcnow() - timedelta(days=days_to_keep)
+        cutoff_date = datetime.now(timezone.utc) - timedelta(days=days_to_keep)
 
         query = {"created_at": {"$lt": cutoff_date}}
         if artifact_type:

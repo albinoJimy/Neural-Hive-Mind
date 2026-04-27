@@ -5,7 +5,7 @@ Testes para integração com Amazon ECR (Elastic Container Registry).
 """
 
 import sys
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from unittest.mock import MagicMock, patch
 
 # Mock boto3 antes de importar ecr_client
@@ -28,8 +28,8 @@ class TestECRToken:
 
     def test_token_creation(self):
         """Testa criação de token."""
-        expires_at = datetime.now(UTC) + timedelta(hours=12)
-        obtained_at = datetime.now(UTC)
+        expires_at = datetime.now(timezone.utc) + timedelta(hours=12)
+        obtained_at = datetime.now(timezone.utc)
 
         token = ECRToken(
             username="AWS",
@@ -45,41 +45,41 @@ class TestECRToken:
 
     def test_token_is_expired(self):
         """Testa verificação de expiração."""
-        past = datetime.now(UTC) - timedelta(hours=1)
+        past = datetime.now(timezone.utc) - timedelta(hours=1)
 
         token = ECRToken(
             username="AWS",
             password="password",
             endpoint="123456789012.dkr.ecr.us-east-1.amazonaws.com",
             expires_at=past,
-            obtained_at=datetime.now(UTC),
+            obtained_at=datetime.now(timezone.utc),
         )
 
         assert token.is_expired() is True
 
     def test_token_is_not_expired(self):
         """Testa verificação de token não expirado."""
-        future = datetime.now(UTC) + timedelta(hours=12)
+        future = datetime.now(timezone.utc) + timedelta(hours=12)
 
         token = ECRToken(
             username="AWS",
             password="password",
             endpoint="123456789012.dkr.ecr.us-east-1.amazonaws.com",
             expires_at=future,
-            obtained_at=datetime.now(UTC),
+            obtained_at=datetime.now(timezone.utc),
         )
 
         assert token.is_expired() is False
 
     def test_token_should_refresh(self):
         """Testa verificação de renovação."""
-        old_time = datetime.now(UTC) - timedelta(hours=2)
+        old_time = datetime.now(timezone.utc) - timedelta(hours=2)
 
         token = ECRToken(
             username="AWS",
             password="password",
             endpoint="123456789012.dkr.ecr.us-east-1.amazonaws.com",
-            expires_at=datetime.now(UTC) + timedelta(hours=12),
+            expires_at=datetime.now(timezone.utc) + timedelta(hours=12),
             obtained_at=old_time,
         )
 
@@ -88,13 +88,13 @@ class TestECRToken:
 
     def test_token_should_not_refresh(self):
         """Testa que token novo não precisa de renovação."""
-        recent = datetime.now(UTC)
+        recent = datetime.now(timezone.utc)
 
         token = ECRToken(
             username="AWS",
             password="password",
             endpoint="123456789012.dkr.ecr.us-east-1.amazonaws.com",
-            expires_at=datetime.now(UTC) + timedelta(hours=12),
+            expires_at=datetime.now(timezone.utc) + timedelta(hours=12),
             obtained_at=recent,
         )
 
@@ -107,8 +107,8 @@ class TestECRToken:
             username="testuser",
             password="testpass",
             endpoint="123456789012.dkr.ecr.us-east-1.amazonaws.com",
-            expires_at=datetime.now(UTC) + timedelta(hours=12),
-            obtained_at=datetime.now(UTC),
+            expires_at=datetime.now(timezone.utc) + timedelta(hours=12),
+            obtained_at=datetime.now(timezone.utc),
         )
 
         username, password = token.get_credentials()
@@ -352,12 +352,12 @@ class TestRefreshIfNeeded:
         client = ECRClient(token_ttl=3600)  # 1 hora
 
         # Criar token antigo (2 horas)
-        old_time = datetime.now(UTC) - timedelta(hours=2)
+        old_time = datetime.now(timezone.utc) - timedelta(hours=2)
         client._cached_token = ECRToken(
             username="OLD",
             password="OLD",
             endpoint="old.dkr.ecr.amazonaws.com",
-            expires_at=datetime.now(UTC) + timedelta(hours=12),
+            expires_at=datetime.now(timezone.utc) + timedelta(hours=12),
             obtained_at=old_time,
         )
 
@@ -371,12 +371,12 @@ class TestRefreshIfNeeded:
         client = ECRClient(token_ttl=3600)
 
         # Criar token recente (5 minutos)
-        recent = datetime.now(UTC) - timedelta(minutes=5)
+        recent = datetime.now(timezone.utc) - timedelta(minutes=5)
         client._cached_token = ECRToken(
             username="CURRENT",
             password="CURRENT",
             endpoint="current.dkr.ecr.amazonaws.com",
-            expires_at=datetime.now(UTC) + timedelta(hours=12),
+            expires_at=datetime.now(timezone.utc) + timedelta(hours=12),
             obtained_at=recent,
         )
 

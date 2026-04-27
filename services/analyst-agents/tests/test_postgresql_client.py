@@ -3,7 +3,7 @@ Testes para PostgreSQL Client.
 """
 
 import os
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -33,7 +33,7 @@ def mock_asyncpg_pool():
                 plan_id="plan-123",
                 analyst_type="text",
                 insight_data={},
-                created_at=datetime.now(UTC),
+                created_at=datetime.now(timezone.utc),
             )
         ]
     )
@@ -221,8 +221,8 @@ class TestPostgreSQLClient:
     async def test_get_insights_with_time_range(self, postgresql_client):
         """Testa get_insights com filtro de tempo."""
         time_range = {
-            "start": datetime.now(UTC) - timedelta(hours=24),
-            "end": datetime.now(UTC),
+            "start": datetime.now(timezone.utc) - timedelta(hours=24),
+            "end": datetime.now(timezone.utc),
         }
         results = await postgresql_client.get_insights(time_range=time_range, limit=10)
 

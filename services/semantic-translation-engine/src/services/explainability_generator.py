@@ -5,7 +5,7 @@ Creates human-readable explanations for plan generation decisions.
 """
 
 import uuid
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 UTC = UTC  # type: ignore
 
@@ -105,7 +105,7 @@ class ExplainabilityGenerator:
                 "rationale": "Score calculado com base em prioridade, segurança e complexidade",
             },
             "historical_context": intermediate_repr["historical_context"],
-            "decision_timestamp": datetime.now(UTC).isoformat(),
+            "decision_timestamp": datetime.now(timezone.utc).isoformat(),
             "version": "1.0.0",
         }
 
@@ -117,7 +117,7 @@ class ExplainabilityGenerator:
                 {
                     "token": token,
                     "explanation": explanation,
-                    "timestamp": datetime.now(UTC),
+                    "timestamp": datetime.now(timezone.utc),
                 }
             )
 

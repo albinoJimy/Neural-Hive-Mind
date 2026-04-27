@@ -10,7 +10,7 @@ E5: Validar restauração de SLA
 E6: Documentar lições aprendidas
 """
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -183,7 +183,7 @@ async def test_e2_incident_classification(incident_classifier):
         "threat_type": "unauthorized_access",
         "severity": "high",
         "confidence": 0.85,
-        "detected_at": datetime.now(UTC).isoformat(),
+        "detected_at": datetime.now(timezone.utc).isoformat(),
         "details": {"user_id": "user-123", "failed_attempts": 10},
         "raw_event": {},
     }

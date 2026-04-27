@@ -2,7 +2,7 @@
 
 import asyncio
 import json
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from uuid import uuid4
 
 import structlog
@@ -131,7 +131,7 @@ class InferenceRequestConsumer:
             model_type=model_type,
             features=features,
             context=context,
-            created_at=datetime.now(UTC),
+            created_at=datetime.now(timezone.utc),
         )
 
         # Processar inferência

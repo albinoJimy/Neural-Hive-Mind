@@ -10,7 +10,7 @@ GAPS-04 Task 4
 """
 
 import re
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 import structlog
@@ -322,7 +322,7 @@ class ExplanationQualityScorer:
                 "clarity": scores.get("clarity", 0.0),
                 "specificity": scores.get("specificity", 0.0),
                 "overall": scores.get("overall", 0.0),
-                "timestamp": datetime.now(UTC),
+                "timestamp": datetime.now(timezone.utc),
             }
 
             collection.update_one(

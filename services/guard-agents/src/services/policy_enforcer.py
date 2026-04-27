@@ -1,6 +1,6 @@
 """Policy enforcement service with OPA and Istio integration (Fluxo E3)"""
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any
 
@@ -330,7 +330,7 @@ class PolicyEnforcer:
             "success": True,
             "actions": actions_executed,
             "enforcement_plan": enforcement_plan,
-            "executed_at": datetime.now(UTC).isoformat(),
+            "executed_at": datetime.now(timezone.utc).isoformat(),
         }
 
     async def _execute_action(
@@ -474,7 +474,7 @@ class PolicyEnforcer:
                     "incident_id": incident.get("incident_id"),
                     "success": success,
                     "details": details,
-                    "timestamp": datetime.now(UTC).isoformat(),
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
                 }
                 await self.mongodb.remediation_collection.insert_one(audit_record)
                 logger.debug(
@@ -914,7 +914,7 @@ class PolicyEnforcer:
             "runbook_id": plan.get("runbook_id"),
             "enforcement_plan": plan,
             "result": result,
-            "timestamp": datetime.now(UTC).isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
         self.enforcement_history.append(record)
@@ -932,5 +932,5 @@ class PolicyEnforcer:
             "incident_id": incident.get("incident_id"),
             "runbook_id": plan.get("runbook_id"),
             "reason": reason,
-            "timestamp": datetime.now(UTC).isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }

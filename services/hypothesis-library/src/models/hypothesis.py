@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any
 from uuid import uuid4
@@ -15,7 +15,7 @@ UTC = UTC
 
 def utcnow() -> datetime:
     """Retorna datetime UTC atual."""
-    return datetime.now(UTC)
+    return datetime.now(timezone.utc)
 
 
 class HypothesisStatus(str, Enum):

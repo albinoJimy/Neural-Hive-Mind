@@ -1,5 +1,5 @@
 import asyncio
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 import structlog
 from fastapi import FastAPI, HTTPException
@@ -353,7 +353,7 @@ async def startup_check():
         "status": "started",
         "service": "consensus-engine",
         "version": "1.0.0",
-        "started_at": datetime.now(UTC).isoformat(),
+        "started_at": datetime.now(timezone.utc).isoformat(),
     }
 
 

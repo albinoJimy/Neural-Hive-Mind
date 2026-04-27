@@ -2,7 +2,7 @@
 Cliente para Alertmanager API.
 """
 
-from datetime import UTC
+from datetime import timezone
 from typing import Any, Optional
 
 import httpx
@@ -71,7 +71,7 @@ class AlertmanagerClient:
         try:
             from datetime import datetime, timedelta
 
-            now = datetime.now(UTC)
+            now = datetime.now(timezone.utc)
             ends_at = now + timedelta(hours=duration_hours)
 
             silence_data = {

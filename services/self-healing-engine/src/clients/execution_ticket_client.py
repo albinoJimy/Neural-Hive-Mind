@@ -6,7 +6,7 @@ for automated remediation workflows.
 """
 
 import asyncio
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Any, Optional
 from uuid import uuid4
 
@@ -258,7 +258,7 @@ class SelfHealingTicketClient:
             reallocation_metadata = {
                 "reallocation_id": reallocation_id,
                 "reallocation_reason": reason,
-                "reallocation_timestamp": datetime.now(UTC).isoformat(),
+                "reallocation_timestamp": datetime.now(timezone.utc).isoformat(),
                 "reallocation_source": "self-healing-engine",
                 **(metadata or {}),
             }

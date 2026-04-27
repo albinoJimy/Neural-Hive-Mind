@@ -5,7 +5,7 @@ Gerencia schedules de workflows baseados em cron, eventos e triggers manuais.
 """
 
 import asyncio
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from typing import Any, Optional
 from uuid import uuid4
 
@@ -192,7 +192,7 @@ class ScheduleManager:
             raise ValueError(f"Schedule {schedule_id} is not active")
 
         # Iniciar workflow Temporal
-        workflow_id = f"{schedule.workflow}-{schedule_id}-{datetime.now(UTC).timestamp()}"
+        workflow_id = f"{schedule.workflow}-{schedule_id}-{datetime.now(timezone.utc).timestamp()}"
 
         try:
             handle = await self.temporal_client.start_workflow(
@@ -203,13 +203,13 @@ class ScheduleManager:
             )
 
             # Atualizar última execução
-            await self._update_schedule_last_run(schedule_id, datetime.now(UTC))
+            await self._update_schedule_last_run(schedule_id, datetime.now(timezone.utc))
 
             # Registrar execução
             execution = ScheduleExecution(
                 schedule_id=schedule_id,
                 workflow_id=handle.id,
-                started_at=datetime.now(UTC),
+                started_at=datetime.now(timezone.utc),
                 status="running",
             )
             await self._save_execution(execution)
@@ -224,7 +224,7 @@ class ScheduleManager:
             return {
                 "schedule_id": schedule_id,
                 "workflow_id": handle.id,
-                "triggered_at": datetime.now(UTC).isoformat(),
+                "triggered_at": datetime.now(timezone.utc).isoformat(),
                 "manual": manual,
             }
 
@@ -309,7 +309,7 @@ class ScheduleManager:
             while True:
                 try:
                     # Aguardar até próxima execução
-                    now = datetime.now(UTC)
+                    now = datetime.now(timezone.utc)
                     next_run = schedule.next_run_at
 
                     if next_run and next_run > now:
@@ -359,7 +359,7 @@ class ScheduleManager:
 
         minute, hour, day, month, dow = parts
 
-        now = datetime.now(UTC)
+        now = datetime.now(timezone.utc)
         next_run = now.replace(second=0, microsecond=0)
 
         # Lógica simplificada para alguns padrões comuns
@@ -449,7 +449,7 @@ class ScheduleManager:
             UPDATE schedules SET status = $1, updated_at = $2
             WHERE schedule_id = $3
         """
-        await self.postgresql_client.execute(query, status.value, datetime.now(UTC), schedule_id)
+        await self.postgresql_client.execute(query, status.value, datetime.now(timezone.utc), schedule_id)
 
     async def _update_schedule_last_run(self, schedule_id: str, last_run: datetime) -> None:
         """Atualiza última execução do schedule."""
@@ -458,7 +458,7 @@ class ScheduleManager:
             SET last_run_at = $1, updated_at = $2, total_runs = total_runs + 1
             WHERE schedule_id = $3
         """
-        await self.postgresql_client.execute(query, last_run, datetime.now(UTC), schedule_id)
+        await self.postgresql_client.execute(query, last_run, datetime.now(timezone.utc), schedule_id)
 
     async def _update_next_run(self, schedule_id: str, next_run: datetime) -> None:
         """Atualiza próxima execução do schedule."""
@@ -466,7 +466,7 @@ class ScheduleManager:
             UPDATE schedules SET next_run_at = $1, updated_at = $2
             WHERE schedule_id = $3
         """
-        await self.postgresql_client.execute(query, next_run, datetime.now(UTC), schedule_id)
+        await self.postgresql_client.execute(query, next_run, datetime.now(timezone.utc), schedule_id)
 
     async def _increment_failure_count(self, schedule_id: str) -> None:
         """Incrementa contador de falhas."""
@@ -475,7 +475,7 @@ class ScheduleManager:
             SET failure_count = failure_count + 1, updated_at = $1
             WHERE schedule_id = $2
         """
-        await self.postgresql_client.execute(query, datetime.now(UTC), schedule_id)
+        await self.postgresql_client.execute(query, datetime.now(timezone.utc), schedule_id)
 
     def _row_to_schedule(self, row) -> Schedule:
         """Converte linha do banco para modelo Schedule."""

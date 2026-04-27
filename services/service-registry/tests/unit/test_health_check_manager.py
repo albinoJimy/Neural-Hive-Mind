@@ -4,7 +4,7 @@ Testes unitários para HealthCheckManager.
 Este módulo testa o gerenciador de health checks periódicos para agentes.
 """
 
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from unittest.mock import AsyncMock, patch
 from uuid import uuid4
 
@@ -42,14 +42,14 @@ def sample_agent():
         status=AgentStatus.HEALTHY,
         telemetry=AgentTelemetry(success_rate=0.9, total_executions=100),
         namespace="default",
-        last_seen=int(datetime.now(UTC).timestamp()),
+        last_seen=int(datetime.now(timezone.utc).timestamp()),
     )
 
 
 @pytest.fixture()
 def expired_agent(sample_agent):
     """Agente expirado (last_seen antigo)."""
-    expired_time = int((datetime.now(UTC) - timedelta(seconds=15)).timestamp())
+    expired_time = int((datetime.now(timezone.utc) - timedelta(seconds=15)).timestamp())
     return AgentInfo(
         agent_id=sample_agent.agent_id,
         agent_type=sample_agent.agent_type,
@@ -170,7 +170,7 @@ class TestHealthCheckLoop:
             status=AgentStatus.HEALTHY,
             telemetry=AgentTelemetry(success_rate=0.85),
             namespace="default",
-            last_seen=int(datetime.now(UTC).timestamp()),
+            last_seen=int(datetime.now(timezone.utc).timestamp()),
         )
 
         mock_redis_client.list_agents = AsyncMock(return_value=[sample_agent, agent2])
@@ -249,7 +249,7 @@ class TestExpiredAgentHandling:
             status=AgentStatus.HEALTHY,
             telemetry=AgentTelemetry(success_rate=0.9),
             namespace="default",
-            last_seen=int((datetime.now(UTC) - timedelta(seconds=15)).timestamp()),
+            last_seen=int((datetime.now(timezone.utc) - timedelta(seconds=15)).timestamp()),
         )
         agent2 = AgentInfo(
             agent_id=uuid4(),
@@ -258,7 +258,7 @@ class TestExpiredAgentHandling:
             status=AgentStatus.HEALTHY,
             telemetry=AgentTelemetry(success_rate=0.8),
             namespace="default",
-            last_seen=int((datetime.now(UTC) - timedelta(seconds=20)).timestamp()),
+            last_seen=int((datetime.now(timezone.utc) - timedelta(seconds=20)).timestamp()),
         )
 
         # Primeiro ciclo para ambos

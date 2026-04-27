@@ -94,7 +94,7 @@ if str(src_path) not in sys.path:
     sys.path.insert(0, str(src_path))
 
 import uuid
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, Mock
 
 import pytest
@@ -253,7 +253,7 @@ def sample_cognitive_plan():
         "risk_band": "medium",
         "requires_human_approval": False,
         "metadata": {
-            "created_at": datetime.now(UTC).isoformat(),
+            "created_at": datetime.now(timezone.utc).isoformat(),
             "created_by": "semantic-translation-engine",
         },
     }
@@ -285,7 +285,7 @@ def sample_trace_context():
 def valid_timestamp_protobuf():
     """Timestamp protobuf válido."""
     timestamp = Timestamp()
-    timestamp.FromDatetime(datetime.now(UTC))
+    timestamp.FromDatetime(datetime.now(timezone.utc))
 
     # Validar que timestamp está no formato correto
     assert timestamp.seconds > 0, "Timestamp seconds deve ser positivo"
@@ -407,7 +407,7 @@ def multiple_valid_responses(valid_timestamp_protobuf):
 
         # Adicionar timestamp válido
         timestamp = Timestamp()
-        timestamp.FromDatetime(datetime.now(UTC))
+        timestamp.FromDatetime(datetime.now(timezone.utc))
         response.evaluated_at.CopyFrom(timestamp)
 
         responses.append(response)

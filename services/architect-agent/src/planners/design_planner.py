@@ -5,8 +5,9 @@ import re
 import uuid
 from typing import Any
 
-from openai import AsyncOpenAI
 from pydantic import ValidationError
+
+from neural_hive_llm import LLMClient, LLMProvider
 
 from src.models.architecture import (
     ArchitecturePlan,
@@ -15,7 +16,7 @@ from src.models.architecture import (
     Pattern,
 )
 from src.planners.base import BasePlanner
-from src.planners.llm_client import LLMClient
+from src.planners.llm_client import LLMClient as WrapperLLMClient
 from src.planners.templates import SYSTEM_PROMPT, get_user_prompt
 
 # Novos módulos (opcionais)
@@ -47,17 +48,31 @@ class DesignPlanner(BasePlanner):
             diagram_generator: Gerador de diagramas
             use_extended_features: Se False, desativa novos módulos para testes
         """
-        self.llm_client = LLMClient()
+        self.llm_client = WrapperLLMClient()
         self._use_extended_features = use_extended_features
 
         if use_extended_features:
-            # Tentar criar AsyncOpenAI client
+            # Tentar criar LLM client neural_hive_llm para módulos estendidos
             llm = None
             try:
-                import os
+                from src.config.settings import get_settings
 
-                if os.getenv("OPENAI_API_KEY"):
-                    llm = AsyncOpenAI()
+                settings = get_settings()
+                if settings.llm.provider and settings.llm.api_key:
+                    provider = LLMProvider.OPENAI if settings.llm.provider == "openai" else LLMProvider.ANTHROPIC
+                    llm = LLMClient(provider=provider, api_key=settings.llm.api_key, model=settings.llm.model)
+                    import asyncio
+
+                    try:
+                        loop = asyncio.get_event_loop()
+                        if loop.is_running():
+                            # Já em contexto async, criar task
+                            asyncio.create_task(llm.start())
+                        else:
+                            loop.run_until_complete(llm.start())
+                    except RuntimeError:
+                        # Sem loop ainda, não iniciar agora
+                        pass
             except Exception:
                 pass
 

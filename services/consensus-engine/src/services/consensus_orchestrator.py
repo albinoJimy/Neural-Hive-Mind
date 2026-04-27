@@ -1,5 +1,5 @@
 import uuid
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Any
 
 import structlog
@@ -47,7 +47,7 @@ class ConsensusOrchestrator:
         Returns:
             ConsolidatedDecision pronta para persistência e publicação
         """
-        start_time = datetime.now(UTC)
+        start_time = datetime.now(timezone.utc)
 
         logger.info(
             "Iniciando processamento de consenso",
@@ -114,7 +114,7 @@ class ConsensusOrchestrator:
         specialist_votes = self._build_specialist_votes(specialist_opinions, weights)
 
         # 8. Calcular métricas
-        convergence_time_ms = int((datetime.now(UTC) - start_time).total_seconds() * 1000)
+        convergence_time_ms = int((datetime.now(timezone.utc) - start_time).total_seconds() * 1000)
 
         # Obter força de feromônio agregada
         # FIX BUG-002: Usar 'original_domain' (campo correto do schema Avro) em vez de 'domain'

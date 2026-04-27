@@ -2,7 +2,7 @@
 API REST para gestão de incidentes de segurança.
 """
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 import structlog
@@ -110,7 +110,7 @@ async def list_incidents(
                     threat_type=doc.get("threat_type", "unknown"),
                     severity=doc.get("severity", "unknown"),
                     status=doc.get("status", "open"),
-                    created_at=doc.get("created_at", datetime.now(UTC).isoformat()),
+                    created_at=doc.get("created_at", datetime.now(timezone.utc).isoformat()),
                     affected_resources=doc.get("affected_resources", []),
                     enforcement_actions=doc.get("enforcement_actions", []),
                     remediation_actions=doc.get("remediation_actions", []),
@@ -155,7 +155,7 @@ async def get_incident(incident_id: str, fastapi_request: Request):
             threat_type=doc.get("threat_type", "unknown"),
             severity=doc.get("severity", "unknown"),
             status=doc.get("status", "open"),
-            created_at=doc.get("created_at", datetime.now(UTC).isoformat()),
+            created_at=doc.get("created_at", datetime.now(timezone.utc).isoformat()),
             affected_resources=doc.get("affected_resources", []),
             enforcement_actions=doc.get("enforcement_actions", []),
             remediation_actions=doc.get("remediation_actions", []),

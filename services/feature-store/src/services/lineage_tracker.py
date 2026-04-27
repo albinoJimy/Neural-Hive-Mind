@@ -6,7 +6,7 @@ Coordena MongoDB (persistência) e Neo4j (grafo de dependências).
 """
 
 import hashlib
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 import structlog
@@ -349,7 +349,7 @@ class LineageTracker:
             return None
 
         # Adicionar timestamp de modificação
-        updates["modified_at"] = datetime.now(UTC)
+        updates["modified_at"] = datetime.now(timezone.utc)
         updates["modified_count"] = 1  # Será incrementado pelo MongoDB
 
         result = await self.collection.update_one(
@@ -423,7 +423,7 @@ class LineageTracker:
     def _compute_computation_hash(self) -> str:
         """Computa hash do código de computação"""
         # Hash baseado na versão do código (simplificado)
-        code_version = f"{self.computation_version}_{datetime.now(UTC).strftime('%Y%m%d')}"
+        code_version = f"{self.computation_version}_{datetime.now(timezone.utc).strftime('%Y%m%d')}"
         return hashlib.sha256(code_version.encode()).hexdigest()[:16]
 
     async def _create_neo4j_relationships(

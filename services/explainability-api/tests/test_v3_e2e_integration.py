@@ -14,7 +14,7 @@ TDD: Testes escritos antes da implementação (Explainability API v3 Task 8).
 """
 
 import sys
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, Mock
@@ -238,19 +238,19 @@ class TestV3E2EFullFlow:
             {
                 "decision_id": "decision-1",
                 "plan_id": "plan-123",
-                "generated_at": (datetime.now(UTC) - timedelta(hours=2)).isoformat(),
+                "generated_at": (datetime.now(timezone.utc) - timedelta(hours=2)).isoformat(),
                 "final_decision": {"decision": "approve"},
             },
             {
                 "decision_id": "decision-2",
                 "plan_id": "plan-123",
-                "generated_at": (datetime.now(UTC) - timedelta(hours=1)).isoformat(),
+                "generated_at": (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat(),
                 "final_decision": {"decision": "approve"},
             },
             {
                 "decision_id": "decision-3",
                 "plan_id": "plan-123",
-                "generated_at": datetime.now(UTC).isoformat(),
+                "generated_at": datetime.now(timezone.utc).isoformat(),
                 "final_decision": {"decision": "reject"},
             },
         ]
@@ -289,7 +289,7 @@ class TestV3E2EFullFlow:
         mock_collection = MagicMock()
 
         # Mock de decisões para janela de 7 dias
-        base_time = datetime.now(UTC)
+        base_time = datetime.now(timezone.utc)
         mock_decisions = [
             {
                 "decision_id": f"decision-{i}",
@@ -360,7 +360,7 @@ class TestV3E2EFullFlow:
             "decision_id": "test-v3-decision",
             "hierarchical_analysis": hierarchical_result,
             "counterfactual_analysis": counterfactual_result,
-            "generated_at": datetime.now(UTC).isoformat(),
+            "generated_at": datetime.now(timezone.utc).isoformat(),
         }
 
         # Validar estrutura integrada

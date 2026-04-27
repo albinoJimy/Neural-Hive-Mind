@@ -1,6 +1,6 @@
 """Tests para FluxoGWorkflow."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -59,7 +59,7 @@ class TestFluxoGWorkflow:
         # Mock activities
         with patch("src.workflows.fluxo_g_workflow.workflow") as mock_workflow:
             mock_workflow.info.return_value = MagicMock()
-            mock_workflow.now = MagicMock(return_value=datetime.utcnow())
+            mock_workflow.now = MagicMock(return_value=datetime.now(timezone.utc))
             mock_workflow.logger = MagicMock()
 
             with patch("src.workflows.fluxo_g_workflow.get_tracer", return_value=mock_tracer):
@@ -104,7 +104,7 @@ class TestFluxoGWorkflow:
 
         with patch("src.workflows.fluxo_g_workflow.workflow") as mock_workflow:
             mock_workflow.info.return_value = MagicMock()
-            mock_workflow.now = MagicMock(return_value=datetime.utcnow())
+            mock_workflow.now = MagicMock(return_value=datetime.now(timezone.utc))
             mock_workflow.logger = MagicMock()
 
             with patch("src.workflows.fluxo_g_workflow.get_tracer", return_value=mock_tracer):
@@ -150,7 +150,7 @@ class TestFluxoGWorkflow:
         with patch("src.workflows.fluxo_g_workflow.workflow") as mock_workflow:
             mock_workflow.info.return_value = MagicMock()
             mock_workflow.warning = MagicMock()
-            mock_workflow.now = MagicMock(return_value=datetime.utcnow())
+            mock_workflow.now = MagicMock(return_value=datetime.now(timezone.utc))
             mock_workflow.logger = MagicMock()
 
             with patch("src.workflows.fluxo_g_workflow.get_tracer", return_value=mock_tracer):
@@ -206,7 +206,7 @@ class TestFluxoGWorkflow:
 
         with patch("src.workflows.fluxo_g_workflow.workflow") as mock_workflow:
             mock_workflow.info.return_value = MagicMock()
-            mock_workflow.now = MagicMock(return_value=datetime.utcnow())
+            mock_workflow.now = MagicMock(return_value=datetime.now(timezone.utc))
             mock_workflow.logger = MagicMock()
 
             with patch("src.workflows.fluxo_g_workflow.get_tracer", return_value=mock_tracer):
@@ -257,7 +257,7 @@ class TestFluxoGWorkflow:
 
         with patch("src.workflows.fluxo_g_workflow.workflow") as mock_workflow:
             mock_workflow.info.return_value = MagicMock()
-            mock_workflow.now = MagicMock(return_value=datetime.utcnow())
+            mock_workflow.now = MagicMock(return_value=datetime.now(timezone.utc))
             mock_workflow.logger = MagicMock()
 
             with patch("src.workflows.fluxo_g_workflow.get_tracer", return_value=mock_tracer):

@@ -4,7 +4,7 @@ Testes unitarios para API REST do Approval Service
 Testa endpoints, autenticacao e validacoes.
 """
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -207,7 +207,7 @@ class TestRejectPlan:
             plan_id="plan-001",
             decision="rejected",
             approved_by="user-001",
-            approved_at=datetime.now(UTC),
+            approved_at=datetime.now(timezone.utc),
             rejection_reason="Risco muito alto",
         )
         mock_service.reject_plan = AsyncMock(return_value=decision)
@@ -310,7 +310,7 @@ class TestRepublishApprovedPlan:
             intent_id="intent-001",
             decision="approved",
             approved_by="original-admin",
-            approved_at=datetime.now(UTC),
+            approved_at=datetime.now(timezone.utc),
             cognitive_plan={"plan_id": "plan-001"},
         )
         mock_service.republish_approved_plan = AsyncMock(return_value=response)
@@ -338,7 +338,7 @@ class TestRepublishApprovedPlan:
             intent_id="intent-001",
             decision="approved",
             approved_by="original-admin",
-            approved_at=datetime.now(UTC),
+            approved_at=datetime.now(timezone.utc),
             cognitive_plan={"plan_id": "plan-001"},
         )
         mock_service.republish_approved_plan = AsyncMock(return_value=response)
@@ -361,7 +361,7 @@ class TestRepublishApprovedPlan:
             intent_id="intent-001",
             decision="approved",
             approved_by="admin",
-            approved_at=datetime.now(UTC),
+            approved_at=datetime.now(timezone.utc),
             cognitive_plan={"plan_id": "plan-001"},
         )
         mock_service.republish_approved_plan = AsyncMock(return_value=response)

@@ -11,7 +11,7 @@ Este módulo fornece funcionalidades para:
 import json
 import statistics
 from dataclasses import asdict, dataclass
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from enum import Enum
 from pathlib import Path
 from typing import Any, Optional
@@ -144,7 +144,7 @@ class BuildMetricsCollector:
             BuildMetric registrada
         """
         metric = BuildMetric(
-            timestamp=datetime.now(UTC).isoformat(),
+            timestamp=datetime.now(timezone.utc).isoformat(),
             language=language,
             framework=framework,
             artifact_type=artifact_type,
@@ -385,7 +385,7 @@ class BuildMetricsCollector:
                 "single_arch_count": len(single_arch),
                 "multi_arch_count": len(multi_arch),
             },
-            "generated_at": datetime.now(UTC).isoformat(),
+            "generated_at": datetime.now(timezone.utc).isoformat(),
         }
 
     def export_metrics(self, output_path: str, format: str = "json"):

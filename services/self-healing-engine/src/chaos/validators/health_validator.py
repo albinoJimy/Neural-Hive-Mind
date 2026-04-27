@@ -6,7 +6,7 @@ durante e após experimentos de chaos.
 """
 
 import asyncio
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 import aiohttp
@@ -76,7 +76,7 @@ class HealthValidator:
             "service_name": service_name,
             "namespace": namespace,
             "healthy": False,
-            "timestamp": datetime.now(UTC).isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "checks": {},
         }
 
@@ -164,7 +164,7 @@ class HealthValidator:
         result = {
             "service_name": service_name,
             "compliant": True,
-            "timestamp": datetime.now(UTC).isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "slos": [],
         }
 
@@ -228,7 +228,7 @@ class HealthValidator:
         result = {
             "service_name": service_name,
             "integrity_valid": True,
-            "timestamp": datetime.now(UTC).isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "checks": [],
         }
 
@@ -294,7 +294,7 @@ class HealthValidator:
             "service_name": service_name,
             "namespace": namespace,
             "observability_healthy": True,
-            "timestamp": datetime.now(UTC).isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "components": {},
         }
 
@@ -358,7 +358,7 @@ class HealthValidator:
             "service_name": service_name,
             "namespace": namespace,
             "overall_healthy": True,
-            "timestamp": datetime.now(UTC).isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "service_health": (
                 results[0] if not isinstance(results[0], Exception) else {"error": str(results[0])}
             ),

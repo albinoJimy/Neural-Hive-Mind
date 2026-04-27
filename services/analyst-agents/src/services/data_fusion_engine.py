@@ -5,7 +5,7 @@ Funde dados de múltiplas fontes (MongoDB, PostgreSQL, ClickHouse, Neo4j)
 em uma visão consolidada para análise.
 """
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Optional
 
@@ -472,7 +472,7 @@ class DataFusionEngine:
 
         # Adicionar metadata de fusão
         enriched["fusion_metadata"] = {
-            "fused_at": datetime.now(UTC).isoformat(),
+            "fused_at": datetime.now(timezone.utc).isoformat(),
             "sources_count": len(resolved.get("sources", [])),
             "metrics_count": len(resolved.get("resolved_metrics", {})),
             "conflict_resolution": self.conflict_resolution.value,

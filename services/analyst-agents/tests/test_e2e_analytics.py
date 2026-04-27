@@ -3,7 +3,7 @@ Testes E2E para Analytics API V2.
 Usa mocks para evitar dependências externas.
 """
 
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timezone, timedelta
 
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -42,8 +42,8 @@ async def mock_app_state():
             doc = insight.model_dump()
             doc["insight_id"] = str(uuid.uuid4())
             doc["status"] = InsightStatus.PENDING.value
-            doc["created_at"] = datetime.now(UTC)
-            doc["expires_at"] = datetime.now(UTC) + timedelta(days=90)
+            doc["created_at"] = datetime.now(timezone.utc)
+            doc["expires_at"] = datetime.now(timezone.utc) + timedelta(days=90)
             doc["metrics"] = InsightMetrics(
                 processing_time_ms=0, confidence_score=0.0, data_points=0
             ).model_dump()
@@ -200,8 +200,8 @@ async def test_e2e_timeseries_analysis(mock_app_state):
 
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
-        start = quote((datetime.now(UTC) - timedelta(hours=1)).isoformat())
-        end = quote(datetime.now(UTC).isoformat())
+        start = quote((datetime.now(timezone.utc) - timedelta(hours=1)).isoformat())
+        end = quote(datetime.now(timezone.utc).isoformat())
 
         # Buscar série temporal
         response = await client.get(

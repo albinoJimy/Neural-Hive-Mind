@@ -6,7 +6,7 @@ Define modelos Pydantic para rastreamento de origem e transformações de featur
 
 import hashlib
 import uuid
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Optional
 
@@ -115,7 +115,7 @@ class FeatureLineage(BaseModel):
 
     # Auditoria
     created_at: datetime = Field(
-        default_factory=lambda: datetime.now(UTC),
+        default_factory=lambda: datetime.now(timezone.utc),
         description="Timestamp de criação do lineage",
     )
     created_by: str = Field(
@@ -146,7 +146,7 @@ class FeatureLineage(BaseModel):
 
     def mark_modified(self) -> None:
         """Marca o lineage como modificado"""
-        self.modified_at = datetime.now(UTC)
+        self.modified_at = datetime.now(timezone.utc)
         self.modified_count += 1
 
     def add_dependency(self, feature_id: str) -> None:
@@ -241,7 +241,7 @@ class LineageIntegrityReport(BaseModel):
     errors: list[str] = Field(default_factory=list, description="Lista de erros encontrados")
     warnings: list[str] = Field(default_factory=list, description="Lista de avisos")
     validation_timestamp: datetime = Field(
-        default_factory=lambda: datetime.now(UTC), description="Timestamp da validação"
+        default_factory=lambda: datetime.now(timezone.utc), description="Timestamp da validação"
     )
 
 

@@ -4,7 +4,7 @@ Configurações para o módulo de Chaos Engineering.
 Define constantes, limites e configurações padrão para experimentos de chaos.
 """
 
-from datetime import UTC
+from datetime import timezone
 
 # Namespaces protegidos que não podem ser alvos de chaos experiments
 PROTECTED_NAMESPACES: set[str] = {
@@ -162,7 +162,7 @@ def is_business_hours() -> bool:
     """Verifica se o momento atual está dentro do horário de negócio (UTC)."""
     from datetime import datetime
 
-    now = datetime.now(UTC)
+    now = datetime.now(timezone.utc)
     return BUSINESS_HOURS["start_hour"] <= now.hour < BUSINESS_HOURS["end_hour"]
 
 

@@ -4,7 +4,7 @@ Testes de integracao para KeycloakAdminClient
 Testa operacoes de revogacao de tokens e gerenciamento de usuarios
 """
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
@@ -335,7 +335,7 @@ class TestTokenRefresh:
             time.sleep(0.1)
 
             # Forcar expiracao do token
-            keycloak_client._token_expires_at = datetime.now(UTC)
+            keycloak_client._token_expires_at = datetime.now(timezone.utc)
 
             # Proxima chamada deve renovar token
             result = await keycloak_client.revoke_user_sessions("user-123")

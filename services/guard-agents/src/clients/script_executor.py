@@ -1,7 +1,7 @@
 """Script executor for running remediation scripts via Kubernetes Jobs"""
 
 import asyncio
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 import structlog
@@ -181,7 +181,7 @@ class ScriptExecutor:
 
     def _generate_job_name(self, script_name: str, incident_id: Optional[str]) -> str:
         """Gera nome único para o Job"""
-        timestamp = int(datetime.now(UTC).timestamp())
+        timestamp = int(datetime.now(timezone.utc).timestamp())
         base_name = script_name.replace("_", "-").replace(".", "-").lower()
 
         if incident_id:

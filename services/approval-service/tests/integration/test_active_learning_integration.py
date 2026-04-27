@@ -7,7 +7,7 @@ Verifica o fluxo E2E:
 3. Feedback é marcado com balanced_dataset=True
 """
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -28,7 +28,7 @@ def create_test_approval(**kwargs):
         "risk_band": RiskBand.LOW,
         "is_destructive": False,
         "status": ApprovalStatus.PENDING,
-        "requested_at": datetime.now(UTC),
+        "requested_at": datetime.now(timezone.utc),
         "cognitive_plan": {"plan_id": "test-plan", "steps": []},
     }
     defaults.update(kwargs)

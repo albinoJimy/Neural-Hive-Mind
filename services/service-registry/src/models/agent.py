@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Optional
 from uuid import UUID, uuid4
@@ -119,8 +119,8 @@ class AgentInfo(BaseModel):
     namespace: str = Field(default="default")
     cluster: str = Field(default="local")
     version: str = Field(default="1.0.0")
-    registered_at: int = Field(default_factory=lambda: int(datetime.now(UTC).timestamp()))
-    last_seen: int = Field(default_factory=lambda: int(datetime.now(UTC).timestamp()))
+    registered_at: int = Field(default_factory=lambda: int(datetime.now(timezone.utc).timestamp()))
+    last_seen: int = Field(default_factory=lambda: int(datetime.now(timezone.utc).timestamp()))
     schema_version: int = Field(default=1)
 
     def to_proto_dict(self) -> dict:
@@ -166,8 +166,8 @@ class AgentInfo(BaseModel):
             namespace=data.get("namespace", "default"),
             cluster=data.get("cluster", "local"),
             version=data.get("version", "1.0.0"),
-            registered_at=data.get("registered_at", int(datetime.now(UTC).timestamp())),
-            last_seen=data.get("last_seen", int(datetime.now(UTC).timestamp())),
+            registered_at=data.get("registered_at", int(datetime.now(timezone.utc).timestamp())),
+            last_seen=data.get("last_seen", int(datetime.now(timezone.utc).timestamp())),
             schema_version=data.get("schema_version", 1),
         )
 
@@ -182,7 +182,7 @@ class AgentInfo(BaseModel):
 
     def is_expired(self, timeout_seconds: int) -> bool:
         """Verifica se o agente está expirado"""
-        current_time = int(datetime.now(UTC).timestamp())
+        current_time = int(datetime.now(timezone.utc).timestamp())
         return (current_time - self.last_seen) > timeout_seconds
 
     def get_etcd_key(self, prefix: str = "/neural-hive/agents") -> str:

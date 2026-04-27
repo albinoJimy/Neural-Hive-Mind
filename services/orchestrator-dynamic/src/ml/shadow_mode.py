@@ -348,7 +348,7 @@ class ShadowModeRunner:
                     "model_name": self.model_name,
                     "prod_version": self.prod_version,
                     "shadow_version": self.shadow_version,
-                    "timestamp": datetime.now(UTC),
+                    "timestamp": datetime.now(timezone.utc),
                     "features": features if isinstance(features, dict) else {},
                     "prod_result": prod_result,
                     "shadow_result": shadow_result,

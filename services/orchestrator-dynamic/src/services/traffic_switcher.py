@@ -147,7 +147,7 @@ class TrafficSwitcher(ABC):
         return {
             "traffic_percentage": await self.get_traffic_percentage(),
             "shadow_mode_enabled": False,  # Default, pode ser sobrescrito
-            "last_updated": datetime.now(UTC).isoformat(),
+            "last_updated": datetime.now(timezone.utc).isoformat(),
             "strategy": getattr(self, "strategy", "unknown"),
         }
 
@@ -249,7 +249,7 @@ class EnvoyTrafficSwitcher(TrafficSwitcher):
 
             if success:
                 self._current_percentage = percentage
-                self._last_updated = datetime.now(UTC)
+                self._last_updated = datetime.now(timezone.utc)
                 self.logger.info(
                     "traffic_percentage_updated",
                     percentage=percentage,
@@ -394,7 +394,7 @@ class EnvoyTrafficSwitcher(TrafficSwitcher):
                 response.raise_for_status()
 
             self._shadow_mode_enabled = True
-            self._last_updated = datetime.now(UTC)
+            self._last_updated = datetime.now(timezone.utc)
 
             self.logger.info("shadow_mode_enabled", strategy="envoy")
             return True
@@ -433,7 +433,7 @@ class EnvoyTrafficSwitcher(TrafficSwitcher):
                 response.raise_for_status()
 
             self._shadow_mode_enabled = False
-            self._last_updated = datetime.now(UTC)
+            self._last_updated = datetime.now(timezone.utc)
 
             self.logger.info("shadow_mode_disabled", strategy="envoy")
             return True
@@ -619,7 +619,7 @@ class KubernetesTrafficSwitcher(TrafficSwitcher):
             )
 
             self._current_percentage = percentage
-            self._last_updated = datetime.now(UTC)
+            self._last_updated = datetime.now(timezone.utc)
 
             self.logger.info(
                 "kubernetes_service_selector_updated",
@@ -678,7 +678,7 @@ class KubernetesTrafficSwitcher(TrafficSwitcher):
             True se ativado
         """
         self._shadow_mode_enabled = True
-        self._last_updated = datetime.now(UTC)
+        self._last_updated = datetime.now(timezone.utc)
 
         self.logger.warning(
             "shadow_mode_limited_in_kubernetes",
@@ -694,7 +694,7 @@ class KubernetesTrafficSwitcher(TrafficSwitcher):
             True se desativado
         """
         self._shadow_mode_enabled = False
-        self._last_updated = datetime.now(UTC)
+        self._last_updated = datetime.now(timezone.utc)
         return True
 
     async def emergency_switch_to_legacy(self) -> bool:
@@ -782,7 +782,7 @@ class MockTrafficSwitcher(TrafficSwitcher):
         await self._maybe_fail()
 
         self._current_percentage = percentage
-        self._last_updated = datetime.now(UTC)
+        self._last_updated = datetime.now(timezone.utc)
         self._update_count += 1
 
         self.logger.debug(
@@ -813,7 +813,7 @@ class MockTrafficSwitcher(TrafficSwitcher):
         await self._maybe_fail()
 
         self._shadow_mode_enabled = True
-        self._last_updated = datetime.now(UTC)
+        self._last_updated = datetime.now(timezone.utc)
 
         self.logger.debug("mock_shadow_mode_enabled")
         return True
@@ -828,7 +828,7 @@ class MockTrafficSwitcher(TrafficSwitcher):
         await self._simulate_network_latency()
 
         self._shadow_mode_enabled = False
-        self._last_updated = datetime.now(UTC)
+        self._last_updated = datetime.now(timezone.utc)
 
         self.logger.debug("mock_shadow_mode_disabled")
         return True
@@ -844,7 +844,7 @@ class MockTrafficSwitcher(TrafficSwitcher):
 
         self._current_percentage = 0
         self._shadow_mode_enabled = False
-        self._last_updated = datetime.now(UTC)
+        self._last_updated = datetime.now(timezone.utc)
         self._rollback_count += 1
 
         self.logger.warning(

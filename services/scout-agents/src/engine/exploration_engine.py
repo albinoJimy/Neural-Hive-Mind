@@ -1,7 +1,7 @@
 """Main exploration engine orchestrating the scout pipeline"""
 
 from collections import deque
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from typing import Any, Deque, Optional
 
 import structlog
@@ -170,7 +170,7 @@ class ExplorationEngine:
 
     def _check_rate_limit(self) -> bool:
         """Check if rate limit allows publishing new signal"""
-        now = datetime.now(UTC)
+        now = datetime.now(timezone.utc)
         cutoff = now - timedelta(minutes=1)
 
         # Remove old timestamps
@@ -205,7 +205,7 @@ class ExplorationEngine:
                 # Don't fail the whole pipeline if pheromone publish fails
 
             # Update rate limit tracker
-            self.published_signals.append(datetime.now(UTC))
+            self.published_signals.append(datetime.now(timezone.utc))
 
             logger.info(
                 "signal_published",

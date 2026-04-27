@@ -17,7 +17,7 @@ Requisitos:
 
 import os
 import uuid
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Any, Optional
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -291,7 +291,7 @@ def sample_ledger_entry() -> dict[str, Any]:
         "plan_id": plan_id,
         "intent_id": intent_id,
         "version": "1.0.0",
-        "timestamp": datetime.now(UTC),
+        "timestamp": datetime.now(timezone.utc),
         "plan_data": {
             "plan_id": plan_id,
             "intent_id": intent_id,
@@ -550,7 +550,7 @@ class TestDestructiveIntentApprovalFlow:
             "intent_id": sample_ledger_entry["intent_id"],
             "decision": "approved",
             "approved_by": "security-admin@company.com",
-            "approved_at": int(datetime.now(UTC).timestamp() * 1000),
+            "approved_at": int(datetime.now(timezone.utc).timestamp() * 1000),
             "rejection_reason": None,
         }
 
@@ -705,7 +705,7 @@ class TestDestructiveIntentRejectionFlow:
             "intent_id": sample_ledger_entry["intent_id"],
             "decision": "rejected",
             "approved_by": "security-admin@company.com",
-            "approved_at": int(datetime.now(UTC).timestamp() * 1000),
+            "approved_at": int(datetime.now(timezone.utc).timestamp() * 1000),
             "rejection_reason": rejection_reason,
         }
 
@@ -756,7 +756,7 @@ class TestDestructiveIntentRejectionFlow:
             "intent_id": sample_ledger_entry["intent_id"],
             "decision": "rejected",
             "approved_by": "admin",
-            "approved_at": int(datetime.now(UTC).timestamp() * 1000),
+            "approved_at": int(datetime.now(timezone.utc).timestamp() * 1000),
             "rejection_reason": "Risco muito alto",
         }
 
@@ -929,7 +929,7 @@ class TestPrometheusMetricsValidation:
             "intent_id": sample_ledger_entry["intent_id"],
             "decision": "approved",
             "approved_by": "admin",
-            "approved_at": int(datetime.now(UTC).timestamp() * 1000),
+            "approved_at": int(datetime.now(timezone.utc).timestamp() * 1000),
         }
 
         await processor.process_approval_response(approval_response, {})
@@ -1007,7 +1007,7 @@ class TestFailureScenarios:
             "intent_id": "intent-fail",
             "decision": "approved",
             "approved_by": "admin",
-            "approved_at": int(datetime.now(UTC).timestamp() * 1000),
+            "approved_at": int(datetime.now(timezone.utc).timestamp() * 1000),
         }
 
         # Act & Assert: Deve propagar exceção para retry do consumer
@@ -1022,7 +1022,7 @@ class TestFailureScenarios:
         # Arrange: Ledger entry com plan_data malformado
         malformed_entry = {
             "plan_id": "plan-malformed",
-            "timestamp": datetime.now(UTC),
+            "timestamp": datetime.now(timezone.utc),
             "plan_data": {
                 "approval_status": "pending",
                 "risk_band": "high",
@@ -1050,7 +1050,7 @@ class TestFailureScenarios:
             "intent_id": "intent-x",
             "decision": "approved",
             "approved_by": "admin",
-            "approved_at": int(datetime.now(UTC).timestamp() * 1000),
+            "approved_at": int(datetime.now(timezone.utc).timestamp() * 1000),
         }
 
         # Act & Assert: Deve propagar erro de reconstrução
@@ -1073,7 +1073,7 @@ class TestFailureScenarios:
             "intent_id": "intent-not-exists",
             "decision": "approved",
             "approved_by": "admin",
-            "approved_at": int(datetime.now(UTC).timestamp() * 1000),
+            "approved_at": int(datetime.now(timezone.utc).timestamp() * 1000),
         }
 
         # Act: Processor deve logar erro e ignorar quando plano não encontrado
@@ -1174,7 +1174,7 @@ class TestApprovalAPIContract:
             "intent_id": "intent-123",
             "decision": "approved",
             "approved_by": "admin@company.com",
-            "approved_at": int(datetime.now(UTC).timestamp() * 1000),
+            "approved_at": int(datetime.now(timezone.utc).timestamp() * 1000),
         }
 
         # Assert: Todos os campos obrigatórios presentes
@@ -1191,7 +1191,7 @@ class TestApprovalAPIContract:
                 "intent_id": "intent-123",
                 "decision": decision,
                 "approved_by": "admin",
-                "approved_at": int(datetime.now(UTC).timestamp() * 1000),
+                "approved_at": int(datetime.now(timezone.utc).timestamp() * 1000),
             }
             assert response["decision"] in valid_decisions
 
@@ -1202,7 +1202,7 @@ class TestApprovalAPIContract:
             "intent_id": "intent-123",
             "decision": "rejected",
             "approved_by": "admin",
-            "approved_at": int(datetime.now(UTC).timestamp() * 1000),
+            "approved_at": int(datetime.now(timezone.utc).timestamp() * 1000),
             "rejection_reason": "Operação muito arriscada",
         }
 

@@ -10,7 +10,7 @@ Responsável por:
 
 import ast
 from collections import defaultdict
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 
@@ -83,7 +83,7 @@ class CodebaseExplorer:
         try:
             tree = ast.parse(code)
             self._parsed_files[filename] = {
-                "parsed_at": datetime.now(UTC),
+                "parsed_at": datetime.now(timezone.utc),
                 "has_errors": False,
             }
             return tree
@@ -120,7 +120,7 @@ class CodebaseExplorer:
             result = self.ts_parser.parse(code, filename)
             if result and not result.get("has_errors"):
                 self._parsed_files[filename] = {
-                    "parsed_at": datetime.now(UTC),
+                    "parsed_at": datetime.now(timezone.utc),
                     "has_errors": False,
                 }
                 self.metrics["total_functions"] += len(result.get("functions", []))
@@ -155,7 +155,7 @@ class CodebaseExplorer:
             result = self.js_parser.parse(code, filename)
             if result and not result.get("has_errors"):
                 self._parsed_files[filename] = {
-                    "parsed_at": datetime.now(UTC),
+                    "parsed_at": datetime.now(timezone.utc),
                     "has_errors": False,
                 }
                 self.metrics["total_functions"] += len(result.get("functions", []))
@@ -192,7 +192,7 @@ class CodebaseExplorer:
             result = self.yaml_parser.parse(code, filename)
             if result and not result.get("has_errors"):
                 self._parsed_files[filename] = {
-                    "parsed_at": datetime.now(UTC),
+                    "parsed_at": datetime.now(timezone.utc),
                     "has_errors": False,
                 }
                 return result
@@ -224,7 +224,7 @@ class CodebaseExplorer:
             result = self.json_parser.parse(code, filename)
             if result and not result.get("has_errors"):
                 self._parsed_files[filename] = {
-                    "parsed_at": datetime.now(UTC),
+                    "parsed_at": datetime.now(timezone.utc),
                     "has_errors": False,
                 }
                 return result

@@ -141,7 +141,7 @@ class TestAdaptivePriorityCalculator:
         ticket_type = calculator._get_ticket_type(sample_ticket)
 
         # Adicionar entrada antiga (fora da janela)
-        old_timestamp = int((datetime.now(UTC) - timedelta(days=10)).timestamp() * 1000)
+        old_timestamp = int((datetime.now(timezone.utc) - timedelta(days=10)).timestamp() * 1000)
         calculator.execution_history[ticket_type].append(
             {
                 "ticket_id": "old-ticket",
@@ -190,7 +190,7 @@ class TestAdaptivePriorityCalculator:
         # Adicionar entradas antigas e recentes
         ticket_type = calculator._get_ticket_type(sample_ticket)
 
-        old_timestamp = int((datetime.now(UTC) - timedelta(days=10)).timestamp() * 1000)
+        old_timestamp = int((datetime.now(timezone.utc) - timedelta(days=10)).timestamp() * 1000)
         calculator.execution_history[ticket_type].append(
             {
                 "ticket_id": "old-1",

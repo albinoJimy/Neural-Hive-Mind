@@ -4,7 +4,7 @@ Testes unitários para MongoDBClient do Explainability API.
 EPIC-204-01: Modelo ML para SHAP
 """
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
@@ -61,14 +61,14 @@ class TestMongoDBClient:
                 "final_decision": "approve",
                 "aggregated_confidence": 0.8,
                 "aggregated_risk": 0.2,
-                "created_at": datetime.now(UTC),
+                "created_at": datetime.now(timezone.utc),
             },
             {
                 "decision_id": "decision_2",
                 "final_decision": "reject",
                 "aggregated_confidence": 0.3,
                 "aggregated_risk": 0.7,
-                "created_at": datetime.now(UTC),
+                "created_at": datetime.now(timezone.utc),
             },
         ]
 

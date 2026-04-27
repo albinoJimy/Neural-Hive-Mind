@@ -11,7 +11,7 @@ As regras de qualidade são carregadas do arquivo YAML montado em /etc/memory-la
 import asyncio
 import os
 import sys
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from typing import Any, Optional
 
@@ -207,7 +207,7 @@ class DataQualityChecker:
         logger.info(f"Verificando frescor em {collection}...")
 
         # Calcula threshold de frescor usando valor carregado das regras
-        freshness_cutoff = datetime.now(UTC) - timedelta(hours=self.freshness_threshold_hours)
+        freshness_cutoff = datetime.now(timezone.utc) - timedelta(hours=self.freshness_threshold_hours)
 
         # Conta documentos recentes vs antigos
         total_docs = await self.mongodb_client.count_documents(collection=collection, filter={})
@@ -261,7 +261,7 @@ class DataQualityChecker:
             # Verifica timestamp válido
             if "timestamp" in doc:
                 if isinstance(doc["timestamp"], datetime):
-                    if doc["timestamp"] > datetime.now(UTC):
+                    if doc["timestamp"] > datetime.now(timezone.utc):
                         inconsistent_count += 1
                         issues.append({"type": "future_timestamp", "field": "timestamp"})
 
@@ -307,7 +307,7 @@ class DataQualityChecker:
 
         quality_doc = {
             "collection": collection,
-            "timestamp": datetime.now(UTC),
+            "timestamp": datetime.now(timezone.utc),
             "metrics": metrics,
             "overall_score": overall_score,
             "anomalies": anomalies or [],

@@ -4,7 +4,7 @@ Testes unitários abrangentes para SignalDetector.
 Cobertura: detecção de sinais, tipos de sinal, confiança, risco, geolocalização.
 """
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
 
 import numpy as np
@@ -33,7 +33,7 @@ def high_anomaly_event():
         event_id="high-anomaly-001",
         source="api-gateway",
         event_type="error_spike",
-        timestamp=datetime.now(UTC),
+        timestamp=datetime.now(timezone.utc),
         payload={
             "error_count": 500,
             "error_rate": 0.95,
@@ -52,7 +52,7 @@ def pattern_event():
         event_id="pattern-001",
         source="analytics",
         event_type="usage_metric",
-        timestamp=datetime.now(UTC),
+        timestamp=datetime.now(timezone.utc),
         payload={"daily_users": values_with_variance[-1], "trend_data": values_with_variance},
         metadata={"trace_id": "trace-pattern"},
     )
@@ -65,7 +65,7 @@ def user_action_event():
         event_id="user-action-001",
         source="web-app",
         event_type="user_action",
-        timestamp=datetime.now(UTC),
+        timestamp=datetime.now(timezone.utc),
         payload={"action": "purchase", "amount": 150.00, "item_count": 3},
         metadata={"trace_id": "trace-user", "user_id": "user-123", "device_id": "device-456"},
     )
@@ -78,7 +78,7 @@ def threat_event():
         event_id="threat-001",
         source="security-monitor",
         event_type="intrusion_attempt",
-        timestamp=datetime.now(UTC),
+        timestamp=datetime.now(timezone.utc),
         payload={"failed_logins": 100, "blocked_ips": 50, "severity": "critical"},
         metadata={"trace_id": "trace-threat", "severity": "critical"},
     )
@@ -92,7 +92,7 @@ def trend_event():
         event_id="trend-001",
         source="metrics",
         event_type="metric",
-        timestamp=datetime.now(UTC),
+        timestamp=datetime.now(timezone.utc),
         payload={"values": values, "mean": np.mean(values)},
         metadata={"trace_id": "trace-trend"},
     )
@@ -252,7 +252,7 @@ class TestSignalTypeDetection:
             event_id="opp-001",
             source="sales",
             event_type="opportunity",
-            timestamp=datetime.now(UTC),
+            timestamp=datetime.now(timezone.utc),
             payload={"value": 10000, "probability": 0.8},
             metadata={"trace_id": "trace-opp"},
         )
@@ -317,7 +317,7 @@ class TestDetectionHelpers:
             event_id="metric-001",
             source="prometheus",
             event_type="metric",
-            timestamp=datetime.now(UTC),
+            timestamp=datetime.now(timezone.utc),
             payload={"cpu": 0.75, "memory": 0.60},
             metadata={},
         )
@@ -558,7 +558,7 @@ class TestGeolocationExtraction:
             event_id="geo-payload-001",
             source="mobile",
             event_type="location",
-            timestamp=datetime.now(UTC),
+            timestamp=datetime.now(timezone.utc),
             payload={"latitude": 40.7128, "longitude": -74.0060},
             metadata={},
         )
@@ -573,7 +573,7 @@ class TestGeolocationExtraction:
             event_id="geo-alt-001",
             source="mobile",
             event_type="location",
-            timestamp=datetime.now(UTC),
+            timestamp=datetime.now(timezone.utc),
             payload={"lat": 37.7749, "lon": -122.4194},
             metadata={},
         )
@@ -587,7 +587,7 @@ class TestGeolocationExtraction:
             event_id="geo-nested-001",
             source="mobile",
             event_type="location",
-            timestamp=datetime.now(UTC),
+            timestamp=datetime.now(timezone.utc),
             payload={"location": {"latitude": 51.5074, "longitude": -0.1278}},
             metadata={},
         )
@@ -601,7 +601,7 @@ class TestGeolocationExtraction:
             event_id="geo-list-001",
             source="mobile",
             event_type="location",
-            timestamp=datetime.now(UTC),
+            timestamp=datetime.now(timezone.utc),
             payload={"coordinates": [51.5074, -0.1278]},
             metadata={},
         )
@@ -619,7 +619,7 @@ class TestGeolocationExtraction:
             event_id="geo-string-001",
             source="mobile",
             event_type="location",
-            timestamp=datetime.now(UTC),
+            timestamp=datetime.now(timezone.utc),
             payload={"position": "48.8566,2.3522"},
             metadata={},
         )
@@ -635,7 +635,7 @@ class TestGeolocationExtraction:
             event_id="geo-invalid-001",
             source="mobile",
             event_type="location",
-            timestamp=datetime.now(UTC),
+            timestamp=datetime.now(timezone.utc),
             payload={"latitude": 200, "longitude": -200},  # Inválido (> 90)  # Inválido (< -180)
             metadata={},
         )

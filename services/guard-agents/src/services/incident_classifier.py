@@ -1,6 +1,6 @@
 """Incident classification service for severity assessment (Fluxo E2)"""
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Optional
 
@@ -125,7 +125,7 @@ class IncidentClassifier:
                 "business_impact": self._estimate_business_impact(severity, impact),
                 "sla_breach_risk": self._assess_sla_risk(severity, impact),
                 "requires_human_review": self._requires_human_review(confidence, severity),
-                "classified_at": datetime.now(UTC).isoformat(),
+                "classified_at": datetime.now(timezone.utc).isoformat(),
                 "anomaly": anomaly,
                 "context": context or {},
             }
@@ -301,7 +301,7 @@ class IncidentClassifier:
         import hashlib
         from datetime import datetime
 
-        timestamp = datetime.now(UTC).isoformat()
+        timestamp = datetime.now(timezone.utc).isoformat()
         threat_type = anomaly.get("threat_type", "unknown")
         raw_str = f"{timestamp}:{threat_type}:{anomaly.get('detected_at', '')}"
 
@@ -325,6 +325,6 @@ class IncidentClassifier:
             "sla_breach_risk": True,
             "requires_human_review": True,
             "classification_error": error,
-            "classified_at": datetime.now(UTC).isoformat(),
+            "classified_at": datetime.now(timezone.utc).isoformat(),
             "anomaly": anomaly,
         }

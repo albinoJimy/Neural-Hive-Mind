@@ -8,7 +8,7 @@ do Neural Hive-Mind. Converte Intent Envelopes em Cognitive Plans executáveis.
 import asyncio
 import json
 from contextlib import asynccontextmanager
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 import structlog
 from confluent_kafka.admin import AdminClient
@@ -758,7 +758,7 @@ async def startup_check():
         "status": "started",
         "service": "semantic-translation-engine",
         "version": "1.0.0",
-        "started_at": datetime.now(UTC).isoformat(),
+        "started_at": datetime.now(timezone.utc).isoformat(),
     }
 
 

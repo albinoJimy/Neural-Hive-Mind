@@ -1,6 +1,6 @@
 """Modelos de dados para esquemas de banco de dados."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any
 
@@ -97,12 +97,12 @@ class DataModel(BaseModel):
         self.fields.append(field)
         if field.required and field.name not in self.primary_key:
             # Adicionar NOT_NULL constraint implicitamente
-            self.updated_at = datetime.utcnow()
+            self.updated_at = datetime.now(timezone.utc)
 
     def add_index(self, index: Index) -> None:
         """Adiciona índice ao modelo."""
         self.indexes.append(index)
-        self.updated_at = datetime.utcnow()
+        self.updated_at = datetime.now(timezone.utc)
 
 
 class EntityRelationship(BaseModel):
@@ -132,7 +132,7 @@ class DataSchema(BaseModel):
     def add_model(self, model: DataModel) -> None:
         """Adiciona modelo ao esquema."""
         self.models.append(model)
-        self.updated_at = datetime.utcnow()
+        self.updated_at = datetime.now(timezone.utc)
 
     def get_model_by_name(self, name: str) -> DataModel | None:
         """Retorna modelo por nome."""

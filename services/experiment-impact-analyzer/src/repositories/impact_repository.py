@@ -1,6 +1,6 @@
 """Repository for impact analysis data access."""
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Any
 
 import structlog
@@ -83,7 +83,7 @@ class ImpactRepository:
         Returns:
             True if updated
         """
-        updates["updated_at"] = datetime.now(UTC)
+        updates["updated_at"] = datetime.now(timezone.utc)
         result = await self.collection.update_one({"impact_id": impact_id}, {"$set": updates})
         return result.modified_count > 0
 
@@ -240,7 +240,7 @@ class ImpactRepository:
         Returns:
             List of (date, value) tuples
         """
-        start_date = datetime.now(UTC) - timedelta(days=days)
+        start_date = datetime.now(timezone.utc) - timedelta(days=days)
 
         pipeline = [
             {"$match": {"created_at": {"$gte": start_date}}},

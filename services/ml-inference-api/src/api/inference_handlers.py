@@ -1,6 +1,6 @@
 """API handlers para inferência ML."""
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Any
 from uuid import uuid4
 
@@ -52,7 +52,7 @@ async def predict_handler(request: Request) -> dict[str, Any]:
             model_type=model_type,
             features=features,
             context=context,
-            created_at=datetime.now(UTC),
+            created_at=datetime.now(timezone.utc),
         )
     except ValidationError as e:
         raise HTTPException(status_code=422, detail=str(e))
@@ -125,7 +125,7 @@ async def batch_predict_handler(request: Request) -> dict[str, Any]:
             model_type=model_type,
             features=features,
             context=context,
-            created_at=datetime.now(UTC),
+            created_at=datetime.now(timezone.utc),
         )
 
         response = await inference_service.predict(inference_request, use_cache=True)

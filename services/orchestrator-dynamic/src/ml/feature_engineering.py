@@ -298,7 +298,7 @@ async def compute_historical_stats(
     # Fallback para MongoDB
     try:
         # Calcula data limite
-        cutoff_date = datetime.now(UTC) - timedelta(days=window_days)
+        cutoff_date = datetime.now(timezone.utc) - timedelta(days=window_days)
 
         # Pipeline de agregação MongoDB
         pipeline = [

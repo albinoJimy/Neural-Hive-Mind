@@ -85,7 +85,7 @@ class SagaProducer:
         event = {
             "event_type": event_type,
             "saga_id": saga_id,
-            "timestamp": timestamp_ms or int(datetime.now(UTC).timestamp() * 1000),
+            "timestamp": timestamp_ms or int(datetime.now(timezone.utc).timestamp() * 1000),
             "data": data,
         }
 

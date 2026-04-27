@@ -2,7 +2,7 @@
 ClickHouse Client for historical analytics
 """
 
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from typing import Any, Optional
 
 import clickhouse_connect
@@ -129,7 +129,7 @@ class ClickHouseClient:
                         plan.get("plan_id"),
                         plan.get("intent_id"),
                         plan.get("domain"),
-                        plan.get("created_at", datetime.now(UTC)),
+                        plan.get("created_at", datetime.now(timezone.utc)),
                         plan.get("risk_score", 0.0),
                         plan.get("complexity_score", 0.0),
                         str(plan.get("plan_data", {})),
@@ -167,7 +167,7 @@ class ClickHouseClient:
                         decision.get("plan_id"),
                         decision.get("aggregated_confidence", 0.0),
                         decision.get("consensus_type"),
-                        decision.get("created_at", datetime.now(UTC)),
+                        decision.get("created_at", datetime.now(timezone.utc)),
                         str(decision.get("decision_data", {})),
                         str(decision.get("metadata", {})),
                     ]
@@ -254,9 +254,9 @@ class ClickHouseClient:
     ) -> list[dict]:
         """Get aggregated metrics with specified granularity"""
         if not start_date:
-            start_date = datetime.now(UTC) - timedelta(days=7)
+            start_date = datetime.now(timezone.utc) - timedelta(days=7)
         if not end_date:
-            end_date = datetime.now(UTC)
+            end_date = datetime.now(timezone.utc)
 
         interval_func = {
             "hour": "toStartOfHour",
@@ -288,7 +288,7 @@ class ClickHouseClient:
 
     async def cleanup_old_data(self, retention_months: int = 18) -> int:
         """Delete data older than retention period"""
-        cutoff_date = datetime.now(UTC) - timedelta(days=retention_months * 30)
+        cutoff_date = datetime.now(timezone.utc) - timedelta(days=retention_months * 30)
 
         try:
             # ClickHouse TTL handles automatic cleanup, but we can manually trigger
@@ -332,7 +332,7 @@ class ClickHouseClient:
                 f"{self.database}.execution_logs",
                 [
                     [
-                        log.get("timestamp", datetime.now(UTC)),
+                        log.get("timestamp", datetime.now(timezone.utc)),
                         log.get("ticket_id", ""),
                         log.get("task_type", ""),
                         log.get("risk_band", "medium"),
@@ -397,7 +397,7 @@ class ClickHouseClient:
         for log in logs:
             rows.append(
                 [
-                    log.get("timestamp", datetime.now(UTC)),
+                    log.get("timestamp", datetime.now(timezone.utc)),
                     log.get("ticket_id", ""),
                     log.get("task_type", ""),
                     log.get("risk_band", "medium"),
@@ -463,7 +463,7 @@ class ClickHouseClient:
                 f"{self.database}.telemetry_metrics",
                 [
                     [
-                        metric.get("timestamp", datetime.now(UTC)),
+                        metric.get("timestamp", datetime.now(timezone.utc)),
                         metric.get("service", ""),
                         metric.get("metric_name", ""),
                         float(metric.get("metric_value", 0.0)),
@@ -510,7 +510,7 @@ class ClickHouseClient:
 
             rows.append(
                 [
-                    metric.get("timestamp", datetime.now(UTC)),
+                    metric.get("timestamp", datetime.now(timezone.utc)),
                     metric.get("service", ""),
                     metric.get("metric_name", ""),
                     float(metric.get("metric_value", 0.0)),
@@ -548,7 +548,7 @@ class ClickHouseClient:
                 f"{self.database}.worker_utilization",
                 [
                     [
-                        util.get("timestamp", datetime.now(UTC)),
+                        util.get("timestamp", datetime.now(timezone.utc)),
                         util.get("worker_id", ""),
                         util.get("active_tasks", 0),
                         float(util.get("cpu_usage", 0.0)),
@@ -595,7 +595,7 @@ class ClickHouseClient:
         for util in utils:
             rows.append(
                 [
-                    util.get("timestamp", datetime.now(UTC)),
+                    util.get("timestamp", datetime.now(timezone.utc)),
                     util.get("worker_id", ""),
                     util.get("active_tasks", 0),
                     float(util.get("cpu_usage", 0.0)),
@@ -639,7 +639,7 @@ class ClickHouseClient:
                 f"{self.database}.queue_snapshots",
                 [
                     [
-                        snapshot.get("timestamp", datetime.now(UTC)),
+                        snapshot.get("timestamp", datetime.now(timezone.utc)),
                         snapshot.get("queue_depth", 0),
                         snapshot.get("avg_wait_time_ms", 0),
                         snapshot.get("tickets_by_priority", {}),
@@ -682,7 +682,7 @@ class ClickHouseClient:
                 f"{self.database}.ml_model_performance",
                 [
                     [
-                        perf.get("timestamp", datetime.now(UTC)),
+                        perf.get("timestamp", datetime.now(timezone.utc)),
                         perf.get("model_name", ""),
                         perf.get("model_version", ""),
                         perf.get("metric_name", ""),
@@ -727,7 +727,7 @@ class ClickHouseClient:
                 f"{self.database}.scheduling_decisions",
                 [
                     [
-                        decision.get("timestamp", datetime.now(UTC)),
+                        decision.get("timestamp", datetime.now(timezone.utc)),
                         decision.get("decision_id", ""),
                         decision.get("state_hash", ""),
                         decision.get("action", ""),

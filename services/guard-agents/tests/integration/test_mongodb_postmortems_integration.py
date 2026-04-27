@@ -4,7 +4,7 @@ Testes de integracao para persistencia de post-mortems no MongoDB
 Testa operacoes de insercao e consulta de post-mortems
 """
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -72,7 +72,7 @@ def sample_postmortem():
         "actions_taken": ["Enforcement: revoke_access", "Remediation: restart_pod"],
         "sla_performance": {"met": True, "recovery_time_s": 45.5},
         "recommendations": ["Melhorar regras de deteccao"],
-        "documented_at": datetime.now(UTC).isoformat(),
+        "documented_at": datetime.now(timezone.utc).isoformat(),
     }
 
 
@@ -179,7 +179,7 @@ class TestPostmortemInsertion:
                 "neural-hive/deployment/gateway-intencoes",
                 "neural-hive/pod/gateway-intencoes-abc123",
             ],
-            "documented_at": datetime.now(UTC).isoformat(),
+            "documented_at": datetime.now(timezone.utc).isoformat(),
             "metadata": {
                 "detection_time_s": 12.5,
                 "total_blocked_ips": 15,
@@ -288,7 +288,7 @@ class TestPostmortemSchema:
             "incident_id": "INC-MIN-001",
             "threat_type": "unknown",
             "severity": "low",
-            "documented_at": datetime.now(UTC).isoformat(),
+            "documented_at": datetime.now(timezone.utc).isoformat(),
         }
 
         mock_postmortems_collection.insert_one = AsyncMock(return_value=MagicMock())
@@ -315,7 +315,7 @@ class TestPostmortemSchema:
                     {"type": "quarantine", "target": "compromised-pod", "success": True},
                 ]
             },
-            "documented_at": datetime.now(UTC).isoformat(),
+            "documented_at": datetime.now(timezone.utc).isoformat(),
         }
 
         mock_postmortems_collection.insert_one = AsyncMock(return_value=MagicMock())

@@ -70,7 +70,7 @@ class RetrainingTrigger:
         self.priority = priority
         self.reason = reason
         self.metadata = metadata or {}
-        self.timestamp = datetime.now(UTC)
+        self.timestamp = datetime.now(timezone.utc)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -203,7 +203,7 @@ class RetrainingTriggerSystem:
                 )
 
         if last_training:
-            elapsed_hours = (datetime.now(UTC) - last_training).total_seconds() / 3600
+            elapsed_hours = (datetime.now(timezone.utc) - last_training).total_seconds() / 3600
 
             if elapsed_hours >= interval_hours:
                 return RetrainingTrigger(
@@ -277,7 +277,7 @@ class RetrainingTriggerSystem:
                 .find(
                     {
                         "model_name": model_name,
-                        "timestamp": {"$gte": datetime.now(UTC) - timedelta(days=7)},
+                        "timestamp": {"$gte": datetime.now(timezone.utc) - timedelta(days=7)},
                     }
                 )
                 .to_list(100)
@@ -410,7 +410,7 @@ class RetrainingTriggerSystem:
                         self.logger.warning("trigger_callback_failed", error=str(e))
 
                 # Atualizar timestamp de último treinamento
-                self._last_training[model_name] = datetime.now(UTC)
+                self._last_training[model_name] = datetime.now(timezone.utc)
 
                 return {
                     "status": "triggered",
@@ -485,7 +485,7 @@ class RetrainingTriggerSystem:
             Dict com estatísticas
         """
         try:
-            cutoff = datetime.now(UTC) - timedelta(days=days)
+            cutoff = datetime.now(timezone.utc) - timedelta(days=days)
 
             pipeline = [
                 {"$match": {"model_name": model_name, "timestamp": {"$gte": cutoff}}},

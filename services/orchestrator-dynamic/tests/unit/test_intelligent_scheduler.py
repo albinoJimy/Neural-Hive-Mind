@@ -80,14 +80,14 @@ def sample_ticket() -> dict[str, Any]:
             "durability": "PERSISTENT",
         },
         "sla": {
-            "deadline": (datetime.now(UTC) + timedelta(hours=1)).isoformat(),
+            "deadline": (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat(),
             "timeout_ms": 3600000,
         },
         "required_capabilities": ["python", "data-processing"],
         "namespace": "default",
         "security_level": "standard",
         "estimated_duration_ms": 1000,
-        "created_at": datetime.now(UTC).isoformat(),
+        "created_at": datetime.now(timezone.utc).isoformat(),
     }
 
 

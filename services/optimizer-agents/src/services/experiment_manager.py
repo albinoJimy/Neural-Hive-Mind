@@ -1,5 +1,5 @@
 import uuid
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 UTC = UTC  # type: ignore
 
@@ -416,7 +416,7 @@ class ExperimentManager:
             experiment = ExperimentRequest.from_avro_dict(experiment_doc)
 
             # Calcular tempo decorrido
-            now_millis = int(datetime.now(UTC).timestamp() * 1000)
+            now_millis = int(datetime.now(timezone.utc).timestamp() * 1000)
             created_at = experiment_doc.get("created_at", now_millis)
             elapsed_time = (now_millis - created_at) / 1000  # em segundos
 
@@ -703,7 +703,7 @@ class ExperimentManager:
                 "actual_baseline_metrics": analysis.get("baseline_metrics", {}),
                 "actual_target_metrics": analysis.get("experimental_metrics", {}),
                 "lessons_learned": self._generate_lessons_learned(analysis, experiment_doc),
-                "completed_at": int(datetime.now(UTC).timestamp() * 1000),
+                "completed_at": int(datetime.now(timezone.utc).timestamp() * 1000),
                 "metadata": {
                     "recommendation": recommendation,
                     "control_size": analysis.get("control_size", 0),
@@ -1004,7 +1004,7 @@ class ExperimentManager:
             # Atualizar status no MongoDB
             rollback_result = {
                 "rollback_reason": "degradation_detected",
-                "rollback_timestamp": int(datetime.now(UTC).timestamp() * 1000),
+                "rollback_timestamp": int(datetime.now(timezone.utc).timestamp() * 1000),
                 "baseline_configuration": baseline_config,
             }
 
@@ -1047,7 +1047,7 @@ class ExperimentManager:
         baseline/MDE/power/alpha ao inves de valor constante.
         """
         experiment_id = str(uuid.uuid4())
-        now_millis = int(datetime.now(UTC).timestamp() * 1000)
+        now_millis = int(datetime.now(timezone.utc).timestamp() * 1000)
 
         # Gerar success criteria baseado em métricas alvo
         success_criteria = []
@@ -1696,7 +1696,7 @@ class ExperimentManager:
 
             # Atualizar documento do experimento com info de rollback
             rollback_metadata = {
-                "rollback_timestamp": int(datetime.now(UTC).timestamp() * 1000),
+                "rollback_timestamp": int(datetime.now(timezone.utc).timestamp() * 1000),
                 "baseline_configuration_restored": baseline_config,
                 "weights_rolled_back": rollback_result["weights_rolled_back"],
                 "slos_rolled_back": rollback_result["slos_rolled_back"],

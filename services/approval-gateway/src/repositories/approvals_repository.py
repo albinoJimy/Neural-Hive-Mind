@@ -1,6 +1,6 @@
 """Repositório de solicitações de aprovação."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 import structlog
@@ -53,8 +53,8 @@ class ApprovalsRepository:
                 "feedback": decision.feedback,
                 "tags": decision.tags,
             },
-            "created_at": datetime.utcnow().isoformat(),
-            "updated_at": datetime.utcnow().isoformat(),
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "updated_at": datetime.now(timezone.utc).isoformat(),
         }
 
         result = await self._db.database[self._collection].insert_one(doc)
@@ -86,8 +86,8 @@ class ApprovalsRepository:
                     "decision.status": status.value,
                     "decision.approved_by": approved_by,
                     "decision.feedback": feedback,
-                    "decision.approved_at": datetime.utcnow().isoformat(),
-                    "updated_at": datetime.utcnow().isoformat(),
+                    "decision.approved_at": datetime.now(timezone.utc).isoformat(),
+                    "updated_at": datetime.now(timezone.utc).isoformat(),
                 }
             },
         )
@@ -141,7 +141,7 @@ class ApprovalsRepository:
         """Expira solicitações pendentes antigas."""
         await self._db.connect()
 
-        cutoff = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0) - __import__(
+        cutoff = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0) - __import__(
             "datetime"
         ).timedelta(hours=timeout_hours)
 
@@ -154,7 +154,7 @@ class ApprovalsRepository:
                 "$set": {
                     "decision.status": ApprovalStatus.EXPIRED.value,
                     "decision.reasoning": "Solicitação expirada por timeout",
-                    "updated_at": datetime.utcnow().isoformat(),
+                    "updated_at": datetime.now(timezone.utc).isoformat(),
                 }
             },
         )

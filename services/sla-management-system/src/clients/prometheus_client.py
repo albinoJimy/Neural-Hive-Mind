@@ -3,7 +3,7 @@ Cliente para Prometheus HTTP API.
 """
 
 import asyncio
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from typing import Any, Optional
 
 import httpx
@@ -92,7 +92,7 @@ class PrometheusClient:
 
     async def calculate_sli(self, slo_definition: SLODefinition, window_days: int = 30) -> float:
         """Calcula SLI atual baseado na definição do SLO."""
-        end = datetime.now(UTC)
+        end = datetime.now(timezone.utc)
         start = end - timedelta(days=window_days)
 
         try:
@@ -218,7 +218,7 @@ class PrometheusClient:
                     return count
 
             # Fallback: query com range para histórico
-            end = datetime.now(UTC)
+            end = datetime.now(timezone.utc)
             end - timedelta(hours=window_hours)
 
             # Query alternativa usando increase em contadores de alertas

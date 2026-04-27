@@ -175,7 +175,7 @@ class SagaMetrics:
             Dicionário com resumo de contadores e durações
         """
         summary = {
-            "timestamp": datetime.now(UTC).isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "counters": {},
             "durations": {},
         }

@@ -4,7 +4,7 @@ Testes de Dependency Injection para APIs REST do Queen Agent.
 Verifica que as dependências são injetadas correctamente usando FastAPI Depends().
 """
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -184,7 +184,7 @@ class TestDependencyInjectionIntegration:
             return_value=TaskAssignment(
                 worker_id="worker-1",
                 strategy=BalancingStrategy.ROUND_ROBIN,
-                assigned_at=datetime.now(UTC),
+                assigned_at=datetime.now(timezone.utc),
             )
         )
         mock_load_balancer.complete_task = AsyncMock(return_value=True)

@@ -9,7 +9,7 @@ Estas activities integram os novos serviços do Fluxo G:
 """
 
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 import httpx
@@ -57,7 +57,7 @@ async def generate_requirements(
                 "requirements": [],
                 "user_stories": [],
                 "status": "stub",
-                "generated_at": datetime.utcnow().isoformat(),
+                "generated_at": datetime.now(timezone.utc).isoformat(),
             }
 
         # Chamar API do requirements-engineering
@@ -207,7 +207,7 @@ async def update_knowledge_graph(
                 "properties": {
                     "plan_id": plan_id,
                     "intent_id": cognitive_plan.get("intent_id", ""),
-                    "created_at": datetime.utcnow().isoformat(),
+                    "created_at": datetime.now(timezone.utc).isoformat(),
                 },
             },
             timeout=10.0,
@@ -293,7 +293,7 @@ async def request_approval(
             logger.warning("http_client_unavailable_using_auto_approve")
             # Auto-aprovar quando serviço não disponível
             return {
-                "request_id": f"AUTO-{datetime.utcnow().timestamp()}",
+                "request_id": f"AUTO-{datetime.now(timezone.utc).timestamp()}",
                 "status": "approved",
                 "confidence_score": 1.0,
                 "reasoning": "Auto-aprovado (serviço indisponível)",

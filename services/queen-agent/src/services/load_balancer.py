@@ -11,7 +11,7 @@ Implementa distribuição de tarefas usando múltiplas estratégias:
 import asyncio
 import hashlib
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 UTC = UTC  # type: ignore
 from enum import Enum
@@ -145,7 +145,7 @@ class LoadBalancer:
                 metrics = WorkerMetrics(
                     worker_id=worker_id,
                     capacity=capacity,
-                    last_heartbeat=datetime.now(UTC),
+                    last_heartbeat=datetime.now(timezone.utc),
                     is_healthy=True,
                 )
                 self._local_cache[worker_id] = metrics
@@ -154,7 +154,7 @@ class LoadBalancer:
             worker_data = {
                 "worker_id": worker_id,
                 "capacity": str(capacity),
-                "registered_at": datetime.now(UTC).isoformat(),
+                "registered_at": datetime.now(timezone.utc).isoformat(),
                 "metadata": str(metadata or {}),
             }
             await self.redis_client.client.hset(self.WORKERS_KEY, worker_id, str(worker_data))
@@ -234,7 +234,7 @@ class LoadBalancer:
                 if avg_processing_time_ms is not None:
                     metrics.avg_processing_time_ms = avg_processing_time_ms
 
-                metrics.last_heartbeat = datetime.now(UTC)
+                metrics.last_heartbeat = datetime.now(timezone.utc)
                 metrics.is_healthy = True
 
             # Persistir no Redis
@@ -382,7 +382,7 @@ class LoadBalancer:
     async def _get_healthy_workers(self) -> list[str]:
         """Obter lista de workers saudáveis"""
         async with self._cache_lock:
-            now = datetime.now(UTC)
+            now = datetime.now(timezone.utc)
             healthy_workers = []
 
             for worker_id, metrics in self._local_cache.items():

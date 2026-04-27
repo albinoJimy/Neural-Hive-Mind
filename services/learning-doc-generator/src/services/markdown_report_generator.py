@@ -1,7 +1,7 @@
 """Gerador de relatórios em formato Markdown"""
 
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 import structlog
@@ -101,7 +101,7 @@ class MarkdownReportGenerator:
         return {
             "document": document,
             "title": document.title,
-            "generated_at": document.generated_at or datetime.utcnow(),
+            "generated_at": document.generated_at or datetime.now(timezone.utc),
             "period_start": document.period_start,
             "period_end": document.period_end,
             "summary": document.summary,
@@ -558,7 +558,7 @@ Nenhuma tendência identificada.
         try:
             # Criar nome de arquivo
             safe_title = document.title.lower().replace(" ", "_").replace("/", "_")
-            timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+            timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
             filename = f"{timestamp}_{safe_title}.md"
             filepath = os.path.join(self._output_dir, filename)
 

@@ -152,7 +152,7 @@ def sample_consolidated_decision() -> dict[str, Any]:
         "decision_id": "decision-123",
         "correlation_id": "corr-123",
         "trace_id": "trace-123",
-        "timestamp": datetime.now(UTC).isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
 
@@ -186,14 +186,14 @@ class TestSchedulerIntegration:
                 "durability": "PERSISTENT",
             },
             "sla": {
-                "deadline": (datetime.now(UTC) + timedelta(hours=1)).isoformat(),
+                "deadline": (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat(),
                 "timeout_ms": 3600000,
             },
             "required_capabilities": ["python", "data-processing"],
             "namespace": "default",
             "security_level": "standard",
             "estimated_duration_ms": 1000,
-            "created_at": datetime.now(UTC).isoformat(),
+            "created_at": datetime.now(timezone.utc).isoformat(),
         }
 
         # Executar
@@ -235,7 +235,7 @@ class TestSchedulerIntegration:
             "namespace": "default",
             "security_level": "standard",
             "estimated_duration_ms": 1000,
-            "created_at": datetime.now(UTC).isoformat(),
+            "created_at": datetime.now(timezone.utc).isoformat(),
         }
 
         # Executar
@@ -272,7 +272,7 @@ class TestSchedulerIntegration:
             "namespace": "default",
             "security_level": "standard",
             "estimated_duration_ms": 1000,
-            "created_at": datetime.now(UTC).isoformat(),
+            "created_at": datetime.now(timezone.utc).isoformat(),
             "predictions": {
                 "duration_ms": 1800,  # 180% do estimado
                 "anomaly": {
@@ -318,7 +318,7 @@ class TestSchedulerIntegration:
                 "namespace": "default",
                 "security_level": "standard",
                 "estimated_duration_ms": 1000,
-                "created_at": datetime.now(UTC).isoformat(),
+                "created_at": datetime.now(timezone.utc).isoformat(),
             }
             tickets.append(ticket)
 
@@ -358,7 +358,7 @@ class TestSchedulerIntegration:
                 "namespace": "default",
                 "security_level": "standard",
                 "estimated_duration_ms": 1000,
-                "created_at": datetime.now(UTC).isoformat(),
+                "created_at": datetime.now(timezone.utc).isoformat(),
             }
             tickets.append(ticket)
 
@@ -401,7 +401,7 @@ class TestSchedulerIntegration:
                 "namespace": "default",
                 "security_level": "standard",
                 "estimated_duration_ms": 1000,
-                "created_at": datetime.now(UTC).isoformat(),
+                "created_at": datetime.now(timezone.utc).isoformat(),
             }
 
             result = await scheduler.schedule_ticket(ticket)
@@ -439,13 +439,13 @@ class TestSchedulerIntegration:
             "namespace": "default",
             "security_level": "standard",
             "estimated_duration_ms": 1000,
-            "created_at": datetime.now(UTC).isoformat(),
+            "created_at": datetime.now(timezone.utc).isoformat(),
         }
 
         # Medir latência
-        start = datetime.now(UTC)
+        start = datetime.now(timezone.utc)
         await scheduler.schedule_ticket(ticket)
-        duration = (datetime.now(UTC) - start).total_seconds()
+        duration = (datetime.now(timezone.utc) - start).total_seconds()
 
         # Verificar SLO (<200ms = 0.2s)
         assert duration < 0.2
@@ -496,7 +496,7 @@ class TestSchedulerIntegration:
             "namespace": "default",
             "security_level": "standard",
             "estimated_duration_ms": 1000,
-            "created_at": datetime.now(UTC).isoformat(),
+            "created_at": datetime.now(timezone.utc).isoformat(),
         }
 
         # Simular activity allocate_resources
@@ -546,7 +546,7 @@ class TestSchedulerIntegration:
             "namespace": "default",
             "security_level": "standard",
             "estimated_duration_ms": 1000,
-            "created_at": datetime.now(UTC).isoformat(),
+            "created_at": datetime.now(timezone.utc).isoformat(),
         }
 
         # Simular lógica de allocate_resources com feature flag

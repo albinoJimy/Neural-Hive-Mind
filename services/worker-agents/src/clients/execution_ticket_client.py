@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 UTC = UTC  # type: ignore
 from typing import Any
@@ -121,7 +121,7 @@ class ExecutionTicketClient:
             if exp is None:
                 return True
             # Comparar com timestamp atual (com margem de 30 segundos)
-            current_time = datetime.now(UTC).timestamp()
+            current_time = datetime.now(timezone.utc).timestamp()
             return current_time >= (exp - 30)
         except jwt.exceptions.DecodeError:
             return True

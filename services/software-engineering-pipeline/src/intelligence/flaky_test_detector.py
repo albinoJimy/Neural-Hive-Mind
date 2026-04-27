@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 from pydantic import BaseModel, ConfigDict, Field
 from structlog import get_logger
@@ -63,7 +63,7 @@ class FlakyTestDetector:
 
     def _update_histories(self, test_results: dict, run_id: str) -> None:
         """Atualiza históricos de testes com novos resultados."""
-        now = datetime.now(UTC)
+        now = datetime.now(timezone.utc)
 
         passed_tests = test_results.get("passed_tests", [])
         failed_tests = test_results.get("failed_tests", [])

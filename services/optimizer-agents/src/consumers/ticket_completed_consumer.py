@@ -2,7 +2,7 @@
 
 import asyncio
 import json
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 UTC = UTC  # type: ignore
 
@@ -174,7 +174,7 @@ class TicketCompletedConsumer:
                     "performance_analysis": performance_analysis,
                     "recommendations": final_recommendations,
                     "analyzed_by": "optimizer-agents",
-                    "analyzed_at": datetime.now(UTC),
+                    "analyzed_at": datetime.now(timezone.utc),
                 }
 
                 # Persistir no MongoDB

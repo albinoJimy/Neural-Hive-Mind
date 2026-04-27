@@ -137,7 +137,7 @@ class AgenticDelegationClient:
 
             if response.status_code == 200:
                 task.status = TaskStatus.ASSIGNED
-                task.assigned_at = datetime.now(UTC)
+                task.assigned_at = datetime.now(timezone.utc)
             else:
                 task.status = TaskStatus.FAILED
                 task.error = f"HTTP {response.status_code}: {response.text}"
@@ -194,12 +194,12 @@ class AgenticDelegationClient:
                         # Atualizar status
                         task.status = TaskStatus(data.get("status", task.status.value))
                         if task.status == TaskStatus.COMPLETED:
-                            task.completed_at = datetime.now(UTC)
+                            task.completed_at = datetime.now(timezone.utc)
                             task.result = data.get("result")
                         elif task.status == TaskStatus.FAILED:
                             task.error = data.get("error")
-                            task.completed_at = datetime.now(UTC)
-                        task.updated_at = datetime.now(UTC)
+                            task.completed_at = datetime.now(timezone.utc)
+                        task.updated_at = datetime.now(timezone.utc)
 
                 except httpx.HTTPError as e:
                     self.logger.warning("task_status_check_failed", task_id=task_id, error=str(e))
@@ -235,7 +235,7 @@ class AgenticDelegationClient:
 
             if response.status_code == 200:
                 task.status = TaskStatus.CANCELLED
-                task.updated_at = datetime.now(UTC)
+                task.updated_at = datetime.now(timezone.utc)
                 return True
 
         except httpx.HTTPError as e:

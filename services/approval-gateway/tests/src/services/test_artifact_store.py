@@ -1,6 +1,6 @@
 """Testes unitários para ArtifactStore."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
@@ -129,7 +129,7 @@ class TestArtifactStore:
                 "filename": "test.py",
                 "size_bytes": 12,
                 "version": "1.0.0",
-                "created_at": datetime.utcnow(),
+                "created_at": datetime.now(timezone.utc),
                 "metadata": {},
             }
         )
@@ -167,7 +167,7 @@ class TestArtifactStore:
                 "filename": "test.py",
                 "size_bytes": 18,
                 "version": "1.0.0",
-                "created_at": datetime.utcnow(),
+                "created_at": datetime.now(timezone.utc),
                 "metadata": {},
             }
         )
@@ -194,7 +194,7 @@ class TestArtifactStore:
                 "content_type": "text/plain",
                 "size_bytes": 100,
                 "version": "1.0.0",
-                "created_at": datetime.utcnow(),
+                "created_at": datetime.now(timezone.utc),
                 "metadata": {},
             },
             {
@@ -204,7 +204,7 @@ class TestArtifactStore:
                 "content_type": "text/markdown",
                 "size_bytes": 250,
                 "version": "1.0.0",
-                "created_at": datetime.utcnow(),
+                "created_at": datetime.now(timezone.utc),
                 "metadata": {},
             },
         ]
@@ -318,7 +318,7 @@ class TestArtifactStore:
                 "filename": "test.py",
                 "size_bytes": 100,
                 "version": "1.0.0",
-                "created_at": datetime.utcnow(),
+                "created_at": datetime.now(timezone.utc),
             }
         ]
 

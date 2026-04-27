@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -26,7 +26,7 @@ class PipelineManifest(BaseModel):
     content: str = Field(description="Conteúdo YAML do pipeline")
     stack: dict[str, str] = Field(default_factory=dict, description="Informações da stack")
     created_at: datetime = Field(
-        default_factory=lambda: datetime.now(UTC),
+        default_factory=lambda: datetime.now(timezone.utc),
         description="Timestamp de criação",
     )
 
@@ -53,7 +53,7 @@ class PipelineRun(BaseModel):
         default_factory=list, description="Estágios que falharam"
     )
     started_at: datetime = Field(
-        default_factory=lambda: datetime.now(UTC),
+        default_factory=lambda: datetime.now(timezone.utc),
         description="Timestamp de início",
     )
     finished_at: datetime | None = Field(default=None, description="Timestamp de conclusão")
@@ -116,7 +116,7 @@ class Anomaly(BaseModel):
     description: str = Field(description="Descrição detalhada")
     affected_component: str | None = Field(default=None, description="Componente afetado")
     detected_at: datetime = Field(
-        default_factory=lambda: datetime.now(UTC),
+        default_factory=lambda: datetime.now(timezone.utc),
         description="Timestamp de detecção",
     )
     resolved: bool = Field(default=False, description="Se foi resolvida")
@@ -137,7 +137,7 @@ class Insight(BaseModel):
     impact: Severity = Field(description="Impacto da issue ou oportunidade")
     effort: Literal["S", "M", "L"] = Field(description="Esforço estimado para implementação")
     created_at: datetime = Field(
-        default_factory=lambda: datetime.now(UTC),
+        default_factory=lambda: datetime.now(timezone.utc),
         description="Timestamp de criação",
     )
 

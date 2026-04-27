@@ -7,7 +7,7 @@ e aborta experimentos automaticamente quando limites sao violados.
 
 import math
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 UTC = UTC  # type: ignore
 
@@ -160,7 +160,7 @@ class GuardrailMonitor:
                     threshold_percentage=max_degradation,
                     abort_threshold_percentage=abort_threshold,
                     severity=severity,
-                    timestamp=datetime.now(UTC),
+                    timestamp=datetime.now(timezone.utc),
                 )
                 violations.append(violation)
 
@@ -398,7 +398,7 @@ class GuardrailMonitor:
                     }
                     for v in status.violations
                 ],
-                "checked_at": datetime.now(UTC).isoformat(),
+                "checked_at": datetime.now(timezone.utc).isoformat(),
             }
 
             await self.redis_client.setex(key, 300, json.dumps(data))  # 5 min TTL

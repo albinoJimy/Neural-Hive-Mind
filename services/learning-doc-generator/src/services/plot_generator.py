@@ -1,7 +1,7 @@
 """Gerador de gráficos para relatórios de aprendizado"""
 
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 import matplotlib.pyplot as plt
@@ -356,7 +356,7 @@ class PlotGenerator:
         Returns:
             Caminho do arquivo
         """
-        timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+        timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
         filename = f"{timestamp}_{name}.{format_type}"
         filepath = os.path.join(self._output_dir, filename)
 

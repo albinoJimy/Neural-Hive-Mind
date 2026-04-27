@@ -293,7 +293,7 @@ class PreemptionManager:
         """Retorna timestamp atual em milissegundos."""
         from datetime import datetime
 
-        return int(datetime.now(UTC).timestamp() * 1000)
+        return int(datetime.now(timezone.utc).timestamp() * 1000)
 
     def get_preemption_history(self, limit: int = 100) -> list[dict[str, Any]]:
         """

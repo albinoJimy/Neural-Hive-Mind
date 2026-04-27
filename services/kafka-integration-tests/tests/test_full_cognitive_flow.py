@@ -1,7 +1,7 @@
 """Testes E2E do fluxo cognitivo completo através dos serviços."""
 
 import asyncio
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from uuid import uuid4
 
 import pytest
@@ -33,7 +33,7 @@ async def test_full_cognitive_flow_e2e(
             "domain_devops": 0.6,
             "action_create": 0.95,
         },
-        "timestamp": datetime.now(UTC).isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
     # 2. Publicar no tópico de entrada
@@ -70,7 +70,7 @@ async def test_feedback_loop_flow(
             "latency_p95": 120,
             "error_rate": 0.001,
         },
-        "timestamp": datetime.now(UTC).isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
     await kafka_producer.send_and_wait("experiments.completed", experiment)
@@ -88,7 +88,7 @@ async def test_feedback_loop_flow(
         },
         "source": "experiment_impact_analyzer",
         "priority": "high",
-        "timestamp": datetime.now(UTC).isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
     await kafka_producer.send_and_wait("hypotheses.created", hypothesis)
@@ -115,7 +115,7 @@ async def test_ml_inference_flow(kafka_producer):
             "feature_2": "text_input",
             "categorical_feature": "category_a",
         },
-        "timestamp": datetime.now(UTC).isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
     await kafka_producer.send_and_wait("inference.requests", inference_request)
@@ -135,7 +135,7 @@ async def test_message_propagation_latency(kafka_producer, consume_from_topic):
     # Publicar mensagem
     message = {
         "test_id": str(uuid4()),
-        "timestamp": datetime.now(UTC).isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
     await kafka_producer.send_and_wait("cognitive.plans.created", message)
@@ -161,7 +161,7 @@ async def test_concurrent_message_processing(kafka_producer):
         message = {
             "test_id": str(uuid4()),
             "batch": i,
-            "timestamp": datetime.now(UTC).isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
         tasks.append(kafka_producer.send_and_wait("cognitive.plans.created", message))
 

@@ -473,7 +473,7 @@ class ModelAuditLogger:
             await self._ensure_collection()
 
             audit_id = str(uuid.uuid4())
-            timestamp = datetime.now(UTC)
+            timestamp = datetime.now(timezone.utc)
 
             document = {
                 "audit_id": audit_id,
@@ -625,7 +625,7 @@ class ModelAuditLogger:
         try:
             await self._ensure_collection()
 
-            cutoff = datetime.now(UTC) - timedelta(days=days)
+            cutoff = datetime.now(timezone.utc) - timedelta(days=days)
 
             match_stage: dict[str, Any] = {"timestamp": {"$gte": cutoff}}
             if model_name:
@@ -664,7 +664,7 @@ class ModelAuditLogger:
             return {}
 
         try:
-            cutoff = datetime.now(UTC) - timedelta(days=days)
+            cutoff = datetime.now(timezone.utc) - timedelta(days=days)
             events = await self.get_model_history(model_name=model_name, limit=1000)
 
             # Filter by period

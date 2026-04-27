@@ -2,7 +2,7 @@
 Serviço para gerenciar definições de SLO.
 """
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any, Optional
 
 import structlog
@@ -98,7 +98,7 @@ class SLOManager:
             raise ValueError(f"Invalid fields for update: {invalid_fields}")
 
         # Atualizar
-        updates["updated_at"] = datetime.now(UTC)
+        updates["updated_at"] = datetime.now(timezone.utc)
 
         success = await self.postgresql_client.update_slo(slo_id, updates)
         if not success:

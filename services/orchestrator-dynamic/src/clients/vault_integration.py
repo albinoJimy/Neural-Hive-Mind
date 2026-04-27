@@ -187,7 +187,7 @@ class OrchestratorVaultClient:
             # Armazenar credenciais e expiry para renovação
             self._postgres_credentials = creds
             if creds.get("ttl", 0) > 0:
-                self._postgres_credentials_expiry = datetime.now(UTC) + timedelta(
+                self._postgres_credentials_expiry = datetime.now(timezone.utc) + timedelta(
                     seconds=creds["ttl"]
                 )
 
@@ -269,7 +269,7 @@ class OrchestratorVaultClient:
             # Armazenar credenciais e expiry para renovação
             self._mongodb_credentials = creds
             if creds.get("ttl", 0) > 0:
-                self._mongodb_credentials_expiry = datetime.now(UTC) + timedelta(
+                self._mongodb_credentials_expiry = datetime.now(timezone.utc) + timedelta(
                     seconds=creds["ttl"]
                 )
 
@@ -355,7 +355,7 @@ class OrchestratorVaultClient:
                 ttl = secret.get("ttl", 0)
                 self._kafka_credentials = secret
                 if ttl > 0:
-                    self._kafka_credentials_expiry = datetime.now(UTC) + timedelta(seconds=ttl)
+                    self._kafka_credentials_expiry = datetime.now(timezone.utc) + timedelta(seconds=ttl)
 
                 self.logger.info("kafka_credentials_fetched", ttl=ttl)
                 vault_credentials_fetched_total.labels(
@@ -440,7 +440,7 @@ class OrchestratorVaultClient:
 
         # Considerar TTL do token Vault
         if self.vault_client and self.vault_client.token_expiry:
-            time_until_expiry = (self.vault_client.token_expiry - datetime.now(UTC)).total_seconds()
+            time_until_expiry = (self.vault_client.token_expiry - datetime.now(timezone.utc)).total_seconds()
             if time_until_expiry > 0:
                 # Verificar quando atingir o threshold
                 check_at = time_until_expiry * (1 - self.config.vault_token_renewal_threshold)
@@ -449,7 +449,7 @@ class OrchestratorVaultClient:
         # Considerar TTL das credenciais PostgreSQL
         if self._postgres_credentials_expiry:
             time_until_expiry = (
-                self._postgres_credentials_expiry - datetime.now(UTC)
+                self._postgres_credentials_expiry - datetime.now(timezone.utc)
             ).total_seconds()
             if time_until_expiry > 0:
                 # Verificar quando atingir o threshold
@@ -461,7 +461,7 @@ class OrchestratorVaultClient:
         # Considerar TTL das credenciais MongoDB
         if self._mongodb_credentials_expiry:
             time_until_expiry = (
-                self._mongodb_credentials_expiry - datetime.now(UTC)
+                self._mongodb_credentials_expiry - datetime.now(timezone.utc)
             ).total_seconds()
             if time_until_expiry > 0:
                 check_at = time_until_expiry * (
@@ -471,7 +471,7 @@ class OrchestratorVaultClient:
 
         # Considerar TTL das credenciais Kafka
         if self._kafka_credentials_expiry:
-            time_until_expiry = (self._kafka_credentials_expiry - datetime.now(UTC)).total_seconds()
+            time_until_expiry = (self._kafka_credentials_expiry - datetime.now(timezone.utc)).total_seconds()
             if time_until_expiry > 0:
                 check_at = time_until_expiry * (
                     1 - self.config.vault_db_credentials_renewal_threshold
@@ -492,7 +492,7 @@ class OrchestratorVaultClient:
         if not self.vault_client or not self.vault_client.token_expiry:
             return
 
-        time_until_expiry = (self.vault_client.token_expiry - datetime.now(UTC)).total_seconds()
+        time_until_expiry = (self.vault_client.token_expiry - datetime.now(timezone.utc)).total_seconds()
         if time_until_expiry <= 0:
             self.logger.warning("vault_token_expired", expired_seconds_ago=abs(time_until_expiry))
             return
@@ -530,7 +530,7 @@ class OrchestratorVaultClient:
             # Sem credenciais em cache ou sem TTL
             return
 
-        time_until_expiry = (self._postgres_credentials_expiry - datetime.now(UTC)).total_seconds()
+        time_until_expiry = (self._postgres_credentials_expiry - datetime.now(timezone.utc)).total_seconds()
         if time_until_expiry <= 0:
             self.logger.warning(
                 "postgres_credentials_expired", expired_seconds_ago=abs(time_until_expiry)
@@ -566,7 +566,7 @@ class OrchestratorVaultClient:
             # Atualizar cache
             self._postgres_credentials = new_creds
             if new_creds.get("ttl", 0) > 0:
-                self._postgres_credentials_expiry = datetime.now(UTC) + timedelta(
+                self._postgres_credentials_expiry = datetime.now(timezone.utc) + timedelta(
                     seconds=new_creds["ttl"]
                 )
 
@@ -600,7 +600,7 @@ class OrchestratorVaultClient:
         if not self._mongodb_credentials_expiry:
             return
 
-        time_until_expiry = (self._mongodb_credentials_expiry - datetime.now(UTC)).total_seconds()
+        time_until_expiry = (self._mongodb_credentials_expiry - datetime.now(timezone.utc)).total_seconds()
         if time_until_expiry <= 0:
             self.logger.warning(
                 "mongodb_credentials_expired", expired_seconds_ago=abs(time_until_expiry)
@@ -631,7 +631,7 @@ class OrchestratorVaultClient:
 
             self._mongodb_credentials = new_creds
             if new_creds.get("ttl", 0) > 0:
-                self._mongodb_credentials_expiry = datetime.now(UTC) + timedelta(
+                self._mongodb_credentials_expiry = datetime.now(timezone.utc) + timedelta(
                     seconds=new_creds["ttl"]
                 )
 
@@ -672,7 +672,7 @@ class OrchestratorVaultClient:
         if not self._kafka_credentials_expiry:
             return
 
-        time_until_expiry = (self._kafka_credentials_expiry - datetime.now(UTC)).total_seconds()
+        time_until_expiry = (self._kafka_credentials_expiry - datetime.now(timezone.utc)).total_seconds()
         if time_until_expiry <= 0:
             self.logger.warning(
                 "kafka_credentials_expired", expired_seconds_ago=abs(time_until_expiry)
@@ -705,7 +705,7 @@ class OrchestratorVaultClient:
                 ttl = secret.get("ttl", 0)
                 self._kafka_credentials = secret
                 if ttl > 0:
-                    self._kafka_credentials_expiry = datetime.now(UTC) + timedelta(seconds=ttl)
+                    self._kafka_credentials_expiry = datetime.now(timezone.utc) + timedelta(seconds=ttl)
 
                 self.logger.info(
                     "kafka_credentials_renewed", ttl=ttl, username=secret.get("username")

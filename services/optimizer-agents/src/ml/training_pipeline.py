@@ -7,7 +7,7 @@ SchedulingOptimizer (Q-learning) usando dados históricos.
 
 import asyncio
 import logging
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 UTC = UTC  # type: ignore, timedelta
 
@@ -111,7 +111,7 @@ class TrainingPipeline:
     async def _run_training_cycle(self) -> None:
         """Executa ciclo completo de treinamento."""
         logger.info("=== Iniciando ciclo de treinamento ===")
-        start_time = datetime.now(UTC)
+        start_time = datetime.now(timezone.utc)
 
         results = {}
 
@@ -127,14 +127,14 @@ class TrainingPipeline:
             results["scheduling_optimizer"] = scheduling_results
 
             # Registrar métricas
-            duration = (datetime.now(UTC) - start_time).total_seconds()
+            duration = (datetime.now(timezone.utc) - start_time).total_seconds()
             self.metrics.record_ml_training("training_cycle", duration, results)
 
             logger.info(f"=== Ciclo de treinamento concluído em {duration:.2f}s ===")
 
         except Exception as e:
             logger.error(f"Erro no ciclo de treinamento: {e}")
-            duration = (datetime.now(UTC) - start_time).total_seconds()
+            duration = (datetime.now(timezone.utc) - start_time).total_seconds()
             self.metrics.record_ml_training("training_cycle", duration, {"error": str(e)})
 
     async def train_load_predictor(self) -> dict:
@@ -145,7 +145,7 @@ class TrainingPipeline:
             Dict com resultados de treinamento por horizonte
         """
         logger.info(f"Treinando LoadPredictor (janela={self.training_window_days} dias)")
-        start_time = datetime.now(UTC)
+        start_time = datetime.now(timezone.utc)
 
         try:
             # 1. Buscar dados históricos do ClickHouse
@@ -183,7 +183,7 @@ class TrainingPipeline:
                 else:
                     logger.warning(f"Modelo {horizon}m não aprovado (MAPE={metrics['mape']:.2f}%)")
 
-            duration = (datetime.now(UTC) - start_time).total_seconds()
+            duration = (datetime.now(timezone.utc) - start_time).total_seconds()
 
             return {
                 "success": True,
@@ -207,7 +207,7 @@ class TrainingPipeline:
             Dict com resultados de treinamento
         """
         logger.info("Treinando SchedulingOptimizer")
-        start_time = datetime.now(UTC)
+        start_time = datetime.now(timezone.utc)
 
         try:
             # 1. Buscar histórico de otimizações do MongoDB
@@ -239,7 +239,7 @@ class TrainingPipeline:
             logger.info("Salvando snapshot da política")
             await self.scheduling_optimizer._save_q_table_snapshot()
 
-            duration = (datetime.now(UTC) - start_time).total_seconds()
+            duration = (datetime.now(timezone.utc) - start_time).total_seconds()
 
             return {
                 "success": True,
@@ -344,7 +344,7 @@ class TrainingPipeline:
 
     async def _fetch_clickhouse_training_data(self, window_days: int) -> list:
         """Busca dados de treinamento do ClickHouse."""
-        end_time = datetime.now(UTC)
+        end_time = datetime.now(timezone.utc)
         start_time = end_time - timedelta(days=window_days)
 
         try:
@@ -362,7 +362,7 @@ class TrainingPipeline:
     async def _fetch_optimization_history(self, days: int) -> list:
         """Busca histórico de otimizações do MongoDB."""
         try:
-            cutoff = datetime.now(UTC) - timedelta(days=days)
+            cutoff = datetime.now(timezone.utc) - timedelta(days=days)
 
             cursor = (
                 self.mongodb.db.optimization_ledger.find(

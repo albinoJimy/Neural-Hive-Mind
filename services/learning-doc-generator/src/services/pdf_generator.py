@@ -1,7 +1,7 @@
 """Gerador de PDF a partir de Markdown"""
 
 import os
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 import structlog
@@ -143,7 +143,7 @@ class PDFGenerator:
         return template.render(
             title=document.title,
             content=body_html,
-            generated_at=document.generated_at or datetime.now(UTC),
+            generated_at=document.generated_at or datetime.now(timezone.utc),
             period_start=document.period_start,
             period_end=document.period_end,
             document_type=document.type.value,
@@ -164,7 +164,7 @@ class PDFGenerator:
 
         # Criar nome de arquivo
         safe_title = document.title.lower().replace(" ", "_").replace("/", "_")
-        timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
+        timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
         filename = f"{timestamp}_{safe_title}.pdf"
         filepath = Path(self._output_dir) / filename
 

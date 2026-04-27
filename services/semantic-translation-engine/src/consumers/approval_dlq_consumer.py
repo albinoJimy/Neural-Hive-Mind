@@ -9,7 +9,7 @@ import asyncio
 import json
 import time
 from collections.abc import Callable
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 UTC = UTC  # type: ignore
 
@@ -253,7 +253,7 @@ class ApprovalDLQConsumer:
 
                     # Calcular backoff progressivo
                     backoff_seconds = self._calculate_backoff(dlq_entry.retry_count)
-                    time_since_failure = (datetime.now(UTC) - dlq_entry.failed_at).total_seconds()
+                    time_since_failure = (datetime.now(timezone.utc) - dlq_entry.failed_at).total_seconds()
 
                     # Verificar se mensagem está pronta para reprocessamento
                     if time_since_failure < backoff_seconds:

@@ -8,7 +8,7 @@ actual CI provider APIs. In CI environments, they use mocked responses.
 """
 
 import os
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -109,8 +109,8 @@ class TestGitHubActionsIntegration:
                     status="completed",
                     conclusion="success",
                     html_url="https://github.com/owner/repo/actions/runs/12345",
-                    created_at=datetime.now(UTC),
-                    updated_at=datetime.now(UTC),
+                    created_at=datetime.now(timezone.utc),
+                    updated_at=datetime.now(timezone.utc),
                     tests_passed=50,
                     tests_failed=0,
                     tests_skipped=2,
@@ -157,8 +157,8 @@ class TestGitHubActionsIntegration:
                         status="completed",
                         conclusion="success",
                         html_url="https://github.com",
-                        created_at=datetime.now(UTC),
-                        updated_at=datetime.now(UTC),
+                        created_at=datetime.now(timezone.utc),
+                        updated_at=datetime.now(timezone.utc),
                     )
                     mock_results.return_value = {
                         "total": 100,
@@ -224,8 +224,8 @@ class TestGitLabCIIntegration:
                         ref="main",
                         sha="abc123def",
                         web_url="https://gitlab.com/project/-/pipelines/54321",
-                        created_at=datetime.now(UTC),
-                        updated_at=datetime.now(UTC),
+                        created_at=datetime.now(timezone.utc),
+                        updated_at=datetime.now(timezone.utc),
                         duration=180,
                     )
                     mock_report.return_value = {
@@ -270,8 +270,8 @@ class TestGitLabCIIntegration:
                         ref="feature-branch",
                         sha="xyz789",
                         web_url="https://gitlab.com/project/-/pipelines/54322",
-                        created_at=datetime.now(UTC),
-                        updated_at=datetime.now(UTC),
+                        created_at=datetime.now(timezone.utc),
+                        updated_at=datetime.now(timezone.utc),
                     )
                     mock_report.return_value = {
                         "total_count": 50,
@@ -335,7 +335,7 @@ class TestJenkinsIntegration:
                         building=False,
                         url="https://jenkins.example.com/job/test-job/100/",
                         duration=90000,
-                        timestamp=datetime.now(UTC),
+                        timestamp=datetime.now(timezone.utc),
                         tests_passed=60,
                         tests_failed=0,
                         tests_skipped=5,
@@ -381,7 +381,7 @@ class TestJenkinsIntegration:
                         building=False,
                         url="https://jenkins.example.com/job/test-job/101/",
                         duration=120000,
-                        timestamp=datetime.now(UTC),
+                        timestamp=datetime.now(timezone.utc),
                     )
                     mock_coverage.return_value = {}
 
@@ -521,8 +521,8 @@ class TestEndToEndFlow:
             status="completed",
             conclusion="success",
             html_url="https://github.com",
-            created_at=datetime.now(UTC),
-            updated_at=datetime.now(UTC),
+            created_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc),
             tests_passed=100,
             tests_failed=0,
             tests_skipped=5,

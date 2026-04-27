@@ -3,7 +3,7 @@
 import asyncio
 import os
 import uuid
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from unittest.mock import patch
 
 import pytest
@@ -287,7 +287,7 @@ class TestKafkaEOS:
             },
             confidence=0.9,
             context={"userId": "test-user", "sessionId": "test-session"},
-            timestamp=datetime.now(UTC),
+            timestamp=datetime.now(timezone.utc),
         )
 
 

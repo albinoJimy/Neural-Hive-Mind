@@ -13,7 +13,7 @@ Este teste valida o fluxo completo:
 
 import asyncio
 import json
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 import pytest
 from aiokafka import AIOKafkaProducer
@@ -44,7 +44,7 @@ async def mongodb_client():
 def create_sample_ticket():
     """Cria ticket de teste."""
     return {
-        "ticket_id": f"test-{int(datetime.now(UTC).timestamp())}",
+        "ticket_id": f"test-{int(datetime.now(timezone.utc).timestamp())}",
         "plan_id": "test-plan",
         "intent_id": "test-intent",
         "correlation_id": "test-corr",

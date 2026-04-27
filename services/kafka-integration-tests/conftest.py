@@ -4,7 +4,7 @@ import asyncio
 import json
 import uuid
 from collections.abc import AsyncGenerator
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Any
 
 import pytest
@@ -109,7 +109,7 @@ def sample_cognitive_plan() -> dict[str, Any]:
             "domain_backend": 0.8,
             "action_create": 0.9,
         },
-        "timestamp": datetime.now(UTC).isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
 
@@ -125,7 +125,7 @@ def sample_hypothesis() -> dict[str, Any]:
         },
         "source": "optimizer_agent",
         "priority": "high",
-        "timestamp": datetime.now(UTC).isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
 
@@ -141,7 +141,7 @@ def sample_experiment_completed() -> dict[str, Any]:
             "latency_p95": 120,
             "throughput": 1000,
         },
-        "timestamp": datetime.now(UTC).isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
 
@@ -158,7 +158,7 @@ def sample_inference_request() -> dict[str, Any]:
             "feature_2": "text_input",
             "categorical_feature": "category_a",
         },
-        "timestamp": datetime.now(UTC).isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
 

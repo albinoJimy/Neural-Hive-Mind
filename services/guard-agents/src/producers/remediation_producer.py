@@ -1,7 +1,7 @@
 """Kafka producer para eventos de remediação"""
 
 import json
-from datetime import UTC
+from datetime import timezone
 from typing import Any, Optional
 
 import structlog
@@ -181,4 +181,4 @@ class RemediationProducer:
         """Retorna timestamp ISO 8601"""
         from datetime import datetime
 
-        return datetime.now(UTC).isoformat()
+        return datetime.now(timezone.utc).isoformat()

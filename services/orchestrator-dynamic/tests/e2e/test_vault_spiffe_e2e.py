@@ -76,7 +76,7 @@ class TestVaultAuthentication:
         require_real_env()
         assert vault_client.token is not None, "Token deve ser obtido"
         assert vault_client.token_expiry is not None, "Expiry deve ser definido"
-        assert vault_client.token_expiry > datetime.now(UTC), "Token expiry deve estar no futuro"
+        assert vault_client.token_expiry > datetime.now(timezone.utc), "Token expiry deve estar no futuro"
 
     @pytest.mark.asyncio()
     async def test_02_kubernetes_sa_token_expirado(self, expired_token_fixture):
@@ -134,7 +134,7 @@ class TestVaultAuthentication:
         assert (
             "neural-hive.local" in jwt_svid.spiffe_id
         ), f"SPIFFE ID deve conter trust domain: {jwt_svid.spiffe_id}"
-        assert jwt_svid.expiry > datetime.now(UTC), "SVID expiry deve estar no futuro"
+        assert jwt_svid.expiry > datetime.now(timezone.utc), "SVID expiry deve estar no futuro"
 
     @pytest.mark.asyncio()
     async def test_04_jwt_auth_spiiffe_svid_expirado(self, spiffe_manager):
@@ -163,11 +163,11 @@ class TestVaultAuthentication:
             and audience in spiffe_manager._jwt_svid_cache
         ):
             cached = spiffe_manager._jwt_svid_cache[audience]
-            cached.expiry = datetime.now(UTC) - timedelta(hours=1)
+            cached.expiry = datetime.now(timezone.utc) - timedelta(hours=1)
 
         # Buscar novamente - deve obter novo SVID
         new_svid = await spiffe_manager.fetch_jwt_svid(audience)
-        assert new_svid.expiry > datetime.now(UTC), "Novo SVID deve ter expiry no futuro"
+        assert new_svid.expiry > datetime.now(timezone.utc), "Novo SVID deve ter expiry no futuro"
 
 
 # =============================================================================
@@ -464,7 +464,7 @@ class TestSVIDOperations:
             spiffe_manager._jwt_svid_cache.clear()
 
         svid3 = await spiffe_manager.fetch_jwt_svid(audience)
-        assert svid3.expiry > datetime.now(UTC), "Novo SVID deve ser válido"
+        assert svid3.expiry > datetime.now(timezone.utc), "Novo SVID deve ser válido"
 
     @pytest.mark.asyncio()
     async def test_15_cache_hit_miss_jwt_svid(self, spiffe_manager):
@@ -491,8 +491,8 @@ class TestSVIDOperations:
         svid2 = await spiffe_manager.fetch_jwt_svid(audience)
 
         # Ambos devem ser válidos
-        assert svid1.expiry > datetime.now(UTC)
-        assert svid2.expiry > datetime.now(UTC)
+        assert svid1.expiry > datetime.now(timezone.utc)
+        assert svid2.expiry > datetime.now(timezone.utc)
 
         # Verificar cache hit
         if (

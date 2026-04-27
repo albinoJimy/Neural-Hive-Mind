@@ -10,7 +10,7 @@ Computa 26 features a partir de Cognitive Plans:
 
 import asyncio
 from collections import defaultdict
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 import structlog
@@ -42,7 +42,7 @@ class FeatureComputationPipeline:
         Returns:
             FeatureVector com todas as features computadas
         """
-        start_time = datetime.now(UTC)
+        start_time = datetime.now(timezone.utc)
 
         try:
             # Executa computação com timeout
@@ -50,7 +50,7 @@ class FeatureComputationPipeline:
                 self._compute_features_async(plan_id, cognitive_plan), timeout=self.timeout_seconds
             )
 
-            elapsed_ms = (datetime.now(UTC) - start_time).total_seconds() * 1000
+            elapsed_ms = (datetime.now(timezone.utc) - start_time).total_seconds() * 1000
             logger.info("Features computadas com sucesso", plan_id=plan_id, elapsed_ms=elapsed_ms)
 
             return result

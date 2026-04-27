@@ -10,7 +10,7 @@ Publica resultados no tópico learning.doc.generated
 
 import asyncio
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from typing import Optional
 
 import structlog
@@ -300,7 +300,7 @@ class LearningEventConsumer:
                 status=DocumentStatus.COMPLETED,
                 format=DocumentFormat.MARKDOWN,
                 period_start=experiment_run.start_time,
-                period_end=experiment_run.end_time or datetime.utcnow(),
+                period_end=experiment_run.end_time or datetime.now(timezone.utc),
                 summary=summary,
                 insights=insights,
                 experiment_runs=[experiment_run],
@@ -310,7 +310,7 @@ class LearningEventConsumer:
                     "run_id": run_id,
                     "experiment_id": experiment_run.experiment_id,
                 },
-                generated_at=datetime.utcnow(),
+                generated_at=datetime.now(timezone.utc),
             )
 
             # Salvar no MongoDB
@@ -357,8 +357,8 @@ class LearningEventConsumer:
 
             # Buscar runs do mesmo experimento para comparação
             experiment_runs = await self.insight_extractor.get_runs_by_period(
-                start_time=datetime.utcnow() - timedelta(days=30),
-                end_time=datetime.utcnow(),
+                start_time=datetime.now(timezone.utc) - timedelta(days=30),
+                end_time=datetime.now(timezone.utc),
                 experiment_id=promoted_run.info.experiment_id,
                 limit=10,
             )
@@ -415,14 +415,14 @@ class LearningEventConsumer:
             )
 
             # Criar documento
-            title = f"Relatório de Promoção de Modelo - {datetime.utcnow().strftime('%Y-%m-%d')}"
+            title = f"Relatório de Promoção de Modelo - {datetime.now(timezone.utc).strftime('%Y-%m-%d')}"
             document = LearningDocument(
                 title=title,
                 type=DocumentType.PROMOTION_REPORT,
                 status=DocumentStatus.COMPLETED,
                 format=DocumentFormat.MARKDOWN,
-                period_start=datetime.utcnow() - timedelta(days=30),
-                period_end=datetime.utcnow(),
+                period_start=datetime.now(timezone.utc) - timedelta(days=30),
+                period_end=datetime.now(timezone.utc),
                 summary=summary,
                 insights=insights,
                 experiment_runs=runs,
@@ -437,7 +437,7 @@ class LearningEventConsumer:
                     "approved_by": event_data.get("approved_by", "unknown"),
                     "approved_at": event_data.get("approved_at"),
                 },
-                generated_at=datetime.utcnow(),
+                generated_at=datetime.now(timezone.utc),
             )
 
             # Salvar no MongoDB
@@ -481,8 +481,8 @@ class LearningEventConsumer:
 
             # Buscar run anterior (baseline para rollback)
             previous_runs = await self.insight_extractor.get_runs_by_period(
-                start_time=datetime.utcnow() - timedelta(days=7),
-                end_time=datetime.utcnow(),
+                start_time=datetime.now(timezone.utc) - timedelta(days=7),
+                end_time=datetime.now(timezone.utc),
                 limit=10,
             )
 
@@ -531,14 +531,14 @@ class LearningEventConsumer:
             )
 
             # Criar documento
-            title = f"Análise de Rollback - {datetime.utcnow().strftime('%Y-%m-%d %H:%M')}"
+            title = f"Análise de Rollback - {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M')}"
             document = LearningDocument(
                 title=title,
                 type=DocumentType.ROLLBACK_ANALYSIS,
                 status=DocumentStatus.COMPLETED,
                 format=DocumentFormat.MARKDOWN,
-                period_start=datetime.utcnow() - timedelta(hours=1),
-                period_end=datetime.utcnow(),
+                period_start=datetime.now(timezone.utc) - timedelta(hours=1),
+                period_end=datetime.now(timezone.utc),
                 summary=summary,
                 insights=insights,
                 experiment_runs=runs,
@@ -554,7 +554,7 @@ class LearningEventConsumer:
                     "rollback_reason": rollback_reason,
                     "detected_by": event_data.get("detected_by", "unknown"),
                 },
-                generated_at=datetime.utcnow(),
+                generated_at=datetime.now(timezone.utc),
             )
 
             # Salvar no MongoDB

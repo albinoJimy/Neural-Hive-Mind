@@ -12,7 +12,7 @@ from pathlib import Path
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -57,7 +57,7 @@ def sample_auth_event():
         "user_id": "user-123",
         "failed_attempts": 3,
         "source_ip": "192.168.1.100",
-        "timestamp": datetime.now(UTC).isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
 
@@ -70,7 +70,7 @@ def sample_failed_auth_event():
         "user_id": "user-456",
         "failed_attempts": 7,
         "source_ip": "10.0.0.50",
-        "timestamp": datetime.now(UTC).isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
 
@@ -82,7 +82,7 @@ def sample_request_metrics_event():
         "type": "request_metrics",
         "requests_per_minute": 500,
         "source": "api-gateway",
-        "timestamp": datetime.now(UTC).isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
 
@@ -94,7 +94,7 @@ def sample_dos_attack_event():
         "type": "request_metrics",
         "requests_per_minute": 1500,
         "source": "api-gateway",
-        "timestamp": datetime.now(UTC).isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
 
@@ -105,7 +105,7 @@ def sample_payload_event():
         "event_id": "payload-event-001",
         "type": "http_request",
         "payload": "normal request payload",  # Safe payload that doesn't match patterns
-        "timestamp": datetime.now(UTC).isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
 
@@ -116,7 +116,7 @@ def sample_malicious_payload_event():
         "event_id": "malicious-event-001",
         "type": "http_request",
         "payload": "1' OR '1'='1'; DROP TABLE users--",
-        "timestamp": datetime.now(UTC).isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
 
@@ -128,7 +128,7 @@ def sample_resource_metrics_event():
         "type": "resource_metrics",
         "resource_name": "worker-node-1",
         "metrics": {"cpu_usage": 0.65, "memory_usage": 0.70, "disk_usage": 0.50},
-        "timestamp": datetime.now(UTC).isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
 
@@ -140,7 +140,7 @@ def sample_high_resource_event():
         "type": "resource_metrics",
         "resource_name": "worker-node-2",
         "metrics": {"cpu_usage": 0.90, "memory_usage": 0.95, "disk_usage": 0.80},
-        "timestamp": datetime.now(UTC).isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
 
@@ -153,7 +153,7 @@ def sample_behavioral_event():
         "user_id": "user-789",
         "anomaly_score": 0.4,
         "features": {"login_frequency": 5, "action_diversity": 0.6, "time_pattern": "normal"},
-        "timestamp": datetime.now(UTC).isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
 
@@ -166,5 +166,5 @@ def sample_anomalous_behavior_event():
         "user_id": "user-999",
         "anomaly_score": 0.85,
         "features": {"login_frequency": 50, "action_diversity": 0.1, "time_pattern": "unusual"},
-        "timestamp": datetime.now(UTC).isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }

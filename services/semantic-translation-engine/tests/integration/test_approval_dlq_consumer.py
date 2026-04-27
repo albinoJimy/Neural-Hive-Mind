@@ -5,7 +5,7 @@ Valida o fluxo completo de reprocessamento de mensagens da Dead Letter Queue.
 """
 
 import json
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -90,9 +90,9 @@ class TestDLQConsumerMessageDeserialization:
                 "intent_id": "intent-dlq-001",
                 "decision": "approved",
                 "approved_by": "admin@company.com",
-                "approved_at": int(datetime.now(UTC).timestamp() * 1000),
+                "approved_at": int(datetime.now(timezone.utc).timestamp() * 1000),
             },
-            "failed_at": int(datetime.now(UTC).timestamp() * 1000),
+            "failed_at": int(datetime.now(timezone.utc).timestamp() * 1000),
             "correlation_id": "corr-dlq-001",
             "trace_id": "trace-dlq-001",
             "span_id": "span-dlq-001",
@@ -271,9 +271,9 @@ class TestDLQReprocessorIntegration:
                 "intent_id": "intent-reprocess-001",
                 "decision": "approved",
                 "approved_by": "admin@company.com",
-                "approved_at": int(datetime.now(UTC).timestamp() * 1000),
+                "approved_at": int(datetime.now(timezone.utc).timestamp() * 1000),
             },
-            failed_at=datetime.now(UTC) - timedelta(minutes=30),
+            failed_at=datetime.now(timezone.utc) - timedelta(minutes=30),
             correlation_id="corr-reprocess-001",
             trace_id="trace-reprocess-001",
             span_id="span-reprocess-001",
@@ -415,7 +415,7 @@ class TestDLQReprocessorMessageValidation:
             original_approval_response={
                 # Missing: plan_id, intent_id, decision
             },
-            failed_at=datetime.now(UTC),
+            failed_at=datetime.now(timezone.utc),
         )
 
         reprocessor = DLQReprocessor(
@@ -463,7 +463,7 @@ class TestDLQConsumerReprocessorIntegration:
                 "intent_id": "intent-callback-001",
                 "decision": "approved",
             },
-            failed_at=datetime.now(UTC) - timedelta(hours=1),  # Suficiente para passar backoff
+            failed_at=datetime.now(timezone.utc) - timedelta(hours=1),  # Suficiente para passar backoff
             correlation_id="corr-callback-001",
         )
 
@@ -533,9 +533,9 @@ class TestDLQReprocessorRetryCountIncrement:
                 "intent_id": "intent-retry-001",
                 "decision": "approved",
                 "approved_by": "admin@company.com",
-                "approved_at": int(datetime.now(UTC).timestamp() * 1000),
+                "approved_at": int(datetime.now(timezone.utc).timestamp() * 1000),
             },
-            failed_at=datetime.now(UTC) - timedelta(minutes=30),
+            failed_at=datetime.now(timezone.utc) - timedelta(minutes=30),
             correlation_id="corr-retry-001",
             risk_band="high",
             is_destructive=True,
@@ -610,7 +610,7 @@ class TestDLQReprocessorRetryCountIncrement:
                 "intent_id": "intent-max-retry-001",
                 "decision": "approved",
             },
-            failed_at=datetime.now(UTC) - timedelta(hours=1),
+            failed_at=datetime.now(timezone.utc) - timedelta(hours=1),
             risk_band="critical",
         )
 
@@ -765,7 +765,7 @@ class TestApprovalSagaDLQIntegration:
                     plan_id="plan-dlq-integration-001",
                     intent_id="intent-dlq-integration-001",
                     approved_by="admin@company.com",
-                    approved_at=datetime.now(UTC),
+                    approved_at=datetime.now(timezone.utc),
                     cognitive_plan=sample_cognitive_plan,
                     trace_context=trace_context,
                     risk_band="high",
@@ -818,7 +818,7 @@ class TestApprovalSagaDLQIntegration:
             metrics=mock_metrics,
         )
 
-        approved_at = datetime.now(UTC)
+        approved_at = datetime.now(timezone.utc)
         trace_context = {
             "correlation_id": "corr-original-response-001",
             "trace_id": "trace-original-001",
@@ -885,7 +885,7 @@ class TestApprovalSagaDLQIntegration:
                     plan_id="plan-dlq-integration-001",
                     intent_id="intent-dlq-integration-001",
                     approved_by="admin@company.com",
-                    approved_at=datetime.now(UTC),
+                    approved_at=datetime.now(timezone.utc),
                     cognitive_plan=sample_cognitive_plan,
                     trace_context={},
                     risk_band="critical",

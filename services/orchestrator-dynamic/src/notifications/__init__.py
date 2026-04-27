@@ -18,6 +18,7 @@ from .notifier import (
     NotificationManager,
     NotificationResult,
     SlackNotifier,
+    get_notification_manager,
 )
 
 __all__ = [
@@ -29,4 +30,5 @@ __all__ = [
     "NotificationManager",
     "NotificationResult",
     "SlackNotifier",
+    "get_notification_manager",
 ]

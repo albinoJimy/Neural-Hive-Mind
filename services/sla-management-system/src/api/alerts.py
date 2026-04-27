@@ -2,7 +2,7 @@
 API de alertas proativos para SLA Management System.
 """
 
-from datetime import UTC
+from datetime import timezone
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Query, status
@@ -143,7 +143,7 @@ async def create_alert_rule(request: CreateAlertRuleRequest):
         channels=request.channels,
         channel_config=request.channel_config,
         cooldown_minutes=request.cooldown_minutes,
-        created_at=datetime.now(UTC),
+        created_at=datetime.now(timezone.utc),
     )
 
     engine = get_alert_engine()

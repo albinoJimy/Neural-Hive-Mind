@@ -62,7 +62,7 @@ class SagaOrchestrator:
             Nova instancia de SagaState criada
         """
         saga_id = str(uuid4())
-        now = int(datetime.now(UTC).timestamp() * 1000)
+        now = int(datetime.now(timezone.utc).timestamp() * 1000)
 
         # Converter definicoes de steps para objetos SagaStep
         saga_steps = []
@@ -143,7 +143,7 @@ class SagaOrchestrator:
 
         # Atualizar status
         saga.status = SagaStatus.STARTED
-        saga.started_at = int(datetime.now(UTC).timestamp() * 1000)
+        saga.started_at = int(datetime.now(timezone.utc).timestamp() * 1000)
 
         await self._repository.save(saga)
 
@@ -214,7 +214,7 @@ class SagaOrchestrator:
         else:
             # Todos os steps foram completados
             saga.status = SagaStatus.COMPLETED
-            saga.completed_at = int(datetime.now(UTC).timestamp() * 1000)
+            saga.completed_at = int(datetime.now(timezone.utc).timestamp() * 1000)
 
             await self._event_store.record_event_raw(
                 saga_id=saga_id,
@@ -294,7 +294,7 @@ class SagaOrchestrator:
             else:
                 # Sem steps para compensar - falha direta
                 saga.status = SagaStatus.FAILED
-                saga.failed_at = int(datetime.now(UTC).timestamp() * 1000)
+                saga.failed_at = int(datetime.now(timezone.utc).timestamp() * 1000)
                 saga.error = error
 
                 await self._event_store.record_event_raw(
@@ -358,7 +358,7 @@ class SagaOrchestrator:
         if not pending_compensation:
             # Todos os steps foram compensados
             saga.status = SagaStatus.COMPENSATED
-            saga.compensated_at = int(datetime.now(UTC).timestamp() * 1000)
+            saga.compensated_at = int(datetime.now(timezone.utc).timestamp() * 1000)
 
             await self._event_store.record_event_raw(
                 saga_id=saga_id,

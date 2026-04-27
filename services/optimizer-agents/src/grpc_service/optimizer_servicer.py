@@ -1,5 +1,5 @@
 import time
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 UTC = UTC  # type: ignore
 
@@ -513,7 +513,7 @@ class OptimizerServicer(
                     metadata=optimizer_agent_pb2.ForecastMetadata(
                         model_horizon=metadata.get("model_horizon", horizon_minutes),
                         horizon_requested=horizon_minutes,
-                        forecast_generated_at=datetime.now(UTC).isoformat(),
+                        forecast_generated_at=datetime.now(timezone.utc).isoformat(),
                         data_points_used=metadata.get("data_points_used", len(forecast_points)),
                         confidence_level=metadata.get("confidence_level", 0.95),
                     ),

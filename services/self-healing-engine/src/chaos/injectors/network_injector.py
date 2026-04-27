@@ -5,7 +5,7 @@ Implementa injeção de falhas de rede como latência, perda de pacotes,
 particionamento e limitação de bandwidth.
 """
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 import structlog
@@ -40,7 +40,7 @@ class NetworkFaultInjector(BaseFaultInjector):
 
     async def inject(self, injection: FaultInjection) -> InjectionResult:
         """Injeta falha de rede no sistema."""
-        start_time = datetime.now(UTC)
+        start_time = datetime.now(timezone.utc)
 
         if injection.fault_type not in self.supported_fault_types:
             return InjectionResult(
@@ -156,7 +156,7 @@ class NetworkFaultInjector(BaseFaultInjector):
             fault_type=injection.fault_type,
             affected_resources=affected_pods,
             blast_radius=len(affected_pods),
-            start_time=datetime.now(UTC),
+            start_time=datetime.now(timezone.utc),
             rollback_data={
                 "type": "tc",
                 "pods": rollback_commands,
@@ -205,7 +205,7 @@ class NetworkFaultInjector(BaseFaultInjector):
                     annotations={
                         **CHAOS_ANNOTATIONS,
                         "chaos.neuralhive.io/experiment-id": injection.id,
-                        "chaos.neuralhive.io/created-at": datetime.now(UTC).isoformat(),
+                        "chaos.neuralhive.io/created-at": datetime.now(timezone.utc).isoformat(),
                     },
                 ),
                 spec=client.V1NetworkPolicySpec(
@@ -242,7 +242,7 @@ class NetworkFaultInjector(BaseFaultInjector):
                 fault_type=injection.fault_type,
                 affected_resources=pods,
                 blast_radius=len(pods),
-                start_time=datetime.now(UTC),
+                start_time=datetime.now(timezone.utc),
                 rollback_data={
                     "type": "network_policy",
                     "policy_name": policy_name,
@@ -349,7 +349,7 @@ class NetworkFaultInjector(BaseFaultInjector):
                 success=True,
                 injection_id=injection_id,
                 fault_type=FaultType.NETWORK_PARTITION,
-                end_time=datetime.now(UTC),
+                end_time=datetime.now(timezone.utc),
             )
 
         except Exception as e:
@@ -397,14 +397,14 @@ class NetworkFaultInjector(BaseFaultInjector):
                 injection_id=injection_id,
                 fault_type=fault_type,
                 error_message=f"Rollback falhou em pods: {failed_pods}",
-                end_time=datetime.now(UTC),
+                end_time=datetime.now(timezone.utc),
             )
 
         return InjectionResult(
             success=True,
             injection_id=injection_id,
             fault_type=fault_type,
-            end_time=datetime.now(UTC),
+            end_time=datetime.now(timezone.utc),
         )
 
     async def get_blast_radius(self, target: TargetSelector) -> int:

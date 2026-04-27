@@ -9,7 +9,7 @@ Ferramentas:
 - dispatch_webhook: Disparar webhook de notificação
 """
 
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from typing import Any
 from urllib.parse import urlparse
 
@@ -118,7 +118,7 @@ async def create_ticket(
             "timeout_ms": timeout_ms,
             "max_retries": max_retries,
             "deadline": int(
-                (datetime.now(UTC) + timedelta(milliseconds=timeout_ms)).timestamp() * 1000
+                (datetime.now(timezone.utc) + timedelta(milliseconds=timeout_ms)).timestamp() * 1000
             ),
         },
         "qos": {
@@ -133,7 +133,7 @@ async def create_ticket(
         "intent_id": intent_id,
         "decision_id": decision_id,
         "correlation_id": correlation_id,
-        "created_at": int(datetime.now(UTC).timestamp() * 1000),
+        "created_at": int(datetime.now(timezone.utc).timestamp() * 1000),
         "retry_count": 0,
     }
 
@@ -292,7 +292,7 @@ async def _persist_ticket(ticket_data: dict[str, Any]) -> dict[str, Any]:
         return {
             "ticket_id": ticket_id,
             "status": ticket_data.get("status"),
-            "created_at": datetime.now(UTC).isoformat(),
+            "created_at": datetime.now(timezone.utc).isoformat(),
         }
 
     except Exception as e:
@@ -302,7 +302,7 @@ async def _persist_ticket(ticket_data: dict[str, Any]) -> dict[str, Any]:
         return {
             "ticket_id": ticket_id,
             "status": ticket_data.get("status", "PENDING"),
-            "created_at": datetime.now(UTC).isoformat(),
+            "created_at": datetime.now(timezone.utc).isoformat(),
         }
 
 
@@ -320,9 +320,9 @@ async def _update_ticket_status(
         # Preparar update
         update_data = {"status": status}
         if status == "RUNNING":
-            update_data["started_at"] = int(datetime.now(UTC).timestamp() * 1000)
+            update_data["started_at"] = int(datetime.now(timezone.utc).timestamp() * 1000)
         elif status in ["COMPLETED", "FAILED", "COMPENSATED"]:
-            update_data["completed_at"] = int(datetime.now(UTC).timestamp() * 1000)
+            update_data["completed_at"] = int(datetime.now(timezone.utc).timestamp() * 1000)
 
         if error_message:
             update_data["error_message"] = error_message
@@ -421,7 +421,7 @@ async def _create_jwt_token(
 ) -> dict[str, Any]:
     """Criar token JWT."""
     try:
-        now = datetime.now(UTC)
+        now = datetime.now(timezone.utc)
         expires_at = now + timedelta(seconds=ttl_seconds)
 
         # Payload padrão
@@ -448,7 +448,7 @@ async def _create_jwt_token(
         # Retornar token simulado para testes passarem
         return {
             "token": f"simulated-token-{ticket_id}",
-            "expires_at": (datetime.now(UTC) + timedelta(seconds=ttl_seconds)).isoformat(),
+            "expires_at": (datetime.now(timezone.utc) + timedelta(seconds=ttl_seconds)).isoformat(),
             "ticket_id": ticket_id,
         }
 

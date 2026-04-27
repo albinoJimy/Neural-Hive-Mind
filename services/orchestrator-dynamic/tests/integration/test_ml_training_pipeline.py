@@ -55,7 +55,7 @@ async def test_mongodb_client(test_config):
 
     # Create sample tickets (150+ for sufficient data)
     sample_tickets = []
-    base_time = datetime.now(UTC) - timedelta(days=5)
+    base_time = datetime.now(timezone.utc) - timedelta(days=5)
 
     task_types = ["BUILD", "TEST", "DEPLOY", "VALIDATE", "EXECUTE"]
     risk_bands = ["low", "medium", "high", "critical"]
@@ -446,7 +446,7 @@ async def test_model_cache(model_registry, mock_mlflow):
     # Simulate TTL expiry
     model_registry._model_cache[cache_key] = (
         model1,
-        datetime.now(UTC).timestamp() - 4000,
+        datetime.now(timezone.utc).timestamp() - 4000,
     )  # Old timestamp
 
     # Load after expiry (should fetch again)

@@ -10,7 +10,7 @@ com suporte a recarga em runtime sem reiniciar o serviço.
 import asyncio
 import contextlib
 import logging
-from datetime import UTC, datetime, timezone
+from datetime import datetime, timezone, timezone
 from pathlib import Path
 from typing import Any
 
@@ -157,7 +157,7 @@ class ThresholdService:
         if self._last_cache_refresh is None:
             return True  # Cache nunca foi carregado
 
-        elapsed = (datetime.now(UTC) - self._last_cache_refresh).total_seconds()
+        elapsed = (datetime.now(timezone.utc) - self._last_cache_refresh).total_seconds()
         return elapsed > self.cache_ttl_seconds
 
     async def _ensure_cache_fresh(self) -> None:

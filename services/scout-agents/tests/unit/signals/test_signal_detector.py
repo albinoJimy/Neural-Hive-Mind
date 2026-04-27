@@ -4,7 +4,7 @@ Unit tests for SignalDetector service (scout-agents).
 Tests signal detection, classification, and scoring.
 """
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from unittest.mock import patch
 
 import pytest
@@ -513,7 +513,7 @@ class TestPositiveAnomalyDetection:
             event_id="test-001",
             source="test",
             event_type="user_action",
-            timestamp=datetime.now(UTC),
+            timestamp=datetime.now(timezone.utc),
             payload={"action": "click"},
             metadata={},
         )
@@ -572,7 +572,7 @@ class TestMainDetectionPipeline:
             event_id="test-001",
             source="test",
             event_type="user_action",
-            timestamp=datetime.now(UTC),
+            timestamp=datetime.now(timezone.utc),
             payload={"action": "click"},
             metadata={},
         )
@@ -607,7 +607,7 @@ class TestMainDetectionPipeline:
             event_id="test-001",
             source="test",
             event_type="user_action",
-            timestamp=datetime.now(UTC),
+            timestamp=datetime.now(timezone.utc),
             payload={"action": "click"},
             metadata={},
         )

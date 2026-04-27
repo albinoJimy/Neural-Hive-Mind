@@ -14,7 +14,7 @@ Created: 2026-03-30 (Epic J)
 import asyncio
 import json
 from collections import defaultdict
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 UTC = UTC  # type: ignore
 from enum import Enum
@@ -200,7 +200,7 @@ class OptimizationFeedbackConsumer:
             return
 
         self.optimization_stats[optimization_type]["total"] += 1
-        self.optimization_stats[optimization_type]["last_updated"] = datetime.now(UTC)
+        self.optimization_stats[optimization_type]["last_updated"] = datetime.now(timezone.utc)
 
         # Atualizar contadores de status
         if status == OptimizationStatus.APPLIED.value:

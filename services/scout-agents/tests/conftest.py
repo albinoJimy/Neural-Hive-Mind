@@ -12,7 +12,7 @@ from pathlib import Path
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from unittest.mock import AsyncMock
 
 import pytest
@@ -60,7 +60,7 @@ def sample_raw_event():
         event_id="raw-event-001",
         source="test-source",
         event_type="user_action",
-        timestamp=datetime.now(UTC),
+        timestamp=datetime.now(timezone.utc),
         payload={"action": "click", "element": "button", "page": "/home"},
         metadata={"trace_id": "trace-123", "span_id": "span-456", "device_id": "device-789"},
     )
@@ -75,7 +75,7 @@ def sample_metric_raw_event():
         event_id="metric-event-001",
         source="prometheus",
         event_type="metric",
-        timestamp=datetime.now(UTC),
+        timestamp=datetime.now(timezone.utc),
         payload={"cpu_usage": 0.75, "memory_usage": 0.60, "request_count": 1000},
         metadata={"trace_id": "trace-metric-123"},
     )
@@ -90,7 +90,7 @@ def sample_anomalous_raw_event():
         event_id="anomaly-event-001",
         source="api-gateway",
         event_type="error_spike",
-        timestamp=datetime.now(UTC),
+        timestamp=datetime.now(timezone.utc),
         payload={"error_count": 500, "error_rate": 0.45, "affected_services": ["auth", "payment"]},
         metadata={"trace_id": "trace-anomaly-123", "severity": "high"},
     )
@@ -115,7 +115,7 @@ def sample_raw_event_with_geo():
         event_id="geo-event-001",
         source="mobile-app",
         event_type="location_update",
-        timestamp=datetime.now(UTC),
+        timestamp=datetime.now(timezone.utc),
         payload={"latitude": 40.7128, "longitude": -74.0060, "accuracy": 10.5},
         metadata={"trace_id": "trace-geo-789", "device_id": "mobile-device-123"},
     )
@@ -135,7 +135,7 @@ def sample_trending_raw_event():
         event_id="trend-event-001",
         source="analytics",
         event_type="usage_metric",
-        timestamp=datetime.now(UTC),
+        timestamp=datetime.now(timezone.utc),
         payload={"daily_active_users": values[-1], "trend_values": values},
         metadata={"trace_id": "trace-trend-123"},
     )
@@ -150,7 +150,7 @@ def sample_emerging_pattern_event():
         event_id="pattern-event-001",
         source="behavioral_tracker",
         event_type="user_journey",
-        timestamp=datetime.now(UTC),
+        timestamp=datetime.now(timezone.utc),
         payload={
             "steps": ["login", "dashboard", "settings", "logout"],
             "duration_ms": 5000,

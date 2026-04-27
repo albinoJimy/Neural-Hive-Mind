@@ -1,7 +1,7 @@
 """Migration m002: Criar coleção ab_test_results para persistência de A/B Testing."""
 
 import logging
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 UTC = UTC  # type: ignore
 from typing import Any
@@ -59,7 +59,7 @@ async def upgrade(
         "status": "success",
         "collection": "ab_test_results",
         "indexes_created": index_names,
-        "created_at": datetime.now(UTC).isoformat(),
+        "created_at": datetime.now(timezone.utc).isoformat(),
     }
 
 
@@ -95,7 +95,7 @@ async def downgrade(
     return {
         "status": "success",
         "collection": "ab_test_results",
-        "dropped_at": datetime.now(UTC).isoformat(),
+        "dropped_at": datetime.now(timezone.utc).isoformat(),
     }
 
 

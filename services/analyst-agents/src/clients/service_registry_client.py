@@ -1,6 +1,6 @@
 """Service Registry client for Analyst Agents - uses canonical client from neural_hive_integration"""
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 import structlog
@@ -92,7 +92,7 @@ class ServiceRegistryClient:
 
             health = HealthStatus(
                 status=status,
-                last_heartbeat=datetime.now(UTC).isoformat(),
+                last_heartbeat=datetime.now(timezone.utc).isoformat(),
                 metrics={
                     "success_rate": 0.95,
                     "avg_duration_ms": 150.0,

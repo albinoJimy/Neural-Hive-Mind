@@ -9,7 +9,7 @@ Responsável por:
 """
 
 import time
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timezone, timedelta
 
 import structlog
 
@@ -115,7 +115,7 @@ class GuardVaultClient:
         try:
             # Verificar cache
             cached_token = self._token_cache.get("opa_token")
-            if cached_token and cached_token["expires_at"] > datetime.now(UTC):
+            if cached_token and cached_token["expires_at"] > datetime.now(timezone.utc):
                 return cached_token["token"]
 
             # Obter novo token do Vault
@@ -133,7 +133,7 @@ class GuardVaultClient:
             # Cachear token
             self._token_cache["opa_token"] = {
                 "token": token,
-                "expires_at": datetime.now(UTC) + timedelta(seconds=lease_duration - 300),
+                "expires_at": datetime.now(timezone.utc) + timedelta(seconds=lease_duration - 300),
             }
 
             logger.info("guard_vault_client.opa_token_obtained")
@@ -297,7 +297,7 @@ class GuardVaultClient:
                     "ticket_id": ticket_id,
                     "secret_path": secret_path,
                     "action": action,
-                    "timestamp": datetime.now(UTC).isoformat(),
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
                     "service": "guard-agents",
                 },
             )

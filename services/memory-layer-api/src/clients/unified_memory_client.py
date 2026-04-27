@@ -4,7 +4,7 @@ Unified Memory Client - Orchestrates access to 4 memory layers
 
 import json
 import uuid
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from typing import Any, Optional
 
 import structlog
@@ -49,7 +49,7 @@ class UnifiedMemoryClient:
         - query_type == 'lineage' → MongoDB + Neo4j
         """
         query_id = str(uuid.uuid4())
-        start_time = datetime.now(UTC)
+        start_time = datetime.now(timezone.utc)
 
         try:
             # Route based on query type
@@ -64,8 +64,8 @@ class UnifiedMemoryClient:
             elif query_type == "historical":
                 if not time_range:
                     time_range = (
-                        datetime.now(UTC) - timedelta(days=30),
-                        datetime.now(UTC),
+                        datetime.now(timezone.utc) - timedelta(days=30),
+                        datetime.now(timezone.utc),
                     )
                 result = await self._query_cold_data(entity_id, time_range)
                 source_layer = "clickhouse"
@@ -77,7 +77,7 @@ class UnifiedMemoryClient:
                 )
 
             # Calculate latency
-            latency_ms = int((datetime.now(UTC) - start_time).total_seconds() * 1000)
+            latency_ms = int((datetime.now(timezone.utc) - start_time).total_seconds() * 1000)
 
             return {
                 "query_id": query_id,
@@ -89,7 +89,7 @@ class UnifiedMemoryClient:
                 "metadata": {
                     "query_type": query_type,
                     "time_range": str(time_range) if time_range else None,
-                    "timestamp": datetime.now(UTC).isoformat(),
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
                 },
             }
         except Exception as e:
@@ -136,13 +136,13 @@ class UnifiedMemoryClient:
         if not time_range:
             return True
         start, end = time_range
-        age = datetime.now(UTC) - end
+        age = datetime.now(timezone.utc) - end
         return age.total_seconds() < self.settings.hot_data_threshold_seconds
 
     def _is_warm_data(self, time_range: tuple[datetime, datetime]) -> bool:
         """Check if data qualifies as warm (< 30 days)"""
         start, end = time_range
-        age = datetime.now(UTC) - end
+        age = datetime.now(timezone.utc) - end
         return age.days < self.settings.warm_data_threshold_days
 
     async def _query_hot_data(self, entity_id: str) -> Optional[dict]:
@@ -248,7 +248,7 @@ class UnifiedMemoryClient:
         """
         entity_id = data.get("entity_id") or str(uuid.uuid4())
         data["entity_id"] = entity_id
-        data["created_at"] = datetime.now(UTC)
+        data["created_at"] = datetime.now(timezone.utc)
 
         try:
             # 1. Cache in Redis
@@ -316,7 +316,7 @@ class UnifiedMemoryClient:
                 "data_type": data_type,
                 "operation": "INSERT",
                 "collection": self.settings.mongodb_context_collection,
-                "timestamp": int(datetime.now(UTC).timestamp() * 1000),
+                "timestamp": int(datetime.now(timezone.utc).timestamp() * 1000),
                 "data": json.dumps(data, default=str),
                 "metadata": json.dumps({"source": "unified_memory_client"}),
             }
@@ -371,7 +371,7 @@ class UnifiedMemoryClient:
                 await self.mongodb.update_many(
                     collection=self.settings.mongodb_context_collection,
                     filter={"entity_id": {"$regex": pattern.replace("*", ".*")}},
-                    update={"$set": {"stale": True, "stale_at": datetime.now(UTC)}},
+                    update={"$set": {"stale": True, "stale_at": datetime.now(timezone.utc)}},
                 )
                 logger.info("Cascade invalidation completed", pattern=pattern)
 

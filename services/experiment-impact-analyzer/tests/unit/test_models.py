@@ -1,6 +1,6 @@
 """Unit tests for impact models."""
 
-from datetime import UTC
+from datetime import timezone
 
 import pytest
 from src.models.impact import (

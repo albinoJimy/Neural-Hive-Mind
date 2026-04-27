@@ -7,7 +7,7 @@ implementando feedback loop para ajuste de parâmetros de exploração.
 
 import asyncio
 from collections import defaultdict
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -206,7 +206,7 @@ class TestAdjustExplorationParameters:
             "acted_upon": 3,  # 15% utilização (baixa)
             "ignored": 17,
             "avg_curiosity": 0.8,  # Alta curiosidade
-            "last_updated": datetime.now(UTC),
+            "last_updated": datetime.now(timezone.utc),
         }
 
         signal = {
@@ -232,7 +232,7 @@ class TestAdjustExplorationParameters:
             "acted_upon": 18,  # 90% utilização (alta)
             "ignored": 2,
             "avg_curiosity": 0.4,  # Baixa curiosidade
-            "last_updated": datetime.now(UTC),
+            "last_updated": datetime.now(timezone.utc),
         }
 
         signal = {
@@ -258,7 +258,7 @@ class TestAdjustExplorationParameters:
             "acted_upon": 1,
             "ignored": 4,
             "avg_curiosity": 0.8,
-            "last_updated": datetime.now(UTC),
+            "last_updated": datetime.now(timezone.utc),
         }
 
         signal = {
@@ -283,7 +283,7 @@ class TestAdjustExplorationParameters:
             "acted_upon": 10,
             "ignored": 10,
             "avg_curiosity": 0.7,
-            "last_updated": datetime.now(UTC),
+            "last_updated": datetime.now(timezone.utc),
         }
 
         signal = {
@@ -321,14 +321,14 @@ class TestGetFeedbackStats:
             "acted_upon": 7,
             "ignored": 3,
             "avg_curiosity": 0.75,
-            "last_updated": datetime.now(UTC),
+            "last_updated": datetime.now(timezone.utc),
         }
         consumer.signal_stats["TECHNICAL:ANOMALY_POSITIVE"] = {
             "total": 5,
             "acted_upon": 2,
             "ignored": 3,
             "avg_curiosity": 0.6,
-            "last_updated": datetime.now(UTC),
+            "last_updated": datetime.now(timezone.utc),
         }
 
         stats = consumer.get_feedback_stats()

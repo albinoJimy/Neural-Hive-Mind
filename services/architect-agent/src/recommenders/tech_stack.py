@@ -2,9 +2,10 @@
 
 import json
 
-from openai import AsyncOpenAI
 from structlog import get_logger
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
+
+from neural_hive_llm import LLMClient, LLMProvider, LLMResponse
 
 from src.models.tech_stack import TechChoice, TechStackRecommendation
 from src.recommenders.knowledge_base import TECH_KNOWLEDGE_BASE
@@ -45,18 +46,37 @@ Responda em JSON:
 }}
 """
 
-    def __init__(self, llm_client: AsyncOpenAI | None = None, model: str = "gpt-4"):
+    def __init__(self, llm_client: LLMClient | None = None, model: str = "gpt-4"):
         """
         Inicializa o recomendador de stack tecnológico.
 
         Args:
-            llm_client: Cliente OpenAI (opcional, cria padrão se não fornecido)
+            llm_client: Cliente LLM (opcional, cria padrão se não fornecido)
             model: Modelo LLM a usar
         """
-        self._llm_client = llm_client or AsyncOpenAI()
+        self._llm_client = llm_client
         self._model = model
         self._logger = logger
         self._knowledge_base = TECH_KNOWLEDGE_BASE
+        self._llm_started = False
+
+    async def _ensure_llm_started(self):
+        """Garante que o cliente LLM está inicializado."""
+        if not self._llm_client:
+            # Criar cliente padrão com settings
+            from src.config.settings import get_settings
+
+            settings = get_settings()
+            if not settings.llm.provider or not settings.llm.api_key:
+                raise ConnectionError("LLM not configured: provider or api_key missing")
+
+            provider = LLMProvider.OPENAI if settings.llm.provider == "openai" else LLMProvider.ANTHROPIC
+            self._llm_client = LLMClient(provider=provider, api_key=settings.llm.api_key, model=self._model)
+            await self._llm_client.start()
+            self._llm_started = True
+        elif not self._llm_started:
+            await self._llm_client.start()
+            self._llm_started = True
 
     @retry(
         stop=stop_after_attempt(3),
@@ -77,17 +97,14 @@ Responda em JSON:
             ConnectionError: Se falhar após 3 tentativas
             TimeoutError: Se timeout após 3 tentativas
         """
-        response = await self._llm_client.chat.completions.create(
-            model=self._model,
-            messages=[
-                {"role": "system", "content": "Você é um arquiteto de software especialista."},
-                {"role": "user", "content": prompt},
-            ],
-            response_format={"type": "json_object"},
-            temperature=0.3,
+        await self._ensure_llm_started()
+
+        response: LLMResponse = await self._llm_client.generate(
+            prompt=prompt,
+            system_prompt="Você é um arquiteto de software especialista. Responda em JSON válido.",
         )
 
-        return json.loads(response.choices[0].message.content)
+        return json.loads(response.text)
 
     async def recommend(
         self, requirements: str, constraints: list[dict] | None = None

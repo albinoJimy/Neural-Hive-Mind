@@ -9,7 +9,7 @@ Roda como CronJob diariamente às 2h UTC.
 import asyncio
 import os
 import sys
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timezone, timedelta
 
 import structlog
 
@@ -70,7 +70,7 @@ class MongoToClickHouseSync:
         logger.info(f"Sincronizando {collection_name} -> {table_name}...")
 
         # Calcula range de datas
-        end_date = datetime.now(UTC)
+        end_date = datetime.now(timezone.utc)
         start_date = end_date - timedelta(days=self.date_range_days)
 
         # Query MongoDB
@@ -239,7 +239,7 @@ class MongoToClickHouseSync:
         doc.pop("_id", None)
 
         # Extrai timestamp
-        created_at = doc.get("created_at") or doc.get("timestamp") or datetime.now(UTC)
+        created_at = doc.get("created_at") or doc.get("timestamp") or datetime.now(timezone.utc)
         if isinstance(created_at, str):
             created_at = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
 

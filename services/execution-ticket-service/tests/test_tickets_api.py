@@ -1,6 +1,6 @@
 """Testes para API de Tickets."""
 
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -93,7 +93,7 @@ def sample_ticket_dict():
         "parameters": {},
         "required_capabilities": [],
         "security_level": "INTERNAL",
-        "created_at": int(datetime.now(UTC).timestamp() * 1000),
+        "created_at": int(datetime.now(timezone.utc).timestamp() * 1000),
         "started_at": None,
         "completed_at": None,
         "retry_count": 0,
@@ -254,7 +254,7 @@ async def test_get_ticket_history_success(
     ticket_id = sample_ticket_dict["ticket_id"]
 
     # Mock do histórico MongoDB
-    now = datetime.now(UTC)
+    now = datetime.now(timezone.utc)
     history_docs = [
         {
             "ticket_id": ticket_id,

@@ -2,7 +2,7 @@
 API REST para enforcement de políticas e remediação.
 """
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 import structlog
@@ -117,7 +117,7 @@ async def execute_enforcement_action(request: EnforcementActionRequest, fastapi_
             success=result.get("success", False),
             action=result.get("action", request.action_type),
             details=result.get("details", {}),
-            timestamp=datetime.now(UTC).isoformat(),
+            timestamp=datetime.now(timezone.utc).isoformat(),
         )
 
     except HTTPException:
@@ -171,7 +171,7 @@ async def execute_remediation_action(request: RemediationActionRequest, fastapi_
             success=result.get("success", False),
             action_type=request.action_type,
             details=result.get("details", {}),
-            timestamp=datetime.now(UTC).isoformat(),
+            timestamp=datetime.now(timezone.utc).isoformat(),
         )
 
     except HTTPException:
@@ -221,7 +221,7 @@ async def get_enforcement_history(
                     incident_id=doc.get("incident_id", ""),
                     action=doc.get("action", "unknown"),
                     status=doc.get("status", "unknown"),
-                    applied_at=doc.get("timestamp", datetime.now(UTC).isoformat()),
+                    applied_at=doc.get("timestamp", datetime.now(timezone.utc).isoformat()),
                     applied_by=doc.get("applied_by", "system"),
                     details=doc.get("details", {}),
                 )

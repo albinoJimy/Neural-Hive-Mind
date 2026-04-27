@@ -5,7 +5,7 @@ Supports JSON, CSV, and text-based PDF export.
 
 import csv
 import io
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 from ..models.insight_extended import InsightResponse
 
@@ -176,7 +176,7 @@ def export_to_pdf_text(insight: InsightResponse) -> bytes:
         [
             "",
             "-" * 70,
-            f"Generated: {datetime.now(UTC).isoformat()}",
+            f"Generated: {datetime.now(timezone.utc).isoformat()}",
             "Neural Hive Mind - Analyst Agents",
             "=" * 70,
         ]

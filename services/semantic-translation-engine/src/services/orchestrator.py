@@ -6,14 +6,14 @@ Main orchestrator that coordinates all steps of plan generation.
 
 import time
 import uuid
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 UTC = UTC  # type: ignore, timedelta
 
 import structlog
 from src.clients.mongodb_client import MongoDBClient
 from src.clients.neo4j_client import Neo4jClient
-from src.models.cognitive_plan import ApprovalStatus, CognitivePlan, PlanStatus, RiskBand
+from src.models.cognitive_plan import ApprovalStatus, CognitivePlan, PlanStatus, RiskBand, WorkflowType
 from src.observability.metrics import correlation_id_missing_total
 from src.producers.approval_producer import KafkaApprovalProducer
 from src.producers.plan_producer import KafkaPlanProducer
@@ -21,6 +21,7 @@ from src.services.dag_generator import DAGGenerator
 from src.services.explainability_generator import ExplainabilityGenerator
 from src.services.risk_scorer import RiskScorer
 from src.services.semantic_parser import SemanticParser
+from src.services.workflow_classifier import get_classifier
 
 from neural_hive_observability import get_tracer
 
@@ -41,6 +42,7 @@ class SemanticTranslationOrchestrator:
         plan_producer: KafkaPlanProducer,
         approval_producer: KafkaApprovalProducer,
         metrics,
+        workflow_classifier=None,
     ):
         self.parser = semantic_parser
         self.dag_gen = dag_generator
@@ -51,6 +53,7 @@ class SemanticTranslationOrchestrator:
         self.producer = plan_producer
         self.approval_producer = approval_producer
         self.metrics = metrics
+        self.workflow_classifier = workflow_classifier or get_classifier()
 
     async def process_intent(self, intent_envelope: dict, trace_context: dict):
         """
@@ -102,6 +105,16 @@ class SemanticTranslationOrchestrator:
             with tracer.start_as_current_span("semantic_parsing") as span:
                 span.set_attribute("neural.hive.intent_id", intent_id)
                 intermediate_repr = await self.parser.parse(intent_envelope)
+
+            # B2.5: Classify workflow type (ORCHESTRATION vs GENERATION)
+            logger.info("B2.5: Classificando workflow type", intent_id=intent_id)
+            with tracer.start_as_current_span("workflow_classification") as span:
+                workflow_type, classification_metadata = self.workflow_classifier.classify(
+                    intent_envelope, intermediate_repr
+                )
+                span.set_attribute("neural.hive.workflow_type", workflow_type.value)
+                span.set_attribute("neural.hive.classification.score", classification_metadata["score"])
+                span.set_attribute("neural.hive.classification.confidence", classification_metadata["confidence"])
 
             # B3: Decompose into DAG
             logger.info("B3: Gerando DAG de tarefas", intent_id=intent_id)
@@ -179,6 +192,8 @@ class SemanticTranslationOrchestrator:
                 is_destructive=is_destructive,
                 destructive_tasks=destructive_tasks,
                 risk_matrix=risk_matrix,
+                workflow_type=workflow_type,  # ← ADICIONADO: classificação automática
+                classification_metadata=classification_metadata,  # ← ADICIONADO: metadados
             )
 
             # Register in immutable ledger
@@ -319,6 +334,8 @@ class SemanticTranslationOrchestrator:
         is_destructive: bool = False,
         destructive_tasks: list[str] | None = None,
         risk_matrix: dict | None = None,
+        workflow_type: WorkflowType = WorkflowType.ORCHESTRATION,
+        classification_metadata: dict | None = None,
     ) -> CognitivePlan:
         """Create CognitivePlan from components with approval and destructive analysis fields"""
         if destructive_tasks is None:
@@ -330,10 +347,26 @@ class SemanticTranslationOrchestrator:
         complexity_score = len(tasks) / 10.0
 
         # Determine plan validity (24h default)
-        valid_until = datetime.now(UTC) + timedelta(hours=24)
+        valid_until = datetime.now(timezone.utc) + timedelta(hours=24)
 
         constraints = intent_envelope.get("constraints") or {}
         intent = intent_envelope.get("intent") or {}
+
+        # Usar workflow_type classificado automaticamente
+        # Permitir override manual via constraints ou intent
+        workflow_type_str = constraints.get("workflow_type") or intent.get("workflow_type")
+        if workflow_type_str:
+            try:
+                workflow_type = WorkflowType(workflow_type_str)
+                logger.info(
+                    "workflow_type_override",
+                    intent_id=intent_envelope.get("id"),
+                    manual=workflow_type_str,
+                    auto=workflow_type.value,
+                )
+            except (ValueError, TypeError):
+                # Usar classificação automática se override for inválido
+                pass
 
         # Extrair correlation_id prioritariamente do trace_context (headers Kafka)
         # com fallback para intent_envelope em ambos formatos (camelCase e snake_case)
@@ -399,6 +432,7 @@ class SemanticTranslationOrchestrator:
             original_domain=intent.get("domain", "UNKNOWN").upper(),
             original_priority=constraints.get("priority", "normal"),
             original_security_level=constraints.get("security_level", "internal"),
+            workflow_type=workflow_type,  # Workflow type (ORCHESTRATION ou GENERATION)
             metadata={
                 "original_confidence": intent_envelope.get("confidence"),
                 "num_similar_intents": len(
@@ -407,6 +441,7 @@ class SemanticTranslationOrchestrator:
                     )
                 ),
                 "generator_version": "1.0.0",
+                "workflow_classification": classification_metadata or {},
             },
             # Approval workflow fields
             requires_approval=requires_approval,

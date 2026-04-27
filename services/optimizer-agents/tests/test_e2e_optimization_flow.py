@@ -10,7 +10,7 @@ Simula fluxo completo desde insight até aplicação de otimização:
 6. Atualizar Q-table
 """
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
@@ -95,7 +95,7 @@ def mock_argo_client():
         return_value={
             "status": "Succeeded",
             "phase": "Succeeded",
-            "finishedAt": datetime.now(UTC).isoformat(),
+            "finishedAt": datetime.now(timezone.utc).isoformat(),
         }
     )
     return client

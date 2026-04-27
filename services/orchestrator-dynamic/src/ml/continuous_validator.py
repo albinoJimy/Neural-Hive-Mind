@@ -36,14 +36,14 @@ class ValidationWindow:
 
     def add_pair(self, prediction: float, actual: float, timestamp: datetime | None = None) -> None:
         """Adiciona par predição/actual à janela."""
-        ts = timestamp or datetime.now(UTC)
+        ts = timestamp or datetime.now(timezone.utc)
         self.predictions.append(prediction)
         self.actuals.append(actual)
         self.timestamps.append(ts)
 
     def get_valid_pairs(self) -> tuple[np.ndarray, np.ndarray]:
         """Retorna pares válidos dentro da janela de tempo."""
-        cutoff = datetime.now(UTC) - timedelta(hours=self.window_hours)
+        cutoff = datetime.now(timezone.utc) - timedelta(hours=self.window_hours)
 
         valid_preds = []
         valid_actuals = []
@@ -140,14 +140,14 @@ class LatencyWindow:
         self, latency_ms: float, had_error: bool = False, timestamp: datetime | None = None
     ) -> None:
         """Adiciona latência à janela."""
-        ts = timestamp or datetime.now(UTC)
+        ts = timestamp or datetime.now(timezone.utc)
         self.latencies.append(latency_ms)
         self.errors.append(int(had_error))
         self.timestamps.append(ts)
 
     def get_valid_latencies(self) -> tuple[np.ndarray, np.ndarray]:
         """Retorna latências válidas dentro da janela de tempo."""
-        cutoff = datetime.now(UTC) - timedelta(hours=self.window_hours)
+        cutoff = datetime.now(timezone.utc) - timedelta(hours=self.window_hours)
 
         valid_latencies = []
         valid_errors = []
@@ -293,7 +293,7 @@ class ContinuousValidator:
             "model_version": model_version,
             "features": features,
             "prediction_latency_ms": prediction_latency_ms,
-            "timestamp": datetime.now(UTC),
+            "timestamp": datetime.now(timezone.utc),
         }
 
         # Limpar predições antigas
@@ -321,7 +321,7 @@ class ContinuousValidator:
         latency_ms = prediction_data.get("prediction_latency_ms")
 
         # Adicionar às janelas
-        timestamp = datetime.now(UTC)
+        timestamp = datetime.now(timezone.utc)
         for window in self.windows.values():
             window.add_pair(predicted, actual_duration_ms, timestamp)
 
@@ -405,7 +405,7 @@ class ContinuousValidator:
             return []
 
         try:
-            cutoff = datetime.now(UTC) - timedelta(hours=window_hours)
+            cutoff = datetime.now(timezone.utc) - timedelta(hours=window_hours)
 
             cursor = (
                 self.mongodb_client.db[self.mongodb_collection]
@@ -517,7 +517,7 @@ class ContinuousValidator:
             Dict com métricas por janela
         """
         results = {
-            "timestamp": datetime.now(UTC).isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "model_name": "duration-predictor",
             "windows": {},
             "latency_windows": {},
@@ -555,7 +555,7 @@ class ContinuousValidator:
         if (
             self._training_baseline is not None
             and self._baseline_last_fetched is not None
-            and datetime.now(UTC) - self._baseline_last_fetched
+            and datetime.now(timezone.utc) - self._baseline_last_fetched
             < timedelta(hours=self._baseline_cache_ttl_hours)
         ):
             return self._training_baseline
@@ -580,7 +580,7 @@ class ContinuousValidator:
                     "trained_at": baseline_doc.get("trained_at"),
                     "model_version": baseline_doc.get("model_version"),
                 }
-                self._baseline_last_fetched = datetime.now(UTC)
+                self._baseline_last_fetched = datetime.now(timezone.utc)
 
                 self.logger.info(
                     "training_baseline_fetched",
@@ -718,7 +718,7 @@ class ContinuousValidator:
         if alert_key in self._alert_cache:
             last_alert = self._alert_cache[alert_key]
             cooldown = timedelta(minutes=self.alert_cooldown_minutes)
-            if datetime.now(UTC) - last_alert < cooldown:
+            if datetime.now(timezone.utc) - last_alert < cooldown:
                 return
 
         alert = ValidationAlert(
@@ -730,7 +730,7 @@ class ContinuousValidator:
         )
 
         # Atualizar cache
-        self._alert_cache[alert_key] = datetime.now(UTC)
+        self._alert_cache[alert_key] = datetime.now(timezone.utc)
 
         # Enviar para handlers
         for handler in self.alert_handlers:
@@ -774,7 +774,7 @@ class ContinuousValidator:
         if not self.clickhouse_client:
             return
 
-        timestamp = results.get("timestamp", datetime.now(UTC).isoformat())
+        timestamp = results.get("timestamp", datetime.now(timezone.utc).isoformat())
         model_name = results.get("model_name", "duration-predictor")
 
         rows = []
@@ -868,7 +868,7 @@ class ContinuousValidator:
 
     def _cleanup_pending_predictions(self) -> None:
         """Remove predições pendentes antigas."""
-        cutoff = datetime.now(UTC) - timedelta(hours=self._pending_ttl_hours)
+        cutoff = datetime.now(timezone.utc) - timedelta(hours=self._pending_ttl_hours)
 
         expired = [
             ticket_id
@@ -972,7 +972,7 @@ class ContinuousValidator:
         """
         if not self.mongodb_client:
             # Retornar do cache local
-            cutoff = datetime.now(UTC) - timedelta(hours=hours)
+            cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
             return [
                 entry
                 for entry in self._metrics_history
@@ -980,7 +980,7 @@ class ContinuousValidator:
             ]
 
         try:
-            cutoff = datetime.now(UTC) - timedelta(hours=hours)
+            cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
 
             return (
                 await self.mongodb_client.db["ml_validation_results"]

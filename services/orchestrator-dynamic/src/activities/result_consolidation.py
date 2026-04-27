@@ -761,7 +761,7 @@ async def trigger_self_healing(
     incident_type = _infer_incident_type(inconsistencies)
     recommended_playbook = _recommend_playbook(incident_type, inconsistencies)
     severity = "CRITICAL" if incident_type in ["SLA_VIOLATION", "WORKER_FAILURE"] else "WARNING"
-    created_at_ms = int(datetime.now(UTC).timestamp() * 1000)
+    created_at_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
 
     affected_tickets = _extract_affected_tickets(tickets_context)
     worker_map = _extract_worker_map(tickets_context)

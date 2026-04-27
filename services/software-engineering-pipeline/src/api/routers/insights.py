@@ -1,6 +1,6 @@
 """Router para insights e relatórios."""
 
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timezone, timedelta
 
 from fastapi import APIRouter, Query
 from pydantic import BaseModel, ConfigDict, Field
@@ -40,7 +40,7 @@ class InsightsReportResponse(BaseModel):
 @router.post("/generate", response_model=InsightsReportResponse)
 async def generate_insights(request: GenerateInsightsRequest) -> InsightsReportResponse:
     """Gera insights para um repositório."""
-    end_date = datetime.now(UTC)
+    end_date = datetime.now(timezone.utc)
     start_date = end_date - timedelta(days=request.days)
 
     runs = await run_repo.find_by_date_range(request.repo_url, start_date, end_date)
@@ -76,7 +76,7 @@ async def get_repository_health(
     # Buscar anomalias não resolvidas
     unresolved_anomalies = await anomaly_repo.find_unresolved(full_repo_url)
 
-    end_date = datetime.now(UTC)
+    end_date = datetime.now(timezone.utc)
     start_date = end_date - timedelta(days=days)
 
     recent_runs = await run_repo.find_by_date_range(full_repo_url, start_date, end_date)

@@ -1,7 +1,7 @@
 """API endpoints para operações de tickets."""
 
 import asyncio
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Any, Optional
 from uuid import uuid4
 
@@ -69,7 +69,7 @@ async def create_ticket(ticket_data: dict[str, Any]):
 
     # Garantir timestamp de criacao se nao fornecido
     if "created_at" not in ticket_data:
-        ticket_data["created_at"] = int(datetime.now(UTC).timestamp() * 1000)
+        ticket_data["created_at"] = int(datetime.now(timezone.utc).timestamp() * 1000)
 
     # Garantir status default
     if "status" not in ticket_data:
@@ -271,7 +271,7 @@ async def create_compensation_ticket(request: CompensationTicketRequest):
         "dependencies": [],  # Compensacao nao tem dependencias
         "compensation_ticket_id": None,  # Este E o ticket de compensacao
         "sla": {"timeout_ms": 120000, "deadline": None},  # 2 minutos para compensacao
-        "created_at": int(datetime.now(UTC).timestamp() * 1000),
+        "created_at": int(datetime.now(timezone.utc).timestamp() * 1000),
         "metadata": {
             "compensation_reason": request.reason,
             "original_task_type": original_ticket.task_type,
@@ -369,7 +369,7 @@ async def retry_ticket(ticket_id: str):
             metadata={
                 "retry_count": updated_orm.retry_count,
                 "trigger": "manual_retry",
-                "timestamp": datetime.now(UTC).isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
             },
         )
     except Exception as e:
@@ -434,7 +434,7 @@ async def get_ticket_history(ticket_id: str, limit: int = Query(100, ge=1, le=10
             if isinstance(timestamp, datetime):
                 timestamp_str = timestamp.isoformat()
             else:
-                timestamp_str = datetime.now(UTC).isoformat()
+                timestamp_str = datetime.now(timezone.utc).isoformat()
 
             entry = TicketHistoryEntry(
                 ticket_id=doc.get("ticket_id", ticket_id),

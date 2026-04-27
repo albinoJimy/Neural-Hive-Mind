@@ -1,6 +1,6 @@
 """FastAPI HTTP server for health checks and API endpoints"""
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 import structlog
@@ -25,7 +25,7 @@ app = FastAPI(
 )
 
 _engine: Optional[ExplorationEngine] = None
-_agent_start_time: datetime = datetime.now(UTC)
+_agent_start_time: datetime = datetime.now(timezone.utc)
 _agent_id: str = ""
 
 
@@ -42,7 +42,7 @@ async def health():
     return {
         "status": "healthy",
         "service": "scout-agents",
-        "timestamp": datetime.now(UTC).isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
 
@@ -61,7 +61,7 @@ async def readiness():
     return {
         "ready": True,
         "status": "ready",
-        "timestamp": datetime.now(UTC).isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
         "agent_id": _agent_id,
     }
 
@@ -96,7 +96,7 @@ async def get_status():
         raise HTTPException(status_code=503, detail="Engine not initialized")
 
     settings = get_settings()
-    uptime = (datetime.now(UTC) - _agent_start_time).total_seconds()
+    uptime = (datetime.now(timezone.utc) - _agent_start_time).total_seconds()
     stats = _engine.get_stats()
 
     return {
@@ -110,7 +110,7 @@ async def get_status():
             "curiosity_threshold": settings.detection.curiosity_threshold,
             "confidence_threshold": settings.detection.confidence_threshold,
         },
-        "timestamp": datetime.now(UTC).isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
 
@@ -167,10 +167,10 @@ async def simulate_signal(
     try:
         # Create synthetic raw event
         raw_event = RawEvent(
-            event_id=f"sim_{datetime.now(UTC).timestamp()}",
+            event_id=f"sim_{datetime.now(timezone.utc).timestamp()}",
             event_type="metric",
             source="simulation",
-            timestamp=datetime.now(UTC),
+            timestamp=datetime.now(timezone.utc),
             payload={"value": 42.5, "metric_name": "test_metric", "anomaly_factor": 2.5},
             metadata={"simulation": "true", "domain": domain.value},
         )
@@ -281,7 +281,7 @@ async def cancel_exploration(exploration_id: str):
 
     # Marcar como cancelada
     exploration["status"] = "cancelled"
-    exploration["cancelled_at"] = datetime.now(UTC).isoformat()
+    exploration["cancelled_at"] = datetime.now(timezone.utc).isoformat()
 
     logger.info("exploration_cancelled", exploration_id=exploration_id)
 
@@ -503,13 +503,13 @@ async def create_exploration(target: str = Query(...), task_type: str = Query(de
     if not _engine:
         raise HTTPException(status_code=503, detail="Engine not initialized")
 
-    exploration_id = f"exp_{datetime.now(UTC).timestamp()}"
+    exploration_id = f"exp_{datetime.now(timezone.utc).timestamp()}"
 
     _explorations[exploration_id] = {
         "target": target,
         "task_type": task_type,
         "status": "pending",
-        "created_at": datetime.now(UTC).isoformat(),
+        "created_at": datetime.now(timezone.utc).isoformat(),
         "scouts_assigned": 0,
         "files_scanned": 0,
         "patterns_found": 0,

@@ -1,7 +1,7 @@
 """Cache Redis para embeddings."""
 
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Optional
 
 import structlog
@@ -143,7 +143,7 @@ class EmbeddingCache:
                 text=text,
                 embedding=embedding,
                 model=model,
-                created_at=datetime.utcnow().isoformat(),
+                created_at=datetime.now(timezone.utc).isoformat(),
             )
 
             await self._client.setex(

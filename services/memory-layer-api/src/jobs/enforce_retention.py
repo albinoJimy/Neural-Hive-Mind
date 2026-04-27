@@ -11,7 +11,7 @@ As políticas são carregadas do arquivo YAML montado em /etc/memory-layer/polic
 import asyncio
 import os
 import sys
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from typing import Any, Optional
 
@@ -144,7 +144,7 @@ class RetentionEnforcer:
         """
         logger.info("Aplicando retenção no MongoDB...")
 
-        cutoff_date = datetime.now(UTC) - timedelta(days=self.mongodb_retention_days)
+        cutoff_date = datetime.now(timezone.utc) - timedelta(days=self.mongodb_retention_days)
 
         collections = ["operational_context", "data_lineage", "data_quality_metrics"]
 
@@ -178,7 +178,7 @@ class RetentionEnforcer:
 
         # Neo4j mantém dados semânticos de longo prazo
         # Apenas remove nós marcados como temporários e expirados
-        cutoff_timestamp = int((datetime.now(UTC) - timedelta(days=90)).timestamp())
+        cutoff_timestamp = int((datetime.now(timezone.utc) - timedelta(days=90)).timestamp())
 
         query = """
         MATCH (n)
@@ -215,7 +215,7 @@ class RetentionEnforcer:
         """
         logger.info("Aplicando retenção no ClickHouse...")
 
-        cutoff_date = datetime.now(UTC) - timedelta(days=self.clickhouse_retention_months * 30)
+        cutoff_date = datetime.now(timezone.utc) - timedelta(days=self.clickhouse_retention_months * 30)
         database = self.clickhouse_client.database
 
         tables = ["operational_context_history", "data_lineage_history", "quality_metrics_history"]

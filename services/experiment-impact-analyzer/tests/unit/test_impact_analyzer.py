@@ -1,6 +1,6 @@
 """Unit tests for ImpactAnalyzer service."""
 
-from datetime import UTC
+from datetime import timezone
 from unittest.mock import AsyncMock, patch
 
 import pytest

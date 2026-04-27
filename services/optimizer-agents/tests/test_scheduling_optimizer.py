@@ -5,7 +5,7 @@ Testa Q-learning, epsilon-greedy, geração de hipóteses, atualização de pol�
 e persistência de Q-table.
 """
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
@@ -95,7 +95,7 @@ def sample_load_forecast():
     return {
         "forecast": [
             {
-                "timestamp": datetime.now(UTC).isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
                 "ticket_count": 120 + i,
                 "resource_demand": {"cpu_cores": 12, "memory_mb": 12000},
             }

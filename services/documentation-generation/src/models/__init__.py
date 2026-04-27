@@ -1,7 +1,7 @@
 """Models package for Documentation Generation service."""
 
 import hashlib
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any
 
@@ -131,12 +131,12 @@ class DocumentationSet(BaseModel):
     def add_document(self, document: Document) -> None:
         """Adiciona um documento ao conjunto."""
         self.documents.append(document)
-        self.updated_at = datetime.utcnow()
+        self.updated_at = datetime.now(timezone.utc)
 
     def add_diagram(self, diagram: Diagram) -> None:
         """Adiciona um diagrama ao conjunto."""
         self.diagrams.append(diagram)
-        self.updated_at = datetime.utcnow()
+        self.updated_at = datetime.now(timezone.utc)
 
     def get_by_type(self, doc_type: DocType) -> list[Document]:
         """Filtra documentos por tipo."""

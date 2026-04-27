@@ -2,7 +2,7 @@
 Testes unitários para KanikoCacheOptimizer.
 """
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 import pytest
 from src.services.kaniko.kaniko_cache_optimizer import (
@@ -187,9 +187,9 @@ class TestKanikoCacheOptimizer:
     def test_record_cache_hit_updates_metrics(self):
         """Cache hit atualiza last_cache_update."""
         optimizer = KanikoCacheOptimizer()
-        before = datetime.now(UTC)
+        before = datetime.now(timezone.utc)
         optimizer.record_cache_hit()
-        after = datetime.now(UTC)
+        after = datetime.now(timezone.utc)
         assert optimizer.metrics.last_cache_update >= before
         assert optimizer.metrics.last_cache_update <= after
 

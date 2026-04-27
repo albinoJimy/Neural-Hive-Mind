@@ -4,7 +4,7 @@ Testes unitários abrangentes para CuriosityScorer.
 Cobertura: cálculo de curiosidade, novidade, relevância, ganho de informação.
 """
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from unittest.mock import patch
 
 import numpy as np
@@ -32,7 +32,7 @@ def event_with_numeric_features():
         event_id="numeric-event-001",
         source="analytics",
         event_type="metric",
-        timestamp=datetime.now(UTC),
+        timestamp=datetime.now(timezone.utc),
         payload={"cpu": 75.5, "memory": 60.2, "disk": 45.8, "network": 100.0, "requests": 1000},
         metadata={"trace_id": "trace-001"},
     )
@@ -46,7 +46,7 @@ def event_with_high_variance():
         event_id="variance-event-001",
         source="sensor",
         event_type="reading",
-        timestamp=datetime.now(UTC),
+        timestamp=datetime.now(timezone.utc),
         payload={"values": values, "mean": np.mean(values)},
         metadata={"trace_id": "trace-variance"},
     )
@@ -59,7 +59,7 @@ def novel_event():
         event_id="novel-event-001",
         source="new-source",
         event_type="new-event-type",
-        timestamp=datetime.now(UTC),
+        timestamp=datetime.now(timezone.utc),
         payload={"novel_metric": 999.99},
         metadata={"trace_id": "trace-novel"},
     )
@@ -144,7 +144,7 @@ class TestCuriosityScoreCalculation:
             event_id="test",
             source="test",
             event_type="test",
-            timestamp=datetime.now(UTC),
+            timestamp=datetime.now(timezone.utc),
             payload={"value": 1},
             metadata={},
         )
@@ -253,7 +253,7 @@ class TestRelevanceCalculation:
             event_id="user-act",
             source="app",
             event_type="user_action",
-            timestamp=datetime.now(UTC),
+            timestamp=datetime.now(timezone.utc),
             payload={"action": "click"},
             metadata={},
         )
@@ -267,7 +267,7 @@ class TestRelevanceCalculation:
             event_id="metric",
             source="prometheus",
             event_type="metric",
-            timestamp=datetime.now(UTC),
+            timestamp=datetime.now(timezone.utc),
             payload={"value": 100},
             metadata={},
         )
@@ -287,7 +287,7 @@ class TestRelevanceCalculation:
             event_id="high-rel",
             source="app",
             event_type="user_action",
-            timestamp=datetime.now(UTC),
+            timestamp=datetime.now(timezone.utc),
             payload={"action": "purchase"},
             metadata={},
         )
@@ -537,7 +537,7 @@ class TestEdgeCases:
             event_id="extreme",
             source="test",
             event_type="test",
-            timestamp=datetime.now(UTC),
+            timestamp=datetime.now(timezone.utc),
             payload={"value": 1e308, "another": -1e308},
             metadata={},
         )

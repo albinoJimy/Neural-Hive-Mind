@@ -4,7 +4,7 @@ Pod Fault Injector para Chaos Engineering.
 Implementa injeção de falhas em pods como kill, restart, pause e eviction.
 """
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 import structlog
@@ -38,7 +38,7 @@ class PodFaultInjector(BaseFaultInjector):
 
     async def inject(self, injection: FaultInjection) -> InjectionResult:
         """Injeta falha em pods."""
-        start_time = datetime.now(UTC)
+        start_time = datetime.now(timezone.utc)
 
         if injection.fault_type not in self.supported_fault_types:
             return InjectionResult(
@@ -157,7 +157,7 @@ class PodFaultInjector(BaseFaultInjector):
             fault_type=injection.fault_type,
             affected_resources=killed_pods,
             blast_radius=len(killed_pods),
-            start_time=datetime.now(UTC),
+            start_time=datetime.now(timezone.utc),
             rollback_data={
                 "type": "pod_kill",
                 "pods": original_state,
@@ -227,7 +227,7 @@ class PodFaultInjector(BaseFaultInjector):
             fault_type=injection.fault_type,
             affected_resources=killed_containers,
             blast_radius=len(killed_containers),
-            start_time=datetime.now(UTC),
+            start_time=datetime.now(timezone.utc),
             rollback_data={
                 "type": "container_kill",
                 "containers": killed_containers,
@@ -291,7 +291,7 @@ class PodFaultInjector(BaseFaultInjector):
             fault_type=injection.fault_type,
             affected_resources=paused_containers,
             blast_radius=len(paused_containers),
-            start_time=datetime.now(UTC),
+            start_time=datetime.now(timezone.utc),
             rollback_data={
                 "type": "container_pause",
                 "pods": pods,
@@ -353,7 +353,7 @@ class PodFaultInjector(BaseFaultInjector):
             fault_type=injection.fault_type,
             affected_resources=evicted_pods,
             blast_radius=len(evicted_pods),
-            start_time=datetime.now(UTC),
+            start_time=datetime.now(timezone.utc),
             rollback_data={
                 "type": "pod_eviction",
                 "pods": evicted_pods,
@@ -415,7 +415,7 @@ class PodFaultInjector(BaseFaultInjector):
                     success=True,
                     injection_id=injection_id,
                     fault_type=injection.fault_type,
-                    end_time=datetime.now(UTC),
+                    end_time=datetime.now(timezone.utc),
                     metadata={"note": "Pods recriados automaticamente pelo controller"},
                 )
 
@@ -472,14 +472,14 @@ class PodFaultInjector(BaseFaultInjector):
                 injection_id=injection_id,
                 fault_type=FaultType.CONTAINER_PAUSE,
                 error_message=f"Rollback falhou em pods: {failed_pods}",
-                end_time=datetime.now(UTC),
+                end_time=datetime.now(timezone.utc),
             )
 
         return InjectionResult(
             success=True,
             injection_id=injection_id,
             fault_type=FaultType.CONTAINER_PAUSE,
-            end_time=datetime.now(UTC),
+            end_time=datetime.now(timezone.utc),
         )
 
     async def get_blast_radius(self, target: TargetSelector) -> int:

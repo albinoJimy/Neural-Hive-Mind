@@ -101,7 +101,7 @@ def push_metrics_to_gateway(
             "Timestamp do último treinamento",
             registry=registry,
         )
-        training_timestamp.set(datetime.now(UTC).timestamp())
+        training_timestamp.set(datetime.now(timezone.utc).timestamp())
 
         # Push para gateway
         push_to_gateway(pushgateway_url, job=job_name, registry=registry)
@@ -161,7 +161,7 @@ def main() -> int:
 
         # Executar ciclo de treinamento
         logger.info("starting_training_cycle")
-        start_time = datetime.now(UTC)
+        start_time = datetime.now(timezone.utc)
 
         result = asyncio.run(
             training_pipeline.run_training_cycle(
@@ -172,7 +172,7 @@ def main() -> int:
             )
         )
 
-        end_time = datetime.now(UTC)
+        end_time = datetime.now(timezone.utc)
         duration_seconds = (end_time - start_time).total_seconds()
 
         logger.info(

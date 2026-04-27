@@ -1,6 +1,6 @@
 """Router REST para Approval Gateway."""
 
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Query, status
@@ -65,13 +65,13 @@ async def create_approval_request(request: CreateApprovalRequest) -> ApprovalRes
     try:
         # Criar solicitação
         approval_request = ApprovalRequest(
-            id=f"REQ-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}",
+            id=f"REQ-{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}",
             type=request.type,
             title=request.title,
             description=request.description,
             requested_by=request.requested_by,
             context=request.context or {},
-            expires_at=datetime.utcnow() + timedelta(hours=request.expires_in_hours),
+            expires_at=datetime.now(timezone.utc) + timedelta(hours=request.expires_in_hours),
         )
 
         # Avaliar

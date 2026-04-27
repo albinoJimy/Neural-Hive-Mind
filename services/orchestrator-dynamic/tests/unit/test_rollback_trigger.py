@@ -777,7 +777,7 @@ class TestRollbackEvent:
         """Testa criação de evento de rollback."""
         event = RollbackEvent(
             cutover_id="test-cutover",
-            timestamp=datetime.now(UTC),
+            timestamp=datetime.now(timezone.utc),
             trigger_type=RollbackTriggerType.AUTOMATIC,
             reason=RollbackReason.ERROR_RATE_CRITICAL,
             metrics={"error_rate": 0.10},
@@ -793,7 +793,7 @@ class TestRollbackEvent:
         """Testa evento de rollback manual."""
         event = RollbackEvent(
             cutover_id="test-cutover",
-            timestamp=datetime.now(UTC),
+            timestamp=datetime.now(timezone.utc),
             trigger_type=RollbackTriggerType.MANUAL,
             reason=RollbackReason.OPERATOR_DECISION,
             metrics={},

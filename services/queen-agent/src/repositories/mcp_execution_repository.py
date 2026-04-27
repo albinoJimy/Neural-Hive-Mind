@@ -1,7 +1,7 @@
 # MCP Execution Repository
 
 import asyncio
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 UTC = UTC  # type: ignore, timedelta
 from typing import Any
@@ -195,7 +195,7 @@ class MCPExecutionRepository:
             "result": result,
             "status": status,
             "duration_ms": duration_ms,
-            "timestamp": datetime.now(UTC),
+            "timestamp": datetime.now(timezone.utc),
             "metadata": metadata or {},
         }
 
@@ -294,7 +294,7 @@ class MCPExecutionRepository:
         Returns:
             Métricas agregadas
         """
-        cutoff_date = datetime.now(UTC) - timedelta(days=days)
+        cutoff_date = datetime.now(timezone.utc) - timedelta(days=days)
 
         pipeline = [
             {"$match": {"server": server, "timestamp": {"$gte": cutoff_date}}},
@@ -340,7 +340,7 @@ class MCPExecutionRepository:
         Returns:
             Métricas agregadas
         """
-        cutoff_date = datetime.now(UTC) - timedelta(days=days)
+        cutoff_date = datetime.now(timezone.utc) - timedelta(days=days)
 
         pipeline = [
             {
@@ -394,7 +394,7 @@ class MCPExecutionRepository:
         Returns:
             Número de documentos deletados
         """
-        cutoff_date = datetime.now(UTC) - timedelta(days=days_old)
+        cutoff_date = datetime.now(timezone.utc) - timedelta(days=days_old)
 
         result = await self.collection.delete_many({"timestamp": {"$lt": cutoff_date}})
 

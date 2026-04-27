@@ -8,7 +8,7 @@ Utiliza serialização Avro conforme schema em schemas/memory-sync-event/memory-
 import asyncio
 import io
 import json
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 
@@ -178,7 +178,7 @@ class KafkaSyncProducer:
             "data_type": str(event.get("data_type", "unknown")),
             "operation": str(event.get("operation", "INSERT")),
             "collection": str(event.get("collection", "")),
-            "timestamp": int(event.get("timestamp", int(datetime.now(UTC).timestamp() * 1000))),
+            "timestamp": int(event.get("timestamp", int(datetime.now(timezone.utc).timestamp() * 1000))),
             "data": str(event.get("data", "{}")),
             "metadata": event.get("metadata") if event.get("metadata") else None,
         }
@@ -208,7 +208,7 @@ class KafkaSyncProducer:
             return False
 
         data_type = event.get("data_type", "unknown")
-        start_time = datetime.now(UTC)
+        start_time = datetime.now(timezone.utc)
 
         for attempt in range(self._retry_attempts):
             try:
@@ -227,7 +227,7 @@ class KafkaSyncProducer:
                 )
 
                 # Registra métricas
-                latency = (datetime.now(UTC) - start_time).total_seconds()
+                latency = (datetime.now(timezone.utc) - start_time).total_seconds()
                 SYNC_EVENTS_PUBLISHED.labels(status="success", data_type=data_type).inc()
                 SYNC_PUBLISH_LATENCY.labels(data_type=data_type).observe(latency)
 

@@ -249,7 +249,7 @@ class InsightsConsumer:
                     "priority": insight.get("priority"),
                     "description": insight.get("description", ""),
                     "recommendations": insight.get("recommendations", []),
-                    "received_at": datetime.now(UTC).isoformat(),
+                    "received_at": datetime.now(timezone.utc).isoformat(),
                 }
             )
 
@@ -285,7 +285,7 @@ class InsightsConsumer:
 
         try:
             # Adicionar timestamp de recebimento
-            insight["received_at"] = datetime.now(UTC).isoformat()
+            insight["received_at"] = datetime.now(timezone.utc).isoformat()
             insight["consumer"] = "orchestrator-dynamic"
 
             # Armazenar na coleção de insights

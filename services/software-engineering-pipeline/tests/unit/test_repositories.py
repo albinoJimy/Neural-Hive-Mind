@@ -1,4 +1,4 @@
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -63,7 +63,7 @@ async def test_update_run_status():
     updated = await repo.update_status(
         run_id,
         PipelineStatus.SUCCESS,
-        finished_at=datetime.now(UTC),
+        finished_at=datetime.now(timezone.utc),
         duration_seconds=120,
     )
 
@@ -222,13 +222,13 @@ async def test_find_by_date_range():
     async_mock_cursor.limit = MagicMock(return_value=async_mock_cursor)
     async_mock_cursor.to_list = AsyncMock(
         return_value=[
-            {"run_id": "run-1", "started_at": datetime.now(UTC)},
+            {"run_id": "run-1", "started_at": datetime.now(timezone.utc)},
         ]
     )
 
     repo.collection.find = MagicMock(return_value=async_mock_cursor)
 
-    end_date = datetime.now(UTC)
+    end_date = datetime.now(timezone.utc)
     start_date = end_date - timedelta(days=7)
 
     results = await repo.find_by_date_range(

@@ -1,6 +1,6 @@
 """Testes E2E para fluxo completo de otimização."""
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -33,7 +33,7 @@ class TestE2ETicketToRecommendation:
                     "query": '{"status": "active"}',
                 }
             ],
-            "created_at": datetime.now(UTC).isoformat(),
+            "created_at": datetime.now(timezone.utc).isoformat(),
         }
 
         # Executar análise
@@ -262,7 +262,7 @@ class TestE2EKafkaIntegration:
                 {"task_id": "t1", "executor_type": "query"},
                 {"task_id": "t2", "executor_type": "transform"},
             ],
-            "created_at": datetime.now(UTC).isoformat(),
+            "created_at": datetime.now(timezone.utc).isoformat(),
         }
 
         # Validar estrutura do evento
@@ -419,7 +419,7 @@ class TestE2EMultiDatabaseWorkflow:
             "performance_analysis": performance_analysis,
             "recommendations": recommendations,
             "analyzed_by": "optimizer-agents",
-            "analyzed_at": datetime.now(UTC),
+            "analyzed_at": datetime.now(timezone.utc),
         }
 
         # Verificar estrutura

@@ -180,7 +180,7 @@ class AnomalyDetector:
         from datetime import datetime, timedelta
 
         try:
-            cutoff_date = datetime.now(UTC) - timedelta(days=self.config.ml_training_window_days)
+            cutoff_date = datetime.now(timezone.utc) - timedelta(days=self.config.ml_training_window_days)
 
             count = await self.mongodb_client.db["execution_tickets"].count_documents(
                 {"completed_at": {"$gte": cutoff_date}}
@@ -584,7 +584,7 @@ class AnomalyDetector:
             },
         ) as span:
             try:
-                cutoff_date = datetime.now(UTC) - timedelta(days=window_days)
+                cutoff_date = datetime.now(timezone.utc) - timedelta(days=window_days)
 
                 # Query todos os tickets
                 tickets = (
@@ -682,7 +682,7 @@ class AnomalyDetector:
 
                 tags = {
                     "model_type": "anomaly_detector",
-                    "timestamp": datetime.now(UTC).isoformat(),
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
                     "training_method": "advanced",
                 }
 
@@ -801,7 +801,7 @@ class AnomalyDetector:
         """
         from datetime import datetime, timedelta
 
-        cutoff_date = datetime.now(UTC) - timedelta(days=window_days)
+        cutoff_date = datetime.now(timezone.utc) - timedelta(days=window_days)
 
         # Query tickets
         tickets = (

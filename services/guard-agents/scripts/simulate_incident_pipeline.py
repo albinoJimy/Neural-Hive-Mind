@@ -18,7 +18,7 @@ Tipos de incidente:
 import argparse
 import asyncio
 import json
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Any
 
 
@@ -69,14 +69,14 @@ def create_incident_event(incident_type: str) -> dict[str, Any]:
             "user_id": "attacker-001",
             "failed_attempts": 15,
             "source_ip": "192.168.1.100",
-            "timestamp": datetime.now(UTC).isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         },
         "dos_attack": {
             "type": "request_metrics",
             "event_id": f"evt-{incident_type}-001",
             "requests_per_minute": 10000,
             "source": "external-lb",
-            "timestamp": datetime.now(UTC).isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         },
         "resource_abuse": {
             "type": "resource_metrics",
@@ -87,21 +87,21 @@ def create_incident_event(incident_type: str) -> dict[str, Any]:
             },
             "resource_name": "pod-critical-001",
             "namespace": "production",
-            "timestamp": datetime.now(UTC).isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         },
         "malicious_payload": {
             "type": "request",
             "event_id": f"evt-{incident_type}-001",
             "payload": "SELECT * FROM users WHERE '1'='1' OR DROP TABLE users;",
             "source_ip": "10.0.0.1",
-            "timestamp": datetime.now(UTC).isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         },
         "data_exfiltration": {
             "type": "network",
             "event_id": f"evt-{incident_type}-001",
             "data_size_mb": 500,
             "destination": "unknown-external-host",
-            "timestamp": datetime.now(UTC).isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         },
     }
 

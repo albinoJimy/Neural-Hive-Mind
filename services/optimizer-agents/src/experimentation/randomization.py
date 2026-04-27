@@ -10,7 +10,7 @@ Implementa tres estrategias de randomizacao:
 import hashlib
 import json
 from abc import ABC, abstractmethod
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 UTC = UTC  # type: ignore
 from enum import Enum
@@ -92,7 +92,7 @@ class BaseRandomizer(ABC):
         key = f"ab_test:{experiment_id}:assignments:{entity_id}"
         data = {
             "group": group.value,
-            "assigned_at": datetime.now(UTC).isoformat(),
+            "assigned_at": datetime.now(timezone.utc).isoformat(),
         }
 
         try:

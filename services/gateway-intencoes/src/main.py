@@ -7,7 +7,7 @@ Aplicação principal FastAPI para captura e processamento de intenções
 import asyncio
 import uuid
 from contextlib import asynccontextmanager
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 UTC = UTC  # type: ignore
 from typing import Any
@@ -429,7 +429,7 @@ async def health_check():
             content={
                 "status": "unhealthy",
                 "message": "Health manager not initialized",
-                "timestamp": datetime.now(UTC).isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
                 "version": "1.0.0",
             },
         )
@@ -462,7 +462,7 @@ async def health_check():
                     "timestamp": (
                         result.timestamp
                         if hasattr(result, "timestamp")
-                        else datetime.now(UTC).isoformat()
+                        else datetime.now(timezone.utc).isoformat()
                     ),
                     "details": (
                         result.details if hasattr(result, "details") else result.get("details", {})
@@ -478,7 +478,7 @@ async def health_check():
 
         response_data = {
             "status": status_value,
-            "timestamp": datetime.now(UTC).isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "version": "1.0.0",
             "service_name": "gateway-intencoes",
             "neural_hive_component": "gateway",
@@ -500,7 +500,7 @@ async def health_check():
             content={
                 "status": "unhealthy",
                 "message": f"Health check error: {e!s}",
-                "timestamp": datetime.now(UTC).isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
                 "version": "1.0.0",
                 "service_name": "gateway-intencoes",
             },
@@ -516,7 +516,7 @@ async def readiness_check():
             content={
                 "status": "not_ready",
                 "message": "Health manager not initialized",
-                "timestamp": datetime.now(UTC).isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
             },
         )
 
@@ -558,7 +558,7 @@ async def readiness_check():
 
         response_data = {
             "status": "ready" if overall_ready else "not_ready",
-            "timestamp": datetime.now(UTC).isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "service_name": "gateway-intencoes",
             "neural_hive_component": "gateway",
             "checks": check_results,
@@ -573,7 +573,7 @@ async def readiness_check():
             content={
                 "status": "not_ready",
                 "message": f"Readiness check error: {e!s}",
-                "timestamp": datetime.now(UTC).isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
             },
         )
 
@@ -632,7 +632,7 @@ async def get_intention(
             "intent_id": intent_id,
             "data": cached_intent,
             "cached": True,
-            "timestamp": datetime.now(UTC).isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
     except HTTPException:
@@ -660,7 +660,7 @@ async def process_text_intention(
     """
     Processar intenção em formato texto
     """
-    start_time = datetime.now(UTC)
+    start_time = datetime.now(timezone.utc)
 
     try:
         # Gerar IDs de correlação
@@ -822,7 +822,7 @@ async def _process_text_intention_with_context(
             context=user_context,
             constraints=request.constraints.dict() if request.constraints else None,
             qos=request.qos.dict() if request.qos else None,
-            timestamp=datetime.now(UTC),
+            timestamp=datetime.now(timezone.utc),
         )
 
         # Confidence gating - route based on confidence level
@@ -941,7 +941,7 @@ async def _process_text_intention_with_context(
                 logger.warning(f"Falha ao cachear intent {intent_id} no Redis: {e}")
 
         # Métricas
-        processing_time = (datetime.now(UTC) - start_time).total_seconds()
+        processing_time = (datetime.now(timezone.utc) - start_time).total_seconds()
 
         # Derivar status da métrica a partir de status_message
         if status_message == "processed":
@@ -1094,7 +1094,7 @@ async def process_voice_intention(
     """
     Processar intenção de áudio (voz)
     """
-    start_time = datetime.now(UTC)
+    start_time = datetime.now(timezone.utc)
 
     try:
         # Validar tipo de arquivo de áudio
@@ -1161,7 +1161,7 @@ async def process_voice_intention(
                 "nlu_confidence": nlu_result.confidence,
                 "audio_duration_s": asr_result.duration,
             },
-            timestamp=datetime.now(UTC),
+            timestamp=datetime.now(timezone.utc),
         )
 
         # Confidence gating - route based on confidence level (same as text flow)
@@ -1281,7 +1281,7 @@ async def process_voice_intention(
                 logger.warning(f"Falha ao cachear voice intent {intent_id} no Redis: {e}")
 
         # Métricas
-        processing_time = (datetime.now(UTC) - start_time).total_seconds()
+        processing_time = (datetime.now(timezone.utc) - start_time).total_seconds()
 
         # Derivar status da métrica a partir de status_message
         if status_message == "processed":
@@ -1428,7 +1428,7 @@ async def service_status():
         "service": "Gateway de Intenções",
         "version": "1.0.0",
         "environment": settings.environment,
-        "timestamp": datetime.now(UTC).isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
         "components": {
             "asr_pipeline": {
                 "ready": asr_pipeline is not None and asr_pipeline.is_ready(),

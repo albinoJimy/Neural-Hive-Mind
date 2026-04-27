@@ -92,7 +92,7 @@ def sample_ticket():
         "estimated_duration_ms": 60000,
         "actual_duration_ms": 75000,
         "retry_count": 0,
-        "created_at": datetime.now(UTC).isoformat(),
+        "created_at": datetime.now(timezone.utc).isoformat(),
         "status": "COMPLETED",
     }
 
@@ -279,7 +279,7 @@ class TestAnomalyDetector:
             "sla": {},
             "parameters": {},
             "estimated_duration_ms": 10000,
-            "created_at": datetime.now(UTC).isoformat(),
+            "created_at": datetime.now(timezone.utc).isoformat(),
         }
 
         # Mock modelo retornando anomalia

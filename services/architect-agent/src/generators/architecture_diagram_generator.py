@@ -2,8 +2,9 @@
 
 from pathlib import Path
 
-from openai import AsyncOpenAI
 from structlog import get_logger
+
+from neural_hive_llm import LLMClient, LLMProvider, LLMResponse
 
 from src.generators.c4_diagram import C4DiagramGenerator
 from src.generators.mermaid_renderer import MermaidRenderer
@@ -31,7 +32,7 @@ Responda apenas com o código Mermaid, sem markdown.
 
     def __init__(
         self,
-        llm_client: AsyncOpenAI | None = None,
+        llm_client: LLMClient | None = None,
         mermaid_renderer: MermaidRenderer | None = None,
         output_dir: str | None = None,
         mmdc_command: str = "mmdc",
@@ -40,16 +41,17 @@ Responda apenas com o código Mermaid, sem markdown.
         Inicializa o gerador.
 
         Args:
-            llm_client: Cliente OpenAI para geração de diagramas via LLM
+            llm_client: Cliente LLM para geração de diagramas via LLM
             mermaid_renderer: Renderer Mermaid (opcional, cria padrão se não fornecido)
             output_dir: Diretório base para diagramas gerados
             mmdc_command: Comando mermaid-cli
         """
-        self._llm_client = llm_client or AsyncOpenAI()
+        self._llm_client = llm_client
         self._renderer = mermaid_renderer or MermaidRenderer(mmdc_command)
         self._output_dir = Path(output_dir) if output_dir else Path("diagrams")
         self._c4_generator = C4DiagramGenerator()
         self._logger = logger
+        self._llm_started = False
 
     async def generate_context_diagram(
         self,
@@ -281,6 +283,24 @@ Responda apenas com o código Mermaid, sem markdown.
             svg_url=svg_url,
         )
 
+    async def _ensure_llm_started(self):
+        """Garante que o cliente LLM está inicializado."""
+        if not self._llm_client:
+            # Criar cliente padrão com settings
+            from src.config.settings import get_settings
+
+            settings = get_settings()
+            if not settings.llm.provider or not settings.llm.api_key:
+                raise ConnectionError("LLM not configured: provider or api_key missing")
+
+            provider = LLMProvider.OPENAI if settings.llm.provider == "openai" else LLMProvider.ANTHROPIC
+            self._llm_client = LLMClient(provider=provider, api_key=settings.llm.api_key, model="gpt-4")
+            await self._llm_client.start()
+            self._llm_started = True
+        elif not self._llm_started:
+            await self._llm_client.start()
+            self._llm_started = True
+
     async def generate_from_description(self, description: str, render: bool = True) -> Diagram:
         """
         Gera diagrama a partir de descrição em linguagem natural usando LLM.
@@ -294,19 +314,14 @@ Responda apenas com o código Mermaid, sem markdown.
         """
         self._logger.info("generating_diagram_from_description")
 
-        response = await self._llm_client.chat.completions.create(
-            model="gpt-4",
-            messages=[
-                {"role": "system", "content": "Você é um especialista em diagramas UML e Mermaid."},
-                {
-                    "role": "user",
-                    "content": self.SEQUENCE_PROMPT.format(flow_description=description),
-                },
-            ],
-            temperature=0.3,
+        await self._ensure_llm_started()
+
+        response: LLMResponse = await self._llm_client.generate(
+            prompt=self.SEQUENCE_PROMPT.format(flow_description=description),
+            system_prompt="Você é um especialista em diagramas UML e Mermaid.",
         )
 
-        mermaid_code = response.choices[0].message.content.strip()
+        mermaid_code = response.text.strip()
 
         # Limpar markdown se presente
         if mermaid_code.startswith("```"):

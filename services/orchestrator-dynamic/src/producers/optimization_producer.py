@@ -71,7 +71,7 @@ class OptimizationProducer:
             "peak_memory_mb": peak_memory_mb,
             "task_count": task_count,
             "tasks": tasks,
-            "created_at": datetime.now(UTC).isoformat(),
+            "created_at": datetime.now(timezone.utc).isoformat(),
         }
 
         topic = "ticket.completed"

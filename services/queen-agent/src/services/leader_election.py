@@ -7,7 +7,7 @@ Usa o padrão "Leader Election with Redis" baseado em locks distribuídos.
 
 import asyncio
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 UTC = UTC  # type: ignore
 from enum import Enum
@@ -205,7 +205,7 @@ class LeaderElection:
                 meta = {
                     "node_id": self.node_id,
                     "term": self.state.term + 1,
-                    "acquired_at": datetime.now(UTC).isoformat(),
+                    "acquired_at": datetime.now(timezone.utc).isoformat(),
                     "ttl": self.lease_ttl_seconds,
                 }
                 await self.redis_client.client.hset(self.LEADER_META_KEY, mapping=meta)
@@ -277,7 +277,7 @@ class LeaderElection:
         try:
             heartbeat = {
                 "node_id": self.node_id,
-                "timestamp": datetime.now(UTC).isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
             }
             await self.redis_client.client.hset(self.LEADER_HEARTBEAT_KEY, mapping=heartbeat)
             await self.redis_client.client.expire(self.LEADER_HEARTBEAT_KEY, self.lease_ttl_seconds)

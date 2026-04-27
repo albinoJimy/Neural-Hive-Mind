@@ -11,7 +11,7 @@ Implementa estratégias avançadas de cache:
 
 import asyncio
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any
 
@@ -386,7 +386,7 @@ class KanikoCacheOptimizer:
             layer_digest: Digest da layer que hit no cache
         """
         self.metrics.hits += 1
-        self.metrics.last_cache_update = datetime.now(UTC)
+        self.metrics.last_cache_update = datetime.now(timezone.utc)
         logger.debug("kaniko_cache_hit", layer=layer_digest, total_hits=self.metrics.hits)
 
     def record_cache_miss(self, layer_digest: str | None = None):

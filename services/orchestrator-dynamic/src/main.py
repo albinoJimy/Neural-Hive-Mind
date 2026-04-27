@@ -1645,7 +1645,7 @@ async def health_check():
             "status": overall_status,
             "service": "orchestrator-dynamic",
             "version": "1.0.0",
-            "timestamp": datetime.now(UTC).isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "checks": {"redis": redis_status, "vault": vault_status},
         },
     )
@@ -1785,7 +1785,7 @@ async def kafka_producer_health_check():
             content={
                 "status": "unhealthy",
                 "error": "Kafka Producer not initialized",
-                "timestamp": datetime.now(UTC).isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
             },
         )
 
@@ -1829,7 +1829,7 @@ async def kafka_producer_health_check():
         content={
             "status": status,
             "component": "kafka_producer",
-            "timestamp": datetime.now(UTC).isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "checks": checks,
         },
     )
@@ -1850,7 +1850,7 @@ async def temporal_activities_health_check():
             content={
                 "status": "unavailable",
                 "error": "Temporal Worker not initialized",
-                "timestamp": datetime.now(UTC).isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
             },
         )
 
@@ -1888,7 +1888,7 @@ async def temporal_activities_health_check():
         content={
             "status": status,
             "component": "temporal_activities",
-            "timestamp": datetime.now(UTC).isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "registered_count": len(registered_activities),
             "expected_count": len(expected_activities),
             "missing_activities": missing_activities,
@@ -2862,7 +2862,7 @@ async def get_prediction_statistics():
         # Query tickets com predições nas últimas 24h
         from datetime import datetime, timedelta
 
-        cutoff = datetime.now(UTC) - timedelta(hours=24)
+        cutoff = datetime.now(timezone.utc) - timedelta(hours=24)
 
         pipeline = [
             {"$match": {"created_at": {"$gte": cutoff}, "predictions": {"$exists": True}}},

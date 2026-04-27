@@ -1,4 +1,4 @@
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timezone, timedelta
 
 import pytest
 from src.intelligence.anomaly_detector import (
@@ -155,7 +155,7 @@ async def test_insights_generator_basic():
         },
     ]
 
-    timeframe_end = datetime.now(UTC)
+    timeframe_end = datetime.now(timezone.utc)
     timeframe_start = timeframe_end - timedelta(days=1)
 
     report = await generator.generate_insights(
@@ -178,8 +178,8 @@ async def test_insights_generator_empty_runs():
     report = await generator.generate_insights(
         "https://github.com/org/repo",
         [],
-        datetime.now(UTC) - timedelta(days=1),
-        datetime.now(UTC),
+        datetime.now(timezone.utc) - timedelta(days=1),
+        datetime.now(timezone.utc),
     )
 
     assert report.total_runs == 0
@@ -204,7 +204,7 @@ async def test_insights_generator_slow_tests():
         },
     ]
 
-    timeframe_end = datetime.now(UTC)
+    timeframe_end = datetime.now(timezone.utc)
     timeframe_start = timeframe_end - timedelta(days=1)
 
     report = await generator.generate_insights(
@@ -296,7 +296,7 @@ async def test_insights_generator_optimization_opportunities():
         },
     ]
 
-    timeframe_end = datetime.now(UTC)
+    timeframe_end = datetime.now(timezone.utc)
     timeframe_start = timeframe_end - timedelta(days=1)
 
     report = await generator.generate_insights(

@@ -2,7 +2,7 @@
 Testes de integracao para metricas de republicacao
 """
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -66,7 +66,7 @@ class TestRepublishMetrics:
             destructive_tasks=["task-2"],
             status=ApprovalStatus.APPROVED,
             approved_by="original-admin@test.com",
-            approved_at=datetime.now(UTC),
+            approved_at=datetime.now(timezone.utc),
             cognitive_plan=sample_cognitive_plan,
         )
 
@@ -219,7 +219,7 @@ class TestRepublishMetrics:
         approval.status = ApprovalStatus.APPROVED
         approval.cognitive_plan = None
         approval.approved_by = "admin@test.com"
-        approval.approved_at = datetime.now(UTC)
+        approval.approved_at = datetime.now(timezone.utc)
         approval.intent_id = "intent-004"
 
         client = MagicMock()

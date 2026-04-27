@@ -1,6 +1,6 @@
 """Unit tests for IncidentOrchestrator"""
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -220,7 +220,7 @@ class TestE5ValidateSLARestoration:
         """Test SLA validation when all targets are met"""
         incident = {"incident_id": "INC-001", "affected_resources": []}
         remediation_result = {"status": "completed"}
-        flow_start_time = datetime.now(UTC)
+        flow_start_time = datetime.now(timezone.utc)
 
         result = await incident_orchestrator._e5_validate_sla_restoration(
             incident, remediation_result, flow_start_time
@@ -237,7 +237,7 @@ class TestE5ValidateSLARestoration:
         # Set start time to simulate long running remediation
         from datetime import timedelta
 
-        flow_start_time = datetime.now(UTC) - timedelta(seconds=100)
+        flow_start_time = datetime.now(timezone.utc) - timedelta(seconds=100)
 
         result = await incident_orchestrator._e5_validate_sla_restoration(
             incident, remediation_result, flow_start_time
@@ -251,7 +251,7 @@ class TestE5ValidateSLARestoration:
         """Test SLA validation when remediation failed"""
         incident = {"incident_id": "INC-001", "affected_resources": []}
         remediation_result = {"status": "failed"}
-        flow_start_time = datetime.now(UTC)
+        flow_start_time = datetime.now(timezone.utc)
 
         result = await incident_orchestrator._e5_validate_sla_restoration(
             incident, remediation_result, flow_start_time

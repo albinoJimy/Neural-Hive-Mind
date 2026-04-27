@@ -1,7 +1,7 @@
 """Migration m001: Criar coleção optimization_recommendations."""
 
 import logging
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 UTC = UTC  # type: ignore
 from typing import Any
@@ -61,7 +61,7 @@ async def upgrade(
         "status": "success",
         "collection": "optimization_recommendations",
         "indexes_created": index_names,
-        "created_at": datetime.now(UTC).isoformat(),
+        "created_at": datetime.now(timezone.utc).isoformat(),
     }
 
 
@@ -97,7 +97,7 @@ async def downgrade(
     return {
         "status": "success",
         "collection": "optimization_recommendations",
-        "dropped_at": datetime.now(UTC).isoformat(),
+        "dropped_at": datetime.now(timezone.utc).isoformat(),
     }
 
 

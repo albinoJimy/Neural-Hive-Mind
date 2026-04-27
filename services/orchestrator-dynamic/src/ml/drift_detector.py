@@ -106,7 +106,7 @@ class DriftDetector:
         """
         try:
             # Query tickets recentes via cliente async
-            end_date = datetime.now(UTC)
+            end_date = datetime.now(timezone.utc)
             start_date = end_date - timedelta(days=window_days)
 
             recent_tickets = (
@@ -213,7 +213,7 @@ class DriftDetector:
             Dict com MAE por janela temporal e drift ratio
         """
         try:
-            end_date = datetime.now(UTC)
+            end_date = datetime.now(timezone.utc)
 
             # Calcular MAE para diferentes janelas
             mae_results = {}
@@ -319,7 +319,7 @@ class DriftDetector:
             Dict com estatísticas de drift do target
         """
         try:
-            end_date = datetime.now(UTC)
+            end_date = datetime.now(timezone.utc)
             start_date = end_date - timedelta(days=window_days)
 
             # Query tickets recentes (async)
@@ -458,7 +458,7 @@ class DriftDetector:
         )
 
         report = {
-            "timestamp": datetime.now(UTC).isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "window_days": window_days,
             "feature_drift": feature_drift,
             "prediction_drift": prediction_drift,
@@ -630,7 +630,7 @@ class DriftDetector:
             baseline_doc = {
                 "model_name": model_name,
                 "version": version,
-                "timestamp": datetime.now(UTC),
+                "timestamp": datetime.now(timezone.utc),
                 "features": baseline_features,
                 "target_distribution": {
                     "values": target_values[:1000],  # Limitar para não crescer demais

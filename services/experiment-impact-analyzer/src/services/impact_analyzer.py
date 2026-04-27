@@ -1,6 +1,6 @@
 """Core impact analyzer service."""
 
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from typing import Any
 
 import structlog
@@ -315,7 +315,7 @@ class ImpactAnalyzer:
         created_at: datetime,
     ) -> LongTermImpact:
         """Analyze long-term impact."""
-        end_date = datetime.now(UTC)
+        end_date = datetime.now(timezone.utc)
         start_date = created_at
         days_analyzed = (end_date - start_date).days
 

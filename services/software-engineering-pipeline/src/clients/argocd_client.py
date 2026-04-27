@@ -1,6 +1,6 @@
 """Cliente para interagir com a API do ArgoCD."""
 
-from datetime import UTC
+from datetime import timezone
 
 import httpx
 from pydantic import BaseModel, ConfigDict, Field
@@ -124,7 +124,7 @@ class ArgoCDClient:
             return ApplicationSyncResponse(
                 success=True,
                 message="Application sync started",
-                sync_started_at=datetime.now(UTC).isoformat(),
+                sync_started_at=datetime.now(timezone.utc).isoformat(),
                 operation_id=data.get("uid"),
             )
 

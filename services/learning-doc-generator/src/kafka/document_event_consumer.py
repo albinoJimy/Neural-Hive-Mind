@@ -8,7 +8,7 @@ e rollback de deployments para gerar documentação automaticamente.
 import asyncio
 import json
 import uuid
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 import structlog
@@ -335,8 +335,8 @@ class DocumentEventConsumer:
             },
             "experiment_ids": [experiment_id],
             "period_start": data.get("started_at"),
-            "period_end": data.get("completed_at", datetime.now(UTC).isoformat()),
-            "created_at": datetime.now(UTC).isoformat(),
+            "period_end": data.get("completed_at", datetime.now(timezone.utc).isoformat()),
+            "created_at": datetime.now(timezone.utc).isoformat(),
             "insights": [i.model_dump() for i in insights],
         }
 
@@ -400,8 +400,8 @@ class DocumentEventConsumer:
                 "event_source": "kafka",
             },
             "period_start": data.get("promoted_at"),
-            "period_end": datetime.now(UTC).isoformat(),
-            "created_at": datetime.now(UTC).isoformat(),
+            "period_end": datetime.now(timezone.utc).isoformat(),
+            "created_at": datetime.now(timezone.utc).isoformat(),
         }
 
         await self.document_repository.create(document)
@@ -465,8 +465,8 @@ class DocumentEventConsumer:
                 "event_source": "kafka",
             },
             "period_start": data.get("rolled_back_at"),
-            "period_end": datetime.now(UTC).isoformat(),
-            "created_at": datetime.now(UTC).isoformat(),
+            "period_end": datetime.now(timezone.utc).isoformat(),
+            "created_at": datetime.now(timezone.utc).isoformat(),
         }
 
         await self.document_repository.create(document)

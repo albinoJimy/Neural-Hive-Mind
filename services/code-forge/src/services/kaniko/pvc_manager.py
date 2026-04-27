@@ -6,7 +6,7 @@ o PVCManager cria dinamicamente um PersistentVolumeClaim para armazenar o contex
 """
 
 import logging
-from datetime import UTC
+from datetime import timezone
 
 UTC = UTC  # type: ignore
 from uuid import uuid4
@@ -265,7 +265,7 @@ class PVCManager:
         from datetime import datetime, timedelta
 
         client = self._get_k8s_client()
-        cutoff_time = datetime.now(UTC) - timedelta(hours=older_than_hours)
+        cutoff_time = datetime.now(timezone.utc) - timedelta(hours=older_than_hours)
 
         try:
             label_selector = "app=kaniko,temporary=true"

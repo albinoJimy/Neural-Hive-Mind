@@ -1,6 +1,6 @@
 """Testes unitários para DocumentScheduler"""
 
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -94,8 +94,8 @@ class TestDocumentScheduler:
             experiment_id=1,
             name="test_experiment",
             status="FINISHED",
-            start_time=datetime.utcnow() - timedelta(days=1),
-            end_time=datetime.utcnow() - timedelta(days=1),
+            start_time=datetime.now(timezone.utc) - timedelta(days=1),
+            end_time=datetime.now(timezone.utc) - timedelta(days=1),
             metrics={"accuracy": 0.85},
             params={"lr": "0.001"},
             tags={},
@@ -148,8 +148,8 @@ class TestDocumentScheduler:
             experiment_id=1,
             name="test_experiment",
             status="FINISHED",
-            start_time=datetime.utcnow() - timedelta(days=1),
-            end_time=datetime.utcnow(),
+            start_time=datetime.now(timezone.utc) - timedelta(days=1),
+            end_time=datetime.now(timezone.utc),
             metrics={"accuracy": 0.85},
             params={},
             tags={},
@@ -157,8 +157,8 @@ class TestDocumentScheduler:
         mock_insight_extractor.get_runs_by_period = AsyncMock(return_value=[mock_run])
         mock_insight_extractor.extract_insights_from_runs = AsyncMock(return_value=[])
 
-        period_start = datetime.utcnow() - timedelta(days=1)
-        period_end = datetime.utcnow()
+        period_start = datetime.now(timezone.utc) - timedelta(days=1)
+        period_end = datetime.now(timezone.utc)
 
         doc_id = await scheduler.trigger_manual_report(
             DocumentType.WEEKLY_SUMMARY, period_start, period_end
@@ -172,8 +172,8 @@ class TestDocumentScheduler:
         """Testa trigger manual sem experimentos"""
         mock_insight_extractor.get_runs_by_period = AsyncMock(return_value=[])
 
-        period_start = datetime.utcnow() - timedelta(days=1)
-        period_end = datetime.utcnow()
+        period_start = datetime.now(timezone.utc) - timedelta(days=1)
+        period_end = datetime.now(timezone.utc)
 
         doc_id = await scheduler.trigger_manual_report(
             DocumentType.DAILY_SUMMARY, period_start, period_end
@@ -191,8 +191,8 @@ class TestDocumentScheduler:
                 experiment_id=1,
                 name="exp1",
                 status="FINISHED",
-                start_time=datetime.utcnow(),
-                end_time=datetime.utcnow(),
+                start_time=datetime.now(timezone.utc),
+                end_time=datetime.now(timezone.utc),
                 metrics={},
                 params={},
                 tags={},
@@ -202,8 +202,8 @@ class TestDocumentScheduler:
                 experiment_id=1,
                 name="exp2",
                 status="FAILED",
-                start_time=datetime.utcnow(),
-                end_time=datetime.utcnow(),
+                start_time=datetime.now(timezone.utc),
+                end_time=datetime.now(timezone.utc),
                 metrics={},
                 params={},
                 tags={},

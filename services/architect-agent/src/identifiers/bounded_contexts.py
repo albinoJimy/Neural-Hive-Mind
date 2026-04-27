@@ -2,9 +2,10 @@
 
 import json
 
-from openai import AsyncOpenAI
 from structlog import get_logger
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
+
+from neural_hive_llm import LLMClient, LLMProvider, LLMResponse
 
 from src.models.bounded_context import (
     BoundedContext,
@@ -65,17 +66,18 @@ Responda em formato JSON válido com esta estrutura:
 }}
 """
 
-    def __init__(self, llm_client: AsyncOpenAI | None = None, model: str = "gpt-4"):
+    def __init__(self, llm_client: LLMClient | None = None, model: str = "gpt-4"):
         """
         Inicializa o identificador de bounded contexts.
 
         Args:
-            llm_client: Cliente OpenAI (opcional, cria padrão se não fornecido)
+            llm_client: Cliente LLM (opcional, cria padrão se não fornecido)
             model: Modelo LLM a usar
         """
-        self._llm_client = llm_client or AsyncOpenAI()
+        self._llm_client = llm_client
         self._model = model
         self._logger = logger
+        self._llm_started = False
 
     def _validate_input(self, requirements: str, domain_hints: list[str] | None):
         """Valida input antes de processar.
@@ -103,6 +105,24 @@ Responda em formato JSON válido com esta estrutura:
         if domain_hints and len(domain_hints) > MAX_DOMAIN_HINTS:
             raise ValueError(f"Too many domain hints: {len(domain_hints)} > {MAX_DOMAIN_HINTS}")
 
+    async def _ensure_llm_started(self):
+        """Garante que o cliente LLM está inicializado."""
+        if not self._llm_client:
+            # Criar cliente padrão com settings
+            from src.config.settings import get_settings
+
+            settings = get_settings()
+            if not settings.llm.provider or not settings.llm.api_key:
+                raise ConnectionError("LLM not configured: provider or api_key missing")
+
+            provider = LLMProvider.OPENAI if settings.llm.provider == "openai" else LLMProvider.ANTHROPIC
+            self._llm_client = LLMClient(provider=provider, api_key=settings.llm.api_key, model=self._model)
+            await self._llm_client.start()
+            self._llm_started = True
+        elif not self._llm_started:
+            await self._llm_client.start()
+            self._llm_started = True
+
     @retry(
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=2, max=10),
@@ -122,17 +142,14 @@ Responda em formato JSON válido com esta estrutura:
             ConnectionError: Se falhar após 3 tentativas
             TimeoutError: Se timeout após 3 tentativas
         """
-        response = await self._llm_client.chat.completions.create(
-            model=self._model,
-            messages=[
-                {"role": "system", "content": "Você é um especialista em DDD."},
-                {"role": "user", "content": prompt},
-            ],
-            response_format={"type": "json_object"},
-            temperature=0.3,
+        await self._ensure_llm_started()
+
+        response: LLMResponse = await self._llm_client.generate(
+            prompt=prompt,
+            system_prompt="Você é um especialista em DDD. Responda em JSON válido.",
         )
 
-        return json.loads(response.choices[0].message.content)
+        return json.loads(response.text)
 
     async def identify(
         self, requirements: str, domain_hints: list[str] | None = None

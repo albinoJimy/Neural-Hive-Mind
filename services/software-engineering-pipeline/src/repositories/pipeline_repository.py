@@ -1,4 +1,4 @@
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timezone, timedelta
 
 from motor.motor_asyncio import AsyncIOMotorClient
 
@@ -94,7 +94,7 @@ class PipelineRunRepository(BaseRepository[PipelineRun]):
 
     async def get_success_rate(self, repo_url: str, days: int = 30) -> float:
         """Calcula taxa de sucesso para um repositório nos últimos N dias."""
-        start_date = datetime.now(UTC) - timedelta(days=days)
+        start_date = datetime.now(timezone.utc) - timedelta(days=days)
 
         pipeline = [
             {
@@ -166,7 +166,7 @@ class AnomalyRepository(BaseRepository[Anomaly]):
         """Marca uma anomalia como resolvida."""
         return await self.update(
             anomaly_id,
-            {"resolved": True, "resolved_at": datetime.now(UTC)},
+            {"resolved": True, "resolved_at": datetime.now(timezone.utc)},
         )
 
 

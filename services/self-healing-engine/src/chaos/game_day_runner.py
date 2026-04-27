@@ -15,7 +15,7 @@ import argparse
 import asyncio
 import json
 import sys
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any, Optional
 
 if TYPE_CHECKING:
@@ -182,7 +182,7 @@ class GameDayRunner:
         Returns:
             Relatório consolidado do Game Day
         """
-        start_time = datetime.now(UTC)
+        start_time = datetime.now(timezone.utc)
         results = []
         success_count = 0
         failure_count = 0
@@ -257,7 +257,7 @@ class GameDayRunner:
                     error=str(e),
                 )
 
-        end_time = datetime.now(UTC)
+        end_time = datetime.now(timezone.utc)
         total_duration = (end_time - start_time).total_seconds()
 
         game_day_id = f"gd-{start_time.strftime('%Y%m%d-%H%M%S')}"

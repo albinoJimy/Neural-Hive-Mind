@@ -1,6 +1,6 @@
 """API handlers for impact analysis endpoints."""
 
-from datetime import UTC
+from datetime import timezone
 from typing import Any
 
 import structlog
@@ -134,7 +134,7 @@ async def get_impact_summary(
     from datetime import datetime, timedelta
 
     UTC = UTC
-    end_date = datetime.now(UTC)
+    end_date = datetime.now(timezone.utc)
     start_date = end_date - timedelta(days=days)
 
     analyzer = get_analyzer()

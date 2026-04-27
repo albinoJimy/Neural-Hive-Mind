@@ -3,7 +3,7 @@ Repositório MongoDB para Insights.
 """
 
 import uuid
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from typing import Any, List, Optional
 
 import structlog
@@ -51,8 +51,8 @@ class InsightRepository:
         doc = insight.dict()
         doc["insight_id"] = str(uuid.uuid4())
         doc["status"] = InsightStatus.PENDING
-        doc["created_at"] = datetime.now(UTC)
-        doc["expires_at"] = datetime.now(UTC) + timedelta(days=self.ttl_days)
+        doc["created_at"] = datetime.now(timezone.utc)
+        doc["expires_at"] = datetime.now(timezone.utc) + timedelta(days=self.ttl_days)
 
         # Initialize default metrics (required field)
         doc["metrics"] = InsightMetrics(
@@ -173,8 +173,8 @@ class InsightRepository:
             "metric_name": metric_name,
             "data": data,
             "statistics": statistics,
-            "created_at": datetime.now(UTC),
-            "expires_at": datetime.now(UTC) + timedelta(hours=self.cache_ttl_hours),
+            "created_at": datetime.now(timezone.utc),
+            "expires_at": datetime.now(timezone.utc) + timedelta(hours=self.cache_ttl_hours),
         }
 
         await self._db[self.cache_collection].update_one(
@@ -190,7 +190,7 @@ class InsightRepository:
 
     async def get_analytics_summary(self, time_range_hours: int = 24) -> dict[str, Any]:
         """Obter resumo agregado para dashboard."""
-        start_date = datetime.now(UTC) - timedelta(hours=time_range_hours)
+        start_date = datetime.now(timezone.utc) - timedelta(hours=time_range_hours)
 
         pipeline = [
             {"$match": {"created_at": {"$gte": start_date}}},

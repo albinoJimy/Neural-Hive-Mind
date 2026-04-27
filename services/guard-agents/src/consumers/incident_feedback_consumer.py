@@ -13,7 +13,7 @@ Created: 2026-03-30 (Epic J)
 
 import json
 from collections import defaultdict
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Optional
 
@@ -240,7 +240,7 @@ class IncidentFeedbackConsumer:
         severity_value = severity_map.get(severity, 2.0)
 
         self.incident_stats[classification]["total"] += 1
-        self.incident_stats[classification]["last_updated"] = datetime.now(UTC)
+        self.incident_stats[classification]["last_updated"] = datetime.now(timezone.utc)
 
         # Atualizar média de severidade
         current_avg = self.incident_stats[classification]["avg_severity"]
@@ -390,7 +390,7 @@ class IncidentFeedbackConsumer:
 
         try:
             # Adicionar timestamp de processamento
-            incident["feedback_processed_at"] = datetime.now(UTC).isoformat()
+            incident["feedback_processed_at"] = datetime.now(timezone.utc).isoformat()
             incident["feedback_consumer"] = "guard-agents"
 
             # Armazenar na coleção de feedback

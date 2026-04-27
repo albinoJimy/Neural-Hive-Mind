@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import UTC
+from datetime import timezone
 from typing import Any
 
 from motor.motor_asyncio import AsyncIOMotorClient

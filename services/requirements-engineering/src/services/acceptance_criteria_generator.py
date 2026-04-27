@@ -4,7 +4,7 @@ import json
 import uuid
 
 import structlog
-from openai import AsyncOpenAI
+from src.clients.llm_client_wrapper import LLMClient
 from src.config.settings import get_settings
 from src.models.acceptance_criteria import (
     AcceptanceCriteriaSet,
@@ -44,14 +44,14 @@ Você é um especialista em Scrum e Critérios de Aceitação. Analise a seguint
 class AcceptanceCriteriaGenerator:
     """Serviço para geração de Critérios de Aceitação usando LLM."""
 
-    def __init__(self, llm_client: AsyncOpenAI | None = None):
+    def __init__(self, llm_client: LLMClient | None = None):
         """Inicializa o AcceptanceCriteriaGenerator.
 
         Args:
-            llm_client: Cliente OpenAI (opcional, cria padrão se não fornecido)
+            llm_client: Cliente LLM (opcional, cria padrão se não fornecido)
         """
         settings = get_settings()
-        self._llm_client = llm_client or AsyncOpenAI(api_key=settings.openai_api_key)
+        self._llm_client = llm_client or LLMClient()
         self._model = settings.llm_model
         self._logger = logger
 
@@ -73,8 +73,7 @@ class AcceptanceCriteriaGenerator:
         prompt = ACCEPTANCE_CRITERIA_PROMPT.format(user_story=story_text)
 
         try:
-            response = await self._llm_client.chat.completions.create(
-                model=self._model,
+            response = await self._llm_client.generate(
                 messages=[
                     {
                         "role": "system",
@@ -82,11 +81,12 @@ class AcceptanceCriteriaGenerator:
                     },
                     {"role": "user", "content": prompt},
                 ],
+                model=self._model,
                 temperature=0.6,
                 max_tokens=2000,
             )
 
-            content = response.choices[0].message.content
+            content = response.choices[0].message["content"]
 
             # Extrair JSON da resposta
             json_match = self._extract_json(content)

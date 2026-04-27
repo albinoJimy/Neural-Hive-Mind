@@ -143,7 +143,7 @@ async def analyze_legacy_schema(
                     "indexes": ["PRIMARY KEY (id)", "INDEX (user_id)"],
                 },
             ],
-            "analyzed_at": datetime.now(UTC).isoformat(),
+            "analyzed_at": datetime.now(timezone.utc).isoformat(),
         }
 
         logger.info(
@@ -230,7 +230,7 @@ async def generate_schema_mapping(
             "legacy_connection_id": schema_analysis.get("legacy_connection_id"),
             "nhm_target": target_service,
             "tables": tables_mapping,
-            "created_at": datetime.now(UTC).isoformat(),
+            "created_at": datetime.now(timezone.utc).isoformat(),
             "version": 1,
         }
 
@@ -298,7 +298,7 @@ async def approve_mapping(
         return {
             "approved": True,
             "approved_by": approved_by,
-            "approved_at": datetime.now(UTC).isoformat(),
+            "approved_at": datetime.now(timezone.utc).isoformat(),
             "status": "approved",
         }
 
@@ -356,7 +356,7 @@ async def create_snapshot(
             "success": True,
             "snapshot_id": snapshot_id,
             "strategy": strategy,
-            "created_at": datetime.now(UTC).isoformat(),
+            "created_at": datetime.now(timezone.utc).isoformat(),
             "tables_snapshotted": len(table_mappings),
         }
 
@@ -426,7 +426,7 @@ async def run_batch_migration(
             "total_rows": total_rows,
             "progress_percentage": progress_percentage,
             "tables_processed": tables_processed,
-            "completed_at": datetime.now(UTC).isoformat(),
+            "completed_at": datetime.now(timezone.utc).isoformat(),
         }
 
     except Exception as e:
@@ -483,7 +483,7 @@ async def start_cdc(
             "success": True,
             "connector_id": connector_id,
             "status": "running",
-            "started_at": datetime.now(UTC).isoformat(),
+            "started_at": datetime.now(timezone.utc).isoformat(),
         }
 
     except Exception as e:
@@ -546,7 +546,7 @@ async def validate_data(
                 }
                 for t in tables
             ],
-            "validated_at": datetime.now(UTC).isoformat(),
+            "validated_at": datetime.now(timezone.utc).isoformat(),
         }
 
         logger.info(
@@ -596,7 +596,7 @@ async def cleanup_snapshot(snapshot_id: str) -> dict[str, Any]:
         return {
             "success": True,
             "snapshot_id": snapshot_id,
-            "cleaned_at": datetime.now(UTC).isoformat(),
+            "cleaned_at": datetime.now(timezone.utc).isoformat(),
         }
 
     except Exception as e:
@@ -671,7 +671,7 @@ async def execute_rollback(
             "phase": phase,
             "reason": reason,
             "tables_restored": tables_restored,
-            "rolled_back_at": datetime.now(UTC).isoformat(),
+            "rolled_back_at": datetime.now(timezone.utc).isoformat(),
         }
 
     except Exception as e:

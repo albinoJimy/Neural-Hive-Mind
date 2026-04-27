@@ -1,6 +1,6 @@
 import json
 from collections.abc import AsyncIterator
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from uuid import UUID
 
 import grpc
@@ -62,7 +62,7 @@ class ServiceRegistryServicer:
                 response = service_registry_pb2.RegisterResponse(
                     agent_id=str(agent_id),
                     registration_token=registration_token,
-                    registered_at=int(datetime.now(UTC).timestamp()),
+                    registered_at=int(datetime.now(timezone.utc).timestamp()),
                 )
 
                 span.set_status(Status(StatusCode.OK))
@@ -113,7 +113,7 @@ class ServiceRegistryServicer:
                 from src.proto import service_registry_pb2
 
                 response = service_registry_pb2.HeartbeatResponse(
-                    status=status.value, last_seen=int(datetime.now(UTC).timestamp())
+                    status=status.value, last_seen=int(datetime.now(timezone.utc).timestamp())
                 )
 
                 span.set_attribute("agent_id", str(agent_id))
@@ -423,7 +423,7 @@ class ServiceRegistryServicer:
                             event = service_registry_pb2.AgentChangeEvent(
                                 event_type=proto_event_type,
                                 agent=agent_proto,
-                                timestamp=int(datetime.now(UTC).timestamp()),
+                                timestamp=int(datetime.now(timezone.utc).timestamp()),
                             )
 
                             # Yield evento para stream

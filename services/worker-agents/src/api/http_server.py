@@ -1,6 +1,6 @@
 import base64
 import json
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 import structlog
 from fastapi import Depends, FastAPI, HTTPException, Request
@@ -324,8 +324,8 @@ def create_http_server(config, app_state):
         return {
             "status": "started",
             "agent_id": config.agent_id,
-            "timestamp": int(datetime.now(UTC).timestamp() * 1000),
-            "started_at": datetime.now(UTC).isoformat(),
+            "timestamp": int(datetime.now(timezone.utc).timestamp() * 1000),
+            "started_at": datetime.now(timezone.utc).isoformat(),
         }
 
     @app.get("/metrics")

@@ -2,7 +2,7 @@
 Cliente para PostgreSQL usando asyncpg.
 """
 
-from datetime import UTC
+from datetime import timezone
 from typing import Any, Optional
 
 import asyncpg
@@ -330,7 +330,7 @@ class PostgreSQLClient:
 
         # Sempre atualizar updated_at
         updates = updates.copy()
-        updates["updated_at"] = datetime.now(UTC)
+        updates["updated_at"] = datetime.now(timezone.utc)
 
         set_clauses = []
         params = []
@@ -385,7 +385,7 @@ class PostgreSQLClient:
                     WHERE slo_id = $1
                 """,
                     slo_id,
-                    datetime.now(UTC),
+                    datetime.now(timezone.utc),
                 )
                 success = result == "UPDATE 1"
                 if success:
@@ -1090,7 +1090,7 @@ class PostgreSQLClient:
             """,
                 alert_id,
                 acknowledged_by,
-                datetime.now(UTC),
+                datetime.now(timezone.utc),
             )
             success = result == "UPDATE 1"
             if success:
@@ -1110,7 +1110,7 @@ class PostgreSQLClient:
                 WHERE alert_id = $1
             """,
                 alert_id,
-                datetime.now(UTC),
+                datetime.now(timezone.utc),
             )
             success = result == "UPDATE 1"
             if success:

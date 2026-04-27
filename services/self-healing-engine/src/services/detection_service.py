@@ -10,7 +10,7 @@ Detecta problemas que requerem remediação automática:
 import asyncio
 import time
 from dataclasses import dataclass, field
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from enum import Enum
 from typing import Any, Optional
 
@@ -103,7 +103,7 @@ class DeadlockStatus:
     has_deadlock: bool
     stuck_duration_seconds: int = 0
     suspected_tickets: list[str] = field(default_factory=list)
-    detected_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    detected_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     metadata: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -129,7 +129,7 @@ class MemoryStatus:
     usage_percent: float
     limit_bytes: int
     duration_above_threshold_seconds: int = 0
-    detected_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    detected_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     container_name: Optional[str] = None
     metadata: dict[str, Any] = field(default_factory=dict)
 
@@ -160,7 +160,7 @@ class PodCrashLoopStatus:
     last_restart_time: Optional[datetime]
     time_since_last_restart_seconds: int = 0
     container_name: Optional[str] = None
-    detected_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    detected_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     metadata: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -328,7 +328,7 @@ class DetectionService:
                     tickets = getattr(response, "tickets", [])
 
                 # Verificar se há progresso recente
-                now = datetime.now(UTC)
+                now = datetime.now(timezone.utc)
                 stuck_duration = 0
                 suspected_tickets = []
 
@@ -496,7 +496,7 @@ class DetectionService:
 
                 if above_threshold:
                     key = f"{namespace}/{pod_name}/{target_container or 'main'}"
-                    now = datetime.now(UTC)
+                    now = datetime.now(timezone.utc)
 
                     if key not in self._memory_history:
                         self._memory_history[key] = []
@@ -708,7 +708,7 @@ class DetectionService:
                                 else:
                                     last_restart_time = finished_at
                                 time_since_restart = int(
-                                    (datetime.now(UTC) - last_restart_time).total_seconds()
+                                    (datetime.now(timezone.utc) - last_restart_time).total_seconds()
                                 )
                             except Exception:
                                 pass
@@ -867,7 +867,7 @@ class DetectionService:
                 "issue_type": None,
                 "severity": None,
                 "details": {},
-                "detected_at": datetime.now(UTC).isoformat(),
+                "detected_at": datetime.now(timezone.utc).isoformat(),
             }
 
             # Simulação de check de database
@@ -906,7 +906,7 @@ class DetectionService:
                 "issue_type": "connection_error",
                 "severity": "high",
                 "error": str(e),
-                "detected_at": datetime.now(UTC).isoformat(),
+                "detected_at": datetime.now(timezone.utc).isoformat(),
             }
 
     async def trigger_remediation(
@@ -1044,7 +1044,7 @@ class DetectionService:
                         trigger = RemediationTrigger(
                             incident_type="deadlock",
                             severity="high",
-                            detected_at=datetime.now(UTC),
+                            detected_at=datetime.now(timezone.utc),
                             workflow_id=workflow_id,
                             metadata={"stuck_duration_seconds": status.stuck_duration_seconds},
                         )
@@ -1061,7 +1061,7 @@ class DetectionService:
                         trigger = RemediationTrigger(
                             incident_type="memory_leak",
                             severity="medium",
-                            detected_at=datetime.now(UTC),
+                            detected_at=datetime.now(timezone.utc),
                             pod_name=pod_name,
                             namespace=namespace,
                         )
@@ -1073,7 +1073,7 @@ class DetectionService:
                         trigger = RemediationTrigger(
                             incident_type="pod_crash_loop",
                             severity="high",
-                            detected_at=datetime.now(UTC),
+                            detected_at=datetime.now(timezone.utc),
                             pod_name=pod_name,
                             namespace=namespace,
                             metadata={

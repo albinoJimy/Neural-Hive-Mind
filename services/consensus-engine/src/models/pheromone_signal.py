@@ -1,5 +1,5 @@
 import uuid
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Optional
 
@@ -69,7 +69,7 @@ class PheromoneSignal(BaseModel):
 
     def calculate_current_strength(self) -> float:
         """Calcula força atual considerando decay temporal"""
-        elapsed_hours = (datetime.now(UTC) - self.created_at).total_seconds() / 3600
+        elapsed_hours = (datetime.now(timezone.utc) - self.created_at).total_seconds() / 3600
         decayed_strength = self.strength * ((1 - self.decay_rate) ** elapsed_hours)
         return max(0.0, decayed_strength)
 

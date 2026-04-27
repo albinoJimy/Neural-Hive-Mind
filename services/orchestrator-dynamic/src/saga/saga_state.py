@@ -112,12 +112,12 @@ class SagaStep(BaseModel):
     def mark_started(self) -> None:
         """Marca step como iniciado."""
         self.status = StepStatus.IN_PROGRESS
-        self.started_at = int(datetime.now(UTC).timestamp() * 1000)
+        self.started_at = int(datetime.now(timezone.utc).timestamp() * 1000)
 
     def mark_completed(self, result: dict[str, Any] | None = None) -> None:
         """Marca step como completado com sucesso."""
         self.status = StepStatus.COMPLETED
-        self.completed_at = int(datetime.now(UTC).timestamp() * 1000)
+        self.completed_at = int(datetime.now(timezone.utc).timestamp() * 1000)
         if result is not None:
             self.result = result
 
@@ -125,7 +125,7 @@ class SagaStep(BaseModel):
         """Marca step como falhado."""
         self.status = StepStatus.FAILED
         self.error = error
-        self.completed_at = int(datetime.now(UTC).timestamp() * 1000)
+        self.completed_at = int(datetime.now(timezone.utc).timestamp() * 1000)
 
     def mark_compensating(self) -> None:
         """Marca step como em compensacao."""
@@ -134,7 +134,7 @@ class SagaStep(BaseModel):
     def mark_compensated(self, compensation_result: dict[str, Any] | None = None) -> None:
         """Marca step como compensado."""
         self.status = StepStatus.COMPENSATED
-        self.compensated_at = int(datetime.now(UTC).timestamp() * 1000)
+        self.compensated_at = int(datetime.now(timezone.utc).timestamp() * 1000)
         if compensation_result is not None:
             self.compensation_result = compensation_result
 
@@ -268,6 +268,6 @@ class SagaEvent(BaseModel):
             event_id=str(uuid4()),
             saga_id=saga_id,
             event_type=event_type,
-            timestamp=int(datetime.now(UTC).timestamp() * 1000),
+            timestamp=int(datetime.now(timezone.utc).timestamp() * 1000),
             data=data or {},
         )

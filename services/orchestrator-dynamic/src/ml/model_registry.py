@@ -220,7 +220,7 @@ class ModelRegistry:
             cache_key = f"{model_name}_{stage}_{version}"
             if cache_key in self._model_cache:
                 cached_model, loaded_at = self._model_cache[cache_key]
-                elapsed = datetime.now(UTC).timestamp() - loaded_at
+                elapsed = datetime.now(timezone.utc).timestamp() - loaded_at
 
                 if elapsed < self.cache_ttl_seconds:
                     self.logger.debug(
@@ -237,7 +237,7 @@ class ModelRegistry:
                 # Executa carregamento em thread separada
                 model = await asyncio.to_thread(mlflow.sklearn.load_model, model_uri)
                 # Armazena com timestamp
-                self._model_cache[cache_key] = (model, datetime.now(UTC).timestamp())
+                self._model_cache[cache_key] = (model, datetime.now(timezone.utc).timestamp())
                 self.logger.info("model_loaded", model_name=model_name, stage=stage)
                 return model
             except Exception:
@@ -263,7 +263,7 @@ class ModelRegistry:
                 model = await asyncio.to_thread(mlflow.sklearn.load_model, model_uri)
 
                 # Armazena com timestamp
-                self._model_cache[cache_key] = (model, datetime.now(UTC).timestamp())
+                self._model_cache[cache_key] = (model, datetime.now(timezone.utc).timestamp())
                 self.logger.info(
                     "model_loaded", model_name=model_name, version=latest_version.version
                 )
@@ -775,7 +775,7 @@ class ModelRegistry:
                 "previous_version": current_prod.version,
                 "new_version": target.version,
                 "reason": reason,
-                "timestamp": datetime.now(UTC).isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
             }
 
             self.logger.warning("model_rollback_executed", **rollback_info)

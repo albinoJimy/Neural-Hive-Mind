@@ -5,7 +5,7 @@ Verifica operacoes CRUD de historico de mudancas de senioridade.
 """
 
 import sys
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
@@ -162,13 +162,13 @@ class TestSeniorityHistoryRepository:
                 "_id": "doc_1",
                 "specialist_id": "business_analyst",
                 "new_level": "senior",
-                "changed_at": datetime.now(UTC),
+                "changed_at": datetime.now(timezone.utc),
             },
             {
                 "_id": "doc_2",
                 "specialist_id": "business_analyst",
                 "new_level": "expert",
-                "changed_at": datetime.now(UTC),
+                "changed_at": datetime.now(timezone.utc),
             },
         ]
 
@@ -211,7 +211,7 @@ class TestSeniorityHistoryRepository:
                 "_id": "doc_1",
                 "specialist_id": "spec_1",
                 "new_level": "senior",
-                "changed_at": datetime.now(UTC),
+                "changed_at": datetime.now(timezone.utc),
             }
         ]
 
@@ -236,13 +236,13 @@ class TestSeniorityHistoryRepository:
                 "_id": "doc_1",
                 "specialist_id": "spec_1",
                 "new_level": "senior",
-                "changed_at": datetime.now(UTC),
+                "changed_at": datetime.now(timezone.utc),
             },
             {
                 "_id": "doc_2",
                 "specialist_id": "spec_2",
                 "new_level": "expert",
-                "changed_at": datetime.now(UTC),
+                "changed_at": datetime.now(timezone.utc),
             },
         ]
 
@@ -274,7 +274,7 @@ class TestSeniorityHistoryRepository:
                 "domain": "BUSINESS",
                 "specialist_id": "spec_1",
                 "new_level": "senior",
-                "changed_at": datetime.now(UTC),
+                "changed_at": datetime.now(timezone.utc),
             }
         ]
 

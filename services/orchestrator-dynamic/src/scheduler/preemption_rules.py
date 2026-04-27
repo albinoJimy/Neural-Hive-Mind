@@ -195,7 +195,7 @@ class PreemptionRules:
         if started_at and timeout_ms:
             from datetime import datetime
 
-            now_ms = int(datetime.now(UTC).timestamp() * 1000)
+            now_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
             elapsed_ms = now_ms - started_at
             return min(elapsed_ms / timeout_ms, 1.0)
 

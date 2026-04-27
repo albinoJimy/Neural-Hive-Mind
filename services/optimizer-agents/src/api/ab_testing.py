@@ -4,7 +4,7 @@ API Endpoints para A/B Testing.
 Fornece endpoints REST para criar, gerenciar e analisar testes A/B.
 """
 
-from datetime import UTC
+from datetime import timezone
 
 UTC = UTC  # type: ignore
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -258,7 +258,7 @@ async def assign_to_group(
             entity_id=request.entity_id,
             experiment_id=experiment_id,
             group=group,
-            assigned_at=datetime.now(UTC).isoformat(),
+            assigned_at=datetime.now(timezone.utc).isoformat(),
         )
 
     except ValueError as e:

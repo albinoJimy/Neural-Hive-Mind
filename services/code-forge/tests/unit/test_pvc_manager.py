@@ -4,7 +4,7 @@ Testes unitários para PVCManager.
 Testes para gerenciamento de PVCs em builds Kaniko com contextos grandes.
 """
 
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
@@ -422,13 +422,13 @@ class TestCleanupAllBuildPVCs:
         old_pvc = Mock()
         old_pvc.metadata = Mock()
         old_pvc.metadata.name = "old-pvc"
-        old_pvc.metadata.creation_timestamp = datetime.now(UTC) - timedelta(hours=25)
+        old_pvc.metadata.creation_timestamp = datetime.now(timezone.utc) - timedelta(hours=25)
         old_pvc.metadata.labels = {"app": "kaniko", "temporary": "true"}
 
         new_pvc = Mock()
         new_pvc.metadata = Mock()
         new_pvc.metadata.name = "new-pvc"
-        new_pvc.metadata.creation_timestamp = datetime.now(UTC) - timedelta(hours=1)
+        new_pvc.metadata.creation_timestamp = datetime.now(timezone.utc) - timedelta(hours=1)
         new_pvc.metadata.labels = {"app": "kaniko", "temporary": "true"}
 
         mock_list = Mock()
@@ -447,7 +447,7 @@ class TestCleanupAllBuildPVCs:
         new_pvc = Mock()
         new_pvc.metadata = Mock()
         new_pvc.metadata.name = "new-pvc"
-        new_pvc.metadata.creation_timestamp = datetime.now(UTC) - timedelta(hours=1)
+        new_pvc.metadata.creation_timestamp = datetime.now(timezone.utc) - timedelta(hours=1)
         new_pvc.metadata.labels = {"app": "kaniko", "temporary": "true"}
 
         mock_list = Mock()
@@ -467,13 +467,13 @@ class TestCleanupAllBuildPVCs:
         old_pvc1 = Mock()
         old_pvc1.metadata = Mock()
         old_pvc1.metadata.name = "old-pvc-1"
-        old_pvc1.metadata.creation_timestamp = datetime.now(UTC) - timedelta(hours=25)
+        old_pvc1.metadata.creation_timestamp = datetime.now(timezone.utc) - timedelta(hours=25)
         old_pvc1.metadata.labels = {"app": "kaniko", "temporary": "true"}
 
         old_pvc2 = Mock()
         old_pvc2.metadata = Mock()
         old_pvc2.metadata.name = "old-pvc-2"
-        old_pvc2.metadata.creation_timestamp = datetime.now(UTC) - timedelta(hours=25)
+        old_pvc2.metadata.creation_timestamp = datetime.now(timezone.utc) - timedelta(hours=25)
         old_pvc2.metadata.labels = {"app": "kaniko", "temporary": "true"}
 
         mock_list = Mock()

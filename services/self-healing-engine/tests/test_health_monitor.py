@@ -7,7 +7,7 @@ Este módulo testa a detecção automática de problemas nos serviços:
 - check_database_connection: Verifica conectividade com banco de dados
 """
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -146,7 +146,7 @@ class TestHealthMonitor:
     def test_health_status_model(self):
         """Testa o modelo HealthStatus."""
         status = HealthStatus(
-            service_name="test-service", healthy=True, checked_at=datetime.now(UTC)
+            service_name="test-service", healthy=True, checked_at=datetime.now(timezone.utc)
         )
         assert status.service_name == "test-service"
         assert status.healthy is True

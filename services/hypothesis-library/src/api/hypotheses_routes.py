@@ -1,6 +1,6 @@
 """Rotas da API para hipóteses."""
 
-from datetime import UTC
+from datetime import timezone
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status

@@ -4,7 +4,7 @@ Conftest para testes do Analyst Agents.
 
 import os
 import sys
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from unittest.mock import MagicMock
 
 import pytest
@@ -283,8 +283,8 @@ async def insight_repository(mongodb_client, test_database):
             doc = insight.model_dump() if hasattr(insight, "model_dump") else insight.dict()
             doc["insight_id"] = str(uuid.uuid4())
             doc["status"] = InsightStatus.PENDING.value
-            doc["created_at"] = datetime.now(UTC)
-            doc["expires_at"] = datetime.now(UTC) + timedelta(days=90)
+            doc["created_at"] = datetime.now(timezone.utc)
+            doc["expires_at"] = datetime.now(timezone.utc) + timedelta(days=90)
             doc["metrics"] = InsightMetrics(
                 processing_time_ms=0, confidence_score=0.0, data_points=0
             ).model_dump()
@@ -357,8 +357,8 @@ async def insight_repository(mongodb_client, test_database):
                 "metric_name": metric_name,
                 "data": copy.copy(data),
                 "statistics": copy.copy(statistics),
-                "created_at": datetime.now(UTC),
-                "expires_at": datetime.now(UTC) + timedelta(hours=24),
+                "created_at": datetime.now(timezone.utc),
+                "expires_at": datetime.now(timezone.utc) + timedelta(hours=24),
             }
             self.storage["cache"][cache_key] = doc
             from src.models.insight_extended import TimeSeriesCacheEntry
@@ -423,7 +423,7 @@ def sample_insight_create():
 @pytest.fixture()
 def sample_timeseries_data():
     """Dados de série temporal de exemplo."""
-    base_time = datetime.now(UTC) - timedelta(hours=1)
+    base_time = datetime.now(timezone.utc) - timedelta(hours=1)
     return [(base_time + timedelta(minutes=i * 5), 50.0 + i * 0.5) for i in range(12)]
 
 
@@ -433,7 +433,7 @@ def sample_timeseries_with_anomalies():
     import random
 
     random.seed(42)
-    base_time = datetime.now(UTC) - timedelta(hours=1)
+    base_time = datetime.now(timezone.utc) - timedelta(hours=1)
     data = []
     for i in range(20):
         value = random.gauss(50, 5)

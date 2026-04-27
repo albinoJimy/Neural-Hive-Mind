@@ -4,7 +4,7 @@ Testes de integração para fluxo de aprovação end-to-end
 Valida o fluxo completo de detecção destrutiva -> avaliação de risco -> roteamento condicional.
 """
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -431,7 +431,7 @@ class TestApprovalResponseFlowIntegration:
             "plan_id": "plan-e2e-001",
             "intent_id": "intent-e2e-001",
             "version": "1.0.0",
-            "timestamp": datetime.now(UTC),
+            "timestamp": datetime.now(timezone.utc),
             "plan_data": {
                 "plan_id": "plan-e2e-001",
                 "intent_id": "intent-e2e-001",
@@ -493,7 +493,7 @@ class TestApprovalResponseFlowIntegration:
             "intent_id": "intent-e2e-001",
             "decision": "approved",
             "approved_by": "security-admin@company.com",
-            "approved_at": int(datetime.now(UTC).timestamp() * 1000),
+            "approved_at": int(datetime.now(timezone.utc).timestamp() * 1000),
             "rejection_reason": None,
         }
 
@@ -551,7 +551,7 @@ class TestApprovalResponseFlowIntegration:
             "intent_id": "intent-e2e-001",
             "decision": "rejected",
             "approved_by": "security-admin@company.com",
-            "approved_at": int(datetime.now(UTC).timestamp() * 1000),
+            "approved_at": int(datetime.now(timezone.utc).timestamp() * 1000),
             "rejection_reason": "Operação de delete em produção requer análise adicional do DBA",
         }
 
@@ -607,7 +607,7 @@ class TestApprovalResponseFlowIntegration:
             "intent_id": "intent-e2e-001",
             "decision": "approved",
             "approved_by": "admin",
-            "approved_at": int(datetime.now(UTC).timestamp() * 1000),
+            "approved_at": int(datetime.now(timezone.utc).timestamp() * 1000),
         }
 
         mock_msg = MagicMock()
@@ -667,7 +667,7 @@ class TestApprovalResponseConsumerResilience:
             "intent_id": "intent-fail",
             "decision": "approved",
             "approved_by": "admin",
-            "approved_at": int(datetime.now(UTC).timestamp() * 1000),
+            "approved_at": int(datetime.now(timezone.utc).timestamp() * 1000),
         }
 
         # Deve propagar exceção para retry do consumer
@@ -685,7 +685,7 @@ class TestApprovalResponseConsumerResilience:
         # Ledger entry com plan_data malformado
         malformed_entry = {
             "plan_id": "plan-malformed",
-            "timestamp": datetime.now(UTC),
+            "timestamp": datetime.now(timezone.utc),
             "plan_data": {
                 "approval_status": "pending",
                 "risk_band": "high",
@@ -714,7 +714,7 @@ class TestApprovalResponseConsumerResilience:
             "intent_id": "intent-x",
             "decision": "approved",
             "approved_by": "admin",
-            "approved_at": int(datetime.now(UTC).timestamp() * 1000),
+            "approved_at": int(datetime.now(timezone.utc).timestamp() * 1000),
         }
 
         # Deve propagar erro de reconstrução do plano

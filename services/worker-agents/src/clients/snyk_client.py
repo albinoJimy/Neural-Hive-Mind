@@ -9,7 +9,7 @@ Supports:
 
 import os
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any
 
@@ -146,7 +146,7 @@ class SnykClient:
         Returns:
             SnykReport with scan results
         """
-        start_time = datetime.now(UTC)
+        start_time = datetime.now(timezone.utc)
         logs = []
 
         try:
@@ -200,7 +200,7 @@ class SnykClient:
                 )
                 vulnerabilities.append(vuln)
 
-            duration = (datetime.now(UTC) - start_time).total_seconds()
+            duration = (datetime.now(timezone.utc) - start_time).total_seconds()
             passed = len(vulnerabilities) == 0
 
             logs.append(f"Scanned {len(vulnerabilities)} vulnerabilities")
@@ -222,7 +222,7 @@ class SnykClient:
             )
 
         except httpx.HTTPStatusError as e:
-            duration = (datetime.now(UTC) - start_time).total_seconds()
+            duration = (datetime.now(timezone.utc) - start_time).total_seconds()
             error_msg = f"Snyk API error: {e.response.status_code}"
             try:
                 error_detail = e.response.json()
@@ -240,7 +240,7 @@ class SnykClient:
             )
 
         except Exception as e:
-            duration = (datetime.now(UTC) - start_time).total_seconds()
+            duration = (datetime.now(timezone.utc) - start_time).total_seconds()
             self.logger.exception("snyk_test_exception")
             return SnykReport(
                 passed=False,
@@ -265,7 +265,7 @@ class SnykClient:
         Returns:
             SnykReport with scan results
         """
-        start_time = datetime.now(UTC)
+        start_time = datetime.now(timezone.utc)
         logs = []
 
         try:
@@ -300,7 +300,7 @@ class SnykClient:
                     )
                     vulnerabilities.append(vuln)
 
-            duration = (datetime.now(UTC) - start_time).total_seconds()
+            duration = (datetime.now(timezone.utc) - start_time).total_seconds()
             passed = len(vulnerabilities) == 0
 
             logs.append(f"Scanned image {image}")
@@ -323,7 +323,7 @@ class SnykClient:
             )
 
         except httpx.HTTPStatusError as e:
-            duration = (datetime.now(UTC) - start_time).total_seconds()
+            duration = (datetime.now(timezone.utc) - start_time).total_seconds()
             error_msg = f"Snyk API error: {e.response.status_code}"
             self.logger.error("snyk_container_test_failed", error=error_msg)
             return SnykReport(
@@ -335,7 +335,7 @@ class SnykClient:
             )
 
         except Exception as e:
-            duration = (datetime.now(UTC) - start_time).total_seconds()
+            duration = (datetime.now(timezone.utc) - start_time).total_seconds()
             self.logger.exception("snyk_container_test_exception")
             return SnykReport(
                 passed=False,

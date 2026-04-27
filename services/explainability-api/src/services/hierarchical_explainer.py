@@ -8,7 +8,7 @@ Explainability API v3 - Task 3
 
 import hashlib
 import json
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from typing import Any, Optional
 
 import structlog
@@ -31,11 +31,11 @@ class CacheEntry:
             ttl_seconds: Time-to-live em segundos (default: 5 minutos)
         """
         self.value = value
-        self.expires_at = datetime.now(UTC) + timedelta(seconds=ttl_seconds)
+        self.expires_at = datetime.now(timezone.utc) + timedelta(seconds=ttl_seconds)
 
     def is_expired(self) -> bool:
         """Verifica se a entrada expirou."""
-        return datetime.now(UTC) > self.expires_at
+        return datetime.now(timezone.utc) > self.expires_at
 
 
 class HierarchicalExplainer:

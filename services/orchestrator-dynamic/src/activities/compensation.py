@@ -190,7 +190,7 @@ async def compensate_ticket(
             "compensation_ticket_id": None,  # E o ticket de compensacao
             "original_ticket_id": ticket_id,
             "sla": {"timeout_ms": 120000, "deadline": None},  # 2 minutos para compensacao
-            "created_at": int(datetime.now(UTC).timestamp() * 1000),
+            "created_at": int(datetime.now(timezone.utc).timestamp() * 1000),
             "metadata": {
                 "compensation_reason": reason,
                 "original_task_type": task_type,

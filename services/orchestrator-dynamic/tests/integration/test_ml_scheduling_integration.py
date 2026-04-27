@@ -37,9 +37,9 @@ def mongodb_client_with_data():
 
     # Dados de completions
     completions = [
-        {"actual_duration_ms": 2000.0, "completed_at": datetime.now(UTC)},
-        {"actual_duration_ms": 2500.0, "completed_at": datetime.now(UTC)},
-        {"actual_duration_ms": 3000.0, "completed_at": datetime.now(UTC)},
+        {"actual_duration_ms": 2000.0, "completed_at": datetime.now(timezone.utc)},
+        {"actual_duration_ms": 2500.0, "completed_at": datetime.now(timezone.utc)},
+        {"actual_duration_ms": 3000.0, "completed_at": datetime.now(timezone.utc)},
     ]
 
     # Collection mockada

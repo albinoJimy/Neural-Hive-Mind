@@ -1,7 +1,7 @@
 """Cliente para publicação de feromônios digitais"""
 
 import json
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 import redis.asyncio as redis
@@ -74,8 +74,8 @@ class PheromoneClient:
                 "signal_type": signal.signal_type.value,
                 "intensity": initial_intensity,
                 "decay_rate": self.decay_rate,
-                "created_at": datetime.now(UTC).isoformat(),
-                "updated_at": datetime.now(UTC).isoformat(),
+                "created_at": datetime.now(timezone.utc).isoformat(),
+                "updated_at": datetime.now(timezone.utc).isoformat(),
                 "metadata": {
                     "curiosity_score": signal.curiosity_score,
                     "confidence": signal.confidence,
@@ -145,7 +145,7 @@ class PheromoneClient:
 
             # Calcula decay baseado no tempo decorrido
             created_at = datetime.fromisoformat(data["created_at"])
-            elapsed_hours = (datetime.now(UTC) - created_at).total_seconds() / 3600
+            elapsed_hours = (datetime.now(timezone.utc) - created_at).total_seconds() / 3600
 
             # Aplicar decay exponencial
             initial_intensity = data["intensity"]

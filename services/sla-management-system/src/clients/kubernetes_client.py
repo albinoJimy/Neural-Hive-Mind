@@ -1,6 +1,6 @@
 """Cliente Kubernetes para SLA Management System."""
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 import structlog
@@ -198,7 +198,7 @@ class KubernetesClient:
                 # Preparar patch de status
                 current_status = current.get("status", {})
                 current_status.update(status)
-                current_status["lastSyncTime"] = datetime.now(UTC).isoformat()
+                current_status["lastSyncTime"] = datetime.now(timezone.utc).isoformat()
 
                 patch = {"status": current_status}
 

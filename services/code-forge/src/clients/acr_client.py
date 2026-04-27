@@ -9,7 +9,7 @@ Suporta:
 """
 
 import logging
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 UTC = UTC  # type: ignore, timedelta
 
@@ -41,11 +41,11 @@ class ACRToken:
 
     def is_expired(self) -> bool:
         """Verifica se o token está expirado."""
-        return datetime.now(UTC) >= self.expires_at
+        return datetime.now(timezone.utc) >= self.expires_at
 
     def should_refresh(self, ttl_seconds: int) -> bool:
         """Verifica se o token deve ser renovado baseado no TTL."""
-        age = (datetime.now(UTC) - self.obtained_at).total_seconds()
+        age = (datetime.now(timezone.utc) - self.obtained_at).total_seconds()
         return age >= ttl_seconds
 
     def get_credentials(self) -> str:
@@ -247,8 +247,8 @@ class ACRClient:
 
         # Calcular expiração (tokens ACR expire, mas vamos usar um TTL conservador)
         # Tokens do Azure AD typically expiram em 1 hora
-        expires_at = datetime.now(UTC) + timedelta(minutes=50)  # Margem de segurança
-        obtained_at = datetime.now(UTC)
+        expires_at = datetime.now(timezone.utc) + timedelta(minutes=50)  # Margem de segurança
+        obtained_at = datetime.now(timezone.utc)
 
         token = ACRToken(
             access_token=access_token,

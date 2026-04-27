@@ -2,7 +2,7 @@
 
 import os
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 import structlog
@@ -160,10 +160,10 @@ async def generate_document_task(
         document.recommendations = recommendations
         document.plots = plots
         document.period_start = request.period_start or min(
-            (r.start_time for r in runs if r.start_time), default=datetime.utcnow()
+            (r.start_time for r in runs if r.start_time), default=datetime.now(timezone.utc)
         )
-        document.period_end = request.period_end or datetime.utcnow()
-        document.generated_at = datetime.utcnow()
+        document.period_end = request.period_end or datetime.now(timezone.utc)
+        document.generated_at = datetime.now(timezone.utc)
 
         # Gerar Markdown
         markdown_content = await state.report_generator.generate(document)

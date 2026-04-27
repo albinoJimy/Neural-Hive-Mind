@@ -9,7 +9,7 @@ Cobre:
 - Rollback de experimentos
 """
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
@@ -58,7 +58,7 @@ def mock_mongodb_client():
     client.update_experiment_status = AsyncMock(return_value=True)
 
     # Criar um dict compatível com ExperimentRequest
-    now_millis = int(datetime.now(UTC).timestamp() * 1000)
+    now_millis = int(datetime.now(timezone.utc).timestamp() * 1000)
     experiment_doc = {
         "experiment_id": "exp-123",
         "version": "1.0.0",

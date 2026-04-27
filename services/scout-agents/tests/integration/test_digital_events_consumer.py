@@ -6,7 +6,7 @@ Epic: CR-02 Implementar Scout Consumer Completo
 """
 
 import json
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
@@ -25,7 +25,7 @@ class TestDigitalEventModel:
             channel=DigitalChannel.WEB,
             user_id="user-123",
             session_id="session-456",
-            timestamp=datetime.now(UTC),
+            timestamp=datetime.now(timezone.utc),
             payload={"url": "/home", "referrer": "google"},
             metadata={"ip": "192.168.1.1"},
         )

@@ -296,7 +296,7 @@ class StrategicDecisionConsumer:
                 updates={
                     "escalated": True,
                     "escalation_reason": escalation_reason,
-                    "escalated_at": datetime.now(UTC).isoformat(),
+                    "escalated_at": datetime.now(timezone.utc).isoformat(),
                 },
             )
             logger.info("plano_escalado", plan_id=plan_id, reason=escalation_reason)
@@ -324,7 +324,7 @@ class StrategicDecisionConsumer:
                 plan_id=plan_id,
                 updates={
                     "status": "CANCELLED",
-                    "cancelled_at": datetime.now(UTC).isoformat(),
+                    "cancelled_at": datetime.now(timezone.utc).isoformat(),
                     "cancellation_reason": decision.get("parameters", {}).get(
                         "reason", "Strategic decision"
                     ),
@@ -382,7 +382,7 @@ class StrategicDecisionConsumer:
 
         try:
             # Adicionar timestamp de recebimento
-            decision["received_at"] = datetime.now(UTC).isoformat()
+            decision["received_at"] = datetime.now(timezone.utc).isoformat()
             decision["consumer"] = "orchestrator-dynamic"
 
             # Armazenar na coleção de decisões estratégicas

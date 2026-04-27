@@ -1,7 +1,7 @@
 """MongoDB client for tool catalog persistence."""
 
 import asyncio
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 import structlog
@@ -203,7 +203,7 @@ class MongoDBClient:
             {
                 "$set": {
                     "reputation_score": updated_reputation,
-                    "updated_at": int(datetime.now(UTC).timestamp() * 1000),
+                    "updated_at": int(datetime.now(timezone.utc).timestamp() * 1000),
                 }
             },
         )
@@ -237,7 +237,7 @@ class MongoDBClient:
             "total_fitness_score": response.get("total_fitness_score"),
             "selection_method": response.get("selection_method"),
             "cached": response.get("cached", False),
-            "created_at": int(datetime.now(UTC).timestamp() * 1000),
+            "created_at": int(datetime.now(timezone.utc).timestamp() * 1000),
         }
 
         result = await self.db.selections_history.insert_one(history_entry)

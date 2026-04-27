@@ -1,6 +1,6 @@
 """MongoDB client for Experiment Impact Analyzer."""
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Any
 
 import structlog
@@ -141,7 +141,7 @@ class MongoDBClient:
         db = self.get_database()
         collection = db[self.settings.mongodb_impacts_collection]
 
-        updates["updated_at"] = updates.get("updated_at", datetime.now(UTC))
+        updates["updated_at"] = updates.get("updated_at", datetime.now(timezone.utc))
 
         result = await collection.update_one({"impact_id": impact_id}, {"$set": updates})
         return result.modified_count > 0

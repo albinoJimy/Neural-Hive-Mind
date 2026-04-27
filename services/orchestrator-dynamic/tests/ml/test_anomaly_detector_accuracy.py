@@ -98,7 +98,7 @@ class TestAnomalyDetectorAccuracy:
                     "actual_duration_ms": duration,
                     "estimated_duration_ms": duration * np.random.uniform(0.8, 1.2),
                     "status": "COMPLETED",
-                    "created_at": datetime.now(UTC) - timedelta(days=np.random.randint(1, 30)),
+                    "created_at": datetime.now(timezone.utc) - timedelta(days=np.random.randint(1, 30)),
                     "retry_count": np.random.choice([0, 0, 0, 1]),  # Maioria sem retry
                     "required_capabilities": ["cpu"][: np.random.randint(1, 3)],
                     "parameters": {},
@@ -126,7 +126,7 @@ class TestAnomalyDetectorAccuracy:
                 "task_type": task_type,
                 "risk_band": risk_band,
                 "status": "COMPLETED" if np.random.random() > 0.3 else "FAILED",
-                "created_at": datetime.now(UTC) - timedelta(days=np.random.randint(1, 30)),
+                "created_at": datetime.now(timezone.utc) - timedelta(days=np.random.randint(1, 30)),
                 "parameters": {},
                 "sla_timeout_ms": 300000,
                 "resource_cpu": 0.5,

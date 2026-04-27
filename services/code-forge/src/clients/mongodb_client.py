@@ -5,7 +5,7 @@ Fornece interface assíncrona ao MongoDB via Motor para armazenamento de artefat
 """
 
 import time
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any, Optional
 
 import structlog
@@ -119,7 +119,7 @@ class MongoDBClient:
             document = {
                 "artifact_id": artifact_id,
                 "content": content,
-                "created_at": datetime.now(UTC),
+                "created_at": datetime.now(timezone.utc),
             }
 
             if metadata:
@@ -145,7 +145,7 @@ class MongoDBClient:
             # Fallback para update se houver race condition
             await self.db.artifacts.update_one(
                 {"artifact_id": artifact_id},
-                {"$set": {"content": content, "updated_at": datetime.now(UTC)}},
+                {"$set": {"content": content, "updated_at": datetime.now(timezone.utc)}},
             )
             logger.info("artifact_content_updated", artifact_id=artifact_id)
 
@@ -342,7 +342,7 @@ class MongoDBClient:
             document = {
                 "pipeline_id": pipeline_id,
                 "logs": logs,
-                "created_at": datetime.now(UTC),
+                "created_at": datetime.now(timezone.utc),
             }
 
             await self.db.pipeline_logs.insert_one(document)
@@ -406,13 +406,13 @@ class MongoDBClient:
             raise RuntimeError("MongoDB client not started")
 
         try:
-            log_entry["timestamp"] = datetime.now(UTC)
+            log_entry["timestamp"] = datetime.now(timezone.utc)
 
             await self.db.pipeline_logs.update_one(
                 {"pipeline_id": pipeline_id},
                 {
                     "$push": {"logs": log_entry},
-                    "$setOnInsert": {"created_at": datetime.now(UTC)},
+                    "$setOnInsert": {"created_at": datetime.now(timezone.utc)},
                 },
                 upsert=True,
             )

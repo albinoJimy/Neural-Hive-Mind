@@ -6,7 +6,7 @@ sem depender de credenciais reais.
 """
 
 import base64
-from datetime import UTC
+from datetime import timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -270,8 +270,8 @@ class TestSecurityE2E:
                 username="AWS",
                 password="secret-password-123",
                 endpoint="123.dkr.ecr.amazonaws.com",
-                expires_at=datetime.now(UTC) + timedelta(hours=1),
-                obtained_at=datetime.now(UTC),
+                expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
+                obtained_at=datetime.now(timezone.utc),
             )
 
             # Verificar que password não aparece nos logs

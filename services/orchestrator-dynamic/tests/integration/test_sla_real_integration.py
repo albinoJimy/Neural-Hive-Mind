@@ -246,7 +246,7 @@ async def test_deadline_check_with_real_tickets(
     try:
         # Criar tickets de teste com deadlines realistas
         # Timestamps em milissegundos (epoch ms) conforme esperado pelo SLAMonitor
-        now_ms = int(datetime.now(UTC).timestamp() * 1000)
+        now_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
 
         # Ticket normal: criado agora, deadline em 5 min (~20% consumido considerando timeout)
         # Ticket crítico: criado há 2 min, deadline em 30s (~80%+ consumido)
@@ -383,7 +383,7 @@ async def test_publish_real_violation_to_kafka(
             "violation_id": str(uuid.uuid4()),
             "violation_type": "DEADLINE_EXCEEDED",
             "severity": "CRITICAL",
-            "timestamp": datetime.now(UTC).isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "ticket_id": f"test-ticket-{uuid.uuid4().hex[:8]}",
             "workflow_id": f"test-workflow-{uuid.uuid4().hex[:8]}",
             "delay_ms": 5000,
@@ -575,7 +575,7 @@ async def test_end_to_end_sla_monitoring_flow(
     try:
         workflow_id = f"test-e2e-{uuid.uuid4().hex[:8]}"
         # Timestamps em milissegundos (epoch ms) conforme esperado pelo SLAMonitor
-        now_ms = int(datetime.now(UTC).timestamp() * 1000)
+        now_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
 
         # Criar tickets realistas com estrutura wrapper correta
         ticket_id_1 = f"ticket-e2e-1-{uuid.uuid4().hex[:8]}"
@@ -657,7 +657,7 @@ async def test_end_to_end_sla_monitoring_flow(
                     "violation_id": str(uuid.uuid4()),
                     "violation_type": "DEADLINE_EXCEEDED",
                     "severity": "CRITICAL",
-                    "timestamp": datetime.now(UTC).isoformat(),
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
                     "ticket_id": ticket.get("ticket_id"),
                     "workflow_id": workflow_id,
                     "delay_ms": abs(deadline_check.get("remaining_seconds", 0) * 1000),
@@ -715,7 +715,7 @@ async def test_sla_monitoring_under_load(
     try:
         num_workflows = 100
         tickets_per_workflow = 5
-        now = datetime.now(UTC)
+        now = datetime.now(timezone.utc)
 
         # Criar workflows de teste
         workflows = []
@@ -777,7 +777,7 @@ async def test_threshold_validation_accuracy(
     await sla_monitor.initialize()
 
     try:
-        now = datetime.now(UTC)
+        now = datetime.now(timezone.utc)
 
         # Teste 1: Deadline exatamente em ~80% consumido
         # Criado há 80s, deadline em 100s total => 80% consumido

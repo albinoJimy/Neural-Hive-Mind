@@ -7,7 +7,7 @@ Baseado no padrão S3StorageClient do módulo de disaster recovery.
 import hashlib
 import os
 import time
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Optional
 
 import structlog
@@ -173,7 +173,7 @@ class S3ArtifactClient:
                 ExtraArgs={
                     "ServerSideEncryption": "AES256",
                     "Metadata": {
-                        "uploaded_at": datetime.now(UTC).isoformat(),
+                        "uploaded_at": datetime.now(timezone.utc).isoformat(),
                         "source": "code-forge",
                         "ticket_id": ticket_id,
                         "artifact_id": artifact_id,

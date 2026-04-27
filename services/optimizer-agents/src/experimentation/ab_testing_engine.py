@@ -11,7 +11,7 @@ Coordena toda a logica de testes A/B, incluindo:
 
 import uuid
 from dataclasses import asdict, dataclass
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 UTC = UTC  # type: ignore
 from typing import Any
@@ -159,7 +159,7 @@ class ABTestingEngine:
             Configuracao do teste criado
         """
         experiment_id = str(uuid.uuid4())
-        now = datetime.now(UTC)
+        now = datetime.now(timezone.utc)
 
         config = ABTestConfig(
             experiment_id=experiment_id,
@@ -485,7 +485,7 @@ class ABTestingEngine:
             confidence_level=confidence,
             early_stopped=early_stopped,
             early_stop_reason=early_stop_reason,
-            analysis_timestamp=datetime.now(UTC),
+            analysis_timestamp=datetime.now(timezone.utc),
         )
 
         # Persistir resultados no MongoDB
@@ -695,7 +695,7 @@ class ABTestingEngine:
                 maximum_duration_seconds=doc.get("maximum_duration_seconds", 604800),
                 early_stopping_enabled=doc.get("early_stopping_enabled", True),
                 bayesian_analysis_enabled=doc.get("bayesian_analysis_enabled", True),
-                created_at=doc.get("created_at", datetime.now(UTC)),
+                created_at=doc.get("created_at", datetime.now(timezone.utc)),
                 created_by=doc.get("created_by", ""),
                 status=doc.get("status", "running"),
                 metadata=doc.get("metadata", {}),

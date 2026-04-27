@@ -6,7 +6,7 @@ Espec: @.agent-os/specs/2026-03-17-gaps-05-scout-agents/
 """
 
 import asyncio
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from unittest.mock import AsyncMock
 
 import pytest
@@ -295,7 +295,7 @@ class TestGetExplorationStatus:
     async def test_get_status_returns_running_exploration(self, orchestrator):
         """Testa consulta de exploração em andamento."""
         orchestrator.active_explorations = {
-            "scout-exp-1": {"status": "running", "started_at": datetime.now(UTC)}
+            "scout-exp-1": {"status": "running", "started_at": datetime.now(timezone.utc)}
         }
 
         status = await orchestrator.get_exploration_status("scout-exp-1")

@@ -2,7 +2,7 @@
 
 import os
 import sys
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -48,7 +48,7 @@ def sample_pipeline_result():
         pipeline_stages=[],
         total_duration_ms=5000,
         approval_required=False,
-        created_at=datetime.now(UTC),
+        created_at=datetime.now(timezone.utc),
     )
 
 
@@ -161,7 +161,7 @@ async def test_get_pipeline_found(mock_engine, mock_session):
     mock_orm.error_message = None
     mock_orm.git_mr_url = None
     mock_orm.metadata = {}
-    mock_orm.created_at = datetime.now(UTC)
+    mock_orm.created_at = datetime.now(timezone.utc)
     mock_orm.completed_at = None
     mock_orm.schema_version = 1
     mock_orm.correlation_id = None

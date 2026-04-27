@@ -1,6 +1,6 @@
 """Modelo para eventos de canais digitais."""
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Optional, Union
 
@@ -45,7 +45,7 @@ class DigitalEvent(BaseModel):
     user_id: Optional[str] = Field(None, description="User identifier")
     session_id: Optional[str] = Field(None, description="Session identifier")
     timestamp: Union[datetime, str] = Field(
-        default_factory=lambda: datetime.now(UTC), description="Event timestamp"
+        default_factory=lambda: datetime.now(timezone.utc), description="Event timestamp"
     )
     payload: dict[str, Any] = Field(default_factory=dict, description="Event payload data")
     metadata: dict[str, Any] = Field(default_factory=dict, description="Event metadata")
@@ -58,7 +58,7 @@ class DigitalEvent(BaseModel):
             try:
                 return datetime.fromisoformat(v.replace("Z", "+00:00"))
             except ValueError:
-                return datetime.now(UTC)
+                return datetime.now(timezone.utc)
         return v
 
     @field_validator("event_type", mode="before")

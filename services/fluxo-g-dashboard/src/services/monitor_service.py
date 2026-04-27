@@ -1,6 +1,6 @@
 """Serviço de monitoramento do Fluxo G."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 import httpx
@@ -133,7 +133,7 @@ class FluxoGMonitorService:
             plan_id="PLAN-001",
             intent_id="INTENT-001",
             status=WorkflowStatus.COMPLETED,
-            started_at=datetime.utcnow(),
+            started_at=datetime.now(timezone.utc),
             stages=[
                 StageProgress(
                     stage=FluxoGStage.G1_REQUIREMENTS,
@@ -192,7 +192,7 @@ class FluxoGMonitorService:
                             confidence_score=item.get("confidence_score", 0.0),
                             requires_human_review=item.get("requires_human_review", False),
                             created_at=datetime.fromisoformat(
-                                item.get("created_at", datetime.utcnow().isoformat())
+                                item.get("created_at", datetime.now(timezone.utc).isoformat())
                             ),
                             plan_id=item.get("context", {}).get("plan_id"),
                         )

@@ -1,6 +1,6 @@
 """Testes unitários para endpoints de políticas de freeze."""
 
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -54,7 +54,7 @@ def mock_freeze_policy():
         auto_unfreeze=True,
         unfreeze_threshold_percent=50.0,
         enabled=True,
-        created_at=datetime.now(UTC),
+        created_at=datetime.now(timezone.utc),
         metadata={"namespace": "test"},
     )
 
@@ -68,7 +68,7 @@ def mock_freeze_event():
         slo_id="slo-test-001",
         service_name="test-service",
         action=FreezeAction.BLOCK_DEPLOY,
-        triggered_at=datetime.now(UTC),
+        triggered_at=datetime.now(timezone.utc),
         trigger_reason="Budget below 10%",
         budget_remaining_percent=5.0,
         burn_rate=2.5,
@@ -138,7 +138,7 @@ class TestGetFreezeHistoryEndpoint:
                 slo_id="slo-test-001",
                 service_name="test-service",
                 action=FreezeAction.BLOCK_DEPLOY,
-                triggered_at=datetime.now(UTC) - timedelta(hours=i),
+                triggered_at=datetime.now(timezone.utc) - timedelta(hours=i),
                 trigger_reason="Test",
                 budget_remaining_percent=50.0,
                 burn_rate=1.0,

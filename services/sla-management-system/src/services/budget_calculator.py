@@ -3,7 +3,7 @@ Serviço para cálculo de error budgets.
 """
 
 import asyncio
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from typing import Optional
 
 import structlog
@@ -39,7 +39,7 @@ class BudgetCalculator:
     async def calculate_budget(self, slo: SLODefinition) -> ErrorBudget:
         """Calcula error budget para um SLO."""
         try:
-            start_time = datetime.now(UTC)
+            start_time = datetime.now(timezone.utc)
 
             # Passo 1: Buscar SLI atual via Prometheus
             sli_value = await self.prometheus_client.calculate_sli(slo, window_days=slo.window_days)
@@ -68,13 +68,13 @@ class BudgetCalculator:
             )
 
             # Passo 6: Criar objeto ErrorBudget
-            window_end = datetime.now(UTC)
+            window_end = datetime.now(timezone.utc)
             window_start = window_end - timedelta(days=slo.window_days)
 
             budget = ErrorBudget(
                 slo_id=slo.slo_id,
                 service_name=slo.service_name,
-                calculated_at=datetime.now(UTC),
+                calculated_at=datetime.now(timezone.utc),
                 window_start=window_start,
                 window_end=window_end,
                 sli_value=sli_value,
@@ -96,7 +96,7 @@ class BudgetCalculator:
             # Passo 9: Publicar evento Kafka
             await self.kafka_producer.publish_budget_update(budget)
 
-            duration = (datetime.now(UTC) - start_time).total_seconds()
+            duration = (datetime.now(timezone.utc) - start_time).total_seconds()
             self.logger.info(
                 "budget_calculated",
                 slo_id=slo.slo_id,
@@ -165,9 +165,9 @@ class BudgetCalculator:
 
         while self._running:
             try:
-                start_time = datetime.now(UTC)
+                start_time = datetime.now(timezone.utc)
                 budgets = await self.calculate_all_budgets()
-                duration = (datetime.now(UTC) - start_time).total_seconds()
+                duration = (datetime.now(timezone.utc) - start_time).total_seconds()
 
                 self.logger.info(
                     "periodic_calculation_completed",

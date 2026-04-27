@@ -9,7 +9,7 @@ TDD Approach:
 Estes testes foram escritos ANTES da implementação da funcionalidade.
 """
 
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from unittest.mock import AsyncMock
 
 import pytest
@@ -42,7 +42,7 @@ class TestAnalyticsEngineAnalyzeTelemetryWindow:
         # Arrange
         analytics = AnalyticsEngine(min_confidence=0.7)
 
-        base_time = datetime.now(UTC)
+        base_time = datetime.now(timezone.utc)
         window = TimeWindow(
             start_timestamp=int((base_time - timedelta(hours=1)).timestamp() * 1000),
             end_timestamp=int(base_time.timestamp() * 1000),
@@ -81,8 +81,8 @@ class TestAnalyticsEngineAnalyzeTelemetryWindow:
         # Arrange
         analytics = AnalyticsEngine(min_confidence=0.7)
         window = TimeWindow(
-            start_timestamp=int(datetime.now(UTC).timestamp() * 1000),
-            end_timestamp=int(datetime.now(UTC).timestamp() * 1000),
+            start_timestamp=int(datetime.now(timezone.utc).timestamp() * 1000),
+            end_timestamp=int(datetime.now(timezone.utc).timestamp() * 1000),
         )
 
         # Act
@@ -101,7 +101,7 @@ class TestAnalyticsEngineAnalyzeTelemetryWindow:
         # Arrange
         analytics = AnalyticsEngine(min_confidence=0.7)
 
-        base_time = datetime.now(UTC)
+        base_time = datetime.now(timezone.utc)
         window = TimeWindow(
             start_timestamp=int((base_time - timedelta(hours=1)).timestamp() * 1000),
             end_timestamp=int(base_time.timestamp() * 1000),
@@ -134,7 +134,7 @@ class TestAnalyticsEngineAnalyzeTelemetryWindow:
         # Arrange
         analytics = AnalyticsEngine(min_confidence=0.7)
 
-        base_time = datetime.now(UTC)
+        base_time = datetime.now(timezone.utc)
         window = TimeWindow(
             start_timestamp=int((base_time - timedelta(hours=1)).timestamp() * 1000),
             end_timestamp=int(base_time.timestamp() * 1000),
@@ -168,7 +168,7 @@ class TestAnalyticsEngineAnalyzeTelemetryWindow:
         # Arrange
         analytics = AnalyticsEngine(min_confidence=0.7)
 
-        base_time = datetime.now(UTC)
+        base_time = datetime.now(timezone.utc)
         window = TimeWindow(
             start_timestamp=int((base_time - timedelta(hours=1)).timestamp() * 1000),
             end_timestamp=int(base_time.timestamp() * 1000),
@@ -211,7 +211,7 @@ class TestAnalyticsEngineAnalyzeTelemetryWindow:
         # Arrange
         analytics = AnalyticsEngine(min_confidence=0.7)
 
-        base_time = datetime.now(UTC)
+        base_time = datetime.now(timezone.utc)
         window = TimeWindow(
             start_timestamp=int((base_time - timedelta(hours=1)).timestamp() * 1000),
             end_timestamp=int(base_time.timestamp() * 1000),
@@ -241,7 +241,7 @@ class TestAnalyticsEngineAnalyzeTelemetryWindow:
         # Arrange
         analytics = AnalyticsEngine(min_confidence=0.7)
 
-        base_time = datetime.now(UTC)
+        base_time = datetime.now(timezone.utc)
         window = TimeWindow(
             start_timestamp=int((base_time - timedelta(hours=1)).timestamp() * 1000),
             end_timestamp=int(base_time.timestamp() * 1000),
@@ -300,8 +300,8 @@ class TestAnalyticsEngineAnalyzeTelemetryWindow:
                 ],
                 related_entities=[],
                 time_window=TimeWindow(
-                    start_timestamp=int(datetime.now(UTC).timestamp() * 1000),
-                    end_timestamp=int(datetime.now(UTC).timestamp() * 1000),
+                    start_timestamp=int(datetime.now(timezone.utc).timestamp() * 1000),
+                    end_timestamp=int(datetime.now(timezone.utc).timestamp() * 1000),
                 ),
             )
         )
@@ -310,7 +310,7 @@ class TestAnalyticsEngineAnalyzeTelemetryWindow:
         # NOTA: Esta injeção precisará ser implementada no construtor
         analytics = AnalyticsEngine(min_confidence=0.7, insight_generator=mock_insight_generator)
 
-        base_time = datetime.now(UTC)
+        base_time = datetime.now(timezone.utc)
         window = TimeWindow(
             start_timestamp=int((base_time - timedelta(hours=1)).timestamp() * 1000),
             end_timestamp=int(base_time.timestamp() * 1000),
@@ -343,7 +343,7 @@ class TestAnalyticsEngineAnalyzeTelemetryWindow:
         # Arrange
         analytics = AnalyticsEngine(min_confidence=0.7)
 
-        base_time = datetime.now(UTC)
+        base_time = datetime.now(timezone.utc)
         window = TimeWindow(
             start_timestamp=int((base_time - timedelta(hours=1)).timestamp() * 1000),
             end_timestamp=int(base_time.timestamp() * 1000),
@@ -374,7 +374,7 @@ class TestAnalyticsEngineAnalyzeTelemetryWindow:
         # Arrange
         analytics = AnalyticsEngine(min_confidence=0.7)
 
-        base_time = datetime.now(UTC)
+        base_time = datetime.now(timezone.utc)
         window = TimeWindow(
             start_timestamp=int((base_time - timedelta(hours=1)).timestamp() * 1000),
             end_timestamp=int(base_time.timestamp() * 1000),
@@ -409,7 +409,7 @@ class TestAnalyticsEngineAnalyzeTelemetryWindow:
         # Arrange
         analytics = AnalyticsEngine(min_confidence=0.7)
 
-        base_time = datetime.now(UTC)
+        base_time = datetime.now(timezone.utc)
         window = TimeWindow(
             start_timestamp=int((base_time - timedelta(hours=1)).timestamp() * 1000),
             end_timestamp=int(base_time.timestamp() * 1000),
@@ -448,7 +448,7 @@ class TestAnalyticsEngineAnalyzeTelemetryWindow:
         # Arrange
         analytics = AnalyticsEngine(min_confidence=0.7)
 
-        base_time = datetime.now(UTC)
+        base_time = datetime.now(timezone.utc)
         window = TimeWindow(
             start_timestamp=int((base_time - timedelta(hours=1)).timestamp() * 1000),
             end_timestamp=int(base_time.timestamp() * 1000),

@@ -9,7 +9,7 @@ Estende a API existente com novos endpoints e funcionalidades:
 GAPS-04 Task 5
 """
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 import structlog
@@ -101,7 +101,7 @@ class ExplainabilityAPIExtensions:
         # Construir explicação base
         explanation = {
             "decision_id": decision_id,
-            "generated_at": datetime.now(UTC).isoformat(),
+            "generated_at": datetime.now(timezone.utc).isoformat(),
             "format": output_format,
         }
 

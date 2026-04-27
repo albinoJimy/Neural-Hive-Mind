@@ -96,7 +96,7 @@ def push_drift_metrics_to_gateway(
             "Timestamp do último drift check",
             registry=registry,
         )
-        drift_timestamp.set(datetime.now(UTC).timestamp())
+        drift_timestamp.set(datetime.now(timezone.utc).timestamp())
 
         # Push para gateway
         push_to_gateway(pushgateway_url, job=job_name, registry=registry)

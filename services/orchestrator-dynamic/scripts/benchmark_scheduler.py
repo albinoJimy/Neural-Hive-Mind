@@ -16,7 +16,8 @@ import statistics
 import sys
 import time
 from dataclasses import asdict, dataclass, field
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timezone
+UTC = timezone.utc, timedelta
 from pathlib import Path
 from typing import Any, Optional
 from unittest.mock import AsyncMock, MagicMock
@@ -155,14 +156,14 @@ def generate_tickets(count: int, patterns: int = 5) -> list[dict[str, Any]]:
                     "durability": "PERSISTENT",
                 },
                 "sla": {
-                    "deadline": (datetime.now(UTC) + timedelta(hours=1)).isoformat(),
+                    "deadline": (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat(),
                     "timeout_ms": 3600000,
                 },
                 "required_capabilities": capability_options[i % patterns],
                 "namespace": "default",
                 "security_level": "standard",
                 "estimated_duration_ms": 1000,
-                "created_at": datetime.now(UTC).isoformat(),
+                "created_at": datetime.now(timezone.utc).isoformat(),
             }
         )
     return tickets
@@ -372,7 +373,7 @@ def print_report(results: list[BenchmarkResult], summary: BenchmarkSummary):
 def save_results(results: list[BenchmarkResult], summary: BenchmarkSummary, output_path: str):
     """Salva resultados em arquivo JSON."""
     data = {
-        "timestamp": datetime.now(UTC).isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
         "baselines": BASELINE_SLOS,
         "summary": asdict(summary),
         "iterations": [asdict(r) for r in results],

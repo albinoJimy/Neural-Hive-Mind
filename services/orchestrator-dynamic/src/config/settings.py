@@ -998,6 +998,25 @@ class OrchestratorSettings(BaseSettings):
     ml_drift_baseline_enabled: bool = Field(
         default=True, description="Salvar baseline de features durante treinamento"
     )
+    drift_reference_dataset_path: str = Field(
+        default="ml_pipelines/training/reference_data/approval_v7_reference.pkl",
+        description="Caminho para o dataset de referência do drift detector (approval model)",
+    )
+    drift_detection_window_hours: int = Field(
+        default=24, description="Janela de dados (horas) para detecção de drift"
+    )
+    drift_threshold_psi: float = Field(
+        default=0.2, description="Threshold PSI para detecção de drift (0.2 = drift moderado)"
+    )
+    drift_check_interval_minutes: int = Field(
+        default=60, description="Intervalo entre verificações de drift em minutos"
+    )
+    evidently_enabled: bool = Field(
+        default=True, description="Habilitar monitoramento com Evidently AI"
+    )
+    evidently_project_id: str = Field(
+        default="approval_predictor", description="ID do projeto Evidently"
+    )
 
     # Training Job Configuration
     ml_training_job_timeout_seconds: int = Field(

@@ -1,7 +1,7 @@
 """Repositório para persistência de requisitos."""
 
 import builtins
-from datetime import datetime
+from datetime import datetime, timezone
 
 from src.db.mongodb import get_mongodb
 from src.models.requirements import (
@@ -52,7 +52,7 @@ class RequirementsRepository:
             "metadata": {},
             "cognitive_plan_id": requirement_data.cognitive_plan_id,
             "architecture_plan_id": requirement_data.architecture_plan_id,
-            "created_at": datetime.utcnow(),
+            "created_at": datetime.now(timezone.utc),
             "updated_at": None,
             "version": 1,
         }
@@ -120,7 +120,7 @@ class RequirementsRepository:
         if not update_dict:
             return await self.get_by_id(requirement_id)
 
-        update_dict["updated_at"] = datetime.utcnow()
+        update_dict["updated_at"] = datetime.now(timezone.utc)
 
         result = await db.requirements_collection.update_one(
             {"id": requirement_id}, {"$set": update_dict}
@@ -147,7 +147,7 @@ class RequirementsRepository:
         db = await self._get_db()
 
         doc = requirements_set.model_dump()
-        doc["created_at"] = datetime.utcnow()
+        doc["created_at"] = datetime.now(timezone.utc)
 
         await db.requirements_sets_collection.insert_one(doc)
 

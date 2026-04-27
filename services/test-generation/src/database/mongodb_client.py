@@ -7,7 +7,7 @@ Cliente async MongoDB usando motor para persistência
 de test suits, test cases e resultados de geração.
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 import structlog
@@ -127,8 +127,8 @@ class MongoDBClient:
         Returns:
             ID do documento inserido
         """
-        test_suite_data["created_at"] = datetime.utcnow()
-        test_suite_data["updated_at"] = datetime.utcnow()
+        test_suite_data["created_at"] = datetime.now(timezone.utc)
+        test_suite_data["updated_at"] = datetime.now(timezone.utc)
 
         result = await self.test_suites().insert_one(test_suite_data)
         return str(result.inserted_id)
@@ -177,8 +177,8 @@ class MongoDBClient:
             Lista de IDs inseridos
         """
         for tc in test_cases:
-            tc["created_at"] = datetime.utcnow()
-            tc["updated_at"] = datetime.utcnow()
+            tc["created_at"] = datetime.now(timezone.utc)
+            tc["updated_at"] = datetime.now(timezone.utc)
 
         result = await self.test_cases().insert_many(test_cases)
         return [str(id) for id in result.inserted_ids]
@@ -204,7 +204,7 @@ class MongoDBClient:
         Returns:
             ID do documento inserido
         """
-        result_data["created_at"] = datetime.utcnow()
+        result_data["created_at"] = datetime.now(timezone.utc)
 
         result = await self.generation_results().insert_one(result_data)
         return str(result.inserted_id)
@@ -230,7 +230,7 @@ class MongoDBClient:
         Returns:
             True se atualizou, False caso contrário
         """
-        updates["updated_at"] = datetime.utcnow()
+        updates["updated_at"] = datetime.now(timezone.utc)
 
         result = await self.test_suites().update_one({"id": suite_id}, {"$set": updates})
         return result.modified_count > 0

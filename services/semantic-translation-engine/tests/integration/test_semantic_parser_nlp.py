@@ -4,7 +4,7 @@ Testes de integração para SemanticParser com NLP
 Testa o fluxo completo de parsing com extração NLP.
 """
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from unittest.mock import AsyncMock
 
 import pytest
@@ -82,7 +82,7 @@ class TestSemanticParserWithNLP:
         """Fixture de Intent Envelope para operação de criação"""
         return {
             "id": "test-intent-001",
-            "timestamp": datetime.now(UTC).isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "confidence": 0.95,
             "intent": {
                 "text": "Criar novo serviço REST para gerenciamento de produtos usando FastAPI",
@@ -97,7 +97,7 @@ class TestSemanticParserWithNLP:
         """Fixture de Intent Envelope para operação de consulta"""
         return {
             "id": "test-intent-002",
-            "timestamp": datetime.now(UTC).isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "confidence": 0.88,
             "intent": {
                 "text": "Buscar todos os pedidos dos últimos 30 dias no MongoDB",

@@ -6,7 +6,7 @@ import uuid
 from typing import Any
 
 import structlog
-from openai import AsyncOpenAI
+from src.clients.llm_client_wrapper import LLMClient
 from src.config.settings import get_settings
 from src.models.requirements import RequirementsSet
 from src.models.ui_ux_design import (
@@ -99,14 +99,14 @@ Você é um designer de UI/UX especialista. Analise os seguintes requisitos e pr
 class UIUXDesigner:
     """Serviço para design de UI/UX usando LLM."""
 
-    def __init__(self, llm_client: AsyncOpenAI | None = None):
+    def __init__(self, llm_client: LLMClient | None = None):
         """Inicializa o UIUXDesigner.
 
         Args:
-            llm_client: Cliente OpenAI (opcional, cria padrão se não fornecido)
+            llm_client: Cliente LLM (opcional, cria padrão se não fornecido)
         """
         settings = get_settings()
-        self._llm_client = llm_client or AsyncOpenAI(api_key=settings.openai_api_key)
+        self._llm_client = llm_client or LLMClient(api_key=settings.openai_api_key)
         self._model = settings.llm_model
         self._logger = logger
 
@@ -136,8 +136,7 @@ class UIUXDesigner:
         prompt = UI_UX_DESIGN_PROMPT.format(requirements_text=requirements_text)
 
         try:
-            response = await self._llm_client.chat.completions.create(
-                model=self._model,
+            response = await self._llm_client.generate(
                 messages=[
                     {
                         "role": "system",
@@ -145,11 +144,11 @@ class UIUXDesigner:
                     },
                     {"role": "user", "content": prompt},
                 ],
+                model=self._model,
                 temperature=0.7,
-                max_tokens=3000,
             )
 
-            content = response.choices[0].message.content
+            content = response.choices[0].message["content"]
 
             # Extrair JSON da resposta
             json_match = self._extract_json(content)

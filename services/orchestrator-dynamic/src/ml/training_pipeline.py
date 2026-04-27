@@ -168,7 +168,7 @@ class TrainingPipeline:
 
             # Registrar histórico
             training_record = {
-                "timestamp": datetime.now(UTC),
+                "timestamp": datetime.now(timezone.utc),
                 "model_name": model_name,
                 "trigger_type": primary_trigger.trigger_type.value,
                 "trigger_reason": primary_trigger.reason,
@@ -282,7 +282,7 @@ class TrainingPipeline:
                 "training_duration_seconds": training_duration,
                 "samples_used": len(df),
                 "window_days": window_days,
-                "timestamp": datetime.now(UTC).isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
                 "duration_predictor": duration_metrics,
                 "anomaly_detector": anomaly_metrics,
                 "backfill_stats": backfill_stats,
@@ -313,7 +313,7 @@ class TrainingPipeline:
             return {
                 "status": "failed",
                 "error": str(e),
-                "timestamp": datetime.now(UTC).isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
             }
 
     async def _query_training_data(self, window_days: int) -> pd.DataFrame:
@@ -337,7 +337,7 @@ class TrainingPipeline:
             DataFrame com dados de tickets
         """
         try:
-            cutoff_date = datetime.now(UTC) - timedelta(days=window_days)
+            cutoff_date = datetime.now(timezone.utc) - timedelta(days=window_days)
             data_source = "mongodb"
 
             # Tenta ClickHouse primeiro se habilitado
@@ -683,9 +683,9 @@ class TrainingPipeline:
                 retention_days = getattr(self.config, "ml_backfill_history_retention_days", 90)
                 try:
                     backfill_record = {
-                        "timestamp": datetime.now(UTC),
+                        "timestamp": datetime.now(timezone.utc),
                         "stats": stats,
-                        "retention_until": datetime.now(UTC) + timedelta(days=retention_days),
+                        "retention_until": datetime.now(timezone.utc) + timedelta(days=retention_days),
                     }
                     await self.mongodb_client.db["ml_backfill_history"].insert_one(backfill_record)
                 except Exception as e:

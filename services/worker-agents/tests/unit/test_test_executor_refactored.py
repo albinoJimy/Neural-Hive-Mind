@@ -1,6 +1,6 @@
 """Unit tests for refactored TEST Executor with multiple providers."""
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -258,8 +258,8 @@ class TestGitHubActionsExecution:
             status="completed",
             conclusion="success",
             html_url="https://github.com/owner/repo/actions/runs/12345",
-            created_at=datetime.now(UTC),
-            updated_at=datetime.now(UTC),
+            created_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc),
             tests_passed=10,
             tests_failed=0,
             tests_skipped=0,
@@ -289,8 +289,8 @@ class TestGitHubActionsExecution:
             status="completed",
             conclusion="failure",
             html_url="https://github.com/owner/repo/actions/runs/12345",
-            created_at=datetime.now(UTC),
-            updated_at=datetime.now(UTC),
+            created_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc),
             tests_passed=8,
             tests_failed=2,
             tests_skipped=0,
@@ -322,8 +322,8 @@ class TestGitLabCIExecution:
             ref="main",
             sha="abc123",
             web_url="https://gitlab.com/project/-/pipelines/12345",
-            created_at=datetime.now(UTC),
-            updated_at=datetime.now(UTC),
+            created_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc),
             duration=300,
         )
         mock_gitlab_ci_client.get_test_report.return_value = {
@@ -355,8 +355,8 @@ class TestGitLabCIExecution:
             ref="main",
             sha="abc123",
             web_url="https://gitlab.com",
-            created_at=datetime.now(UTC),
-            updated_at=datetime.now(UTC),
+            created_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc),
         )
         mock_gitlab_ci_client.get_test_report.return_value = {}
 
@@ -386,7 +386,7 @@ class TestJenkinsExecution:
             building=False,
             url="https://jenkins.example.com/job/test/50/",
             duration=120000,
-            timestamp=datetime.now(UTC),
+            timestamp=datetime.now(timezone.utc),
             tests_passed=20,
             tests_failed=0,
             tests_skipped=1,
@@ -417,7 +417,7 @@ class TestJenkinsExecution:
             building=False,
             url="https://jenkins.example.com/job/test/50/",
             duration=60000,
-            timestamp=datetime.now(UTC),
+            timestamp=datetime.now(timezone.utc),
         )
         mock_jenkins_client.get_coverage_report.return_value = {}
 
@@ -550,8 +550,8 @@ class TestRetryLogic:
             status="completed",
             conclusion="success",
             html_url="https://github.com",
-            created_at=datetime.now(UTC),
-            updated_at=datetime.now(UTC),
+            created_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc),
         )
 
         payload = {

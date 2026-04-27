@@ -162,7 +162,7 @@ class TestDurationPredictorValidation:
                     "risk_band": "medium",
                     "actual_duration_ms": 30000 + np.random.normal(0, 5000),
                     "estimated_duration_ms": 30000,
-                    "completed_at": datetime.now(UTC),
+                    "completed_at": datetime.now(timezone.utc),
                     "required_capabilities": ["cpu"],
                     "parameters": {},
                     "sla_timeout_ms": 300000,

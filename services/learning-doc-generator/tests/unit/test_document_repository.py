@@ -1,6 +1,6 @@
 """Testes unitários para DocumentRepository"""
 
-from datetime import datetime
+from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -63,8 +63,8 @@ async def test_get_by_id():
         "title": "Test Document",
         "type": "experiment_report",
         "status": "pending",
-        "created_at": datetime.utcnow(),
-        "updated_at": datetime.utcnow(),
+        "created_at": datetime.now(timezone.utc),
+        "updated_at": datetime.now(timezone.utc),
     }
     repo._collection.find_one = AsyncMock(return_value=doc_dict)
 
@@ -138,8 +138,8 @@ async def test_list_documents():
             "title": f"Document {i}",
             "type": "experiment_report",
             "status": "completed",
-            "created_at": datetime.utcnow(),
-            "updated_at": datetime.utcnow(),
+            "created_at": datetime.now(timezone.utc),
+            "updated_at": datetime.now(timezone.utc),
         }
         for i in range(5)
     ]
@@ -184,8 +184,8 @@ async def test_get_by_period():
         "status": "completed",
         "period_start": datetime(2026, 1, 1),
         "period_end": datetime(2026, 1, 7),
-        "created_at": datetime.utcnow(),
-        "updated_at": datetime.utcnow(),
+        "created_at": datetime.now(timezone.utc),
+        "updated_at": datetime.now(timezone.utc),
     }
 
     async def mock_to_list(cursor):

@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Any
 
 from pydantic import BaseModel, Field, field_validator
@@ -12,7 +12,7 @@ ProposedAdjustment = Adjustment
 # Callable para UTC now compatível com Pydantic V2
 def utcnow() -> datetime:
     """Retorna datetime UTC atual. Substituto para datetime.utcnow (deprecated)."""
-    return datetime.now(UTC)
+    return datetime.now(timezone.utc)
 
 
 class OptimizationHypothesis(BaseModel):

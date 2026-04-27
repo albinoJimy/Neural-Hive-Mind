@@ -5,7 +5,7 @@ Valida as validações defensivas implementadas no SpecialistsGrpcClient para
 prevenir o TypeError relacionado ao campo evaluated_at.
 """
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -381,7 +381,7 @@ class TestSpecialistsGrpcClientTimestampValidation:
                 processing_time_ms=150 + i * 10,
             )
             timestamp = Timestamp()
-            timestamp.FromDatetime(datetime.now(UTC))
+            timestamp.FromDatetime(datetime.now(timezone.utc))
             response.evaluated_at.CopyFrom(timestamp)
             valid_responses.append(response)
 

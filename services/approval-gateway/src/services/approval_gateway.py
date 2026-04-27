@@ -1,6 +1,6 @@
 """Serviço Approval Gateway."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 import structlog
@@ -102,7 +102,7 @@ class ApprovalGateway:
             confidence_score=confidence,
             reasoning=reasoning,
             approved_by=approved_by,
-            approved_at=datetime.utcnow(),
+            approved_at=datetime.now(timezone.utc),
         )
 
         self._logger.info(
@@ -123,7 +123,7 @@ class ApprovalGateway:
             confidence_score=0.0,
             reasoning="Requer revisão humana devido a restrições de política",
             approved_by=None,
-            approved_at=datetime.utcnow(),
+            approved_at=datetime.now(timezone.utc),
         )
 
     async def _evaluate_with_llm(self, request: ApprovalRequest) -> tuple[float, str]:

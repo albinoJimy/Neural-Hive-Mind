@@ -4,7 +4,7 @@ Autor: Neural Hive Mind
 Criado: 2026-04-20 (FEAT-A-005)
 """
 
-from datetime import UTC
+from datetime import timezone
 
 import pytest
 from src.services.threshold_service import ThresholdConfig, ThresholdService
@@ -284,7 +284,7 @@ class TestThresholdServiceCacheTTL:
         # Definir um cache refresh antigo
         from datetime import datetime, timedelta
 
-        service._last_cache_refresh = datetime.now(UTC) - timedelta(days=1)
+        service._last_cache_refresh = datetime.now(timezone.utc) - timedelta(days=1)
 
         # Cache não deve expirar quando TTL é 0
         assert await service._check_cache_expired() is False
@@ -305,7 +305,7 @@ class TestThresholdServiceCacheTTL:
         # Definir cache refresh recente
         from datetime import datetime, timedelta
 
-        service._last_cache_refresh = datetime.now(UTC) - timedelta(seconds=60)
+        service._last_cache_refresh = datetime.now(timezone.utc) - timedelta(seconds=60)
 
         # Cache não deve estar expirado
         assert await service._check_cache_expired() is False
@@ -318,7 +318,7 @@ class TestThresholdServiceCacheTTL:
         # Definir cache refresh antigo (mais de 300 segundos)
         from datetime import datetime, timedelta
 
-        service._last_cache_refresh = datetime.now(UTC) - timedelta(seconds=301)
+        service._last_cache_refresh = datetime.now(timezone.utc) - timedelta(seconds=301)
 
         # Cache deve estar expirado
         assert await service._check_cache_expired() is True
@@ -337,7 +337,7 @@ class TestThresholdServiceCacheTTL:
         # Definir cache refresh antigo (expirado)
         from datetime import datetime, timedelta
 
-        service._last_cache_refresh = datetime.now(UTC) - timedelta(seconds=2)
+        service._last_cache_refresh = datetime.now(timezone.utc) - timedelta(seconds=2)
 
         # Config expirou mas não há arquivo para recarregar
         # Deve retornar configuração existente mesmo com cache expirado
@@ -365,7 +365,7 @@ class TestThresholdServiceCacheTTL:
         # Definir cache refresh
         from datetime import datetime
 
-        service._last_cache_refresh = datetime.now(UTC)
+        service._last_cache_refresh = datetime.now(timezone.utc)
 
         cache_info = service.get_cache_info()
 

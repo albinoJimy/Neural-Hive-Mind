@@ -2,7 +2,7 @@
 Testes para InsightRepository.
 """
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 import pytest
 from src.models.insight_extended import (
@@ -250,7 +250,7 @@ async def test_cache_delete(insight_repository):
 async def test_get_analytics_summary(insight_repository):
     """Testar obter resumo analítico."""
     # Criar alguns insights com métricas
-    now = datetime.now(UTC)
+    now = datetime.now(timezone.utc)
     for i in range(3):
         insight = InsightCreate(
             analysis_type=AnalysisType.TIMESERIES,

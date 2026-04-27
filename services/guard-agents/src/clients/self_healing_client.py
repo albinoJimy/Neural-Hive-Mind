@@ -1,6 +1,6 @@
 """Cliente HTTP para integração com Self-Healing Engine"""
 
-from datetime import UTC
+from datetime import timezone
 from enum import Enum
 from typing import Any, Optional
 
@@ -188,7 +188,7 @@ class SelfHealingClient:
         import asyncio
         from datetime import datetime
 
-        start_time = datetime.now(UTC)
+        start_time = datetime.now(timezone.utc)
 
         logger.info(
             "self_healing_client.waiting_completion",
@@ -197,7 +197,7 @@ class SelfHealingClient:
         )
 
         while True:
-            elapsed = (datetime.now(UTC) - start_time).total_seconds()
+            elapsed = (datetime.now(timezone.utc) - start_time).total_seconds()
 
             if elapsed >= max_wait:
                 logger.warning(

@@ -1,6 +1,6 @@
 """ITSM client for ticketing system integration"""
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Optional
 
@@ -258,7 +258,7 @@ class ITSMClient:
         if original_incident_id:
             full_description += f"\n\nOriginal Incident ID: {original_incident_id}"
 
-        timestamp = datetime.now(UTC).isoformat()
+        timestamp = datetime.now(timezone.utc).isoformat()
 
         if self.itsm_type == ITSMType.SERVICENOW:
             return {

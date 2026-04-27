@@ -4,7 +4,7 @@ Testes unitários abrangentes para BayesianFilter.
 Cobertura: filtragem Bayesiana, atualização de priors, likelihoods.
 """
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from unittest.mock import patch
 
 import pytest
@@ -31,7 +31,7 @@ def event_with_features():
         event_id="feature-event-001",
         source="test-source",
         event_type="test",
-        timestamp=datetime.now(UTC),
+        timestamp=datetime.now(timezone.utc),
         payload={"metric1": 100, "metric2": 200, "metric3": 150},
         metadata={"trace_id": "trace-001"},
     )
@@ -44,7 +44,7 @@ def event_without_features():
         event_id="no-feature-event-001",
         source="test-source",
         event_type="test",
-        timestamp=datetime.now(UTC),
+        timestamp=datetime.now(timezone.utc),
         payload={"message": "test message", "status": "active"},
         metadata={"trace_id": "trace-002"},
     )

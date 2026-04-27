@@ -14,7 +14,7 @@ GAPS-04 Enhanced Version:
 
 import os
 from contextlib import asynccontextmanager
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 import structlog
@@ -200,7 +200,7 @@ async def health_check():
         "status": "healthy",
         "service": "explainability-api",
         "version": "2.0.0",
-        "timestamp": datetime.now(UTC).isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
 
@@ -448,7 +448,7 @@ async def get_explainability_stats(
             return {
                 "total_explanations": total,
                 "by_method": {item["_id"]: item["count"] for item in method_stats},
-                "timestamp": datetime.now(UTC).isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
             }
 
         except Exception as e:

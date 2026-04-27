@@ -2,7 +2,7 @@
 Router FastAPI para endpoints de políticas de congelamento.
 """
 
-from datetime import UTC
+from datetime import timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -160,9 +160,9 @@ async def resolve_freeze(
     dummy_budget = ErrorBudget(
         slo_id=event.slo_id,
         service_name=event.service_name,
-        calculated_at=datetime.now(UTC),
-        window_start=datetime.now(UTC),
-        window_end=datetime.now(UTC),
+        calculated_at=datetime.now(timezone.utc),
+        window_start=datetime.now(timezone.utc),
+        window_end=datetime.now(timezone.utc),
         sli_value=0.999,
         slo_target=0.999,
         error_budget_total=0.1,

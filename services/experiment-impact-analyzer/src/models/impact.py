@@ -1,6 +1,6 @@
 """Models for experiment impact analysis."""
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any
 from uuid import uuid4
@@ -13,7 +13,7 @@ UTC = UTC
 
 def utcnow() -> datetime:
     """Retorna datetime UTC atual."""
-    return datetime.now(UTC)
+    return datetime.now(timezone.utc)
 
 
 class ImpactTimeframe(str, Enum):

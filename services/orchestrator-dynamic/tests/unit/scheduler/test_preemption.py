@@ -66,7 +66,7 @@ class TestPreemptionRules:
     def low_priority_ticket_in_progress(self, low_priority_ticket):
         """Retorna ticket LOW em execução com baixo progresso."""
         ticket = low_priority_ticket.copy()
-        ticket["started_at"] = int(datetime.now(UTC).timestamp() * 1000) - 10000  # 10s atrás
+        ticket["started_at"] = int(datetime.now(timezone.utc).timestamp() * 1000) - 10000  # 10s atrás
         ticket["sla"] = {"timeout_ms": 300000}  # 5 min
         ticket["compensatable"] = True
         ticket["execution_progress"] = 0.1  # 10%
@@ -154,7 +154,7 @@ class TestPreemptionRules:
 
     def test_get_execution_progress_from_timestamps(self, rules):
         """Testa cálculo de progresso baseado em timestamps."""
-        started_at = int(datetime.now(UTC).timestamp() * 1000) - 60000  # 60s atrás
+        started_at = int(datetime.now(timezone.utc).timestamp() * 1000) - 60000  # 60s atrás
         ticket = {"started_at": started_at, "sla": {"timeout_ms": 300000}}  # 5 min
         # Não incluir execution_progress para forçar cálculo por timestamp
         progress = rules._get_execution_progress(ticket)

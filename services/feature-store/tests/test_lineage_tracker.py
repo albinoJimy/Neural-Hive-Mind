@@ -2,7 +2,7 @@
 Testes para LineageTracker do Feature Store.
 """
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -771,7 +771,7 @@ class TestListLineages:
                 "transformation_metadata": {},
                 "computation_version": "v1.0.0",
                 "computation_hash": "abc123",
-                "created_at": datetime.now(UTC).isoformat(),
+                "created_at": datetime.now(timezone.utc).isoformat(),
                 "_id": "id-1",
             }
 
@@ -808,7 +808,7 @@ class TestListLineages:
                     "transformation_metadata": {},
                     "computation_version": "v1.0.0",
                     "computation_hash": "abc123",
-                    "created_at": datetime.now(UTC).isoformat(),
+                    "created_at": datetime.now(timezone.utc).isoformat(),
                     "_id": f"id-{i}",
                 }
 

@@ -6,7 +6,7 @@ incluindo integração com MongoDB e todos os componentes.
 """
 
 import sys
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 from unittest.mock import AsyncMock
@@ -78,7 +78,7 @@ def sample_consensus_decision(sample_decision_votes) -> dict[str, Any]:
     """Decisão de consenso de exemplo para testes E2E."""
     return {
         "decision_id": "e2e_test_decision_001",
-        "timestamp": datetime.now(UTC).isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
         "final_decision": "approve",
         "final_confidence": 0.77,
         "specialist_votes": sample_decision_votes,

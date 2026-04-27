@@ -10,7 +10,7 @@ com retry_count incrementado para controle de max retries.
 """
 
 import json
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 UTC = UTC  # type: ignore
 from typing import TYPE_CHECKING, Any, Optional
@@ -198,7 +198,7 @@ class DLQReprocessor:
                 failure_reason=f"[REPROCESS_FAILED] {failure_reason}",
                 retry_count=new_retry_count,
                 original_approval_response=dlq_entry.original_approval_response,
-                failed_at=datetime.now(UTC),
+                failed_at=datetime.now(timezone.utc),
                 correlation_id=dlq_entry.correlation_id,
                 trace_id=dlq_entry.trace_id,
                 span_id=dlq_entry.span_id,
@@ -225,7 +225,7 @@ class DLQReprocessor:
                 failure_reason=f"[REPROCESS_FAILED] {failure_reason}",
                 retry_count=new_retry_count,
                 original_approval_response=dlq_entry.original_approval_response,
-                failed_at=datetime.now(UTC),
+                failed_at=datetime.now(timezone.utc),
                 correlation_id=dlq_entry.correlation_id,
                 trace_id=dlq_entry.trace_id,
                 span_id=dlq_entry.span_id,
@@ -281,7 +281,7 @@ class DLQReprocessor:
 
         # Incrementar retry_count para próxima tentativa
         original_response["dlq_retry_count"] = dlq_entry.retry_count + 1
-        original_response["dlq_reprocessed_at"] = int(datetime.now(UTC).timestamp() * 1000)
+        original_response["dlq_reprocessed_at"] = int(datetime.now(timezone.utc).timestamp() * 1000)
 
         # Preparar headers
         headers = [
@@ -369,7 +369,7 @@ class DLQReprocessor:
                 status="permanently_failed",
                 failure_reason=f"Excedeu máximo de {self.settings.dlq_max_retry_count} tentativas de reprocessamento DLQ",
                 retry_count=dlq_entry.retry_count,
-                last_failure_at=datetime.now(UTC),
+                last_failure_at=datetime.now(timezone.utc),
             )
 
             logger.info(

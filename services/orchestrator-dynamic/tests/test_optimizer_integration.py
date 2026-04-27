@@ -58,7 +58,7 @@ def mock_grpc_stub():
     forecast_response.resource_demand_cpu = 0.65
     forecast_response.resource_demand_memory = 0.58
     forecast_response.bottleneck_probability = 0.15
-    forecast_response.timestamp = int(datetime.now(UTC).timestamp())
+    forecast_response.timestamp = int(datetime.now(timezone.utc).timestamp())
 
     stub.GetLoadForecast = AsyncMock(return_value=forecast_response)
 
@@ -293,7 +293,7 @@ async def test_metadata_enrichment_with_optimizer_data(optimizer_client):
         "optimizer_predicted_load": forecast["predicted_volume"],
         "optimizer_confidence": forecast["confidence"],
         "optimizer_bottleneck_risk": forecast["bottleneck_probability"],
-        "optimizer_enriched_at": datetime.now(UTC).isoformat(),
+        "optimizer_enriched_at": datetime.now(timezone.utc).isoformat(),
     }
 
     assert enriched_metadata["optimizer_predicted_load"] == 125
@@ -331,7 +331,7 @@ async def test_forecast_cache_expiration(optimizer_client, mock_grpc_stub):
     )
 
     # Simular passagem de tempo (TTL expirado)
-    with patch("time.time", return_value=datetime.now(UTC).timestamp() + 400):
+    with patch("time.time", return_value=datetime.now(timezone.utc).timestamp() + 400):
         forecast2 = await optimizer_client.get_load_forecast(
             horizon_minutes=60, task_type="processing", risk_band="medium"
         )

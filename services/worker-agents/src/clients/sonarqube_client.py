@@ -10,7 +10,7 @@ Supports:
 import asyncio
 import os
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any
 
@@ -165,7 +165,7 @@ class SonarQubeClient:
         Returns:
             Task status and result
         """
-        start = datetime.now(UTC)
+        start = datetime.now(timezone.utc)
         deadline = start.timestamp() + max_wait
 
         while True:
@@ -184,7 +184,7 @@ class SonarQubeClient:
                     raise SonarQubeAPIError(f"Analysis task failed: {error_msg}")
                 elif status in ("PENDING", "IN_PROGRESS"):
                     # Check timeout
-                    if datetime.now(UTC).timestamp() > deadline:
+                    if datetime.now(timezone.utc).timestamp() > deadline:
                         raise SonarQubeTimeoutError(f"Analysis timeout after {max_wait}s")
                     await asyncio.sleep(self.poll_interval)
                 else:
@@ -214,7 +214,7 @@ class SonarQubeClient:
         Returns:
             SonarQubeAnalysis with complete results
         """
-        start_time = datetime.now(UTC)
+        start_time = datetime.now(timezone.utc)
         logs = []
 
         try:
@@ -295,7 +295,7 @@ class SonarQubeClient:
                     response.raise_for_status()
                     analysis_data = response.json()
 
-                    duration = (datetime.now(UTC) - start_time).total_seconds()
+                    duration = (datetime.now(timezone.utc) - start_time).total_seconds()
 
                     # Parse issues
                     issues = await self._fetch_issues(project_key, analysis_id)
@@ -324,7 +324,7 @@ class SonarQubeClient:
             except httpx.HTTPStatusError as e:
                 logs.append(f"API error: {e.response.status_code}")
 
-            duration = (datetime.now(UTC) - start_time).total_seconds()
+            duration = (datetime.now(timezone.utc) - start_time).total_seconds()
             return SonarQubeAnalysis(
                 task_id="",
                 project_key=project_key,
@@ -335,7 +335,7 @@ class SonarQubeClient:
             )
 
         except SonarQubeTimeoutError as e:
-            duration = (datetime.now(UTC) - start_time).total_seconds()
+            duration = (datetime.now(timezone.utc) - start_time).total_seconds()
             self.logger.error("sonarqube_timeout", error=str(e))
             return SonarQubeAnalysis(
                 task_id="",
@@ -348,7 +348,7 @@ class SonarQubeClient:
             )
 
         except Exception as e:
-            duration = (datetime.now(UTC) - start_time).total_seconds()
+            duration = (datetime.now(timezone.utc) - start_time).total_seconds()
             self.logger.exception("sonarqube_exception")
             return SonarQubeAnalysis(
                 task_id="",

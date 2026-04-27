@@ -143,7 +143,7 @@ class AlertManager:
                 "severity": severity,
                 "service_name": context.get("service_name", "orchestrator-dynamic"),
                 "workflow_id": workflow_id,
-                "timestamp": datetime.now(UTC).isoformat() + "Z",
+                "timestamp": datetime.now(timezone.utc).isoformat() + "Z",
                 "context": context,
             }
 
@@ -250,7 +250,7 @@ class AlertManager:
                 "budget_remaining": violation.get("budget_remaining"),
                 "severity": violation.get("severity", "WARNING"),
                 "metadata": violation.get("metadata", {}),
-                "timestamp": violation.get("timestamp", datetime.now(UTC).isoformat() + "Z"),
+                "timestamp": violation.get("timestamp", datetime.now(timezone.utc).isoformat() + "Z"),
             }
 
             # Publicar no Kafka (tópico dedicado para violações formais)

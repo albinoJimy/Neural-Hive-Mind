@@ -1,7 +1,7 @@
 """Testes de integração para fluxo de geração de documentos"""
 
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -86,7 +86,7 @@ async def test_full_document_generation_flow(mock_experiment_runs, output_dir):
         document.summary = summary
         document.recommendations = recommendations
         document.plots = plots
-        document.generated_at = datetime.utcnow()
+        document.generated_at = datetime.now(timezone.utc)
 
         # Gerar Markdown
         markdown_content = await generator.generate(document)
@@ -118,7 +118,7 @@ async def test_weekly_report_generation(mock_experiment_runs, output_dir):
             title="Relatório Semanal - 2026-01-01",
             type=DocumentType.WEEKLY_SUMMARY,
             status=DocumentStatus.COMPLETED,
-            generated_at=datetime.utcnow(),
+            generated_at=datetime.now(timezone.utc),
             period_start=datetime(2026, 1, 1),
             period_end=datetime(2026, 1, 7),
             summary=summary,
@@ -154,13 +154,13 @@ async def test_promotion_report_generation(mock_experiment_runs, output_dir):
             title=f"Promoção - {best_run.name}",
             type=DocumentType.PROMOTION_REPORT,
             status=DocumentStatus.COMPLETED,
-            generated_at=datetime.utcnow(),
+            generated_at=datetime.now(timezone.utc),
             summary=f"Modelo {best_run.name} pronto para produção",
             experiment_runs=[best_run],
             metadata={
                 "approved_by": "data_scientist",
                 "approved_for_production": True,
-                "approval_date": datetime.utcnow().isoformat(),
+                "approval_date": datetime.now(timezone.utc).isoformat(),
             },
         )
 
@@ -198,8 +198,8 @@ async def test_repository_lifecycle(output_dir):
             "title": "Lifecycle Test",
             "type": "experiment_report",
             "status": "pending",
-            "created_at": datetime.utcnow(),
-            "updated_at": datetime.utcnow(),
+            "created_at": datetime.now(timezone.utc),
+            "updated_at": datetime.now(timezone.utc),
         }
         repo._collection.find_one = AsyncMock(return_value=doc_dict)
 

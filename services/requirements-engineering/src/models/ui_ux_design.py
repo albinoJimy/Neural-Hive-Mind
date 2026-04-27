@@ -1,6 +1,6 @@
 """Modelos para design de UI/UX."""
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any
 
@@ -193,21 +193,21 @@ class UIDesign(BaseModel):
     user_flows: list[UserFlow] = Field(default_factory=list, description="Fluxos de utilizador")
 
     created_at: datetime = Field(
-        default_factory=lambda: datetime.now(UTC), description="Data de criação"
+        default_factory=lambda: datetime.now(timezone.utc), description="Data de criação"
     )
     updated_at: datetime = Field(
-        default_factory=lambda: datetime.now(UTC), description="Data de atualização"
+        default_factory=lambda: datetime.now(timezone.utc), description="Data de atualização"
     )
 
     def add_screen(self, screen: Screen) -> None:
         """Adiciona uma tela ao design."""
         self.screens.append(screen)
-        self.updated_at = datetime.now(UTC)
+        self.updated_at = datetime.now(timezone.utc)
 
     def add_user_flow(self, flow: UserFlow) -> None:
         """Adiciona um fluxo de utilizador."""
         self.user_flows.append(flow)
-        self.updated_at = datetime.now(UTC)
+        self.updated_at = datetime.now(timezone.utc)
 
     def get_screen_by_route(self, route: str) -> Screen | None:
         """Retorna tela por rota."""

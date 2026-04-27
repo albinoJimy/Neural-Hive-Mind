@@ -2,7 +2,7 @@
 Serviço para enforcement de políticas de congelamento.
 """
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 import structlog
@@ -121,7 +121,7 @@ class PolicyEnforcer:
         await self.redis_client.cache_freeze_status(event.service_name, False)
 
         # Passo 4: Publicar evento Kafka
-        event.resolved_at = datetime.now(UTC)
+        event.resolved_at = datetime.now(timezone.utc)
         event.active = False
         await self.kafka_producer.publish_freeze_event(event, "resolved")
 

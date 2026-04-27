@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Any
 
 from bson import ObjectId
@@ -92,8 +92,8 @@ class HypothesisRepository:
             Hipótese criada com _id preenchido
         """
         doc = hypothesis.to_dict()
-        doc["created_at"] = datetime.now(UTC)
-        doc["updated_at"] = datetime.now(UTC)
+        doc["created_at"] = datetime.now(timezone.utc)
+        doc["updated_at"] = datetime.now(timezone.utc)
 
         result = await self.collection.insert_one(doc)
 
@@ -197,7 +197,7 @@ class HypothesisRepository:
         Returns:
             Hipótese atualizada ou None se não encontrada
         """
-        updates["updated_at"] = datetime.now(UTC)
+        updates["updated_at"] = datetime.now(timezone.utc)
 
         result = await self.collection.update_one(
             {"hypothesis_id": hypothesis_id}, {"$set": updates}
@@ -247,19 +247,19 @@ class HypothesisRepository:
         # Atualizar campos baseados no status
         status_updates = {
             "status": new_status,
-            "updated_at": datetime.now(UTC),
+            "updated_at": datetime.now(timezone.utc),
         }
 
         # Atualizar timestamps específicos
         if new_status == HypothesisStatus.PROPOSED:
-            status_updates["proposed_at"] = datetime.now(UTC)
+            status_updates["proposed_at"] = datetime.now(timezone.utc)
         elif new_status == HypothesisStatus.APPROVED:
-            status_updates["approved_at"] = datetime.now(UTC)
+            status_updates["approved_at"] = datetime.now(timezone.utc)
             status_updates["approved_by"] = transitioned_by
         elif new_status == HypothesisStatus.IN_TESTING:
-            status_updates["testing_started_at"] = datetime.now(UTC)
+            status_updates["testing_started_at"] = datetime.now(timezone.utc)
         elif new_status == HypothesisStatus.COMPLETED:
-            status_updates["completed_at"] = datetime.now(UTC)
+            status_updates["completed_at"] = datetime.now(timezone.utc)
 
         # Atualizar hipótese
         hypothesis = await self.update(hypothesis_id, status_updates)
@@ -291,7 +291,7 @@ class HypothesisRepository:
             {
                 "$set": {
                     "experiment_id": experiment_id,
-                    "updated_at": datetime.now(UTC),
+                    "updated_at": datetime.now(timezone.utc),
                 }
             },
         )
@@ -317,7 +317,7 @@ class HypothesisRepository:
             {
                 "$set": {
                     "results": results,
-                    "updated_at": datetime.now(UTC),
+                    "updated_at": datetime.now(timezone.utc),
                 }
             },
         )
@@ -338,7 +338,7 @@ class HypothesisRepository:
             {
                 "$set": {
                     "status": HypothesisStatus.ARCHIVED.value,
-                    "updated_at": datetime.now(UTC),
+                    "updated_at": datetime.now(timezone.utc),
                 }
             },
         )

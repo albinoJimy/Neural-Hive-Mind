@@ -305,7 +305,7 @@ class ModelPromotionManager:
             PromotionRequest com status
         """
         # Criar request
-        request_id = f"promo_{model_name}_{version}_{datetime.now(UTC).strftime('%Y%m%d%H%M%S')}"
+        request_id = f"promo_{model_name}_{version}_{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}"
 
         config = self.default_config
         if config_overrides:
@@ -1278,7 +1278,7 @@ class ModelPromotionManager:
             version=request.source_version,
             metadata={
                 "promotion_id": request.request_id,
-                "promoted_at": datetime.now(UTC).isoformat(),
+                "promoted_at": datetime.now(timezone.utc).isoformat(),
                 "promoted_by": request.initiated_by,
                 "canary_enabled": request.config.canary_enabled,
             },
@@ -1357,7 +1357,7 @@ class ModelPromotionManager:
             try:
                 from .model_audit_logger import AuditEventContext
 
-                duration = (datetime.now(UTC) - request.created_at).total_seconds()
+                duration = (datetime.now(timezone.utc) - request.created_at).total_seconds()
                 context = AuditEventContext(
                     user_id=request.initiated_by,
                     reason=f"Promoção concluída com sucesso para {request.target_stage}",

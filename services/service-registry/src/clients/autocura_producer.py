@@ -3,7 +3,7 @@ Producer Kafka para publicação de eventos de autocura.
 """
 
 import json
-from datetime import UTC
+from datetime import timezone
 from typing import Any
 
 import structlog
@@ -149,7 +149,7 @@ class AutocuraEventProducer:
             "agent_id": agent_id,
             "agent_type": agent_type,
             "status": status,
-            "timestamp": int(datetime.now(UTC).timestamp()),
+            "timestamp": int(datetime.now(timezone.utc).timestamp()),
             "severity": "info",
         }
 

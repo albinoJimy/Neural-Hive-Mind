@@ -268,7 +268,7 @@ class LoadPredictor:
             return []
 
         try:
-            cutoff_time = datetime.now(UTC) - timedelta(minutes=window_minutes)
+            cutoff_time = datetime.now(timezone.utc) - timedelta(minutes=window_minutes)
 
             return (
                 await self.mongodb_client.db[self.config.mongodb_collection_tickets]

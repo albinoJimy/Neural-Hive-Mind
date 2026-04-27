@@ -5,7 +5,7 @@ Gerencia cache de features usando Redis com TTL configurável.
 """
 
 import json
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 import structlog
@@ -136,7 +136,7 @@ class RedisCacheService:
             key = self._make_key(plan_id)
 
             # Adiciona timestamp de cache
-            features["_cached_at"] = datetime.now(UTC).isoformat()
+            features["_cached_at"] = datetime.now(timezone.utc).isoformat()
 
             await self._redis.setex(key, ttl, json.dumps(features))
 

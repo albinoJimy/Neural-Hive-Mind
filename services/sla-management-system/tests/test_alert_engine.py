@@ -2,7 +2,7 @@
 Testes para Alert Engine do SLA Management System.
 """
 
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -69,9 +69,9 @@ def sample_budget():
         budget_id="budget-123",
         slo_id="slo-123",
         service_name="test-service",
-        calculated_at=datetime.now(UTC),
-        window_start=datetime.now(UTC) - timedelta(days=1),
-        window_end=datetime.now(UTC),
+        calculated_at=datetime.now(timezone.utc),
+        window_start=datetime.now(timezone.utc) - timedelta(days=1),
+        window_end=datetime.now(timezone.utc),
         sli_value=0.95,
         slo_target=0.99,
         error_budget_total=1.0,
@@ -221,9 +221,9 @@ class TestConditionEvaluation:
             budget_id="budget-456",
             slo_id="slo-456",
             service_name="test-service",
-            calculated_at=datetime.now(UTC),
-            window_start=datetime.now(UTC) - timedelta(days=1),
-            window_end=datetime.now(UTC),
+            calculated_at=datetime.now(timezone.utc),
+            window_start=datetime.now(timezone.utc) - timedelta(days=1),
+            window_end=datetime.now(timezone.utc),
             sli_value=0.90,
             slo_target=0.99,
             error_budget_total=1.0,
@@ -266,11 +266,11 @@ class TestCooldown:
             severity=AlertSeverity.WARNING,
             channels=[AlertChannel.SLACK],
             cooldown_minutes=30,
-            created_at=datetime.now(UTC),
+            created_at=datetime.now(timezone.utc),
         )
 
         # Simular último alerta há 5 minutos
-        alert_engine._last_alert_times["test-rule"] = datetime.now(UTC) - timedelta(minutes=5)
+        alert_engine._last_alert_times["test-rule"] = datetime.now(timezone.utc) - timedelta(minutes=5)
 
         # Verificar que está em cooldown
         in_cooldown = await alert_engine._is_in_cooldown("test-rule")
@@ -289,11 +289,11 @@ class TestCooldown:
             severity=AlertSeverity.WARNING,
             channels=[AlertChannel.SLACK],
             cooldown_minutes=30,
-            created_at=datetime.now(UTC),
+            created_at=datetime.now(timezone.utc),
         )
 
         # Simular último alerta há 31 minutos
-        alert_engine._last_alert_times["test-rule"] = datetime.now(UTC) - timedelta(minutes=31)
+        alert_engine._last_alert_times["test-rule"] = datetime.now(timezone.utc) - timedelta(minutes=31)
 
         # Verificar que não está mais em cooldown
         in_cooldown = await alert_engine._is_in_cooldown("test-rule")
@@ -315,7 +315,7 @@ class TestAlertMessageCreation:
             severity=AlertSeverity.CRITICAL,
             channels=[AlertChannel.SLACK],
             cooldown_minutes=30,
-            created_at=datetime.now(UTC),
+            created_at=datetime.now(timezone.utc),
         )
 
         title, message, details = alert_engine._create_alert_message(rule, sample_budget)
@@ -337,7 +337,7 @@ class TestAlertMessageCreation:
             severity=AlertSeverity.CRITICAL,
             channels=[AlertChannel.SLACK],
             cooldown_minutes=30,
-            created_at=datetime.now(UTC),
+            created_at=datetime.now(timezone.utc),
         )
 
         title, message, details = alert_engine._create_alert_message(rule, sample_budget)
@@ -362,7 +362,7 @@ class TestAlertCRUD:
             ),
             severity=AlertSeverity.WARNING,
             channels=[AlertChannel.SLACK],
-            created_at=datetime.now(UTC),
+            created_at=datetime.now(timezone.utc),
         )
 
         created = await alert_engine.create_rule(rule)

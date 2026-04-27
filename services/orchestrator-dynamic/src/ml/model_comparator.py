@@ -1251,13 +1251,13 @@ class ModelComparator:
                     with mlflow.start_run(run_id=run_id):
                         mlflow.log_artifact(temp_path, "model_comparison")
                         mlflow.set_tag("comparison.performed", "true")
-                        mlflow.set_tag("comparison.timestamp", datetime.now(UTC).isoformat())
+                        mlflow.set_tag("comparison.timestamp", datetime.now(timezone.utc).isoformat())
                 else:
                     # Criar novo run
                     with mlflow.start_run(run_name=f"comparison_{model_name}"):
                         mlflow.log_artifact(temp_path, "model_comparison")
                         mlflow.set_tag("comparison.performed", "true")
-                        mlflow.set_tag("comparison.timestamp", datetime.now(UTC).isoformat())
+                        mlflow.set_tag("comparison.timestamp", datetime.now(timezone.utc).isoformat())
                         mlflow.set_tag("model_name", model_name)
 
                 self.logger.info("report_saved_to_mlflow", model_name=model_name, run_id=run_id)

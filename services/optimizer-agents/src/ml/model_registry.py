@@ -7,7 +7,7 @@ Gerencia lifecycle de modelos Prophet/ARIMA (LoadPredictor) e políticas RL (Sch
 import logging
 import pickle
 import tempfile
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 UTC = UTC  # type: ignore
 from typing import Any
@@ -131,7 +131,7 @@ class ModelRegistry:
                     {
                         "model_type": "load_predictor",
                         "framework": "prophet" if hasattr(model, "history") else "arima",
-                        "timestamp": datetime.now(UTC).isoformat(),
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
                     }
                 )
 
@@ -269,7 +269,7 @@ class ModelRegistry:
                     {
                         "model_type": "scheduling_policy",
                         "framework": "q_learning",
-                        "timestamp": datetime.now(UTC).isoformat(),
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
                     }
                 )
 
@@ -453,7 +453,7 @@ class ModelRegistry:
         if cache_key in self._model_cache:
             cached = self._model_cache[cache_key]
             # Verificar TTL
-            age = (datetime.now(UTC) - cached["cached_at"]).total_seconds()
+            age = (datetime.now(timezone.utc) - cached["cached_at"]).total_seconds()
             if age < self._cache_ttl:
                 return cached["data"]
             else:
@@ -465,7 +465,7 @@ class ModelRegistry:
         """Adiciona modelo ao cache."""
         self._model_cache[cache_key] = {
             "data": data,
-            "cached_at": datetime.now(UTC),
+            "cached_at": datetime.now(timezone.utc),
         }
 
 

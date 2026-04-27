@@ -5,7 +5,7 @@ Valida campos de aprovação, operações destrutivas, serialização Avro,
 e compatibilidade retroativa.
 """
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 import pytest
 from src.models.cognitive_plan import ApprovalStatus, CognitivePlan, PlanStatus, RiskBand, TaskNode
@@ -81,7 +81,7 @@ def sample_plan_approved():
         "requires_approval": True,
         "approval_status": ApprovalStatus.APPROVED,
         "approved_by": "admin-user-123",
-        "approved_at": datetime.now(UTC),
+        "approved_at": datetime.now(timezone.utc),
     }
 
 
@@ -119,7 +119,7 @@ class TestCognitivePlanApprovalFields:
 
     def test_set_approval_status_approved_with_metadata(self, minimal_valid_plan_data):
         """Definir status aprovado com approved_by e approved_at."""
-        now = datetime.now(UTC)
+        now = datetime.now(timezone.utc)
         minimal_valid_plan_data["requires_approval"] = True
         minimal_valid_plan_data["approval_status"] = ApprovalStatus.APPROVED
         minimal_valid_plan_data["approved_by"] = "admin-user-456"

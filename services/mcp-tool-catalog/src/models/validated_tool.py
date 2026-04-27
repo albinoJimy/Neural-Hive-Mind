@@ -4,7 +4,7 @@ Modelo para ferramenta MCP validada.
 Representa ferramenta com relatórios de validação de schema, segurança e conectividade.
 """
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Optional
 
@@ -101,8 +101,8 @@ class ValidatedTool(BaseModel):
     endpoint_url: Optional[str] = None
     authentication_method: str
     metadata: dict[str, Any] = Field(default_factory=dict)
-    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
-    updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     trace_id: Optional[str] = None
     span_id: Optional[str] = None
     schema_version: int = 1

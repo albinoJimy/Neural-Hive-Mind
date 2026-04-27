@@ -7,7 +7,7 @@ atualizar o ledger e publicar planos aprovados para execução.
 
 import logging
 import time
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 UTC = UTC  # type: ignore
 from typing import Any
@@ -245,7 +245,7 @@ class ApprovalProcessor:
         approved_at = (
             datetime.utcfromtimestamp(approved_at_ts / 1000)
             if approved_at_ts
-            else datetime.now(UTC)
+            else datetime.now(timezone.utc)
         )
 
         # Buscar plano no ledger
@@ -379,7 +379,7 @@ class ApprovalProcessor:
         if "created_at" in plan_dict:
             plan_dict["created_at"] = normalize_timestamp_millis(
                 plan_dict["created_at"]
-            ) or datetime.now(UTC)
+            ) or datetime.now(timezone.utc)
         if "valid_until" in plan_dict:
             plan_dict["valid_until"] = normalize_timestamp_millis(plan_dict["valid_until"])
 

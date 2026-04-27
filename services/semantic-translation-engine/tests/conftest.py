@@ -255,7 +255,7 @@ def sample_ledger_entry(sample_plan_id, sample_intent_id) -> dict[str, Any]:
         "plan_id": sample_plan_id,
         "intent_id": sample_intent_id,
         "version": "1.0.0",
-        "timestamp": datetime.now(UTC),
+        "timestamp": datetime.now(timezone.utc),
         "plan_data": {
             "plan_id": sample_plan_id,
             "intent_id": sample_intent_id,
@@ -305,7 +305,7 @@ def sample_approval_response(sample_plan_id, sample_intent_id) -> dict[str, Any]
         "intent_id": sample_intent_id,
         "decision": "approved",
         "approved_by": "admin@company.com",
-        "approved_at": int(datetime.now(UTC).timestamp() * 1000),
+        "approved_at": int(datetime.now(timezone.utc).timestamp() * 1000),
         "rejection_reason": None,
     }
 
@@ -318,7 +318,7 @@ def sample_rejection_response(sample_plan_id, sample_intent_id) -> dict[str, Any
         "intent_id": sample_intent_id,
         "decision": "rejected",
         "approved_by": "admin@company.com",
-        "approved_at": int(datetime.now(UTC).timestamp() * 1000),
+        "approved_at": int(datetime.now(timezone.utc).timestamp() * 1000),
         "rejection_reason": "Operação muito arriscada para produção",
     }
 

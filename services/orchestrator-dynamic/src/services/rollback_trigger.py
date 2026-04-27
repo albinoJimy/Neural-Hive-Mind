@@ -260,7 +260,7 @@ class RollbackTrigger:
         # Criar evento de rollback
         event = RollbackEvent(
             cutover_id=self.cutover_id,
-            timestamp=datetime.now(UTC),
+            timestamp=datetime.now(timezone.utc),
             trigger_type=RollbackTriggerType.MANUAL,
             reason=reason,
             metrics={"triggered_by": triggered_by, "message": message},
@@ -396,7 +396,7 @@ class RollbackTrigger:
                         # Criar evento de rollback
                         event = RollbackEvent(
                             cutover_id=self.cutover_id,
-                            timestamp=datetime.now(UTC),
+                            timestamp=datetime.now(timezone.utc),
                             trigger_type=RollbackTriggerType.AUTOMATIC,
                             reason=reason,
                             metrics={
