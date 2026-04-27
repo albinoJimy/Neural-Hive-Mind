@@ -5,12 +5,11 @@ Endpoints para login, refresh de token e validação.
 
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, status, Depends
-from pydantic import BaseModel, Field, EmailStr
+from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel, EmailStr, Field
+from src.api.auth import TokenPayload, get_current_user
+from src.services.token_service import TokenService, get_token_service
 from structlog import get_logger
-
-from src.services.token_service import TokenService, get_token_service, TokenPair
-from src.api.auth import get_current_user, TokenPayload
 
 logger = get_logger(__name__)
 
@@ -230,4 +229,3 @@ async def logout(current_user: TokenPayload = Depends(get_current_user)) -> None
     """
     logger.info("logout", user_id=current_user.sub)
     # Em produção: adicionar token à blacklist no Redis
-    return None

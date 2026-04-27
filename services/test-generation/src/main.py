@@ -4,14 +4,13 @@ import asyncio
 from contextlib import asynccontextmanager
 
 import structlog
+from api.routers.tests import router as tests_router
+from config.settings import get_settings
+from consumers.requirements_consumer import RequirementsConsumer
+from database.mongodb_client import MongoDBClient
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-
-from src.api.routers.tests import router as tests_router
-from src.config.settings import get_settings
-from src.consumers.requirements_consumer import RequirementsConsumer
-from src.database.mongodb_client import MongoDBClient
-from src.producers.tests_producer import TestsProducer
+from producers.tests_producer import TestsProducer
 
 settings = get_settings()
 
@@ -180,7 +179,7 @@ if __name__ == "__main__":
     import uvicorn
 
     uvicorn.run(
-        "src.main:app",
+        "main:app",
         host=settings.host,
         port=settings.port,
         reload=True,

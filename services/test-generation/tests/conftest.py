@@ -6,33 +6,34 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-# Add project root to Python path for "from src.xyz import" imports
-project_root = Path(__file__).parent.parent
-if str(project_root) not in sys.path:
-    sys.path.insert(0, str(project_root))
+# Add src to Python path para imports diretos de models, services, etc.
+src_root = Path(__file__).parent.parent / "src"
+sys.path.insert(0, str(src_root))
 
 
 @pytest.fixture()
 def mock_openai_client():
-    """Mock do cliente OpenAI."""
+    """Mock do cliente LLM (compatível com neural_hive_llm)."""
     client = AsyncMock()
 
-    # Mock chat completions
+    # Mock generate method
     mock_response = MagicMock()
     mock_choice = MagicMock()
-    mock_message = MagicMock()
 
-    mock_message.content = """\
+    # Usar dict para message (compatível com neural_hive_llm)
+    mock_choice.message = {
+        "role": "assistant",
+        "content": """\
 import pytest
 
 def test_example_feature():
     \"\"\"Test example feature works correctly.\"\"\"
     assert True
-"""
-    mock_choice.message = mock_message
+""",
+    }
     mock_response.choices = [mock_choice]
 
-    client.chat.completions.create = AsyncMock(return_value=mock_response)
+    client.generate = AsyncMock(return_value=mock_response)
 
     return client
 
@@ -42,13 +43,13 @@ def mock_settings():
     """Mock das configurações."""
     from unittest.mock import patch
 
-    from src.config.settings import Settings
+    from config.settings import Settings
 
-    settings = Settings(
+    settings = Settings.model_construct(
         openai_api_key="test-key",
         llm_model="gpt-4-turbo-preview",
         mongodb_url="mongodb://localhost:27017",
     )
 
-    with patch("src.config.settings.get_settings", return_value=settings):
+    with patch("config.settings.get_settings", return_value=settings):
         yield settings

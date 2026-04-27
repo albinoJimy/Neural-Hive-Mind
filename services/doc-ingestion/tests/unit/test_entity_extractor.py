@@ -1,20 +1,21 @@
 """Testes unitários para Entity Extractor."""
 
-from unittest.mock import AsyncMock, Mock
+from unittest.mock import AsyncMock
 
 import pytest
 
+from src.clients.llm_client_wrapper import ChatCompletion, Choice
 from src.models.entities import EntityType
 from src.services.entity_extractor import EntityExtractor
 
 
 @pytest.fixture
-def mock_openai_response():
-    """Fixture para resposta mock do OpenAI."""
-    mock_response = Mock()
-    mock_response.choices = [Mock()]
-    mock_response.choices[0].message = Mock()
-    mock_response.choices[0].message.content = """[
+def mock_llm_response():
+    """Fixture para resposta mock do LLM wrapper."""
+    choice = Choice(
+        message={
+            "role": "assistant",
+            "content": """[
         {
             "type": "functionality",
             "name": "User Authentication",
@@ -36,33 +37,127 @@ def mock_openai_response():
             "source_text": "GET /api/users returns a list of users",
             "confidence_score": 0.88
         }
-    ]"""
-    return mock_response
+    ]""",
+        }
+    )
+    return ChatCompletion(choices=[choice], model="gpt-4")
 
 
 @pytest.fixture
-def mock_anthropic_response():
-    """Fixture para resposta mock do Anthropic."""
-    mock_response = Mock()
-    mock_content = Mock()
-    mock_content.text = """[
+def mock_llm_response_low_confidence():
+    """Fixture para resposta mock com entidade de baixa confiança."""
+    choice = Choice(
+        message={
+            "role": "assistant",
+            "content": """[
         {
-            "type": "data_model",
-            "name": "User",
-            "description": "User entity with authentication fields",
-            "source_text": "User model contains id, email, password_hash",
-            "confidence_score": 0.92
+            "type": "functionality",
+            "name": "High Confidence",
+            "description": "Test",
+            "source_text": "Test",
+            "confidence_score": 0.85
+        },
+        {
+            "type": "functionality",
+            "name": "Low Confidence",
+            "description": "Test",
+            "source_text": "Test",
+            "confidence_score": 0.45
         }
-    ]"""
-    mock_response.content = [mock_content]
-    return mock_response
+    ]""",
+        }
+    )
+    return ChatCompletion(choices=[choice], model="gpt-4")
+
+
+@pytest.fixture
+def mock_llm_response_with_context():
+    """Fixture para resposta mock com contexto."""
+    choice = Choice(
+        message={
+            "role": "assistant",
+            "content": """[
+        {
+            "type": "tech_stack",
+            "name": "PostgreSQL",
+            "description": "Database system",
+            "source_text": "Uses PostgreSQL for persistence",
+            "confidence_score": 0.95
+        }
+    ]""",
+        }
+    )
+    return ChatCompletion(choices=[choice], model="gpt-4")
+
+
+@pytest.fixture
+def mock_llm_response_invalid_entity():
+    """Fixture para resposta mock com tipo inválido."""
+    choice = Choice(
+        message={
+            "role": "assistant",
+            "content": """[
+        {
+            "type": "functionality",
+            "name": "Valid Entity",
+            "description": "Test",
+            "source_text": "Test",
+            "confidence_score": 0.85
+        },
+        {
+            "type": "invalid_type",
+            "name": "Invalid Entity",
+            "description": "Test",
+            "source_text": "Test",
+            "confidence_score": 0.75
+        }
+    ]""",
+        }
+    )
+    return ChatCompletion(choices=[choice], model="gpt-4")
+
+
+@pytest.fixture
+def mock_llm_response_markdown():
+    """Fixture para resposta mock com markdown code blocks."""
+    choice = Choice(
+        message={
+            "role": "assistant",
+            "content": """```json
+[
+    {
+        "type": "dependency",
+        "name": "Redis",
+        "description": "Caching layer",
+        "source_text": "Uses Redis for caching",
+        "confidence_score": 0.90
+    }
+]
+```""",
+        }
+    )
+    return ChatCompletion(choices=[choice], model="gpt-4")
+
+
+@pytest.fixture
+def mock_llm_response_empty():
+    """Fixture para resposta mock vazia."""
+    choice = Choice(message={"role": "assistant", "content": "[]"})
+    return ChatCompletion(choices=[choice], model="gpt-4")
+
+
+@pytest.fixture
+def mock_llm_response_invalid_json():
+    """Fixture para resposta mock com JSON inválido."""
+    choice = Choice(message={"role": "assistant", "content": "This is not valid JSON"})
+    return ChatCompletion(choices=[choice], model="gpt-4")
 
 
 @pytest.mark.asyncio
-async def test_extract_entities_openai(mock_openai_response):
-    """Testa extração de entidades usando OpenAI."""
+async def test_extract_entities_openai(mock_llm_response):
+    """Testa extração de entidades usando OpenAI (via LLMClient)."""
     mock_client = AsyncMock()
-    mock_client.chat.completions.create = AsyncMock(return_value=mock_openai_response)
+    mock_client.generate = AsyncMock(return_value=mock_llm_response)
 
     extractor = EntityExtractor(llm_client=mock_client, min_confidence=0.7)
     entities = await extractor.extract(
@@ -80,48 +175,10 @@ async def test_extract_entities_openai(mock_openai_response):
 
 
 @pytest.mark.asyncio
-async def test_extract_entities_anthropic(mock_anthropic_response):
-    """Testa extração de entidades usando Anthropic."""
-    mock_client = AsyncMock()
-    mock_client.messages.create = AsyncMock(return_value=mock_anthropic_response)
-
-    extractor = EntityExtractor(llm_client=mock_client, provider="anthropic", min_confidence=0.7)
-    entities = await extractor.extract(
-        document_id="doc-002",
-        text="User model contains id, email, password_hash",
-    )
-
-    assert len(entities) == 1
-    assert entities[0].type == EntityType.DATA_MODEL
-    assert entities[0].name == "User"
-    assert entities[0].confidence_score == 0.92
-
-
-@pytest.mark.asyncio
-async def test_extract_entities_with_low_confidence():
+async def test_extract_entities_with_low_confidence(mock_llm_response_low_confidence):
     """Testa filtro de entidades com baixa confiança."""
-    mock_response = Mock()
-    mock_response.choices = [Mock()]
-    mock_response.choices[0].message = Mock()
-    mock_response.choices[0].message.content = """[
-        {
-            "type": "functionality",
-            "name": "High Confidence",
-            "description": "Test",
-            "source_text": "Test",
-            "confidence_score": 0.85
-        },
-        {
-            "type": "functionality",
-            "name": "Low Confidence",
-            "description": "Test",
-            "source_text": "Test",
-            "confidence_score": 0.45
-        }
-    ]"""
-
     mock_client = AsyncMock()
-    mock_client.chat.completions.create = AsyncMock(return_value=mock_response)
+    mock_client.generate = AsyncMock(return_value=mock_llm_response_low_confidence)
 
     extractor = EntityExtractor(llm_client=mock_client, min_confidence=0.7)
     entities = await extractor.extract(document_id="doc-001", text="Test text")
@@ -132,23 +189,10 @@ async def test_extract_entities_with_low_confidence():
 
 
 @pytest.mark.asyncio
-async def test_extract_entities_with_context():
+async def test_extract_entities_with_context(mock_llm_response_with_context):
     """Testa extração com contexto adicional."""
-    mock_response = Mock()
-    mock_response.choices = [Mock()]
-    mock_response.choices[0].message = Mock()
-    mock_response.choices[0].message.content = """[
-        {
-            "type": "tech_stack",
-            "name": "PostgreSQL",
-            "description": "Database system",
-            "source_text": "Uses PostgreSQL for persistence",
-            "confidence_score": 0.95
-        }
-    ]"""
-
     mock_client = AsyncMock()
-    mock_client.chat.completions.create = AsyncMock(return_value=mock_response)
+    mock_client.generate = AsyncMock(return_value=mock_llm_response_with_context)
 
     extractor = EntityExtractor(llm_client=mock_client)
     context = {"document_type": "architecture", "section": "database"}
@@ -162,30 +206,10 @@ async def test_extract_entities_with_context():
 
 
 @pytest.mark.asyncio
-async def test_extract_entities_filters_invalid_json():
+async def test_extract_entities_filters_invalid_json(mock_llm_response_invalid_entity):
     """Testa que entidades com tipo inválido são ignoradas."""
-    mock_response = Mock()
-    mock_response.choices = [Mock()]
-    mock_response.choices[0].message = Mock()
-    mock_response.choices[0].message.content = """[
-        {
-            "type": "functionality",
-            "name": "Valid Entity",
-            "description": "Test",
-            "source_text": "Test",
-            "confidence_score": 0.85
-        },
-        {
-            "type": "invalid_type",
-            "name": "Invalid Entity",
-            "description": "Test",
-            "source_text": "Test",
-            "confidence_score": 0.75
-        }
-    ]"""
-
     mock_client = AsyncMock()
-    mock_client.chat.completions.create = AsyncMock(return_value=mock_response)
+    mock_client.generate = AsyncMock(return_value=mock_llm_response_invalid_entity)
 
     extractor = EntityExtractor(llm_client=mock_client)
     entities = await extractor.extract(document_id="doc-001", text="Test text")
@@ -196,25 +220,10 @@ async def test_extract_entities_filters_invalid_json():
 
 
 @pytest.mark.asyncio
-async def test_extract_entities_with_markdown_response():
+async def test_extract_entities_with_markdown_response(mock_llm_response_markdown):
     """Testa parsing de resposta com markdown code blocks."""
-    mock_response = Mock()
-    mock_response.choices = [Mock()]
-    mock_response.choices[0].message = Mock()
-    mock_response.choices[0].message.content = """```json
-[
-    {
-        "type": "dependency",
-        "name": "Redis",
-        "description": "Caching layer",
-        "source_text": "Uses Redis for caching",
-        "confidence_score": 0.90
-    }
-]
-```"""
-
     mock_client = AsyncMock()
-    mock_client.chat.completions.create = AsyncMock(return_value=mock_response)
+    mock_client.generate = AsyncMock(return_value=mock_llm_response_markdown)
 
     extractor = EntityExtractor(llm_client=mock_client)
     entities = await extractor.extract(document_id="doc-001", text="Uses Redis for caching")
@@ -224,15 +233,10 @@ async def test_extract_entities_with_markdown_response():
 
 
 @pytest.mark.asyncio
-async def test_extract_entities_empty_result():
+async def test_extract_entities_empty_result(mock_llm_response_empty):
     """Testa retorno vazio quando LLM não retorna entidades."""
-    mock_response = Mock()
-    mock_response.choices = [Mock()]
-    mock_response.choices[0].message = Mock()
-    mock_response.choices[0].message.content = "[]"
-
     mock_client = AsyncMock()
-    mock_client.chat.completions.create = AsyncMock(return_value=mock_response)
+    mock_client.generate = AsyncMock(return_value=mock_llm_response_empty)
 
     extractor = EntityExtractor(llm_client=mock_client)
     entities = await extractor.extract(document_id="doc-001", text="No entities here")
@@ -244,7 +248,7 @@ async def test_extract_entities_empty_result():
 async def test_extract_entities_llm_error():
     """Testa tratamento de erro do LLM."""
     mock_client = AsyncMock()
-    mock_client.chat.completions.create = AsyncMock(side_effect=Exception("LLM API Error"))
+    mock_client.generate = AsyncMock(side_effect=Exception("LLM API Error"))
 
     extractor = EntityExtractor(llm_client=mock_client)
 
@@ -255,15 +259,10 @@ async def test_extract_entities_llm_error():
 
 
 @pytest.mark.asyncio
-async def test_extract_entities_invalid_json():
+async def test_extract_entities_invalid_json(mock_llm_response_invalid_json):
     """Testa erro quando resposta não é JSON válido."""
-    mock_response = Mock()
-    mock_response.choices = [Mock()]
-    mock_response.choices[0].message = Mock()
-    mock_response.choices[0].message.content = "This is not valid JSON"
-
     mock_client = AsyncMock()
-    mock_client.chat.completions.create = AsyncMock(return_value=mock_response)
+    mock_client.generate = AsyncMock(return_value=mock_llm_response_invalid_json)
 
     extractor = EntityExtractor(llm_client=mock_client)
 
@@ -314,3 +313,16 @@ def test_build_extraction_prompt_truncates_long_text():
 
     assert len(prompt) < 20000
     assert "truncated" in prompt.lower()
+
+
+def test_extractor_initialization_with_provider():
+    """Testa inicialização do extrator com provider específico."""
+    extractor = EntityExtractor(provider="openai")
+    assert extractor._provider == "openai"
+    assert extractor._min_confidence == 0.7
+
+
+def test_extractor_initialization_with_custom_confidence():
+    """Testa inicialização do extrator com confiança customizada."""
+    extractor = EntityExtractor(provider="openai", min_confidence=0.5)
+    assert extractor._min_confidence == 0.5

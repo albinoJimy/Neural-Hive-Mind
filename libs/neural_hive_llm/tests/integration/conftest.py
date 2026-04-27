@@ -7,6 +7,7 @@ com credenciais configuradas.
 """
 
 import os
+
 import pytest
 
 from neural_hive_llm import LLMClient, LLMProvider
@@ -17,9 +18,7 @@ def pytest_configure(config):
     config.addinivalue_line(
         "markers", "integration: marks tests as integration (require API keys or local services)"
     )
-    config.addinivalue_line(
-        "markers", "slow: marks tests as slow (should be skipped in CI)"
-    )
+    config.addinivalue_line("markers", "slow: marks tests as slow (should be skipped in CI)")
 
 
 @pytest.fixture

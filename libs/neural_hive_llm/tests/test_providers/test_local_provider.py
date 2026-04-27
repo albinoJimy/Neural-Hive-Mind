@@ -2,12 +2,13 @@
 Testes unitários para LocalProvider.
 """
 
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
-import httpx
+from unittest.mock import AsyncMock, MagicMock
 
+import httpx
+import pytest
+
+from neural_hive_llm.models import LLMProvider, LLMRequest
 from neural_hive_llm.providers.local_provider import LocalProvider
-from neural_hive_llm.models import LLMRequest, LLMProvider
 
 
 @pytest.fixture

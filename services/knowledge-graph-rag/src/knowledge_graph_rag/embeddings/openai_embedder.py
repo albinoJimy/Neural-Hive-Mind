@@ -1,9 +1,9 @@
-"""Serviço de embeddings OpenAI com cache."""
+"""Serviço de embeddings OpenAI com cache usando neural_hive_llm."""
 
 from typing import List, Optional
 
 import structlog
-from openai import AsyncOpenAI
+from neural_hive_llm import LLMClient, LLMProvider
 
 from knowledge_graph_rag.config.settings import get_settings
 from knowledge_graph_rag.embeddings.cache import EmbeddingCache
@@ -17,7 +17,7 @@ settings = get_settings()
 
 
 class OpenAIEmbedder:
-    """Gerador de embeddings usando OpenAI API."""
+    """Gerador de embeddings usando neural_hive_llm."""
 
     def __init__(
         self,
@@ -41,15 +41,20 @@ class OpenAIEmbedder:
         self.dimensions = dimensions or settings.embedding_dimensions
         self.batch_size = batch_size
         self.cache = cache
-        self._client: Optional[AsyncOpenAI] = None
+        self._client: Optional[LLMClient] = None
 
     async def connect(self):
-        """Inicializa cliente OpenAI e cache."""
+        """Inicializa cliente neural_hive_llm e cache."""
         if not self.api_key:
             logger.warning("openai_no_api_key")
             return
 
-        self._client = AsyncOpenAI(api_key=self.api_key)
+        self._client = LLMClient(
+            provider=LLMProvider.OPENAI,
+            api_key=self.api_key,
+            model=self.model,
+        )
+        await self._client.start()
 
         if self.cache:
             await self.cache.connect()
@@ -67,7 +72,7 @@ class OpenAIEmbedder:
             await self.cache.close()
 
         if self._client:
-            await self._client.close()
+            await self._client.stop()
 
     async def embed(self, text: str, use_cache: bool = True) -> List[float]:
         """Gera embedding para um texto.
@@ -93,14 +98,15 @@ class OpenAIEmbedder:
                 logger.debug("embedding_cache_hit", text_length=len(text))
                 return cached
 
-        # Gerar embedding via API
+        # Gerar embedding via neural_hive_llm
         if not self._client:
             await self.connect()
 
         try:
-            response = await self._client.embeddings.create(
+            response = await self._client.generate_embeddings(
                 input=text,
                 model=self.model,
+                dimensions=self.dimensions,
             )
 
             embedding = response.data[0].embedding
@@ -168,7 +174,9 @@ class OpenAIEmbedder:
             # Processar em lotes
             for i in range(0, len(texts_to_fetch), self.batch_size):
                 batch = texts_to_fetch[i : i + self.batch_size]
-                batch_embeddings = await self._fetch_batch([text for _, text in batch])
+                batch_texts = [text for _, text in batch]
+
+                batch_embeddings = await self._fetch_batch(batch_texts)
 
                 # Armazenar no cache e adicionar aos resultados
                 for (idx, text), embedding in zip(batch, batch_embeddings):
@@ -190,7 +198,7 @@ class OpenAIEmbedder:
         return all_embeddings
 
     async def _fetch_batch(self, texts: List[str]) -> List[List[float]]:
-        """Busca embeddings da API em lote.
+        """Busca embeddings da API em lote usando neural_hive_llm.
 
         Args:
             texts: Textos para processar
@@ -202,11 +210,13 @@ class OpenAIEmbedder:
             await self.connect()
 
         try:
-            response = await self._client.embeddings.create(
+            response = await self._client.generate_embeddings(
                 input=texts,
                 model=self.model,
+                dimensions=self.dimensions,
             )
 
+            # neural_hive_llm retorna data ordenado por index
             embeddings = [item.embedding for item in response.data]
 
             logger.debug(

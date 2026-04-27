@@ -3,7 +3,7 @@ Configuração e fixtures para testes de neural_hive_llm.
 """
 
 import asyncio
-from typing import AsyncGenerator, Generator
+from collections.abc import Generator
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest

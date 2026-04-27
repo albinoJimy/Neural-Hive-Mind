@@ -8,7 +8,13 @@ from abc import ABC, abstractmethod
 from collections.abc import AsyncGenerator
 from typing import Optional
 
-from neural_hive_llm.models import LLMRequest, LLMResponse, LLMStreamChunk
+from neural_hive_llm.models import (
+    EmbeddingRequest,
+    EmbeddingResponse,
+    LLMRequest,
+    LLMResponse,
+    LLMStreamChunk,
+)
 
 
 class BaseProvider(ABC):
@@ -132,6 +138,24 @@ class BaseProvider(ABC):
             return True
         except Exception:
             return False
+
+    async def generate_embeddings(
+        self,
+        request: EmbeddingRequest,
+    ) -> EmbeddingResponse:
+        """
+        Gera embeddings para textos.
+
+        Args:
+            request: Requisição de embedding
+
+        Returns:
+            EmbeddingResponse: Embeddings gerados
+
+        Raises:
+            NotImplementedError: Se provider não suportar embeddings
+        """
+        raise NotImplementedError(f"{self.__class__.__name__} não suporta embeddings")
 
     def __repr__(self) -> str:
         """Representação string do provider."""

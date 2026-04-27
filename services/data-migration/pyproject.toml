@@ -18,8 +18,8 @@ psycopg2-binary = "^2.9.9"
 redis = {extras = ["hiredis"], version = "^5.0.1"}
 aiokafka = "^0.9.0"
 structlog = "^23.2.0"
-openai = "^1.7.2"
-anthropic = "^0.18.0"
+# neural_hive_llm substitui openai e anthropic
+neural-hive-llm = {path = "../../libraries/neural_hive_llm", develop = true}
 boto3 = "^1.34.0"
 minio = "^7.2.0"
 opentelemetry-api = "^1.21.0"

@@ -3,8 +3,9 @@ Testes unitários para BaseProvider.
 """
 
 import pytest
-from neural_hive_llm.providers.base import BaseProvider
+
 from neural_hive_llm.models import LLMRequest, LLMStreamChunk
+from neural_hive_llm.providers.base import BaseProvider
 
 
 class DummyProvider(BaseProvider):
@@ -20,7 +21,8 @@ class DummyProvider(BaseProvider):
 
     async def generate(self, request: LLMRequest):
         """Generate dummy."""
-        from neural_hive_llm.models import LLMResponse, LLMProvider
+        from neural_hive_llm.models import LLMProvider, LLMResponse
+
         return LLMResponse(
             text="Dummy response",
             prompt_tokens=10,

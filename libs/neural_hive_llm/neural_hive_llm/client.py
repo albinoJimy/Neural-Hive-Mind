@@ -10,6 +10,8 @@ from typing import Optional, Union
 from neural_hive_llm.config import LLMSettings
 from neural_hive_llm.exceptions import LLMConfigurationError, LLMError
 from neural_hive_llm.models import (
+    EmbeddingRequest,
+    EmbeddingResponse,
     LLMProvider,
     LLMRequest,
     LLMResponse,
@@ -64,9 +66,7 @@ class LLMClient:
             self.settings = settings
             self.provider = settings.provider
         else:
-            self.provider = (
-                LLMProvider(provider) if isinstance(provider, str) else provider
-            )
+            self.provider = LLMProvider(provider) if isinstance(provider, str) else provider
             self.settings = None
 
         self.api_key = api_key
@@ -235,6 +235,44 @@ class LLMClient:
             return False
         return await self._provider_instance.healthcheck()
 
+    async def generate_embeddings(
+        self,
+        input: str | list[str],
+        model: str | None = None,
+        encoding_format: str = "float",
+        dimensions: int | None = None,
+        **kwargs,
+    ) -> EmbeddingResponse:
+        """
+        Gera embeddings para textos.
+
+        Args:
+            input: Texto ou lista de textos para gerar embeddings
+            model: Modelo de embedding (default: text-embedding-3-small)
+            encoding_format: Formato do embedding ('float' ou 'base64')
+            dimensions: Dimensões do embedding (para modelos que suportam)
+            **kwargs: Parâmetros adicionais
+
+        Returns:
+            EmbeddingResponse: Embeddings gerados
+
+        Raises:
+            LLMError: Em caso de erro na geração
+            NotImplementedError: Se provider não suportar embeddings
+        """
+        if not self._is_started:
+            raise LLMError("Cliente não inicializado. Chame await client.start()")
+
+        request = EmbeddingRequest(
+            input=input,
+            model=model or "text-embedding-3-small",
+            encoding_format=encoding_format,
+            dimensions=dimensions,
+            **kwargs,
+        )
+
+        return await self._provider_instance.generate_embeddings(request)
+
     def _create_provider(self) -> BaseProvider:
         """
         Cria instância do provider baseado na configuração.
@@ -303,7 +341,9 @@ class LLMClient:
 
     def __repr__(self) -> str:
         """Representação string do cliente."""
-        provider_name = self.provider.value if isinstance(self.provider, LLMProvider) else self.provider
+        provider_name = (
+            self.provider.value if isinstance(self.provider, LLMProvider) else self.provider
+        )
         return f"LLMClient(provider={provider_name}, model={self.model})"
 
 

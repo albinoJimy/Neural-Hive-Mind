@@ -7,20 +7,21 @@ import pytest
 
 @pytest.fixture()
 def mock_openai_client():
-    """Mock do cliente OpenAI."""
+    """Mock do cliente LLM usando neural_hive_llm."""
     # Mock simples da resposta
     mock_response = MagicMock()
     mock_choice = MagicMock()
-    mock_message = MagicMock()
-    mock_message.content = "AVALIACAO: 85\nRACIOCINIO: Solicitação bem elaborada, requisitos claros e alinhados com os objetivos do projeto."
-    mock_choice.message = mock_message
+    # Novo padrão: message é um dict com "content"
+    mock_choice.message = {
+        "content": "AVALIACAO: 85\nRACIOCINIO: Solicitação bem elaborada, requisitos claros e alinhados com os objetivos do projeto.",
+        "role": "assistant",
+    }
+    mock_choice.finish_reason = "stop"
     mock_response.choices = [mock_choice]
 
-    # Mock do cliente
+    # Mock do cliente usando o novo padrão generate()
     client = MagicMock()
-    client.chat = MagicMock()
-    client.chat.completions = MagicMock()
-    client.chat.completions.create = AsyncMock(return_value=mock_response)
+    client.generate = AsyncMock(return_value=mock_response)
 
     return client
 

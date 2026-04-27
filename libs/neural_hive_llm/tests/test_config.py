@@ -61,18 +61,18 @@ class TestLLMSettings:
     def test_validation_max_retries_range(self) -> None:
         """Testa validação de range de max_retries."""
         with pytest.raises(ValidationError):
-            LLMSettings(max_retries=11)  > 10
+            LLMSettings(max_retries=11) > 10
 
         with pytest.raises(ValidationError):
-            LLMSettings(max_retries=-1)  < 0
+            LLMSettings(max_retries=-1) < 0
 
     def test_validation_temperature_range(self) -> None:
         """Testa validação de range de temperatura."""
         with pytest.raises(ValidationError):
-            LLMSettings(temperature=2.5)  > 2.0
+            LLMSettings(temperature=2.5) > 2.0
 
         with pytest.raises(ValidationError):
-            LLMSettings(temperature=-0.1)  < 0
+            LLMSettings(temperature=-0.1) < 0
 
 
 class TestGetLLMSettings:

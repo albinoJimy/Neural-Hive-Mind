@@ -4,10 +4,9 @@ import uuid
 from typing import Any, Optional
 
 import structlog
-from openai import AsyncOpenAI
-
-from src.config.settings import Settings, get_settings
-from src.models.tests import (
+from clients.llm_client_wrapper import LLMClient
+from config.settings import Settings, get_settings
+from models.tests import (
     TestCase,
     TestFramework,
     TestGenerationRequest,
@@ -24,11 +23,11 @@ class TestGenerator:
 
     def __init__(
         self,
-        llm_client: Optional[AsyncOpenAI] = None,
+        llm_client: Optional[LLMClient] = None,
     ):
         """Inicializa o serviço."""
         settings = get_settings()
-        self._llm_client = llm_client or AsyncOpenAI(api_key=settings.openai_api_key)
+        self._llm_client = llm_client or LLMClient(api_key=settings.openai_api_key)
         self._llm_model = settings.llm_model
         self._llm_temperature = settings.llm_temperature
         self._logger = logger
@@ -403,8 +402,7 @@ Return only the test code without explanation.
     async def _call_llm(self, prompt: str) -> str:
         """Chama LLM para gerar código."""
         try:
-            response = await self._llm_client.chat.completions.create(
-                model=self._llm_model,
+            response = await self._llm_client.generate(
                 messages=[
                     {
                         "role": "system",
@@ -412,11 +410,12 @@ Return only the test code without explanation.
                     },
                     {"role": "user", "content": prompt},
                 ],
+                model=self._llm_model,
                 temperature=self._llm_temperature,
                 max_tokens=2000,
             )
 
-            return response.choices[0].message.content
+            return response.choices[0].message["content"]
 
         except Exception as e:
             self._logger.error("llm_call_failed", error=str(e))

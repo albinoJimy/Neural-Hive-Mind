@@ -13,10 +13,10 @@ from typing import Any, Optional
 
 import grpc
 import structlog
+from src.config.settings import get_settings
 
 # Import proto do service-registry (arquivos locais)
 from src.proto import service_registry_pb2, service_registry_pb2_grpc
-from src.config.settings import get_settings
 
 logger = structlog.get_logger(__name__)
 

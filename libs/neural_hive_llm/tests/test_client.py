@@ -2,12 +2,13 @@
 Testes unitários para LLMClient.
 """
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
+
 from neural_hive_llm.client import LLMClient, create_client
-from neural_hive_llm.models import LLMRequest, LLMProvider, LLMResponse
-from neural_hive_llm.exceptions import LLMError, LLMConfigurationError
+from neural_hive_llm.exceptions import LLMConfigurationError, LLMError
+from neural_hive_llm.models import LLMProvider, LLMRequest, LLMResponse
 
 
 @pytest.fixture

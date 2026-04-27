@@ -11,16 +11,27 @@ import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from src.consumers.requirements_consumer import RequirementsConsumer
-from src.database.mongodb_client import MongoDBClient
-from src.database.repositories import GenerationResultRepository, TestSuiteRepository
-from src.producers.tests_producer import TestsProducer
-from src.services.test_generator import (
+from consumers.requirements_consumer import RequirementsConsumer
+from database.mongodb_client import MongoDBClient
+from database.repositories import GenerationResultRepository, TestSuiteRepository
+from producers.tests_producer import TestsProducer
+
+from services.test_generator import (
     TestFramework,
     TestGenerationRequest,
     TestGenerator,
     TestType,
 )
+
+
+def _create_mock_llm_response(content: str) -> MagicMock:
+    """Cria mock de resposta LLM compatível com neural_hive_llm."""
+    mock_response = MagicMock()
+    mock_choice = MagicMock()
+    # neural_hive_llm retorna message como dict
+    mock_choice.message = {"role": "assistant", "content": content}
+    mock_response.choices = [mock_choice]
+    return mock_response
 
 
 @pytest.mark.asyncio()
@@ -32,19 +43,13 @@ class TestE2EGenerationFlow:
         """Testa fluxo completo: requirements → consumer → generator → mongodb."""
         # Setup mocks
         mock_llm_client = AsyncMock()
-        mock_response = MagicMock()
-        mock_choice = MagicMock()
-        mock_message = MagicMock()
-
-        mock_message.content = """import pytest
+        mock_response = _create_mock_llm_response("""import pytest
 
 def test_requirement_user_authentication():
     '''Test user authentication works correctly.'''
     assert True
-"""
-        mock_choice.message = mock_message
-        mock_response.choices = [mock_choice]
-        mock_llm_client.chat.completions.create = AsyncMock(return_value=mock_response)
+""")
+        mock_llm_client.generate = AsyncMock(return_value=mock_response)
 
         # Criar componentes
         test_generator = TestGenerator(llm_client=mock_llm_client)
@@ -87,12 +92,12 @@ def test_requirement_user_authentication():
         mock_choice = MagicMock()
         mock_message = MagicMock()
         mock_message.content = "def test(): pass"
-        mock_choice.message = mock_message
+        mock_choice.message = {"role": "assistant", "content": mock_message.content}
         mock_response.choices = [mock_choice]
-        mock_llm_client.chat.completions.create = AsyncMock(return_value=mock_response)
+        mock_llm_client.generate = AsyncMock(return_value=mock_response)
 
         # Mock MongoDB
-        with patch("src.database.mongodb_client.AsyncIOMotorClient") as mock_motor:
+        with patch("database.mongodb_client.AsyncIOMotorClient") as mock_motor:
             mock_instance = MagicMock()
             mock_instance.admin.command = AsyncMock(return_value="ok")
 
@@ -151,9 +156,9 @@ def test_requirement_user_authentication():
         mock_choice = MagicMock()
         mock_message = MagicMock()
         mock_message.content = "def test_user_login_flow(): pass"
-        mock_choice.message = mock_message
+        mock_choice.message = {"role": "assistant", "content": mock_message.content}
         mock_response.choices = [mock_choice]
-        mock_llm_client.chat.completions.create = AsyncMock(return_value=mock_response)
+        mock_llm_client.generate = AsyncMock(return_value=mock_response)
 
         test_generator = TestGenerator(llm_client=mock_llm_client)
 
@@ -188,9 +193,9 @@ def test_requirement_user_authentication():
         mock_choice = MagicMock()
         mock_message = MagicMock()
         mock_message.content = "def test_acceptance_criteria(): pass"
-        mock_choice.message = mock_message
+        mock_choice.message = {"role": "assistant", "content": mock_message.content}
         mock_response.choices = [mock_choice]
-        mock_llm_client.chat.completions.create = AsyncMock(return_value=mock_response)
+        mock_llm_client.generate = AsyncMock(return_value=mock_response)
 
         test_generator = TestGenerator(llm_client=mock_llm_client)
 
@@ -224,9 +229,9 @@ def test_requirement_user_authentication():
         mock_choice = MagicMock()
         mock_message = MagicMock()
         mock_message.content = "def test_multi(): pass"
-        mock_choice.message = mock_message
+        mock_choice.message = {"role": "assistant", "content": mock_message.content}
         mock_response.choices = [mock_choice]
-        mock_llm_client.chat.completions.create = AsyncMock(return_value=mock_response)
+        mock_llm_client.generate = AsyncMock(return_value=mock_response)
 
         test_generator = TestGenerator(llm_client=mock_llm_client)
 
@@ -258,7 +263,7 @@ def test_requirement_user_authentication():
     async def test_flow_with_llm_error(self):
         """Testa comportamento quando LLM falha."""
         mock_llm_client = AsyncMock()
-        mock_llm_client.chat.completions.create = AsyncMock(side_effect=Exception("LLM error"))
+        mock_llm_client.generate = AsyncMock(side_effect=Exception("LLM error"))
 
         test_generator = TestGenerator(llm_client=mock_llm_client)
 
@@ -293,9 +298,9 @@ def test_requirement_user_authentication():
         mock_choice = MagicMock()
         mock_message = MagicMock()
         mock_message.content = "def test_consumer(): pass"
-        mock_choice.message = mock_message
+        mock_choice.message = {"role": "assistant", "content": mock_message.content}
         mock_response.choices = [mock_choice]
-        mock_llm_client.chat.completions.create = AsyncMock(return_value=mock_response)
+        mock_llm_client.generate = AsyncMock(return_value=mock_response)
 
         test_generator = TestGenerator(llm_client=mock_llm_client)
         consumer = RequirementsConsumer(test_generator=test_generator)
@@ -324,7 +329,7 @@ def test_requirement_user_authentication():
         await consumer._process_message(mock_msg)
 
         # Validar que testes foram gerados (chamada ao LLM foi feita)
-        assert mock_llm_client.chat.completions.create.called
+        assert mock_llm_client.generate.called
 
     @pytest.mark.asyncio()
     async def test_coverage_estimation(self):
@@ -334,9 +339,9 @@ def test_requirement_user_authentication():
         mock_choice = MagicMock()
         mock_message = MagicMock()
         mock_message.content = "def test_coverage(): pass"
-        mock_choice.message = mock_message
+        mock_choice.message = {"role": "assistant", "content": mock_message.content}
         mock_response.choices = [mock_choice]
-        mock_llm_client.chat.completions.create = AsyncMock(return_value=mock_response)
+        mock_llm_client.generate = AsyncMock(return_value=mock_response)
 
         test_generator = TestGenerator(llm_client=mock_llm_client)
 
@@ -367,9 +372,9 @@ def test_requirement_user_authentication():
         mock_choice = MagicMock()
         mock_message = MagicMock()
         mock_message.content = "def test_paths(): pass"
-        mock_choice.message = mock_message
+        mock_choice.message = {"role": "assistant", "content": mock_message.content}
         mock_response.choices = [mock_choice]
-        mock_llm_client.chat.completions.create = AsyncMock(return_value=mock_response)
+        mock_llm_client.generate = AsyncMock(return_value=mock_response)
 
         test_generator = TestGenerator(llm_client=mock_llm_client)
 
@@ -442,9 +447,9 @@ class TestE2EHealthAndRecovery:
         """Testa health check com todos os componentes funcionando."""
         # Mock Kafka e MongoDB
         with (
-            patch("src.database.mongodb_client.AsyncIOMotorClient") as mock_motor,
-            patch("src.consumers.requirements_consumer.AIOKafkaConsumer") as mock_consumer_class,
-            patch("src.producers.tests_producer.AIOKafkaProducer") as mock_producer_class,
+            patch("database.mongodb_client.AsyncIOMotorClient") as mock_motor,
+            patch("consumers.requirements_consumer.AIOKafkaConsumer") as mock_consumer_class,
+            patch("producers.tests_producer.AIOKafkaProducer") as mock_producer_class,
         ):
 
             # MongoDB mock
@@ -491,7 +496,7 @@ class TestE2EHealthAndRecovery:
         """Testa que ping retorna False quando MongoDB falha."""
         client = MongoDBClient()
 
-        with patch("src.database.mongodb_client.AsyncIOMotorClient") as mock_motor:
+        with patch("database.mongodb_client.AsyncIOMotorClient") as mock_motor:
             mock_instance = MagicMock()
             # Connect consome o primeiro ping, depois 2 pings ok
             mock_instance.admin.command = AsyncMock(side_effect=["ok", "ok", "ok"])
@@ -537,7 +542,7 @@ class TestE2EHealthAndRecovery:
         """Testa degradação graciosa do gerador quando componentes falham."""
         # LLM que falha
         mock_llm = AsyncMock()
-        mock_llm.chat.completions.create = AsyncMock(side_effect=Exception("LLM down"))
+        mock_llm.generate = AsyncMock(side_effect=Exception("LLM down"))
 
         test_generator = TestGenerator(llm_client=mock_llm)
 
@@ -571,9 +576,9 @@ class TestE2EDataConsistency:
         mock_choice = MagicMock()
         mock_message = MagicMock()
         mock_message.content = "def test_consistency(): pass"
-        mock_choice.message = mock_message
+        mock_choice.message = {"role": "assistant", "content": mock_message.content}
         mock_response.choices = [mock_choice]
-        mock_llm.chat.completions.create = AsyncMock(return_value=mock_response)
+        mock_llm.generate = AsyncMock(return_value=mock_response)
 
         test_generator = TestGenerator(llm_client=mock_llm)
 
@@ -609,9 +614,9 @@ class TestE2EDataConsistency:
         mock_choice = MagicMock()
         mock_message = MagicMock()
         mock_message.content = "def test_traceability(): pass"
-        mock_choice.message = mock_message
+        mock_choice.message = {"role": "assistant", "content": mock_message.content}
         mock_response.choices = [mock_choice]
-        mock_llm.chat.completions.create = AsyncMock(return_value=mock_response)
+        mock_llm.generate = AsyncMock(return_value=mock_response)
 
         test_generator = TestGenerator(llm_client=mock_llm)
 
@@ -648,9 +653,9 @@ class TestE2EDataConsistency:
         mock_choice = MagicMock()
         mock_message = MagicMock()
         mock_message.content = "def test_metadata(): pass"
-        mock_choice.message = mock_message
+        mock_choice.message = {"role": "assistant", "content": mock_message.content}
         mock_response.choices = [mock_choice]
-        mock_llm.chat.completions.create = AsyncMock(return_value=mock_response)
+        mock_llm.generate = AsyncMock(return_value=mock_response)
 
         test_generator = TestGenerator(llm_client=mock_llm)
 

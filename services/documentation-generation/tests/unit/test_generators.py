@@ -15,11 +15,12 @@ from src.services.readme_generator import ReadmeGenerator
 
 @pytest.fixture()
 def mock_llm_response():
-    """Fixture para mock LLM response."""
+    """Fixture para mock LLM response - formato wrapper ChatCompletion."""
     mock = Mock()
     mock.choices = [Mock()]
-    mock.choices[0].message = Mock()
-    mock.choices[0].message.content = """# Test Project
+    # message é dict com "content" e "role"
+    mock.choices[0].message = {
+        "content": """# Test Project
 
 This is a test project.
 
@@ -38,7 +39,9 @@ Run `pip install test-project`
 import test_project
 test_project.run()
 ```
-"""
+""",
+        "role": "assistant",
+    }
     return mock
 
 
@@ -46,7 +49,7 @@ test_project.run()
 def readme_generator(mock_llm_response):
     """Fixture para ReadmeGenerator."""
     mock_client = AsyncMock()
-    mock_client.chat.completions.create = AsyncMock(return_value=mock_llm_response)
+    mock_client.generate = AsyncMock(return_value=mock_llm_response)
     return ReadmeGenerator(llm_client=mock_client)
 
 
@@ -74,16 +77,18 @@ async def test_diagram_generator():
     """Testa geração de diagramas Mermaid."""
     mock_response = Mock()
     mock_response.choices = [Mock()]
-    mock_response.choices[0].message = Mock()
-    mock_response.choices[0].message.content = """sequenceDiagram
+    mock_response.choices[0].message = {
+        "content": """sequenceDiagram
     participant User
     participant System
     User->>System: Request
     System-->>User: Response
-"""
+""",
+        "role": "assistant",
+    }
 
     mock_client = AsyncMock()
-    mock_client.chat.completions.create = AsyncMock(return_value=mock_response)
+    mock_client.generate = AsyncMock(return_value=mock_response)
 
     generator = DiagramGenerator(llm_client=mock_client)
     document = await generator.generate(
@@ -100,8 +105,8 @@ async def test_code_doc_generator():
     """Testa geração de documentação de código."""
     mock_response = Mock()
     mock_response.choices = [Mock()]
-    mock_response.choices[0].message = Mock()
-    mock_response.choices[0].message.content = """# Code Documentation
+    mock_response.choices[0].message = {
+        "content": """# Code Documentation
 
 ## Purpose
 This function calculates the sum of two numbers.
@@ -117,10 +122,12 @@ The sum of a and b
 ```python
 result = calculate_sum(1, 2)  # Returns 3
 ```
-"""
+""",
+        "role": "assistant",
+    }
 
     mock_client = AsyncMock()
-    mock_client.chat.completions.create = AsyncMock(return_value=mock_response)
+    mock_client.generate = AsyncMock(return_value=mock_response)
 
     generator = CodeDocGenerator(llm_client=mock_client)
     document = await generator.generate_from_code(

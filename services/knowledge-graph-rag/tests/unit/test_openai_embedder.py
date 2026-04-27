@@ -46,12 +46,34 @@ def mock_cache(mock_redis):
 
 @pytest.fixture
 def mock_openai_client():
-    """Mock do cliente OpenAI."""
+    """Mock do cliente neural_hive_llm para embeddings."""
+    from neural_hive_llm import EmbeddingResponse, TokenUsage, LLMProvider
+
+    def _make_mock_embedding(embedding_value):
+        """Cria mock response para embedding."""
+        mock_vec = Mock()
+        mock_vec.index = 0
+        mock_vec.embedding = embedding_value
+
+        mock_response = Mock(spec=EmbeddingResponse)
+        mock_response.object = "list"
+        mock_response.data = [mock_vec]
+        mock_response.model = "text-embedding-3-small"
+        mock_response.usage = Mock(spec=TokenUsage)
+        mock_response.usage.prompt_tokens = 10
+        mock_response.usage.completion_tokens = 0
+        mock_response.usage.total_tokens = 10
+        mock_response.provider = LLMProvider.OPENAI
+        mock_response.latency_ms = 100.0
+
+        return mock_response
+
     mock_instance = AsyncMock()
-    mock_response = Mock()
-    mock_response.data = [Mock(embedding=[0.1] * 1536)]
-    mock_instance.embeddings.create = AsyncMock(return_value=mock_response)
-    mock_instance.close = AsyncMock()
+    mock_instance.generate_embeddings = AsyncMock(
+        side_effect=lambda input, **kwargs: _make_mock_embedding([0.1] * 1536)
+    )
+    mock_instance.stop = AsyncMock()
+
     return mock_instance
 
 
@@ -95,7 +117,7 @@ async def test_embed_with_cache_hit(embedder, mock_cache):
 
     assert result == cached_embedding
     # Não deve chamar a API pois hit no cache
-    embedder._client.embeddings.create.assert_not_called()
+    embedder._client.generate_embeddings.assert_not_called()
 
 
 @pytest.mark.asyncio
@@ -108,14 +130,25 @@ async def test_embed_empty_text_raises_error(embedder):
 @pytest.mark.asyncio
 async def test_embed_batch_handles_multiple_texts(embedder):
     """Testa se embed_batch() processa múltiplos textos."""
+    from neural_hive_llm import EmbeddingResponse, EmbeddingVector, TokenUsage, LLMProvider
+
     # Configurar mock para retornar embeddings diferentes
-    mock_response = Mock()
-    mock_response.data = [
-        Mock(embedding=[0.1] * 1536),
-        Mock(embedding=[0.2] * 1536),
-        Mock(embedding=[0.3] * 1536),
-    ]
-    embedder._client.embeddings.create = AsyncMock(return_value=mock_response)
+    def _make_batch_response(**kwargs):
+        vectors = [
+            EmbeddingVector(index=0, embedding=[0.1] * 1536),
+            EmbeddingVector(index=1, embedding=[0.2] * 1536),
+            EmbeddingVector(index=2, embedding=[0.3] * 1536),
+        ]
+        return EmbeddingResponse(
+            object="list",
+            data=vectors,
+            model="text-embedding-3-small",
+            usage=TokenUsage(prompt_tokens=30, completion_tokens=0),
+            provider=LLMProvider.OPENAI,
+            latency_ms=100.0,
+        )
+
+    embedder._client.generate_embeddings = AsyncMock(side_effect=_make_batch_response)
 
     texts = ["Texto 1", "Texto 2", "Texto 3"]
     results = await embedder.embed_batch(texts, use_cache=False)
@@ -191,12 +224,23 @@ async def test_to_response(embedder):
 @pytest.mark.asyncio
 async def test_to_batch_response(embedder):
     """Testa conversão para EmbeddingBatchResponse."""
-    mock_response = Mock()
-    mock_response.data = [
-        Mock(embedding=[0.1] * 1536),
-        Mock(embedding=[0.2] * 1536),
-    ]
-    embedder._client.embeddings.create = AsyncMock(return_value=mock_response)
+    from neural_hive_llm import EmbeddingResponse, EmbeddingVector, TokenUsage, LLMProvider
+
+    def _make_batch_response(**kwargs):
+        vectors = [
+            EmbeddingVector(index=0, embedding=[0.1] * 1536),
+            EmbeddingVector(index=1, embedding=[0.2] * 1536),
+        ]
+        return EmbeddingResponse(
+            object="list",
+            data=vectors,
+            model="text-embedding-3-small",
+            usage=TokenUsage(prompt_tokens=20, completion_tokens=0),
+            provider=LLMProvider.OPENAI,
+            latency_ms=100.0,
+        )
+
+    embedder._client.generate_embeddings = AsyncMock(side_effect=_make_batch_response)
 
     response = await embedder.to_batch_response(["Texto 1", "Texto 2"], use_cache=False)
 
@@ -288,26 +332,37 @@ async def test_close_closes_clients(embedder, mock_cache):
     await embedder.close()
 
     mock_cache._client.close.assert_called_once()
-    embedder._client.close.assert_called_once()
+    embedder._client.stop.assert_called_once()
 
 
 @pytest.mark.asyncio
-async def test_embed_batch_with_cache_partial_hit(mock_cache):
+async def test_embed_batch_with_cache_partial_hit():
     """Testa embed_batch com cache parcial."""
+    from neural_hive_llm import EmbeddingResponse, EmbeddingVector, TokenUsage, LLMProvider
+
     # Criar embedder sem cache para teste simples
+    mock_client = AsyncMock()
+
+    def _make_response(**kwargs):
+        return EmbeddingResponse(
+            object="list",
+            data=[EmbeddingVector(index=0, embedding=[0.1] * 1536)],
+            model="text-embedding-3-small",
+            usage=TokenUsage(prompt_tokens=10, completion_tokens=0),
+            provider=LLMProvider.OPENAI,
+            latency_ms=100.0,
+        )
+
+    mock_client.generate_embeddings = AsyncMock(side_effect=_make_response)
+    mock_client.stop = AsyncMock()
+
     embedder = OpenAIEmbedder(
         api_key="test-key",
         model="text-embedding-3-small",
         dimensions=1536,
         cache=None,
     )
-
-    mock_response = Mock()
-    mock_response.data = [
-        Mock(embedding=[0.1] * 1536),
-    ]
-    embedder._client = AsyncMock()
-    embedder._client.embeddings.create = AsyncMock(return_value=mock_response)
+    embedder._client = mock_client
 
     texts = ["Texto 1"]
     results = await embedder.embed_batch(texts)

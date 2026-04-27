@@ -3,6 +3,5 @@
 -r ../../requirements-base.txt
 
 # Dependências específicas do serviço
-# openai==1.7.2 é incompatível com httpx 0.28.1 (proxies → proxy)
-openai>=1.40.0
-anthropic>=0.40.0
+# neural_hive_llm substitui openai e anthropic
+# (já incluído em requirements-base.txt via neural_hive_llm)

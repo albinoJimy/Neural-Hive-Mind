@@ -1,7 +1,7 @@
 """Gerador de documentação de arquitetura."""
 
 import structlog
-from openai import AsyncOpenAI
+from src.clients.llm_client_wrapper import LLMClient
 from src.config.settings import get_settings
 from src.models import DocFormat, DocType, Document
 
@@ -38,10 +38,10 @@ Use formatação Markdown clara.
 class ArchitectureDocsGenerator:
     """Gerador de documentação de arquitetura."""
 
-    def __init__(self, llm_client: AsyncOpenAI | None = None):
+    def __init__(self, llm_client: LLMClient | None = None):
         """Inicializa o gerador."""
         settings = get_settings()
-        self._llm_client = llm_client or AsyncOpenAI(api_key=settings.openai_api_key)
+        self._llm_client = llm_client or LLMClient(api_key=settings.openai_api_key)
         self._model = settings.llm_model
         self._logger = logger
 
@@ -83,8 +83,7 @@ class ArchitectureDocsGenerator:
         )
 
         try:
-            response = await self._llm_client.chat.completions.create(
-                model=self._model,
+            response = await self._llm_client.generate(
                 messages=[
                     {
                         "role": "system",
@@ -92,11 +91,10 @@ class ArchitectureDocsGenerator:
                     },
                     {"role": "user", "content": prompt},
                 ],
-                temperature=0.5,
-                max_tokens=4000,
+                model=self._model,
             )
 
-            content = response.choices[0].message.content
+            content = response.choices[0].message["content"]
 
             return Document(
                 id=f"DOC-ARCH-{system_name.replace(' ', '-').lower()}",
@@ -226,8 +224,7 @@ A documentação deve incluir:
 """
 
         try:
-            response = await self._llm_client.chat.completions.create(
-                model=self._model,
+            response = await self._llm_client.generate(
                 messages=[
                     {
                         "role": "system",
@@ -235,11 +232,10 @@ A documentação deve incluir:
                     },
                     {"role": "user", "content": prompt},
                 ],
-                temperature=0.5,
-                max_tokens=2500,
+                model=self._model,
             )
 
-            content = response.choices[0].message.content
+            content = response.choices[0].message["content"]
 
             return Document(
                 id=f"DOC-COMP-{component_name.lower().replace(' ', '-')}",

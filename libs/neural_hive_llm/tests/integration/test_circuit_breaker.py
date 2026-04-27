@@ -8,7 +8,6 @@ reais de falhas e recuperação.
 import pytest
 
 from neural_hive_llm import LLMClient, LLMProvider
-from neural_hive_llm.exceptions import LLMCircuitBreakerOpenError
 
 
 @pytest.mark.integration

@@ -1,7 +1,6 @@
 """Serviço RAG (Retrieval Augmented Generation) para Knowledge Graph."""
 
 from typing import Any, List, Optional
-from openai import AsyncOpenAI
 import structlog
 
 from knowledge_graph_rag.models.knowledge import (
@@ -14,6 +13,7 @@ from knowledge_graph_rag.models.knowledge import (
     RelationType,
 )
 from knowledge_graph_rag.config.settings import get_settings
+from knowledge_graph_rag.clients.llm_client_wrapper import LLMClient
 
 logger = structlog.get_logger(__name__)
 
@@ -21,12 +21,10 @@ logger = structlog.get_logger(__name__)
 class KnowledgeGraphRAG:
     """Serviço para busca no grafo de conhecimento com RAG."""
 
-    def __init__(
-        self, llm_client: Optional[AsyncOpenAI] = None, neo4j_driver: Optional[Any] = None
-    ):
+    def __init__(self, llm_client: Optional[LLMClient] = None, neo4j_driver: Optional[Any] = None):
         """Inicializa o serviço RAG."""
         settings = get_settings()
-        self._llm_client = llm_client or AsyncOpenAI(api_key=settings.openai_api_key)
+        self._llm_client = llm_client or LLMClient(api_key=settings.openai_api_key)
         self._embedding_model = settings.embedding_model
         self._embedding_dim = settings.embedding_dimensions
         self._logger = logger
@@ -174,30 +172,39 @@ Responda à seguinte query considerando o contexto do grafo de conhecimento:
 Baseado no contexto acima, forneça uma resposta precisa e detalhada.
 """
 
-        # Chamar LLM
-        response = await self._llm_client.chat.completions.create(
+        # Chamar LLM usando neural_hive_llm wrapper
+        messages = [
+            {
+                "role": "system",
+                "content": "Você é um assistente especialista em Neural Hive-Mind.",
+            },
+            {"role": "user", "content": prompt},
+        ]
+
+        response = await self._llm_client.generate(
+            messages=messages,
             model="gpt-4-turbo-preview",
-            messages=[
-                {
-                    "role": "system",
-                    "content": "Você é um assistente especialista em Neural Hive-Mind.",
-                },
-                {"role": "user", "content": prompt},
-            ],
             temperature=0.7,
             max_tokens=2000,
         )
 
-        return response.choices[0].message.content
+        return response.choices[0].message["content"]
 
     async def _generate_embedding(self, text: str) -> List[float]:
-        """Gera embedding usando OpenAI."""
+        """Gera embedding usando neural_hive_llm."""
         try:
-            from openai import AsyncOpenAI
+            from neural_hive_llm import LLMClient as NeuralHiveLLMClient, LLMProvider
 
-            client = AsyncOpenAI(api_key=get_settings().openai_api_key)
+            client = NeuralHiveLLMClient(
+                provider=LLMProvider.OPENAI,
+                api_key=get_settings().openai_api_key,
+                model=self._embedding_model,
+            )
+            await client.start()
 
-            response = await client.embeddings.create(model=self._embedding_model, input=text)
+            response = await client.generate_embeddings(input=text, model=self._embedding_model)
+
+            await client.stop()
 
             return response.data[0].embedding
 

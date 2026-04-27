@@ -1,31 +1,26 @@
 """Configuração pytest para Knowledge Graph RAG."""
 
 import pytest
-from unittest.mock import AsyncMock
-from openai import AsyncOpenAI
+from unittest.mock import AsyncMock, Mock
 
 
 @pytest.fixture
-def mock_openai_client():
-    """Mock do cliente OpenAI."""
-    from unittest.mock import Mock
+def mock_llm_client():
+    """Mock do cliente LLM (wrapper neural_hive_llm)."""
+    from knowledge_graph_rag.clients.llm_client_wrapper import LLMClient, ChatCompletion
 
-    client = Mock(spec=AsyncOpenAI)
+    client = Mock(spec=LLMClient)
 
-    # Mock embeddings
-    embeddings_mock = Mock()
-    embeddings_mock.create = AsyncMock(return_value=Mock(data=[Mock(embedding=[0.1] * 1536)]))
-    client.embeddings = embeddings_mock
+    async def mock_generate(messages, model=None, temperature=0.7, max_tokens=None):
+        return ChatCompletion.from_text("Resposta de teste", model or "gpt-4")
 
-    # Mock chat completions
-    chat_mock = Mock()
-    chat_mock.completions = Mock()
-    chat_mock.completions.create = AsyncMock(
-        return_value=Mock(choices=[Mock(message=Mock(content="Resposta de teste"))])
-    )
-    client.chat = chat_mock
+    client.generate = AsyncMock(side_effect=mock_generate)
 
     return client
+
+
+# Alias para compatibilidade
+mock_openai_client = mock_llm_client
 
 
 @pytest.fixture

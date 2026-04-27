@@ -17,8 +17,8 @@ dependencies = [
     "neo4j==5.14.0",
     "qdrant-client==1.7.0",
     "structlog==23.2.0",
-    "openai==1.7.2",
-    "anthropic==0.18.0",
+    # neural_hive_llm substitui openai e anthropic
+    "neural_hive_llm @ file:///home/jimy/NHM/Neural-Hive-Mind/libs/neural_hive_llm",
     "numpy==1.26.0",
     "sentence-transformers==2.2.2",
     "redis==5.0.1",

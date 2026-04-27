@@ -51,12 +51,8 @@ class LLMRequest(BaseModel):
     temperature: float = Field(
         default=0.7, ge=0.0, le=2.0, description="Temperatura de amostragem (0-2)"
     )
-    max_tokens: Optional[int] = Field(
-        default=None, ge=1, description="Máximo de tokens a gerar"
-    )
-    top_p: float = Field(
-        default=1.0, ge=0.0, le=1.0, description="Nucleus sampling parameter"
-    )
+    max_tokens: Optional[int] = Field(default=None, ge=1, description="Máximo de tokens a gerar")
+    top_p: float = Field(default=1.0, ge=0.0, le=1.0, description="Nucleus sampling parameter")
     frequency_penalty: float = Field(
         default=0.0, ge=-2.0, le=2.0, description="Penalidade de frequência"
     )
@@ -91,9 +87,7 @@ class LLMResponse(BaseModel):
     finish_reason: Optional[str] = Field(
         default=None, description="Motivo de término (stop, length, etc)"
     )
-    estimated_cost_usd: float = Field(
-        default=0.0, ge=0, description="Custo estimado em USD"
-    )
+    estimated_cost_usd: float = Field(default=0.0, ge=0, description="Custo estimado em USD")
     latency_ms: float = Field(..., ge=0, description="Latência em milissegundos")
     timestamp: datetime = Field(
         default_factory=datetime.utcnow, description="Timestamp da resposta"
@@ -101,9 +95,7 @@ class LLMResponse(BaseModel):
     raw_response: Optional[dict] = Field(
         default=None, description="Resposta bruta do provider (para debug)"
     )
-    metadata: Optional[dict] = Field(
-        default=None, description="Metadados adicionais"
-    )
+    metadata: Optional[dict] = Field(default=None, description="Metadados adicionais")
 
     @property
     def tokens_per_second(self) -> float:
@@ -120,9 +112,7 @@ class LLMStreamChunk(BaseModel):
     finish_reason: Optional[str] = Field(
         default=None, description="Motivo de término (None enquanto streaming)"
     )
-    is_complete: bool = Field(
-        default=False, description="True se este é o último chunk"
-    )
+    is_complete: bool = Field(default=False, description="True se este é o último chunk")
     prompt_tokens: Optional[int] = Field(
         default=None, description="Tokens do prompt (disponível no primeiro chunk)"
     )
@@ -149,3 +139,40 @@ class TokenUsage(BaseModel):
     def __repr__(self) -> str:
         """Representação string."""
         return f"TokenUsage(prompt={self.prompt_tokens}, completion={self.completion_tokens}, total={self.total_tokens})"
+
+
+class EmbeddingRequest(BaseModel):
+    """Modelo para requisição de embedding."""
+
+    input: str | list[str] = Field(
+        ..., description="Texto ou lista de textos para gerar embeddings"
+    )
+    model: str = Field(
+        default="text-embedding-3-small", description="Modelo de embedding a utilizar"
+    )
+    encoding_format: str = Field(default="float", description="Formato: 'float' ou 'base64'")
+    dimensions: Optional[int] = Field(
+        default=None, description="Dimensões do embedding (para modelos que suportam)"
+    )
+
+
+class EmbeddingVector(BaseModel):
+    """Um vetor de embedding individual."""
+
+    index: int = Field(..., description="Índice do embedding na requisição")
+    embedding: list[float] = Field(..., description="Vetor de embedding")
+    object: str = Field(default="embedding", description="Tipo do objeto")
+
+
+class EmbeddingResponse(BaseModel):
+    """Resposta de requisição de embedding."""
+
+    object: str = Field(default="list", description="Tipo do objeto")
+    data: list[EmbeddingVector] = Field(..., description="Lista de embeddings")
+    model: str = Field(..., description="Modelo utilizado")
+    usage: TokenUsage = Field(..., description="Uso de tokens")
+    provider: LLMProvider = Field(..., description="Provider utilizado")
+    latency_ms: float = Field(..., ge=0, description="Latência em milissegundos")
+    timestamp: datetime = Field(
+        default_factory=datetime.utcnow, description="Timestamp da resposta"
+    )

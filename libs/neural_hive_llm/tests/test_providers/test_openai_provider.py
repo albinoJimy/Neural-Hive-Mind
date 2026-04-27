@@ -2,16 +2,16 @@
 Testes unitários para OpenAIProvider.
 """
 
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import patch
 
-from neural_hive_llm.providers.openai_provider import OpenAIProvider
-from neural_hive_llm.models import LLMRequest, LLMProvider
+import pytest
+
 from neural_hive_llm.exceptions import (
-    LLMConfigurationError,
-    LLMTimeoutError,
     LLMRateLimitError,
+    LLMTimeoutError,
 )
+from neural_hive_llm.models import LLMProvider, LLMRequest
+from neural_hive_llm.providers.openai_provider import OpenAIProvider
 
 
 @pytest.fixture
@@ -46,10 +46,7 @@ class TestOpenAIProvider:
 
     async def test_build_messages_with_system(self, openai_provider) -> None:
         """Testa construção de messages com prompt de sistema."""
-        request = LLMRequest(
-            prompt="Hello",
-            system_prompt="You are helpful"
-        )
+        request = LLMRequest(prompt="Hello", system_prompt="You are helpful")
         messages = openai_provider._build_messages(request)
 
         assert len(messages) == 2
@@ -60,10 +57,7 @@ class TestOpenAIProvider:
 
     def test_calculate_cost_gpt35(self, openai_provider) -> None:
         """Testa cálculo de custo para GPT-3.5."""
-        cost = openai_provider._calculate_cost(
-            prompt_tokens=1000,
-            completion_tokens=500
-        )
+        cost = openai_provider._calculate_cost(prompt_tokens=1000, completion_tokens=500)
 
         # GPT-3.5: $0.50/M input, $1.50/M output
         assert cost == (1000 / 1_000_000) * 0.5 + (500 / 1_000_000) * 1.5
@@ -71,10 +65,7 @@ class TestOpenAIProvider:
     def test_calculate_cost_gpt4(self, openai_provider) -> None:
         """Testa cálculo de custo para GPT-4."""
         openai_provider.model = "gpt-4"
-        cost = openai_provider._calculate_cost(
-            prompt_tokens=1000,
-            completion_tokens=500
-        )
+        cost = openai_provider._calculate_cost(prompt_tokens=1000, completion_tokens=500)
 
         # GPT-4: $30/M input, $60/M output
         assert cost == (1000 / 1_000_000) * 30.0 + (500 / 1_000_000) * 60.0
@@ -82,10 +73,7 @@ class TestOpenAIProvider:
     def test_calculate_cost_unknown_model(self, openai_provider) -> None:
         """Testa cálculo de custo para modelo desconhecido."""
         openai_provider.model = "unknown-model"
-        cost = openai_provider._calculate_cost(
-            prompt_tokens=1000,
-            completion_tokens=500
-        )
+        cost = openai_provider._calculate_cost(prompt_tokens=1000, completion_tokens=500)
 
         # Modelo desconhecido = grátis
         assert cost == 0.0
@@ -104,8 +92,9 @@ class TestOpenAIProvider:
 
     async def test_map_rate_limit_error(self, openai_provider) -> None:
         """Testa mapeamento de erro de rate limit."""
-        from openai import RateLimitError
         from unittest.mock import MagicMock
+
+        from openai import RateLimitError
 
         # Criar mock response e body necessários para o OpenAI SDK
         mock_response = MagicMock()
@@ -125,7 +114,6 @@ class TestOpenAIProvider:
 
     async def test_map_timeout_error(self, openai_provider) -> None:
         """Testa mapeamento de erro de timeout."""
-        from openai import APITimeoutError
         from unittest.mock import MagicMock
 
         # Criar mock request necessário para o OpenAI SDK

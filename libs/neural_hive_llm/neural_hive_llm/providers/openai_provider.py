@@ -16,7 +16,16 @@ from neural_hive_llm.exceptions import (
     LLMRateLimitError,
     LLMTimeoutError,
 )
-from neural_hive_llm.models import LLMProvider, LLMRequest, LLMResponse, LLMStreamChunk
+from neural_hive_llm.models import (
+    EmbeddingRequest,
+    EmbeddingResponse,
+    EmbeddingVector,
+    LLMProvider,
+    LLMRequest,
+    LLMResponse,
+    LLMStreamChunk,
+    TokenUsage,
+)
 from neural_hive_llm.providers.base import BaseProvider
 
 
@@ -149,17 +158,13 @@ class OpenAIProvider(BaseProvider):
             model=self.model,
             provider=LLMProvider.OPENAI,
             finish_reason=choice.finish_reason,
-            estimated_cost_usd=self._calculate_cost(
-                usage.prompt_tokens, usage.completion_tokens
-            ),
+            estimated_cost_usd=self._calculate_cost(usage.prompt_tokens, usage.completion_tokens),
             latency_ms=latency_ms,
             raw_response={"model": response.model, "id": response.id},
             metadata=request.metadata,
         )
 
-    async def generate_stream(
-        self, request: LLMRequest
-    ) -> AsyncGenerator[LLMStreamChunk, None]:
+    async def generate_stream(self, request: LLMRequest) -> AsyncGenerator[LLMStreamChunk, None]:
         """
         Gera resposta com streaming usando OpenAI API.
 
@@ -294,8 +299,75 @@ class OpenAIProvider(BaseProvider):
         if "timeout" in error_msg.lower():
             return LLMTimeoutError(error_msg, provider="openai", original_error=exc)
         if "invalid" in error_msg.lower() or "validation" in error_msg.lower():
-            return LLMInvalidRequestError(
-                error_msg, provider="openai", original_error=exc
-            )
+            return LLMInvalidRequestError(error_msg, provider="openai", original_error=exc)
 
         return LLMProviderError(str(exc), provider="openai", original_error=exc)
+
+    async def generate_embeddings(
+        self,
+        request: EmbeddingRequest,
+    ) -> EmbeddingResponse:
+        """
+        Gera embeddings usando OpenAI API.
+
+        Args:
+            request: Requisição de embedding
+
+        Returns:
+            EmbeddingResponse: Embeddings gerados
+
+        Raises:
+            LLMError: Em caso de erro na geração
+        """
+        if not self._client:
+            await self.initialize()
+
+        start_time = time.time()
+
+        # Normaliza input para lista
+        input_texts = [request.input] if isinstance(request.input, str) else list(request.input)
+
+        try:
+            response = await asyncio.wait_for(
+                self._client.embeddings.create(
+                    input=input_texts,
+                    model=request.model,
+                    encoding_format=request.encoding_format,
+                    dimensions=request.dimensions,
+                ),
+                timeout=self.timeout_seconds,
+            )
+        except asyncio.TimeoutError as exc:
+            raise LLMTimeoutError(
+                f"Timeout após {self.timeout_seconds}s",
+                provider="openai",
+                original_error=exc,
+            ) from exc
+        except Exception as exc:
+            raise self._map_exception(exc) from exc
+
+        latency_ms = (time.time() - start_time) * 1000
+
+        # Extrai embeddings
+        data = [
+            EmbeddingVector(
+                index=idx,
+                embedding=item.embedding,
+            )
+            for idx, item in enumerate(response.data)
+        ]
+
+        # Ordena por index (OpenAI pode retornar fora de ordem)
+        data.sort(key=lambda x: x.index)
+
+        return EmbeddingResponse(
+            object=response.object,
+            data=data,
+            model=response.model,
+            usage=TokenUsage(
+                prompt_tokens=response.usage.prompt_tokens,
+                completion_tokens=0,
+            ),
+            provider=LLMProvider.OPENAI,
+            latency_ms=latency_ms,
+        )

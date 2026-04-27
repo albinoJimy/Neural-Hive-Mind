@@ -4,7 +4,7 @@ import ast
 from typing import Any
 
 import structlog
-from openai import AsyncOpenAI
+from src.clients.llm_client_wrapper import LLMClient
 from src.config.settings import get_settings
 from src.models import DocFormat, DocType, Document
 
@@ -36,10 +36,10 @@ Use formatação Markdown clara.
 class CodeDocGenerator:
     """Gerador de documentação de código."""
 
-    def __init__(self, llm_client: AsyncOpenAI | None = None):
+    def __init__(self, llm_client: LLMClient | None = None):
         """Inicializa o gerador."""
         settings = get_settings()
-        self._llm_client = llm_client or AsyncOpenAI(api_key=settings.openai_api_key)
+        self._llm_client = llm_client or LLMClient(api_key=settings.openai_api_key)
         self._model = settings.llm_model
         self._logger = logger
 
@@ -59,27 +59,25 @@ class CodeDocGenerator:
         """
         self._logger.info("generating_code_docs", file=file_path, language=language)
 
-        prompt = CODE_DOC_PROMPT.format(
+        user_prompt = CODE_DOC_PROMPT.format(
             file_path=file_path,
             language=language,
             code=code[:5000],  # Limitar para não exceder contexto
         )
 
         try:
-            response = await self._llm_client.chat.completions.create(
-                model=self._model,
+            response = await self._llm_client.generate(
                 messages=[
                     {
                         "role": "system",
                         "content": "Você é um technical writer especialista em documentação de código.",
                     },
-                    {"role": "user", "content": prompt},
+                    {"role": "user", "content": user_prompt},
                 ],
-                temperature=0.5,
-                max_tokens=3000,
+                model=self._model,
             )
 
-            content = response.choices[0].message.content
+            content = response.choices[0].message["content"]
 
             return Document(
                 id=f"DOC-CODE-{file_path.replace('/', '-').replace('.', '-')}",
@@ -155,7 +153,7 @@ class CodeDocGenerator:
         """
         self._logger.info("generating_project_docs", project=project_name, files=len(files))
 
-        prompt = f"""
+        user_prompt = f"""
 Gere documentação técnica completa para o projeto {project_name}.
 
 O projeto contém {len(files)} arquivos:
@@ -169,22 +167,20 @@ A documentação deve incluir:
 4. Como executar
 5. Estrutura de diretórios
 """
+        system_prompt = (
+            "Você é um technical writer especialista em documentação de projetos de software."
+        )
 
         try:
-            response = await self._llm_client.chat.completions.create(
-                model=self._model,
+            response = await self._llm_client.generate(
                 messages=[
-                    {
-                        "role": "system",
-                        "content": "Você é um technical writer especialista em documentação de projetos de software.",
-                    },
-                    {"role": "user", "content": prompt},
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
                 ],
-                temperature=0.5,
-                max_tokens=4000,
+                model=self._model,
             )
 
-            content = response.choices[0].message.content
+            content = response.choices[0].message["content"]
 
             return Document(
                 id=f"DOC-PROJ-{project_name.lower().replace(' ', '-')}",

@@ -11,6 +11,7 @@ from typing import Any, Dict, List, Optional
 
 import structlog
 
+from src.clients.llm_client_wrapper import LLMClient
 from src.config.settings import get_settings
 from src.models.migration import FieldMapping, SchemaMapping, TableMapping
 
@@ -110,40 +111,8 @@ class SchemaMapper:
         self.openai_api_key = settings.openai_api_key
         self.anthropic_api_key = settings.anthropic_api_key
 
-        self._openai_client = None
-        self._anthropic_client = None
-
-    def _get_openai_client(self):
-        """Retorna cliente OpenAI (lazy initialization)."""
-        if self._openai_client is None:
-            try:
-                from openai import OpenAI
-
-                if not self.openai_api_key:
-                    raise LLMProviderError("OPENAI_API_KEY não configurada")
-
-                self._openai_client = OpenAI(api_key=self.openai_api_key)
-                logger.info("openai_client_initialized")
-            except ImportError as e:
-                raise LLMProviderError("OpenAI não disponível. Instale: pip install openai") from e
-        return self._openai_client
-
-    def _get_anthropic_client(self):
-        """Retorna cliente Anthropic (lazy initialization)."""
-        if self._anthropic_client is None:
-            try:
-                from anthropic import Anthropic
-
-                if not self.anthropic_api_key:
-                    raise LLMProviderError("ANTHROPIC_API_KEY não configurada")
-
-                self._anthropic_client = Anthropic(api_key=self.anthropic_api_key)
-                logger.info("anthropic_client_initialized")
-            except ImportError as e:
-                raise LLMProviderError(
-                    "Anthropic não disponível. Instale: pip install anthropic"
-                ) from e
-        return self._anthropic_client
+        # Cliente LLM unificado usando neural_hive_llm
+        self._llm_client: Optional[LLMClient] = None
 
     async def analyze_legacy_schema(
         self,
@@ -603,26 +572,41 @@ class SchemaMapper:
                 f"Provedor LLM inválido: {self.llm_provider}. " "Use 'openai' ou 'anthropic'"
             )
 
-    async def _call_openai(self, prompt: str) -> str:
-        """Chama API OpenAI."""
-        try:
-            client = self._get_openai_client()
+    def _get_llm_client(self) -> LLMClient:
+        """Retorna cliente LLM unificado (lazy initialization)."""
+        if self._llm_client is None:
+            if not self.openai_api_key:
+                raise LLMProviderError("OPENAI_API_KEY não configurada")
 
-            response = client.chat.completions.create(
+            self._llm_client = LLMClient(
+                api_key=self.openai_api_key,
                 model=self.llm_model,
-                messages=[
-                    {
-                        "role": "system",
-                        "content": "You are a database migration expert. "
-                        "Respond only with valid JSON.",
-                    },
-                    {"role": "user", "content": prompt},
-                ],
+            )
+            logger.info("llm_client_initialized", provider=self.llm_provider)
+        return self._llm_client
+
+    async def _call_openai(self, prompt: str) -> str:
+        """Chama API OpenAI via neural_hive_llm."""
+        try:
+            client = self._get_llm_client()
+
+            messages = [
+                {
+                    "role": "system",
+                    "content": "You are a database migration expert. "
+                    "Respond only with valid JSON.",
+                },
+                {"role": "user", "content": prompt},
+            ]
+
+            response = await client.generate(
+                messages=messages,
+                model=self.llm_model,
                 temperature=self.llm_temperature,
                 max_tokens=self.llm_max_tokens,
             )
 
-            result = response.choices[0].message.content
+            result = response.choices[0].message["content"]
             logger.info("openai_call_success", model=self.llm_model)
 
             return result
@@ -632,24 +616,31 @@ class SchemaMapper:
             raise LLMProviderError(f"Falha ao chamar OpenAI: {e}") from e
 
     async def _call_anthropic(self, prompt: str) -> str:
-        """Chama API Anthropic Claude."""
+        """Chama API Anthropic Claude via neural_hive_llm."""
         try:
-            client = self._get_anthropic_client()
+            client = self._get_llm_client()
 
-            response = client.messages.create(
+            messages = [
+                {
+                    "role": "system",
+                    "content": "You are a database migration expert. "
+                    "Respond only with valid JSON.",
+                },
+                {
+                    "role": "user",
+                    "content": "You are a database migration expert. "
+                    "Respond only with valid JSON.\n\n" + prompt,
+                },
+            ]
+
+            response = await client.generate(
+                messages=messages,
                 model=self.llm_model,
-                max_tokens=self.llm_max_tokens,
                 temperature=self.llm_temperature,
-                messages=[
-                    {
-                        "role": "user",
-                        "content": "You are a database migration expert. "
-                        "Respond only with valid JSON.\n\n" + prompt,
-                    }
-                ],
+                max_tokens=self.llm_max_tokens,
             )
 
-            result = response.content[0].text
+            result = response.choices[0].message["content"]
             logger.info("anthropic_call_success", model=self.llm_model)
 
             return result

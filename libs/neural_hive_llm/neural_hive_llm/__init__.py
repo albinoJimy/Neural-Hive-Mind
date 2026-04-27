@@ -17,6 +17,7 @@ __author__ = "Neural Hive Mind Team"
 __all__ = [
     # Client principal
     "LLMClient",
+    "create_client",
     # Enums
     "LLMProvider",
     "LLMModel",
@@ -24,6 +25,10 @@ __all__ = [
     "LLMResponse",
     "LLMRequest",
     "LLMStreamChunk",
+    "EmbeddingRequest",
+    "EmbeddingResponse",
+    "EmbeddingVector",
+    "TokenUsage",
     # Config
     "LLMSettings",
     "get_llm_settings",
@@ -38,7 +43,7 @@ __all__ = [
 ]
 
 # Imports públicos principais
-from neural_hive_llm.client import LLMClient
+from neural_hive_llm.client import LLMClient, create_client
 from neural_hive_llm.config import LLMSettings, get_llm_settings
 from neural_hive_llm.exceptions import (
     LLMCircuitBreakerOpenError,
@@ -50,9 +55,13 @@ from neural_hive_llm.exceptions import (
     LLMTimeoutError,
 )
 from neural_hive_llm.models import (
+    EmbeddingRequest,
+    EmbeddingResponse,
+    EmbeddingVector,
     LLMModel,
     LLMProvider,
     LLMRequest,
     LLMResponse,
     LLMStreamChunk,
+    TokenUsage,
 )

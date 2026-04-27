@@ -106,23 +106,17 @@ class LLMSettings(BaseSettings):
 
     @field_validator("api_key")
     @classmethod
-    def validate_api_key_for_remote_provider(
-        cls, v: Optional[str], info
-    ) -> Optional[str]:
+    def validate_api_key_for_remote_provider(cls, v: Optional[str], info) -> Optional[str]:
         """Valida que api_key está presente para providers remotos."""
         provider = info.data.get("provider")
         if provider in (LLMProvider.OPENAI, LLMProvider.ANTHROPIC):
             if not v:
-                raise ValueError(
-                    f"api_key é obrigatório para provider {provider.value}"
-                )
+                raise ValueError(f"api_key é obrigatório para provider {provider.value}")
         return v
 
     @field_validator("base_url")
     @classmethod
-    def validate_base_url_for_local_provider(
-        cls, v: Optional[str], info
-    ) -> Optional[str]:
+    def validate_base_url_for_local_provider(cls, v: Optional[str], info) -> Optional[str]:
         """Valida que base_url está presente para provider local."""
         provider = info.data.get("provider")
         if provider == LLMProvider.LOCAL and not v:

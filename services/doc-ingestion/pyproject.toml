@@ -16,8 +16,8 @@ motor = "^3.3.2"
 redis = {extras = ["hiredis"], version = "^5.0.1"}
 aiokafka = "^0.9.0"
 structlog = "^23.2.0"
-openai = "^1.7.2"
-anthropic = "^0.18.0"
+# neural_hive_llm substitui openai e anthropic
+neural-hive-llm = {path = "../../libraries/neural_hive_llm", develop = true}
 python-multipart = "^0.0.6"
 
 # PDF parsing

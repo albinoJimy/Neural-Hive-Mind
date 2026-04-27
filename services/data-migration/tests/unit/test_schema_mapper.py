@@ -198,10 +198,13 @@ class TestGenerateSchemaMapping:
             "indexes": [],
         }
 
-        # Resposta mock do OpenAI
+        # Resposta mock do LLM client (via neural_hive_llm)
         mock_response = Mock()
         mock_response.choices = [Mock()]
-        mock_response.choices[0].message.content = """```json
+        # O novo wrapper usa dict para message
+        mock_response.choices[0].message = {
+            "role": "assistant",
+            "content": """```json
         {
           "tables": [
             {
@@ -220,10 +223,13 @@ class TestGenerateSchemaMapping:
             }
           ]
         }
-        ```"""
+        ```""",
+        }
 
-        with patch("src.services.schema_mapper.SchemaMapper._get_openai_client") as mock_client:
-            mock_client.return_value.chat.completions.create = Mock(return_value=mock_response)
+        with patch("src.services.schema_mapper.SchemaMapper._get_llm_client") as mock_client:
+            mock_llm_client = Mock()
+            mock_llm_client.generate = AsyncMock(return_value=mock_response)
+            mock_client.return_value = mock_llm_client
 
             mapper = SchemaMapper(llm_provider="openai")
 
@@ -263,10 +269,13 @@ class TestGenerateSchemaMapping:
             "indexes": [],
         }
 
-        # Resposta mock do Anthropic
+        # Resposta mock do LLM client (via neural_hive_llm)
         mock_response = Mock()
-        mock_response.content = [Mock()]
-        mock_response.content[0].text = """```json
+        mock_response.choices = [Mock()]
+        # O novo wrapper usa dict para message
+        mock_response.choices[0].message = {
+            "role": "assistant",
+            "content": """```json
         {
           "tables": [
             {
@@ -284,10 +293,13 @@ class TestGenerateSchemaMapping:
             }
           ]
         }
-        ```"""
+        ```""",
+        }
 
-        with patch("src.services.schema_mapper.SchemaMapper._get_anthropic_client") as mock_client:
-            mock_client.return_value.messages.create = Mock(return_value=mock_response)
+        with patch("src.services.schema_mapper.SchemaMapper._get_llm_client") as mock_client:
+            mock_llm_client = Mock()
+            mock_llm_client.generate = AsyncMock(return_value=mock_response)
+            mock_client.return_value = mock_llm_client
 
             mapper = SchemaMapper(llm_provider="anthropic")
 
@@ -313,7 +325,9 @@ class TestGenerateSchemaMapping:
 
         mock_response = Mock()
         mock_response.choices = [Mock()]
-        mock_response.choices[0].message.content = """{
+        mock_response.choices[0].message = {
+            "role": "assistant",
+            "content": """{
           "tables": [
             {
               "legacy_name": "orders",
@@ -324,10 +338,13 @@ class TestGenerateSchemaMapping:
               "post_actions": ["CREATE INDEX idx_new ON nhm_orders(id)"]
             }
           ]
-        }"""
+        }""",
+        }
 
-        with patch("src.services.schema_mapper.SchemaMapper._get_openai_client") as mock_client:
-            mock_client.return_value.chat.completions.create = Mock(return_value=mock_response)
+        with patch("src.services.schema_mapper.SchemaMapper._get_llm_client") as mock_client:
+            mock_llm_client = Mock()
+            mock_llm_client.generate = AsyncMock(return_value=mock_response)
+            mock_client.return_value = mock_llm_client
 
             mapper = SchemaMapper(llm_provider="openai")
 
@@ -348,10 +365,10 @@ class TestGenerateSchemaMapping:
         """Verifica fail-soft em caso de falha do LLM."""
         legacy_schema = {"schema": "public", "tables": []}
 
-        with patch("src.services.schema_mapper.SchemaMapper._get_openai_client") as mock_client:
-            mock_client.return_value.chat.completions.create = Mock(
-                side_effect=Exception("API rate limit")
-            )
+        with patch("src.services.schema_mapper.SchemaMapper._get_llm_client") as mock_client:
+            mock_llm_client = Mock()
+            mock_llm_client.generate = Mock(side_effect=Exception("API rate limit"))
+            mock_client.return_value = mock_llm_client
 
             mapper = SchemaMapper(llm_provider="openai")
 
@@ -583,17 +600,20 @@ class TestParseLLMResponse:
 
 
 class TestCallOpenAI:
-    """Testes para chamada da API OpenAI."""
+    """Testes para chamada da API OpenAI via neural_hive_llm."""
 
     @pytest.mark.asyncio
     async def test_call_openai_success(self):
         """Verifica chamada bem-sucedida ao OpenAI."""
         mock_response = Mock()
         mock_response.choices = [Mock()]
-        mock_response.choices[0].message.content = '{"result": "success"}'
+        # O novo wrapper usa dict para message
+        mock_response.choices[0].message = {"role": "assistant", "content": '{"result": "success"}'}
 
-        with patch("src.services.schema_mapper.SchemaMapper._get_openai_client") as mock_client:
-            mock_client.return_value.chat.completions.create = Mock(return_value=mock_response)
+        with patch("src.services.schema_mapper.SchemaMapper._get_llm_client") as mock_client:
+            mock_llm_client = Mock()
+            mock_llm_client.generate = AsyncMock(return_value=mock_response)
+            mock_client.return_value = mock_llm_client
 
             mapper = SchemaMapper(llm_provider="openai")
             result = await mapper._call_openai("test prompt")
@@ -603,10 +623,10 @@ class TestCallOpenAI:
     @pytest.mark.asyncio
     async def test_call_openai_failure(self):
         """Verifica tratamento de erro na chamada OpenAI."""
-        with patch("src.services.schema_mapper.SchemaMapper._get_openai_client") as mock_client:
-            mock_client.return_value.chat.completions.create = Mock(
-                side_effect=Exception("API error")
-            )
+        with patch("src.services.schema_mapper.SchemaMapper._get_llm_client") as mock_client:
+            mock_llm_client = Mock()
+            mock_llm_client.generate = Mock(side_effect=Exception("API error"))
+            mock_client.return_value = mock_llm_client
 
             mapper = SchemaMapper(llm_provider="openai")
 
@@ -615,16 +635,20 @@ class TestCallOpenAI:
 
 
 class TestCallAnthropic:
-    """Testes para chamada da API Anthropic."""
+    """Testes para chamada da API Anthropic via neural_hive_llm."""
 
     @pytest.mark.asyncio
     async def test_call_anthropic_success(self):
         """Verifica chamada bem-sucedida ao Anthropic."""
         mock_response = Mock()
-        mock_response.content = [Mock(text='{"result": "success"}')]
+        mock_response.choices = [Mock()]
+        # O novo wrapper usa dict para message
+        mock_response.choices[0].message = {"role": "assistant", "content": '{"result": "success"}'}
 
-        with patch("src.services.schema_mapper.SchemaMapper._get_anthropic_client") as mock_client:
-            mock_client.return_value.messages.create = Mock(return_value=mock_response)
+        with patch("src.services.schema_mapper.SchemaMapper._get_llm_client") as mock_client:
+            mock_llm_client = Mock()
+            mock_llm_client.generate = AsyncMock(return_value=mock_response)
+            mock_client.return_value = mock_llm_client
 
             mapper = SchemaMapper(llm_provider="anthropic")
             result = await mapper._call_anthropic("test prompt")
@@ -634,8 +658,10 @@ class TestCallAnthropic:
     @pytest.mark.asyncio
     async def test_call_anthropic_failure(self):
         """Verifica tratamento de erro na chamada Anthropic."""
-        with patch("src.services.schema_mapper.SchemaMapper._get_anthropic_client") as mock_client:
-            mock_client.return_value.messages.create = Mock(side_effect=Exception("API error"))
+        with patch("src.services.schema_mapper.SchemaMapper._get_llm_client") as mock_client:
+            mock_llm_client = Mock()
+            mock_llm_client.generate = Mock(side_effect=Exception("API error"))
+            mock_client.return_value = mock_llm_client
 
             mapper = SchemaMapper(llm_provider="anthropic")
 

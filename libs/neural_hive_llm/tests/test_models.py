@@ -2,13 +2,14 @@
 Testes unitários para modelos Pydantic.
 """
 
-import pytest
 from datetime import datetime
+
+import pytest
 from pydantic import ValidationError
 
 from neural_hive_llm.models import (
-    LLMProvider,
     LLMModel,
+    LLMProvider,
     LLMRequest,
     LLMResponse,
     LLMStreamChunk,
@@ -170,9 +171,7 @@ class TestLLMStreamChunk:
 
     def test_final_chunk(self) -> None:
         """Testa chunk final."""
-        chunk = LLMStreamChunk(
-            delta="", finish_reason="stop", is_complete=True
-        )
+        chunk = LLMStreamChunk(delta="", finish_reason="stop", is_complete=True)
         assert chunk.is_complete is True
         assert chunk.finish_reason == "stop"
 

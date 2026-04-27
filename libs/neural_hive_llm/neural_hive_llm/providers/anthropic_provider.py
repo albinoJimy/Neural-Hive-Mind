@@ -143,17 +143,13 @@ class AnthropicProvider(BaseProvider):
             model=self.model,
             provider=LLMProvider.ANTHROPIC,
             finish_reason=response.stop_reason,
-            estimated_cost_usd=self._calculate_cost(
-                usage.input_tokens, usage.output_tokens
-            ),
+            estimated_cost_usd=self._calculate_cost(usage.input_tokens, usage.output_tokens),
             latency_ms=latency_ms,
             raw_response={"id": response.id},
             metadata=request.metadata,
         )
 
-    async def generate_stream(
-        self, request: LLMRequest
-    ) -> AsyncGenerator[LLMStreamChunk, None]:
+    async def generate_stream(self, request: LLMRequest) -> AsyncGenerator[LLMStreamChunk, None]:
         """
         Gera resposta com streaming usando Anthropic API.
 
@@ -299,8 +295,6 @@ class AnthropicProvider(BaseProvider):
         if "timeout" in error_msg.lower():
             return LLMTimeoutError(error_msg, provider="anthropic", original_error=exc)
         if "invalid" in error_msg.lower() or "validation" in error_msg.lower():
-            return LLMInvalidRequestError(
-                error_msg, provider="anthropic", original_error=exc
-            )
+            return LLMInvalidRequestError(error_msg, provider="anthropic", original_error=exc)
 
         return LLMProviderError(str(exc), provider="anthropic", original_error=exc)

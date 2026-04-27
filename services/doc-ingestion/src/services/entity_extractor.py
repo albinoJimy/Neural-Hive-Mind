@@ -5,9 +5,8 @@ import uuid
 from typing import Any
 
 import structlog
-from anthropic import AsyncAnthropic
-from openai import AsyncOpenAI
 
+from src.clients.llm_client_wrapper import LLMClient
 from src.config.settings import get_settings
 from src.models.entities import EntityType, ExtractedEntity
 
@@ -19,7 +18,7 @@ class EntityExtractor:
 
     def __init__(
         self,
-        llm_client: AsyncOpenAI | AsyncAnthropic | None = None,
+        llm_client: LLMClient | None = None,
         provider: str | None = None,
         min_confidence: float = 0.7,
     ):
@@ -33,12 +32,9 @@ class EntityExtractor:
         settings = get_settings()
 
         if llm_client is None:
-            if provider or settings.llm_provider == "openai":
-                self._client = AsyncOpenAI(api_key=settings.openai_api_key)
-                self._provider = "openai"
-            else:
-                self._client = AsyncAnthropic(api_key=settings.anthropic_api_key)
-                self._provider = "anthropic"
+            provider_name = provider or settings.llm_provider
+            self._client = LLMClient(model=settings.llm_model, provider=provider_name)
+            self._provider = provider_name
         else:
             self._client = llm_client
             self._provider = provider or settings.llm_provider
@@ -104,27 +100,33 @@ class EntityExtractor:
 
     async def _call_openai(self, prompt: str) -> str:
         """Faz chamada à API OpenAI."""
-        response = await self._client.chat.completions.create(  # type: ignore
-            model=self._model,
+        response = await self._client.generate(
             messages=[
                 {"role": "system", "content": self._get_system_prompt()},
                 {"role": "user", "content": prompt},
             ],
+            model=self._model,
             temperature=0.3,
             max_tokens=8000,
         )
-        return response.choices[0].message.content or "[]"
+        # Acessar content via dict (compatibilidade neural_hive_llm)
+        content = response.choices[0].message.get("content", "[]")
+        return content or "[]"
 
     async def _call_anthropic(self, prompt: str) -> str:
-        """Faz chamada à API Anthropic."""
-        response = await self._client.messages.create(  # type: ignore
+        """Faz chamada à API Anthropic (via neural_hive_llm wrapper)."""
+        response = await self._client.generate(
+            messages=[
+                {"role": "system", "content": self._get_system_prompt()},
+                {"role": "user", "content": prompt},
+            ],
             model=self._model,
-            max_tokens=8000,
             temperature=0.3,
-            system=self._get_system_prompt(),
-            messages=[{"role": "user", "content": prompt}],
+            max_tokens=8000,
         )
-        return response.content[0].text
+        # Acessar content via dict (compatibilidade neural_hive_llm)
+        content = response.choices[0].message.get("content", "[]")
+        return content or "[]"
 
     def _get_system_prompt(self) -> str:
         """Retorna o prompt de sistema para o LLM."""

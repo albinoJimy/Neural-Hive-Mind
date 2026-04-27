@@ -156,9 +156,7 @@ class LocalProvider(BaseProvider):
             metadata=request.metadata,
         )
 
-    async def generate_stream(
-        self, request: LLMRequest
-    ) -> AsyncGenerator[LLMStreamChunk, None]:
+    async def generate_stream(self, request: LLMRequest) -> AsyncGenerator[LLMStreamChunk, None]:
         """
         Gera resposta com streaming (suporte limitado para Ollama).
 

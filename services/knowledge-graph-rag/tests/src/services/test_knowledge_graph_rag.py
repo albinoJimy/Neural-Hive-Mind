@@ -15,9 +15,9 @@ from knowledge_graph_rag.services.knowledge_graph_rag import KnowledgeGraphRAG
 class TestKnowledgeGraphRAG:
     """Testes para KnowledgeGraphRAG."""
 
-    async def test_create_node(self, mock_openai_client):
+    async def test_create_node(self, mock_llm_client):
         """Testa criação de nó."""
-        service = KnowledgeGraphRAG(llm_client=mock_openai_client)
+        service = KnowledgeGraphRAG(llm_client=mock_llm_client)
 
         node = await service.create_node(
             node_type=NodeType.REQUIREMENT,
@@ -34,9 +34,9 @@ class TestKnowledgeGraphRAG:
         assert node.id.startswith("REQUIREMENT:")
         assert len(node.embedding) == 1536
 
-    async def test_create_relation(self, mock_openai_client):
+    async def test_create_relation(self, mock_llm_client):
         """Testa criação de relação."""
-        service = KnowledgeGraphRAG(llm_client=mock_openai_client)
+        service = KnowledgeGraphRAG(llm_client=mock_llm_client)
 
         relation = await service.create_relation(
             source_id="REQ:001",
@@ -51,9 +51,9 @@ class TestKnowledgeGraphRAG:
         assert relation.properties["confidence"] == 0.9
         assert relation.id.startswith("REL:")
 
-    async def test_search_empty_result(self, mock_openai_client):
+    async def test_search_empty_result(self, mock_llm_client):
         """Testa busca com resultado vazio."""
-        service = KnowledgeGraphRAG(llm_client=mock_openai_client)
+        service = KnowledgeGraphRAG(llm_client=mock_llm_client)
 
         query = GraphQuery(query_text="busca por algo inexistente")
         result = await service.search(query)
@@ -62,9 +62,9 @@ class TestKnowledgeGraphRAG:
         assert len(result.nodes) == 0
         assert len(result.relations) == 0
 
-    async def test_generate_rag_context(self, mock_openai_client):
+    async def test_generate_rag_context(self, mock_llm_client):
         """Testa geração de contexto RAG."""
-        service = KnowledgeGraphRAG(llm_client=mock_openai_client)
+        service = KnowledgeGraphRAG(llm_client=mock_llm_client)
 
         nodes = [
             KnowledgeNode(
@@ -93,18 +93,18 @@ class TestKnowledgeGraphRAG:
         assert "**Login**" in context.context_text
         assert "**Auth Story**" in context.context_text
 
-    async def test_query_with_rag_no_results(self, mock_openai_client):
+    async def test_query_with_rag_no_results(self, mock_llm_client):
         """Testa query RAG sem resultados."""
-        service = KnowledgeGraphRAG(llm_client=mock_openai_client)
+        service = KnowledgeGraphRAG(llm_client=mock_llm_client)
 
         response = await service.query_with_rag("query sem resultados")
 
         assert "Nenhum resultado encontrado" in response
 
-    async def test_query_with_rag_with_results(self, mock_openai_client):
+    async def test_query_with_rag_with_results(self, mock_llm_client):
         """Testa query RAG com resultados."""
         # Primeiro criar um nó para ter resultados
-        service = KnowledgeGraphRAG(llm_client=mock_openai_client)
+        service = KnowledgeGraphRAG(llm_client=mock_llm_client)
 
         # Mock search para retornar um nó
         with patch.object(service, "search", new_callable=AsyncMock) as mock_search:
@@ -124,35 +124,43 @@ class TestKnowledgeGraphRAG:
             response = await service.query_with_rag("explique a arquitetura")
 
             assert response == "Resposta de teste"
-            mock_openai_client.chat.completions.create.assert_called_once()
+            mock_llm_client.generate.assert_called_once()
 
-    async def test_generate_embedding(self, mock_openai_client):
+    async def test_generate_embedding(self, mock_llm_client):
         """Testa geração de embedding."""
-        service = KnowledgeGraphRAG(llm_client=mock_openai_client)
+        service = KnowledgeGraphRAG(llm_client=mock_llm_client)
 
         embedding = await service._generate_embedding("texto de teste")
 
         assert len(embedding) == 1536
         assert all(isinstance(x, float) for x in embedding)
 
-    async def test_generate_embedding_failure(self, mock_openai_client):
+    async def test_generate_embedding_failure(self, mock_llm_client):
         """Testa fallback quando embedding falha."""
-        mock_openai_client.embeddings.create = AsyncMock(side_effect=Exception("API error"))
+        service = KnowledgeGraphRAG(llm_client=mock_llm_client)
 
-        service = KnowledgeGraphRAG(llm_client=mock_openai_client)
+        # Patch para simular erro na API OpenAI (embeddings ainda usam AsyncOpenAI)
+        with patch("openai.AsyncOpenAI") as mock_openai_class:
+            from unittest.mock import Mock
 
-        embedding = await service._generate_embedding("texto")
+            mock_instance = Mock()
+            mock_embeddings = Mock()
+            mock_embeddings.create = AsyncMock(side_effect=Exception("API error"))
+            mock_instance.embeddings = mock_embeddings
+            mock_openai_class.return_value = mock_instance
 
-        # Deve retornar embedding zero
-        assert embedding == [0.0] * 1536
+            embedding = await service._generate_embedding("texto")
+
+            # Deve retornar embedding zero
+            assert embedding == [0.0] * 1536
 
 
 class TestKnowledgeGraphRAGSync:
     """Testes síncronos para KnowledgeGraphRAG."""
 
-    def test_calculate_relevance_exact_match(self, mock_openai_client):
+    def test_calculate_relevance_exact_match(self, mock_llm_client):
         """Testa cálculo de relevância com match exato."""
-        service = KnowledgeGraphRAG(llm_client=mock_openai_client)
+        service = KnowledgeGraphRAG(llm_client=mock_llm_client)
 
         node = KnowledgeNode(
             id="REQ:001",
@@ -165,9 +173,9 @@ class TestKnowledgeGraphRAGSync:
 
         assert score >= 0.5  # Match exato no nome
 
-    def test_calculate_relevance_no_match(self, mock_openai_client):
+    def test_calculate_relevance_no_match(self, mock_llm_client):
         """Testa cálculo de relevância sem match."""
-        service = KnowledgeGraphRAG(llm_client=mock_openai_client)
+        service = KnowledgeGraphRAG(llm_client=mock_llm_client)
 
         node = KnowledgeNode(
             id="REQ:001",

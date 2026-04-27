@@ -1,7 +1,7 @@
 """Gerador de diagramas Mermaid."""
 
 import structlog
-from openai import AsyncOpenAI
+from src.clients.llm_client_wrapper import LLMClient
 from src.config.settings import get_settings
 from src.models import DocFormat, DocType, Document
 
@@ -27,10 +27,10 @@ Gere apenas o código Mermaid, sem formatação adicional.
 class DiagramGenerator:
     """Gerador de diagramas Mermaid."""
 
-    def __init__(self, llm_client: AsyncOpenAI | None = None):
+    def __init__(self, llm_client: LLMClient | None = None):
         """Inicializa o gerador."""
         settings = get_settings()
-        self._llm_client = llm_client or AsyncOpenAI(api_key=settings.openai_api_key)
+        self._llm_client = llm_client or LLMClient(api_key=settings.openai_api_key)
         self._model = settings.llm_model
         self._logger = logger
 
@@ -55,8 +55,7 @@ class DiagramGenerator:
         )
 
         try:
-            response = await self._llm_client.chat.completions.create(
-                model=self._model,
+            response = await self._llm_client.generate(
                 messages=[
                     {
                         "role": "system",
@@ -64,11 +63,11 @@ class DiagramGenerator:
                     },
                     {"role": "user", "content": prompt},
                 ],
+                model=self._model,
                 temperature=0.3,
-                max_tokens=2000,
             )
 
-            content = response.choices[0].message.content
+            content = response.choices[0].message["content"]
 
             # Limpar código markdown se presente
             if "```" in content:

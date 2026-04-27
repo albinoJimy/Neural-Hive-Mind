@@ -5,7 +5,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 import structlog
-from openai import AsyncOpenAI
+from src.clients.llm_client_wrapper import LLMClient
 from src.config.settings import get_settings
 from src.models import DocFormat, DocType, Document
 
@@ -15,10 +15,10 @@ logger = structlog.get_logger(__name__)
 class APIDocsGenerator:
     """Gerador de especificações OpenAPI e documentação de API."""
 
-    def __init__(self, llm_client: AsyncOpenAI | None = None):
+    def __init__(self, llm_client: LLMClient | None = None):
         """Inicializa o gerador."""
         settings = get_settings()
-        self._llm_client = llm_client or AsyncOpenAI(api_key=settings.openai_api_key)
+        self._llm_client = llm_client or LLMClient()
         self._model = settings.llm_model
         self._logger = logger
 
@@ -179,8 +179,7 @@ Use formatação Markdown clara com tabelas e blocos de código.
 """
 
         try:
-            response = await self._llm_client.chat.completions.create(
-                model=self._model,
+            response = await self._llm_client.generate(
                 messages=[
                     {
                         "role": "system",
@@ -188,11 +187,10 @@ Use formatação Markdown clara com tabelas e blocos de código.
                     },
                     {"role": "user", "content": prompt},
                 ],
-                temperature=0.5,
-                max_tokens=4000,
+                model=self._model,
             )
 
-            content = response.choices[0].message.content
+            content = response.choices[0].message["content"]
 
             return Document(
                 id=f"DOC-API-{title.lower().replace(' ', '-')}",

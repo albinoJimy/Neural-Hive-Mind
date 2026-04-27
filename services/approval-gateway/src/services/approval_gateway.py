@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Optional
 
 import structlog
-from openai import AsyncOpenAI
+from src.clients.llm_client_wrapper import LLMClient
 from src.config.settings import get_settings
 from src.models.approval import (
     ApprovalDecision,
@@ -23,12 +23,12 @@ class ApprovalGateway:
 
     def __init__(
         self,
-        llm_client: Optional[AsyncOpenAI] = None,
+        llm_client: Optional[LLMClient] = None,
         repository: Optional[ApprovalsRepository] = None,
     ):
         """Inicializa o serviço."""
         settings = get_settings()
-        self._llm_client = llm_client or AsyncOpenAI(api_key=settings.openai_api_key)
+        self._llm_client = llm_client or LLMClient(api_key=settings.openai_api_key)
         self._llm_model = settings.llm_model
         self._llm_temperature = settings.llm_temperature
         self._logger = logger
@@ -136,7 +136,7 @@ class ApprovalGateway:
         prompt = self._build_evaluation_prompt(request)
 
         try:
-            response = await self._llm_client.chat.completions.create(
+            response = await self._llm_client.generate(
                 model=self._llm_model,
                 messages=[
                     {
@@ -150,10 +150,9 @@ class ApprovalGateway:
                     {"role": "user", "content": prompt},
                 ],
                 temperature=self._llm_temperature,
-                max_tokens=1000,
             )
 
-            content = response.choices[0].message.content
+            content = response.choices[0].message["content"]
 
             # Parse da resposta para extrair score e reasoning
             confidence = self._extract_confidence(content)
