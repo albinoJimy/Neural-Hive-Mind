@@ -251,7 +251,8 @@
         "T11",
         "T12"
       ],
-      "parallel_safe": false
+      "parallel_safe": false,
+      "status": "done"
     },
     {
       "id": "T14",
@@ -266,7 +267,8 @@
       "depends_on": [
         "T13"
       ],
-      "parallel_safe": false
+      "parallel_safe": false,
+      "status": "done"
     },
     {
       "id": "T15",
@@ -282,7 +284,8 @@
       "depends_on": [
         "T14"
       ],
-      "parallel_safe": false
+      "parallel_safe": false,
+      "status": "done"
     },
     {
       "id": "T16",
@@ -295,7 +298,8 @@
       "depends_on": [
         "T15"
       ],
-      "parallel_safe": false
+      "parallel_safe": false,
+      "status": "done"
     },
     {
       "id": "T17",
@@ -308,7 +312,8 @@
       "depends_on": [
         "T16"
       ],
-      "parallel_safe": false
+      "parallel_safe": false,
+      "status": "done"
     },
     {
       "id": "T18",
@@ -321,7 +326,8 @@
       "depends_on": [
         "T17"
       ],
-      "parallel_safe": false
+      "parallel_safe": false,
+      "status": "done"
     },
     {
       "id": "T19",
@@ -334,7 +340,8 @@
       "depends_on": [
         "T18"
       ],
-      "parallel_safe": false
+      "parallel_safe": false,
+      "status": "done"
     }
   ],
   "journeys": [],
