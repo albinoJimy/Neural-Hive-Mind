@@ -20,11 +20,23 @@ def mock_app_state():
 
 @pytest.fixture()
 def mock_settings():
-    """Mock das configurações."""
+    """Mock das configurações com valores válidos."""
+    from src.config.settings import OrchestratorSettings
+
     with patch("src.main.get_settings") as mock_get_settings:
-        mock_config = MagicMock()
-        mock_config.temporal_workflow_id_prefix = "nhm-"
-        mock_config.temporal_task_queue = "orchestration-tasks"
+        # Criar configuração válida com todos os campos obrigatórios
+        mock_config = OrchestratorSettings(
+            # Campos obrigatóios
+            kafka_bootstrap_servers="localhost:9092",
+            postgres_host="localhost",
+            postgres_user="test",
+            postgres_password="test",
+            mongodb_uri="mongodb://localhost:27017",
+            redis_cluster_nodes="localhost:6379",
+            # Configurações de teste
+            temporal_workflow_id_prefix="nhm-",
+            temporal_task_queue="orchestration-tasks",
+        )
         mock_get_settings.return_value = mock_config
         yield mock_config
 
@@ -375,6 +387,7 @@ class TestWorkflowIdGeneration:
     @pytest.mark.asyncio()
     async def test_workflow_id_uses_configured_prefix(self, mock_app_state):
         """Testa que workflow_id usa prefixo configurado."""
+        from src.config.settings import OrchestratorSettings
         from src.main import app
 
         mock_temporal = AsyncMock()
@@ -383,9 +396,18 @@ class TestWorkflowIdGeneration:
 
         # Mock com prefixo diferente
         with patch("src.main.get_settings") as mock_get_settings:
-            mock_config = MagicMock()
-            mock_config.temporal_workflow_id_prefix = "custom-prefix-"
-            mock_config.temporal_task_queue = "test-queue"
+            mock_config = OrchestratorSettings(
+                # Campos obrigatórios
+                kafka_bootstrap_servers="localhost:9092",
+                postgres_host="localhost",
+                postgres_user="test",
+                postgres_password="test",
+                mongodb_uri="mongodb://localhost:27017",
+                redis_cluster_nodes="localhost:6379",
+                # Configurações de teste
+                temporal_workflow_id_prefix="custom-prefix-",
+                temporal_task_queue="test-queue",
+            )
             mock_get_settings.return_value = mock_config
 
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
@@ -719,20 +741,28 @@ class TestGetWorkflowStatusEndpoint:
         from src.main import app
 
         # Mock Temporal client
-        mock_handle = AsyncMock()
-        mock_description = MagicMock()
-        mock_description.workflow_execution_info = MagicMock()
-        mock_description.workflow_execution_info.status.name = "RUNNING"
-        mock_description.workflow_execution_info.start_time = None
-        mock_description.workflow_execution_info.close_time = None
-        mock_description.workflow_execution_info.execution_time = None
-        mock_description.workflow_execution_info.type = MagicMock()
-        mock_description.workflow_execution_info.type.name = "OrchestrationWorkflow"
-        mock_description.workflow_execution_info.task_queue = "orchestration-tasks"
-        mock_handle.describe = AsyncMock(return_value=mock_description)
+        async def mock_describe():
+            """Mock async do describe."""
+            mock_description = MagicMock()
+            mock_description.workflow_execution_info = MagicMock()
+            mock_description.workflow_execution_info.status.name = "RUNNING"
+            mock_description.workflow_execution_info.start_time = None
+            mock_description.workflow_execution_info.close_time = None
+            mock_description.workflow_execution_info.execution_time = None
+            mock_description.workflow_execution_info.type = MagicMock()
+            mock_description.workflow_execution_info.type.name = "OrchestrationWorkflow"
+            mock_description.workflow_execution_info.task_queue = "orchestration-tasks"
+            return mock_description
+
+        mock_handle = MagicMock()
+        mock_handle.describe = mock_describe
+
+        async def mock_get_handle(wid):
+            """Mock async do get_workflow_handle."""
+            return mock_handle
 
         mock_temporal = MagicMock()
-        mock_temporal.get_workflow_handle.return_value = mock_handle
+        mock_temporal.get_workflow_handle = mock_get_handle
         mock_app_state.temporal_client = mock_temporal
         mock_app_state.redis_client = None
 
@@ -750,11 +780,19 @@ class TestGetWorkflowStatusEndpoint:
         """Testa erro 404 quando workflow não existe."""
         from src.main import app
 
-        mock_handle = AsyncMock()
-        mock_handle.describe = AsyncMock(side_effect=Exception("Workflow not found"))
+        async def mock_describe_error():
+            """Mock async do describe que lança exceção."""
+            raise Exception("Workflow not found")
+
+        mock_handle = MagicMock()
+        mock_handle.describe = mock_describe_error
+
+        async def mock_get_handle(wid):
+            """Mock async do get_workflow_handle."""
+            return mock_handle
 
         mock_temporal = MagicMock()
-        mock_temporal.get_workflow_handle.return_value = mock_handle
+        mock_temporal.get_workflow_handle = mock_get_handle
         mock_app_state.temporal_client = mock_temporal
         mock_app_state.redis_client = None
 

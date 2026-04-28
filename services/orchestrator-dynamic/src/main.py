@@ -1941,6 +1941,23 @@ async def readiness_check():
         return JSONResponse(status_code=503, content={"status": "error", "error": str(e)})
 
 
+@app.get("/health/startup")
+async def startup_check():
+    """
+    Startup probe para Kubernetes.
+
+    Indica que o serviço completou sua inicialização.
+    Este endpoint retorna imediatamente "started" pois o startup_event
+    só completa quando tudo está inicializado.
+    """
+    return {
+        "status": "started",
+        "service": "orchestrator-dynamic",
+        "version": "1.0.0",
+        "started_at": datetime.now(timezone.utc).isoformat(),
+    }
+
+
 @app.get("/health/ml")
 async def ml_health_check():
     """

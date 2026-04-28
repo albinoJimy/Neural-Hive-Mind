@@ -84,6 +84,20 @@ from .kafka_instrumentation import (
 )
 from .logging import get_logger, init_logging
 from .metrics import NeuralHiveMetrics, init_metrics
+from .privacy import (
+    PII_FIELDS,
+    get_safe_email,
+    get_safe_user_id,
+    hash_pii,
+    mask_pii_deep,
+    mask_pii_processor,
+)
+from .rate_limit import (
+    InMemoryRateLimiter,
+    RateLimitMiddleware,
+    check_rate_limit_middleware,
+    rate_limit_decorator,
+)
 from .middleware import (
     TraceContextMiddleware,
     extract_traceparent_from_request,
@@ -92,10 +106,21 @@ from .middleware import (
     parse_traceparent,
     validate_trace_context,
 )
-from .tracing import get_tracer, init_tracing, trace_grpc_method, trace_intent, trace_plan
+from .tracing import (
+    flush_traces,
+    get_current_span_id,
+    get_current_trace_id,
+    get_tracer,
+    init_tracing,
+    shutdown_tracing,
+    sync_span,
+    trace_grpc_method,
+    trace_intent,
+    trace_plan,
+)
 
 # Versão da biblioteca
-__version__ = "1.3.1"
+__version__ = "1.5.0"
 
 # Logger da biblioteca
 logger = stdlib_logging.getLogger(__name__)
@@ -297,4 +322,11 @@ __all__ = [
     "DLQProducer",
     "DLQHandler",
     "create_dlq_handler",
+    # Privacy / PII masking
+    "PII_FIELDS",
+    "hash_pii",
+    "mask_pii_processor",
+    "mask_pii_deep",
+    "get_safe_user_id",
+    "get_safe_email",
 ]

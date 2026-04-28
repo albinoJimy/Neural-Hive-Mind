@@ -1,13 +1,27 @@
-from .analyst_agent_grpc_client import AnalystAgentGrpcClient
 from .mongodb_client import MongoDBClient
 from .pheromone_client import PheromoneClient
-from .queen_agent_grpc_client import QueenAgentGrpcClient
-from .specialists_grpc_client import SpecialistsGrpcClient
+from .redis_client import RedisClient
+
+# Imports opcionais que dependem de protobuf
+try:
+    from .analyst_agent_grpc_client import AnalystAgentGrpcClient
+    from .queen_agent_grpc_client import QueenAgentGrpcClient
+    from .specialists_grpc_client import SpecialistsGrpcClient
+
+    _grcp_available = True
+except ImportError:
+    _grcp_available = False
 
 __all__ = [
-    "SpecialistsGrpcClient",
     "PheromoneClient",
     "MongoDBClient",
-    "QueenAgentGrpcClient",
-    "AnalystAgentGrpcClient",
+    "RedisClient",
 ]
+
+# Adicionar clients gRPC apenas se disponíveis
+if _grcp_available:
+    __all__.extend([
+        "SpecialistsGrpcClient",
+        "QueenAgentGrpcClient",
+        "AnalystAgentGrpcClient",
+    ])

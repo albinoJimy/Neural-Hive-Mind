@@ -1,0 +1,798 @@
+{
+  "schema": "plan/v1",
+  "meta": {
+    "type": "refactor",
+    "goal": "Auditoria crítica dos fluxos principais do NHM identificando top-10 riscos arquitecturais com mitigações priorizadas por impacto/esforço",
+    "non_goals": [
+      "Implementação das mitigações (apenas identificação e priorização)",
+      "Refactor de código (análise arquitectural, não de implementação)",
+      "Revisão de styling/convenções (riscos estruturais apenas)"
+    ]
+  },
+  "contracts": {
+    "artifact": "contracts.md",
+    "interfaces": [
+      "StorageAPI",
+      "KafkaProducerAPI",
+      "ConsensusAPI",
+      "ApprovalAPI",
+      "OrchestrationAPI",
+      "ExecutionAPI"
+    ],
+    "invariants": [
+      "INV-1: Independência entre camadas - Gateway nunca chama Workers diretamente",
+      "INV-2: Unidirecionalidade dos fluxos - Intenção→Plano→Decisão→Execução nunca reverso sem compensação",
+      "INV-3: Isolamento de failures - Falha em specialist não derruba Consensus Orchestrator",
+      "INV-4: Ordem estrita dos tópicos Kafka - intentions→plans→decisions nunca out-of-order",
+      "INV-5: Imutabilidade de planos aprovados - CognitivePlan aprovado não pode ser modificado",
+      "INV-6: Single Source of Truth para estado - MongoDB é autoritativo, Redis é cache apenas",
+      "INV-7: Atomicidade de compensação Saga - Rollback compensatório deve ser idempotente",
+      "INV-8: Non-blocking do Consensus Orchestrator - Timeout em specialist NÃO bloqueia novos pedidos",
+      "INV-9: Exclusividade do Queen Agent - Apenas uma instância ativa",
+      "INV-10: Idempotência de execution tickets - Mesmo ticket reprocessado não causa efeitos colaterais"
+    ]
+  },
+  "tasks": [
+    {
+      "id": "T1",
+      "layer": "L0",
+      "action": "criar estrutura do relatório de auditoria em markdown com template para top-10 riscos incluindo título, análise multi-factor, conceito de mitigação, passos de implementação e matriz de priorização",
+      "fulfills": [
+        "R-B5.1",
+        "R-B5.2"
+      ],
+      "depends_on": [],
+      "parallel_safe": false,
+      "status": "done",
+      "summary": "Estrutura do relatório criada em markdown com template top-10"
+    },
+    {
+      "id": "T2",
+      "layer": "L0",
+      "action": "estabelecer controlos de acesso ao repositório garantindo que o relatório seja interno-only (acesso dev team)",
+      "fulfills": [
+        "R-I6.1",
+        "R-I6.2",
+        "R-I6.3"
+      ],
+      "depends_on": [],
+      "parallel_safe": false,
+      "status": "done",
+      "summary": "Controlos de acesso estabelecidos (confidencialidade, ACCESS_CONTROL.md)"
+    },
+    {
+      "id": "T3",
+      "layer": "L1",
+      "action": "analisar arquitectura do pipeline cognitivo mapeando SPOFs, acoplamento e dependências externas críticas",
+      "fulfills": [
+        "R-T1.1",
+        "R-T1.2",
+        "R-T1.3",
+        "R-B3.1",
+        "R-B3.2"
+      ],
+      "depends_on": [
+        "T1",
+        "T2"
+      ],
+      "parallel_safe": false,
+      "status": "done",
+      "summary": "Análise de arquitectura completa: SPOFs, acoplamento, dependências externas"
+    },
+    {
+      "id": "T4",
+      "layer": "L1",
+      "action": "analisar gaps de performance e disponibilidade medindo latência, throughput e RTO/RPO vs SLAs alvo",
+      "fulfills": [
+        "R-T2.1",
+        "R-T2.2",
+        "R-T2.3",
+        "R-B4.1",
+        "R-B4.2"
+      ],
+      "depends_on": [
+        "T1"
+      ],
+      "parallel_safe": true,
+      "status": "done",
+      "summary": "Análise de performance e disponibilidade completa: gaps de latência, throughput e RTO/RPO documentados"
+    },
+    {
+      "id": "T5",
+      "layer": "L1",
+      "action": "analisar consistência de estado entre Redis, MongoDB e Kafka identificando duplicação e race conditions",
+      "fulfills": [
+        "R-T3.1",
+        "R-T3.2",
+        "R-T3.3",
+        "R-B2.2",
+        "R-B6.2"
+      ],
+      "depends_on": [
+        "T1"
+      ],
+      "parallel_safe": true,
+      "status": "done"
+    },
+    {
+      "id": "T6",
+      "layer": "L1",
+      "action": "analisar confiabilidade de mensagens e error handling incluindo DLQ, retries, exponential backoff e circuit breakers",
+      "fulfills": [
+        "R-T4.1",
+        "R-T4.2",
+        "R-T4.3",
+        "R-B6.2"
+      ],
+      "depends_on": [
+        "T1"
+      ],
+      "parallel_safe": true,
+      "status": "done",
+      "summary": "Analise de confiabilidade de mensagens completa: DLQ gaps identificados, circuit breaker coverage avaliada, retry patterns analisados"
+    },
+    {
+      "id": "T7",
+      "layer": "L1",
+      "action": "analisar compliance PII/privacidade incluindo masking em logs, encryption at-rest/in-transit e políticas de retention/erasure",
+      "fulfills": [
+        "R-T5.1",
+        "R-T5.2",
+        "R-T5.3",
+        "R-B6.1"
+      ],
+      "depends_on": [
+        "T1"
+      ],
+      "parallel_safe": true,
+      "status": "done",
+      "summary": "Analise de privacidade completa: PII em logs, encryption at-rest/in-transit, retention/erasure"
+    },
+    {
+      "id": "T8",
+      "layer": "L1",
+      "action": "analisar infraestrutura Kubernetes revisando resource limits, health checks e tolerância a falhas de node",
+      "fulfills": [
+        "R-T6.1",
+        "R-T6.2",
+        "R-T6.3",
+        "R-B6.3"
+      ],
+      "depends_on": [
+        "T1"
+      ],
+      "parallel_safe": true,
+      "status": "done",
+      "summary": "Análise de infraestrutura Kubernetes completa: identificados 10 riscos (3 criticos, 3 medios, 3 baixos), incluindo SPOF no queen-agent, falta de zone distribution e servicos sem HPA/PDB. Documento ANALISE_KUBERNETES.md criado com recomendacoes priorizadas."
+    },
+    {
+      "id": "T9",
+      "layer": "L1",
+      "action": "analisar conflitos de versão de bibliotecas e compatibilidade incluindo version pinning, alinhamento gRPC e breaking changes",
+      "fulfills": [
+        "R-T7.1",
+        "R-T7.2",
+        "R-T7.3"
+      ],
+      "depends_on": [
+        "T1"
+      ],
+      "parallel_safe": true,
+      "status": "done",
+      "summary": "Análise de compatibilidade completa: 13 conflitos identificados (gRPC 1.68.1 vs 1.71.2, OpenTelemetry drift 1.29 vs 1.39, FastAPI/Pydantic fragmentation)"
+    },
+    {
+      "id": "T10",
+      "layer": "L1",
+      "action": "analisar hardening de segurança incluindo enforcement mTLS, secrets management e network policies ingress/egress",
+      "fulfills": [
+        "R-T8.1",
+        "R-T8.2",
+        "R-T8.3",
+        "R-B6.1"
+      ],
+      "depends_on": [
+        "T1"
+      ],
+      "parallel_safe": true,
+      "status": "done",
+      "summary": "Security hardening analysis complete - document created with mTLS, Vault, and network policies assessment"
+    },
+    {
+      "id": "T11",
+      "layer": "L1",
+      "action": "analisar cobertura de observabilidade incluindo propagação de correlation ID, tracing e métricas/alerting",
+      "fulfills": [
+        "R-T9.1",
+        "R-T9.2",
+        "R-T9.3",
+        "R-B6.2"
+      ],
+      "depends_on": [
+        "T1"
+      ],
+      "parallel_safe": true,
+      "status": "done"
+    },
+    {
+      "id": "T12",
+      "layer": "L1",
+      "action": "analisar configuração de timeouts e padrões async incluindo granularidade, backpressure e timeouts de workflows Temporal",
+      "fulfills": [
+        "R-T10.1",
+        "R-T10.2",
+        "R-T10.3",
+        "R-B6.3"
+      ],
+      "depends_on": [
+        "T1"
+      ],
+      "parallel_safe": true,
+      "status": "done",
+      "summary": "Analise de timeouts completa: 9 gaps identificados, 4 criticos (time.sleep, subprocess.run, backpressure, timeout global)"
+    },
+    {
+      "id": "T13",
+      "layer": "L2",
+      "action": "compilar baseline de gap analysis documentando diferenças entre arquitectura actual e estado desejado",
+      "fulfills": [
+        "R-B4.1",
+        "R-B2.1"
+      ],
+      "depends_on": [
+        "T3",
+        "T4",
+        "T5",
+        "T6",
+        "T7",
+        "T8",
+        "T9",
+        "T10",
+        "T11",
+        "T12"
+      ],
+      "parallel_safe": false,
+      "status": "done"
+    },
+    {
+      "id": "T14",
+      "layer": "L2",
+      "action": "priorizar top-10 riscos usando matriz multi-factor (risco×impacto, custo/benefício, urgência, esforço)",
+      "fulfills": [
+        "R-B4.2",
+        "R-B5.2",
+        "R-B2.2",
+        "R-B6.2"
+      ],
+      "depends_on": [
+        "T13"
+      ],
+      "parallel_safe": false,
+      "status": "done"
+    },
+    {
+      "id": "T15",
+      "layer": "L2",
+      "action": "traduzir riscos em tickets accionáveis com detalhes suficientes para criação em JIRA/GitHub Issues",
+      "fulfills": [
+        "R-I1.1",
+        "R-I2.3",
+        "R-I3.1",
+        "R-I3.2",
+        "R-I2.2"
+      ],
+      "depends_on": [
+        "T14"
+      ],
+      "parallel_safe": false,
+      "status": "done"
+    },
+    {
+      "id": "T16",
+      "layer": "L2",
+      "action": "estruturar relatório para consumo pelo tech lead com matriz de priorização clara e detalhes de implementação",
+      "fulfills": [
+        "R-I2.1",
+        "R-B1.1"
+      ],
+      "depends_on": [
+        "T15"
+      ],
+      "parallel_safe": false,
+      "status": "done"
+    },
+    {
+      "id": "T17",
+      "layer": "L3",
+      "action": "criar versão inicial v1.0 do relatório de auditoria com todos os top-10 riscos em status pending",
+      "fulfills": [
+        "R-I4.1",
+        "R-B5.1"
+      ],
+      "depends_on": [
+        "T16"
+      ],
+      "parallel_safe": false,
+      "status": "done"
+    },
+    {
+      "id": "T18",
+      "layer": "L3",
+      "action": "documentar processo de ciclo de re-auditoria para handle de disputas significativas sobre análise de risco",
+      "fulfills": [
+        "R-I5.1",
+        "R-I5.2"
+      ],
+      "depends_on": [
+        "T17"
+      ],
+      "parallel_safe": false,
+      "status": "done"
+    },
+    {
+      "id": "T19",
+      "layer": "L3",
+      "action": "estabelecer workflow de versionamento e rastreio de mudanças para evolução do relatório ao longo do tempo",
+      "fulfills": [
+        "R-I4.2",
+        "R-I4.3"
+      ],
+      "depends_on": [
+        "T18"
+      ],
+      "parallel_safe": false,
+      "status": "done"
+    }
+  ],
+  "journeys": [],
+  "verify_plan": [
+    {
+      "target": "R-B1.1",
+      "type": "sub_req",
+      "gates": [
+        1,
+        2
+      ]
+    },
+    {
+      "target": "R-B2.1",
+      "type": "sub_req",
+      "gates": [
+        1,
+        2
+      ]
+    },
+    {
+      "target": "R-B2.2",
+      "type": "sub_req",
+      "gates": [
+        1,
+        2
+      ]
+    },
+    {
+      "target": "R-B3.1",
+      "type": "sub_req",
+      "gates": [
+        1,
+        2
+      ]
+    },
+    {
+      "target": "R-B3.2",
+      "type": "sub_req",
+      "gates": [
+        1,
+        2
+      ]
+    },
+    {
+      "target": "R-B4.1",
+      "type": "sub_req",
+      "gates": [
+        1,
+        2
+      ]
+    },
+    {
+      "target": "R-B4.2",
+      "type": "sub_req",
+      "gates": [
+        1,
+        2
+      ]
+    },
+    {
+      "target": "R-B5.1",
+      "type": "sub_req",
+      "gates": [
+        1,
+        2
+      ]
+    },
+    {
+      "target": "R-B5.2",
+      "type": "sub_req",
+      "gates": [
+        1,
+        2
+      ]
+    },
+    {
+      "target": "R-B6.1",
+      "type": "sub_req",
+      "gates": [
+        1,
+        2
+      ]
+    },
+    {
+      "target": "R-B6.2",
+      "type": "sub_req",
+      "gates": [
+        1,
+        2
+      ]
+    },
+    {
+      "target": "R-B6.3",
+      "type": "sub_req",
+      "gates": [
+        1,
+        2
+      ]
+    },
+    {
+      "target": "R-I1.1",
+      "type": "sub_req",
+      "gates": [
+        1,
+        2
+      ]
+    },
+    {
+      "target": "R-I2.1",
+      "type": "sub_req",
+      "gates": [
+        1,
+        2
+      ]
+    },
+    {
+      "target": "R-I2.2",
+      "type": "sub_req",
+      "gates": [
+        1,
+        2
+      ]
+    },
+    {
+      "target": "R-I2.3",
+      "type": "sub_req",
+      "gates": [
+        1,
+        2
+      ]
+    },
+    {
+      "target": "R-I3.1",
+      "type": "sub_req",
+      "gates": [
+        1,
+        2
+      ]
+    },
+    {
+      "target": "R-I3.2",
+      "type": "sub_req",
+      "gates": [
+        1,
+        2
+      ]
+    },
+    {
+      "target": "R-I4.1",
+      "type": "sub_req",
+      "gates": [
+        1,
+        2
+      ]
+    },
+    {
+      "target": "R-I4.2",
+      "type": "sub_req",
+      "gates": [
+        1,
+        2
+      ]
+    },
+    {
+      "target": "R-I4.3",
+      "type": "sub_req",
+      "gates": [
+        1,
+        2
+      ]
+    },
+    {
+      "target": "R-I5.1",
+      "type": "sub_req",
+      "gates": [
+        1,
+        2
+      ]
+    },
+    {
+      "target": "R-I5.2",
+      "type": "sub_req",
+      "gates": [
+        1,
+        2
+      ]
+    },
+    {
+      "target": "R-I6.1",
+      "type": "sub_req",
+      "gates": [
+        1,
+        2
+      ]
+    },
+    {
+      "target": "R-I6.2",
+      "type": "sub_req",
+      "gates": [
+        1,
+        2
+      ]
+    },
+    {
+      "target": "R-I6.3",
+      "type": "sub_req",
+      "gates": [
+        1,
+        2
+      ]
+    },
+    {
+      "target": "R-T1.1",
+      "type": "sub_req",
+      "gates": [
+        1,
+        2
+      ]
+    },
+    {
+      "target": "R-T1.2",
+      "type": "sub_req",
+      "gates": [
+        1,
+        2
+      ]
+    },
+    {
+      "target": "R-T1.3",
+      "type": "sub_req",
+      "gates": [
+        1,
+        2
+      ]
+    },
+    {
+      "target": "R-T2.1",
+      "type": "sub_req",
+      "gates": [
+        1,
+        2
+      ]
+    },
+    {
+      "target": "R-T2.2",
+      "type": "sub_req",
+      "gates": [
+        1,
+        2
+      ]
+    },
+    {
+      "target": "R-T2.3",
+      "type": "sub_req",
+      "gates": [
+        1,
+        2
+      ]
+    },
+    {
+      "target": "R-T3.1",
+      "type": "sub_req",
+      "gates": [
+        1,
+        2
+      ]
+    },
+    {
+      "target": "R-T3.2",
+      "type": "sub_req",
+      "gates": [
+        1,
+        2
+      ]
+    },
+    {
+      "target": "R-T3.3",
+      "type": "sub_req",
+      "gates": [
+        1,
+        2
+      ]
+    },
+    {
+      "target": "R-T4.1",
+      "type": "sub_req",
+      "gates": [
+        1,
+        2
+      ]
+    },
+    {
+      "target": "R-T4.2",
+      "type": "sub_req",
+      "gates": [
+        1,
+        2
+      ]
+    },
+    {
+      "target": "R-T4.3",
+      "type": "sub_req",
+      "gates": [
+        1,
+        2
+      ]
+    },
+    {
+      "target": "R-T5.1",
+      "type": "sub_req",
+      "gates": [
+        1,
+        2
+      ]
+    },
+    {
+      "target": "R-T5.2",
+      "type": "sub_req",
+      "gates": [
+        1,
+        2
+      ]
+    },
+    {
+      "target": "R-T5.3",
+      "type": "sub_req",
+      "gates": [
+        1,
+        2
+      ]
+    },
+    {
+      "target": "R-T6.1",
+      "type": "sub_req",
+      "gates": [
+        1,
+        2
+      ]
+    },
+    {
+      "target": "R-T6.2",
+      "type": "sub_req",
+      "gates": [
+        1,
+        2
+      ]
+    },
+    {
+      "target": "R-T6.3",
+      "type": "sub_req",
+      "gates": [
+        1,
+        2
+      ]
+    },
+    {
+      "target": "R-T7.1",
+      "type": "sub_req",
+      "gates": [
+        1,
+        2
+      ]
+    },
+    {
+      "target": "R-T7.2",
+      "type": "sub_req",
+      "gates": [
+        1,
+        2
+      ]
+    },
+    {
+      "target": "R-T7.3",
+      "type": "sub_req",
+      "gates": [
+        1,
+        2
+      ]
+    },
+    {
+      "target": "R-T8.1",
+      "type": "sub_req",
+      "gates": [
+        1,
+        2
+      ]
+    },
+    {
+      "target": "R-T8.2",
+      "type": "sub_req",
+      "gates": [
+        1,
+        2
+      ]
+    },
+    {
+      "target": "R-T8.3",
+      "type": "sub_req",
+      "gates": [
+        1,
+        2
+      ]
+    },
+    {
+      "target": "R-T9.1",
+      "type": "sub_req",
+      "gates": [
+        1,
+        2
+      ]
+    },
+    {
+      "target": "R-T9.2",
+      "type": "sub_req",
+      "gates": [
+        1,
+        2
+      ]
+    },
+    {
+      "target": "R-T9.3",
+      "type": "sub_req",
+      "gates": [
+        1,
+        2
+      ]
+    },
+    {
+      "target": "R-T10.1",
+      "type": "sub_req",
+      "gates": [
+        1,
+        2
+      ]
+    },
+    {
+      "target": "R-T10.2",
+      "type": "sub_req",
+      "gates": [
+        1,
+        2
+      ]
+    },
+    {
+      "target": "R-T10.3",
+      "type": "sub_req",
+      "gates": [
+        1,
+        2
+      ]
+    }
+  ]
+}

@@ -11,11 +11,14 @@ from src.clients import (
     MongoDBClient,
     PheromoneClient,
     QueenAgentGrpcClient,
+    RedisClient,
     SpecialistsGrpcClient,
 )
 from src.config import get_settings
 from src.consumers import PlanConsumer
-from src.producers import DecisionProducer
+from src.producers import DecisionProducer, DLQProducer
+from src.services import CacheAsideService
+from src.services.fallback_storage import FallbackStorage, FallbackRedisWrapper
 
 from neural_hive_observability import (
     get_metrics,
@@ -68,11 +71,14 @@ class AppState:
     specialists_client: SpecialistsGrpcClient = None
     mongodb_client: MongoDBClient = None
     pheromone_client: PheromoneClient = None
+    redis_client: RedisClient = None
+    cache_service: CacheAsideService = None
+    fallback_storage: FallbackStorage = None  # Gap P0-3: Fallback storage
     queen_agent_client: QueenAgentGrpcClient = None
     analyst_agent_client: AnalystAgentGrpcClient = None
-    redis_client = None
     plan_consumer: PlanConsumer = None
     decision_producer: DecisionProducer = None
+    dlq_producer: DLQProducer = None
     decision_queue: asyncio.Queue = None
     consumer_task = None
     producer_task = None
@@ -122,6 +128,11 @@ async def startup_event():
         # MongoDB
         state.mongodb_client = MongoDBClient(settings)
         await state.mongodb_client.initialize()
+
+        # Injetar cache service no MongoDB client (cache-aside pattern)
+        if state.cache_service:
+            state.mongodb_client.set_cache_service(state.cache_service)
+
         logger.info("MongoDB client inicializado")
 
         # Redis
@@ -134,8 +145,46 @@ async def startup_event():
             decode_responses=True,
         )
         await state.redis_client.ping()
-        state.pheromone_client = PheromoneClient(state.redis_client, settings)
         logger.info("Redis client inicializado")
+
+        # Gap P0-3: Fallback Storage para Redis com persistência MongoDB
+        state.fallback_storage = FallbackStorage(
+            redis_client=state.redis_client,
+            mongodb_client=state.mongodb_client,
+            config=settings,
+        )
+        await state.fallback_storage.initialize()
+        await state.fallback_storage.start_background_sync()
+        logger.info("Fallback storage inicializado (Gap P0-3)")
+
+        # Criar wrapper com fallback para PheromoneClient
+        fallback_redis_wrapper = FallbackRedisWrapper(state.fallback_storage)
+        state.pheromone_client = PheromoneClient(
+            redis_client=fallback_redis_wrapper,
+            config=settings,
+            fallback_storage=state.fallback_storage,
+        )
+        logger.info("Pheromone client inicializado com fallback MongoDB")
+
+        # Cache-aside service (Gap P1 + Gap P0-3: com fallback)
+        if settings.enable_cache:
+            redis_client_wrapper = RedisClient(
+                redis_client=fallback_redis_wrapper,
+                config=settings,
+                fallback_storage=state.fallback_storage,
+            )
+            state.cache_service = CacheAsideService(redis_client_wrapper, settings)
+            logger.info(
+                "Cache-aside service inicializado",
+                enabled=settings.enable_cache,
+                ttl_plan_approval=settings.cache_ttl_plan_approval,
+                ttl_consensus_decision=settings.cache_ttl_consensus_decision,
+                ttl_specialist_status=settings.cache_ttl_specialist_status,
+                fallback_enabled=True,  # Gap P0-3
+            )
+        else:
+            logger.info("Cache-aside desabilitado via configuração")
+            state.cache_service = None
 
         # gRPC Specialists
         state.specialists_client = SpecialistsGrpcClient(settings)
@@ -163,9 +212,18 @@ async def startup_event():
         state.decision_queue = asyncio.Queue()
         logger.info("Fila de decisões inicializada")
 
-        # Inicializar Kafka consumer
+        # Inicializar DLQ producer (antes do consumer que o utiliza)
+        state.dlq_producer = DLQProducer(settings)
+        await state.dlq_producer.initialize()
+        logger.info(
+            "DLQ producer inicializado",
+            dlq_enabled=settings.consumer_enable_dlq,
+            dlq_topic=settings.kafka_dlq_topic,
+        )
+
+        # Inicializar Kafka consumer (com DLQ producer)
         state.plan_consumer = PlanConsumer(
-            settings, state.specialists_client, state.mongodb_client, state.pheromone_client
+            settings, state.specialists_client, state.mongodb_client, state.pheromone_client, state.dlq_producer
         )
         await state.plan_consumer.initialize()
         state.plan_consumer = instrument_kafka_consumer(state.plan_consumer)
@@ -248,6 +306,10 @@ async def shutdown_event():
     if state.redis_client:
         await state.redis_client.close()
 
+    # Gap P0-3: Parar fallback storage
+    if state.fallback_storage:
+        await state.fallback_storage.stop_background_sync()
+
     logger.info("Consensus Engine encerrado")
 
 
@@ -285,8 +347,20 @@ async def readiness():
 
         # Verificar Redis
         if state.redis_client:
-            await state.redis_client.ping()
-            checks["redis"] = True
+            try:
+                await state.redis_client.ping()
+                checks["redis"] = True
+            except Exception:
+                # Gap P0-3: Redis pode falhar se fallback estiver ativo
+                if state.fallback_storage:
+                    # Verificar se fallback está funcionando
+                    fallback_ok = await state.fallback_storage.ping()
+                    checks["redis"] = fallback_ok
+                    checks["fallback_active"] = True
+                else:
+                    checks["redis"] = False
+        else:
+            checks["redis"] = False
 
         # Verificar Queen Agent
         if state.queen_agent_client:
@@ -392,6 +466,66 @@ async def get_pheromone_stats():
     """Estatísticas de feromônios"""
     # Implementar quando PheromoneClient estiver completo
     return {"message": "Pheromone stats endpoint - implementação em progresso", "available": False}
+
+
+@app.get("/api/v1/cache/stats")
+async def get_cache_stats():
+    """Estatísticas do cache-aside"""
+    if not state.cache_service:
+        return {"enabled": False, "message": "Cache service não inicializado"}
+
+    return await state.cache_service.get_health_status()
+
+
+@app.get("/api/v1/cache/metrics")
+async def get_cache_metrics():
+    """Métricas do cache-aside (hits/misses)"""
+    if not state.cache_service:
+        return {"enabled": False, "message": "Cache service não inicializado"}
+
+    return state.cache_service.get_metrics()
+
+
+@app.get("/api/v1/fallback/metrics")
+async def get_fallback_metrics():
+    """Métricas do fallback MongoDB (Gap P0-3)"""
+    if not state.fallback_storage:
+        return {"enabled": False, "message": "Fallback storage não inicializado"}
+
+    return state.fallback_storage.get_metrics()
+
+
+@app.get("/api/v1/fallback/health")
+async def get_fallback_health():
+    """Health check do fallback MongoDB (Gap P0-3)"""
+    if not state.fallback_storage:
+        return {"enabled": False, "message": "Fallback storage não inicializado"}
+
+    healthy = await state.fallback_storage.ping()
+    return {
+        "healthy": healthy,
+        "redis_enabled": state.fallback_storage.is_redis_enabled(),
+    }
+
+
+@app.post("/api/v1/cache/invalidate/plan/{plan_id}")
+async def invalidate_plan_cache(plan_id: str):
+    """Invalida cache de um plan approval específico"""
+    if not state.cache_service:
+        raise HTTPException(status_code=503, detail="Cache service não inicializado")
+
+    success = await state.cache_service.invalidate_plan_approval(plan_id)
+    return {"invalidated": success, "plan_id": plan_id}
+
+
+@app.post("/api/v1/cache/invalidate/decision/{decision_id}")
+async def invalidate_decision_cache(decision_id: str):
+    """Invalida cache de uma decisão específica"""
+    if not state.cache_service:
+        raise HTTPException(status_code=503, detail="Cache service não inicializado")
+
+    success = await state.cache_service.invalidate_consensus_decision(decision_id)
+    return {"invalidated": success, "decision_id": decision_id}
 
 
 # Montar métricas Prometheus

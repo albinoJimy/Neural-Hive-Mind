@@ -99,7 +99,7 @@ async def list_pending_approvals(
     """
     logger.info(
         "Listando aprovacoes pendentes",
-        user_id=user["user_id"],
+        user_id_hash=user.get("user_id"),  # PII masked via processor
         limit=limit,
         offset=offset,
         risk_band=risk_band,
@@ -140,7 +140,7 @@ async def get_approval_stats(
     Returns:
         Estatisticas agregadas de aprovacoes
     """
-    logger.info("Consultando estatisticas de aprovacao", user_id=user["user_id"])
+    logger.info("Consultando estatisticas de aprovacao", user_id_hash=user.get("user_id"))
 
     try:
         stats = await service.get_approval_stats()
@@ -179,7 +179,7 @@ async def get_ml_prediction(
     Raises:
         404: Se plan_id nao encontrado
     """
-    logger.info("Consultando predicao ML", plan_id=plan_id, user_id=user["user_id"])
+    logger.info("Consultando predicao ML", plan_id=plan_id, user_id_hash=user.get("user_id"))
 
     try:
         prediction = await service.get_ml_prediction(plan_id)
@@ -229,7 +229,7 @@ async def get_auto_decision(
     Raises:
         404: Se plan_id nao encontrado
     """
-    logger.info("Consultando decisao automatica", plan_id=plan_id, user_id=user["user_id"])
+    logger.info("Consultando decisao automatica", plan_id=plan_id, user_id_hash=user.get("user_id"))
 
     try:
         auto_decision = await service.get_auto_decision(plan_id)
@@ -277,7 +277,7 @@ async def get_approval(
     Raises:
         404: Se plan_id nao encontrado
     """
-    logger.info("Buscando aprovacao", plan_id=plan_id, user_id=user["user_id"])
+    logger.info("Buscando aprovacao", plan_id=plan_id, user_id_hash=user.get("user_id"))
 
     try:
         approval = await service.get_approval_by_plan_id(plan_id)
@@ -325,12 +325,12 @@ async def approve_plan(
     comments = body.comments if body else None
 
     logger.info(
-        "Aprovando plano", plan_id=plan_id, user_id=user["user_id"], has_comments=bool(comments)
+        "Aprovando plano", plan_id=plan_id, user_id_hash=user.get("user_id"), has_comments=bool(comments)
     )
 
     try:
         decision = await service.approve_plan(
-            plan_id=plan_id, user_id=user["user_id"], comments=comments
+            plan_id=plan_id, user_id_hash=user.get("user_id"), comments=comments
         )
         return decision
 
@@ -376,11 +376,11 @@ async def reject_plan(
         404: Se plan_id nao encontrado
         409: Se plano ja foi aprovado/rejeitado
     """
-    logger.info("Rejeitando plano", plan_id=plan_id, user_id=user["user_id"], reason=body.reason)
+    logger.info("Rejeitando plano", plan_id=plan_id, user_id_hash=user.get("user_id"), reason=body.reason)
 
     try:
         decision = await service.reject_plan(
-            plan_id=plan_id, user_id=user["user_id"], reason=body.reason, comments=body.comments
+            plan_id=plan_id, user_id_hash=user.get("user_id"), reason=body.reason, comments=body.comments
         )
         return decision
 
@@ -446,14 +446,14 @@ async def republish_approved_plan(
     logger.info(
         "Republicando plano aprovado",
         plan_id=plan_id,
-        user_id=user["user_id"],
+        user_id_hash=user.get("user_id"),
         force=force,
         has_comments=bool(comments),
     )
 
     try:
         response = await service.republish_approved_plan(
-            plan_id=plan_id, user_id=user["user_id"], force=force, comments=comments
+            plan_id=plan_id, user_id_hash=user.get("user_id"), force=force, comments=comments
         )
         return response
 
@@ -513,7 +513,7 @@ async def revert_approval(
     logger.info(
         "Revertendo aprovacao",
         plan_id=plan_id,
-        user_id=user["user_id"],
+        user_id_hash=user.get("user_id"),
         reason=body.reason,
         ticket_id=body.ticket_id,
     )
@@ -521,7 +521,7 @@ async def revert_approval(
     try:
         response = await service.revert_approval(
             plan_id=plan_id,
-            user_id=user["user_id"],
+            user_id_hash=user.get("user_id"),
             reason=body.reason,
             comments=body.comments,
             ticket_id=body.ticket_id,

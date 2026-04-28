@@ -284,21 +284,86 @@ class Settings(BaseSettings):
         "Controla tradeoff entre responsividade e frequência de polling.",
         gt=0.0,
     )
-    # NOTA: DLQ ainda não está implementado no consumer. Estas configurações são
-    # reservadas para implementação futura. Não habilite consumer_enable_dlq em produção.
+    # Dead Letter Queue (DLQ) - Gap P0-1 Implementado
+    # Configurações para envio de mensagens com falha para DLQ após exceder retries
     consumer_enable_dlq: bool = Field(
         default=False,
-        description="[NÃO IMPLEMENTADO] Habilitar Dead Letter Queue para mensagens que falham. "
-        "Reservado para implementação futura - não habilite em produção.",
+        description="Habilitar Dead Letter Queue para mensagens que falham. "
+        "Quando habilitado, mensagens que excedem consumer_max_retries_before_dlq "
+        "são enviadas para kafka_dlq_topic para análise posterior.",
     )
     kafka_dlq_topic: str = Field(
         default="plans.ready.dlq",
-        description="[NÃO IMPLEMENTADO] Tópico Kafka para mensagens Dead Letter Queue.",
+        description="Tópico Kafka para mensagens Dead Letter Queue. "
+        "Mensagens com falha persistente são enviadas aqui com metadados de erro.",
     )
     consumer_max_retries_before_dlq: int = Field(
         default=3,
-        description="[NÃO IMPLEMENTADO] Máximo de retries antes de enviar mensagem para DLQ.",
+        description="Máximo de retries antes de enviar mensagem para DLQ. "
+        "Erros sistêmicos usam este valor diretamente; erros de negócio usam 2x.",
         ge=0,
+    )
+
+    # Configuração de Cache-aside (Gap P1)
+    # Reduz latência e carga no MongoDB usando Redis como cache
+    enable_cache: bool = Field(
+        default=True,
+        description="Habilitar cache-aside pattern para MongoDB. "
+        "Reduz latência de leitura e carga no banco de dados.",
+    )
+    cache_ttl_plan_approval: int = Field(
+        default=300,  # 5 minutos
+        description="TTL de cache para plan approvals em segundos. "
+        "Default: 300s (5 minutos). Ajuste baseado na frequência de atualizações.",
+        gt=0,
+    )
+    cache_ttl_consensus_decision: int = Field(
+        default=120,  # 2 minutos
+        description="TTL de cache para decisões de consenso em segundos. "
+        "Default: 120s (2 minutos). Decisões são imutáveis mas cache curto ajuda em retries.",
+        gt=0,
+    )
+    cache_ttl_specialist_status: int = Field(
+        default=30,  # 30 segundos
+        description="TTL de cache para status de especialistas em segundos. "
+        "Default: 30s. Status muda frequentemente, TTL curto garante dados razoavelmente frescos.",
+        gt=0,
+    )
+
+    # Configuração de Circuit Breaker (Gap P1)
+    # Protege chamadas gRPC contra falhas em cascata com estados CLOSED -> OPEN -> HALF_OPEN
+    enable_circuit_breaker: bool = Field(
+        default=True,
+        description="Habilitar circuit breaker para chamadas gRPC. "
+        "Protege contra falhas em cascata em Queen Agent, Analyst Agent e Specialists.",
+    )
+    circuit_breaker_failure_threshold: int = Field(
+        default=5,
+        description="Número de falhas consecutivas antes do circuit breaker abrir. "
+        "Após abrir, chamadas são rejeitadas até recovery_timeout.",
+        ge=1,
+        le=100,
+    )
+    circuit_breaker_recovery_timeout: int = Field(
+        default=60,
+        description="Tempo em segundos que o circuit breaker permanece OPEN antes de "
+        "tentar HALF_OPEN. Durante HALF_OPEN, uma chamada de teste é permitida.",
+        ge=10,
+        le=600,
+    )
+    circuit_breaker_specialist_failure_threshold: int = Field(
+        default=3,
+        description="Número de falhas consecutivas antes do circuit breaker abrir para specialists. "
+        "Mais agressivo que o threshold padrão devido à maior taxa de chamadas.",
+        ge=1,
+        le=50,
+    )
+    circuit_breaker_specialist_recovery_timeout: int = Field(
+        default=30,
+        description="Tempo em segundos que o circuit breaker de specialists permanece OPEN. "
+        "Menor que o padrão para permitir recuperação mais rápida.",
+        ge=5,
+        le=300,
     )
 
     def get_specialist_timeout_ms(self, specialist_type: str) -> int:
