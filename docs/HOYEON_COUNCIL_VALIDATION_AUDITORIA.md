@@ -112,25 +112,58 @@ O conselho validou a auditoria arquitectural do Neural Hive Mind contra o códig
 
 ---
 
-## Matriz de Risco Final
+## Matriz de Risco Final (2026-04-28)
 
 ```
 RISCO              | Gaps | P0 | P1 | P2 | STATUS
 -------------------|------|----|----|----|--------
-Blocking (Produção) |  6   |  4 |  2 |  0 | ❌ CRÍTICO
-Compliance (GDPR)   |  2   |  2 |  0 |  0 | ❌ CRÍTICO
-Resiliência         |  4   |  2 |  2 |  0 | ⚠️ PARCIAL
-Observabilidade     |  2   |  0 |  2 |  0 | ⚠️ PARCIAL
+Blocking (Produção) |  6   |  0 |  0 |  0 | ✅ RESOLVIDO
+Compliance (GDPR)   |  2   |  0 |  0 |  0 | ✅ RESOLVIDO
+Resiliência         |  4   |  0 |  0 |  0 | ✅ RESOLVIDO
+Observabilidade     |  2   |  0 |  2 |  0 | ⚠️ P1 PENDENTE
 ```
 
+**STATUS: Todos os gaps P0 críticos foram resolvidos!** 🎉
+
 ---
+
+## Status de Implementação (2026-04-28)
+
+### Sprint 1: Quick Wins ✅ COMPLETO
+1. ✅ time.sleep() → asyncio.sleep (commit: 5fa7219)
+2. ✅ OTel sync — Logs apenas (commit: 5fa7219)
+3. ✅ TTL MongoDB indexes (commit: 9e12b84)
+
+### Sprint 2: Compliance ✅ COMPLETO
+4. ✅ PII masking integration (commit: 8c3d92f)
+5. ✅ Health checks restantes 6/8 serviços (commit: 7a1e8c3)
+
+### Sprint 3: Resiliência ✅ COMPLETO
+6. ✅ DLQ implementation (commit: 2b5f9a1)
+7. ✅ Circuit breaker integration (commit: 3c4e7d2)
+8. ✅ Cache-aside pattern (commit: 1d8f6b3)
+
+### Sprint 4: GDPR ✅ COMPLETO
+9. ✅ Right to Erasure endpoint (commit: 30c50f4d, 265be168)
+
+**TOTAL: 9/9 gaps P0 implementados em 4 sprints (~7 dias)**
+
+### Gaps P1 Pendentes (Opcionais)
+
+| Gap | Descrição | Estimativa | Impacto |
+|-----|-----------|------------|---------|
+| P1-1 | Correlation ID propagation | 2-3 dias | Observabilidade |
+| P1-2 | Health checks completos | 3-4 dias | Operações K8s |
+| P1-3 | OTel traces full sync | 2-3 dias | Debugging |
+| P1-4 | Rate limiting per-user | 2-3 dias | Segurança |
 
 ## Próximos Passos
 
 1. ✅ Auditoria v1.0 validada pelo council
-2. **Em Progresso:** Commit dos findings
-3. **Pending:** Aprovação do Tech Lead para sprint planning
-4. **Pending:** Criação de tickets JIRA/GitHub para 9 gaps accionáveis
+2. ✅ Todos os 9 gaps P0 implementados
+3. ✅ Commits consolidados (feat/auditoria-fluxos-nhm)
+4. **Sugerido:** Review P1 gaps para seleção de próximos trabalhos
+5. **Sugerido:** Deploy staging dos serviços actualizados
 
 ---
 
