@@ -284,20 +284,23 @@ class Settings(BaseSettings):
         "Controla tradeoff entre responsividade e frequência de polling.",
         gt=0.0,
     )
-    # NOTA: DLQ ainda não está implementado no consumer. Estas configurações são
-    # reservadas para implementação futura. Não habilite consumer_enable_dlq em produção.
+    # Dead Letter Queue (DLQ) - Gap P0-1 Implementado
+    # Configurações para envio de mensagens com falha para DLQ após exceder retries
     consumer_enable_dlq: bool = Field(
         default=False,
-        description="[NÃO IMPLEMENTADO] Habilitar Dead Letter Queue para mensagens que falham. "
-        "Reservado para implementação futura - não habilite em produção.",
+        description="Habilitar Dead Letter Queue para mensagens que falham. "
+        "Quando habilitado, mensagens que excedem consumer_max_retries_before_dlq "
+        "são enviadas para kafka_dlq_topic para análise posterior.",
     )
     kafka_dlq_topic: str = Field(
         default="plans.ready.dlq",
-        description="[NÃO IMPLEMENTADO] Tópico Kafka para mensagens Dead Letter Queue.",
+        description="Tópico Kafka para mensagens Dead Letter Queue. "
+        "Mensagens com falha persistente são enviadas aqui com metadados de erro.",
     )
     consumer_max_retries_before_dlq: int = Field(
         default=3,
-        description="[NÃO IMPLEMENTADO] Máximo de retries antes de enviar mensagem para DLQ.",
+        description="Máximo de retries antes de enviar mensagem para DLQ. "
+        "Erros sistêmicos usam este valor diretamente; erros de negócio usam 2x.",
         ge=0,
     )
 

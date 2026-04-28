@@ -21,7 +21,7 @@ logger = structlog.get_logger()
 class PlanConsumer:
     """Consumer Kafka para tópico plans.ready usando confluent-kafka"""
 
-    def __init__(self, config, specialists_client, mongodb_client, pheromone_client):
+    def __init__(self, config, specialists_client, mongodb_client, pheromone_client, dlq_producer=None):
         self.config = config
         self.specialists_client = specialists_client
         self.mongodb_client = mongodb_client
@@ -31,6 +31,11 @@ class PlanConsumer:
         self.avro_deserializer: Optional[AvroDeserializer] = None
         self.running = False
         self.circuit_breaker_open = False
+        self.dlq_producer = dlq_producer
+
+        # Tracking de falhas por mensagem (para retry com backoff)
+        self._message_failures: dict[str, int] = {}
+        self._message_last_failure: dict[str, float] = {}
 
     async def initialize(self):
         """Inicializa consumer Kafka com confluent-kafka"""
@@ -101,7 +106,13 @@ class PlanConsumer:
             avro_enabled=self.avro_deserializer is not None,
             schema_registry_url=os.getenv("SCHEMA_REGISTRY_URL", "não configurado"),
             fallback_mode="JSON" if not self.avro_deserializer else "Avro",
+            dlq_enabled=self.config.consumer_enable_dlq,
         )
+
+        # Inicializar DLQ producer se fornecido
+        if self.dlq_producer:
+            await self.dlq_producer.initialize()
+            logger.info("DLQ producer inicializado no consumer")
 
     async def start(self):
         """
@@ -111,14 +122,18 @@ class PlanConsumer:
         - Retry automático em caso de erros transientes
         - Exponential backoff para evitar sobrecarga
         - Isolamento de erros por mensagem (não para o consumer por uma falha)
+        - Dead Letter Queue (DLQ) para mensagens que excedem limite de retries
 
         Comportamento de commit de offset:
         - Erros sistêmicos (gRPC, MongoDB, rede): offset NÃO commitado, permite retry
         - Erros de negócio (validação, dados inválidos): offset NÃO commitado por padrão,
           permitindo retry manual ou análise. A mensagem permanece no Kafka.
+        - Após exceder max_retries: mensagem enviada para DLQ e offset commitado
 
-        NOTA: DLQ ainda não está implementado. Configurações consumer_enable_dlq e
-        kafka_dlq_topic são reservadas para implementação futura.
+        DLQ (Gap P0-1):
+        - Configuração: consumer_enable_dlq=true
+        - Tópico: kafka_dlq_topic (default: plans.ready.dlq)
+        - Max retries: consumer_max_retries_before_dlq (default: 3)
         """
         if not self.consumer:
             raise RuntimeError("Consumer não inicializado")
@@ -191,10 +206,10 @@ class PlanConsumer:
                 cognitive_plan = await self._deserialize_value(msg)
 
                 if cognitive_plan:
-                    # Processar com isolamento de erro por mensagem
+                    # Processar com isolamento de erro por mensagem e suporte DLQ
                     start_time = time.time()
                     try:
-                        await self._process_message(msg, cognitive_plan)
+                        await self._process_message_with_retry(msg, cognitive_plan)
                         # Reset consecutive errors após sucesso
                         consecutive_errors = 0
                         ConsensusMetrics.set_consecutive_errors(0)
@@ -720,6 +735,8 @@ class PlanConsumer:
         self.running = False
         if self.consumer:
             await asyncio.get_event_loop().run_in_executor(None, self.consumer.close)
+        if self.dlq_producer:
+            await self.dlq_producer.stop()
         logger.info("Plan consumer parado")
 
     async def _process_message(self, msg, cognitive_plan):
@@ -799,6 +816,11 @@ class PlanConsumer:
                 final_decision=decision.final_decision.value,
             )
 
+            # Limpar tracking de falhas em caso de sucesso
+            message_key = f"{msg.topic()}:{msg.partition()}:{msg.offset()}"
+            self._message_failures.pop(message_key, None)
+            self._message_last_failure.pop(message_key, None)
+
         except Exception as e:
             logger.error(
                 "Erro processando mensagem",
@@ -809,6 +831,117 @@ class PlanConsumer:
             )
             # Não commitar offset em caso de erro (permitir retry)
             raise
+
+    async def _process_message_with_retry(
+        self, msg, cognitive_plan, max_retries: Optional[int] = None
+    ):
+        """
+        Processa mensagem com retry e backoff exponencial.
+
+        Após exceder o limite de retries, envia para DLQ se disponível.
+
+        Args:
+            msg: Mensagem Kafka
+            cognitive_plan: Plano cognitivo deserializado
+            max_retries: Máximo de retries (usa config se não especificado)
+        """
+        if max_retries is None:
+            max_retries = self.config.consumer_max_retries_before_dlq
+
+        message_key = f"{msg.topic()}:{msg.partition()}:{msg.offset()}"
+        current_failure_count = self._message_failures.get(message_key, 0)
+        last_failure_time = self._message_last_failure.get(message_key, 0)
+
+        # Verificar se deve fazer retry (backoff)
+        if current_failure_count > 0:
+            time_since_last_failure = time.time() - last_failure_time
+
+            # Calcular backoff exponencial
+            if self.dlq_producer:
+                backoff = self.dlq_producer.calculate_backoff(current_failure_count)
+            else:
+                backoff = min(
+                    self.config.consumer_base_backoff_seconds * (2 ** current_failure_count),
+                    self.config.consumer_max_backoff_seconds,
+                )
+
+            if time_since_last_failure < backoff:
+                # Ainda em período de backoff - não processar ainda
+                logger.debug(
+                    "Mensagem em backoff - aguardando",
+                    message_key=message_key,
+                    backoff_remaining=backoff - time_since_last_failure,
+                )
+                raise Exception(f"Backoff em andamento: {backoff - time_since_last_failure:.1f}s restantes")
+
+        # Tentar processar mensagem
+        try:
+            await self._process_message(msg, cognitive_plan)
+        except Exception as process_error:
+            # Incrementar contador de falhas
+            current_failure_count += 1
+            self._message_failures[message_key] = current_failure_count
+            self._message_last_failure[message_key] = time.time()
+
+            is_systemic = self._is_systemic_error(process_error)
+
+            # Verificar se deve enviar para DLQ
+            should_dlq = False
+            if self.dlq_producer:
+                should_dlq = self.dlq_producer.should_send_to_dlq(
+                    current_failure_count, is_systemic
+                )
+
+            if should_dlq:
+                # Enviar para DLQ
+                logger.warning(
+                    "Mensagem enviada para DLQ após exceder retries",
+                    message_key=message_key,
+                    failure_count=current_failure_count,
+                    error=str(process_error),
+                )
+
+                tracing_context = {
+                    k: v.decode("utf-8") if isinstance(v, bytes) else v
+                    for k, v in (msg.headers() or [])
+                }
+
+                dlq_sent = await self.dlq_producer.send_to_dlq(
+                    message=msg,
+                    exception=process_error,
+                    failure_count=current_failure_count,
+                    tracing_context=tracing_context,
+                )
+
+                if dlq_sent:
+                    # Limpar tracking e commitar offset (mensagem foi para DLQ)
+                    self._message_failures.pop(message_key, None)
+                    self._message_last_failure.pop(message_key, None)
+
+                    # Commitar offset para remover mensagem do tópico principal
+                    if not self.config.kafka_enable_auto_commit:
+                        await asyncio.get_event_loop().run_in_executor(
+                            None, lambda: self.consumer.commit(msg)
+                        )
+                        ConsensusMetrics.increment_offset_commit("success")
+                else:
+                    # DLQ falhou - manter tracking para retry
+                    logger.error(
+                        "Falha ao enviar para DLQ - mantendo mensagem para retry",
+                        message_key=message_key,
+                    )
+            else:
+                # Ainda em limite de retries - log e lançar exceção para retry
+                logger.warning(
+                    "Mensagem falhou mas ainda dentro do limite de retries",
+                    message_key=message_key,
+                    failure_count=current_failure_count,
+                    max_retries=max_retries if not is_systemic else max_retries,
+                    is_systemic=is_systemic,
+                )
+
+            # Sempre lançar exceção para não commitar offset
+            raise process_error
 
     async def _invoke_specialists(self, cognitive_plan: dict[str, Any]):
         """Invoca todos os especialistas em paralelo via gRPC"""

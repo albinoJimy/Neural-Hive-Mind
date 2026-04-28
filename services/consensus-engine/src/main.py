@@ -15,7 +15,7 @@ from src.clients import (
 )
 from src.config import get_settings
 from src.consumers import PlanConsumer
-from src.producers import DecisionProducer
+from src.producers import DecisionProducer, DLQProducer
 
 from neural_hive_observability import (
     get_metrics,
@@ -73,6 +73,7 @@ class AppState:
     redis_client = None
     plan_consumer: PlanConsumer = None
     decision_producer: DecisionProducer = None
+    dlq_producer: DLQProducer = None
     decision_queue: asyncio.Queue = None
     consumer_task = None
     producer_task = None
@@ -163,9 +164,18 @@ async def startup_event():
         state.decision_queue = asyncio.Queue()
         logger.info("Fila de decisões inicializada")
 
-        # Inicializar Kafka consumer
+        # Inicializar DLQ producer (antes do consumer que o utiliza)
+        state.dlq_producer = DLQProducer(settings)
+        await state.dlq_producer.initialize()
+        logger.info(
+            "DLQ producer inicializado",
+            dlq_enabled=settings.consumer_enable_dlq,
+            dlq_topic=settings.kafka_dlq_topic,
+        )
+
+        # Inicializar Kafka consumer (com DLQ producer)
         state.plan_consumer = PlanConsumer(
-            settings, state.specialists_client, state.mongodb_client, state.pheromone_client
+            settings, state.specialists_client, state.mongodb_client, state.pheromone_client, state.dlq_producer
         )
         await state.plan_consumer.initialize()
         state.plan_consumer = instrument_kafka_consumer(state.plan_consumer)

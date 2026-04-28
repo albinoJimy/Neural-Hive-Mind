@@ -1,3 +1,4 @@
 from .decision_producer import DecisionProducer
+from .dlq_producer import DLQProducer
 
-__all__ = ["DecisionProducer"]
+__all__ = ["DecisionProducer", "DLQProducer"]
