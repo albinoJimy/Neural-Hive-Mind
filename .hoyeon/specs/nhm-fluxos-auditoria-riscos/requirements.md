@@ -1,6 +1,6 @@
 ---
 type: refactor
-goal: "Auditoria crítica dos fluxos principais do NHM identificando top-10 riscos arquitecturais com mitigações priorizadas por impacto/esforço"
+goal: "Auditoria crítica dos fluxos principais do NHM identificando  riscos arquitecturais com mitigações priorizadas por impacto/esforço"
 non_goals:
   - "Implementação das mitigações (apenas identificação e priorização)"
   - "Refactor de código (análise arquitectural, não de implementação)"
