@@ -18,6 +18,7 @@ from src.config import get_settings
 from src.consumers import PlanConsumer
 from src.producers import DecisionProducer, DLQProducer
 from src.services import CacheAsideService
+from src.services.fallback_storage import FallbackStorage, FallbackRedisWrapper
 
 from neural_hive_observability import (
     get_metrics,
@@ -72,6 +73,7 @@ class AppState:
     pheromone_client: PheromoneClient = None
     redis_client: RedisClient = None
     cache_service: CacheAsideService = None
+    fallback_storage: FallbackStorage = None  # Gap P0-3: Fallback storage
     queen_agent_client: QueenAgentGrpcClient = None
     analyst_agent_client: AnalystAgentGrpcClient = None
     plan_consumer: PlanConsumer = None
@@ -143,12 +145,34 @@ async def startup_event():
             decode_responses=True,
         )
         await state.redis_client.ping()
-        state.pheromone_client = PheromoneClient(state.redis_client, settings)
         logger.info("Redis client inicializado")
 
-        # Cache-aside service (Gap P1)
+        # Gap P0-3: Fallback Storage para Redis com persistência MongoDB
+        state.fallback_storage = FallbackStorage(
+            redis_client=state.redis_client,
+            mongodb_client=state.mongodb_client,
+            config=settings,
+        )
+        await state.fallback_storage.initialize()
+        await state.fallback_storage.start_background_sync()
+        logger.info("Fallback storage inicializado (Gap P0-3)")
+
+        # Criar wrapper com fallback para PheromoneClient
+        fallback_redis_wrapper = FallbackRedisWrapper(state.fallback_storage)
+        state.pheromone_client = PheromoneClient(
+            redis_client=fallback_redis_wrapper,
+            config=settings,
+            fallback_storage=state.fallback_storage,
+        )
+        logger.info("Pheromone client inicializado com fallback MongoDB")
+
+        # Cache-aside service (Gap P1 + Gap P0-3: com fallback)
         if settings.enable_cache:
-            redis_client_wrapper = RedisClient(state.redis_client, settings)
+            redis_client_wrapper = RedisClient(
+                redis_client=fallback_redis_wrapper,
+                config=settings,
+                fallback_storage=state.fallback_storage,
+            )
             state.cache_service = CacheAsideService(redis_client_wrapper, settings)
             logger.info(
                 "Cache-aside service inicializado",
@@ -156,6 +180,7 @@ async def startup_event():
                 ttl_plan_approval=settings.cache_ttl_plan_approval,
                 ttl_consensus_decision=settings.cache_ttl_consensus_decision,
                 ttl_specialist_status=settings.cache_ttl_specialist_status,
+                fallback_enabled=True,  # Gap P0-3
             )
         else:
             logger.info("Cache-aside desabilitado via configuração")
@@ -281,6 +306,10 @@ async def shutdown_event():
     if state.redis_client:
         await state.redis_client.close()
 
+    # Gap P0-3: Parar fallback storage
+    if state.fallback_storage:
+        await state.fallback_storage.stop_background_sync()
+
     logger.info("Consensus Engine encerrado")
 
 
@@ -318,8 +347,20 @@ async def readiness():
 
         # Verificar Redis
         if state.redis_client:
-            await state.redis_client.ping()
-            checks["redis"] = True
+            try:
+                await state.redis_client.ping()
+                checks["redis"] = True
+            except Exception:
+                # Gap P0-3: Redis pode falhar se fallback estiver ativo
+                if state.fallback_storage:
+                    # Verificar se fallback está funcionando
+                    fallback_ok = await state.fallback_storage.ping()
+                    checks["redis"] = fallback_ok
+                    checks["fallback_active"] = True
+                else:
+                    checks["redis"] = False
+        else:
+            checks["redis"] = False
 
         # Verificar Queen Agent
         if state.queen_agent_client:
@@ -443,6 +484,28 @@ async def get_cache_metrics():
         return {"enabled": False, "message": "Cache service não inicializado"}
 
     return state.cache_service.get_metrics()
+
+
+@app.get("/api/v1/fallback/metrics")
+async def get_fallback_metrics():
+    """Métricas do fallback MongoDB (Gap P0-3)"""
+    if not state.fallback_storage:
+        return {"enabled": False, "message": "Fallback storage não inicializado"}
+
+    return state.fallback_storage.get_metrics()
+
+
+@app.get("/api/v1/fallback/health")
+async def get_fallback_health():
+    """Health check do fallback MongoDB (Gap P0-3)"""
+    if not state.fallback_storage:
+        return {"enabled": False, "message": "Fallback storage não inicializado"}
+
+    healthy = await state.fallback_storage.ping()
+    return {
+        "healthy": healthy,
+        "redis_enabled": state.fallback_storage.is_redis_enabled(),
+    }
 
 
 @app.post("/api/v1/cache/invalidate/plan/{plan_id}")
