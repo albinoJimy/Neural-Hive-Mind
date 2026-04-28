@@ -66,7 +66,7 @@ async def get_continuous_feedback_stats(
     Returns:
         ContinuousFeedbackStats com metricas
     """
-    logger.info("Consultando estatisticas de feedback continuo", user_id=user["user_id"])
+    logger.info("Consultando estatisticas de feedback continuo", user_id_hash=user.get("user_id"))
 
     try:
         stats = await service.get_stats()
@@ -125,7 +125,7 @@ async def list_continuous_feedbacks(
     """
     logger.info(
         "Listando feedbacks continuos",
-        user_id=user["user_id"],
+        user_id_hash=user.get("user_id"),
         limit=limit,
         offset=offset,
     )
@@ -192,7 +192,7 @@ async def submit_continuous_feedback(
     """
     logger.info(
         "Recebendo feedback continuo",
-        user_id=user["user_id"],
+        user_id_hash=user.get("user_id"),
         prediction_id=feedback.prediction_id,
         prediction=feedback.prediction,
         actual=feedback.actual_result,
@@ -254,7 +254,7 @@ async def get_continuous_feedback(
     """
     logger.info(
         "Buscando feedback continuo",
-        user_id=user["user_id"],
+        user_id_hash=user.get("user_id"),
         prediction_id=prediction_id,
     )
 

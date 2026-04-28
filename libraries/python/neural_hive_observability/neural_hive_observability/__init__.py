@@ -84,6 +84,14 @@ from .kafka_instrumentation import (
 )
 from .logging import get_logger, init_logging
 from .metrics import NeuralHiveMetrics, init_metrics
+from .privacy import (
+    PII_FIELDS,
+    get_safe_email,
+    get_safe_user_id,
+    hash_pii,
+    mask_pii_deep,
+    mask_pii_processor,
+)
 from .middleware import (
     TraceContextMiddleware,
     extract_traceparent_from_request,
@@ -297,4 +305,11 @@ __all__ = [
     "DLQProducer",
     "DLQHandler",
     "create_dlq_handler",
+    # Privacy / PII masking
+    "PII_FIELDS",
+    "hash_pii",
+    "mask_pii_processor",
+    "mask_pii_deep",
+    "get_safe_user_id",
+    "get_safe_email",
 ]

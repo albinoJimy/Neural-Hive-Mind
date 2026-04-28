@@ -92,7 +92,7 @@ async def get_dashboard_stats(
     Returns:
         Estatísticas agregadas do dashboard
     """
-    logger.info("Obtendo estatísticas do dashboard", user_id=user["user_id"], days=days)
+    logger.info("Obtendo estatísticas do dashboard", user_id_hash=user.get("user_id"), days=days)
 
     # Calcular data de início
     start_date = datetime.now(timezone.utc) - timedelta(days=days)
@@ -169,7 +169,7 @@ async def get_approval_trends(
     Returns:
         Lista de tendências diárias
     """
-    logger.info("Obtendo tendências de aprovação", user_id=user["user_id"], days=days)
+    logger.info("Obtendo tendências de aprovação", user_id_hash=user.get("user_id"), days=days)
 
     trends = []
     for i in range(days):
@@ -231,7 +231,7 @@ async def get_stats_by_risk_band(
     Returns:
         Lista de estatísticas por banda de risco
     """
-    logger.info("Obtendo estatísticas por banda de risco", user_id=user["user_id"])
+    logger.info("Obtendo estatísticas por banda de risco", user_id_hash=user.get("user_id"))
 
     risk_bands = ["critical", "high", "normal", "low"]
     stats = []
@@ -287,7 +287,7 @@ async def get_ml_performance_stats(
     Returns:
         Métricas de desempenho do modelo
     """
-    logger.info("Obtendo métricas de performance ML", user_id=user["user_id"])
+    logger.info("Obtendo métricas de performance ML", user_id_hash=user.get("user_id"))
 
     # Buscar da coleção de feedback do especialista
     try:
@@ -378,7 +378,7 @@ async def get_recent_activity(
     Returns:
         Lista de atividades recentes
     """
-    logger.info("Obtendo atividade recente", user_id=user["user_id"], limit=limit)
+    logger.info("Obtendo atividade recente", user_id_hash=user.get("user_id"), limit=limit)
 
     try:
         cursor = service.db.plan_approvals.find().sort("created_at", -1).limit(limit)

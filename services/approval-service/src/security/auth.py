@@ -202,7 +202,7 @@ async def get_current_user(
     payload = await verify_token(token, settings)
     user_info = extract_user_info(payload)
 
-    logger.debug("Usuario autenticado", user_id=user_info["user_id"], email=user_info.get("email"))
+    logger.debug("Usuario autenticado", user_id_hash=user_info.get("user_id"), email_hash=user_info.get("email"))
 
     return user_info
 
@@ -228,7 +228,7 @@ async def get_current_admin_user(
     if admin_role not in user.get("roles", []):
         logger.warning(
             "Acesso negado - usuario nao e admin",
-            user_id=user["user_id"],
+            user_id_hash=user.get("user_id"),
             required_role=admin_role,
             user_roles=user.get("roles", []),
         )
@@ -237,6 +237,6 @@ async def get_current_admin_user(
             detail=f"Acesso negado. Role {admin_role} obrigatoria.",
         )
 
-    logger.debug("Admin autenticado", user_id=user["user_id"], email=user.get("email"))
+    logger.debug("Admin autenticado", user_id_hash=user.get("user_id"), email_hash=user.get("email"))
 
     return user

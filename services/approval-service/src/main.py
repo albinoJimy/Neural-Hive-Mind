@@ -23,6 +23,7 @@ from src.api.routers import (
     dashboard,
     health,
 )
+from src.observability import configure_logging_with_pii_masking
 from src.clients.cognitive_ledger_client import CognitiveLedgerClient
 from src.clients.feature_store_client import FeatureStoreClient
 from src.clients.mongodb_client import MongoDBClient
@@ -52,21 +53,8 @@ except ImportError:
     FeedbackCollector = None
     HAS_FEEDBACK_COLLECTOR = False
 
-# Configure structured logging
-structlog.configure(
-    processors=[
-        structlog.contextvars.merge_contextvars,
-        structlog.processors.add_log_level,
-        structlog.processors.StackInfoRenderer(),
-        structlog.dev.set_exc_info,
-        structlog.processors.TimeStamper(fmt="iso"),
-        structlog.processors.JSONRenderer(),
-    ],
-    wrapper_class=structlog.make_filtering_bound_logger(20),
-    context_class=dict,
-    logger_factory=structlog.PrintLoggerFactory(),
-    cache_logger_on_first_use=True,
-)
+# Configure structured logging with PII masking (GDPR/LGPD compliance)
+configure_logging_with_pii_masking()
 
 logger = structlog.get_logger()
 
