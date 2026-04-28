@@ -100,10 +100,21 @@ from .middleware import (
     parse_traceparent,
     validate_trace_context,
 )
-from .tracing import get_tracer, init_tracing, trace_grpc_method, trace_intent, trace_plan
+from .tracing import (
+    flush_traces,
+    get_current_span_id,
+    get_current_trace_id,
+    get_tracer,
+    init_tracing,
+    shutdown_tracing,
+    sync_span,
+    trace_grpc_method,
+    trace_intent,
+    trace_plan,
+)
 
 # Versão da biblioteca
-__version__ = "1.3.1"
+__version__ = "1.4.0"
 
 # Logger da biblioteca
 logger = stdlib_logging.getLogger(__name__)

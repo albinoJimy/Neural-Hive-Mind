@@ -498,6 +498,104 @@ def get_current_span_id() -> Optional[str]:
     return None
 
 
+def flush_traces(timeout_millis: int = 30000) -> bool:
+    """
+    Flush síncrono de todos os spans pendentes.
+
+    Use esta função antes de operações críticas ou shutdown para garantir
+    que todos os spans sejam exportados.
+
+    Args:
+        timeout_millis: Timeout em millissegundos (padrão: 30s)
+
+    Returns:
+        True se flush foi bem-sucedido, False caso contrário
+    """
+    if not _config or not _config.trace_export_enabled:
+        return True
+
+    try:
+        provider = trace.get_tracer_provider()
+        if provider and hasattr(provider, "force_flush"):
+            result = provider.force_flush(timeout_millis)
+            logger.info(f"Flush de traces executado: {result}")
+            return result
+    except Exception as e:
+        logger.warning(f"Erro ao fazer flush de traces: {e}")
+        return False
+
+
+@contextmanager
+def sync_span(
+    name: str,
+    attributes: Optional[dict[str, Any]] = None,
+    auto_flush: bool = True,
+):
+    """
+    Context manager para span com flush síncrono automático.
+
+    Use para operações críticas onde o trace precisa ser exportado
+    imediatamente após a conclusão (ex: shutdown, erros fatais).
+
+    Args:
+        name: Nome do span
+        attributes: Atributos do span
+        auto_flush: Se deve fazer flush após o span terminar
+
+    Example:
+        ```python
+        with sync_span("critical_operation", {"user_id": "123"}):
+            # operação crítica
+            result = do_something_critical()
+        # Span já foi exportado
+        ```
+    """
+    if not _tracer:
+        yield
+        return
+
+    span = _tracer.start_span(name, attributes=attributes or {})
+    token = attach(span)
+
+    try:
+        yield span
+        span.set_status(Status(StatusCode.OK))
+    except Exception as e:
+        span.record_exception(e)
+        span.set_status(Status(StatusCode.ERROR, str(e)))
+        raise
+    finally:
+        span.end()
+        detach(token)
+
+        # Flush síncrono se solicitado
+        if auto_flush:
+            flush_traces()
+
+
+def shutdown_tracing(timeout_millis: int = 30000) -> None:
+    """
+    Shutdown gracioso do tracing com flush de todos os spans.
+
+    Args:
+        timeout_millis: Timeout em millissegundos
+    """
+    if not _config or not _config.trace_export_enabled:
+        return
+
+    try:
+        # Primeiro fazer flush
+        flush_traces(timeout_millis)
+
+        # Depois shutdown
+        provider = trace.get_tracer_provider()
+        if provider and hasattr(provider, "shutdown"):
+            provider.shutdown(timeout_millis=timeout_millis)
+            logger.info("Tracing shutdown completado")
+    except Exception as e:
+        logger.warning(f"Erro durante shutdown do tracing: {e}")
+
+
 def get_correlation_context() -> dict[str, Any]:
     """
     Retorna o contexto de correlação atual.
