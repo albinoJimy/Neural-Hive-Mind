@@ -188,7 +188,7 @@ class PlanConsumer:
                         continue
 
                 # Deserializar mensagem
-                cognitive_plan = self._deserialize_value(msg)
+                cognitive_plan = await self._deserialize_value(msg)
 
                 if cognitive_plan:
                     # Processar com isolamento de erro por mensagem
@@ -507,7 +507,7 @@ class PlanConsumer:
         transient_keywords = ["timeout", "connection", "unavailable", "refused", "reset", "network"]
         return any(keyword in error_msg for keyword in transient_keywords)
 
-    def _deserialize_value(self, msg):
+    async def _deserialize_value(self, msg):
         """
         Deserializa o valor da mensagem (Avro ou JSON).
 
@@ -562,7 +562,7 @@ class PlanConsumer:
                         backoff_seconds=backoff_seconds,
                         error=str(e),
                     )
-                    time.sleep(backoff_seconds)
+                    await asyncio.sleep(backoff_seconds)
                     backoff_seconds *= 2
                     continue
 
