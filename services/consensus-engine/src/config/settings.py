@@ -304,6 +304,42 @@ class Settings(BaseSettings):
         ge=0,
     )
 
+    # Configuração de Circuit Breaker (Gap P1)
+    # Protege chamadas gRPC contra falhas em cascata com estados CLOSED -> OPEN -> HALF_OPEN
+    enable_circuit_breaker: bool = Field(
+        default=True,
+        description="Habilitar circuit breaker para chamadas gRPC. "
+        "Protege contra falhas em cascata em Queen Agent, Analyst Agent e Specialists.",
+    )
+    circuit_breaker_failure_threshold: int = Field(
+        default=5,
+        description="Número de falhas consecutivas antes do circuit breaker abrir. "
+        "Após abrir, chamadas são rejeitadas até recovery_timeout.",
+        ge=1,
+        le=100,
+    )
+    circuit_breaker_recovery_timeout: int = Field(
+        default=60,
+        description="Tempo em segundos que o circuit breaker permanece OPEN antes de "
+        "tentar HALF_OPEN. Durante HALF_OPEN, uma chamada de teste é permitida.",
+        ge=10,
+        le=600,
+    )
+    circuit_breaker_specialist_failure_threshold: int = Field(
+        default=3,
+        description="Número de falhas consecutivas antes do circuit breaker abrir para specialists. "
+        "Mais agressivo que o threshold padrão devido à maior taxa de chamadas.",
+        ge=1,
+        le=50,
+    )
+    circuit_breaker_specialist_recovery_timeout: int = Field(
+        default=30,
+        description="Tempo em segundos que o circuit breaker de specialists permanece OPEN. "
+        "Menor que o padrão para permitir recuperação mais rápida.",
+        ge=5,
+        le=300,
+    )
+
     def get_specialist_timeout_ms(self, specialist_type: str) -> int:
         """
         Retorna timeout específico para o specialist type.

@@ -25,6 +25,7 @@ except ImportError:
     SPIFFEConfig = None
 
 from ..proto import queen_agent_pb2, queen_agent_pb2_grpc
+from ..resilience import get_grpc_circuit_breaker
 
 logger = structlog.get_logger()
 
@@ -40,6 +41,7 @@ class QueenAgentGrpcClient:
     - Chamadas gRPC com retry e backoff exponencial
     - mTLS via SPIFFE/SPIRE (quando habilitado)
     - Injeção de contexto de tracing
+    - Circuit breaker para proteção contra falhas em cascata (Gap P1)
     """
 
     def __init__(self, config):
@@ -47,6 +49,8 @@ class QueenAgentGrpcClient:
         self.channel: Optional[grpc.aio.Channel] = None
         self.stub: Optional[queen_agent_pb2_grpc.QueenAgentStub] = None
         self.spiffe_manager: Optional[Any] = None
+        self.circuit_breaker_enabled = getattr(config, "enable_circuit_breaker", True)
+        self.circuit_breaker = None
 
     async def initialize(self):
         """Inicializar cliente gRPC com suporte a mTLS"""
@@ -121,6 +125,15 @@ class QueenAgentGrpcClient:
         except asyncio.TimeoutError:
             logger.warning("queen_agent_grpc_channel_ready_timeout", endpoint=endpoint)
 
+        # Inicializar circuit breaker se habilitado
+        if self.circuit_breaker_enabled:
+            self.circuit_breaker = get_grpc_circuit_breaker()
+            logger.info(
+                "queen_agent_circuit_breaker_enabled",
+                failure_threshold=getattr(self.config, "circuit_breaker_failure_threshold", 5),
+                recovery_timeout=getattr(self.config, "circuit_breaker_recovery_timeout", 60),
+            )
+
     async def _get_grpc_metadata(self) -> list[tuple[str, str]]:
         """Obter metadata gRPC com JWT-SVID para autenticação"""
         spiffe_enabled = getattr(self.config, "spiffe_enabled", False)
@@ -156,44 +169,60 @@ class QueenAgentGrpcClient:
 
         request = queen_agent_pb2.GetStrategicDecisionRequest(decision_id=decision_id)
 
-        for attempt in range(MAX_RETRIES):
+        # Função interna para a chamada gRPC
+        async def _grpc_call():
+            for attempt in range(MAX_RETRIES):
+                try:
+                    metadata = await self._get_grpc_metadata()
+                    response = await self.stub.GetStrategicDecision(
+                        request, metadata=metadata, timeout=10.0
+                    )
+
+                    return {
+                        "decision_id": response.decision_id,
+                        "decision_type": response.decision_type,
+                        "confidence_score": response.confidence_score,
+                        "risk_score": response.risk_score,
+                        "reasoning_summary": response.reasoning_summary,
+                        "action": response.action,
+                        "target_entities": list(response.target_entities),
+                        "created_at": response.created_at,
+                    }
+
+                except grpc.RpcError as e:
+                    should_retry = attempt < MAX_RETRIES - 1 and e.code() in [
+                        grpc.StatusCode.UNAVAILABLE,
+                        grpc.StatusCode.DEADLINE_EXCEEDED,
+                    ]
+                    logger.error(
+                        "grpc_get_strategic_decision_failed",
+                        error=str(e),
+                        code=e.code().name if hasattr(e, "code") else "UNKNOWN",
+                        decision_id=decision_id,
+                        attempt=attempt + 1,
+                        will_retry=should_retry,
+                    )
+                    if should_retry:
+                        backoff = BASE_BACKOFF_SECONDS * (2**attempt)
+                        await asyncio.sleep(backoff)
+                        continue
+                    raise
+            return None
+
+        # Usar circuit breaker se habilitado
+        if self.circuit_breaker_enabled and self.circuit_breaker:
             try:
-                metadata = await self._get_grpc_metadata()
-                response = await self.stub.GetStrategicDecision(
-                    request, metadata=metadata, timeout=10.0
-                )
-
-                return {
-                    "decision_id": response.decision_id,
-                    "decision_type": response.decision_type,
-                    "confidence_score": response.confidence_score,
-                    "risk_score": response.risk_score,
-                    "reasoning_summary": response.reasoning_summary,
-                    "action": response.action,
-                    "target_entities": list(response.target_entities),
-                    "created_at": response.created_at,
-                }
-
-            except grpc.RpcError as e:
-                should_retry = attempt < MAX_RETRIES - 1 and e.code() in [
-                    grpc.StatusCode.UNAVAILABLE,
-                    grpc.StatusCode.DEADLINE_EXCEEDED,
-                ]
+                return await self.circuit_breaker.call_queen_agent(_grpc_call)
+            except Exception as e:
                 logger.error(
-                    "grpc_get_strategic_decision_failed",
-                    error=str(e),
-                    code=e.code().name if hasattr(e, "code") else "UNKNOWN",
+                    "queen_agent_circuit_breaker_or_call_failed",
                     decision_id=decision_id,
-                    attempt=attempt + 1,
-                    will_retry=should_retry,
+                    error=str(e),
                 )
-                if should_retry:
-                    backoff = BASE_BACKOFF_SECONDS * (2**attempt)
-                    await asyncio.sleep(backoff)
-                    continue
                 return None
 
-        return None
+        # Fallback sem circuit breaker
+        return await _grpc_call()
 
     async def make_strategic_decision(
         self, event_type: str, source_id: str, trigger_data: Optional[dict[str, str]] = None
@@ -207,52 +236,68 @@ class QueenAgentGrpcClient:
             event_type=event_type, source_id=source_id, trigger_data=trigger_data or {}
         )
 
-        for attempt in range(MAX_RETRIES):
-            try:
-                metadata = await self._get_grpc_metadata()
-                response = await self.stub.MakeStrategicDecision(
-                    request, metadata=metadata, timeout=30.0  # Timeout maior para decisões
-                )
-
-                if response.success:
-                    logger.info(
-                        "strategic_decision_created",
-                        decision_id=response.decision_id,
-                        decision_type=response.decision_type,
+        # Função interna para a chamada gRPC
+        async def _grpc_call():
+            for attempt in range(MAX_RETRIES):
+                try:
+                    metadata = await self._get_grpc_metadata()
+                    response = await self.stub.MakeStrategicDecision(
+                        request, metadata=metadata, timeout=30.0  # Timeout maior para decisões
                     )
-                    return {
-                        "success": True,
-                        "decision_id": response.decision_id,
-                        "decision_type": response.decision_type,
-                        "confidence_score": response.confidence_score,
-                        "risk_score": response.risk_score,
-                        "reasoning_summary": response.reasoning_summary,
-                        "message": response.message,
-                    }
-                else:
-                    logger.warning("strategic_decision_creation_failed", message=response.message)
-                    return {"success": False, "message": response.message}
 
-            except grpc.RpcError as e:
-                should_retry = attempt < MAX_RETRIES - 1 and e.code() in [
-                    grpc.StatusCode.UNAVAILABLE,
-                    grpc.StatusCode.DEADLINE_EXCEEDED,
-                ]
+                    if response.success:
+                        logger.info(
+                            "strategic_decision_created",
+                            decision_id=response.decision_id,
+                            decision_type=response.decision_type,
+                        )
+                        return {
+                            "success": True,
+                            "decision_id": response.decision_id,
+                            "decision_type": response.decision_type,
+                            "confidence_score": response.confidence_score,
+                            "risk_score": response.risk_score,
+                            "reasoning_summary": response.reasoning_summary,
+                            "message": response.message,
+                        }
+                    else:
+                        logger.warning("strategic_decision_creation_failed", message=response.message)
+                        return {"success": False, "message": response.message}
+
+                except grpc.RpcError as e:
+                    should_retry = attempt < MAX_RETRIES - 1 and e.code() in [
+                        grpc.StatusCode.UNAVAILABLE,
+                        grpc.StatusCode.DEADLINE_EXCEEDED,
+                    ]
+                    logger.error(
+                        "grpc_make_strategic_decision_failed",
+                        error=str(e),
+                        code=e.code().name if hasattr(e, "code") else "UNKNOWN",
+                        event_type=event_type,
+                        attempt=attempt + 1,
+                        will_retry=should_retry,
+                    )
+                    if should_retry:
+                        backoff = BASE_BACKOFF_SECONDS * (2**attempt)
+                        await asyncio.sleep(backoff)
+                        continue
+                    raise
+            return None
+
+        # Usar circuit breaker se habilitado
+        if self.circuit_breaker_enabled and self.circuit_breaker:
+            try:
+                return await self.circuit_breaker.call_queen_agent(_grpc_call)
+            except Exception as e:
                 logger.error(
-                    "grpc_make_strategic_decision_failed",
-                    error=str(e),
-                    code=e.code().name if hasattr(e, "code") else "UNKNOWN",
+                    "queen_agent_circuit_breaker_or_call_failed",
                     event_type=event_type,
-                    attempt=attempt + 1,
-                    will_retry=should_retry,
+                    error=str(e),
                 )
-                if should_retry:
-                    backoff = BASE_BACKOFF_SECONDS * (2**attempt)
-                    await asyncio.sleep(backoff)
-                    continue
                 return None
 
-        return None
+        # Fallback sem circuit breaker
+        return await _grpc_call()
 
     async def get_system_status(self) -> Optional[dict[str, Any]]:
         """Obter status geral do sistema via Queen Agent"""
@@ -262,39 +307,54 @@ class QueenAgentGrpcClient:
 
         request = queen_agent_pb2.GetSystemStatusRequest()
 
-        for attempt in range(MAX_RETRIES):
+        # Função interna para a chamada gRPC
+        async def _grpc_call():
+            for attempt in range(MAX_RETRIES):
+                try:
+                    metadata = await self._get_grpc_metadata()
+                    response = await self.stub.GetSystemStatus(request, metadata=metadata, timeout=10.0)
+
+                    return {
+                        "system_score": response.system_score,
+                        "sla_compliance": response.sla_compliance,
+                        "error_rate": response.error_rate,
+                        "resource_saturation": response.resource_saturation,
+                        "active_incidents": response.active_incidents,
+                        "timestamp": response.timestamp,
+                    }
+
+                except grpc.RpcError as e:
+                    should_retry = attempt < MAX_RETRIES - 1 and e.code() in [
+                        grpc.StatusCode.UNAVAILABLE,
+                        grpc.StatusCode.DEADLINE_EXCEEDED,
+                    ]
+                    logger.error(
+                        "grpc_get_system_status_failed",
+                        error=str(e),
+                        code=e.code().name if hasattr(e, "code") else "UNKNOWN",
+                        attempt=attempt + 1,
+                        will_retry=should_retry,
+                    )
+                    if should_retry:
+                        backoff = BASE_BACKOFF_SECONDS * (2**attempt)
+                        await asyncio.sleep(backoff)
+                        continue
+                    raise
+            return None
+
+        # Usar circuit breaker se habilitado
+        if self.circuit_breaker_enabled and self.circuit_breaker:
             try:
-                metadata = await self._get_grpc_metadata()
-                response = await self.stub.GetSystemStatus(request, metadata=metadata, timeout=10.0)
-
-                return {
-                    "system_score": response.system_score,
-                    "sla_compliance": response.sla_compliance,
-                    "error_rate": response.error_rate,
-                    "resource_saturation": response.resource_saturation,
-                    "active_incidents": response.active_incidents,
-                    "timestamp": response.timestamp,
-                }
-
-            except grpc.RpcError as e:
-                should_retry = attempt < MAX_RETRIES - 1 and e.code() in [
-                    grpc.StatusCode.UNAVAILABLE,
-                    grpc.StatusCode.DEADLINE_EXCEEDED,
-                ]
+                return await self.circuit_breaker.call_queen_agent(_grpc_call)
+            except Exception as e:
                 logger.error(
-                    "grpc_get_system_status_failed",
+                    "queen_agent_circuit_breaker_or_call_failed",
                     error=str(e),
-                    code=e.code().name if hasattr(e, "code") else "UNKNOWN",
-                    attempt=attempt + 1,
-                    will_retry=should_retry,
                 )
-                if should_retry:
-                    backoff = BASE_BACKOFF_SECONDS * (2**attempt)
-                    await asyncio.sleep(backoff)
-                    continue
                 return None
 
-        return None
+        # Fallback sem circuit breaker
+        return await _grpc_call()
 
     async def list_strategic_decisions(
         self,
@@ -317,49 +377,64 @@ class QueenAgentGrpcClient:
             offset=offset,
         )
 
-        for attempt in range(MAX_RETRIES):
-            try:
-                metadata = await self._get_grpc_metadata()
-                response = await self.stub.ListStrategicDecisions(
-                    request, metadata=metadata, timeout=15.0
-                )
-
-                decisions = []
-                for dec in response.decisions:
-                    decisions.append(
-                        {
-                            "decision_id": dec.decision_id,
-                            "decision_type": dec.decision_type,
-                            "confidence_score": dec.confidence_score,
-                            "risk_score": dec.risk_score,
-                            "reasoning_summary": dec.reasoning_summary,
-                            "action": dec.action,
-                            "target_entities": list(dec.target_entities),
-                            "created_at": dec.created_at,
-                        }
+        # Função interna para a chamada gRPC
+        async def _grpc_call():
+            for attempt in range(MAX_RETRIES):
+                try:
+                    metadata = await self._get_grpc_metadata()
+                    response = await self.stub.ListStrategicDecisions(
+                        request, metadata=metadata, timeout=15.0
                     )
 
-                return {"decisions": decisions, "total": response.total}
+                    decisions = []
+                    for dec in response.decisions:
+                        decisions.append(
+                            {
+                                "decision_id": dec.decision_id,
+                                "decision_type": dec.decision_type,
+                                "confidence_score": dec.confidence_score,
+                                "risk_score": dec.risk_score,
+                                "reasoning_summary": dec.reasoning_summary,
+                                "action": dec.action,
+                                "target_entities": list(dec.target_entities),
+                                "created_at": dec.created_at,
+                            }
+                        )
 
-            except grpc.RpcError as e:
-                should_retry = attempt < MAX_RETRIES - 1 and e.code() in [
-                    grpc.StatusCode.UNAVAILABLE,
-                    grpc.StatusCode.DEADLINE_EXCEEDED,
-                ]
+                    return {"decisions": decisions, "total": response.total}
+
+                except grpc.RpcError as e:
+                    should_retry = attempt < MAX_RETRIES - 1 and e.code() in [
+                        grpc.StatusCode.UNAVAILABLE,
+                        grpc.StatusCode.DEADLINE_EXCEEDED,
+                    ]
+                    logger.error(
+                        "grpc_list_strategic_decisions_failed",
+                        error=str(e),
+                        code=e.code().name if hasattr(e, "code") else "UNKNOWN",
+                        attempt=attempt + 1,
+                        will_retry=should_retry,
+                    )
+                    if should_retry:
+                        backoff = BASE_BACKOFF_SECONDS * (2**attempt)
+                        await asyncio.sleep(backoff)
+                        continue
+                    raise
+            return None
+
+        # Usar circuit breaker se habilitado
+        if self.circuit_breaker_enabled and self.circuit_breaker:
+            try:
+                return await self.circuit_breaker.call_queen_agent(_grpc_call)
+            except Exception as e:
                 logger.error(
-                    "grpc_list_strategic_decisions_failed",
+                    "queen_agent_circuit_breaker_or_call_failed",
                     error=str(e),
-                    code=e.code().name if hasattr(e, "code") else "UNKNOWN",
-                    attempt=attempt + 1,
-                    will_retry=should_retry,
                 )
-                if should_retry:
-                    backoff = BASE_BACKOFF_SECONDS * (2**attempt)
-                    await asyncio.sleep(backoff)
-                    continue
                 return None
 
-        return None
+        # Fallback sem circuit breaker
+        return await _grpc_call()
 
     async def health_check(self) -> dict[str, Any]:
         """Verificar saúde do Queen Agent"""

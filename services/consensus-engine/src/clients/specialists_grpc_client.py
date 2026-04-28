@@ -12,6 +12,7 @@ from tenacity import AsyncRetrying, stop_after_attempt, wait_exponential
 from neural_hive_observability import instrument_grpc_channel
 
 from ..observability.metrics import ConsensusMetrics
+from ..resilience import get_grpc_circuit_breaker
 
 # Importar SPIFFE/mTLS se disponível
 try:
@@ -47,13 +48,18 @@ logger = structlog.get_logger()
 
 
 class SpecialistsGrpcClient:
-    """Cliente gRPC para invocar especialistas neurais em paralelo com suporte a mTLS via SPIFFE"""
+    """Cliente gRPC para invocar especialistas neurais em paralelo com suporte a mTLS via SPIFFE
+
+    Gap P1: Circuit breaker implementado para proteção contra falhas em cascata.
+    """
 
     def __init__(self, config):
         self.config = config
         self.channels = {}
         self.stubs = {}
         self.spiffe_managers = {}  # Um manager por especialista
+        self.circuit_breaker_enabled = getattr(config, "enable_circuit_breaker", True)
+        self.circuit_breaker = None
 
     async def initialize(self):
         """Inicializar canais gRPC para todos os especialistas com suporte a mTLS"""
@@ -142,6 +148,15 @@ class SpecialistsGrpcClient:
                 "gRPC channel initialized", specialist_type=specialist_type, endpoint=endpoint
             )
 
+        # Inicializar circuit breaker se habilitado
+        if self.circuit_breaker_enabled:
+            self.circuit_breaker = get_grpc_circuit_breaker()
+            logger.info(
+                "specialists_circuit_breaker_enabled",
+                failure_threshold=getattr(self.config, "circuit_breaker_specialist_failure_threshold", 3),
+                recovery_timeout=getattr(self.config, "circuit_breaker_specialist_recovery_timeout", 30),
+            )
+
     async def _get_grpc_metadata(self, specialist_type: str) -> list[tuple[str, str]]:
         """Obter metadata gRPC com JWT-SVID para autenticação."""
         spiffe_enabled = getattr(self.config, "spiffe_enabled", False)
@@ -166,7 +181,7 @@ class SpecialistsGrpcClient:
     async def evaluate_plan(
         self, specialist_type: str, cognitive_plan: dict[str, Any], trace_context: dict[str, str]
     ) -> dict[str, Any]:
-        """Invocar especialista individual para avaliar plano com retry"""
+        """Invocar especialista individual para avaliar plano com retry e circuit breaker (Gap P1)"""
 
         # Obter timeout específico para o specialist (fallback para timeout global)
         timeout_ms = self.config.get_specialist_timeout_ms(specialist_type)
@@ -179,240 +194,268 @@ class SpecialistsGrpcClient:
             timeout_ms=timeout_ms,
         )
 
-        # Usar AsyncRetrying para suportar código async
-        async for attempt in AsyncRetrying(
-            stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=1, max=10)
-        ):
-            with attempt:
-                stub = self.stubs.get(specialist_type)
-                if not stub:
-                    raise ValueError(f"Especialista {specialist_type} não configurado")
+        # Função interna para a chamada gRPC com retry
+        async def _grpc_call_with_retry():
+            # Usar AsyncRetrying para suportar código async
+            async for attempt in AsyncRetrying(
+                stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=1, max=10)
+            ):
+                with attempt:
+                    stub = self.stubs.get(specialist_type)
+                    if not stub:
+                        raise ValueError(f"Especialista {specialist_type} não configurado")
 
-                # Serializar plano para bytes (JSON)
-                # Usar serializer customizado para lidar com datetime do Avro deserializer
-                plan_bytes = json.dumps(cognitive_plan, default=_json_datetime_serializer).encode(
-                    "utf-8"
-                )
-
-                # Criar request
-                request = specialist_pb2.EvaluatePlanRequest(
-                    plan_id=cognitive_plan["plan_id"],
-                    intent_id=cognitive_plan["intent_id"],
-                    correlation_id=cognitive_plan.get("correlation_id", ""),
-                    trace_id=trace_context.get("trace_id", ""),
-                    span_id=trace_context.get("span_id", ""),
-                    cognitive_plan=plan_bytes,
-                    plan_version=cognitive_plan.get("version", "1.0.0"),
-                    context={},
-                    timeout_ms=timeout_ms,
-                )
-
-                # Obter metadata com JWT-SVID
-                grpc_metadata = await self._get_grpc_metadata(specialist_type)
-
-                # Invocar com timeout específico do specialist
-                try:
-                    response = await asyncio.wait_for(
-                        stub.EvaluatePlan(request, metadata=grpc_metadata),
-                        timeout=timeout_ms / 1000.0,
+                    # Serializar plano para bytes (JSON)
+                    # Usar serializer customizado para lidar com datetime do Avro deserializer
+                    plan_bytes = json.dumps(cognitive_plan, default=_json_datetime_serializer).encode(
+                        "utf-8"
                     )
 
-                    # Converter response para dict
-                    # Converter Timestamp protobuf para ISO string
-                    from datetime import datetime
+                    # Criar request
+                    request = specialist_pb2.EvaluatePlanRequest(
+                        plan_id=cognitive_plan["plan_id"],
+                        intent_id=cognitive_plan["intent_id"],
+                        correlation_id=cognitive_plan.get("correlation_id", ""),
+                        trace_id=trace_context.get("trace_id", ""),
+                        span_id=trace_context.get("span_id", ""),
+                        cognitive_plan=plan_bytes,
+                        plan_version=cognitive_plan.get("version", "1.0.0"),
+                        context={},
+                        timeout_ms=timeout_ms,
+                    )
 
-                    expected_response_type = specialist_pb2.EvaluatePlanResponse
-                    if response is None:
-                        logger.error(
-                            "Resposta vazia do especialista",
-                            specialist_type=specialist_type,
-                            plan_id=cognitive_plan["plan_id"],
-                        )
-                        raise ValueError(f"Response from {specialist_type} is None")
+                    # Obter metadata com JWT-SVID
+                    grpc_metadata = await self._get_grpc_metadata(specialist_type)
 
-                    if not isinstance(response, expected_response_type):
-                        logger.error(
-                            "Tipo inesperado de resposta do especialista",
-                            specialist_type=specialist_type,
-                            plan_id=cognitive_plan["plan_id"],
-                            expected_type=expected_response_type.__name__,
-                            response_type=type(response).__name__,
-                            response_repr=str(response),
-                        )
-                        raise TypeError(
-                            f"Unexpected response type from {specialist_type}: {type(response).__name__}"
-                        )
-
-                    has_evaluated_at = response.HasField("evaluated_at")
-                    if not has_evaluated_at or response.evaluated_at is None:
-                        logger.error(
-                            "Response sem evaluated_at",
-                            specialist_type=specialist_type,
-                            plan_id=cognitive_plan["plan_id"],
-                            response_type=type(response).__name__,
-                            has_field=has_evaluated_at,
-                        )
-                        raise ValueError(
-                            f"Response from {specialist_type} missing evaluated_at field"
-                        )
-
-                    evaluated_at = response.evaluated_at
-                    if not isinstance(evaluated_at, Timestamp):
-                        logger.error(
-                            "Tipo inválido para evaluated_at",
-                            specialist_type=specialist_type,
-                            plan_id=cognitive_plan["plan_id"],
-                            evaluated_at_type=type(evaluated_at).__name__,
-                        )
-                        raise TypeError(
-                            f"Invalid evaluated_at type from {specialist_type}: {type(evaluated_at).__name__}"
-                        )
-
-                    # Validações preventivas do timestamp
-                    if not hasattr(evaluated_at, "seconds") or not hasattr(evaluated_at, "nanos"):
-                        raise AttributeError(
-                            f"Timestamp missing required fields: "
-                            f'has_seconds={hasattr(evaluated_at, "seconds")}, '
-                            f'has_nanos={hasattr(evaluated_at, "nanos")}'
-                        )
-
-                    if not isinstance(evaluated_at.seconds, int) or not isinstance(
-                        evaluated_at.nanos, int
-                    ):
-                        raise TypeError(
-                            f"Timestamp fields have invalid types: "
-                            f"seconds={type(evaluated_at.seconds).__name__}, "
-                            f"nanos={type(evaluated_at.nanos).__name__}"
-                        )
-
-                    if evaluated_at.seconds <= 0:
-                        raise ValueError(
-                            f"Invalid timestamp seconds: {evaluated_at.seconds} (must be > 0)"
-                        )
-
-                    if not (0 <= evaluated_at.nanos < 1_000_000_000):
-                        raise ValueError(
-                            f"Invalid timestamp nanos: {evaluated_at.nanos} (must be 0-999999999)"
-                        )
-
-                    # Converter timestamp para datetime
+                    # Invocar com timeout específico do specialist
                     try:
-                        evaluated_datetime = datetime.fromtimestamp(
-                            evaluated_at.seconds + evaluated_at.nanos / 1e9, tz=UTC
+                        response = await asyncio.wait_for(
+                            stub.EvaluatePlan(request, metadata=grpc_metadata),
+                            timeout=timeout_ms / 1000.0,
                         )
 
-                        logger.debug(
-                            "Timestamp converted successfully",
-                            specialist_type=specialist_type,
-                            seconds=evaluated_at.seconds,
-                            nanos=evaluated_at.nanos,
-                            datetime_iso=evaluated_datetime.isoformat(),
+                        # Converter response para dict
+                        # Converter Timestamp protobuf para ISO string
+                        from datetime import datetime
+
+                        expected_response_type = specialist_pb2.EvaluatePlanResponse
+                        if response is None:
+                            logger.error(
+                                "Resposta vazia do especialista",
+                                specialist_type=specialist_type,
+                                plan_id=cognitive_plan["plan_id"],
+                            )
+                            raise ValueError(f"Response from {specialist_type} is None")
+
+                        if not isinstance(response, expected_response_type):
+                            logger.error(
+                                "Tipo inesperado de resposta do especialista",
+                                specialist_type=specialist_type,
+                                plan_id=cognitive_plan["plan_id"],
+                                expected_type=expected_response_type.__name__,
+                                response_type=type(response).__name__,
+                                response_repr=str(response),
+                            )
+                            raise TypeError(
+                                f"Unexpected response type from {specialist_type}: {type(response).__name__}"
+                            )
+
+                        has_evaluated_at = response.HasField("evaluated_at")
+                        if not has_evaluated_at or response.evaluated_at is None:
+                            logger.error(
+                                "Response sem evaluated_at",
+                                specialist_type=specialist_type,
+                                plan_id=cognitive_plan["plan_id"],
+                                response_type=type(response).__name__,
+                                has_field=has_evaluated_at,
+                            )
+                            raise ValueError(
+                                f"Response from {specialist_type} missing evaluated_at field"
+                            )
+
+                        evaluated_at = response.evaluated_at
+                        if not isinstance(evaluated_at, Timestamp):
+                            logger.error(
+                                "Tipo inválido para evaluated_at",
+                                specialist_type=specialist_type,
+                                plan_id=cognitive_plan["plan_id"],
+                                evaluated_at_type=type(evaluated_at).__name__,
+                            )
+                            raise TypeError(
+                                f"Invalid evaluated_at type from {specialist_type}: {type(evaluated_at).__name__}"
+                            )
+
+                        # Validações preventivas do timestamp
+                        if not hasattr(evaluated_at, "seconds") or not hasattr(evaluated_at, "nanos"):
+                            raise AttributeError(
+                                f"Timestamp missing required fields: "
+                                f'has_seconds={hasattr(evaluated_at, "seconds")}, '
+                                f'has_nanos={hasattr(evaluated_at, "nanos")}'
+                            )
+
+                        if not isinstance(evaluated_at.seconds, int) or not isinstance(
+                            evaluated_at.nanos, int
+                        ):
+                            raise TypeError(
+                                f"Timestamp fields have invalid types: "
+                                f"seconds={type(evaluated_at.seconds).__name__}, "
+                                f"nanos={type(evaluated_at.nanos).__name__}"
+                            )
+
+                        if evaluated_at.seconds <= 0:
+                            raise ValueError(
+                                f"Invalid timestamp seconds: {evaluated_at.seconds} (must be > 0)"
+                            )
+
+                        if not (0 <= evaluated_at.nanos < 1_000_000_000):
+                            raise ValueError(
+                                f"Invalid timestamp nanos: {evaluated_at.nanos} (must be 0-999999999)"
+                            )
+
+                        # Converter timestamp para datetime
+                        try:
+                            evaluated_datetime = datetime.fromtimestamp(
+                                evaluated_at.seconds + evaluated_at.nanos / 1e9, tz=UTC
+                            )
+
+                            logger.debug(
+                                "Timestamp converted successfully",
+                                specialist_type=specialist_type,
+                                seconds=evaluated_at.seconds,
+                                nanos=evaluated_at.nanos,
+                                datetime_iso=evaluated_datetime.isoformat(),
+                            )
+                        except (AttributeError, TypeError, ValueError) as e:
+                            # Capturar valores reais para debug
+                            seconds_value = getattr(evaluated_at, "seconds", None)
+                            nanos_value = getattr(evaluated_at, "nanos", None)
+
+                            logger.error(
+                                "Erro ao converter evaluated_at timestamp",
+                                specialist_type=specialist_type,
+                                plan_id=cognitive_plan["plan_id"],
+                                evaluated_at_type=type(evaluated_at).__name__,
+                                has_seconds=hasattr(evaluated_at, "seconds"),
+                                has_nanos=hasattr(evaluated_at, "nanos"),
+                                seconds_value=seconds_value,
+                                nanos_value=nanos_value,
+                                seconds_type=(
+                                    type(seconds_value).__name__
+                                    if seconds_value is not None
+                                    else "None"
+                                ),
+                                nanos_type=(
+                                    type(nanos_value).__name__ if nanos_value is not None else "None"
+                                ),
+                                error=str(e),
+                                error_type=type(e).__name__,
+                            )
+                            raise
+
+                        # Registrar métricas de sucesso
+                        duration = time() - start_time
+                        ConsensusMetrics.observe_specialist_invocation_duration(
+                            duration=duration, specialist_type=specialist_type, status="success"
                         )
-                    except (AttributeError, TypeError, ValueError) as e:
-                        # Capturar valores reais para debug
-                        seconds_value = getattr(evaluated_at, "seconds", None)
-                        nanos_value = getattr(evaluated_at, "nanos", None)
+                        ConsensusMetrics.increment_specialist_invocation(
+                            specialist_type=specialist_type, status="success"
+                        )
+
+                        return {
+                            "opinion_id": response.opinion_id,
+                            "specialist_type": response.specialist_type,
+                            "specialist_version": response.specialist_version,
+                            "opinion": self._opinion_to_dict(response.opinion),
+                            "processing_time_ms": response.processing_time_ms,
+                            "evaluated_at": evaluated_datetime.isoformat(),
+                        }
+
+                    except asyncio.TimeoutError:
+                        duration = time() - start_time
+                        ConsensusMetrics.observe_specialist_invocation_duration(
+                            duration=duration, specialist_type=specialist_type, status="timeout"
+                        )
+                        ConsensusMetrics.increment_specialist_invocation(
+                            specialist_type=specialist_type, status="timeout"
+                        )
+                        ConsensusMetrics.increment_specialist_timeout(specialist_type)
 
                         logger.error(
-                            "Erro ao converter evaluated_at timestamp",
+                            "Timeout ao invocar especialista",
                             specialist_type=specialist_type,
                             plan_id=cognitive_plan["plan_id"],
-                            evaluated_at_type=type(evaluated_at).__name__,
-                            has_seconds=hasattr(evaluated_at, "seconds"),
-                            has_nanos=hasattr(evaluated_at, "nanos"),
-                            seconds_value=seconds_value,
-                            nanos_value=nanos_value,
-                            seconds_type=(
-                                type(seconds_value).__name__
-                                if seconds_value is not None
-                                else "None"
-                            ),
-                            nanos_type=(
-                                type(nanos_value).__name__ if nanos_value is not None else "None"
-                            ),
+                            timeout_ms=timeout_ms,
+                            duration_seconds=duration,
+                        )
+                        raise
+                    except grpc.RpcError as e:
+                        duration = time() - start_time
+                        ConsensusMetrics.observe_specialist_invocation_duration(
+                            duration=duration, specialist_type=specialist_type, status="grpc_error"
+                        )
+                        ConsensusMetrics.increment_specialist_invocation(
+                            specialist_type=specialist_type, status="grpc_error"
+                        )
+                        ConsensusMetrics.increment_specialist_grpc_error(
+                            specialist_type=specialist_type, grpc_code=e.code().name
+                        )
+
+                        logger.error(
+                            "Erro gRPC ao invocar especialista",
+                            specialist_type=specialist_type,
+                            plan_id=cognitive_plan["plan_id"],
+                            error=str(e),
+                            code=e.code(),
+                            duration_seconds=duration,
+                        )
+                        raise
+                    except Exception as e:
+                        duration = time() - start_time
+                        ConsensusMetrics.observe_specialist_invocation_duration(
+                            duration=duration, specialist_type=specialist_type, status="error"
+                        )
+                        ConsensusMetrics.increment_specialist_invocation(
+                            specialist_type=specialist_type, status="error"
+                        )
+
+                        import traceback
+
+                        logger.error(
+                            "Exceção não tratada ao invocar especialista",
+                            specialist_type=specialist_type,
+                            plan_id=cognitive_plan["plan_id"],
                             error=str(e),
                             error_type=type(e).__name__,
+                            duration_seconds=duration,
+                            traceback=traceback.format_exc(),
                         )
                         raise
 
-                    # Registrar métricas de sucesso
-                    duration = time() - start_time
-                    ConsensusMetrics.observe_specialist_invocation_duration(
-                        duration=duration, specialist_type=specialist_type, status="success"
-                    )
-                    ConsensusMetrics.increment_specialist_invocation(
-                        specialist_type=specialist_type, status="success"
-                    )
+        # Usar circuit breaker se habilitado (Gap P1)
+        if self.circuit_breaker_enabled and self.circuit_breaker:
+            try:
+                return await self.circuit_breaker.call_specialist(specialist_type, _grpc_call_with_retry)
+            except Exception as e:
+                # Circuit breaker aberto ou erro na chamada
+                duration = time() - start_time
+                ConsensusMetrics.observe_specialist_invocation_duration(
+                    duration=duration, specialist_type=specialist_type, status="circuit_breaker_open"
+                )
+                ConsensusMetrics.increment_specialist_invocation(
+                    specialist_type=specialist_type, status="circuit_breaker_open"
+                )
 
-                    return {
-                        "opinion_id": response.opinion_id,
-                        "specialist_type": response.specialist_type,
-                        "specialist_version": response.specialist_version,
-                        "opinion": self._opinion_to_dict(response.opinion),
-                        "processing_time_ms": response.processing_time_ms,
-                        "evaluated_at": evaluated_datetime.isoformat(),
-                    }
-
-                except asyncio.TimeoutError:
-                    duration = time() - start_time
-                    ConsensusMetrics.observe_specialist_invocation_duration(
-                        duration=duration, specialist_type=specialist_type, status="timeout"
-                    )
-                    ConsensusMetrics.increment_specialist_invocation(
-                        specialist_type=specialist_type, status="timeout"
-                    )
-                    ConsensusMetrics.increment_specialist_timeout(specialist_type)
-
-                    logger.error(
-                        "Timeout ao invocar especialista",
-                        specialist_type=specialist_type,
-                        plan_id=cognitive_plan["plan_id"],
-                        timeout_ms=timeout_ms,
-                        duration_seconds=duration,
-                    )
-                    raise
-                except grpc.RpcError as e:
-                    duration = time() - start_time
-                    ConsensusMetrics.observe_specialist_invocation_duration(
-                        duration=duration, specialist_type=specialist_type, status="grpc_error"
-                    )
-                    ConsensusMetrics.increment_specialist_invocation(
-                        specialist_type=specialist_type, status="grpc_error"
-                    )
-                    ConsensusMetrics.increment_specialist_grpc_error(
-                        specialist_type=specialist_type, grpc_code=e.code().name
-                    )
-
-                    logger.error(
-                        "Erro gRPC ao invocar especialista",
-                        specialist_type=specialist_type,
-                        plan_id=cognitive_plan["plan_id"],
-                        error=str(e),
-                        code=e.code(),
-                        duration_seconds=duration,
-                    )
-                    raise
-                except Exception as e:
-                    duration = time() - start_time
-                    ConsensusMetrics.observe_specialist_invocation_duration(
-                        duration=duration, specialist_type=specialist_type, status="error"
-                    )
-                    ConsensusMetrics.increment_specialist_invocation(
-                        specialist_type=specialist_type, status="error"
-                    )
-
-                    import traceback
-
-                    logger.error(
-                        "Exceção não tratada ao invocar especialista",
-                        specialist_type=specialist_type,
-                        plan_id=cognitive_plan["plan_id"],
-                        error=str(e),
-                        error_type=type(e).__name__,
-                        duration_seconds=duration,
-                        traceback=traceback.format_exc(),
-                    )
-                    raise
+                logger.error(
+                    "specialist_circuit_breaker_or_call_failed",
+                    specialist_type=specialist_type,
+                    plan_id=cognitive_plan["plan_id"],
+                    error=str(e),
+                    duration_seconds=duration,
+                )
+                raise
+        else:
+            # Fallback sem circuit breaker (comportamento original)
+            return await _grpc_call_with_retry()
 
     async def evaluate_plan_parallel(
         self, cognitive_plan: dict[str, Any], trace_context: dict[str, str]

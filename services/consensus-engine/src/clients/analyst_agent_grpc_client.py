@@ -25,6 +25,7 @@ except ImportError:
     SPIFFEConfig = None
 
 from ..proto import analyst_agent_pb2, analyst_agent_pb2_grpc
+from ..resilience import get_grpc_circuit_breaker
 
 logger = structlog.get_logger()
 
@@ -40,6 +41,7 @@ class AnalystAgentGrpcClient:
     - Chamadas gRPC com retry e backoff exponencial
     - mTLS via SPIFFE/SPIRE (quando habilitado)
     - Injeção de contexto de tracing
+    - Circuit breaker para proteção contra falhas em cascata (Gap P1)
     """
 
     def __init__(self, config):
@@ -47,6 +49,8 @@ class AnalystAgentGrpcClient:
         self.channel: Optional[grpc.aio.Channel] = None
         self.stub: Optional[analyst_agent_pb2_grpc.AnalystAgentServiceStub] = None
         self.spiffe_manager: Optional[Any] = None
+        self.circuit_breaker_enabled = getattr(config, "enable_circuit_breaker", True)
+        self.circuit_breaker = None
 
     async def initialize(self):
         """Inicializar cliente gRPC com suporte a mTLS"""
@@ -121,6 +125,15 @@ class AnalystAgentGrpcClient:
         except asyncio.TimeoutError:
             logger.warning("analyst_agent_grpc_channel_ready_timeout", endpoint=endpoint)
 
+        # Inicializar circuit breaker se habilitado
+        if self.circuit_breaker_enabled:
+            self.circuit_breaker = get_grpc_circuit_breaker()
+            logger.info(
+                "analyst_agent_circuit_breaker_enabled",
+                failure_threshold=getattr(self.config, "circuit_breaker_failure_threshold", 5),
+                recovery_timeout=getattr(self.config, "circuit_breaker_recovery_timeout", 60),
+            )
+
     async def _get_grpc_metadata(self) -> list[tuple[str, str]]:
         """Obter metadata gRPC com JWT-SVID para autenticação"""
         spiffe_enabled = getattr(self.config, "spiffe_enabled", False)
@@ -193,53 +206,69 @@ class AnalystAgentGrpcClient:
             persist_to_neo4j=persist_to_neo4j,
         )
 
-        for attempt in range(MAX_RETRIES):
-            try:
-                grpc_metadata = await self._get_grpc_metadata()
-                response = await self.stub.GenerateInsight(
-                    request, metadata=grpc_metadata, timeout=30.0
-                )
+        # Função interna para a chamada gRPC
+        async def _grpc_call():
+            for attempt in range(MAX_RETRIES):
+                try:
+                    grpc_metadata = await self._get_grpc_metadata()
+                    response = await self.stub.GenerateInsight(
+                        request, metadata=grpc_metadata, timeout=30.0
+                    )
 
-                if response.success:
-                    logger.info(
-                        "insight_generated",
-                        insight_id=response.insight.insight_id,
+                    if response.success:
+                        logger.info(
+                            "insight_generated",
+                            insight_id=response.insight.insight_id,
+                            insight_type=insight_type,
+                        )
+                        return {
+                            "success": True,
+                            "insight_id": response.insight.insight_id,
+                            "insight_type": response.insight.insight_type,
+                            "title": response.insight.title,
+                            "confidence_score": response.insight.confidence_score,
+                            "impact_score": response.insight.impact_score,
+                        }
+                    else:
+                        logger.warning(
+                            "insight_generation_failed", error_message=response.error_message
+                        )
+                        return {"success": False, "error_message": response.error_message}
+
+                except grpc.RpcError as e:
+                    should_retry = attempt < MAX_RETRIES - 1 and e.code() in [
+                        grpc.StatusCode.UNAVAILABLE,
+                        grpc.StatusCode.DEADLINE_EXCEEDED,
+                    ]
+                    logger.error(
+                        "grpc_generate_insight_failed",
+                        error=str(e),
+                        code=e.code().name if hasattr(e, "code") else "UNKNOWN",
                         insight_type=insight_type,
+                        attempt=attempt + 1,
+                        will_retry=should_retry,
                     )
-                    return {
-                        "success": True,
-                        "insight_id": response.insight.insight_id,
-                        "insight_type": response.insight.insight_type,
-                        "title": response.insight.title,
-                        "confidence_score": response.insight.confidence_score,
-                        "impact_score": response.insight.impact_score,
-                    }
-                else:
-                    logger.warning(
-                        "insight_generation_failed", error_message=response.error_message
-                    )
-                    return {"success": False, "error_message": response.error_message}
+                    if should_retry:
+                        backoff = BASE_BACKOFF_SECONDS * (2**attempt)
+                        await asyncio.sleep(backoff)
+                        continue
+                    raise
+            return None
 
-            except grpc.RpcError as e:
-                should_retry = attempt < MAX_RETRIES - 1 and e.code() in [
-                    grpc.StatusCode.UNAVAILABLE,
-                    grpc.StatusCode.DEADLINE_EXCEEDED,
-                ]
+        # Usar circuit breaker se habilitado
+        if self.circuit_breaker_enabled and self.circuit_breaker:
+            try:
+                return await self.circuit_breaker.call_analyst_agent(_grpc_call)
+            except Exception as e:
                 logger.error(
-                    "grpc_generate_insight_failed",
-                    error=str(e),
-                    code=e.code().name if hasattr(e, "code") else "UNKNOWN",
+                    "analyst_agent_circuit_breaker_or_call_failed",
                     insight_type=insight_type,
-                    attempt=attempt + 1,
-                    will_retry=should_retry,
+                    error=str(e),
                 )
-                if should_retry:
-                    backoff = BASE_BACKOFF_SECONDS * (2**attempt)
-                    await asyncio.sleep(backoff)
-                    continue
                 return None
 
-        return None
+        # Fallback sem circuit breaker
+        return await _grpc_call()
 
     async def query_insights(
         self,
