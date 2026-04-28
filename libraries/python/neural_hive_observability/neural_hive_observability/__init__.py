@@ -92,6 +92,12 @@ from .privacy import (
     mask_pii_deep,
     mask_pii_processor,
 )
+from .rate_limit import (
+    InMemoryRateLimiter,
+    RateLimitMiddleware,
+    check_rate_limit_middleware,
+    rate_limit_decorator,
+)
 from .middleware import (
     TraceContextMiddleware,
     extract_traceparent_from_request,
@@ -114,7 +120,7 @@ from .tracing import (
 )
 
 # Versão da biblioteca
-__version__ = "1.4.0"
+__version__ = "1.5.0"
 
 # Logger da biblioteca
 logger = stdlib_logging.getLogger(__name__)
