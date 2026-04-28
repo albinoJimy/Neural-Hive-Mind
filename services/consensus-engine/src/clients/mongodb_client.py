@@ -8,7 +8,7 @@ logger = structlog.get_logger()
 
 
 class MongoDBClient:
-    """Cliente MongoDB para ledger de decisões consolidadas"""
+    """Cliente MongoDB para ledger de decisões consolidadas com suporte a cache-aside"""
 
     def __init__(self, config):
         self.config = config
@@ -16,6 +16,17 @@ class MongoDBClient:
         self.db = None
         self.consensus_collection = None
         self.explainability_collection = None
+        self.cache_service = None  # Será injetado após inicialização
+
+    def set_cache_service(self, cache_service):
+        """
+        Injeta serviço de cache para cache-aside pattern.
+
+        Args:
+            cache_service: Instância de CacheAsideService
+        """
+        self.cache_service = cache_service
+        logger.info("Cache service injetado no MongoDB client")
 
     async def initialize(self):
         """Inicializar cliente MongoDB"""
@@ -65,7 +76,11 @@ class MongoDBClient:
             logger.warning("Aviso ao criar índices MongoDB (podem já existir)", error=str(e))
 
     async def save_consensus_decision(self, decision: ConsolidatedDecision):
-        """Salva decisão consolidada no ledger"""
+        """
+        Salva decisão consolidada no ledger.
+
+        Após salvar com sucesso, invalida caches relacionados.
+        """
         # Usar model_dump com mode='json' para garantir serialização correta de enums
         # Isso converte DecisionType.APPROVE para "approve" automaticamente
         document = decision.model_dump(mode="json")
@@ -77,16 +92,60 @@ class MongoDBClient:
             logger.info(
                 "Decisão consolidada salva", decision_id=decision.decision_id, hash=decision.hash
             )
+
+            # Invalidar caches relacionados (cache-aside pattern)
+            if self.cache_service and self.config.enable_cache:
+                await self.cache_service.invalidate_consensus_decision(decision.decision_id)
+                await self.cache_service.invalidate_plan_approval(decision.plan_id)
+
         except DuplicateKeyError:
             logger.warning("Decisão já existe no ledger", decision_id=decision.decision_id)
             raise
 
     async def get_decision(self, decision_id: str) -> Optional[dict]:
-        """Consulta decisão por ID"""
+        """
+        Consulta decisão por ID com cache-aside.
+
+        Cache-aside workflow:
+        1. Check cache
+        2. Cache miss → fetch from MongoDB
+        3. Write to cache
+        """
+        # Se cache service disponível, usar cache-aside
+        if self.cache_service and self.config.enable_cache:
+            return await self.cache_service.get_consensus_decision(
+                decision_id,
+                db_fetcher=lambda: self._fetch_decision_from_db(decision_id),
+            )
+
+        # Fallback para MongoDB direto
+        return await self._fetch_decision_from_db(decision_id)
+
+    async def _fetch_decision_from_db(self, decision_id: str) -> Optional[dict]:
+        """Busca decisão diretamente do MongoDB (sem cache)"""
         return await self.consensus_collection.find_one({"decision_id": decision_id})
 
     async def get_decision_by_plan(self, plan_id: str) -> Optional[dict]:
-        """Consulta decisão por plan_id"""
+        """
+        Consulta decisão por plan_id com cache-aside.
+
+        Cache-aside workflow:
+        1. Check cache
+        2. Cache miss → fetch from MongoDB
+        3. Write to cache
+        """
+        # Se cache service disponível, usar cache-aside
+        if self.cache_service and self.config.enable_cache:
+            return await self.cache_service.get_plan_approval(
+                plan_id,
+                db_fetcher=lambda: self._fetch_decision_by_plan_from_db(plan_id),
+            )
+
+        # Fallback para MongoDB direto
+        return await self._fetch_decision_by_plan_from_db(plan_id)
+
+    async def _fetch_decision_by_plan_from_db(self, plan_id: str) -> Optional[dict]:
+        """Busca decisão por plan diretamente do MongoDB (sem cache)"""
         return await self.consensus_collection.find_one({"plan_id": plan_id})
 
     async def verify_integrity(self, decision_id: str) -> bool:

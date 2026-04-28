@@ -304,6 +304,32 @@ class Settings(BaseSettings):
         ge=0,
     )
 
+    # Configuração de Cache-aside (Gap P1)
+    # Reduz latência e carga no MongoDB usando Redis como cache
+    enable_cache: bool = Field(
+        default=True,
+        description="Habilitar cache-aside pattern para MongoDB. "
+        "Reduz latência de leitura e carga no banco de dados.",
+    )
+    cache_ttl_plan_approval: int = Field(
+        default=300,  # 5 minutos
+        description="TTL de cache para plan approvals em segundos. "
+        "Default: 300s (5 minutos). Ajuste baseado na frequência de atualizações.",
+        gt=0,
+    )
+    cache_ttl_consensus_decision: int = Field(
+        default=120,  # 2 minutos
+        description="TTL de cache para decisões de consenso em segundos. "
+        "Default: 120s (2 minutos). Decisões são imutáveis mas cache curto ajuda em retries.",
+        gt=0,
+    )
+    cache_ttl_specialist_status: int = Field(
+        default=30,  # 30 segundos
+        description="TTL de cache para status de especialistas em segundos. "
+        "Default: 30s. Status muda frequentemente, TTL curto garante dados razoavelmente frescos.",
+        gt=0,
+    )
+
     # Configuração de Circuit Breaker (Gap P1)
     # Protege chamadas gRPC contra falhas em cascata com estados CLOSED -> OPEN -> HALF_OPEN
     enable_circuit_breaker: bool = Field(
