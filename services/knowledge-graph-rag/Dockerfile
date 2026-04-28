@@ -18,11 +18,13 @@ COPY services/knowledge-graph-rag/requirements.txt ./requirements-service.txt
 # Copy local libraries needed by the service (use /opt/build to avoid /tmp conflicts)
 COPY libraries/neural_hive_integration /opt/build/neural_hive_integration
 COPY libraries/python/neural_hive_resilience /opt/build/neural_hive_resilience
+COPY libraries/python/neural_hive_llm /opt/build/neural_hive_llm
 
 # Replace relative path and install dependencies including local libraries
 RUN cat requirements-service.txt | sed 's|-r ../../requirements-base.txt|-r requirements-base.txt|' > requirements.txt && \
     pip install --no-cache-dir /opt/build/neural_hive_integration && \
     pip install --no-cache-dir /opt/build/neural_hive_resilience && \
+    pip install --no-cache-dir /opt/build/neural_hive_llm && \
     pip install --no-cache-dir -r requirements.txt
 
 # Copiar código fonte

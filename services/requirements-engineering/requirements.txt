@@ -2,5 +2,5 @@
 # Usando requirements-base consolidado
 -r ../../requirements-base.txt
 
-# Dependências específicas do serviço (se necessário)
-# openai e anthropic já estão no requirements-base.txt
+# Dependências específicas do serviço
+motor==3.7.1
