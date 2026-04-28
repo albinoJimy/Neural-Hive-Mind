@@ -16,16 +16,16 @@ pydantic-settings==2.6.1  # 2.7.x has _lenient_issubclass bug
 email-validator==2.1.0  # Required by pydantic EmailStr type
 
 # Observability
-opentelemetry-api==1.29.0
-opentelemetry-sdk==1.29.0
+opentelemetry-api==1.39.1
+opentelemetry-sdk==1.39.1
 opentelemetry-instrumentation-fastapi==0.50b0
 opentelemetry-instrumentation-grpc==0.50b0
 opentelemetry-instrumentation-kafka-python==0.50b0
 opentelemetry-instrumentation-sqlalchemy==0.50b0
 opentelemetry-instrumentation-aiohttp-client==0.50b0
-opentelemetry-instrumentation==0.50b0
-opentelemetry-exporter-otlp==1.29.0
-opentelemetry-exporter-otlp-proto-grpc==1.29.0
+opentelemetry-instrumentation==0.60b1
+opentelemetry-exporter-otlp==1.39.1
+opentelemetry-exporter-otlp-proto-grpc==1.39.1
 opentelemetry-propagator-b3==1.25.0
 opentelemetry-propagator-jaeger==1.25.0
 structlog==24.4.0
