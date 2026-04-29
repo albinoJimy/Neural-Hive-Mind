@@ -54,7 +54,7 @@ psycopg2-binary==2.9.9
 
 # gRPC
 grpcio==1.71.2
-grpcio-health-checking==1.71.2
+grpcio-health-checking==1.67.1  # 1.71.x requer protobuf >= 5.26.1
 grpcio-tools==1.71.2
 protobuf==4.25.5  # Compatível com grpcio 1.71.2 (5.x tem incompatibilidades)
 
