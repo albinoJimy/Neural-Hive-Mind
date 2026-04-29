@@ -3,8 +3,6 @@
 -r ../../requirements-base.txt
 
 # Dependências específicas do serviço
-openai==1.7.2
-anthropic==0.18.0
 
 # PDF parsing
 pypdf2==3.0.1
