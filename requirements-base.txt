@@ -55,7 +55,7 @@ psycopg2-binary==2.9.9
 grpcio==1.71.2
 grpcio-health-checking==1.71.2
 grpcio-tools==1.71.2
-protobuf==5.28.1
+protobuf==5.29.2  # Versão consolidada em todos os serviços
 
 # Security
 python-jose[cryptography]==3.5.0  # CVE-2022-24314 fix (4.0.0 doesn't exist)

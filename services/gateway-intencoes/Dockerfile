@@ -1,7 +1,7 @@
 # Gateway de Intenções - Neural Hive-Mind
 # Rebuild: 2026-02-01 - fix lowercase topic names
 ARG REGISTRY=ghcr.io/albinojimy
-FROM ${REGISTRY}/neural-hive-mind/python-observability-base:1.2.6
+FROM ${REGISTRY}/neural-hive-mind/python-observability-base:1.3.0
 
 # Definir versão e metadados
 ARG VERSION=1.0.0
@@ -43,8 +43,9 @@ WORKDIR /app
 COPY requirements-base.txt ./requirements-base.txt
 COPY services/gateway-intencoes/requirements.txt ./requirements-service.txt
 
-# Copiar biblioteca interna neural_hive_domain
+# Copiar bibliotecas internas
 COPY libraries/python/neural_hive_domain /tmp/neural_hive_domain
+COPY libraries/security /tmp/neural_hive_security
 
 # Copiar biblioteca neural_hive_observability atualizada (sobrescreve versão da imagem base)
 # Necessário para incluir correções de headers OTEL gRPC lowercase
@@ -54,11 +55,12 @@ COPY libraries/python/neural_hive_observability /tmp/neural_hive_observability
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip install --no-cache-dir --upgrade pip==24.0 && \
     pip install --no-cache-dir /tmp/neural_hive_domain && \
+    pip install --no-cache-dir /tmp/neural_hive_security && \
     pip install --no-cache-dir --force-reinstall /tmp/neural_hive_observability && \
     cat requirements-service.txt | sed 's|-r ../../requirements-base.txt|-r requirements-base.txt|' > requirements.txt && \
     pip install --no-cache-dir -r requirements.txt && \
     pip install --no-cache-dir --no-deps openai-whisper && \
-    rm -rf /tmp/neural_hive_domain /tmp/neural_hive_observability
+    rm -rf /tmp/neural_hive_domain /tmp/neural_hive_security /tmp/neural_hive_observability
 
 # Baixar modelos spaCy para todos os idiomas suportados (pt, en, es)
 RUN --mount=type=cache,target=/root/.cache/pip \
