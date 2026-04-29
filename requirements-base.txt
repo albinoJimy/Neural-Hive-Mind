@@ -70,8 +70,6 @@ pyyaml==6.0.1
 httpx==0.28.1
 
 # LLM Clients (compatible with httpx 0.28.1)
-# neural_hive_llm - Biblioteca centralizada de LLM clients
--e ../../libs/neural_hive_llm
 openai>=1.40.0
 anthropic>=0.40.0
 
