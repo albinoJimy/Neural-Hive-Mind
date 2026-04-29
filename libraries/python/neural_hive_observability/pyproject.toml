@@ -26,13 +26,13 @@ classifiers = [
 ]
 dependencies = [
     # OpenTelemetry - pinned to compatible versions to avoid ImportError
-    # Alinhado com requirements-base.txt
+    # Alinhado com requirements-base.txt (todas versões 0.50b0 para compatibilidade)
     "opentelemetry-api==1.39.1",
     "opentelemetry-sdk==1.39.1",
     "opentelemetry-exporter-otlp==1.39.1",
     "opentelemetry-exporter-otlp-proto-grpc==1.39.1",
-    "opentelemetry-instrumentation==0.60b1",
-    "opentelemetry-instrumentation-grpc==0.60b1",
+    "opentelemetry-instrumentation==0.50b0",
+    "opentelemetry-instrumentation-grpc==0.50b0",
     "grpcio>=1.68.1",
     "prometheus-client>=0.21.1",
     "structlog>=24.4.0",
