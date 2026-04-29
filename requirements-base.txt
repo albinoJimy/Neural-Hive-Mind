@@ -77,6 +77,7 @@ anthropic>=0.40.0
 
 # ML/AI (required by whisper and other ML services)
 torch>=2.1.0  # Required by openai-whisper
+tiktoken>=0.5.0  # Required by openai-whisper tokenizer
 
 # Testing (base)
 pytest==8.3.0
