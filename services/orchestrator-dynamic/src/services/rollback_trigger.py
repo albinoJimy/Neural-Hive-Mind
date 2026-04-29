@@ -33,7 +33,7 @@ from pydantic import BaseModel, Field
 
 from src.services.health_monitor import HealthComparison, HealthStatus
 
-UTC = UTC
+UTC = timezone.utc
 logger = structlog.get_logger(__name__)
 
 

@@ -11,7 +11,7 @@ import time
 from collections.abc import Callable
 from datetime import datetime, timezone
 
-UTC = UTC  # type: ignore
+UTC = timezone.utc  # type: ignore
 
 import structlog
 from confluent_kafka import Consumer, KafkaError, TopicPartition

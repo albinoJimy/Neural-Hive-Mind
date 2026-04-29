@@ -8,7 +8,7 @@ from uuid import uuid4
 from bson import ObjectId
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-UTC = UTC
+UTC = timezone.utc
 
 
 def utcnow() -> datetime:

@@ -15,7 +15,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 UTC = timezone.utc
 
-UTC = UTC  # type: ignore
+UTC = timezone.utc  # type: ignore
 import sys
 from enum import Enum
 

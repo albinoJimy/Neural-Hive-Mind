@@ -31,7 +31,7 @@ from src.services.rollback_trigger import (
     RollbackTriggerType,
 )
 
-UTC = UTC
+UTC = timezone.utc
 
 
 @pytest.fixture()

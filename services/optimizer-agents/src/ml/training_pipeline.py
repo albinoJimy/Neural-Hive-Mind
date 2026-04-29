@@ -9,7 +9,7 @@ import asyncio
 import logging
 from datetime import datetime, timezone
 
-UTC = UTC  # type: ignore, timedelta
+UTC = timezone.utc  # type: ignore, timedelta
 
 import numpy as np
 

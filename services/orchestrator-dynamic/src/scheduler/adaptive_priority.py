@@ -11,7 +11,7 @@ from collections import defaultdict
 from datetime import datetime, timezone
 UTC = timezone.utc
 
-UTC = UTC  # type: ignore, timedelta
+UTC = timezone.utc  # type: ignore, timedelta
 from typing import Any
 
 import structlog

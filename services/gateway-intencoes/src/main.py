@@ -9,7 +9,7 @@ import uuid
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 
-UTC = UTC  # type: ignore
+UTC = timezone.utc  # type: ignore
 from typing import Any
 
 import structlog

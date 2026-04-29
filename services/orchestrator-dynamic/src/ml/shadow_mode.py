@@ -19,7 +19,7 @@ import uuid
 from datetime import datetime, timezone
 UTC = timezone.utc
 
-UTC = UTC  # type: ignore
+UTC = timezone.utc  # type: ignore
 from typing import Any
 
 import pybreaker

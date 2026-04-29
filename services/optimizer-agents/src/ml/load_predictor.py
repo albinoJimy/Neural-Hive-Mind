@@ -8,7 +8,7 @@ baseado em dados históricos de 18 meses do ClickHouse.
 import logging
 from datetime import datetime, timezone
 
-UTC = UTC  # type: ignore, timedelta
+UTC = timezone.utc  # type: ignore, timedelta
 
 import holidays
 import numpy as np

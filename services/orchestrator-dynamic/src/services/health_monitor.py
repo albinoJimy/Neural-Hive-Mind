@@ -23,7 +23,7 @@ import httpx
 import structlog
 from pydantic import BaseModel, Field, field_validator
 
-UTC = UTC
+UTC = timezone.utc
 logger = structlog.get_logger(__name__)
 
 

@@ -21,7 +21,7 @@ from src.models.hypothesis import (
 from src.models.workflow import WorkflowTransition
 
 logger = logging.getLogger(__name__)
-UTC = UTC
+UTC = timezone.utc
 
 
 class HypothesisRepository:

@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 UTC = timezone.utc
 from typing import Any, Optional
 
-UTC = UTC  # type: ignore
+UTC = timezone.utc  # type: ignore
 
 from aiokafka import AIOKafkaProducer
 from aiokafka.errors import KafkaConnectionError

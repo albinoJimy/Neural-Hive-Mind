@@ -22,7 +22,7 @@ from src.services.hypothesis_service import HypothesisService
 
 router = APIRouter()
 
-UTC = UTC
+UTC = timezone.utc
 
 
 # Schemas para requests/responses

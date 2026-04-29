@@ -133,7 +133,7 @@ async def get_impact_summary(
     """
     from datetime import datetime, timedelta
 
-    UTC = UTC
+    UTC = timezone.utc
     end_date = datetime.now(timezone.utc)
     start_date = end_date - timedelta(days=days)
 

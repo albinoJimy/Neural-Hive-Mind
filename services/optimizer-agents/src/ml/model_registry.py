@@ -9,7 +9,7 @@ import pickle
 import tempfile
 from datetime import datetime, timezone
 
-UTC = UTC  # type: ignore
+UTC = timezone.utc  # type: ignore
 from typing import Any
 
 import mlflow

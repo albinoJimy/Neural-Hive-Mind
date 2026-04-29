@@ -8,7 +8,7 @@ e métricas em tempo real para alimentar LoadPredictor e SchedulingOptimizer.
 import logging
 from datetime import datetime, timezone
 
-UTC = UTC  # type: ignore, timedelta
+UTC = timezone.utc  # type: ignore, timedelta
 
 import numpy as np
 import pandas as pd

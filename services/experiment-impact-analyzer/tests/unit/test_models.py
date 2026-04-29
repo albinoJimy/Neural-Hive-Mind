@@ -17,7 +17,7 @@ from src.models.impact import (
     ShortTermImpact,
 )
 
-UTC = UTC
+UTC = timezone.utc
 
 
 @pytest.mark.unit()

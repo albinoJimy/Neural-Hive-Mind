@@ -6,7 +6,7 @@ import asyncio
 from datetime import datetime, timezone
 UTC = timezone.utc
 
-UTC = UTC  # type: ignore, timedelta
+UTC = timezone.utc  # type: ignore, timedelta
 
 import structlog
 from prometheus_client import Counter

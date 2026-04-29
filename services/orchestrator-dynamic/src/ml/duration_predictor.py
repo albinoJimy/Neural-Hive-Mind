@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 from datetime import timezone
 UTC = timezone.utc
 
-UTC = UTC  # type: ignore
+UTC = timezone.utc  # type: ignore
 import numpy as np
 import structlog
 from sklearn.ensemble import RandomForestRegressor

@@ -13,7 +13,7 @@ from src.config.settings import Settings, get_settings
 from src.models.hypothesis_version import HypothesisVersion, VersionDiff
 
 logger = logging.getLogger(__name__)
-UTC = UTC
+UTC = timezone.utc
 
 
 class HypothesisVersionRepository:

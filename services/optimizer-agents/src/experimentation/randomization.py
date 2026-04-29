@@ -12,7 +12,7 @@ import json
 from abc import ABC, abstractmethod
 from datetime import datetime, timezone
 
-UTC = UTC  # type: ignore
+UTC = timezone.utc  # type: ignore
 from enum import Enum
 
 import structlog

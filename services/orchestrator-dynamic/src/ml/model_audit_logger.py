@@ -13,7 +13,7 @@ UTC = timezone.utc
 from enum import Enum
 from typing import Any, Optional
 
-UTC = UTC  # type: ignore, timedelta
+UTC = timezone.utc  # type: ignore, timedelta
 
 # Python 3.10 compatibility: StrEnum was added in Python 3.11
 if sys.version_info >= (3, 11):

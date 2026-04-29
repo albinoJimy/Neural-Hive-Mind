@@ -13,7 +13,7 @@ from collections.abc import Callable
 from datetime import datetime, timezone
 UTC = timezone.utc
 
-UTC = UTC  # type: ignore, timedelta
+UTC = timezone.utc  # type: ignore, timedelta
 import sys
 from enum import Enum
 

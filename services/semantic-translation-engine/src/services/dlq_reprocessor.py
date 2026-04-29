@@ -12,7 +12,7 @@ com retry_count incrementado para controle de max retries.
 import json
 from datetime import datetime, timezone
 
-UTC = UTC  # type: ignore
+UTC = timezone.utc  # type: ignore
 from typing import TYPE_CHECKING, Any, Optional
 
 import structlog

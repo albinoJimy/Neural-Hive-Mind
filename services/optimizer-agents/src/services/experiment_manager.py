@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime, timezone
 
-UTC = UTC  # type: ignore
+UTC = timezone.utc  # type: ignore
 
 import structlog
 

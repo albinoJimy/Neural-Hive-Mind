@@ -10,7 +10,7 @@ from collections.abc import Callable
 from datetime import datetime, timezone
 UTC = timezone.utc
 
-UTC = UTC  # type: ignore
+UTC = timezone.utc  # type: ignore
 from functools import wraps
 from typing import Any, TypeVar
 

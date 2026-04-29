@@ -8,7 +8,7 @@ para dar lugar a tickets de alta prioridade.
 from datetime import timezone
 UTC = timezone.utc
 
-UTC = UTC  # type: ignore
+UTC = timezone.utc  # type: ignore
 import sys
 from enum import Enum
 

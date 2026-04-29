@@ -3,7 +3,7 @@
 import asyncio
 from datetime import datetime, timezone
 
-UTC = UTC  # type: ignore, timedelta
+UTC = timezone.utc  # type: ignore, timedelta
 from typing import Any
 
 from neural_hive_observability import get_logger

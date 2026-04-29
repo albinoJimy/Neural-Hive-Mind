@@ -12,7 +12,7 @@ from enum import Enum
 from typing import Any
 from uuid import uuid4
 
-UTC = UTC  # type: ignore
+UTC = timezone.utc  # type: ignore
 
 # Python 3.10 compatibility: StrEnum was added in Python 3.11
 if sys.version_info >= (3, 11):

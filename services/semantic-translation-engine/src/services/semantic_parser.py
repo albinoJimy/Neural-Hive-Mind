@@ -7,7 +7,7 @@ Parses intents, maps entities to ontology, and enriches with historical context.
 import hashlib
 from datetime import datetime, timezone
 
-UTC = UTC  # type: ignore
+UTC = timezone.utc  # type: ignore
 from typing import TYPE_CHECKING, Any, Optional
 
 import structlog

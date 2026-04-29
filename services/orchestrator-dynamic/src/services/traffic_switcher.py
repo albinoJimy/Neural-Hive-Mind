@@ -24,7 +24,7 @@ from typing import Any
 import httpx
 import structlog
 
-UTC = UTC  # type: ignore
+UTC = timezone.utc  # type: ignore
 logger = structlog.get_logger(__name__)
 
 

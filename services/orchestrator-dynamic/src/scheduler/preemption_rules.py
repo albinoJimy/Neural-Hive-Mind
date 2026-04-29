@@ -8,7 +8,7 @@ um ticket de baixa prioridade que está em execução.
 from datetime import timezone
 UTC = timezone.utc
 
-UTC = UTC  # type: ignore
+UTC = timezone.utc  # type: ignore
 import sys
 from enum import Enum
 

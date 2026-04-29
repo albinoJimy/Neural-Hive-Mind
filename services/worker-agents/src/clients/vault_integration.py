@@ -6,7 +6,7 @@ import asyncio
 from collections.abc import Callable
 from datetime import datetime, timezone
 
-UTC = UTC  # type: ignore, timedelta
+UTC = timezone.utc  # type: ignore, timedelta
 from typing import Any, Optional
 
 import structlog

@@ -293,7 +293,7 @@ class TestImpactAnalyzer:
         # Use actual timestamp from sample experiment
         from datetime import datetime
 
-        UTC = UTC
+        UTC = timezone.utc
         created_at = datetime.fromtimestamp(sample_experiment["created_at"] / 1000, tz=UTC)
 
         long_term = await impact_analyzer._analyze_long_term(

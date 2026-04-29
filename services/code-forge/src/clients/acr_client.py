@@ -11,7 +11,7 @@ Suporta:
 import logging
 from datetime import datetime, timezone
 
-UTC = UTC  # type: ignore, timedelta
+UTC = timezone.utc  # type: ignore, timedelta
 
 logger = logging.getLogger(__name__)
 

@@ -13,7 +13,7 @@ import hashlib
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 
-UTC = UTC  # type: ignore
+UTC = timezone.utc  # type: ignore
 from enum import Enum
 from typing import TYPE_CHECKING, Any, Optional
 

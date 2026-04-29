@@ -8,7 +8,7 @@ import hashlib
 import json
 from datetime import datetime, timezone
 
-UTC = UTC  # type: ignore, timedelta
+UTC = timezone.utc  # type: ignore, timedelta
 
 import structlog
 from motor.motor_asyncio import AsyncIOMotorClient

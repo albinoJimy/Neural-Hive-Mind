@@ -4,7 +4,7 @@ from collections import defaultdict
 from datetime import datetime, timezone
 UTC = timezone.utc
 
-UTC = UTC  # type: ignore
+UTC = timezone.utc  # type: ignore
 from time import perf_counter
 from typing import Any, Optional
 

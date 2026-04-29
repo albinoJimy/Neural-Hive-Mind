@@ -19,7 +19,7 @@ from src.models.impact import (
     ShortTermImpact,
 )
 
-UTC = UTC
+UTC = timezone.utc
 logger = structlog.get_logger()
 
 

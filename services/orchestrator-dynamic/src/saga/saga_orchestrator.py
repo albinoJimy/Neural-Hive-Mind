@@ -8,7 +8,7 @@ de steps e compensacao automatica em caso de falha.
 from datetime import datetime, timezone
 UTC = timezone.utc
 
-UTC = UTC  # type: ignore
+UTC = timezone.utc  # type: ignore
 from typing import Any
 from uuid import uuid4
 

@@ -9,7 +9,7 @@ import logging
 import pickle
 from datetime import datetime, timezone
 
-UTC = UTC  # type: ignore
+UTC = timezone.utc  # type: ignore
 from enum import Enum
 
 import numpy as np

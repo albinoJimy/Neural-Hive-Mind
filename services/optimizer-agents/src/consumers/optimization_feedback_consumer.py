@@ -16,7 +16,7 @@ import json
 from collections import defaultdict
 from datetime import datetime, timezone
 
-UTC = UTC  # type: ignore
+UTC = timezone.utc  # type: ignore
 from enum import Enum
 from typing import Any
 

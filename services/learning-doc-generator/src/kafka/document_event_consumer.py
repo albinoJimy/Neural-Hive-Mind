@@ -20,7 +20,7 @@ from src.services.document_repository import DocumentRepository
 from src.services.experiment_insight_extractor import ExperimentInsightExtractor
 from src.services.markdown_report_generator import MarkdownReportGenerator
 
-UTC = UTC
+UTC = timezone.utc
 logger = structlog.get_logger()
 
 

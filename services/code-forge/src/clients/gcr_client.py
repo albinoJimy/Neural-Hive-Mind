@@ -12,7 +12,7 @@ import json
 import logging
 from datetime import datetime, timezone, timedelta
 
-UTC = UTC  # type: ignore
+UTC = timezone.utc  # type: ignore
 
 logger = logging.getLogger(__name__)
 

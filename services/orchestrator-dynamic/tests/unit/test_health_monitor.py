@@ -28,7 +28,7 @@ from src.services.health_monitor import (
     SystemHealth,
 )
 
-UTC = UTC
+UTC = timezone.utc
 
 
 class TestHealthThreshold:

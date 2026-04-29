@@ -8,7 +8,7 @@ para modelos de predição de duração e detecção de anomalias.
 from datetime import datetime, timezone
 UTC = timezone.utc
 
-UTC = UTC  # type: ignore, timedelta
+UTC = timezone.utc  # type: ignore, timedelta
 from typing import Any
 
 import numpy as np

@@ -8,7 +8,7 @@ import time
 import uuid
 from datetime import datetime, timezone
 
-UTC = UTC  # type: ignore, timedelta
+UTC = timezone.utc  # type: ignore, timedelta
 
 import structlog
 from src.clients.mongodb_client import MongoDBClient

@@ -10,7 +10,7 @@ from src.config.settings import Settings, get_settings
 
 logger = structlog.get_logger()
 
-UTC = UTC
+UTC = timezone.utc
 
 
 class MongoDBClient:
