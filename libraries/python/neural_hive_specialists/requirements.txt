@@ -26,11 +26,12 @@ redis[hiredis]==5.2.1
 # Neo4j
 neo4j>=5.15.0
 
-# Observabilidade
-opentelemetry-api==1.29.0
-opentelemetry-sdk==1.29.0
-opentelemetry-instrumentation-grpc==0.50b0
-opentelemetry-exporter-otlp-proto-grpc==1.29.0
+# Observabilidade - OpenTelemetry 0.62b1 stack (2026-04-29)
+opentelemetry-api==1.41.1
+opentelemetry-sdk==1.41.1
+opentelemetry-semantic-conventions==0.62b1
+opentelemetry-instrumentation-grpc==0.62b1
+opentelemetry-exporter-otlp-proto-grpc==1.41.1
 prometheus-client==0.21.1
 
 # Utilities

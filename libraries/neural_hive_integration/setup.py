@@ -22,11 +22,12 @@ setup(
         "grpcio>=1.71.2",  # Aligned with requirements-base.txt
         "protobuf>=5.27.0",  # Required for proto_stubs
         "structlog>=23.1.0",
-        # OpenTelemetry - versões fixas para compatibilidade com requirements-base.txt
-        "opentelemetry-api==1.39.1",
-        "opentelemetry-sdk==1.39.1",
-        "opentelemetry-instrumentation==0.50b0",
-        "opentelemetry-instrumentation-httpx==0.50b0",
+        # OpenTelemetry - updated to 0.62b1 stack (2026-04-29)
+        "opentelemetry-api==1.41.1",
+        "opentelemetry-sdk==1.41.1",
+        "opentelemetry-semantic-conventions==0.62b1",
+        "opentelemetry-instrumentation==0.62b1",
+        "opentelemetry-instrumentation-httpx==0.62b1",
         "pydantic>=2.0.0",
         "tenacity>=8.2.0",
         "prometheus-client>=0.17.0",

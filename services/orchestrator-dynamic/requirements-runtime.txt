@@ -23,12 +23,13 @@ structlog==24.4.0
 # Métricas Prometheus
 prometheus-client==0.21.1
 
-# OpenTelemetry para tracing
-opentelemetry-api==1.29.0
-opentelemetry-sdk==1.29.0
-opentelemetry-instrumentation-fastapi==0.50b0
-opentelemetry-instrumentation-kafka-python==0.50b0
-opentelemetry-exporter-otlp==1.29.0
+# OpenTelemetry para tracing - 0.62b1 stack (2026-04-29)
+opentelemetry-api==1.41.1
+opentelemetry-sdk==1.41.1
+opentelemetry-semantic-conventions==0.62b1
+opentelemetry-instrumentation-fastapi==0.62b1
+opentelemetry-instrumentation-kafka-python==0.62b1
+opentelemetry-exporter-otlp==1.41.1
 
 # Redis para cache e feromônios
 redis[hiredis]==5.2.1
