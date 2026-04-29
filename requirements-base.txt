@@ -41,6 +41,7 @@ aiokafka==0.12.0
 confluent-kafka==2.8.0
 avro-python3==1.10.2
 fastavro==1.9.7
+cachetools==5.3.3  # Required by confluent-kafka schema_registry
 
 # Databases
 motor==3.7.1
