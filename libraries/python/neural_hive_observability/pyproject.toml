@@ -33,6 +33,8 @@ dependencies = [
     "opentelemetry-exporter-otlp-proto-grpc==1.41.1",
     "opentelemetry-instrumentation==0.62b1",
     "opentelemetry-instrumentation-grpc==0.62b1",
+    "opentelemetry-propagator-b3==1.25.0",
+    "opentelemetry-propagator-jaeger==1.25.0",
     "grpcio>=1.68.1",
     "prometheus-client>=0.21.1",
     "structlog>=24.4.0",
@@ -40,6 +42,9 @@ dependencies = [
     "pydantic-settings>=2.6.1,<2.7.0",  # 2.7.x has _lenient_issubclass bug
     "aiohttp>=3.9.0",
     "fastapi>=0.104.0",  # Para health_endpoints.py
+    "aiokafka>=0.9.0",  # Para dlq.py AIOKafkaProducer
+    "python-snappy>=0.6.0",  # Para Kafka compression
+    "psutil>=5.9.0",  # Para system metrics
 ]
 
 [project.optional-dependencies]
