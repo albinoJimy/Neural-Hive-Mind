@@ -14,7 +14,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-UTC = UTC
+UTC = timezone.utc
 
 # Configure path
 import sys

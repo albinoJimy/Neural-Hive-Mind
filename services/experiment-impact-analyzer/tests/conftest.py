@@ -11,7 +11,7 @@ from src.clients.mongodb_client import MongoDBClient
 from src.config.settings import Settings
 from src.services.impact_analyzer import ImpactAnalyzer
 
-UTC = UTC
+UTC = timezone.utc
 
 
 @pytest.fixture()

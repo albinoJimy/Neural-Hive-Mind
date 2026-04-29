@@ -1,0 +1,11 @@
+{
+  "c450306c-874c-4caf-bc0b-9038a385dbd2": {
+    "created_at": "2026-04-27T21:05:51Z",
+    "agents": {},
+    "ultrawork": {
+      "phase": "specify",
+      "iteration": 0,
+      "max_iterations": 10
+    }
+  }
+}

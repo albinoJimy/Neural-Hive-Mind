@@ -28,7 +28,7 @@ from src.services.traffic_switcher import (
     TrafficSwitchStrategy,
 )
 
-UTC = UTC
+UTC = timezone.utc
 
 
 class TestTrafficSwitcherFactory:

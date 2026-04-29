@@ -8,7 +8,7 @@ o PVCManager cria dinamicamente um PersistentVolumeClaim para armazenar o contex
 import logging
 from datetime import timezone
 
-UTC = UTC  # type: ignore
+UTC = timezone.utc  # type: ignore
 from uuid import uuid4
 
 from kubernetes import client, config
