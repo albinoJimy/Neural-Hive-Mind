@@ -1,4 +1,9 @@
 # Dependências base consolidadas para Neural-Hive-Mind
 -r ../../requirements-base.txt
 
+# ML/AI dependencies for ASR (whisper)
+torch>=2.1.0
+tiktoken>=0.5.0
+openai-whisper>=20230314  # ASR pipeline
+
 # Service-specific dependencies (a serem adicionadas manualmente)
