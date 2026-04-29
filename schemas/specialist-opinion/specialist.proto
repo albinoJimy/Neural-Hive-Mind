@@ -3,7 +3,6 @@ syntax = "proto3";
 package neural_hive.specialist;
 
 import "google/protobuf/timestamp.proto";
-import "google/protobuf/struct.proto";
 
 // Serviço principal do especialista
 service SpecialistService {
