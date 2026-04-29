@@ -210,7 +210,6 @@ class RedisClient:
                         socket_connect_timeout=5.0,
                         decode_responses=True,
                         health_check_interval=30,
-                        full_coverage=True,  # Assegura cobertura completa de slots do cluster
                         max_connections=self.settings.redis_connection_pool_max_connections,
                     )
 

@@ -14,6 +14,7 @@ RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
 # Copiar bibliotecas locais primeiro
+COPY libraries/python/neural_hive_security /tmp/neural_hive_security
 COPY libraries/python/neural_hive_resilience /tmp/neural_hive_resilience
 COPY libraries/python/neural_hive_domain /tmp/neural_hive_domain
 COPY libraries/neural_hive_integration /tmp/neural_hive_integration
@@ -22,6 +23,7 @@ COPY libraries/neural_hive_integration /tmp/neural_hive_integration
 COPY services/queen-agent/requirements.txt /tmp/requirements-service.txt
 COPY requirements-base.txt /tmp/requirements-base.txt
 RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir /tmp/neural_hive_security && \
     pip install --no-cache-dir /tmp/neural_hive_resilience && \
     pip install --no-cache-dir /tmp/neural_hive_domain && \
     pip install --no-cache-dir /tmp/neural_hive_integration && \
