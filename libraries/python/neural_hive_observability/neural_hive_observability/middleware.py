@@ -33,6 +33,20 @@ from starlette.types import ASGIApp
 
 from .metrics import NeuralHiveMetrics
 
+# Type checking para evitar property objects
+def is_valid_metrics(obj) -> bool:
+    """Verifica se obj é uma instância válida de NeuralHiveMetrics e não um property/stub."""
+    if obj is None:
+        return False
+    # Verificar se é um property object (bug de importação)
+    if isinstance(obj, property):
+        return False
+    # Verificar se é um dict (stub mode)
+    if isinstance(obj, dict):
+        return False
+    # Verificar se tem os atributos necessários
+    return hasattr(obj, "trace_context_extraction_total")
+
 logger = logging.getLogger(__name__)
 
 # Regex para validar formato W3C traceparent
@@ -132,13 +146,14 @@ class TraceContextMiddleware(BaseHTTPMiddleware):
             extract_custom_headers: Extrair headers customizados Neural Hive
         """
         super().__init__(app)
-        self.metrics = metrics
+        # Validar metrics antes de atribuir - evita property objects e stubs
+        self.metrics = metrics if is_valid_metrics(metrics) else None
         self.extract_custom_headers = extract_custom_headers
 
         # Store default labels for metrics (from config if available)
         self._metric_labels = {}
-        if metrics and hasattr(metrics, "config") and hasattr(metrics.config, "common_labels"):
-            self._metric_labels = metrics.config.common_labels
+        if self.metrics and hasattr(self.metrics, "config") and hasattr(self.metrics.config, "common_labels"):
+            self._metric_labels = self.metrics.config.common_labels
 
         logger.info("TraceContextMiddleware initialized")
 
@@ -161,8 +176,8 @@ class TraceContextMiddleware(BaseHTTPMiddleware):
         if self.metrics:
             try:
                 self.metrics.trace_context_extraction_total.labels(**self._metric_labels).inc()
-            except (ValueError, KeyError):
-                # Fallback if metrics require labels not set
+            except (ValueError, KeyError, AttributeError):
+                # Fallback if metrics require labels not set or attribute missing
                 pass
 
         # Token para contexto anexado
@@ -188,16 +203,22 @@ class TraceContextMiddleware(BaseHTTPMiddleware):
 
                     # Métrica: extração bem-sucedida
                     if self.metrics:
-                        self.metrics.trace_context_extraction_success_total.labels(
-                            **self._metric_labels, source="http"
-                        ).inc()
+                        try:
+                            self.metrics.trace_context_extraction_success_total.labels(
+                                **self._metric_labels, source="http"
+                            ).inc()
+                        except (ValueError, KeyError, AttributeError):
+                            pass
 
                 except Exception as e:
                     logger.warning(f"Failed to extract OTEL context: {e}")
                     if self.metrics:
-                        self.metrics.trace_context_extraction_failure_total.labels(
-                            **self._metric_labels, reason="otel_extract_error"
-                        ).inc()
+                        try:
+                            self.metrics.trace_context_extraction_failure_total.labels(
+                                **self._metric_labels, reason="otel_extract_error"
+                            ).inc()
+                        except (ValueError, KeyError, AttributeError):
+                            pass
 
                 # Definir baggage items
                 self._set_baggage_from_headers(request)
@@ -206,16 +227,22 @@ class TraceContextMiddleware(BaseHTTPMiddleware):
                     f"Invalid traceparent format: {traceparent[:50]}, path: {request.url.path}"
                 )
                 if self.metrics:
-                    self.metrics.trace_context_extraction_failure_total.labels(
-                        **self._metric_labels, reason="invalid_format"
-                    ).inc()
+                    try:
+                        self.metrics.trace_context_extraction_failure_total.labels(
+                            **self._metric_labels, reason="invalid_format"
+                        ).inc()
+                    except (ValueError, KeyError, AttributeError):
+                        pass
         else:
             # Métrica: traceparent ausente
             logger.debug(f"No traceparent header in request, path: {request.url.path}")
             if self.metrics:
-                self.metrics.trace_parent_missing_total.labels(
-                    **self._metric_labels, source="http"
-                ).inc()
+                try:
+                    self.metrics.trace_parent_missing_total.labels(
+                        **self._metric_labels, source="http"
+                    ).inc()
+                except (ValueError, KeyError, AttributeError):
+                    pass
 
         # Processar request
         response = await call_next(request)
