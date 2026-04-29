@@ -19,11 +19,13 @@ COPY libraries/python/neural_hive_domain /tmp/neural_hive_domain
 COPY libraries/neural_hive_integration /tmp/neural_hive_integration
 
 # Copiar requirements e instalar dependências
-COPY services/queen-agent/requirements.txt /tmp/
+COPY services/queen-agent/requirements.txt /tmp/requirements-service.txt
+COPY requirements-base.txt /tmp/requirements-base.txt
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir /tmp/neural_hive_resilience && \
     pip install --no-cache-dir /tmp/neural_hive_domain && \
     pip install --no-cache-dir /tmp/neural_hive_integration && \
+    cat /tmp/requirements-service.txt | sed 's|-r ../../requirements-base.txt|-r /tmp/requirements-base.txt|' > /tmp/requirements.txt && \
     pip install --no-cache-dir -r /tmp/requirements.txt
 
 # Stage 2: Runtime - usar mesma base image para ter neural_hive_observability

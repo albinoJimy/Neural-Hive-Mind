@@ -23,11 +23,13 @@ COPY libraries/neural_hive_integration /tmp/neural_hive_integration
 COPY libraries/python/neural_hive_resilience /tmp/neural_hive_resilience
 
 # Copy requirements and install dependencies to venv
-COPY services/guard-agents/requirements.txt .
+COPY services/guard-agents/requirements.txt ./requirements-service.txt
+COPY requirements-base.txt ./requirements-base.txt
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir /tmp/neural_hive_security || true && \
     pip install --no-cache-dir /tmp/neural_hive_resilience && \
     pip install --no-cache-dir /tmp/neural_hive_integration && \
+    cat requirements-service.txt | sed 's|-r ../../requirements-base.txt|-r requirements-base.txt|' > requirements.txt && \
     pip install --no-cache-dir -r requirements.txt
 
 # Copy source code
