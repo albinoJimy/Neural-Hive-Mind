@@ -45,7 +45,7 @@ COPY services/gateway-intencoes/requirements.txt ./requirements-service.txt
 
 # Copiar bibliotecas internas
 COPY libraries/python/neural_hive_domain /tmp/neural_hive_domain
-COPY libraries/security /tmp/neural_hive_security
+COPY libraries/python/neural_hive_security /tmp/neural_hive_security
 
 # Copiar biblioteca neural_hive_observability atualizada (sobrescreve versão da imagem base)
 # Necessário para incluir correções de headers OTEL gRPC lowercase

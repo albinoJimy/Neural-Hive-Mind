@@ -18,7 +18,7 @@ RUN python -m venv --system-site-packages /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
 # Copy local libraries
-COPY libraries/security /tmp/neural_hive_security
+COPY libraries/python/neural_hive_security /tmp/neural_hive_security
 COPY libraries/neural_hive_integration /tmp/neural_hive_integration
 COPY libraries/python/neural_hive_resilience /tmp/neural_hive_resilience
 
