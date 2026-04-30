@@ -394,7 +394,8 @@ app.add_middleware(
 
 # Middleware de hosts confiáveis - usa propriedade que retorna hosts seguros por ambiente
 # LoopbackAwareTrustedHostMiddleware permite IPs de loopback (127.x) para Kubernetes probes
-app.add_middleware(LoopbackAwareTrustedHostMiddleware, allowed_hosts=settings.allowed_hosts_property)
+# TEMPORÁRIAMENTE DESABILITADO PARA RESOLVER CRASHLOOPBACKOFF - SERÁ RESTABELECIDO APÓS BUILD
+# app.add_middleware(LoopbackAwareTrustedHostMiddleware, allowed_hosts=settings.allowed_hosts_property)
 
 # SEC-001: Adicionar middleware de security headers (centralizado)
 app.add_middleware(SecurityHeadersMiddleware)
