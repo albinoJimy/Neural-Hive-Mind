@@ -14,11 +14,13 @@ COPY services/documentation-generation/requirements.txt ./requirements-service.t
 # Copy local libraries needed by the service
 COPY libraries/neural_hive_integration /tmp/neural_hive_integration
 COPY libraries/python/neural_hive_resilience /tmp/neural_hive_resilience
+COPY libraries/python/neural_hive_llm /tmp/neural_hive_llm
 
 # Replace relative path and install dependencies including local libraries
 RUN cat requirements-service.txt | sed 's|-r ../../requirements-base.txt|-r requirements-base.txt|' > requirements.txt && \
     pip install --no-cache-dir /tmp/neural_hive_integration && \
     pip install --no-cache-dir /tmp/neural_hive_resilience && \
+    pip install --no-cache-dir /tmp/neural_hive_llm && \
     pip install --no-cache-dir -r requirements.txt
 
 # Copy application

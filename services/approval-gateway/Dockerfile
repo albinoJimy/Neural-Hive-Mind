@@ -11,8 +11,13 @@ RUN apt-get update && apt-get install -y \
 # Copiar requirements primeiro para cache
 COPY requirements-base.txt ./requirements-base.txt
 COPY services/approval-gateway/requirements.txt ./requirements-service.txt
+
+# Copiar bibliotecas locais necessárias
+COPY libraries/python/neural_hive_llm /tmp/neural_hive_llm
+
 # Substituir caminho relativo e instalar
 RUN cat requirements-service.txt | sed 's|-r ../../requirements-base.txt|-r requirements-base.txt|' > requirements.txt && \
+    pip install --no-cache-dir /tmp/neural_hive_llm && \
     pip install --no-cache-dir -r requirements.txt
 
 # Copiar código fonte

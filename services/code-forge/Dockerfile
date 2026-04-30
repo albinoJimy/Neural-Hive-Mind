@@ -15,11 +15,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Copy local libraries first
 COPY libraries/neural_hive_integration /tmp/neural_hive_integration
 COPY libraries/python/neural_hive_resilience /tmp/neural_hive_resilience
+COPY libraries/python/neural_hive_llm /tmp/neural_hive_llm
 
 # Copy requirements and install dependencies
 COPY services/code-forge/requirements.txt .
 RUN pip install --no-cache-dir --user /tmp/neural_hive_resilience && \
     pip install --no-cache-dir --user /tmp/neural_hive_integration && \
+    pip install --no-cache-dir --user /tmp/neural_hive_llm && \
     pip install --no-cache-dir --user -r requirements.txt
 
 # Stage 2: Runtime - use same base to get neural_hive_observability
