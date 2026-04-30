@@ -199,7 +199,7 @@ class ServiceRegistryServer:
         self.matching_engine = MatchingEngine(self.registry_client, self.pheromone_client)
 
         self.health_check_manager = HealthCheckManager(
-            etcd_client=self.registry_client,  # Parâmetro mantido por compatibilidade
+            redis_client=self.registry_client,
             check_interval_seconds=self.settings.HEALTH_CHECK_INTERVAL_SECONDS,
             heartbeat_timeout_seconds=self.settings.HEARTBEAT_TIMEOUT_SECONDS,
         )
