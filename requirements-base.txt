@@ -57,7 +57,7 @@ psycopg2-binary==2.9.9
 grpcio==1.71.2
 grpcio-health-checking==1.71.2  # Alinhado com grpcio 1.71.2
 grpcio-tools==1.71.2
-protobuf==5.28.1  # Versão estável, compatível com grpcio 1.71.2 (4.25.5 EOL em Mar 2025)
+protobuf==5.29.2  # Compatível com grpcio-health-checking 1.71.2 (requer >= 5.29.0)
 
 # Security
 python-jose[cryptography]==3.5.0  # CVE-2022-24314 fix (4.0.0 doesn't exist)

@@ -1,6 +1,5 @@
 # Multi-stage build for Service Registry
-ARG REGISTRY=ghcr.io/albinojimy
-FROM ${REGISTRY}/neural-hive-mind/python-observability-base:1.2.6 AS builder
+FROM python:3.12-slim AS builder
 
 WORKDIR /app
 
@@ -11,14 +10,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     make \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy local libraries first
+# Copy local libraries
+COPY libraries/python/neural_hive_observability /tmp/neural_hive_observability
 
 # Copy requirements and install dependencies
-COPY services/service-registry/requirements.txt .
-
-# Install local library and requirements (excluding neural_hive_observability from pip)
-RUN grep -v "neural_hive_observability" requirements.txt > requirements-filtered.txt && \
-    pip install --no-cache-dir --user -r requirements-filtered.txt
+COPY requirements-base.txt ./requirements-base.txt
+COPY services/service-registry/requirements.txt ./requirements-service.txt
+RUN cat requirements-service.txt | sed 's|-r ../../requirements-base.txt|-r requirements-base.txt|' > requirements.txt && \
+    pip install --no-cache-dir --user /tmp/neural_hive_observability && \
+    pip install --no-cache-dir --user -r requirements.txt
 
 # Final stage
 FROM python:3.12-slim
@@ -43,9 +43,8 @@ RUN GRPC_HEALTH_PROBE_VERSION=v0.4.19 && \
 # Create directories and set permissions
 RUN mkdir -p /app/logs /app/tmp && chown -R registry:registry /app /usr/local/bin
 
-# Copy Python dependencies from builder (user packages + system packages from base)
+# Copy Python dependencies from builder
 COPY --from=builder --chown=registry:registry /root/.local /home/registry/.local
-COPY --from=builder --chown=registry:registry /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
 
 # Copy source code
 COPY --chown=registry:registry services/service-registry/src/ ./src/
