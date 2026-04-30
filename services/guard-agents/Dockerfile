@@ -1,6 +1,5 @@
 # Stage 1 - Builder
-ARG REGISTRY=ghcr.io/albinojimy
-FROM ${REGISTRY}/neural-hive-mind/python-observability-base:1.3.0 AS builder
+FROM python:3.12-slim AS builder
 
 # Install build dependencies
 RUN apt-get update && apt-get install -y \
@@ -13,11 +12,12 @@ RUN apt-get update && apt-get install -y \
 # Set working directory
 WORKDIR /app
 
-# Create virtualenv with system site-packages to inherit neural_hive_observability
-RUN python -m venv --system-site-packages /opt/venv
+# Create virtualenv
+RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
 # Copy local libraries
+COPY libraries/python/neural_hive_observability /tmp/neural_hive_observability
 COPY libraries/python/neural_hive_security /tmp/neural_hive_security
 COPY libraries/neural_hive_integration /tmp/neural_hive_integration
 COPY libraries/python/neural_hive_resilience /tmp/neural_hive_resilience
@@ -27,6 +27,7 @@ COPY libraries/python/neural_hive_llm /tmp/neural_hive_llm
 COPY services/guard-agents/requirements.txt ./requirements-service.txt
 COPY requirements-base.txt ./requirements-base.txt
 RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir /tmp/neural_hive_observability && \
     pip install --no-cache-dir /tmp/neural_hive_security || true && \
     pip install --no-cache-dir /tmp/neural_hive_resilience && \
     pip install --no-cache-dir /tmp/neural_hive_integration && \
@@ -38,8 +39,7 @@ RUN pip install --no-cache-dir --upgrade pip && \
 COPY services/guard-agents/src/ ./src/
 
 # Stage 2 - Runtime
-ARG REGISTRY=ghcr.io/albinojimy
-FROM ${REGISTRY}/neural-hive-mind/python-observability-base:1.3.0
+FROM python:3.12-slim
 
 # Install runtime dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \

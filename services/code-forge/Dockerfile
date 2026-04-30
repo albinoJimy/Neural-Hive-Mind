@@ -1,7 +1,6 @@
 # Multi-stage Dockerfile for Code Forge - Neural Code Generation Pipeline
 # Stage 1: Builder
-ARG REGISTRY=ghcr.io/albinojimy
-FROM ${REGISTRY}/neural-hive-mind/python-observability-base:1.2.6 AS builder
+FROM python:3.12-slim AS builder
 
 WORKDIR /build
 
@@ -13,20 +12,21 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy local libraries first
+COPY libraries/python/neural_hive_observability /tmp/neural_hive_observability
 COPY libraries/neural_hive_integration /tmp/neural_hive_integration
 COPY libraries/python/neural_hive_resilience /tmp/neural_hive_resilience
 COPY libraries/python/neural_hive_llm /tmp/neural_hive_llm
 
 # Copy requirements and install dependencies
 COPY services/code-forge/requirements.txt .
-RUN pip install --no-cache-dir --user /tmp/neural_hive_resilience && \
+RUN pip install --no-cache-dir --user /tmp/neural_hive_observability && \
+    pip install --no-cache-dir --user /tmp/neural_hive_resilience && \
     pip install --no-cache-dir --user /tmp/neural_hive_integration && \
     pip install --no-cache-dir --user /tmp/neural_hive_llm && \
     pip install --no-cache-dir --user -r requirements.txt
 
-# Stage 2: Runtime - use same base to get neural_hive_observability
-ARG REGISTRY=ghcr.io/albinojimy
-FROM ${REGISTRY}/neural-hive-mind/python-observability-base:1.2.6
+# Stage 2: Runtime
+FROM python:3.12-slim
 
 WORKDIR /app
 
@@ -64,9 +64,9 @@ RUN useradd -m -u 1000 codeforge
 # Copy Python packages from builder
 COPY --from=builder --chown=codeforge:codeforge /root/.local /home/codeforge/.local
 
-# Set environment - user packages first, then system for neural_hive_observability
+# Set environment - user packages first
 ENV PATH=/home/codeforge/.local/bin:$PATH
-ENV PYTHONPATH=/home/codeforge/.local/lib/python3.11/site-packages:/usr/local/lib/python3.11/site-packages:/app
+ENV PYTHONPATH=/home/codeforge/.local/lib/python3.12/site-packages:/app
 
 # Copy shared libraries
 COPY --chown=codeforge:codeforge libraries/python/neural_hive_specialists /app/libraries/neural_hive_specialists
