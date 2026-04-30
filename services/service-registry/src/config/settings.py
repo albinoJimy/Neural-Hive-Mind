@@ -52,6 +52,10 @@ class Settings(BaseSettings):
         default=None,
         description="Timeout para operações no Redis",
     )
+    REGISTRY_REDIS_CLUSTER_MODE: bool = Field(
+        default=False,
+        description="Usar Redis Cluster mode (requer redis.asyncio.cluster.RedisCluster)",
+    )
 
     # Configurações de health checks
     HEALTH_CHECK_INTERVAL_SECONDS: int = Field(
@@ -351,6 +355,11 @@ class Settings(BaseSettings):
     def registry_redis_timeout(self) -> int:
         """Timeout para operações no Redis (mesclado de ETCD_TIMEOUT_SECONDS para compatibilidade)"""
         return getattr(self, "_resolved_redis_timeout", 5)
+
+    @property
+    def registry_redis_cluster_mode(self) -> bool:
+        """Indica se o Redis registry deve usar modo Cluster"""
+        return self.REGISTRY_REDIS_CLUSTER_MODE
 
 
 @lru_cache

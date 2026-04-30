@@ -4,9 +4,9 @@ import uuid
 from typing import Any, Optional
 
 import structlog
-from clients.llm_client_wrapper import LLMClient
-from config.settings import Settings, get_settings
-from models.tests import (
+from src.clients.llm_client_wrapper import LLMClient
+from src.config.settings import Settings, get_settings
+from src.models.tests import (
     TestCase,
     TestFramework,
     TestGenerationRequest,

@@ -29,7 +29,7 @@ class LLMClient:
             api_key: Chave de API do OpenAI (opcional, usa settings se None)
             model: Nome do modelo LLM
         """
-        from config.settings import get_settings
+        from src.config.settings import get_settings
 
         settings = get_settings()
         self.api_key = api_key or getattr(settings, "openai_api_key", None)

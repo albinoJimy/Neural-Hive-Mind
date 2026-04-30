@@ -263,6 +263,8 @@ class Settings(BaseSettings):
 
         Prioriza configuração explícita, senão usa defaults seguros por ambiente.
         Nunca retorna wildcard em produção.
+
+        Inclui hosts internos do cluster para Kubernetes health probes.
         """
         # Se configurado explicitamente, retorna configuração
         if self.allowed_hosts:
@@ -270,11 +272,21 @@ class Settings(BaseSettings):
 
         # Defaults por ambiente (sem wildcard em produção)
         if self.environment == "production":
-            return ["api.neural-hive.com", "gateway.neural-hive.com", "neural-hive.com"]
-        if self.environment == "staging":
-            return ["api.staging.neural-hive.com", "gateway.staging.neural-hive.com"]
-        # development
-        return ["localhost", "127.0.0.1", "neural-hive.local", "*.neural-hive.local"]
+            hosts = ["api.neural-hive.com", "gateway.neural-hive.com", "neural-hive.com"]
+        elif self.environment == "staging":
+            hosts = ["api.staging.neural-hive.com", "gateway.staging.neural-hive.com"]
+        else:
+            # development - permite localhost e wildcard local
+            return ["localhost", "127.0.0.1", "neural-hive.local", "*.neural-hive.local"]
+
+        # Adicionar hosts internos do cluster para Kubernetes probes (staging/production)
+        # Isso é seguro pois esses hosts só são acessíveis dentro do cluster
+        cluster_hosts = [
+            "localhost",  # Para livenessProbe
+            "127.0.0.1",  # Para probes via loopback
+        ]
+
+        return hosts + cluster_hosts
 
     @property
     def allowed_origins(self) -> list[str]:

@@ -185,6 +185,7 @@ class ServiceRegistryServer:
             prefix=self.settings.registry_redis_prefix,
             password=redis_password,
             timeout=self.settings.registry_redis_timeout,
+            cluster_mode=self.settings.registry_redis_cluster_mode,
         )
         await self.registry_client.initialize()
 

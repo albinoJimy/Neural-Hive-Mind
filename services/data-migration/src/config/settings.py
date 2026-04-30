@@ -14,6 +14,7 @@ class Settings(BaseSettings):
         env_file_encoding="utf-8",
         case_sensitive=False,
         env_prefix="DATA_MIGRATION_",
+        extra="ignore",
     )
 
     # API
@@ -21,7 +22,7 @@ class Settings(BaseSettings):
     api_version: str = "1.0.0"
     api_prefix: str = "/api/v1"
     host: str = "0.0.0.0"
-    port: int = 8019
+    port: int = Field(default=8019, validation_alias="DATA_MIGRATION_API_PORT")
     debug: bool = False
 
     # OpenAI/Anthropic

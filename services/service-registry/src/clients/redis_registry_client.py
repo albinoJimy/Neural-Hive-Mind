@@ -14,6 +14,8 @@ from typing import Optional
 from uuid import UUID
 
 import redis.asyncio as redis
+from redis.asyncio.cluster import RedisCluster as AsyncRedisCluster
+from redis.cluster import ClusterNode
 import structlog
 from src.models import AgentInfo, AgentStatus, AgentType
 
@@ -23,12 +25,14 @@ logger = structlog.get_logger()
 class RedisRegistryClient:
     """Cliente assíncrono para operações de registro com Redis"""
 
-    def __init__(self, cluster_nodes: list[str], prefix: str, password: str = "", timeout: int = 5):
+    def __init__(self, cluster_nodes: list[str], prefix: str, password: str = "", timeout: int = 5, cluster_mode: bool = False):
         self.cluster_nodes = cluster_nodes
         self.prefix = prefix
         self.password = password
         self.timeout = timeout
-        self.client: Optional[redis.Redis] = None
+        self.cluster_mode = cluster_mode
+        self.client: Optional[redis.Redis | AsyncRedisCluster] = None
+        self._pubsub_client: Optional[redis.Redis] = None  # Cliente separado para pub/sub em cluster mode
         self._pubsub: Optional[redis.client.PubSub] = None
         self._watch_task: Optional[asyncio.Task] = None
 
@@ -38,37 +42,84 @@ class RedisRegistryClient:
             if not self.cluster_nodes:
                 raise ValueError("cluster_nodes não pode estar vazio")
 
-            # Parse endpoint no formato host:port
-            endpoint = self.cluster_nodes[0]
-            parts = endpoint.rsplit(":", 1)  # rsplit para suportar IPv6 (ex: [::1]:6379)
+            if self.cluster_mode:
+                # Redis Cluster mode
+                nodes = []
+                for endpoint in self.cluster_nodes:
+                    parts = endpoint.rsplit(":", 1)
+                    if len(parts) != 2:
+                        raise ValueError(f"Formato de endpoint inválido: '{endpoint}'")
+                    host, port_str = parts
+                    try:
+                        port = int(port_str)
+                    except ValueError:
+                        raise ValueError(f"Porta inválida no endpoint '{endpoint}': '{port_str}'")
+                    nodes.append(ClusterNode(host, port))
 
-            if len(parts) != 2:
-                raise ValueError(
-                    f"Formato de endpoint inválido: '{endpoint}'. "
-                    f"Esperado 'host:port' (ex: 'redis:6379' ou 'redis.svc:6379')"
+                self.client = AsyncRedisCluster(
+                    startup_nodes=nodes,
+                    password=self.password if self.password else None,
+                    decode_responses=True,
+                    socket_timeout=self.timeout,
+                    socket_connect_timeout=self.timeout,
+                    require_full_coverage=True,
                 )
+            else:
+                # Single instance mode
+                endpoint = self.cluster_nodes[0]
+                parts = endpoint.rsplit(":", 1)
 
-            host, port_str = parts
-            try:
-                port = int(port_str)
-            except ValueError:
-                raise ValueError(
-                    f"Porta inválida no endpoint '{endpoint}': '{port_str}' não é um número"
+                if len(parts) != 2:
+                    raise ValueError(
+                        f"Formato de endpoint inválido: '{endpoint}'. "
+                        f"Esperado 'host:port' (ex: 'redis:6379' ou 'redis.svc:6379')"
+                    )
+
+                host, port_str = parts
+                try:
+                    port = int(port_str)
+                except ValueError:
+                    raise ValueError(
+                        f"Porta inválida no endpoint '{endpoint}': '{port_str}' não é um número"
+                    )
+
+                self.client = redis.Redis(
+                    host=host,
+                    port=port,
+                    password=self.password if self.password else None,
+                    decode_responses=True,
+                    socket_timeout=self.timeout,
+                    socket_connect_timeout=self.timeout,
                 )
-
-            self.client = redis.Redis(
-                host=host,
-                port=port,
-                password=self.password if self.password else None,
-                decode_responses=True,
-                socket_timeout=self.timeout,
-                socket_connect_timeout=self.timeout,
-            )
 
             # Test connection
             await self.client.ping()
+
+            # Em cluster mode, criar cliente separado para pub/sub
+            # Redis Cluster não suporta pub/sub distribuído
+            if self.cluster_mode:
+                endpoint = self.cluster_nodes[0]
+                parts = endpoint.rsplit(":", 1)
+                host, port_str = parts[0], parts[1]
+                self._pubsub_client = redis.Redis(
+                    host=host,
+                    port=int(port_str),
+                    password=self.password if self.password else None,
+                    decode_responses=True,
+                    socket_timeout=self.timeout,
+                    socket_connect_timeout=self.timeout,
+                )
+                await self._pubsub_client.ping()
+                logger.info(
+                    "redis_pubsub_client_initialized",
+                    host=host,
+                    port=int(port_str),
+                )
+
             logger.info(
-                "redis_registry_client_initialized", nodes=self.cluster_nodes, host=host, port=port
+                "redis_registry_client_initialized",
+                nodes=self.cluster_nodes,
+                cluster_mode=self.cluster_mode,
             )
 
         except Exception as e:
@@ -86,6 +137,9 @@ class RedisRegistryClient:
 
         if self._pubsub:
             await self._pubsub.close()
+
+        if self._pubsub_client:
+            await self._pubsub_client.close()
 
         if self.client:
             await self.client.close()
@@ -108,8 +162,9 @@ class RedisRegistryClient:
             type_set_key = f"{self.prefix}:index:{agent_info.agent_type.value.lower()}"
             await self.client.sadd(type_set_key, str(agent_info.agent_id))
 
-            # Publicar evento de registro
-            await self.client.publish(
+            # Publicar evento de registro (usa cliente separado em cluster mode)
+            publish_client = self._pubsub_client if self.cluster_mode else self.client
+            await publish_client.publish(
                 f"{self.prefix}:events",
                 json.dumps({"event": "registered", "agent_id": str(agent_info.agent_id)}),
             )
@@ -159,8 +214,9 @@ class RedisRegistryClient:
                     type_set_key = f"{self.prefix}:index:{agent_type.value.lower()}"
                     await self.client.srem(type_set_key, str(agent_id))
 
-                    # Publicar evento de desregistro
-                    await self.client.publish(
+                    # Publicar evento de desregistro (usa cliente separado em cluster mode)
+                    publish_client = self._pubsub_client if self.cluster_mode else self.client
+                    await publish_client.publish(
                         f"{self.prefix}:events",
                         json.dumps({"event": "deregistered", "agent_id": str(agent_id)}),
                     )
@@ -258,7 +314,11 @@ class RedisRegistryClient:
     async def watch_agents(self, callback: Callable[[str, dict], None]) -> None:
         """Observa mudanças em agentes usando pub/sub do Redis"""
         try:
-            self._pubsub = self.client.pubsub()
+            # Em cluster mode, usa o cliente separado para pub/sub
+            pubsub_client = self._pubsub_client if self.cluster_mode else self.client
+            if pubsub_client is None:
+                raise RuntimeError("PubSub client not initialized")
+            self._pubsub = pubsub_client.pubsub()
             await self._pubsub.subscribe(f"{self.prefix}:events")
 
             async def listen():

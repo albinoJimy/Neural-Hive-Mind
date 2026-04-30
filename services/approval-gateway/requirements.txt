@@ -5,3 +5,6 @@
 # Dependências específicas do serviço
 # neural_hive_llm substitui openai e anthropic
 # (já incluído em requirements-base.txt via neural_hive_llm)
+
+# Circuit breaker (para neural_hive_llm)
+pybreaker==1.0.2

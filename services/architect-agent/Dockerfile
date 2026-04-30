@@ -26,7 +26,9 @@ COPY libraries/python/neural_hive_resilience /tmp/neural_hive_resilience
 COPY libraries/python/neural_hive_llm /tmp/neural_hive_llm
 
 # Replace relative path and install dependencies including local libraries
-RUN cat requirements-service.txt | sed 's|-r ../../requirements-base.txt|-r requirements-base.txt|' > requirements.txt && \
+RUN cat requirements-service.txt | \
+    sed 's|-r ../../requirements-base.txt|-r requirements-base.txt|' | \
+    grep -v "../../libs/neural_hive_llm" > requirements.txt && \
     pip install --no-cache-dir --user /tmp/neural_hive_security && \
     pip install --no-cache-dir --user /tmp/neural_hive_integration && \
     pip install --no-cache-dir --user /tmp/neural_hive_resilience && \
