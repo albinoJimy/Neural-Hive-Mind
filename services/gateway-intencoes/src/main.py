@@ -25,8 +25,9 @@ from fastapi import (
     status,
 )
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse, Response
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.types import ASGIApp
 from fastapi.security import HTTPBearer
 from kafka.producer import KafkaIntentProducer
 from middleware.auth_middleware import (
@@ -238,6 +239,50 @@ except ImportError:
     low_confidence_routed_counter = MetricStub()
     record_too_large_counter = MetricStub()
 
+
+class LoopbackAwareTrustedHostMiddleware(BaseHTTPMiddleware):
+    """
+    Middleware de hosts confiáveis que permite requisições de loopback.
+
+    Diferente do TrustedHostMiddleware padrão, este middleware permite
+    requisições de qualquer IP de loopback (127.0.0.0/8) para garantir
+    que probes do Kubernetes funcionem corretamente em todos os ambientes.
+
+    Para outros hosts, aplica a lógica padrão de allowed_hosts.
+    """
+
+    def __init__(
+        self,
+        app: ASGIApp,
+        allowed_hosts: list[str] | None = None,
+    ) -> None:
+        super().__init__(app)
+        self.allowed_hosts = list(allowed_hosts) if allowed_hosts else ["*"]
+
+    async def dispatch(self, request: Request, call_next):
+        """Verifica se o host é permitido antes de processar a requisição."""
+        host = request.headers.get("host", "").split(":")[0]
+
+        # Permitir qualquer IP de loopback (127.0.0.0/8)
+        # Isso garante que health probes do Kubernetes funcionem
+        if host.startswith("127.") or host == "localhost":
+            return await call_next(request)
+
+        # Verificar se o host está na lista de permitidos
+        if "*" in self.allowed_hosts:
+            return await call_next(request)
+
+        # Verificação exata de host
+        if host in self.allowed_hosts:
+            return await call_next(request)
+
+        # Host não permitido
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content={"detail": "Invalid host header"},
+        )
+
+
 # Setup logging estruturado
 structlog.configure(
     processors=[
@@ -348,8 +393,8 @@ app.add_middleware(
 )
 
 # Middleware de hosts confiáveis - usa propriedade que retorna hosts seguros por ambiente
-# A propriedade allowed_hosts_property garante defaults seguros sem wildcard em produção
-app.add_middleware(TrustedHostMiddleware, allowed_hosts=settings.allowed_hosts_property)
+# LoopbackAwareTrustedHostMiddleware permite IPs de loopback (127.x) para Kubernetes probes
+app.add_middleware(LoopbackAwareTrustedHostMiddleware, allowed_hosts=settings.allowed_hosts_property)
 
 # SEC-001: Adicionar middleware de security headers (centralizado)
 app.add_middleware(SecurityHeadersMiddleware)
