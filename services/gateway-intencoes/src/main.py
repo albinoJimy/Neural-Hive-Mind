@@ -263,9 +263,19 @@ class LoopbackAwareTrustedHostMiddleware(BaseHTTPMiddleware):
         """Verifica se o host é permitido antes de processar a requisição."""
         host = request.headers.get("host", "").split(":")[0]
 
-        # Permitir qualquer IP de loopback (127.0.0.0/8)
-        # Isso garante que health probes do Kubernetes funcionem
+        # Permitir IPs de loopback (127.0.0.0/8) e localhost
+        # Isso garante que health probes locais funcionem
         if host.startswith("127.") or host == "localhost":
+            return await call_next(request)
+
+        # Permitir IPs privados da rede interna (10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16)
+        # Isso garante que health probes do Kubernetes funcionem
+        # O kubelet usa IPs da rede pod para fazer probes
+        if (
+            host.startswith("10.") or
+            (host.startswith("172.") and len(host.split(".")) == 4 and 16 <= int(host.split(".")[1]) <= 31) or
+            host.startswith("192.168.")
+        ):
             return await call_next(request)
 
         # Verificar se o host está na lista de permitidos
@@ -393,9 +403,8 @@ app.add_middleware(
 )
 
 # Middleware de hosts confiáveis - usa propriedade que retorna hosts seguros por ambiente
-# LoopbackAwareTrustedHostMiddleware permite IPs de loopback (127.x) para Kubernetes probes
-# TEMPORÁRIAMENTE DESABILITADO PARA RESOLVER CRASHLOOPBACKOFF - SERÁ RESTABELECIDO APÓS BUILD
-# app.add_middleware(LoopbackAwareTrustedHostMiddleware, allowed_hosts=settings.allowed_hosts_property)
+# LoopbackAwareTrustedHostMiddleware permite IPs de loopback (127.x) e rede pod (10.x) para Kubernetes probes
+app.add_middleware(LoopbackAwareTrustedHostMiddleware, allowed_hosts=settings.allowed_hosts_property)
 
 # SEC-001: Adicionar middleware de security headers (centralizado)
 app.add_middleware(SecurityHeadersMiddleware)
