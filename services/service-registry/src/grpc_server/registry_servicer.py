@@ -45,8 +45,7 @@ class ServiceRegistryServicer:
                     await context.abort(
                         grpc.StatusCode.INVALID_ARGUMENT, "Capabilities não podem estar vazias"
                     )
-                    from src.proto import service_registry_pb2
-                    return service_registry_pb2.RegisterResponse()
+                    # abort() levanta exceção e termina o RPC - código abaixo nunca executa
 
                 # Registrar agente
                 agent_id, registration_token = await self.registry_service.register_agent(
@@ -77,15 +76,13 @@ class ServiceRegistryServicer:
                 logger.error("register_validation_error", error=str(e))
                 span.set_status(Status(StatusCode.ERROR, str(e)))
                 await context.abort(grpc.StatusCode.INVALID_ARGUMENT, str(e))
-                from src.proto import service_registry_pb2
-                return service_registry_pb2.RegisterResponse()
+                # abort() levanta exceção - retorno abaixo nunca executa
 
             except Exception as e:
                 logger.error("register_internal_error", error=str(e))
                 span.set_status(Status(StatusCode.ERROR, str(e)))
                 await context.abort(grpc.StatusCode.INTERNAL, f"Erro interno: {e!s}")
-                from src.proto import service_registry_pb2
-                return service_registry_pb2.RegisterResponse()
+                # abort() levanta exceção - retorno abaixo nunca executa
 
     async def Heartbeat(self, request, context):
         """RPC: Enviar heartbeat"""
@@ -131,19 +128,13 @@ class ServiceRegistryServicer:
                 logger.error("heartbeat_validation_error", error=str(e))
                 span.set_status(Status(StatusCode.ERROR, str(e)))
                 await context.abort(grpc.StatusCode.NOT_FOUND, str(e))
-                # Retornar resposta vazia para evitar TypeError na serialização
-                from src.proto import service_registry_pb2
-
-                return service_registry_pb2.HeartbeatResponse()
+                # abort() levanta exceção - código abaixo nunca executa
 
             except Exception as e:
                 logger.error("heartbeat_internal_error", error=str(e))
                 span.set_status(Status(StatusCode.ERROR, str(e)))
                 await context.abort(grpc.StatusCode.INTERNAL, f"Erro interno: {e!s}")
-                # Retornar resposta vazia para evitar TypeError na serialização
-                from src.proto import service_registry_pb2
-
-                return service_registry_pb2.HeartbeatResponse()
+                # abort() levanta exceção - código abaixo nunca executa
 
     async def Deregister(self, request, context):
         """RPC: Deregistrar agente"""
@@ -172,9 +163,7 @@ class ServiceRegistryServicer:
                 logger.error("deregister_internal_error", error=str(e))
                 span.set_status(Status(StatusCode.ERROR, str(e)))
                 await context.abort(grpc.StatusCode.INTERNAL, f"Erro interno: {e!s}")
-                from src.proto import service_registry_pb2
-
-                return service_registry_pb2.DeregisterResponse(success=False)
+                # abort() levanta exceção - código abaixo nunca executa
 
     async def DiscoverAgents(self, request, context):
         """RPC: Descobrir agentes baseado em capabilities"""
@@ -231,8 +220,7 @@ class ServiceRegistryServicer:
                 logger.error("discover_agents_error", error=str(e))
                 span.set_status(Status(StatusCode.ERROR, str(e)))
                 await context.abort(grpc.StatusCode.INTERNAL, f"Erro interno: {e!s}")
-                from src.proto import service_registry_pb2
-                return service_registry_pb2.DiscoverResponse(agents=[], ranked=False)
+                # abort() levanta exceção - código abaixo nunca executa
 
     async def GetAgent(self, request, context):
         """RPC: Obter informações de um agente específico"""
@@ -252,9 +240,7 @@ class ServiceRegistryServicer:
                     await context.abort(
                         grpc.StatusCode.NOT_FOUND, f"Agente {agent_id} não encontrado"
                     )
-                    from src.proto import service_registry_pb2
-
-                    return service_registry_pb2.GetAgentResponse()
+                    # abort() levanta exceção - código abaixo nunca executa
 
                 # Converter para proto
                 from src.proto import service_registry_pb2
@@ -271,17 +257,13 @@ class ServiceRegistryServicer:
             except ValueError as e:
                 span.set_status(Status(StatusCode.ERROR, str(e)))
                 await context.abort(grpc.StatusCode.INVALID_ARGUMENT, str(e))
-                from src.proto import service_registry_pb2
-
-                return service_registry_pb2.GetAgentResponse()
+                # abort() levanta exceção - código abaixo nunca executa
 
             except Exception as e:
                 logger.error("get_agent_error", error=str(e))
                 span.set_status(Status(StatusCode.ERROR, str(e)))
                 await context.abort(grpc.StatusCode.INTERNAL, f"Erro interno: {e!s}")
-                from src.proto import service_registry_pb2
-
-                return service_registry_pb2.GetAgentResponse()
+                # abort() levanta exceção - código abaixo nunca executa
 
     async def ListAgents(self, request, context):
         """RPC: Listar todos os agentes"""
