@@ -38,6 +38,8 @@ class Settings(BaseSettings):
     PII_SERVICE_ADDRESS: str = "pii-service:8021"
     PII_SERVICE_TIMEOUT: int = 3
 
+    # Flow Router
+
     # Rate Limiting
     RATE_LIMIT_DEFAULT: int = 100
     RATE_LIMIT_REDIS_URL: str = "redis://redis:6379/0"
@@ -51,6 +53,7 @@ class Settings(BaseSettings):
     # Kafka
     KAFKA_BOOTSTRAP_SERVERS: str = "kafka:9092"
     KAFKA_TOPIC_PREFIX: str = "unified"
+    KAFKA_ENABLED: bool = True
 
     # Auth
     JWT_SECRET: str = "change-me"
