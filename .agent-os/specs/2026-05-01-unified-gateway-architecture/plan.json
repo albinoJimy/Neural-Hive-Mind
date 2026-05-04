@@ -95,7 +95,8 @@
         "T3"
       ],
       "parallel_safe": false,
-      "status": "pending"
+      "status": "done",
+      "summary": "NLU Service (:8020) - 7 arquivos código (688 LOC service), proto bindings gerados, 17 testes passando, INV-1 compliance verificado. gRPC+REST dual protocol, Redis cache com circuit breaker, spaCy models (pt/en/es)."
     },
     {
       "id": "T5",
