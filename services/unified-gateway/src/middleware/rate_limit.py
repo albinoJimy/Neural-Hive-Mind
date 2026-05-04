@@ -7,11 +7,9 @@ Implementa INV-8: Rate limiting applied per-tenant before downstream
 services, returns HTTP 429 with Retry-After.
 """
 
-import asyncio
 import time
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any
 
 import structlog
 from fastapi import Request, Response, status
@@ -171,7 +169,7 @@ class RateLimiter:
             )
 
         except Exception as e:
-            logger.error(
+            logger.error(  # noqa: TRY400
                 "rate_limit_check_failed",
                 tenant_id=tenant_id,
                 error=str(e),
@@ -185,9 +183,10 @@ class RateLimiter:
                 retry_after=None,
             )
 
-    def _make_key(self, *parts: str) -> str:
+    def _make_key(self, *parts: str | int | None) -> str:
         """Cria chave Redis."""
-        return ":".join(f"unified_gateway:rate_limit:{p}" for p in parts if p)
+        filtered_parts = [str(p) for p in parts if p is not None]
+        return "unified_gateway:rate_limit:" + ":".join(filtered_parts)
 
     async def close(self):
         """Fecha conexão Redis."""
@@ -328,7 +327,7 @@ _rate_limiter_singleton: RateLimiter | None = None
 
 def get_rate_limiter() -> RateLimiter:
     """Retorna instância singleton de RateLimiter."""
-    global _rate_limiter_singleton
+    global _rate_limiter_singleton  # noqa: PLW0603
     if _rate_limiter_singleton is None:
         _rate_limiter_singleton = RateLimiter()
     return _rate_limiter_singleton

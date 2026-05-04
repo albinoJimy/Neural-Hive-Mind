@@ -109,7 +109,8 @@
         "T3"
       ],
       "parallel_safe": true,
-      "status": "pending"
+      "status": "done",
+      "summary": "PII Service (:8021) with gRPC+REST, audit logging, unmask reversivel AES-256-GCM"
     },
     {
       "id": "T6",
@@ -122,7 +123,8 @@
         "T2"
       ],
       "parallel_safe": true,
-      "status": "pending"
+      "status": "done",
+      "summary": "Rate Limiter with Redis, per-tenant, HTTP 429 with Retry-After"
     },
     {
       "id": "T7",
@@ -135,7 +137,8 @@
         "T2"
       ],
       "parallel_safe": true,
-      "status": "pending"
+      "status": "done",
+      "summary": "Context Builder implementado: extrai tenant_id, session_id, user_id do JWT (R-G4, INV-7). 481 LOC + 39 testes passando."
     },
     {
       "id": "T8",

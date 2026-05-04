@@ -1,0 +1,26 @@
+# PII Service Requirements
+
+# Base (consolidado)
+-r ../../requirements-base.txt
+
+# Service-specific
+grpcio==1.68.0
+grpcio-tools==1.68.0
+protobuf==5.29.1
+pydantic-settings==2.6.1
+structlog==24.4.0
+
+# MongoDB para audit logging (INV-13)
+motor==3.6.0
+pymongo==4.10.1
+
+# Criptografia para unmask reversível (INV-14)
+cryptography==43.0.1
+
+# Libraries Neural Hive-Mind
+-e ../../libraries/security/neural_hive_security
+-e ../../libraries/python/neural_hive_observability
+-e ../../libraries/python/neural_hive_specialists
+
+# JWT auth
+pyjwt==2.10.1
