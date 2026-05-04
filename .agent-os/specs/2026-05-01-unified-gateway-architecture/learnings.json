@@ -1,0 +1,16 @@
+[
+  {
+    "task_id": "T3",
+    "timestamp": "2026-05-04T11:44:00Z",
+    "learning": "Ao compilar protos com grpc_tools.protoc usando --proto_path absoluto, o código gerado usa imports relativos (import nlu_pb2) em vez de imports com ponto (from . import nlu_pb2). Isso causa ImportError quando o módulo está dentro de um pacote. Solução: editar manualmente os _pb2_grpc.py gerados para usar from . import.",
+    "category": "protobuf",
+    "impact": "low"
+  },
+  {
+    "task_id": "T2",
+    "timestamp": "2026-05-04T12:00:00Z",
+    "learning": "Unified Gateway estrutura base criada seguindo padrões do projeto (FastAPI + neural_hive_security + neural_hive_observability). Middlewares implementam INV-7 (JWT com user_id/tenant_id), INV-8 (Rate limiting Redis-backed), INV-10 (Health check {status, version}), INV-11 (Tracecontext propagation). JWT AuthMiddleware integrado com neural_hive_security.JWTVerifier para produção. Rate Limiter usa algoritmo de janela deslizante com Redis e implementa tiers (TRIAL=10, DEFAULT=100, ENTERPRISE=1000 req/min).",
+    "category": "architecture",
+    "impact": "high"
+  }
+]

@@ -1,0 +1,19 @@
+# Unified Gateway Requirements
+
+# Base (consolidado)
+-r ../../requirements-base.txt
+
+# Service-specific
+httpx==0.28.1
+pydantic-settings==2.6.1
+structlog==24.4.0
+
+# Security
+pyjwt==2.10.1
+
+# Redis para rate limiting
+redis[hiredis]==5.2.1
+
+# Libraries Neural Hive-Mind
+-e ../../libraries/security/neural_hive_security
+-e ../../libraries/python/neural_hive_observability

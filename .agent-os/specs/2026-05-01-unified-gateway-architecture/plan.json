@@ -1,0 +1,683 @@
+{
+  "schema": "plan/v1",
+  "meta": {
+    "type": "refactor",
+    "goal": "Implementar Unified Gateway (:7999) como ponto único de entrada, eliminando duplicações de NLU (1.303 LOC), PII (1.051 LOC), Approval (~2.000 LOC) e autenticação descentralizada",
+    "non_goals": [
+      "Reimplementação completa dos fluxos A-F, G, H",
+      "Mudança de protocolo de Kafka",
+      "Mudança de bancos de dados",
+      "Refatoração de especialistas gRPC",
+      "Interface UI nova"
+    ]
+  },
+  "contracts": {
+    "artifact": "contracts.md",
+    "interfaces": [
+      "NLUPipeline",
+      "PIIDetectorLite",
+      "ApprovalService",
+      "IntentEnvelopeModels",
+      "UnifiedGatewayAPI",
+      "NLUService",
+      "PIIService",
+      "ApprovalCorePackage"
+    ],
+    "invariants": [
+      "INV-1: NLU Result Compatibility - NLU Service must return compatible NLUResult with domain, entities, confidence, keywords",
+      "INV-2: PII Detection Types - PII Service must detect same 7 types (EMAIL, PHONE, CPF, CNPJ, CREDIT_CARD, SSN, ADDRESS) with positions",
+      "INV-3: Approval Decision Format - Approval Core must produce same ApprovalDecision format with decision, approved_by, approved_at, rejection_reason",
+      "INV-4: Kafka Topic Contracts - Topic names (plan_approvals, plan_approvals_responses, specialist_feedback) and message formats must not change",
+      "INV-5: Intent Envelope Structure - Intent envelope must preserve text, domain, entities, context fields",
+      "INV-6: Approval Request Lifecycle - Status transitions PENDING→APPROVED/REJECTED only, revert only via Saga compensation",
+      "INV-7: Authentication Context - JWT tokens validated by Unified Gateway must pass user_id, tenant_id to downstream services",
+      "INV-8: Rate Limiting Behavior - Applied per-tenant before reaching downstream services, returns HTTP 429 with Retry-After",
+      "INV-9: Original Intent Text Preservation - Original text preserved through entire pipeline for Active Learning",
+      "INV-10: Health Check Compatibility - All services respond to GET /health with {status, version} JSON",
+      "INV-11: Observability Context - Distributed tracing propagated via traceparent header across HTTP/gRPC",
+      "INV-12: Graceful Degradation - If NLU/PII services down, fall back to local implementations during transition",
+      "INV-13: PII Audit Logging - All PII masking operations logged to MongoDB pii_audit_log collection",
+      "INV-14: PII Unmask Reversibility - MASK_REDACT must support reversible unmasking via AES-256-GCM encrypted tokens"
+    ]
+  },
+  "tasks": [
+    {
+      "id": "T1",
+      "layer": "L0",
+      "action": "Criar Approval Core Package com modelos unificados (UnifiedApprovalRequest, UnifiedApprovalDecision)",
+      "fulfills": [
+        "R-A1",
+        "R-A2",
+        "R-A3",
+        "R-A4"
+      ],
+      "depends_on": [],
+      "parallel_safe": false,
+      "status": "pending"
+    },
+    {
+      "id": "T2",
+      "layer": "L0",
+      "action": "Criar estrutura base do Unified Gateway (:7999) com FastAPI, JWT middleware, health checks, tracing",
+      "fulfills": [
+        "R-G1",
+        "R-G2"
+      ],
+      "depends_on": [],
+      "parallel_safe": true,
+      "status": "done",
+      "summary": "Estrutura base do Unified Gateway (:7999) criada com FastAPI, JWT middleware (user_id/tenant_id extraction INV-7), Rate Limiter (INV-8), Health Checks (INV-10), Tracing (INV-11). 1.169 LOC de código + 1.096 LOC de testes."
+    },
+    {
+      "id": "T3",
+      "layer": "L0",
+      "action": "Definir protóbufs gRPC para NLU Service (nlu.proto) e PII Service (pii.proto)",
+      "fulfills": [
+        "R-N1",
+        "R-P1"
+      ],
+      "depends_on": [],
+      "parallel_safe": true,
+      "status": "done",
+      "summary": "Protobufs gRPC definidos para NLU Service (nlu.proto) e PII Service (pii.proto) com todas as invariants INV-1 e INV-2 satisfeitas"
+    },
+    {
+      "id": "T4",
+      "layer": "L1",
+      "action": "Implementar NLU Service (:8020) com gRPC+REST, extração de 1.303 LOC do gateway-intencoes",
+      "fulfills": [
+        "R-N2",
+        "R-N3",
+        "R-N4"
+      ],
+      "depends_on": [
+        "T3"
+      ],
+      "parallel_safe": false,
+      "status": "pending"
+    },
+    {
+      "id": "T5",
+      "layer": "L1",
+      "action": "Implementar PII Service (:8021) com gRPC+REST, audit logging MongoDB, unmask reversível AES-256-GCM",
+      "fulfills": [
+        "R-P2",
+        "R-P3",
+        "R-P4"
+      ],
+      "depends_on": [
+        "T3"
+      ],
+      "parallel_safe": true,
+      "status": "pending"
+    },
+    {
+      "id": "T6",
+      "layer": "L1",
+      "action": "Implementar Rate Limiter no Unified Gateway com Redis-backed, por tenant, 100 req/min",
+      "fulfills": [
+        "R-G3"
+      ],
+      "depends_on": [
+        "T2"
+      ],
+      "parallel_safe": true,
+      "status": "pending"
+    },
+    {
+      "id": "T7",
+      "layer": "L1",
+      "action": "Implementar Context Builder para extrair tenant_id, session_id, user_id de JWT",
+      "fulfills": [
+        "R-G4"
+      ],
+      "depends_on": [
+        "T2"
+      ],
+      "parallel_safe": true,
+      "status": "pending"
+    },
+    {
+      "id": "T8",
+      "layer": "L1",
+      "action": "Implementar Intent Classifier com integração NLU Service, classificação A-F/G/H",
+      "fulfills": [
+        "R-G5"
+      ],
+      "depends_on": [
+        "T4",
+        "T7"
+      ],
+      "parallel_safe": false,
+      "status": "pending"
+    },
+    {
+      "id": "T9",
+      "layer": "L1",
+      "action": "Implementar Flow Router para proxy HTTP/gRPC para gateways específicos",
+      "fulfills": [
+        "R-G6"
+      ],
+      "depends_on": [
+        "T8"
+      ],
+      "parallel_safe": false,
+      "status": "pending"
+    },
+    {
+      "id": "T10",
+      "layer": "L1",
+      "action": "Implementar Response Processor com formatação unificada e eventos Kafka",
+      "fulfills": [
+        "R-G7"
+      ],
+      "depends_on": [
+        "T9"
+      ],
+      "parallel_safe": false,
+      "status": "pending"
+    },
+    {
+      "id": "T11",
+      "layer": "L2",
+      "action": "Refatorar gateway-intencoes para proxy NLU/PII services, remover 1.453 LOC",
+      "fulfills": [
+        "R-R1",
+        "R-R2"
+      ],
+      "depends_on": [
+        "T4",
+        "T5"
+      ],
+      "parallel_safe": true,
+      "status": "pending"
+    },
+    {
+      "id": "T12",
+      "layer": "L2",
+      "action": "Refatorar approval-service para usar Approval Core Package, -2.000 LOC",
+      "fulfills": [
+        "R-R3"
+      ],
+      "depends_on": [
+        "T1"
+      ],
+      "parallel_safe": true,
+      "status": "pending"
+    },
+    {
+      "id": "T13",
+      "layer": "L2",
+      "action": "Migrar approval-gateway para approval-service e marcar DEPRECATED",
+      "fulfills": [
+        "R-R4"
+      ],
+      "depends_on": [
+        "T12"
+      ],
+      "parallel_safe": false,
+      "status": "pending"
+    },
+    {
+      "id": "T14",
+      "layer": "L2",
+      "action": "Remover SecurityHeadersMiddleware duplicado de todos os serviços",
+      "fulfills": [
+        "R-R5"
+      ],
+      "depends_on": [
+        "T2"
+      ],
+      "parallel_safe": true,
+      "status": "pending"
+    },
+    {
+      "id": "T15",
+      "layer": "L2",
+      "action": "Implementar Circuit Breaker para chamadas NLU/PII services",
+      "fulfills": [
+        "R-R6"
+      ],
+      "depends_on": [
+        "T4",
+        "T5"
+      ],
+      "parallel_safe": true,
+      "status": "pending"
+    },
+    {
+      "id": "T16",
+      "layer": "L3",
+      "action": "Deploy Unified Gateway :7999, NLU Service :8020, PII Service :8021 em staging",
+      "fulfills": [
+        "R-D1"
+      ],
+      "depends_on": [
+        "T10"
+      ],
+      "parallel_safe": false,
+      "status": "pending"
+    },
+    {
+      "id": "T17",
+      "layer": "L3",
+      "action": "Shift gradual de tráfego 10% → 50% → 100% para Unified Gateway",
+      "fulfills": [
+        "R-D2"
+      ],
+      "depends_on": [
+        "T11",
+        "T14",
+        "T15",
+        "T16"
+      ],
+      "parallel_safe": false,
+      "status": "pending"
+    },
+    {
+      "id": "T18",
+      "layer": "L3",
+      "action": "Remover implementações locais de NLU/PII após 100% de tráfego",
+      "fulfills": [
+        "R-D3"
+      ],
+      "depends_on": [
+        "T17"
+      ],
+      "parallel_safe": false,
+      "status": "pending"
+    },
+    {
+      "id": "T19",
+      "layer": "L3",
+      "action": "Criar documentação de migração, API docs OpenAPI 3.0, runbooks",
+      "fulfills": [
+        "R-D4"
+      ],
+      "depends_on": [
+        "T16"
+      ],
+      "parallel_safe": true,
+      "status": "pending"
+    },
+    {
+      "id": "T20",
+      "layer": "L3",
+      "action": "Remover approval-gateway e marcar endpoints HTTP antigos como deprecated",
+      "fulfills": [
+        "R-D5"
+      ],
+      "depends_on": [
+        "T13",
+        "T17"
+      ],
+      "parallel_safe": false,
+      "status": "pending"
+    }
+  ],
+  "journeys": [
+    {
+      "id": "J1",
+      "name": "cliente simplificado - unico endpoint /api/v1/nhm/request",
+      "composes": [
+        "R-G1",
+        "R-G5",
+        "R-G6"
+      ],
+      "given": "Cliente com request de qualquer tipo (A-F, G, H)",
+      "when": "Envia para POST /api/v1/nhm/request → Unified Gateway classifica → Flow Router roteia → Cliente recebe resposta",
+      "then": "Cliente recebe resposta correta sem conhecer complexidade interna ou fluxo específico"
+    },
+    {
+      "id": "J2",
+      "name": "administração centralizada - auth e rate limiting em um lugar",
+      "composes": [
+        "R-G1",
+        "R-G2",
+        "R-G3"
+      ],
+      "given": "Operador do sistema precisa gerenciar auth e rate limiting",
+      "when": "Configura políticas no Unified Gateway → Todas requests passam pelo gateway → Auth e rate limiting aplicados",
+      "then": "Serviços downstream recebem requests já autenticadas, operação simplificada"
+    },
+    {
+      "id": "J3",
+      "name": "consistencia de NLU e PII - versao centralizada",
+      "composes": [
+        "R-N1",
+        "R-N2",
+        "R-P1",
+        "R-P2"
+      ],
+      "given": "Desenvolvedor precisa atualizar lógica de NLU ou PII",
+      "when": "NLU Service ou PII Service central atualizado → Todos os fluxos usam mesma versão via gRPC",
+      "then": "Resultados consistentes independente do fluxo, manutenção em um único lugar"
+    },
+    {
+      "id": "J4",
+      "name": "[regression] fluxo A-F preservado apos refactor gateway-intencoes",
+      "composes": [
+        "R-R1",
+        "R-R2",
+        "R-N1",
+        "R-N2"
+      ],
+      "given": "Fluxo A-F (Cognitive Pipeline) funciona com gateway-intencoes:8000",
+      "when": "gateway-intencoes refatorado para proxy NLU/PII services via gRPC",
+      "then": "Comportamento idêntico ao pré-refatoração, mesma funcionalidade preservada"
+    },
+    {
+      "id": "J5",
+      "name": "[regression] fluxo G preservado apos refactor approval-service",
+      "composes": [
+        "R-R3",
+        "R-A1",
+        "R-A2"
+      ],
+      "given": "Fluxo G (Code Generation) funciona com approval-service:8004",
+      "when": "approval-service refatorado para usar Approval Core Package neural_hive_approval_common",
+      "then": "Comportamento idêntico ao pré-refatoração, lógica de approval preservada"
+    }
+  ],
+  "verify_plan": [
+    {
+      "target": "R-G1",
+      "type": "sub_req",
+      "gates": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "target": "R-G2",
+      "type": "sub_req",
+      "gates": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "target": "R-G3",
+      "type": "sub_req",
+      "gates": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "target": "R-G4",
+      "type": "sub_req",
+      "gates": [
+        1,
+        2
+      ]
+    },
+    {
+      "target": "R-G5",
+      "type": "sub_req",
+      "gates": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "target": "R-G6",
+      "type": "sub_req",
+      "gates": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "target": "R-G7",
+      "type": "sub_req",
+      "gates": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "target": "R-N1",
+      "type": "sub_req",
+      "gates": [
+        1,
+        2
+      ]
+    },
+    {
+      "target": "R-N2",
+      "type": "sub_req",
+      "gates": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "target": "R-N3",
+      "type": "sub_req",
+      "gates": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "target": "R-N4",
+      "type": "sub_req",
+      "gates": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "target": "R-P1",
+      "type": "sub_req",
+      "gates": [
+        1,
+        2
+      ]
+    },
+    {
+      "target": "R-P2",
+      "type": "sub_req",
+      "gates": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "target": "R-P3",
+      "type": "sub_req",
+      "gates": [
+        1,
+        2
+      ]
+    },
+    {
+      "target": "R-P4",
+      "type": "sub_req",
+      "gates": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "target": "R-A1",
+      "type": "sub_req",
+      "gates": [
+        1,
+        2
+      ]
+    },
+    {
+      "target": "R-A2",
+      "type": "sub_req",
+      "gates": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "target": "R-A3",
+      "type": "sub_req",
+      "gates": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "target": "R-A4",
+      "type": "sub_req",
+      "gates": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "target": "R-R1",
+      "type": "sub_req",
+      "gates": [
+        1,
+        3
+      ]
+    },
+    {
+      "target": "R-R2",
+      "type": "sub_req",
+      "gates": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "target": "R-R3",
+      "type": "sub_req",
+      "gates": [
+        1,
+        3
+      ]
+    },
+    {
+      "target": "R-R4",
+      "type": "sub_req",
+      "gates": [
+        1,
+        2
+      ]
+    },
+    {
+      "target": "R-R5",
+      "type": "sub_req",
+      "gates": [
+        1,
+        2
+      ]
+    },
+    {
+      "target": "R-R6",
+      "type": "sub_req",
+      "gates": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "target": "R-D1",
+      "type": "sub_req",
+      "gates": [
+        1,
+        3
+      ]
+    },
+    {
+      "target": "R-D2",
+      "type": "sub_req",
+      "gates": [
+        1,
+        3
+      ]
+    },
+    {
+      "target": "R-D3",
+      "type": "sub_req",
+      "gates": [
+        1,
+        2
+      ]
+    },
+    {
+      "target": "R-D4",
+      "type": "sub_req",
+      "gates": [
+        1,
+        2
+      ]
+    },
+    {
+      "target": "R-D5",
+      "type": "sub_req",
+      "gates": [
+        1,
+        2
+      ]
+    },
+    {
+      "target": "J1",
+      "type": "journey",
+      "gates": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "target": "J2",
+      "type": "journey",
+      "gates": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "target": "J3",
+      "type": "journey",
+      "gates": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "target": "J4",
+      "type": "journey",
+      "gates": [
+        1,
+        3
+      ]
+    },
+    {
+      "target": "J5",
+      "type": "journey",
+      "gates": [
+        1,
+        3
+      ]
+    }
+  ]
+}

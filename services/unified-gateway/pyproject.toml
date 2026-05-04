@@ -1,0 +1,22 @@
+[tool.poetry]
+name = "unified-gateway"
+version = "1.0.0"
+description = "Unified Gateway para Neural Hive-Mind - Gateway unificado com autenticação e tracing"
+authors = ["Neural Hive-Mind Team <team@neural-hive.com>"]
+readme = "README.md"
+packages = [{include = "src"}]
+
+# NOTA: Este arquivo pyproject.toml é mantido para metadados do projeto.
+# A FONTE DE VERDADE para dependências de produção é requirements.txt
+# (usado pelos Dockerfiles). Mantenha este arquivo sincronizado com requirements.txt.
+
+[tool.poetry.dependencies]
+python = "^3.12"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
