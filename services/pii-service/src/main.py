@@ -89,15 +89,6 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# Adicionar SecurityHeadersMiddleware (se disponível)
-try:
-    from neural_hive_security import SecurityHeadersMiddleware
-
-    app.add_middleware(SecurityHeadersMiddleware)
-    logger.info("security_headers_middleware_added")
-except ImportError:
-    logger.warning("neural_hive_security not available - security headers disabled")
-
 # Adicionar JWTAuthMiddleware (R-P4: JWT auth required)
 # Nota: Em produção, require_auth=True
 app.add_middleware(

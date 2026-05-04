@@ -48,9 +48,6 @@ from neural_hive_observability.health import HealthChecker, HealthStatus
 from neural_hive_observability.health_checks.otel import OTELPipelineHealthCheck
 from neural_hive_observability.middleware import TraceContextMiddleware
 
-# SEC-001: Security Headers
-from neural_hive_security import SecurityHeadersMiddleware
-
 # Configure structured logging
 logger = structlog.get_logger()
 
@@ -566,9 +563,6 @@ app.add_middleware(
     allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allow_headers=["*"],
 )
-
-# SEC-001: Adicionar middleware de security headers
-app.add_middleware(SecurityHeadersMiddleware)
 
 # W3C Trace Context middleware para propagação de contexto distribuído
 try:

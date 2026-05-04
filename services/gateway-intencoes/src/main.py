@@ -39,9 +39,6 @@ from models.intent_envelope import IntentEnvelope, IntentRequest
 from pipelines.asr_pipeline import ASRPipeline
 from pipelines.nlu_pipeline import NLUPipeline
 
-# SEC-001: Security Headers (centralizado)
-from neural_hive_security import SecurityHeadersMiddleware
-
 # Tentar importar observabilidade - usar stubs se não disponível
 try:
     from neural_hive_observability import get_context_manager, get_metrics, trace_intent
@@ -405,9 +402,6 @@ app.add_middleware(
 # Middleware de hosts confiáveis - usa propriedade que retorna hosts seguros por ambiente
 # LoopbackAwareTrustedHostMiddleware permite IPs de loopback (127.x) e rede pod (10.x) para Kubernetes probes
 app.add_middleware(LoopbackAwareTrustedHostMiddleware, allowed_hosts=settings.allowed_hosts_property)
-
-# SEC-001: Adicionar middleware de security headers (centralizado)
-app.add_middleware(SecurityHeadersMiddleware)
 
 # W3C Trace Context middleware para propagação de contexto distribuído
 if OBSERVABILITY_AVAILABLE:

@@ -13,9 +13,6 @@ from fastapi.responses import JSONResponse, PlainTextResponse
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
-# SEC-001: Security Headers
-from neural_hive_security import SecurityHeadersMiddleware
-
 logger = structlog.get_logger()
 
 # Importar módulo de feedback (lazy import para evitar erros se não disponível)
@@ -129,9 +126,6 @@ def create_fastapi_app(specialist, config) -> FastAPI:
         docs_url=None,  # Disable docs in production
         redoc_url=None,
     )
-
-    # SEC-001: Adicionar middleware de security headers
-    app.add_middleware(SecurityHeadersMiddleware)
 
     @app.get("/health", response_class=JSONResponse, status_code=200)
     async def health_check():

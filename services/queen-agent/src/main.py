@@ -12,9 +12,6 @@ from neural_hive_observability import (
     init_observability,
 )
 
-# SEC-001: Security Headers
-from neural_hive_security import SecurityHeadersMiddleware
-
 from .api import (
     decisions_router,
     election_router,
@@ -462,9 +459,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# SEC-001: Adicionar middleware de security headers
-app.add_middleware(SecurityHeadersMiddleware)
 
 # Montar routers
 app.include_router(health_router)

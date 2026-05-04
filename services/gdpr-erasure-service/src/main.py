@@ -11,7 +11,6 @@ import structlog
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from neural_hive_security import SecurityHeadersMiddleware
 from src.api.routers.gdpr import router as gdpr_router, set_erasure_service
 from src.api.routers.health import router as health_router, set_app_state
 from src.clients.mongodb_client import MongoDBClient
@@ -127,9 +126,6 @@ app.add_middleware(
     allow_headers=["*"],
     expose_headers=["X-Request-ID", "X-Correlation-ID"],
 )
-
-# Security headers
-app.add_middleware(SecurityHeadersMiddleware)
 
 # Inclui routers
 app.include_router(health_router)

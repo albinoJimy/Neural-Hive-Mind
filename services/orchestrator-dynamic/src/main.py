@@ -25,8 +25,6 @@ from neural_hive_observability import (
 )
 from neural_hive_observability.middleware import TraceContextMiddleware
 
-# SEC-001: Security Headers
-from neural_hive_security import SecurityHeadersMiddleware
 from src.config import get_settings
 from src.consumers.decision_consumer import DecisionConsumer
 
@@ -1111,9 +1109,6 @@ app.add_middleware(
     allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allow_headers=["*"],
 )
-
-# SEC-001: Security Headers Middleware
-app.add_middleware(SecurityHeadersMiddleware)
 
 # W3C Trace Context middleware para propagação de contexto distribuído
 try:

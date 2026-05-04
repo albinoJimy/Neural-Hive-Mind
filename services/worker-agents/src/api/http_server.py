@@ -11,9 +11,6 @@ from pydantic import BaseModel, Field
 
 from neural_hive_observability import get_metrics
 
-# SEC-001: Security Headers
-from neural_hive_security import SecurityHeadersMiddleware
-
 
 class TaskCancellationRequest(BaseModel):
     """Request model for task cancellation/preemption."""
@@ -168,9 +165,6 @@ def create_http_server(config, app_state):
         version="1.0.0",
         description="Worker Agents para execução distribuída de tarefas",
     )
-
-    # SEC-001: Adicionar middleware de security headers
-    app.add_middleware(SecurityHeadersMiddleware)
 
     # W3C Trace Context middleware para propagação de contexto distribuído
     try:

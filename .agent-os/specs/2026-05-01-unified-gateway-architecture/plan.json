@@ -232,7 +232,8 @@
         "T2"
       ],
       "parallel_safe": true,
-      "status": "pending"
+      "status": "done",
+      "summary": "SecurityHeadersMiddleware removido de todos os serviços exceto Unified Gateway"
     },
     {
       "id": "T15",

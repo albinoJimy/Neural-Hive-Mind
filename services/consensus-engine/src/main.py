@@ -31,9 +31,6 @@ from neural_hive_observability.health import HealthChecker, HealthStatus
 from neural_hive_observability.health_checks.otel import OTELPipelineHealthCheck
 from neural_hive_observability.middleware import TraceContextMiddleware
 
-# SEC-001: Security Headers
-from neural_hive_security import SecurityHeadersMiddleware
-
 logger = structlog.get_logger()
 
 # Configurações
@@ -45,9 +42,6 @@ app = FastAPI(
     version="1.0.0",
     description="Mecanismo de Consenso Multi-Agente - Neural Hive-Mind",
 )
-
-# SEC-001: Adicionar middleware de security headers
-app.add_middleware(SecurityHeadersMiddleware)
 
 # W3C Trace Context middleware para propagação de contexto distribuído
 try:
