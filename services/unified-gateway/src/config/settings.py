@@ -24,6 +24,16 @@ class Settings(BaseSettings):
     NLU_SERVICE_ADDRESS: str = "nlu-service:8020"
     NLU_SERVICE_TIMEOUT: int = 5
 
+    @property
+    def nlu_service_address(self) -> str:
+        """Endereço do NLU Service para gRPC."""
+        return self.NLU_SERVICE_ADDRESS
+
+    @property
+    def nlu_timeout_seconds(self) -> float:
+        """Timeout para chamadas gRPC do NLU Service."""
+        return float(self.NLU_SERVICE_TIMEOUT)
+
     # PII Service
     PII_SERVICE_ADDRESS: str = "pii-service:8021"
     PII_SERVICE_TIMEOUT: int = 3

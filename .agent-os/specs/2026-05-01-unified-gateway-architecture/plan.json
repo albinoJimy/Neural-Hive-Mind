@@ -154,7 +154,8 @@
         "T7"
       ],
       "parallel_safe": false,
-      "status": "pending"
+      "status": "done",
+      "summary": "Intent Classifier integrado com NLU Service via gRPC. Mapeamento domínio→flow (BUSINESS→A-F, TECHNICAL→G, INFRASTRUCTURE→H, SECURITY→A-F). Fallback keyword-only quando NLU indisponível (INV-12). 34 testes passando."
     },
     {
       "id": "T9",
