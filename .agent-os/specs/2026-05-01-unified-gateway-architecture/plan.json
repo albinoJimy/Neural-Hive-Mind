@@ -53,7 +53,8 @@
       ],
       "depends_on": [],
       "parallel_safe": false,
-      "status": "pending"
+      "status": "done",
+      "summary": "Approval Core Package created (neural_hive_approval_common: 1052 LOC, 43 tests)"
     },
     {
       "id": "T2",
