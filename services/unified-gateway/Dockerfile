@@ -9,13 +9,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Copiar requirements primeiro para cache do Docker
-COPY requirements.txt .
+# Contexto de build é a raiz do repositório (context: .)
+COPY services/unified-gateway/requirements.txt .
 
 # Instalar dependências Python
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copiar código fonte
-COPY src/ ./src/
+COPY services/unified-gateway/src/ ./src/
 
 # Expor porta
 EXPOSE 7999
