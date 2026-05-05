@@ -284,7 +284,8 @@
         "T16"
       ],
       "parallel_safe": false,
-      "status": "pending"
+      "status": "done",
+      "summary": "Configuração Istio para traffic shifting criada: k8s/unified-gateway-virtualservice.yaml (3 fases: 10%/50%/100%), k8s/traffic-shift.sh (script auxiliar para transição). Pronto para executar após T16 confirmado."
     },
     {
       "id": "T18",

@@ -1,0 +1,203 @@
+# Unified Gateway - Istio VirtualService com Traffic Shifting
+# Configuração para migração gradual de tráfego: gateway-intencoes → unified-gateway
+#
+# Fases de migração:
+# - Phase 1: 10% unified-gateway, 90% gateway-intencoes
+# - Phase 2: 50% unified-gateway, 50% gateway-intencoes
+# - Phase 3: 100% unified-gateway (gateway-intencoes desativado)
+#
+# Requisitos:
+# - Istio instalado (namespace istio-system)
+# - Gateway 'neural-hive-gateway' no namespace istio-system
+# - Services 'gateway-intencoes.fluxo-a' e 'unified-gateway.gateway' existentes
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: unified-gateway-vs
+  namespace: gateway
+  labels:
+    app: unified-gateway
+    neuralhive/layer: application
+spec:
+  # Hosts que roteiam para Unified Gateway
+  hosts:
+  - api.neural-hive.local
+  - gateway.neural-hive.local
+  - nhm-api.neural-hive.local
+  gateways:
+  - istio-system/neural-hive-gateway
+  http:
+  # ============================================================================
+  # PHASE 1: 10% Unified Gateway, 90% Legacy (inicial)
+  # ============================================================================
+  # Para ativar Phase 1, comente o "Phase 3" abaixo e descomente este bloco:
+  #
+  # - match:
+  #     - headers:
+  #         x-traffic-phase:
+  #             exact: "canary"
+  #   route:
+  #   - destination:
+  #         host: unified-gateway.gateway.svc.cluster.local
+  #         port:
+  #           number: 7999
+  #       weight: 100
+  # - route:
+  #   - destination:
+  #         host: gateway-intencoes.fluxo-a.svc.cluster.local
+  #         port:
+  #           number: 8000
+  #       weight: 90
+  #   - destination:
+  #         host: unified-gateway.gateway.svc.cluster.local
+  #         port:
+  #           number: 7999
+  #       weight: 10
+  #   timeout: 300s
+  #   retries:
+  #     attempts: 3
+  #     perTryTimeout: 100s
+  #     retryOn: connect-failure,refused-stream,unavailable,cancelled
+  #
+  # ============================================================================
+
+  # ============================================================================
+  # PHASE 2: 50% Unified Gateway, 50% Legacy (validação)
+  # ============================================================================
+  # Para ativar Phase 2, comente o "Phase 3" abaixo e descomente este bloco:
+  #
+  # - match:
+  #     - headers:
+  #         x-traffic-phase:
+  #             exact: "canary"
+  #   route:
+  #   - destination:
+  #         host: unified-gateway.gateway.svc.cluster.local
+  #         port:
+  #           number: 7999
+  #       weight: 100
+  # - route:
+  #   - destination:
+  #         host: gateway-intencoes.fluxo-a.svc.cluster.local
+  #         port:
+  #           number: 8000
+  #       weight: 50
+  #   - destination:
+  #         host: unified-gateway.gateway.svc.cluster.local
+  #         port:
+  #           number: 7999
+  #       weight: 50
+  #   timeout: 300s
+  #   retries:
+  #     attempts: 3
+  #     perTryTimeout: 100s
+  #     retryOn: connect-failure,refused-stream,unavailable,cancelled
+  #
+  # ============================================================================
+
+  # ============================================================================
+  # PHASE 3: 100% Unified Gateway (final - legado desativado)
+  # ============================================================================
+  # Configuração padrão após migração completa
+  - match:
+      - headers:
+          x-traffic-phase:
+              exact: "legacy"
+    route:
+    - destination:
+        host: gateway-intencoes.fluxo-a.svc.cluster.local
+        port:
+          number: 8000
+      weight: 100
+  - route:
+    - destination:
+        host: gateway-intencoes.fluxo-a.svc.cluster.local
+        port:
+          number: 8000
+      weight: 0
+    - destination:
+        host: unified-gateway.gateway.svc.cluster.local
+        port:
+          number: 7999
+      weight: 100
+    timeout: 300s
+    retries:
+      attempts: 3
+      perTryTimeout: 100s
+      retryOn: connect-failure,refused-stream,unavailable,cancelled
+    # Mirror de requests para observação (opcional)
+    # mirror:
+    #   host: unified-gateway.gateway.svc.cluster.local
+    #   port:
+    #     number: 7999
+    # mirrorPercentage:
+    #   value: 100
+  #
+  # ============================================================================
+
+---
+# Destination Rule para Unified Gateway (subsets baseados em version)
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: unified-gateway-dr
+  namespace: gateway
+spec:
+  host: unified-gateway.gateway.svc.cluster.local
+  trafficPolicy:
+    loadBalancer:
+      simple: ROUND_ROBIN
+    connectionPool:
+      tcp:
+        maxConnections: 100
+      http:
+        http1MaxPendingRequests: 50
+        http2MaxRequests: 100
+        maxRequestsPerConnection: 2
+    outlierDetection:
+      consecutiveErrors: 3
+      interval: 30s
+      baseEjectionTime: 30s
+      maxEjectionPercent: 50
+  subsets:
+  - name: v1
+    labels:
+      version: "1.0.0"
+  - name: latest
+    labels:
+      version: latest
+---
+# Destination Rule para Legacy Gateway (gateway-intencoes)
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: gateway-intencoes-dr
+  namespace: gateway
+spec:
+  host: gateway-intencoes.fluxo-a.svc.cluster.local
+  trafficPolicy:
+    loadBalancer:
+      simple: ROUND_ROBIN
+    connectionPool:
+      tcp:
+        maxConnections: 100
+      http:
+        http1MaxPendingRequests: 50
+        maxRequestsPerConnection: 2
+---
+# Service Entry para monitoramento externo (opcional)
+apiVersion: networking.istio.io/v1beta1
+kind: ServiceEntry
+metadata:
+  name: unified-gateway-external
+  namespace: gateway
+spec:
+  hosts:
+  - unified-gateway.external
+  location: MESH_EXTERNAL
+  ports:
+  - number: 7999
+    name: http
+    protocol: HTTP
+  resolution: DNS
