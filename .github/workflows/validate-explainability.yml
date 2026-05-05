@@ -16,15 +16,9 @@ on:
       - develop
 
 jobs:
-  select-runner:
-    name: Select Runner with Auto Fallback
-    uses: ./.github/workflows/_runner-select.yml
-    secrets: inherit
-
   validate-background-dataset:
     name: Validate SHAP Background Dataset
-    needs: select-runner
-    runs-on: ubuntu-latest
+        runs-on: ubuntu-latest
     if: contains(github.event.head_commit.modified, 'data/shap_background')
 
     steps:
@@ -61,8 +55,7 @@ jobs:
 
   test-explainability-integration:
     name: Test SHAP/LIME Integration
-    needs: select-runner
-    runs-on: ubuntu-latest
+        runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
@@ -112,8 +105,7 @@ jobs:
 
   benchmark-shap-lime-performance:
     name: Benchmark SHAP/LIME Performance
-    needs: select-runner
-    runs-on: ubuntu-latest
+        runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code

@@ -26,16 +26,10 @@ env:
   PYTHON_VERSION: 3.11
 
 jobs:
-  select-runner:
-    name: Select Runner with Auto Fallback
-    uses: ./.github/workflows/_runner-select.yml
-    secrets: inherit
-
   # Validação de arquivos Terraform
   terraform-validate:
     name: Terraform Validation
-    needs: select-runner
-    runs-on: ubuntu-latest
+        runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: ./infrastructure/terraform/modules/observability-stack
@@ -67,8 +61,7 @@ jobs:
   # Validação de Helm Charts
   helm-validate:
     name: Helm Charts Validation
-    needs: select-runner
-    runs-on: ubuntu-latest
+        runs-on: ubuntu-latest
 
     strategy:
       matrix:
@@ -122,8 +115,7 @@ jobs:
   # Validação de Dashboards Grafana
   grafana-dashboards-validate:
     name: Grafana Dashboards Validation
-    needs: select-runner
-    runs-on: ubuntu-latest
+        runs-on: ubuntu-latest
 
     steps:
     - name: Checkout code
@@ -171,8 +163,7 @@ jobs:
   # Validação de Alertas Prometheus
   prometheus-alerts-validate:
     name: Prometheus Alerts Validation
-    needs: select-runner
-    runs-on: ubuntu-latest
+        runs-on: ubuntu-latest
 
     steps:
     - name: Checkout code
@@ -205,8 +196,7 @@ jobs:
   # Validação da Biblioteca Python
   python-library-validate:
     name: Python Library Validation
-    needs: select-runner
-    runs-on: ubuntu-latest
+        runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: ./libraries/python/neural_hive_observability
@@ -333,8 +323,7 @@ jobs:
   # Verificação de Segurança
   security-scan:
     name: Security Scan
-    needs: select-runner
-    runs-on: ubuntu-latest
+        runs-on: ubuntu-latest
 
     steps:
     - name: Checkout code

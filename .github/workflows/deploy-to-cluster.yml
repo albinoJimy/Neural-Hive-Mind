@@ -43,18 +43,12 @@ env:
   GHCR_PREFIX_TEMPLATE: ghcr.io/OWNER/neural-hive-mind
 
 jobs:
-  select-runner:
-    name: Select Runner with Auto Fallback
-    uses: ./.github/workflows/_runner-select.yml
-    secrets: inherit
-
   # ============================================================================
   # Job 1: Preparar deploy
   # ============================================================================
   prepare:
     name: Preparar Deploy
-    needs: select-runner
-    runs-on: ubuntu-latest
+        runs-on: ubuntu-latest
     if: |
       github.event_name == 'workflow_dispatch' ||
       github.event.workflow_run.conclusion == 'success'

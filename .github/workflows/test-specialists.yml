@@ -18,18 +18,12 @@ jobs:
   # ============================================================
   # NOVO: Job de seleção de runner com fallback
   # ============================================================
-  select-runner:
-    name: Select Runner with Auto Fallback
-    uses: ./.github/workflows/_runner-select.yml
-    secrets: inherit
-
   # ============================================================
   # MODIFICADO: Adiciona 'needs' e usa runner selecionado
   # ============================================================
   test:
     name: Test Specialists (Python ${{ matrix.python-version }})
-    needs: select-runner
-    runs-on: ubuntu-latest
+        runs-on: ubuntu-latest
     strategy:
       matrix:
         python-version: ["3.11", "3.12"]
@@ -135,8 +129,7 @@ jobs:
 
   lint:
     name: Lint Specialists
-    needs: select-runner
-    runs-on: ubuntu-latest
+        runs-on: ubuntu-latest
     steps:
       - name: Checkout código
         uses: actions/checkout@v4

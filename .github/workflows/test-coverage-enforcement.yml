@@ -24,15 +24,9 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  select-runner:
-    name: Select Runner with Auto Fallback
-    uses: ./.github/workflows/_runner-select.yml
-    secrets: inherit
-
   unit-tests:
     name: Unit Tests with Coverage
-    needs: select-runner
-    runs-on: ubuntu-latest
+        runs-on: ubuntu-latest
 
     steps:
       - name: Checkout

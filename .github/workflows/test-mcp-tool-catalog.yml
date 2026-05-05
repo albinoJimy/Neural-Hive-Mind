@@ -13,14 +13,8 @@ on:
   workflow_dispatch:
 
 jobs:
-  select-runner:
-    name: Select Runner with Auto Fallback
-    uses: ./.github/workflows/_runner-select.yml
-    secrets: inherit
-
   unit-tests:
-    needs: select-runner
-    runs-on: ubuntu-latest
+        runs-on: ubuntu-latest
     strategy:
       matrix:
         python-version: ["3.11", "3.12"]
@@ -174,8 +168,7 @@ jobs:
           ./tests/e2e/test_mcp_hybrid_execution.sh --verbose
 
   lint:
-    needs: select-runner
-    runs-on: ubuntu-latest
+        runs-on: ubuntu-latest
     steps:
       - name: Checkout codigo
         uses: actions/checkout@v4

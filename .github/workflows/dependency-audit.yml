@@ -10,14 +10,8 @@ on:
       - 'libraries/**/setup.py'
 
 jobs:
-  select-runner:
-    name: Select Runner with Auto Fallback
-    uses: ./.github/workflows/_runner-select.yml
-    secrets: inherit
-
   audit:
-    needs: select-runner
-    runs-on: ubuntu-latest
+        runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 

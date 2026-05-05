@@ -27,15 +27,9 @@ env:
   IMAGE_PREFIX: ${{ github.repository_owner }}/neural-hive-mind
 
 jobs:
-  select-runner:
-    name: Select Runner with Auto Fallback
-    uses: ./.github/workflows/_runner-select.yml
-    secrets: inherit
-
   build-base-images:
     name: Build Imagens Base
-    needs: select-runner
-    runs-on: ubuntu-latest
+        runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
