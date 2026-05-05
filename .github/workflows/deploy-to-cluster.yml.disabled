@@ -48,7 +48,7 @@ jobs:
   # ============================================================================
   prepare:
     name: Preparar Deploy
-        runs-on: ubuntu-latest
+    runs-on: ubuntu-latest
     if: |
       github.event_name == 'workflow_dispatch' ||
       github.event.workflow_run.conclusion == 'success'
@@ -72,7 +72,6 @@ jobs:
           path: build-info
           run-id: ${{ github.event.workflow_run.triggering_workflow.id }}
         continue-on-error: true
-
       - name: Fallback: Verificar se artifact foi baixado
         if: github.event_name == 'workflow_run' && github.event.workflow_run.triggering_workflow.name == 'Build and Push to GHCR'
         id: check-artifact

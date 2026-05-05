@@ -14,7 +14,7 @@ on:
 
 jobs:
   unit-tests:
-        runs-on: ubuntu-latest
+    runs-on: ubuntu-latest
     strategy:
       matrix:
         python-version: ["3.11", "3.12"]
@@ -168,7 +168,7 @@ jobs:
           ./tests/e2e/test_mcp_hybrid_execution.sh --verbose
 
   lint:
-        runs-on: ubuntu-latest
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout codigo
         uses: actions/checkout@v4

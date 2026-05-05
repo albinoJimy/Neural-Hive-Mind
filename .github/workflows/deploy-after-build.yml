@@ -45,7 +45,7 @@ jobs:
   # ============================================================================
   prepare:
     name: Preparar Deployment
-        runs-on: ubuntu-latest
+    runs-on:n: ubuntu-latest
     outputs:
       environment: ${{ inputs.environment }}
       services: ${{ inputs.services }}
