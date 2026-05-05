@@ -267,8 +267,8 @@
         "T10"
       ],
       "parallel_safe": false,
-      "status": "in_progress",
-      "summary": "K8s manifests criados: k8s/unified-gateway-deployment.yaml, k8s/nlu-service-deployment.yaml, k8s/pii-service-deployment.yaml. CI/CD workflows atualizados: build-and-push-ghcr.yml e deploy-to-cluster.yml agora incluem os 3 novos serviços. Pronto para build + deploy via GitHub Actions."
+      "status": "done",
+      "summary": "K8s manifests criados e CI/CD workflows atualizados. Build & Push GHCR workflow #25376156135 completado com sucesso em 8m. Imagens: gateway-intencoes, unified-gateway, nlu-service, pii-service pushed para GHCR. Deployment pronto para kubectl apply -f k8s/."
     },
     {
       "id": "T17",
