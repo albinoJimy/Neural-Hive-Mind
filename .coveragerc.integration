@@ -1,0 +1,40 @@
+[run]
+source =
+    services/
+omit =
+    */tests/*
+    */test_*.py
+    */proto_gen/*
+    */__pycache__/*
+    */setup.py
+    */conftest.py
+    */.venv/*
+    */venv/*
+    # Exclude specialists library from integration tests coverage
+    */neural_hive_specialists/*
+branch = True
+parallel = True
+# No fail_under for integration tests - they may fail
+
+[report]
+precision = 2
+show_missing = True
+skip_covered = False
+exclude_lines =
+    pragma: no cover
+    def __repr__
+    raise AssertionError
+    raise NotImplementedError
+    if __name__ == .__main__.:
+    if TYPE_CHECKING:
+    @abstractmethod
+    @overload
+    await asyncio.sleep
+    except asyncio.CancelledError
+
+[html]
+directory = htmlcov-integration
+title = Neural Hive-Mind Integration Coverage Report
+
+[xml]
+output = coverage-integration.xml
