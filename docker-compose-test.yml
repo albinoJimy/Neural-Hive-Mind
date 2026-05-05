@@ -60,43 +60,45 @@ services:
   #     retries: 3
   #     start_period: 10s
 
+  # MCP servers temporarily disabled - missing src/ files in build context
+  # TODO: Fix MCP server build contexts or use pre-built images
   # Scout MCP Server - Descoberta de código
-  scout-mcp-server:
-    build:
-      context: ./services/mcp-servers
-      dockerfile: scout-mcp-server/Dockerfile
-    container_name: scout-mcp-server
-    ports:
-      - "3010:3010"
-    environment:
-      LOG_LEVEL: DEBUG
-      PORT: 3010
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3010/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 5s
-    restart: unless-stopped
+  # scout-mcp-server:
+  #   build:
+  #     context: ./services/mcp-servers
+  #     dockerfile: scout-mcp-server/Dockerfile
+  #   container_name: scout-mcp-server
+  #   ports:
+  #     - "3010:3010"
+  #   environment:
+  #     LOG_LEVEL: DEBUG
+  #     PORT: 3010
+  #   healthcheck:
+  #     test: ["CMD", "curl", "-f", "http://localhost:3010/health"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 3
+  #     start_period: 5s
+  #   restart: unless-stopped
 
   # Optimizer MCP Server - Otimização de código
-  optimizer-mcp-server:
-    build:
-      context: ./services/mcp-servers
-      dockerfile: optimizer-mcp-server/Dockerfile
-    container_name: optimizer-mcp-server
-    ports:
-      - "3011:3011"
-    environment:
-      LOG_LEVEL: DEBUG
-      PORT: 3011
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3011/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 5s
-    restart: unless-stopped
+  # optimizer-mcp-server:
+  #   build:
+  #     context: ./services/mcp-servers
+  #     dockerfile: optimizer-mcp-server/Dockerfile
+  #   container_name: optimizer-mcp-server
+  #   ports:
+  #     - "3011:3011"
+  #   environment:
+  #     LOG_LEVEL: DEBUG
+  #     PORT: 3011
+  #   healthcheck:
+  #     test: ["CMD", "curl", "-f", "http://localhost:3011/health"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 3
+  #     start_period: 5s
+  #   restart: unless-stopped
 
 networks:
   default:

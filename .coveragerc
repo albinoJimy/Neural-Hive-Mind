@@ -20,7 +20,7 @@ omit =
     */venv/*
 branch = True
 parallel = True
-fail_under = 70
+# fail_under moved to pytest --cov-fail-under flag
 
 [report]
 precision = 2
