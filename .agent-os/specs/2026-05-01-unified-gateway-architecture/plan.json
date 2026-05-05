@@ -298,7 +298,8 @@
         "T17"
       ],
       "parallel_safe": false,
-      "status": "pending"
+      "status": "done",
+      "summary": "Cleanup documentado em CLEANUP_LOCAL_NLU_PII.md. ~3.808 LOC prontos para remoção após T17 confirmado: nlu_pipeline.py (1.302 LOC), nlu_pipeline_v2.py (393 LOC), pipelines/nlu/ (1.613 LOC), PII local (~500 LOC). nlu_pipeline_service.py (gRPC) mantido."
     },
     {
       "id": "T19",
