@@ -310,7 +310,8 @@
         "T16"
       ],
       "parallel_safe": true,
-      "status": "pending"
+      "status": "done",
+      "summary": "Documentação criada: UNIFIED_GATEWAY_MIGRATION.md (guia completo), services/unified-gateway/openapi.yaml (OpenAPI 3.0 spec), UNIFIED_GATEWAY_RUNBOOKS.md (runbooks operacionais com diagnóstico/resolução/escalation)."
     },
     {
       "id": "T20",

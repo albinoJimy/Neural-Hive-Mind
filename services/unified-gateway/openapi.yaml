@@ -1,0 +1,410 @@
+openapi: 3.0.3
+info:
+  title: Neural Hive Mind - Unified Gateway API
+  description: |
+    API unificada para o Neural Hive Mind. Gateway central que gerencia autenticação,
+    rate limiting, classificação de intenções e roteamento para fluxos especializados.
+
+    **Arquitetura:**
+    - JWT Authentication centralizado
+    - Rate limiting por tenant (Redis-backed)
+    - Intent Classification via NLU Service (gRPC)
+    - Flow Router para A-F/G/H flows
+    - Circuit Breaker para resiliência
+  version: 1.0.0
+  contact:
+    name: Neural Hive Mind Team
+    url: https://github.com/albinoJimy/Neural-Hive-Mind
+  license:
+    name: MIT
+
+servers:
+  - url: http://localhost:7999
+    description: Local development
+  - url: https://unified-gateway.neural-hive.local
+    description: Internal cluster
+  - url: https://api.neural-hive-mind.com
+    description: Production
+
+security:
+  - BearerAuth: []
+
+tags:
+  - name: health
+    description: Health check endpoints
+  - name: requests
+    description: Request processing
+  - name: admin
+    description: Administrative operations
+
+paths:
+  /health:
+    get:
+      tags: [health]
+      summary: Health check
+      description: Verifica saúde geral do serviço
+      operationId: getHealth
+      security: []
+      responses:
+        '200':
+          description: Serviço saudável
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+        '503':
+          description: Serviço não saudável
+
+  /health/ready:
+    get:
+      tags: [health]
+      summary: Readiness probe
+      description: Verifica se o serviço está pronto para receber tráfego
+      operationId: getReadiness
+      security: []
+      responses:
+        '200':
+          description: Serviço pronto
+        '503':
+          description: Serviço não pronto
+
+  /health/live:
+    get:
+      tags: [health]
+      summary: Liveness probe
+      description: Verifica se o serviço está vivo
+      operationId: getLiveness
+      security: []
+      responses:
+        '200':
+          description: Serviço vivo
+        '503':
+          description: Serviço não vivo
+
+  /api/v1/nhm/request:
+    post:
+      tags: [requests]
+      summary: Processar request unificado
+      description: |
+        Endpoint principal para processar qualquer tipo de request (fluxos A-F, G, H).
+
+        O gateway:
+        1. Valida JWT e extrai tenant_id/user_id
+        2. Aplica rate limiting
+        3. Classifica intenção via NLU Service
+        4. Roteia para flow apropriado
+        5. Retorna resposta formatada
+      operationId: processRequest
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UnifiedRequest'
+      responses:
+        '200':
+          description: Request processado com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnifiedResponse'
+        '400':
+          description: Request inválido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Não autenticado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          headers:
+            WWW-Authenticate:
+              schema:
+                type: string
+                example: Bearer
+        '429':
+          description: Rate limit excedido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          headers:
+            Retry-After:
+              schema:
+                type: integer
+                example: 60
+        '503':
+          description: Serviço indisponível (circuit breaker)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          headers:
+            X-Circuit-State:
+              schema:
+                type: string
+                enum: [open, half_open, closed]
+
+  /api/v1/nhm/intent/parse:
+    post:
+      tags: [requests]
+      summary: Parse intenção (sem executar flow)
+      description: Apenas classifica intenção via NLU Service
+      operationId: parseIntent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IntentParseRequest'
+      responses:
+        '200':
+          description: Intenção classificada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IntentParseResponse'
+
+  /api/v1/nhm/batch:
+    post:
+      tags: [requests]
+      summary: Processar requests em lote
+      description: Processa múltiplos requests em uma única chamada
+      operationId: processBatch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                requests:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/UnifiedRequest'
+                  maxItems: 100
+              required: [requests]
+      responses:
+        '200':
+          description: Batch processado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  results:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/UnifiedResponse'
+                  failures:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Error'
+
+  /metrics:
+    get:
+      tags: [admin]
+      summary: Prometheus metrics
+      description: Métricas em formato Prometheus
+      operationId: getMetrics
+      security: []
+      responses:
+        '200':
+          description: Métricas
+          content:
+            text/plain:
+              schema:
+                type: string
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        JWT token do Keycloak. Deve conter:
+        - `tenant_id`: ID do tenant
+        - `user_id`: ID do usuário
+        - `exp`: Expiração
+
+  schemas:
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [healthy, degraded, unhealthy]
+        version:
+          type: string
+          example: "1.0.0"
+        timestamp:
+          type: string
+          format: date-time
+        services:
+          type: object
+          properties:
+            nlu_service:
+              type: string
+              enum: [available, degraded, down]
+            pii_service:
+              type: string
+              enum: [available, degraded, down]
+            redis:
+              type: string
+              enum: [available, down]
+            kafka:
+              type: string
+              enum: [available, down]
+
+    UnifiedRequest:
+      type: object
+      required: [text]
+      properties:
+        text:
+          type: string
+          description: Texto da request em português
+          minLength: 1
+          maxLength: 5000
+          example: "Quero analisar os dados de vendas do mês passado"
+        context:
+          type: object
+          description: Contexto adicional
+          properties:
+            domain:
+              type: string
+              enum: [business, technical, infrastructure, security]
+              description: Domínio opcional (força classificação)
+            language:
+              type: string
+              default: pt
+              enum: [pt, en, es]
+            session_id:
+              type: string
+              format: uuid
+            metadata:
+              type: object
+              additionalProperties: true
+
+    UnifiedResponse:
+      type: object
+      required: [request_id, status]
+      properties:
+        request_id:
+          type: string
+          format: uuid
+          description: ID único da request
+        status:
+          type: string
+          enum: [completed, partial, failed]
+        intent:
+          type: object
+          description: Intenção classificada
+          properties:
+            domain:
+              type: string
+              enum: [BUSINESS, TECHNICAL, INFRASTRUCTURE, SECURITY]
+            action:
+              type: string
+              example: "analyze"
+            entities:
+              type: array
+              items:
+                type: object
+                properties:
+                  text:
+                    type: string
+                  label:
+                    type: string
+                  confidence:
+                    type: number
+                    format: float
+                  start:
+                    type: integer
+                  end:
+                    type: integer
+            confidence:
+              type: number
+              format: float
+              minimum: 0
+              maximum: 1
+        flow_type:
+          type: string
+          enum: [A-F, G, H]
+          description: Fluxo executado
+        data:
+          type: object
+          description: Dados específicos do flow executado
+        tracing:
+          type: object
+          properties:
+            trace_id:
+              type: string
+              format: uuid
+            span_id:
+              type: string
+              format: uuid
+        timestamp:
+          type: string
+          format: date-time
+
+    IntentParseRequest:
+      type: object
+      required: [text]
+      properties:
+        text:
+          type: string
+          minLength: 1
+          maxLength: 5000
+        language:
+          type: string
+          default: pt
+          enum: [pt, en, es]
+
+    IntentParseResponse:
+      type: object
+      properties:
+        domain:
+          type: string
+          enum: [BUSINESS, TECHNICAL, INFRASTRUCTURE, SECURITY]
+        action:
+          type: string
+        entities:
+          type: array
+          items:
+            type: object
+            properties:
+              text:
+                type: string
+              label:
+                type: string
+              confidence:
+                type: number
+        confidence:
+          type: number
+        recommended_flow:
+          type: string
+          enum: [A-F, G, H]
+
+    Error:
+      type: object
+      required: [error, message]
+      properties:
+        error:
+          type: string
+          enum: [validation_error, authentication_error, rate_limit_error,
+                 service_unavailable, internal_error]
+        message:
+          type: string
+        details:
+          type: object
+          additionalProperties: true
+        request_id:
+          type: string
+          format: uuid
+        timestamp:
+          type: string
+          format: date-time
