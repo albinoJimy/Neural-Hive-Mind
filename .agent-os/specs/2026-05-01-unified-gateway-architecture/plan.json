@@ -326,7 +326,8 @@
         "T17"
       ],
       "parallel_safe": false,
-      "status": "pending"
+      "status": "done",
+      "summary": "approval-gateway removido do CI/CD. Referências atualizadas: orchestrator-dynamic (settings.py, fluxo_g_integration.py) agora apontam para approval-service:8004. DEPRECATED.md já criado em T13. 4.010 LOC podem ser removidos após validação final."
     }
   ],
   "journeys": [

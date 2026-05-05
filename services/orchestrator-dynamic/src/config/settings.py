@@ -1197,7 +1197,7 @@ class OrchestratorSettings(BaseSettings):
         default="http://knowledge-graph-rag:8016", description="URL do serviço Knowledge Graph RAG"
     )
     fluxo_g_approval_url: str = Field(
-        default="http://approval-gateway:8017", description="URL do serviço Approval Gateway"
+        default="http://approval-service:8004", description="URL do serviço Approval Service (migrado de approval-gateway:8017)"
     )
     fluxo_g_enabled: bool = Field(
         default=True, description="Habilitar Fluxo G workflows (Idea → Software)"

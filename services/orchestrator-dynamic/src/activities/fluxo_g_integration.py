@@ -5,7 +5,7 @@ Estas activities integram os novos serviços do Fluxo G:
 - requirements-engineering (8010)
 - documentation-generation (8014)
 - knowledge-graph-rag (8016)
-- approval-gateway (8017)
+- approval-service (8004) - migrado de approval-gateway (8017)
 """
 
 import json
@@ -276,7 +276,7 @@ async def request_approval(
     """
     Solicita aprovação para um artefato gerado.
 
-    Chama o serviço approval-gateway (porta 8017).
+    Chama o serviço approval-service (porta 8004), migrado de approval-gateway (8017).
 
     Args:
         artifact_type: Tipo de artefato (requirement, architecture, code_generation, etc)
@@ -301,7 +301,7 @@ async def request_approval(
             }
 
         response = await _http_client.post(
-            "http://approval-gateway:8017/api/v1/approvals/request",
+            "http://approval-service:8004/api/v1/approvals/request",
             json={
                 "type": artifact_type,
                 "title": artifact_data.get("title", f"Aprovação {artifact_type}"),

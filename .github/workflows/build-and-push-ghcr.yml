@@ -107,7 +107,6 @@ jobs:
           # Lista completa de servicos
           ALL_SERVICES=(
             "analyst-agents"
-            "approval-gateway"
             "approval-service"
             "architect-agent"
             "code-forge"
