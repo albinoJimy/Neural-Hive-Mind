@@ -1,0 +1,135 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: nlu
+  labels:
+    name: nlu
+    neuralhive/layer: application
+    neuralhive/phase: phase3
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nlu-service-config
+  namespace: nlu
+data:
+  LOG_LEVEL: "INFO"
+  ENVIRONMENT: "kubernetes"
+  # Neural Hive Observability Metadata
+  NEURAL_HIVE_SERVICE_NAME: "nlu-service"
+  NEURAL_HIVE_COMPONENT: "nlu"
+  NEURAL_HIVE_LAYER: "specialist"
+  # NLU Model Settings
+  SPACY_MODEL_PATH: "/app/models/spacy"
+  DEFAULT_LANGUAGE: "pt"
+  CONFIDENCE_THRESHOLD: "0.5"
+  MAX_TEXT_LENGTH: "5000"
+  # gRPC Settings
+  GRPC_MAX_WORKERS: "10"
+  GRPC_MAX_RECEIVE_MESSAGE_LENGTH: "104857600"  # 100MB
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nlu-service
+  namespace: nlu
+  labels:
+    app: nlu-service
+    component: nlu
+    neuralhive/layer: application
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: nlu-service
+  template:
+    metadata:
+      labels:
+        app: nlu-service
+        component: nlu
+    spec:
+      imagePullSecrets:
+        - name: ghcr-secret
+      containers:
+      - name: nlu-service
+        image: ghcr.io/albinojimy/neural-hive-mind/nlu-service:1.0.0
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8020
+          name: grpc
+          protocol: TCP
+        - containerPort: 8021
+          name: http
+          protocol: TCP
+        envFrom:
+        - configMapRef:
+            name: nlu-service-config
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "500m"
+          limits:
+            memory: "4Gi"
+            cpu: "2000m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8021
+          initialDelaySeconds: 90
+          periodSeconds: 30
+          timeoutSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8021
+          initialDelaySeconds: 60
+          periodSeconds: 10
+          timeoutSeconds: 5
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nlu-service
+  namespace: nlu
+  labels:
+    app: nlu-service
+    component: nlu
+spec:
+  selector:
+    app: nlu-service
+  ports:
+  - name: grpc
+    port: 8020
+    targetPort: 8020
+    protocol: TCP
+  - name: http
+    port: 8021
+    targetPort: 8021
+    protocol: TCP
+  type: ClusterIP
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: nlu-service-hpa
+  namespace: nlu
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: nlu-service
+  minReplicas: 2
+  maxReplicas: 8
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80

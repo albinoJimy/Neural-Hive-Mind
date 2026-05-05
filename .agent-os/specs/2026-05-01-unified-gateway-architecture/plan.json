@@ -168,7 +168,7 @@
         "T8"
       ],
       "parallel_safe": false,
-      "status": "pending"
+      "status": "done"
     },
     {
       "id": "T10",
@@ -181,7 +181,7 @@
         "T9"
       ],
       "parallel_safe": false,
-      "status": "pending"
+      "status": "done"
     },
     {
       "id": "T11",
@@ -196,7 +196,8 @@
         "T5"
       ],
       "parallel_safe": true,
-      "status": "pending"
+      "status": "done",
+      "summary": "NLU/PII services gRPC clients implementados. NLUPipeline usa nlu_pipeline_service.py (157 LOC) via gRPC. Arquivos antigos (nlu_pipeline.py 1302 LOC, pipelines/nlu/ 1613 LOC) podem ser removidos. 16 testes unitários NLU passando. Total ~3.3K LOC duplicados identificados para remoção."
     },
     {
       "id": "T12",
@@ -209,7 +210,8 @@
         "T1"
       ],
       "parallel_safe": true,
-      "status": "pending"
+      "status": "done",
+      "summary": "Approval service migrado para Approval Core Package (neural_hive_approval_common). Modelos compartilhados importados: ApprovalRequest, ApprovalDecision, RiskBand, etc. 238 testes passando. approval.py mantém apenas ApprovalResponse específico da API."
     },
     {
       "id": "T13",
@@ -222,7 +224,8 @@
         "T12"
       ],
       "parallel_safe": false,
-      "status": "pending"
+      "status": "done",
+      "summary": "approval-gateway (porta 8017) marcado como DEPRECATED. approval-service (porta 8004) agora fornece toda funcionalidade via Approval Core Package. DEPRECATED.md criado com guia de migração de endpoints. 2.644 LOC do approval-gateway podem ser removidos após migração dos clientes."
     },
     {
       "id": "T14",
@@ -250,7 +253,8 @@
         "T5"
       ],
       "parallel_safe": true,
-      "status": "pending"
+      "status": "done",
+      "summary": "Circuit Breaker implementado no Unified Gateway (services/resilience.py). Usa MonitoredCircuitBreaker de neural_hive_resilience com fallback local para NLU/PII services (INV-12). Configuração: failure_threshold=5, recovery_timeout=30s."
     },
     {
       "id": "T16",
@@ -263,7 +267,8 @@
         "T10"
       ],
       "parallel_safe": false,
-      "status": "pending"
+      "status": "in_progress",
+      "summary": "K8s manifests criados: k8s/unified-gateway-deployment.yaml, k8s/nlu-service-deployment.yaml, k8s/pii-service-deployment.yaml. CI/CD workflows atualizados: build-and-push-ghcr.yml e deploy-to-cluster.yml agora incluem os 3 novos serviços. Pronto para build + deploy via GitHub Actions."
     },
     {
       "id": "T17",

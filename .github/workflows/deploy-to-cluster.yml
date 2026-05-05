@@ -147,12 +147,15 @@ jobs:
             "guard-agents"
             "mcp-tool-catalog"
             "memory-layer-api"
+            "nlu-service"
             "orchestrator-dynamic"
+            "pii-service"
             "queen-agent"
             "scout-agents"
             "self-healing-engine"
             "service-registry"
             "sla-management-system"
+            "unified-gateway"
           )
 
           if [[ -n "${{ inputs.services }}" ]]; then
@@ -223,9 +226,13 @@ jobs:
             if [[ -d "helm-charts/$SERVICE" ]]; then
               echo "has_chart=true" >> $GITHUB_OUTPUT
               echo "Helm chart encontrado em helm-charts/$SERVICE"
+            elif [[ -f "k8s/${SERVICE}-deployment.yaml" ]]; then
+              echo "has_manifest=true" >> $GITHUB_OUTPUT
+              echo "Manifest YAML encontrado em k8s/${SERVICE}-deployment.yaml"
             else
               echo "has_chart=false" >> $GITHUB_OUTPUT
-              echo "Sem helm chart - pulando"
+              echo "has_manifest=false" >> $GITHUB_OUTPUT
+              echo "Sem helm chart ou manifest - pulando"
             fi
           fi
 
@@ -247,6 +254,29 @@ jobs:
             --cleanup-on-fail \
             --wait \
             --timeout 10m
+
+      - name: Criar deployment via YAML manifest
+        if: steps.check-deployment.outputs.exists == 'false' && steps.check-deployment.outputs.has_manifest == 'true' && inputs.dry_run != true
+        run: |
+          NAMESPACE="${{ needs.prepare.outputs.namespace }}"
+          SERVICE="${{ matrix.service }}"
+          TAG="${{ needs.prepare.outputs.image_tag }}"
+          MANIFEST="k8s/${SERVICE}-deployment.yaml"
+
+          echo "Criando $SERVICE via YAML manifest no namespace $NAMESPACE"
+
+          # Aplicar o manifesto YAML
+          kubectl apply -f "$MANIFEST"
+
+          # Atualizar a imagem para a tag específica
+          kubectl set image deployment/"$SERVICE" \
+            "$SERVICE"="${{ needs.prepare.outputs.ghcr_prefix }}/${SERVICE}:${TAG}" \
+            -n "$NAMESPACE" --record
+
+          # Aguardar rollout
+          kubectl rollout status deployment/"$SERVICE" \
+            -n "$NAMESPACE" \
+            --timeout=300s
 
       - name: Garantir imagePullSecrets
         if: steps.check-deployment.outputs.exists == 'true'

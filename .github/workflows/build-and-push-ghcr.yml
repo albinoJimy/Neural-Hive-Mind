@@ -108,6 +108,7 @@ jobs:
           ALL_SERVICES=(
             "analyst-agents"
             "approval-gateway"
+            "approval-service"
             "architect-agent"
             "code-forge"
             "data-migration"
@@ -121,7 +122,10 @@ jobs:
             "knowledge-graph-rag"
             "mcp-tool-catalog"
             "memory-layer-api"
+            "nlu-service"
+            "optimizer-agents"
             "orchestrator-dynamic"
+            "pii-service"
             "queen-agent"
             "requirements-engineering"
             "scout-agents"
@@ -130,10 +134,9 @@ jobs:
             "sla-management-system"
             "consensus-engine"
             "semantic-translation-engine"
-            "worker-agents"
-            "optimizer-agents"
-            "approval-service"
             "test-generation"
+            "unified-gateway"
+            "worker-agents"
           )
 
           # Mapeamento de dependencias: servicos que usam cada library
