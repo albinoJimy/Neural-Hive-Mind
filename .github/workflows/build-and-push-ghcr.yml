@@ -62,7 +62,7 @@ jobs:
   detect-changes:
     name: Detectar Mudancas
     needs: select-runner
-    runs-on: ${{ needs.select-runner.outputs.selected-runner }}
+    runs-on: ubuntu-latest
     outputs:
       services_matrix: ${{ steps.set-matrix.outputs.matrix }}
       services_list: ${{ steps.set-matrix.outputs.list }}
@@ -259,8 +259,8 @@ jobs:
   # ============================================================================
   build-and-push:
     name: Build ${{ matrix.service }}
-    needs: [select-runner, detect-changes]
-    runs-on: ${{ needs.select-runner.outputs.selected-runner }}
+    needs: [detect-changes]
+    runs-on: ubuntu-latest
     if: needs.detect-changes.outputs.has_changes == 'true'
     
     permissions:
@@ -453,8 +453,8 @@ jobs:
   # ============================================================================
   summary:
     name: Resumo do Build
-    needs: [select-runner, detect-changes, build-and-push]
-    runs-on: ${{ needs.select-runner.outputs.selected-runner }}
+    needs: [detect-changes, build-and-push]
+    runs-on: ubuntu-latest
     if: always()
 
     steps:
@@ -576,8 +576,8 @@ jobs:
   # ============================================================================
   trigger-deployment:
     name: Disparar Deployment
-    needs: [select-runner, detect-changes, build-and-push, summary]
-    runs-on: ${{ needs.select-runner.outputs.selected-runner }}
+    needs: [detect-changes, build-and-push, summary]
+    runs-on: ubuntu-latest
     if: github.event_name != 'pull_request' && needs.build-and-push.result == 'success' && needs.detect-changes.outputs.has_changes == 'true'
 
     permissions:

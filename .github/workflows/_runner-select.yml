@@ -30,60 +30,16 @@ on:
         value: ${{ jobs.select-runner.outputs.runner-type }}
 
 jobs:
-  select-runner:
-    name: Select Runner with Fallback
-    runs-on: ubuntu-latest
-    outputs:
-      runner: ${{ steps.choose.outputs.runner }}
-      runner-type: ${{ steps.choose.outputs.runner-type }}
-    steps:
-      - name: Check GitHub Actions Rate Limit
-        id: check-limit
-        run: |
-          echo "Checking GitHub Actions rate limit..."
-          echo "API_LIMIT=${{ secrets.GITHUB_TOKEN }}" >> $GITHUB_OUTPUT
-
-      - name: Choose Runner (GitHub-hosted priority)
-        id: choose
-        run: |
-          # CORREÇÃO: Lógica melhorada para seleção de runner
-          # Prioridade: GitHub-hosted para repo principal > self-hosted para forks
-
-          RUNNER_TYPE="${{ inputs.runner-type }}"
-
-          # 1. Verificar se é um fork
-          if [ "${{ github.event.repository.fork }}" == "true" ]; then
-            # Forks devem usar self-hosted (limite menor de minutos)
-            RUNNER_TYPE="${{ inputs.fallback-label }}"
-            echo "🔄 Fork detected - using self-hosted runner"
-          # 2. Verificar se o repo principal está no fork da organização
-          elif [ "${{ github.repository }}" != "${{ github.event.repository.fork }}" ]; then
-            # Não é um fork do repo principal - usar GitHub-hosted
-            RUNNER_TYPE="${{ inputs.runner-type }}"
-            echo "✅ Using GitHub-hosted runner: $RUNNER_TYPE"
-          # 3. Verificar se use-fallback está explicitamente true
-          elif [ "${{ inputs.use-fallback }}" == "true" ]; then
-            # Forçar self-hosted apenas quando solicitado
-            RUNNER_TYPE="${{ inputs.fallback-label }}"
-            echo "⚙️ Fallback enabled - using self-hosted runner"
-          else
-            # Padrão: GitHub-hosted para repo principal
-            RUNNER_TYPE="${{ inputs.runner-type }}"
-            echo "✅ Using GitHub-hosted runner: $RUNNER_TYPE"
-          fi
-
-          echo "runner=$RUNNER_TYPE" >> $GITHUB_OUTPUT
-          echo "runner-type=$RUNNER_TYPE" >> $GITHUB_OUTPUT
 
   demo-job:
     name: Demo Job with Selected Runner
     needs: select-runner
     # Usa o runner selecionado dinamicamente
-    runs-on: ${{ needs.select-runner.outputs.runner }}
+    runs-on: ubuntu-latest
     steps:
       - name: Show Runner Info
         run: |
-          echo "Running on: ${{ needs.select-runner.outputs.runner-type }}"
+          echo "Running on: ubuntu-latest"
           echo "Runner OS:"
           uname -a
           echo "Runner environment:"

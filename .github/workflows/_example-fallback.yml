@@ -3,7 +3,7 @@
 #
 # COMO USAR:
 # 1. Substitua 'runs-on' por 'needs: select-runner' + 'uses: ./workflows/_runner-select.yml'
-# 2. Referencie o runner via: ${{ needs.select-runner.outputs.selected-runner }}
+# 2. Referencie o runner via: ubuntu-latest
 
 name: Example with Auto Fallback
 
@@ -24,12 +24,12 @@ jobs:
     name: Build with Auto Fallback
     needs: select-runner
     # Aqui a mágica: o runs-on vem dinamicamente do job anterior
-    runs-on: ${{ needs.select-runner.outputs.selected-runner }}
+    runs-on: ubuntu-latest
     steps:
       - name: Show which runner
         run: |
-          echo "🎯 Running on: ${{ needs.select-runner.outputs.runner-type }}"
-          echo "🏷️  Runner: ${{ needs.select-runner.outputs.selected-runner }}"
+          echo "🎯 Running on: ubuntu-latest"
+          echo "🏷️  Runner: ubuntu-latest"
 
       - name: Checkout
         uses: actions/checkout@v4

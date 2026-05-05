@@ -51,7 +51,7 @@ jobs:
   prepare:
     name: Preparar Deployment
     needs: select-runner
-    runs-on: ${{ needs.select-runner.outputs.selected-runner }}
+    runs-on: ubuntu-latest
     outputs:
       environment: ${{ inputs.environment }}
       services: ${{ inputs.services }}
@@ -110,8 +110,8 @@ jobs:
   # ============================================================================
   update-values:
     name: Atualizar Tags - ${{ matrix.service }}
-    needs: [select-runner, prepare]
-    runs-on: ${{ needs.select-runner.outputs.selected-runner }}
+    needs: [prepare]
+    runs-on: ubuntu-latest
     if: needs.prepare.outputs.should_deploy == 'true'
 
     strategy:
@@ -184,8 +184,8 @@ jobs:
   # ============================================================================
   deploy:
     name: Deploy - ${{ matrix.service }}
-    needs: [select-runner, prepare, update-values]
-    runs-on: ${{ needs.select-runner.outputs.selected-runner }}
+    needs: [prepare, update-values]
+    runs-on: ubuntu-latest
     if: needs.prepare.outputs.should_deploy == 'true' && inputs.dry_run != true
 
     # Aprovação para produção
@@ -408,8 +408,8 @@ jobs:
   # ============================================================================
   summary:
     name: Resumo do Deployment
-    needs: [select-runner, prepare, update-values, deploy]
-    runs-on: ${{ needs.select-runner.outputs.selected-runner }}
+    needs: [prepare, update-values, deploy]
+    runs-on: ubuntu-latest
     if: always()
 
     steps:

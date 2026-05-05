@@ -35,7 +35,7 @@ jobs:
 
   ml-integration-tests:
     needs: select-runner
-    runs-on: ${{ needs.select-runner.outputs.selected-runner }}
+    runs-on: ubuntu-latest
     timeout-minutes: 30
 
     services:

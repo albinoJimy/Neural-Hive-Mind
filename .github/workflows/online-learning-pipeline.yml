@@ -39,7 +39,7 @@ jobs:
 
   online-learning-action:
     needs: select-runner
-    runs-on: ${{ needs.select-runner.outputs.selected-runner }}
+    runs-on: ubuntu-latest
     environment: production
 
     steps:
@@ -124,7 +124,7 @@ jobs:
 
   test-online-learning:
     needs: select-runner
-    runs-on: ${{ needs.select-runner.outputs.selected-runner }}
+    runs-on: ubuntu-latest
     if: github.event.inputs.action == 'update'
 
     steps:

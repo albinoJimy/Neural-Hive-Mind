@@ -50,7 +50,7 @@ jobs:
   validate:
     name: Validate Configuration
     needs: select-runner
-    runs-on: ${{ needs.select-runner.outputs.selected-runner }}
+    runs-on: ubuntu-latest
     outputs:
       terraform-changes: ${{ steps.changes.outputs.terraform }}
       helm-changes: ${{ steps.changes.outputs.helm }}
@@ -122,8 +122,8 @@ jobs:
 
   plan:
     name: Terraform Plan
-    needs: [select-runner, validate]
-    runs-on: ${{ needs.select-runner.outputs.selected-runner }}
+    needs: [validate]
+    runs-on: ubuntu-latest
     if: needs.validate.outputs.terraform-changes == 'true'
 
     strategy:
@@ -169,8 +169,8 @@ jobs:
 
   deploy-terraform:
     name: Deploy Infrastructure
-    needs: [select-runner, validate, plan]
-    runs-on: ${{ needs.select-runner.outputs.selected-runner }}
+    needs: [validate, plan]
+    runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' && !inputs.rollback
 
     strategy:
@@ -216,8 +216,8 @@ jobs:
 
   deploy-helm:
     name: Deploy Helm Charts
-    needs: [select-runner, validate, deploy-terraform]
-    runs-on: ${{ needs.select-runner.outputs.selected-runner }}
+    needs: [validate, deploy-terraform]
+    runs-on: ubuntu-latest
     if: always() && !failure() && !inputs.rollback
 
     strategy:
@@ -292,8 +292,8 @@ jobs:
 
   deploy-monitoring:
     name: Deploy Monitoring Configs
-    needs: [select-runner, validate, deploy-helm]
-    runs-on: ${{ needs.select-runner.outputs.selected-runner }}
+    needs: [validate, deploy-helm]
+    runs-on: ubuntu-latest
     if: always() && !failure() && !inputs.rollback
 
     strategy:
@@ -353,8 +353,8 @@ jobs:
 
   test-deployment:
     name: Test Deployment
-    needs: [select-runner, deploy-monitoring]
-    runs-on: ${{ needs.select-runner.outputs.selected-runner }}
+    needs: [deploy-monitoring]
+    runs-on: ubuntu-latest
     if: always() && !failure()
 
     strategy:
@@ -409,7 +409,7 @@ jobs:
   rollback:
     name: Rollback Deployment
     needs: select-runner
-    runs-on: ${{ needs.select-runner.outputs.selected-runner }}
+    runs-on: ubuntu-latest
     if: inputs.rollback
 
     strategy:
@@ -449,8 +449,8 @@ jobs:
 
   notify:
     name: Notify Deployment Status
-    needs: [select-runner, test-deployment, rollback]
-    runs-on: ${{ needs.select-runner.outputs.selected-runner }}
+    needs: [test-deployment, rollback]
+    runs-on: ubuntu-latest
     if: always()
 
     steps:

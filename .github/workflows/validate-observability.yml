@@ -35,7 +35,7 @@ jobs:
   terraform-validate:
     name: Terraform Validation
     needs: select-runner
-    runs-on: ${{ needs.select-runner.outputs.selected-runner }}
+    runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: ./infrastructure/terraform/modules/observability-stack
@@ -68,7 +68,7 @@ jobs:
   helm-validate:
     name: Helm Charts Validation
     needs: select-runner
-    runs-on: ${{ needs.select-runner.outputs.selected-runner }}
+    runs-on: ubuntu-latest
 
     strategy:
       matrix:
@@ -123,7 +123,7 @@ jobs:
   grafana-dashboards-validate:
     name: Grafana Dashboards Validation
     needs: select-runner
-    runs-on: ${{ needs.select-runner.outputs.selected-runner }}
+    runs-on: ubuntu-latest
 
     steps:
     - name: Checkout code
@@ -172,7 +172,7 @@ jobs:
   prometheus-alerts-validate:
     name: Prometheus Alerts Validation
     needs: select-runner
-    runs-on: ${{ needs.select-runner.outputs.selected-runner }}
+    runs-on: ubuntu-latest
 
     steps:
     - name: Checkout code
@@ -206,7 +206,7 @@ jobs:
   python-library-validate:
     name: Python Library Validation
     needs: select-runner
-    runs-on: ${{ needs.select-runner.outputs.selected-runner }}
+    runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: ./libraries/python/neural_hive_observability
@@ -282,8 +282,8 @@ jobs:
   # Teste de Integração (simulado)
   integration-test:
     name: Integration Test (Simulated)
-    needs: [select-runner, terraform-validate, helm-validate]
-    runs-on: ${{ needs.select-runner.outputs.selected-runner }}
+    needs: [terraform-validate, helm-validate]
+    runs-on: ubuntu-latest
 
     steps:
     - name: Checkout code
@@ -334,7 +334,7 @@ jobs:
   security-scan:
     name: Security Scan
     needs: select-runner
-    runs-on: ${{ needs.select-runner.outputs.selected-runner }}
+    runs-on: ubuntu-latest
 
     steps:
     - name: Checkout code
@@ -375,7 +375,7 @@ jobs:
       integration-test,
       security-scan
     ]
-    runs-on: ${{ needs.select-runner.outputs.selected-runner }}
+    runs-on: ubuntu-latest
     if: always()
 
     steps:
@@ -436,8 +436,8 @@ jobs:
   # Notificação de Status
   notify:
     name: Notify Status
-    needs: [select-runner, generate-report]
-    runs-on: ${{ needs.select-runner.outputs.selected-runner }}
+    needs: [generate-report]
+    runs-on: ubuntu-latest
     if: always()
 
     steps:

@@ -27,7 +27,7 @@ jobs:
   terraform-validate:
     name: Terraform Validation
     needs: select-runner
-    runs-on: ${{ needs.select-runner.outputs.selected-runner }}
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
@@ -87,7 +87,7 @@ jobs:
   tflint:
     name: TFLint
     needs: select-runner
-    runs-on: ${{ needs.select-runner.outputs.selected-runner }}
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
@@ -129,7 +129,7 @@ jobs:
   checkov-security:
     name: Checkov Security Scan
     needs: select-runner
-    runs-on: ${{ needs.select-runner.outputs.selected-runner }}
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
@@ -153,7 +153,7 @@ jobs:
   helm-lint:
     name: Helm Lint
     needs: select-runner
-    runs-on: ${{ needs.select-runner.outputs.selected-runner }}
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
@@ -184,7 +184,7 @@ jobs:
   opa-test:
     name: OPA Policy Testing
     needs: select-runner
-    runs-on: ${{ needs.select-runner.outputs.selected-runner }}
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
@@ -227,7 +227,7 @@ jobs:
   yaml-lint:
     name: YAML Lint
     needs: select-runner
-    runs-on: ${{ needs.select-runner.outputs.selected-runner }}
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
@@ -251,7 +251,7 @@ jobs:
   validate-image-tags:
     name: Validate Image Tags
     needs: select-runner
-    runs-on: ${{ needs.select-runner.outputs.selected-runner }}
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
@@ -385,7 +385,7 @@ jobs:
   validate-kafka-topics:
     name: Validate Kafka Topics Configuration
     needs: select-runner
-    runs-on: ${{ needs.select-runner.outputs.selected-runner }}
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
@@ -499,7 +499,7 @@ jobs:
   validate-clickhouse-schema:
     name: Validate ClickHouse Schema
     needs: select-runner
-    runs-on: ${{ needs.select-runner.outputs.selected-runner }}
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
@@ -577,7 +577,7 @@ jobs:
   validate-observability-config:
     name: Validate Observability Configuration
     needs: select-runner
-    runs-on: ${{ needs.select-runner.outputs.selected-runner }}
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
@@ -720,7 +720,7 @@ jobs:
   validate-observability-library:
     name: Validate Observability Library
     needs: select-runner
-    runs-on: ${{ needs.select-runner.outputs.selected-runner }}
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
@@ -771,8 +771,8 @@ jobs:
 
   summary:
     name: Validation Summary
-    needs: [select-runner, terraform-validate, tflint, checkov-security, helm-lint, opa-test, yaml-lint, validate-image-tags, validate-kafka-topics, validate-clickhouse-schema, validate-observability-config, validate-observability-library]
-    runs-on: ${{ needs.select-runner.outputs.selected-runner }}
+    needs: [terraform-validate, tflint, checkov-security, helm-lint, opa-test, yaml-lint, validate-image-tags, validate-kafka-topics, validate-clickhouse-schema, validate-observability-config, validate-observability-library]
+    runs-on: ubuntu-latest
     if: always()
 
     steps:

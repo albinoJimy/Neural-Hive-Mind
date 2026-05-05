@@ -34,7 +34,7 @@ jobs:
   performance-test:
     name: Teste de Carga Fluxo C
     needs: select-runner
-    runs-on: ${{ needs.select-runner.outputs.selected-runner }}
+    runs-on: ubuntu-latest
     timeout-minutes: 180  # 3 horas maximo
 
     steps:
@@ -126,8 +126,8 @@ jobs:
 
   analyze-results:
     name: Analisar Resultados
-    needs: [select-runner, performance-test]
-    runs-on: ${{ needs.select-runner.outputs.selected-runner }}
+    needs: [performance-test]
+    runs-on: ubuntu-latest
     if: always()
 
     steps:

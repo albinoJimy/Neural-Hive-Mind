@@ -54,7 +54,7 @@ jobs:
   prepare:
     name: Preparar Deploy
     needs: select-runner
-    runs-on: ${{ needs.select-runner.outputs.selected-runner }}
+    runs-on: ubuntu-latest
     if: |
       github.event_name == 'workflow_dispatch' ||
       github.event.workflow_run.conclusion == 'success'
@@ -180,8 +180,8 @@ jobs:
   # ============================================================================
   deploy:
     name: Deploy ${{ matrix.service }}
-    needs: [select-runner, prepare]
-    runs-on: ${{ needs.select-runner.outputs.selected-runner }}
+    needs: [prepare]
+    runs-on: ubuntu-latest
     environment: ${{ needs.prepare.outputs.environment }}
     
     strategy:
@@ -388,8 +388,8 @@ jobs:
   # ============================================================================
   summary:
     name: Resumo do Deploy
-    needs: [select-runner, prepare, deploy]
-    runs-on: ${{ needs.select-runner.outputs.selected-runner }}
+    needs: [prepare, deploy]
+    runs-on: ubuntu-latest
     if: always()
 
     steps:

@@ -32,7 +32,7 @@ jobs:
   unit-tests:
     name: Unit Tests with Coverage
     needs: select-runner
-    runs-on: ${{ needs.select-runner.outputs.selected-runner }}
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
@@ -98,8 +98,8 @@ jobs:
 
   integration-tests:
     name: Integration Tests with Coverage
-    needs: [select-runner, unit-tests]
-    runs-on: ${{ needs.select-runner.outputs.selected-runner }}
+    needs: [unit-tests]
+    runs-on: ubuntu-latest
     if: false  # Temporarily disabled - Docker compose timeout issues
 
     steps:
@@ -161,8 +161,8 @@ jobs:
 
   coverage-report:
     name: Generate Coverage Report
-    needs: [select-runner, unit-tests]  # Removed integration-tests dependency
-    runs-on: ${{ needs.select-runner.outputs.selected-runner }}
+    needs: [unit-tests]  # Removed integration-tests dependency
+    runs-on: ubuntu-latest
     if: always()
 
     steps:
@@ -201,8 +201,8 @@ jobs:
 
   coverage-check:
     name: Check Minimum Coverage
-    needs: [select-runner, unit-tests]  # Removed integration-tests dependency
-    runs-on: ${{ needs.select-runner.outputs.selected-runner }}
+    needs: [unit-tests]  # Removed integration-tests dependency
+    runs-on: ubuntu-latest
     if: always()
 
     steps:

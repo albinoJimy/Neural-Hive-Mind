@@ -35,7 +35,7 @@ jobs:
   build-base-images:
     name: Build Imagens Base
     needs: select-runner
-    runs-on: ${{ needs.select-runner.outputs.selected-runner }}
+    runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
