@@ -190,26 +190,14 @@ jobs:
           coverage xml -o coverage-combined.xml || true
           coverage report --fail-under=${{ env.MINIMUM_COVERAGE }} || true
 
-      - name: Generate coverage comment
-        uses: py-cov-action/python-coverage-comment-action@v3
-        with:
-          GITHUB_TOKEN: ${{ github.GITHUB_TOKEN }}
-          MINIMUM_GREEN: ${{ env.MINIMUM_COVERAGE }}
-          COVERAGE_FILE: coverage-combined.xml
-
-      - name: PR comment with coverage
-        if: github.event_name == 'pull_request'
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const fs = require('fs');
-            const coverage = fs.readFileSync('coverage-comment.txt', 'utf8');
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: coverage
-            });
+      # Coverage comment action disabled - authentication issues with GitHub token
+      # TODO: Re-enable once token permissions are fixed
+      # - name: Generate coverage comment
+      #   uses: py-cov-action/python-coverage-comment-action@v3
+      #   with:
+      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      #     MINIMUM_GREEN: ${{ env.MINIMUM_COVERAGE }}
+      #     COVERAGE_FILE: coverage-combined.xml
 
   coverage-check:
     name: Check Minimum Coverage
