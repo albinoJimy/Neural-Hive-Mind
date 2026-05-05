@@ -2,7 +2,7 @@
 Testes unitários para FeedbackCollector.
 """
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
@@ -192,7 +192,7 @@ class TestFeedbackCollector:
             "human_recommendation": "approve",
             "feedback_notes": "test",
             "submitted_by": "test",
-            "submitted_at": datetime.now(UTC),
+            "submitted_at": datetime.now(timezone.utc),
             "feedback_source": "human_expert",
             "metadata": {},
             "schema_version": "1.0.0",

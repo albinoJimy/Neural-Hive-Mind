@@ -7,7 +7,7 @@ e narrativa legível, garantindo reprodutibilidade e auditoria.
 
 import hashlib
 import json
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 import structlog
@@ -209,7 +209,7 @@ class ExplainabilityLedgerV2:
                 "plan_id": explainability_data["plan_id"],
                 "input_features": explainability_data["input_features"],
                 "model_version": explainability_data["model_version"],
-                "timestamp": datetime.now(UTC).isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
             },
             sort_keys=True,
         )

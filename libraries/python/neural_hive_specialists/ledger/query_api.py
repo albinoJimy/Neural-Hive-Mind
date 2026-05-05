@@ -5,7 +5,7 @@ Fornece métodos de alto nível para evitar queries manuais direto no MongoDB,
 com suporte a filtros semânticos, agregações e cache.
 """
 
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from typing import Any, Optional
 
 import structlog
@@ -144,7 +144,7 @@ class LedgerQueryAPI:
 
             # Filtro temporal se especificado
             if time_range_hours:
-                cutoff_time = datetime.now(UTC) - timedelta(hours=time_range_hours)
+                cutoff_time = datetime.now(timezone.utc) - timedelta(hours=time_range_hours)
                 query["evaluated_at"] = {"$gte": cutoff_time}
 
             cursor = self.collection.find(query).sort("evaluated_at", DESCENDING)
@@ -326,7 +326,7 @@ class LedgerQueryAPI:
             Estatísticas de performance
         """
         try:
-            cutoff_time = datetime.now(UTC) - timedelta(hours=time_range_hours)
+            cutoff_time = datetime.now(timezone.utc) - timedelta(hours=time_range_hours)
 
             pipeline = [
                 {

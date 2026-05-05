@@ -4,7 +4,7 @@ Factory para criação de servidor gRPC com observabilidade.
 
 import time
 from concurrent import futures
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Any
 
 import grpc
@@ -384,7 +384,7 @@ class SpecialistServicer:
 
         # Construir EvaluatePlanResponse com timestamp robusto
         try:
-            now_utc = datetime.now(UTC)
+            now_utc = datetime.now(timezone.utc)
             timestamp = Timestamp()
             timestamp.FromDatetime(now_utc)
 

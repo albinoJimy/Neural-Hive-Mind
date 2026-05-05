@@ -9,7 +9,7 @@ Este módulo testa o loop completo de feedback:
 """
 
 import asyncio
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
@@ -60,7 +60,7 @@ def feedback_message_dict():
             "outcome": "approve",
             "source": "human",
             "reasoning": "Approved after review",
-            "timestamp": datetime.now(UTC).isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         },
     }
 
@@ -223,7 +223,7 @@ async def test_process_message_reject(pattern_registry_with_data):
             "outcome": "reject",
             "source": "human",
             "reasoning": "Security concerns",
-            "timestamp": datetime.now(UTC).isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         },
     }
 
@@ -291,7 +291,7 @@ async def test_process_message_pattern_not_found(mongo_client):
             "outcome": "approve",
             "source": "human",
             "reasoning": "Approved after review",
-            "timestamp": datetime.now(UTC).isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         },
     }
 
@@ -349,7 +349,7 @@ async def test_process_message_with_corrected_weights(pattern_registry_with_data
             "outcome": "approve",
             "source": "human",
             "reasoning": "Approved after review",
-            "timestamp": datetime.now(UTC).isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "corrected_weights": corrected_weights,
         },
     }
@@ -605,7 +605,7 @@ async def test_process_multiple_messages(pattern_registry_with_data):
                 "outcome": "approve",
                 "source": "human",
                 "reasoning": "Approved",
-                "timestamp": datetime.now(UTC).isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
             },
         },
         {
@@ -631,7 +631,7 @@ async def test_process_multiple_messages(pattern_registry_with_data):
                 "outcome": "reject",
                 "source": "automated",
                 "reasoning": "Security scan failed",
-                "timestamp": datetime.now(UTC).isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
             },
         },
     ]
@@ -685,7 +685,7 @@ async def test_feedback_source_system(pattern_registry_with_data):
             "outcome": "approve",
             "source": "system",
             "reasoning": "Auto-approved by policy",
-            "timestamp": datetime.now(UTC).isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         },
     }
 

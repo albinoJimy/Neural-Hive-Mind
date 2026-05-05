@@ -11,7 +11,7 @@ import hashlib
 import os
 import shutil
 from abc import ABC, abstractmethod
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 import structlog
@@ -219,7 +219,7 @@ class S3StorageClient(StorageClient):
                 ExtraArgs={
                     "ServerSideEncryption": "AES256",
                     "Metadata": {
-                        "uploaded_at": datetime.now(UTC).isoformat(),
+                        "uploaded_at": datetime.now(timezone.utc).isoformat(),
                         "source": "neural-hive-disaster-recovery",
                     },
                 },
@@ -450,7 +450,7 @@ class GCSStorageClient(StorageClient):
 
             blob = self.bucket.blob(full_key)
             blob.metadata = {
-                "uploaded_at": datetime.now(UTC).isoformat(),
+                "uploaded_at": datetime.now(timezone.utc).isoformat(),
                 "source": "neural-hive-disaster-recovery",
             }
 

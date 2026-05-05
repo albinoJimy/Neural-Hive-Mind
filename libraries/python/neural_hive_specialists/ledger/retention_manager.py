@@ -6,7 +6,7 @@ e conformidade com GDPR/LGPD para o ledger cognitivo.
 """
 
 import hashlib
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from typing import Any, Optional
 
 import structlog
@@ -215,7 +215,7 @@ class RetentionManager:
         stats = {"processed": 0, "masked": 0, "deleted": 0, "errors": 0}
 
         try:
-            cutoff_date = datetime.now(UTC) - timedelta(days=policy.retention_days)
+            cutoff_date = datetime.now(timezone.utc) - timedelta(days=policy.retention_days)
 
             # Query documentos que excedem período de retenção
             query: dict[str, Any] = {"evaluated_at": {"$lt": cutoff_date}}
@@ -329,7 +329,7 @@ class RetentionManager:
 
             # Adicionar metadados de mascaramento
             document["masked_fields"] = masked_fields
-            document["masked_at"] = datetime.now(UTC)
+            document["masked_at"] = datetime.now(timezone.utc)
             document["retention_policy"] = "gdpr_compliant_masking"
             document["compliance_enhanced"] = (
                 self.pii_detector is not None or self.field_encryptor is not None
@@ -442,7 +442,7 @@ class RetentionManager:
 
             audit_record = {
                 "correlation_id": correlation_id,
-                "deleted_at": datetime.now(UTC),
+                "deleted_at": datetime.now(timezone.utc),
                 "reason": reason,
                 "documents_count": count,
             }
@@ -517,7 +517,7 @@ class RetentionManager:
             # Contar documentos por política
             policy_stats = {}
             for policy in self.policies:
-                cutoff_date = datetime.now(UTC) - timedelta(days=policy.retention_days)
+                cutoff_date = datetime.now(timezone.utc) - timedelta(days=policy.retention_days)
                 query: dict[str, Any] = {"evaluated_at": {"$lt": cutoff_date}}
 
                 if policy.apply_to_recommendations:

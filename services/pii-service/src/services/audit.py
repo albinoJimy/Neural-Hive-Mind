@@ -1,7 +1,7 @@
 """Serviço de audit logging para MongoDB (INV-13)."""
 
 import uuid
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 import structlog
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -88,7 +88,7 @@ class PIIAuditLogger:
         try:
             document = {
                 "audit_id": str(uuid.uuid4()),
-                "timestamp": datetime.now(UTC),
+                "timestamp": datetime.now(timezone.utc),
                 "operation": "mask",
                 "text_hash": text_hash,
                 "pii_types_found": pii_types_found,
@@ -147,7 +147,7 @@ class PIIAuditLogger:
         try:
             document = {
                 "audit_id": str(uuid.uuid4()),
-                "timestamp": datetime.now(UTC),
+                "timestamp": datetime.now(timezone.utc),
                 "operation": "unmask",
                 "mask_id": mask_id,
                 "pii_type": pii_type,
@@ -201,7 +201,7 @@ class PIIAuditLogger:
         try:
             document = {
                 "audit_id": str(uuid.uuid4()),
-                "timestamp": datetime.now(UTC),
+                "timestamp": datetime.now(timezone.utc),
                 "operation": "detect",
                 "text_hash": text_hash,
                 "pii_types_found": pii_types_found,

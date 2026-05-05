@@ -5,7 +5,7 @@ Cliente para persistência de pareceres no ledger cognitivo (MongoDB).
 import hashlib
 import json
 import uuid
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from queue import Empty, Full, Queue
 from typing import Any, Optional
 
@@ -479,7 +479,7 @@ class LedgerClient:
                 correlation_id=correlation_id,
                 trace_id=trace_id,
                 span_id=span_id,
-                evaluated_at=datetime.now(UTC),
+                evaluated_at=datetime.now(timezone.utc),
                 processing_time_ms=(
                     processing_time_ms
                     if processing_time_ms is not None
@@ -882,7 +882,7 @@ class LedgerClient:
                 "specialist_type": specialist_type,
                 "correlation_id": correlation_id,
                 "opinion_data": opinion,
-                "timestamp": datetime.now(UTC),
+                "timestamp": datetime.now(timezone.utc),
                 "immutable": True,
                 "buffered": True,
             }

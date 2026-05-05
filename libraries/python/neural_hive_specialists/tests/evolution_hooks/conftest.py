@@ -5,7 +5,7 @@ Este módulo fornece fixtures compartilhadas para todos os testes
 do sistema Evolution Hooks.
 """
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from unittest.mock import Mock
 
 import pytest
@@ -341,7 +341,7 @@ def sample_feedback():
         outcome=FeedbackOutcome.APPROVE,
         source=FeedbackSource.HUMAN,
         reasoning="Approved after review",
-        timestamp=datetime.now(UTC),
+        timestamp=datetime.now(timezone.utc),
     )
 
 

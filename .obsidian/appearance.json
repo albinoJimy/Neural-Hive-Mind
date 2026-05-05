@@ -1,0 +1,10 @@
+{
+  "baseFontSize": 15,
+  "theme": "obsidian",
+  "accentColor": "#5b2c6f",
+  "nativeMenus": false,
+  "cssTheme": "Minimal",
+  "translucency": false,
+  "showViewHeader": true,
+  "monospaceFontFamily": "JetBrains Mono,Fira Code,Consolas,monospace"
+}

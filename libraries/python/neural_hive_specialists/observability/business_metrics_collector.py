@@ -11,7 +11,7 @@ Responsável por:
 
 import time
 from collections import defaultdict
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from typing import Any, Optional
 
 import structlog
@@ -331,7 +331,7 @@ class BusinessMetricsCollector:
     def _fetch_opinions_with_confidence(self, window_hours: int) -> list[dict]:
         """Busca opiniões com confidence score da janela de tempo."""
         try:
-            cutoff_time = datetime.now(UTC) - timedelta(hours=window_hours)
+            cutoff_time = datetime.now(timezone.utc) - timedelta(hours=window_hours)
 
             query = {
                 "evaluated_at": {"$gte": cutoff_time},
@@ -452,7 +452,7 @@ class BusinessMetricsCollector:
     def _fetch_approval_decisions(self, window_hours: int) -> list[dict]:
         """Busca decisões de aprovação/rejeição da janela de tempo."""
         try:
-            cutoff_time = datetime.now(UTC) - timedelta(hours=window_hours)
+            cutoff_time = datetime.now(timezone.utc) - timedelta(hours=window_hours)
 
             # Buscar do approval-service MongoDB
             approval_db = self.ledger_client[self.ledger_database]
@@ -656,7 +656,7 @@ class BusinessMetricsCollector:
     def _fetch_model_health_checks(self, window_hours: int) -> list[dict]:
         """Busca health checks dos modelos da janela de tempo."""
         try:
-            cutoff_time = datetime.now(UTC) - timedelta(hours=window_hours)
+            cutoff_time = datetime.now(timezone.utc) - timedelta(hours=window_hours)
 
             # Buscar de collection de health checks
             health_db = self.ledger_client[self.ledger_database]
@@ -687,7 +687,7 @@ class BusinessMetricsCollector:
     def _fetch_inference_failures(self, window_hours: int) -> list[dict]:
         """Busca falhas de inferência da janela de tempo."""
         try:
-            cutoff_time = datetime.now(UTC) - timedelta(hours=window_hours)
+            cutoff_time = datetime.now(timezone.utc) - timedelta(hours=window_hours)
 
             # Buscar opiniões com erro de inferência
             query = {
@@ -720,7 +720,7 @@ class BusinessMetricsCollector:
             Lista de opiniões
         """
         try:
-            cutoff_time = datetime.now(UTC) - timedelta(hours=window_hours)
+            cutoff_time = datetime.now(timezone.utc) - timedelta(hours=window_hours)
 
             query = {
                 "evaluated_at": {"$gte": cutoff_time},
@@ -748,7 +748,7 @@ class BusinessMetricsCollector:
             Lista de decisões
         """
         try:
-            cutoff_time = datetime.now(UTC) - timedelta(hours=window_hours)
+            cutoff_time = datetime.now(timezone.utc) - timedelta(hours=window_hours)
 
             query = {
                 self.consensus_timestamp_field: {"$gte": cutoff_time},
@@ -1278,7 +1278,7 @@ class BusinessMetricsCollector:
             - metrics_summary: resumo das métricas calculadas
             - errors: lista de erros encontrados (se houver)
         """
-        collection_timestamp = datetime.now(UTC).isoformat()
+        collection_timestamp = datetime.now(timezone.utc).isoformat()
 
         logger.info(
             "Starting daily metrics collection",

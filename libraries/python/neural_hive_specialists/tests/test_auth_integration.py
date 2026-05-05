@@ -6,7 +6,7 @@ incluindo chamadas reais aos métodos gRPC e validação de Health Check bypass.
 """
 
 import time
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from unittest.mock import Mock
 
 import grpc
@@ -120,8 +120,8 @@ def valid_token(config):
     payload = {
         "sub": "consensus-engine",
         "service_type": "consensus-engine",
-        "iat": datetime.now(UTC),
-        "exp": datetime.now(UTC) + timedelta(hours=1),
+        "iat": datetime.now(timezone.utc),
+        "exp": datetime.now(timezone.utc) + timedelta(hours=1),
         "iss": config.jwt_issuer,
         "aud": config.jwt_audience,
     }
@@ -134,8 +134,8 @@ def expired_token(config):
     payload = {
         "sub": "consensus-engine",
         "service_type": "consensus-engine",
-        "iat": datetime.now(UTC) - timedelta(hours=2),
-        "exp": datetime.now(UTC) - timedelta(hours=1),
+        "iat": datetime.now(timezone.utc) - timedelta(hours=2),
+        "exp": datetime.now(timezone.utc) - timedelta(hours=1),
         "iss": config.jwt_issuer,
         "aud": config.jwt_audience,
     }
@@ -148,8 +148,8 @@ def invalid_token(config):
     payload = {
         "sub": "consensus-engine",
         "service_type": "consensus-engine",
-        "iat": datetime.now(UTC),
-        "exp": datetime.now(UTC) + timedelta(hours=1),
+        "iat": datetime.now(timezone.utc),
+        "exp": datetime.now(timezone.utc) + timedelta(hours=1),
         "iss": config.jwt_issuer,
         "aud": config.jwt_audience,
     }

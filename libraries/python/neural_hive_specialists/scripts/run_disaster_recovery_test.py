@@ -21,7 +21,7 @@ import asyncio
 import json
 import os
 import sys
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 import aiohttp
@@ -146,7 +146,7 @@ async def send_alert_async(
         slack_webhook_url: URL do webhook do Slack (opcional)
     """
     alert_data = {
-        "timestamp": datetime.now(UTC).isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
         "severity": "critical",
         "service": "neural-hive-disaster-recovery",
         "specialist_type": specialist_type,
@@ -296,7 +296,7 @@ async def _send_to_slack(
                         },
                     ],
                     "footer": "Neural Hive Specialists - Disaster Recovery",
-                    "ts": int(datetime.now(UTC).timestamp()),
+                    "ts": int(datetime.now(timezone.utc).timestamp()),
                 }
             ]
         }
@@ -468,7 +468,7 @@ def main():
                 f"Teste de recovery falhou para specialist-{args.specialist_type}\n"
                 f"Backup: {result.get('backup_id', 'N/A')}\n"
                 f"Erro: {result.get('error', 'Desconhecido')}\n"
-                f"Timestamp: {datetime.now(UTC).isoformat()}"
+                f"Timestamp: {datetime.now(timezone.utc).isoformat()}"
             )
             send_alert(alert_message, specialist_type=args.specialist_type)
 

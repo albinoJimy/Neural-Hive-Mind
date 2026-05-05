@@ -1,7 +1,7 @@
 """Gerador de documentos Markdown."""
 
 import re
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Any
 
 import structlog
@@ -86,7 +86,7 @@ class MarkdownGenerator:
 
             content += "---\n\n"
 
-        content += f"\n*Generated on {datetime.now(UTC).strftime('%Y-%m-%d %H:%M:%S')} UTC*\n"
+        content += f"\n*Generated on {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')} UTC*\n"
 
         return Document(
             id=f"DOC-API-{service_name.lower().replace(' ', '-')}",
@@ -168,7 +168,7 @@ class MarkdownGenerator:
                     lang = example.get("language", "text")
                     content += f"```{lang}\n{ex_code}\n```\n\n"
 
-        content += f"\n*Generated on {datetime.now(UTC).strftime('%Y-%m-%d %H:%M:%S')} UTC*\n"
+        content += f"\n*Generated on {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')} UTC*\n"
 
         return Document(
             id=f"DOC-GUIDE-{title.lower().replace(' ', '-').replace('/', '-')}",
@@ -221,7 +221,7 @@ class MarkdownGenerator:
 MIT License - see LICENSE file for details.
 """
 
-        content += f"\n*Generated on {datetime.now(UTC).strftime('%Y-%m-%d %H:%M:%S')} UTC*\n"
+        content += f"\n*Generated on {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')} UTC*\n"
 
         return Document(
             id=f"DOC-README-{project_name.lower().replace(' ', '-')}",
@@ -260,7 +260,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
         for version in versions:
             ver = version.get("version", "Unreleased")
-            date = version.get("date", datetime.now(UTC).strftime("%Y-%m-%d"))
+            date = version.get("date", datetime.now(timezone.utc).strftime("%Y-%m-%d"))
             changes = version.get("changes", [])
 
             content += f"## [{ver}] - {date}\n\n"
@@ -286,7 +286,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
                         content += f"- {desc}\n"
                     content += "\n"
 
-        content += f"\n*Generated on {datetime.now(UTC).strftime('%Y-%m-%d %H:%M:%S')} UTC*\n"
+        content += f"\n*Generated on {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')} UTC*\n"
 
         return Document(
             id=f"DOC-CHANGELOG-{project_name.lower().replace(' ', '-')}",

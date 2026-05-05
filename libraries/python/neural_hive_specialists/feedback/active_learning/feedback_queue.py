@@ -6,7 +6,7 @@ de forma estratégica.
 """
 
 import uuid
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from enum import Enum
 from typing import Any, Optional
 
@@ -133,8 +133,8 @@ class PriorityFeedbackQueue:
             "confidence": prediction.get("confidence"),
             "predicted_decision": prediction.get("decision"),
             "status": QueueStatus.PENDING,
-            "created_at": datetime.now(UTC),
-            "updated_at": datetime.now(UTC),
+            "created_at": datetime.now(timezone.utc),
+            "updated_at": datetime.now(timezone.utc),
             "metadata": {"nlp_features": nlp_features},
         }
 
@@ -189,7 +189,7 @@ class PriorityFeedbackQueue:
         Returns:
             Caso atualizado ou None se não encontrado
         """
-        now = datetime.now(UTC)
+        now = datetime.now(timezone.utc)
         expires_at = now + timedelta(hours=self.claim_expiry_hours)
 
         update = {
@@ -228,7 +228,7 @@ class PriorityFeedbackQueue:
         Returns:
             Caso atualizado ou None se não encontrado
         """
-        now = datetime.now(UTC)
+        now = datetime.now(timezone.utc)
 
         update = {
             "$set": {
@@ -260,7 +260,7 @@ class PriorityFeedbackQueue:
         Returns:
             Caso atualizado ou None se não encontrado
         """
-        now = datetime.now(UTC)
+        now = datetime.now(timezone.utc)
 
         update = {
             "$set": {
@@ -324,7 +324,7 @@ class PriorityFeedbackQueue:
         Returns:
             Número de casos expirados
         """
-        now = datetime.now(UTC)
+        now = datetime.now(timezone.utc)
 
         update = {
             "$set": {
@@ -356,7 +356,7 @@ class PriorityFeedbackQueue:
         Returns:
             Número de casos removidos
         """
-        cutoff = datetime.now(UTC) - timedelta(hours=older_than_hours)
+        cutoff = datetime.now(timezone.utc) - timedelta(hours=older_than_hours)
 
         result = self.collection.delete_many(
             {"status": QueueStatus.COMPLETED, "completed_at": {"$lt": cutoff}}

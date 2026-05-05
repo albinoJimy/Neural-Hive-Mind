@@ -7,7 +7,7 @@ digitais para comunicação assíncrona entre especialistas.
 
 import json
 import uuid
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from typing import Any, Optional, Union
 
 import structlog
@@ -57,7 +57,7 @@ class PheromoneSignal:
         self.plan_id = plan_id
         self.intent_id = intent_id
         self.decision_id = decision_id
-        self.created_at = datetime.now(UTC)
+        self.created_at = datetime.now(timezone.utc)
         self.expires_at = self.created_at + timedelta(seconds=ttl_seconds)
         self.decay_rate = decay_rate
         self.metadata = metadata or {}
@@ -73,7 +73,7 @@ class PheromoneSignal:
 
     def calculate_current_strength(self) -> float:
         """Calcula força atual considerando decay temporal."""
-        elapsed_hours = (datetime.now(UTC) - self.created_at).total_seconds() / 3600
+        elapsed_hours = (datetime.now(timezone.utc) - self.created_at).total_seconds() / 3600
         decayed_strength = self.strength * ((1 - self.decay_rate) ** elapsed_hours)
         return max(0.0, decayed_strength)
 
@@ -301,7 +301,7 @@ class PheromoneClient:
                 if signal_data.get("pheromone_type") == pheromone_type:
                     # Calcular força atual
                     created_at = datetime.fromisoformat(signal_data["created_at"])
-                    elapsed_hours = (datetime.now(UTC) - created_at).total_seconds() / 3600
+                    elapsed_hours = (datetime.now(timezone.utc) - created_at).total_seconds() / 3600
                     strength = signal_data["strength"]
                     decay_rate = signal_data.get("decay_rate", self.pheromone_decay_rate)
                     decayed = strength * ((1 - decay_rate) ** elapsed_hours)

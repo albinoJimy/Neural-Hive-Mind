@@ -6,7 +6,7 @@ do Evolution Specialist, incluindo fingerprints de planos, registros de
 padrões, avaliações e feedback.
 """
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Optional
 
@@ -105,7 +105,7 @@ class PatternMetrics(BaseModel):
     times_matched: int = Field(default=0, ge=0, description="Vezes usado como similar")
     success_rate: float = Field(default=0.5, ge=0, le=1, description="Taxa de sucesso")
     last_updated: datetime = Field(
-        default_factory=lambda: datetime.now(UTC), description="Última atualização"
+        default_factory=lambda: datetime.now(timezone.utc), description="Última atualização"
     )
 
 
@@ -136,7 +136,7 @@ class FeedbackData(BaseModel):
     source: FeedbackSource = Field(..., description="Origem do feedback")
     reasoning: Optional[str] = Field(None, description="Justificativa do feedback")
     timestamp: datetime = Field(
-        default_factory=lambda: datetime.now(UTC), description="Timestamp do feedback"
+        default_factory=lambda: datetime.now(timezone.utc), description="Timestamp do feedback"
     )
     corrected_weights: Optional[dict[str, float]] = Field(
         None, description="Pesos corrigidos após feedback (se aplicável)"
@@ -160,10 +160,10 @@ class PatternRecord(BaseModel):
         default_factory=PatternMetrics, description="Métricas de aprendizado"
     )
     created_at: datetime = Field(
-        default_factory=lambda: datetime.now(UTC), description="Timestamp de criação"
+        default_factory=lambda: datetime.now(timezone.utc), description="Timestamp de criação"
     )
     updated_at: datetime = Field(
-        default_factory=lambda: datetime.now(UTC),
+        default_factory=lambda: datetime.now(timezone.utc),
         description="Timestamp da última atualização",
     )
 

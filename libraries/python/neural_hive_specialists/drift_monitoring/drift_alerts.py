@@ -5,7 +5,7 @@ Integra com Prometheus Alertmanager e pode enviar notificações
 para Slack, email ou outros canais.
 """
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Any
 
 import aiohttp
@@ -61,7 +61,7 @@ class DriftAlerter:
             return
 
         alert_data = {
-            "timestamp": datetime.now(UTC).isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "severity": self._calculate_severity(drift_score),
             "drift_score": drift_score,
             "num_drifted_features": len(drifted_features),
@@ -163,7 +163,7 @@ class DriftAlerter:
                             },
                         ],
                         "footer": "Neural Hive Specialists",
-                        "ts": int(datetime.now(UTC).timestamp()),
+                        "ts": int(datetime.now(timezone.utc).timestamp()),
                     }
                 ]
             }

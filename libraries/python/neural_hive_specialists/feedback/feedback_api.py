@@ -5,7 +5,7 @@ Este módulo expõe endpoints REST para revisores humanos submeterem feedback
 sobre opiniões de especialistas.
 """
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any, Optional
 
 import structlog
@@ -314,7 +314,7 @@ def create_feedback_router(
             return SubmitFeedbackResponse(
                 feedback_id=feedback_id,
                 opinion_id=request.opinion_id,
-                submitted_at=datetime.now(UTC).isoformat(),
+                submitted_at=datetime.now(timezone.utc).isoformat(),
                 status="success",
             )
 

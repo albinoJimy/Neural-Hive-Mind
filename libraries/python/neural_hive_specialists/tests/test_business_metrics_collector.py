@@ -8,7 +8,7 @@ Testa:
 - Coleta end-to-end de business metrics
 """
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
@@ -486,17 +486,17 @@ class TestCollectBusinessMetrics:
         opinions = [
             {
                 "opinion_id": "op1",
-                "evaluated_at": datetime.now(UTC),
+                "evaluated_at": datetime.now(timezone.utc),
                 "specialist_type": "technical",
             },
             {
                 "opinion_id": "op2",
-                "evaluated_at": datetime.now(UTC),
+                "evaluated_at": datetime.now(timezone.utc),
                 "specialist_type": "business",
             },
             {
                 "opinion_id": "op3",
-                "evaluated_at": datetime.now(UTC),
+                "evaluated_at": datetime.now(timezone.utc),
                 "specialist_type": "technical",
             },
         ]
@@ -504,7 +504,7 @@ class TestCollectBusinessMetrics:
         # Mock de decisões
         decisions = [
             {
-                "timestamp": datetime.now(UTC),
+                "timestamp": datetime.now(timezone.utc),
                 "final_decision": "APPROVE",
                 "specialist_votes": [
                     {
@@ -521,7 +521,7 @@ class TestCollectBusinessMetrics:
                 "plan_id": "plan1",
             },
             {
-                "timestamp": datetime.now(UTC),
+                "timestamp": datetime.now(timezone.utc),
                 "final_decision": "REJECT",
                 "specialist_votes": [
                     {
@@ -569,10 +569,10 @@ class TestCollectBusinessMetrics:
 
     def test_cache_usage(self, collector):
         """Testa uso de cache."""
-        opinions = [{"opinion_id": "op1", "evaluated_at": datetime.now(UTC)}]
+        opinions = [{"opinion_id": "op1", "evaluated_at": datetime.now(timezone.utc)}]
         decisions = [
             {
-                "timestamp": datetime.now(UTC),
+                "timestamp": datetime.now(timezone.utc),
                 "final_decision": "APPROVE",
                 "specialist_votes": [
                     {

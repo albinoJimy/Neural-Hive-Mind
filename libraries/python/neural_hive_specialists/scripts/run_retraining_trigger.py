@@ -18,7 +18,7 @@ import logging
 import os
 import sys
 import time
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 import structlog
@@ -300,7 +300,7 @@ def main():
         structlog.configure(wrapper_class=structlog.make_filtering_bound_logger(logging.DEBUG))
 
     print("🔄 Neural Hive - Retraining Trigger Checker")
-    print(f"⏰ Execution time: {datetime.now(UTC).isoformat()}")
+    print(f"⏰ Execution time: {datetime.now(timezone.utc).isoformat()}")
     print()
 
     # Carregar configuração

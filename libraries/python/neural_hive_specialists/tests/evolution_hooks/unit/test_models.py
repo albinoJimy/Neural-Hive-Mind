@@ -5,7 +5,7 @@ Este módulo testa todos os modelos Pydantic usados pelo sistema
 Evolution Hooks.
 """
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 import pytest
 from pydantic import ValidationError
@@ -181,7 +181,7 @@ class TestPatternMetrics:
 
     def test_create_metrics_custom(self):
         """Cria métricas com valores customizados."""
-        now = datetime.now(UTC)
+        now = datetime.now(timezone.utc)
         metrics = PatternMetrics(times_matched=100, success_rate=0.85, last_updated=now)
         assert metrics.times_matched == 100
         assert metrics.success_rate == 0.85

@@ -5,7 +5,7 @@ Cobertura: inicialização, save_opinion (com/sem fallback), buffer/flush,
 retrieval, verificação de integridade, circuit breaker transitions.
 """
 
-from datetime import UTC
+from datetime import datetime, timezone
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
@@ -283,7 +283,7 @@ class TestBuffer:
                 "specialist_type": "business",
                 "correlation_id": f"corr-{i}",
                 "opinion_data": sample_opinion,  # nome correto: opinion_data
-                "timestamp": datetime.now(UTC),  # campo obrigatório para hash
+                "timestamp": datetime.now(timezone.utc),  # campo obrigatório para hash
                 "buffered": True,
             }
             ledger_client._buffer_opinion(opinion_data)

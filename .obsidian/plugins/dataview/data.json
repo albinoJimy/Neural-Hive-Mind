@@ -1,0 +1,14 @@
+{
+  "queryInline": true,
+  "queryInlineContext": false,
+  "inlineQueriesInCodeblocks": true,
+  "inlineQueryPrefix": "=",
+  "datetimeFormat": "YYYY-MM-DD HH:mm:ss",
+  "dateTimeFormat": "YYYY-MM-DD HH:mm:ss",
+  "dateFormat": "YYYY-MM-DD",
+  "folderDateTimeZ": "UTC",
+  "enableInlineDataview": true,
+  "enableJs": true,
+  "renderNullAs": "-",
+  "recursiveMarkdownLinkProcessing": true
+}

@@ -10,7 +10,7 @@ Para executar: pytest -m integration
 
 import os
 import time
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from unittest.mock import Mock, patch
 
 import mongomock
@@ -101,7 +101,7 @@ class TestComplianceFlowIntegration:
                 "reasoning": "Analysis complete",
                 "confidence": 0.95,
             },
-            "timestamp": datetime.now(UTC).isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
         # Criptografar campos
@@ -259,7 +259,7 @@ class TestComplianceFlowIntegration:
         compliance.pii_detector = None
 
         # Criar opinião antiga (mais de 90 dias)
-        old_timestamp = datetime.now(UTC) - timedelta(days=95)
+        old_timestamp = datetime.now(timezone.utc) - timedelta(days=95)
         old_opinion = {
             "opinion_id": "old-opinion-001",
             "correlation_id": "corr-old-123",
@@ -278,7 +278,7 @@ class TestComplianceFlowIntegration:
             "opinion_id": "recent-opinion-001",
             "correlation_id": "corr-recent-123",
             "trace_id": "trace-recent-456",
-            "timestamp": datetime.now(UTC).isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "specialist_type": "business",
             "opinion": {"verdict": "approved", "reasoning": "Recent analysis"},
         }
@@ -287,7 +287,7 @@ class TestComplianceFlowIntegration:
         opinions_collection.insert_one(encrypted_recent)
 
         # Simular aplicação de retention policy (mask_after_90_days)
-        cutoff_date = datetime.now(UTC) - timedelta(days=90)
+        cutoff_date = datetime.now(timezone.utc) - timedelta(days=90)
 
         # Encontrar e mascarar opiniões antigas
         old_opinions = opinions_collection.find({"timestamp": {"$lt": cutoff_date.isoformat()}})

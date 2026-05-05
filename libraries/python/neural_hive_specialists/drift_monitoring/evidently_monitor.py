@@ -5,7 +5,7 @@ Monitora distribuição de features ao longo do tempo e detecta desvios
 significativos em relação ao dataset de referência.
 """
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 import numpy as np
@@ -64,7 +64,7 @@ class EvidentlyMonitor:
             features: Dicionário de features extraídas
             timestamp: Timestamp da avaliação (usa now() se None)
         """
-        record = {"timestamp": timestamp or datetime.now(UTC), **features}
+        record = {"timestamp": timestamp or datetime.now(timezone.utc), **features}
         self.current_data.append(record)
 
         logger.debug("Features logged", num_features=len(features))
@@ -146,7 +146,7 @@ class EvidentlyMonitor:
                 "drift_score": drift_score,
                 "drifted_features": drifted_features,
                 "report": report_dict,
-                "timestamp": datetime.now(UTC).isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
             }
 
         except ImportError:

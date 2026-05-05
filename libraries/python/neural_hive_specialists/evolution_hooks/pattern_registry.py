@@ -6,7 +6,7 @@ padrões de avaliação do Evolution Specialist, permitindo o
 meta-learning baseado em histórico.
 """
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 import structlog
@@ -78,10 +78,10 @@ class PatternRegistry:
             "metrics": {
                 "times_matched": 0,
                 "success_rate": 0.5,
-                "last_updated": datetime.now(UTC),
+                "last_updated": datetime.now(timezone.utc),
             },
-            "created_at": datetime.now(UTC),
-            "updated_at": datetime.now(UTC),
+            "created_at": datetime.now(timezone.utc),
+            "updated_at": datetime.now(timezone.utc),
         }
 
         result = await self.collection.insert_one(doc)
@@ -109,7 +109,7 @@ class PatternRegistry:
         if corrected_weights:
             feedback_dict["corrected_weights"] = corrected_weights
 
-        update_doc = {"$set": {"feedback": feedback_dict, "updated_at": datetime.now(UTC)}}
+        update_doc = {"$set": {"feedback": feedback_dict, "updated_at": datetime.now(timezone.utc)}}
 
         result = await self.collection.update_one({"plan_id": plan_id}, update_doc)
 
@@ -225,7 +225,7 @@ class PatternRegistry:
             "$inc": {"metrics.times_matched": 1},
             "$set": {
                 "metrics.success_rate": new_rate,
-                "metrics.last_updated": datetime.now(UTC),
+                "metrics.last_updated": datetime.now(timezone.utc),
             },
         }
 
@@ -339,10 +339,10 @@ class SyncPatternRegistry:
             "metrics": {
                 "times_matched": 0,
                 "success_rate": 0.5,
-                "last_updated": datetime.now(UTC),
+                "last_updated": datetime.now(timezone.utc),
             },
-            "created_at": datetime.now(UTC),
-            "updated_at": datetime.now(UTC),
+            "created_at": datetime.now(timezone.utc),
+            "updated_at": datetime.now(timezone.utc),
         }
 
         result = self.collection.insert_one(doc)
@@ -365,7 +365,7 @@ class SyncPatternRegistry:
         if corrected_weights:
             feedback_dict["corrected_weights"] = corrected_weights
 
-        update_doc = {"$set": {"feedback": feedback_dict, "updated_at": datetime.now(UTC)}}
+        update_doc = {"$set": {"feedback": feedback_dict, "updated_at": datetime.now(timezone.utc)}}
 
         result = self.collection.update_one({"plan_id": plan_id}, update_doc)
 
@@ -438,7 +438,7 @@ class SyncPatternRegistry:
             "$inc": {"metrics.times_matched": 1},
             "$set": {
                 "metrics.success_rate": new_rate,
-                "metrics.last_updated": datetime.now(UTC),
+                "metrics.last_updated": datetime.now(timezone.utc),
             },
         }
 

@@ -7,7 +7,7 @@ funcionalidades de online learning.
 
 import os
 import time
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from typing import Any, Optional
 
 import numpy as np
@@ -88,7 +88,7 @@ class OnlineLearningClient:
         if self._cached_model is None or self._cache_timestamp is None:
             return False
 
-        cache_age = datetime.now(UTC) - self._cache_timestamp
+        cache_age = datetime.now(timezone.utc) - self._cache_timestamp
         return cache_age < timedelta(seconds=self.cache_ttl_seconds)
 
     def _load_online_model(self) -> Optional[Any]:
@@ -161,7 +161,7 @@ class OnlineLearningClient:
 
             if model is not None:
                 self._cached_model = model
-                self._cache_timestamp = datetime.now(UTC)
+                self._cache_timestamp = datetime.now(timezone.utc)
 
             return model
 
@@ -307,7 +307,7 @@ class OnlineLearningClient:
                 "prediction": prediction,
                 "confidence": confidence,
                 "model_used": model_used,
-                "timestamp": datetime.now(UTC),
+                "timestamp": datetime.now(timezone.utc),
                 "online_learning_enabled": self.online_learning_enabled,
             }
 

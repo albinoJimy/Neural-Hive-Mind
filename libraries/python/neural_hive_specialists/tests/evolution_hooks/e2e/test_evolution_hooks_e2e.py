@@ -8,7 +8,7 @@ Este módulo testa os fluxos completos do sistema de meta-learning:
 """
 
 import asyncio
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from unittest.mock import patch
 
 import pytest
@@ -185,7 +185,7 @@ async def test_cold_start_with_learning(
             outcome=FeedbackOutcome.APPROVE,
             source=FeedbackSource.HUMAN,
             reasoning=f"Approved plan {i}",
-            timestamp=datetime.now(UTC),
+            timestamp=datetime.now(timezone.utc),
         )
         await registry.add_feedback(plan_id, feedback)
 
@@ -244,7 +244,7 @@ async def test_learning_from_mixed_feedback(
             outcome=outcome,
             source=FeedbackSource.HUMAN,
             reasoning=f"Plan {i} outcome",
-            timestamp=datetime.now(UTC),
+            timestamp=datetime.now(timezone.utc),
         )
         await registry.add_feedback(plan_id, feedback)
 
@@ -304,7 +304,7 @@ async def test_pattern_decay_high_success_then_failure(
             outcome=FeedbackOutcome.APPROVE,
             source=FeedbackSource.HUMAN,
             reasoning=f"Good plan {i}",
-            timestamp=datetime.now(UTC) + timedelta(seconds=i),
+            timestamp=datetime.now(timezone.utc) + timedelta(seconds=i),
         )
         await registry.add_feedback(plan_id, feedback)
         # Atualizar métricas explicitamente (assim como o sistema real faria)
@@ -321,7 +321,7 @@ async def test_pattern_decay_high_success_then_failure(
         outcome=FeedbackOutcome.REJECT,
         source=FeedbackSource.HUMAN,
         reasoning="Security concerns found",
-        timestamp=datetime.now(UTC) + timedelta(seconds=10),
+        timestamp=datetime.now(timezone.utc) + timedelta(seconds=10),
     )
     await registry.add_feedback(plan_id, negative_feedback)
     # Atualizar métricas com failure
@@ -371,7 +371,7 @@ async def test_weight_adjustment_after_decay(
             outcome=FeedbackOutcome.APPROVE,
             source=FeedbackSource.HUMAN,
             reasoning=f"Good maintainability {i}",
-            timestamp=datetime.now(UTC),
+            timestamp=datetime.now(timezone.utc),
         )
         await registry.add_feedback(plan_id, feedback)
 
@@ -397,7 +397,7 @@ async def test_weight_adjustment_after_decay(
             outcome=FeedbackOutcome.REJECT,
             source=FeedbackSource.HUMAN,
             reasoning=f"Poor maintainability {i}",
-            timestamp=datetime.now(UTC),
+            timestamp=datetime.now(timezone.utc),
         )
         await registry.add_feedback(plan_id, feedback)
 
@@ -438,7 +438,7 @@ async def test_pattern_decay_recovery(
             outcome=FeedbackOutcome.APPROVE,
             source=FeedbackSource.HUMAN,
             reasoning="Good",
-            timestamp=datetime.now(UTC),
+            timestamp=datetime.now(timezone.utc),
         )
         await registry.add_feedback(plan_id, feedback)
         await registry.update_metrics(pattern_id, success=True)
@@ -452,7 +452,7 @@ async def test_pattern_decay_recovery(
             outcome=FeedbackOutcome.REJECT,
             source=FeedbackSource.AUTOMATED,
             reasoning="Failed",
-            timestamp=datetime.now(UTC),
+            timestamp=datetime.now(timezone.utc),
         )
         await registry.add_feedback(plan_id, feedback)
         await registry.update_metrics(pattern_id, success=False)
@@ -467,7 +467,7 @@ async def test_pattern_decay_recovery(
             outcome=FeedbackOutcome.APPROVE,
             source=FeedbackSource.HUMAN,
             reasoning="Good again",
-            timestamp=datetime.now(UTC),
+            timestamp=datetime.now(timezone.utc),
         )
         await registry.add_feedback(plan_id, feedback)
         await registry.update_metrics(pattern_id, success=True)
@@ -634,7 +634,7 @@ async def test_full_feedback_loop_integration(
             "outcome": "approve",
             "source": "human",
             "reasoning": "Approved after review",
-            "timestamp": datetime.now(UTC).isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         },
     }
 
@@ -656,7 +656,7 @@ async def test_full_feedback_loop_integration(
             outcome=FeedbackOutcome.APPROVE,
             source=FeedbackSource.HUMAN,
             reasoning=f"Approved {i}",
-            timestamp=datetime.now(UTC),
+            timestamp=datetime.now(timezone.utc),
         )
         await registry.add_feedback(pid, fb)
 
@@ -691,7 +691,7 @@ async def test_multiple_domains_separate_learning(
             outcome=FeedbackOutcome.APPROVE,
             source=FeedbackSource.HUMAN,
             reasoning=f"Technical plan approved {i}",
-            timestamp=datetime.now(UTC),
+            timestamp=datetime.now(timezone.utc),
         )
         await registry.add_feedback(plan_id, feedback)
 
@@ -704,7 +704,7 @@ async def test_multiple_domains_separate_learning(
             outcome=FeedbackOutcome.REJECT,
             source=FeedbackSource.HUMAN,
             reasoning=f"Business plan rejected {i}",
-            timestamp=datetime.now(UTC),
+            timestamp=datetime.now(timezone.utc),
         )
         await registry.add_feedback(plan_id, feedback)
 
@@ -759,7 +759,7 @@ async def test_corrected_weights_propagation(
         outcome=FeedbackOutcome.APPROVE,
         source=FeedbackSource.HUMAN,
         reasoning="Weights adjusted after review",
-        timestamp=datetime.now(UTC),
+        timestamp=datetime.now(timezone.utc),
         corrected_weights=corrected_weights,
     )
 
@@ -811,7 +811,7 @@ async def test_weight_normalization_boundary(
         fb = FeedbackData(
             outcome=FeedbackOutcome.APPROVE,
             source=FeedbackSource.SYSTEM,
-            timestamp=datetime.now(UTC),
+            timestamp=datetime.now(timezone.utc),
         )
         await registry.add_feedback(plan_id, fb)
 
@@ -895,7 +895,7 @@ async def test_concurrent_feedback_processing(
             outcome=outcome,
             source=FeedbackSource.HUMAN,
             reasoning=f"Concurrent feedback for {plan_id}",
-            timestamp=datetime.now(UTC),
+            timestamp=datetime.now(timezone.utc),
         )
         return await registry.add_feedback(plan_id, feedback)
 
@@ -941,7 +941,7 @@ async def test_pattern_registry_statistics(
         fb = FeedbackData(
             outcome=FeedbackOutcome.APPROVE,
             source=FeedbackSource.HUMAN,
-            timestamp=datetime.now(UTC),
+            timestamp=datetime.now(timezone.utc),
         )
         await registry.add_feedback(plan_id, fb)
 
@@ -953,7 +953,7 @@ async def test_pattern_registry_statistics(
         fb = FeedbackData(
             outcome=FeedbackOutcome.REJECT,
             source=FeedbackSource.AUTOMATED,
-            timestamp=datetime.now(UTC),
+            timestamp=datetime.now(timezone.utc),
         )
         await registry.add_feedback(plan_id, fb)
 
@@ -1025,7 +1025,7 @@ async def test_learning_trajectory_simulation(
             outcome=outcome,
             source=FeedbackSource.HUMAN,
             reasoning=f"Phase2 feedback {i}",
-            timestamp=datetime.now(UTC),
+            timestamp=datetime.now(timezone.utc),
         )
         await registry.add_feedback(plan_id, feedback)
 
@@ -1045,7 +1045,7 @@ async def test_learning_trajectory_simulation(
         feedback = FeedbackData(
             outcome=FeedbackOutcome.APPROVE,
             source=FeedbackSource.SYSTEM,
-            timestamp=datetime.now(UTC),
+            timestamp=datetime.now(timezone.utc),
         )
         await registry.add_feedback(plan_id, feedback)
 

@@ -34,7 +34,7 @@ class DLQMessage:
     error_message: str
     error_type: str
     failure_count: int
-    timestamp: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
+    timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     service: str = "consensus-engine"
     consumer_group: str = "consensus-engine"
 

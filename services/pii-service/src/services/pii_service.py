@@ -5,13 +5,13 @@ from datetime import timezone
 
 import structlog
 from neural_hive_specialists.compliance.pii_detector import PIIDetectorLite
-from neural_hive_specialists.compliance.pii_masker import MaskStrategy, PIIMasker
+from neural_hive_specialists.compliance.pii_masker import MaskStrategy as SpecialistMaskStrategy, PIIMasker
 from neural_hive_specialists.compliance.pii_patterns import PIIType as SpecialistPIIType
 
 from src.config.settings import get_settings
 from src.models.pii import (
     MaskResult,
-    MaskStrategy,
+    MaskStrategy as ServiceMaskStrategy,
     PIIType,
     PIIFound,
     PIIUnmaskError,
@@ -30,7 +30,6 @@ PII_TYPE_MAPPING = {
     SpecialistPIIType.CNPJ: PIIType.CNPJ,
     SpecialistPIIType.CREDIT_CARD: PIIType.CREDIT_CARD,
     SpecialistPIIType.SSN: PIIType.SSN,
-    SpecialistPIIType.ADDRESS: PIIType.ADDRESS,
     SpecialistPIIType.IP_ADDRESS: PIIType.IP_ADDRESS,
     SpecialistPIIType.UUID: PIIType.UUID,
     SpecialistPIIType.API_KEY: PIIType.API_KEY,
@@ -43,19 +42,24 @@ PII_TYPE_MAPPING = {
     SpecialistPIIType.BANK_ACCOUNT: PIIType.BANK_ACCOUNT,
     SpecialistPIIType.PERSON: PIIType.PERSON,
     SpecialistPIIType.ORG: PIIType.ORG,
+    SpecialistPIIType.GPE: PIIType.ADDRESS,  # Geopolitical Entity → Address
+    SpecialistPIIType.LOC: PIIType.ADDRESS,  # Location → Address
     SpecialistPIIType.DATE: PIIType.DATE,
 }
 
 # Mapeamento reverso
 PII_TYPE_REVERSE_MAPPING = {v: k for k, v in PII_TYPE_MAPPING.items()}
 
-# Mapeamento entre MaskStrategy
+# Mapeamento entre SpecialistMaskStrategy e ServiceMaskStrategy
 MASK_STRATEGY_MAPPING = {
-    MaskStrategy.FULL: MaskStrategy.MASK_FULL,
-    MaskStrategy.PARTIAL: MaskStrategy.MASK_PARTIAL,
-    MaskStrategy.REDACT: MaskStrategy.MASK_REDACT,
-    MaskStrategy.HASH: MaskStrategy.MASK_HASH,
+    SpecialistMaskStrategy.FULL: ServiceMaskStrategy.MASK_FULL,
+    SpecialistMaskStrategy.PARTIAL: ServiceMaskStrategy.MASK_PARTIAL,
+    SpecialistMaskStrategy.REDACT: ServiceMaskStrategy.MASK_REDACT,
+    SpecialistMaskStrategy.HASH: ServiceMaskStrategy.MASK_HASH,
 }
+
+# Mapeamento reverso
+MASK_STRATEGY_REVERSE_MAPPING = {v: k for k, v in MASK_STRATEGY_MAPPING.items()}
 
 
 class PIIService:
@@ -73,13 +77,13 @@ class PIIService:
         settings = get_settings()
 
         # Inicializar masker do neural_hive_specialists
-        specialist_strategy = MaskStrategy.PARTIAL
+        specialist_strategy = SpecialistMaskStrategy.PARTIAL
         if settings.PII_DEFAULT_STRATEGY == "MASK_FULL":
-            specialist_strategy = MaskStrategy.FULL
+            specialist_strategy = SpecialistMaskStrategy.FULL
         elif settings.PII_DEFAULT_STRATEGY == "MASK_REDACT":
-            specialist_strategy = MaskStrategy.REDACT
+            specialist_strategy = SpecialistMaskStrategy.REDACT
         elif settings.PII_DEFAULT_STRATEGY == "MASK_HASH":
-            specialist_strategy = MaskStrategy.HASH
+            specialist_strategy = SpecialistMaskStrategy.HASH
 
         self.masker = PIIMasker(
             strategy=specialist_strategy,
@@ -129,10 +133,23 @@ class PIIService:
         # Detectar usando PIIDetectorLite
         detected = self.detector.detect_pii(text)
 
+        # Mapeamento direto de tipos do detector para PIIType do serviço
+        # (para casos onde o detector retorna tipos que não estão no PIIType)
+        DETECTOR_TYPE_MAPPING = {
+            "GPE": PIIType.ADDRESS,
+            "LOC": PIIType.ADDRESS,
+        }
+
         # Converter para PIIFound com positions
         result = []
         for item in detected:
-            pii_type = PIIType(item["entity_type"])
+            entity_type = item["entity_type"]
+            # Tentar mapear para PIIType, com fallback para DETECTOR_TYPE_MAPPING
+            try:
+                pii_type = PIIType(entity_type)
+            except ValueError:
+                # Tipo não existe no PIIType, usar mapeamento
+                pii_type = DETECTOR_TYPE_MAPPING.get(entity_type, PIIType.PII_UNKNOWN)
 
             # Filtrar por confiança
             if item.get("score", 1.0) < min_confidence:
@@ -163,7 +180,7 @@ class PIIService:
     async def mask(
         self,
         text: str,
-        strategy: MaskStrategy = MaskStrategy.MASK_PARTIAL,
+        strategy: ServiceMaskStrategy = ServiceMaskStrategy.MASK_PARTIAL,
         types_to_mask: list[PIIType] | None = None,
         enable_reversible: bool = False,
         requestor_id: str = "anonymous",
@@ -200,7 +217,7 @@ class PIIService:
             ]
 
         # Mapear estratégia
-        specialist_strategy = MASK_STRATEGY_MAPPING.get(strategy, MaskStrategy.PARTIAL)
+        specialist_strategy = MASK_STRATEGY_MAPPING.get(strategy, SpecialistMaskStrategy.PARTIAL)
 
         # Detectar e mascarar
         detected = self.detect(text, types_to_mask)
@@ -253,7 +270,7 @@ class PIIService:
             )
 
         # Criar token de unmask reversível se solicitado
-        if enable_reversible and strategy == MaskStrategy.MASK_REDACT:
+        if enable_reversible and strategy == ServiceMaskStrategy.MASK_REDACT:
             # Criar token composto com todas as entidades
             # Para simplificar, vamos criar um token por entidade
             # Em produção, pode-se criar um token com todas as entidades
@@ -369,7 +386,7 @@ class PIIService:
 
         return {
             "supported_types": [t.value for t in PIIType],
-            "supported_strategies": [s.value for s in MaskStrategy],
+            "supported_strategies": [s.value for s in ServiceMaskStrategy],
             "supports_reversible_unmask": settings.UNMASK_ENABLED,
             "supports_audit_log": True,
             "version": settings.VERSION,

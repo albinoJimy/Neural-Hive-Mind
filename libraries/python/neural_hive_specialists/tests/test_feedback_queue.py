@@ -5,7 +5,7 @@ TDD: Testes escritos antes da implementação.
 Espec: @.agent-os/specs/2026-03-17-active-learning-feedback/
 """
 
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from unittest.mock import MagicMock
 
 import pytest
@@ -136,7 +136,7 @@ class TestPriorityFeedbackQueue:
             "intent_preview": "Implementar...",
             "information_value": 0.85,
             "status": QueueStatus.PENDING,
-            "created_at": datetime.now(UTC),
+            "created_at": datetime.now(timezone.utc),
         }
 
         case = queue.dequeue_next_case()
@@ -191,8 +191,8 @@ class TestPriorityFeedbackQueue:
             "plan_id": "plan-123",
             "status": QueueStatus.IN_REVIEW,
             "assigned_to": "user@example.com",
-            "claimed_at": datetime.now(UTC),
-            "expires_at": datetime.now(UTC),
+            "claimed_at": datetime.now(timezone.utc),
+            "expires_at": datetime.now(timezone.utc),
         }
 
         result = queue.claim_case(queue_id="queue-123", assigned_to="user@example.com")
@@ -208,7 +208,7 @@ class TestPriorityFeedbackQueue:
         mock_result.matched_count = 1
         queue.collection.update_one.return_value = mock_result
 
-        now = datetime.now(UTC)
+        now = datetime.now(timezone.utc)
         queue.collection.find_one.return_value = {
             "queue_id": "queue-123",
             "status": QueueStatus.IN_REVIEW,

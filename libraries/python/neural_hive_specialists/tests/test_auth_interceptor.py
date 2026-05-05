@@ -2,7 +2,7 @@
 Testes para AuthInterceptor.
 """
 
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from unittest.mock import Mock
 
 import jwt
@@ -72,8 +72,8 @@ def valid_token(config):
     payload = {
         "sub": "consensus-engine",
         "service_type": "consensus-engine",
-        "iat": datetime.now(UTC),
-        "exp": datetime.now(UTC) + timedelta(hours=1),
+        "iat": datetime.now(timezone.utc),
+        "exp": datetime.now(timezone.utc) + timedelta(hours=1),
         "iss": config.jwt_issuer,
         "aud": config.jwt_audience,
     }
@@ -106,8 +106,8 @@ class TestAuthInterceptor:
         payload = {
             "sub": "consensus-engine",
             "service_type": "consensus-engine",
-            "iat": datetime.now(UTC),
-            "exp": datetime.now(UTC) + timedelta(hours=1),
+            "iat": datetime.now(timezone.utc),
+            "exp": datetime.now(timezone.utc) + timedelta(hours=1),
             "iss": config.jwt_issuer,
             "aud": config.jwt_audience,
         }
@@ -122,8 +122,8 @@ class TestAuthInterceptor:
         payload = {
             "sub": "consensus-engine",
             "service_type": "consensus-engine",
-            "iat": datetime.now(UTC) - timedelta(hours=2),
-            "exp": datetime.now(UTC) - timedelta(hours=1),
+            "iat": datetime.now(timezone.utc) - timedelta(hours=2),
+            "exp": datetime.now(timezone.utc) - timedelta(hours=1),
             "iss": config.jwt_issuer,
             "aud": config.jwt_audience,
         }
@@ -137,8 +137,8 @@ class TestAuthInterceptor:
         payload = {
             "sub": "consensus-engine",
             "service_type": "consensus-engine",
-            "iat": datetime.now(UTC),
-            "exp": datetime.now(UTC) + timedelta(hours=1),
+            "iat": datetime.now(timezone.utc),
+            "exp": datetime.now(timezone.utc) + timedelta(hours=1),
             "iss": config.jwt_issuer,
             "aud": config.jwt_audience,
         }
@@ -284,8 +284,8 @@ class TestAuthInterceptor:
         payload = {
             "sub": "consensus-engine",
             "service_type": "consensus-engine",
-            "iat": datetime.now(UTC),
-            "exp": datetime.now(UTC) + timedelta(hours=1),
+            "iat": datetime.now(timezone.utc),
+            "exp": datetime.now(timezone.utc) + timedelta(hours=1),
             "iss": config.jwt_issuer,
             "aud": config.jwt_audience,
         }
@@ -308,8 +308,8 @@ class TestAuthInterceptor:
         payload = {
             "sub": "consensus-engine",
             "service_type": "consensus-engine",
-            "iat": datetime.now(UTC) - timedelta(hours=2),
-            "exp": datetime.now(UTC) - timedelta(hours=1),
+            "iat": datetime.now(timezone.utc) - timedelta(hours=2),
+            "exp": datetime.now(timezone.utc) - timedelta(hours=1),
             "iss": config.jwt_issuer,
             "aud": config.jwt_audience,
         }
@@ -337,8 +337,8 @@ class TestAuthInterceptor:
         payload = {
             "sub": "unknown-service",
             "service_type": "unknown",
-            "iat": datetime.now(UTC),
-            "exp": datetime.now(UTC) + timedelta(hours=1),
+            "iat": datetime.now(timezone.utc),
+            "exp": datetime.now(timezone.utc) + timedelta(hours=1),
             "iss": config.jwt_issuer,
             "aud": config.jwt_audience,
         }
@@ -385,8 +385,8 @@ class TestAuthInterceptorMetrics:
         payload = {
             "sub": "consensus-engine",
             "service_type": "consensus-engine",
-            "iat": datetime.now(UTC),
-            "exp": datetime.now(UTC) + timedelta(hours=1),
+            "iat": datetime.now(timezone.utc),
+            "exp": datetime.now(timezone.utc) + timedelta(hours=1),
             "iss": config.jwt_issuer,
             "aud": config.jwt_audience,
         }
@@ -483,8 +483,8 @@ class TestAuthInterceptorMetrics:
         payload = {
             "sub": "consensus-engine",
             "service_type": "consensus-engine",
-            "iat": datetime.now(UTC),
-            "exp": datetime.now(UTC) + timedelta(hours=1),
+            "iat": datetime.now(timezone.utc),
+            "exp": datetime.now(timezone.utc) + timedelta(hours=1),
             "iss": config.jwt_issuer,
             "aud": config.jwt_audience,
         }

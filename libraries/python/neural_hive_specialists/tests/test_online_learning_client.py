@@ -1,6 +1,6 @@
 """Testes para OnlineLearningClient."""
 
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from unittest.mock import Mock, patch
 
 import numpy as np
@@ -91,7 +91,7 @@ class TestIsCacheValid:
         """Testa cache válido quando timestamp é recente."""
         client = OnlineLearningClient("technical")
         client._cached_model = {"model": "data"}
-        client._cache_timestamp = datetime.now(UTC) - timedelta(seconds=100)
+        client._cache_timestamp = datetime.now(timezone.utc) - timedelta(seconds=100)
 
         assert client._is_cache_valid() is True
 
@@ -99,7 +99,7 @@ class TestIsCacheValid:
         """Testa cache inválido quando timestamp é antigo."""
         client = OnlineLearningClient("technical")
         client._cached_model = {"model": "data"}
-        client._cache_timestamp = datetime.now(UTC) - timedelta(seconds=400)
+        client._cache_timestamp = datetime.now(timezone.utc) - timedelta(seconds=400)
 
         assert client._is_cache_valid() is False
 
@@ -176,7 +176,7 @@ class TestGetOnlineModel:
         client = OnlineLearningClient("technical")
         cached_model = {"model": "cached"}
         client._cached_model = cached_model
-        client._cache_timestamp = datetime.now(UTC) - timedelta(seconds=100)
+        client._cache_timestamp = datetime.now(timezone.utc) - timedelta(seconds=100)
 
         result = client.get_online_model()
 
@@ -187,7 +187,7 @@ class TestGetOnlineModel:
         client = OnlineLearningClient("technical")
         old_cached = {"model": "old"}
         client._cached_model = old_cached
-        client._cache_timestamp = datetime.now(UTC) - timedelta(seconds=100)
+        client._cache_timestamp = datetime.now(timezone.utc) - timedelta(seconds=100)
 
         with patch.object(client, "_load_online_model", return_value={"model": "new"}):
             result = client.get_online_model(force_reload=True)
@@ -202,7 +202,7 @@ class TestGetOnlineModel:
         client = OnlineLearningClient("technical")
         cached_model = {"model": "cached"}
         client._cached_model = cached_model
-        client._cache_timestamp = datetime.now(UTC) - timedelta(seconds=400)
+        client._cache_timestamp = datetime.now(timezone.utc) - timedelta(seconds=400)
 
         # Simular circuit breaker aberto
         with patch.object(client, "_load_online_model", side_effect=pybreaker.CircuitBreakerError):
@@ -360,7 +360,7 @@ class TestInvalidateCache:
         """Testa que invalidação limpa o cache."""
         client = OnlineLearningClient("technical")
         client._cached_model = {"model": "data"}
-        client._cache_timestamp = datetime.now(UTC)
+        client._cache_timestamp = datetime.now(timezone.utc)
 
         client.invalidate_cache()
 
@@ -382,7 +382,7 @@ class TestIsOnlineModelAvailable:
         """Testa retorna True quando modelo está carregado."""
         client = OnlineLearningClient("technical")
         client._cached_model = {"model": "data"}
-        client._cache_timestamp = datetime.now(UTC)
+        client._cache_timestamp = datetime.now(timezone.utc)
 
         with patch.object(client, "_is_cache_valid", return_value=True):
             result = client.is_online_model_available()

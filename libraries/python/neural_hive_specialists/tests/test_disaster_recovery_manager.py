@@ -16,7 +16,7 @@ import os
 import tarfile
 import tempfile
 import tempfile as real_tempfile
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from unittest.mock import MagicMock, Mock, mock_open, patch
 
 import pytest
@@ -314,7 +314,7 @@ class TestDeleteExpiredBackups:
     def test_delete_expired_backups_with_timezone(self, dr_manager, mock_storage_client):
         """Test that expired backups are deleted using UTC timezone-aware timestamps."""
         # Create mix of expired and current backups
-        now = datetime.now(UTC)
+        now = datetime.now(timezone.utc)
         expired_date = now - timedelta(days=100)
         recent_date = now - timedelta(days=30)
 
@@ -345,7 +345,7 @@ class TestDeleteExpiredBackups:
 
     def test_delete_expired_backups_pairs_checksums(self, dr_manager, mock_storage_client):
         """Test that when deleting .tar.gz, corresponding .sha256 is also deleted."""
-        now = datetime.now(UTC)
+        now = datetime.now(timezone.utc)
         expired_date = now - timedelta(days=100)
 
         mock_backups = [
@@ -522,7 +522,7 @@ class TestRecoveryValidation:
             {
                 "key": "specialist-technical-backup-latest.tar.gz",
                 "size": 1024,
-                "timestamp": datetime.now(UTC),
+                "timestamp": datetime.now(timezone.utc),
             }
         ]
 
@@ -536,7 +536,7 @@ class TestRecoveryValidation:
             manifest = BackupManifest(
                 backup_id="test123",
                 specialist_type="technical",
-                backup_timestamp=datetime.now(UTC),
+                backup_timestamp=datetime.now(timezone.utc),
                 compression_level=6,
             )
 
@@ -872,7 +872,7 @@ class TestIncrementalBackup:
         # Simular snapshot JSON
         snapshot_data = {
             "snapshot_id": "snapshot-20250211-120000",
-            "timestamp": datetime.now(UTC).isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "specialist_type": "technical",
             "tenant_id": None,
             "component_refs": {
@@ -992,11 +992,11 @@ class TestIncrementalBackup:
             "specialists/backups/snapshots/": [
                 {
                     "key": "specialists/backups/snapshots/snapshot-1.json",
-                    "timestamp": datetime.now(UTC),
+                    "timestamp": datetime.now(timezone.utc),
                 },
                 {
                     "key": "specialists/backups/snapshots/snapshot-2.json",
-                    "timestamp": datetime.now(UTC),
+                    "timestamp": datetime.now(timezone.utc),
                 },
             ],
             "specialists/backups/components/": [
@@ -1148,7 +1148,7 @@ class TestBackwardCompatibility:
                 backup_id="test-backup",
                 specialist_type="technical",
                 tenant_id=None,
-                backup_timestamp=datetime.now(UTC),
+                backup_timestamp=datetime.now(timezone.utc),
                 compression_level=6,
                 metadata={},
             )

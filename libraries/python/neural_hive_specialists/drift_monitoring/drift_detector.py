@@ -5,7 +5,7 @@ Executa verificações periódicas de drift e persiste resultados no MongoDB.
 """
 
 import asyncio
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 import structlog
@@ -139,7 +139,7 @@ class DriftDetector:
         try:
             document = {
                 "type": "drift_detection",
-                "timestamp": datetime.now(UTC),
+                "timestamp": datetime.now(timezone.utc),
                 "drift_detected": drift_result["drift_detected"],
                 "drift_score": drift_result["drift_score"],
                 "drifted_features": drift_result["drifted_features"],

@@ -1,0 +1,25 @@
+{
+  "legacyEditor": false,
+  "livePreview": true,
+  "vimMode": false,
+  "showLineNumber": true,
+  "spellcheck": true,
+  "spellcheckLanguages": [
+    "pt-BR",
+    "en-US"
+  ],
+  "alwaysUpdateLinks": true,
+  "useMarkdownLinks": false,
+  "newFileLocation": "folder",
+  "newFileFolderPath": "docs",
+  "attachmentFolderPath": "assets",
+  "showUnsupportedFiles": false,
+  "autoPairMarkdown": true,
+  "autoPairBrackets": true,
+  "autoPairQuotes": true,
+  "showFrontmatter": false,
+  "foldHeading": true,
+  "foldIndent": true,
+  "readableLineWidth": 800,
+  "fontFamily": ""
+}

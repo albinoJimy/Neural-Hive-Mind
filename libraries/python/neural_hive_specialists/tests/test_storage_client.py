@@ -10,7 +10,7 @@ Tests cover:
 import os
 import sys
 import tempfile
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from types import ModuleType
 from unittest.mock import Mock, patch
 

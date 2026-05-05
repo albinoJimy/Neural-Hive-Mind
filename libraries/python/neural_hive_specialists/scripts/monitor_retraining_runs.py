@@ -8,7 +8,7 @@ para verificar o status de runs assíncronos e atualizar os registros de trigger
 
 import argparse
 import sys
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timezone, timedelta
 
 import structlog
 from mlflow.tracking import MlflowClient
@@ -72,7 +72,7 @@ def monitor_running_triggers(
 
             try:
                 # Verificar idade do run
-                run_age = datetime.now(UTC) - triggered_at
+                run_age = datetime.now(timezone.utc) - triggered_at
                 if run_age > timedelta(hours=max_run_age_hours):
                     logger.warning(
                         "Run exceeded max age - marking as failed",
@@ -86,7 +86,7 @@ def monitor_running_triggers(
                         {
                             "$set": {
                                 "status": "failed",
-                                "completed_at": datetime.now(UTC),
+                                "completed_at": datetime.now(timezone.utc),
                                 "metadata.error_message": f"Run timeout após {max_run_age_hours} horas",
                                 "metadata.timed_out": True,
                             }
@@ -117,7 +117,7 @@ def monitor_running_triggers(
 
                     update_data = {
                         "status": "completed",
-                        "completed_at": datetime.now(UTC),
+                        "completed_at": datetime.now(timezone.utc),
                         "metadata.duration_seconds": duration,
                         "metadata.mlflow_status": run_status,
                     }
@@ -150,7 +150,7 @@ def monitor_running_triggers(
                         {
                             "$set": {
                                 "status": "failed",
-                                "completed_at": datetime.now(UTC),
+                                "completed_at": datetime.now(timezone.utc),
                                 "metadata.mlflow_status": run_status,
                                 "metadata.error_message": "Run MLflow falhou",
                             }
@@ -172,7 +172,7 @@ def monitor_running_triggers(
                         {
                             "$set": {
                                 "status": "failed",
-                                "completed_at": datetime.now(UTC),
+                                "completed_at": datetime.now(timezone.utc),
                                 "metadata.mlflow_status": run_status,
                                 "metadata.error_message": "Run MLflow foi cancelado",
                             }

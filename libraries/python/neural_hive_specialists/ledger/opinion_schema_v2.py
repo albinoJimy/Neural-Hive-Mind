@@ -5,7 +5,7 @@ Define estrutura imutável com validação Pydantic e suporte a migração
 de versões antigas.
 """
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 import structlog
@@ -200,7 +200,7 @@ class SchemaVersionManager:
             trace_id=v1_document.get("trace_id"),
             span_id=v1_document.get("span_id"),
             evaluated_at=v1_document["evaluated_at"],
-            created_at=v1_document.get("created_at", datetime.now(UTC)),
+            created_at=v1_document.get("created_at", datetime.now(timezone.utc)),
             processing_time_ms=v1_document["processing_time_ms"],
             buffered=v1_document.get("buffered", False),
             content_hash=v1_document.get("content_hash", ""),

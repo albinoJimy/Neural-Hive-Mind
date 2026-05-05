@@ -6,7 +6,7 @@ sobre opiniões de especialistas, permitindo re-treinamento contínuo dos modelo
 """
 
 import uuid
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from typing import Any, Optional
 
 import pybreaker
@@ -557,7 +557,7 @@ class FeedbackCollector:
             FeedbackStoreUnavailable: Se store estiver indisponível
         """
         try:
-            cutoff_date = datetime.now(UTC) - timedelta(days=window_days)
+            cutoff_date = datetime.now(timezone.utc) - timedelta(days=window_days)
 
             results = self._with_breaker(
                 lambda: list(
@@ -625,7 +625,7 @@ class FeedbackCollector:
             FeedbackStoreUnavailable: Se store estiver indisponível
         """
         try:
-            cutoff_date = datetime.now(UTC) - timedelta(days=window_days)
+            cutoff_date = datetime.now(timezone.utc) - timedelta(days=window_days)
 
             count = self._with_breaker(
                 lambda: self._collection.count_documents(

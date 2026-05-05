@@ -4,7 +4,7 @@ Testes unitários para AuditLogger.
 Cobertura para compliance/audit_logger.py
 """
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
@@ -390,7 +390,7 @@ class TestAuditLogger:
 
         from datetime import timedelta
 
-        start_date = datetime.now(UTC) - timedelta(days=7)
+        start_date = datetime.now(timezone.utc) - timedelta(days=7)
         results = logger.query_audit_logs(
             filters={"start_date": start_date},
             limit=10,
@@ -433,7 +433,7 @@ class TestAuditLogger:
 
         logger = AuditLogger(config, specialist_type="test_specialist")
 
-        end_date = datetime.now(UTC)
+        end_date = datetime.now(timezone.utc)
         start_date = end_date - timedelta(days=7)
         summary = logger.get_audit_summary(start_date, end_date)
 
@@ -452,7 +452,7 @@ class TestAuditLogger:
 
         logger = AuditLogger(config, specialist_type="test_specialist")
 
-        end_date = datetime.now(UTC)
+        end_date = datetime.now(timezone.utc)
         start_date = end_date - timedelta(days=7)
         summary = logger.get_audit_summary(start_date, end_date)
 

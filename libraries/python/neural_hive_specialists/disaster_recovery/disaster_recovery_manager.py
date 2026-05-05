@@ -17,7 +17,7 @@ import tarfile
 import tempfile
 import uuid
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from typing import Any, Optional
 
 import structlog
@@ -123,7 +123,7 @@ class DisasterRecoveryManager:
                 backup_id=backup_id,
                 specialist_type=self.config.specialist_type,
                 tenant_id=tenant_id,
-                backup_timestamp=datetime.now(UTC),
+                backup_timestamp=datetime.now(timezone.utc),
                 compression_level=self.config.backup_compression_level,
                 metadata={
                     "environment": self.config.environment,
@@ -205,7 +205,7 @@ class DisasterRecoveryManager:
             manifest.save_to_file(manifest_path)
 
             # Criar arquivo .tar.gz
-            timestamp = datetime.now(UTC).strftime("%Y%m%d-%H%M%S")
+            timestamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
             backup_filename = (
                 f"specialist-{self.config.specialist_type}{tenant_suffix}-backup-{timestamp}.tar.gz"
             )
@@ -807,7 +807,7 @@ class DisasterRecoveryManager:
 
         start_time = time.time()
 
-        snapshot_id = f"snapshot-{datetime.now(UTC).strftime('%Y%m%d-%H%M%S')}"
+        snapshot_id = f"snapshot-{datetime.now(timezone.utc).strftime('%Y%m%d-%H%M%S')}"
         tenant_suffix = f"-{tenant_id}" if tenant_id else ""
 
         logger.info(
@@ -826,7 +826,7 @@ class DisasterRecoveryManager:
                 backup_id=snapshot_id,
                 specialist_type=self.config.specialist_type,
                 tenant_id=tenant_id,
-                backup_timestamp=datetime.now(UTC),
+                backup_timestamp=datetime.now(timezone.utc),
                 compression_level=self.config.backup_compression_level,
                 metadata={
                     "environment": self.config.environment,
@@ -961,7 +961,7 @@ class DisasterRecoveryManager:
             # Criar snapshot JSON com referências
             snapshot = {
                 "snapshot_id": snapshot_id,
-                "timestamp": datetime.now(UTC).isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
                 "specialist_type": self.config.specialist_type,
                 "tenant_id": tenant_id,
                 "component_refs": component_digests,
@@ -1115,7 +1115,7 @@ class DisasterRecoveryManager:
             all_snapshots = self.storage_client.list_backups(prefix=snapshot_prefix)
 
             # Filtrar snapshots não expirados
-            cutoff_date = datetime.now(UTC) - timedelta(days=self.config.backup_retention_days)
+            cutoff_date = datetime.now(timezone.utc) - timedelta(days=self.config.backup_retention_days)
             active_snapshots = []
 
             for snapshot_obj in all_snapshots:
@@ -1982,7 +1982,7 @@ class DisasterRecoveryManager:
         )
 
         # Usar timezone-aware UTC para consistência
-        cutoff_date = datetime.now(UTC) - timedelta(days=self.config.backup_retention_days)
+        cutoff_date = datetime.now(timezone.utc) - timedelta(days=self.config.backup_retention_days)
 
         deleted_count = 0
         error_count = 0
@@ -2024,7 +2024,7 @@ class DisasterRecoveryManager:
                     logger.info(
                         "Deletando snapshot expirado",
                         snapshot_key=snapshot["key"],
-                        age_days=(datetime.now(UTC) - snapshot_timestamp).days,
+                        age_days=(datetime.now(timezone.utc) - snapshot_timestamp).days,
                     )
 
                     if self.storage_client.delete_backup(snapshot["key"]):
@@ -2075,7 +2075,7 @@ class DisasterRecoveryManager:
                     logger.info(
                         "Deletando backup expirado",
                         backup_key=backup["key"],
-                        age_days=(datetime.now(UTC) - backup_timestamp).days,
+                        age_days=(datetime.now(timezone.utc) - backup_timestamp).days,
                     )
 
                     # Deletar arquivo de backup
@@ -2190,7 +2190,7 @@ class DisasterRecoveryManager:
                     "original_model_version",
                     model_metadata.get("model_version", "unknown"),
                 )
-                mlflow.log_param("backup_timestamp", datetime.now(UTC).isoformat())
+                mlflow.log_param("backup_timestamp", datetime.now(timezone.utc).isoformat())
 
                 # Carregar modelo dos artifacts
                 model = mlflow.pyfunc.load_model(artifacts_dir)

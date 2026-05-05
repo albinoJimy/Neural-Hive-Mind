@@ -1,5 +1,6 @@
 """Serviço de criptografia para unmask reversível (INV-14: AES-256-GCM)."""
 
+import base64
 import json
 import os
 from datetime import datetime, timedelta, timezone
@@ -79,8 +80,8 @@ class ReversibleMaskService:
         payload_json = json.dumps(payload)
         encrypted = self._encrypt(payload_json)
 
-        # Criar mask_id (token)
-        mask_id = encrypted.decode("utf-8")
+        # Criar mask_id (token) - usar base64 para bytes não-UTF-8
+        mask_id = base64.urlsafe_b64encode(encrypted).decode("ascii")
 
         # Armazenar no cache (para validação de tentativas)
         self._token_cache[mask_id] = payload
@@ -116,7 +117,9 @@ class ReversibleMaskService:
 
         # Tentar descriptografar
         try:
-            decrypted_bytes = self._decrypt(mask_id.encode("utf-8"))
+            # Decodificar base64 para bytes
+            encrypted_bytes = base64.urlsafe_b64decode(mask_id.encode("ascii"))
+            decrypted_bytes = self._decrypt(encrypted_bytes)
             payload = json.loads(decrypted_bytes.decode("utf-8"))
         except Exception as e:
             logger.warning("unmask_failed_invalid_token", error=str(e))
