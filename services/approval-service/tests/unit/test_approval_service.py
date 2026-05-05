@@ -6,7 +6,7 @@ Testa logica de negocio para aprovacao/rejeicao de planos cognitivos.
 
 import pytest
 from pymongo.errors import DuplicateKeyError
-from src.models.approval import ApprovalDecision, ApprovalRequest, ApprovalStatus, RiskBand
+from neural_hive_approval_common import ApprovalDecision, ApprovalRequest, ApprovalStatus, RiskBand
 from src.services.approval_service import ApprovalService
 
 

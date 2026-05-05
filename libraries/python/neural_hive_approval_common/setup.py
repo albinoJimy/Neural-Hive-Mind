@@ -8,7 +8,7 @@ setup(
     description="Unified approval models and decision logic for Neural Hive Mind",
     author="Neural Hive Mind Team",
     packages=["neural_hive_approval_common"],
-    package_dir={"neural_hive_approval_common": "."},
+    package_dir={"neural_hive_approval_common": "neural_hive_approval_common"},
     install_requires=[
         "pydantic>=2.5.2",
         "structlog>=23.2.0",

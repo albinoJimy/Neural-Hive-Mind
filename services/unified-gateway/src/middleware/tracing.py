@@ -108,7 +108,8 @@ class TracingMiddleware(BaseHTTPMiddleware):
 
                 # Adicionar traceparent à resposta
                 current_span = trace.get_current_span()
-                if current_span and current_span.context:
+                # Verificar se é um recording span (NonRecordingSpan não tem context)
+                if current_span and hasattr(current_span, "context") and current_span.context:
                     # Adicionar traceparent à resposta para debug
                     span_context = current_span.context
                     trace_id = format(span_context.trace_id, "032x")
@@ -221,7 +222,8 @@ def get_trace_id() -> str | None:
         from opentelemetry.trace import get_current_span
 
         span = get_current_span()
-        if span and span.context:
+        # Verificar se é um recording span (NonRecordingSpan não tem context)
+        if span and hasattr(span, "context") and span.context:
             return format(span.context.trace_id, "032x")
     except Exception:
         pass
@@ -236,7 +238,8 @@ def get_span_id() -> str | None:
         from opentelemetry.trace import get_current_span
 
         span = get_current_span()
-        if span and span.context:
+        # Verificar se é um recording span (NonRecordingSpan não tem context)
+        if span and hasattr(span, "context") and span.context:
             return format(span.context.span_id, "016x")
     except Exception:
         pass

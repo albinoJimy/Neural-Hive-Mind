@@ -37,7 +37,8 @@ from middleware.auth_middleware import (
 from middleware.rate_limiter import RateLimiter
 from models.intent_envelope import IntentEnvelope, IntentRequest
 from pipelines.asr_pipeline import ASRPipeline
-from pipelines.nlu_pipeline import NLUPipeline
+# T11: Usar NLU Service via gRPC em vez de implementação local
+from pipelines.nlu_pipeline_service import NLUPipeline
 
 # Tentar importar observabilidade - usar stubs se não disponível
 try:

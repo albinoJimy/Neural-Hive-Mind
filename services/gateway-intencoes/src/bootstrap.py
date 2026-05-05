@@ -271,7 +271,8 @@ class ProcessingPhase(InitializationPhase):
 
     async def _execute_phase(self, context: ApplicationContext) -> bool:
         from pipelines.asr_pipeline import ASRPipeline
-        from pipelines.nlu_pipeline import NLUPipeline
+        # T11: NLU Service via gRPC
+        from pipelines.nlu_pipeline_service import NLUPipeline
 
         try:
             # ASR Pipeline
@@ -282,7 +283,7 @@ class ProcessingPhase(InitializationPhase):
             await context.asr_pipeline.initialize()
             logger.info("phase_processing_asr_complete")
 
-            # NLU Pipeline
+            # NLU Pipeline (via NLU Service gRPC - T11 refactor)
             logger.info("phase_processing_nlu_start")
             context.nlu_pipeline = NLUPipeline(
                 language_model=self.settings.nlu_language_model,

@@ -5,11 +5,14 @@ Testa fluxo completo: request → pending → approve/reject → response
 Requer MongoDB e Kafka (usando testcontainers ou mocks).
 """
 
+from datetime import timezone
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from src.models.approval import (
+from neural_hive_approval_common import (
+    ApprovalRequest,
     ApprovalStatus,
+    RiskBand,
 )
 from src.services.approval_service import ApprovalService
 
@@ -23,6 +26,10 @@ class TestApprovalFlowEndToEnd:
         storage = {}
 
         async def save_request(approval):
+            # Garante que requested_at é timezone-aware para evitar erro de comparação
+            if approval.requested_at.tzinfo is None:
+                from datetime import datetime
+                approval.requested_at = approval.requested_at.replace(tzinfo=timezone.utc)
             storage[approval.plan_id] = approval
             return approval.approval_id
 
@@ -77,15 +84,15 @@ class TestApprovalFlowEndToEnd:
     async def test_full_approval_flow(self, approval_service, mock_mongodb_client, mock_producer):
         """Teste fluxo completo de aprovacao"""
         # 1. Receber request de aprovacao
-        plan_data = {
-            "plan_id": "flow-plan-001",
-            "intent_id": "flow-intent-001",
-            "risk_score": 0.85,
-            "risk_band": "high",
-            "is_destructive": True,
-            "destructive_tasks": ["task-2"],
-            "requires_approval": True,
-        }
+        plan_data = ApprovalRequest(
+            plan_id="flow-plan-001",
+            intent_id="flow-intent-001",
+            risk_score=0.85,
+            risk_band=RiskBand.HIGH,
+            is_destructive=True,
+            destructive_tasks=["task-2"],
+            cognitive_plan={"plan_id": "flow-plan-001", "domain": "technical"},
+        )
 
         approval = await approval_service.process_approval_request(plan_data)
 
@@ -121,14 +128,15 @@ class TestApprovalFlowEndToEnd:
     async def test_full_rejection_flow(self, approval_service, mock_mongodb_client, mock_producer):
         """Teste fluxo completo de rejeicao"""
         # 1. Receber request de aprovacao
-        plan_data = {
-            "plan_id": "reject-plan-001",
-            "intent_id": "reject-intent-001",
-            "risk_score": 0.95,
-            "risk_band": "critical",
-            "is_destructive": True,
-            "destructive_tasks": ["task-1", "task-2", "task-3"],
-        }
+        plan_data = ApprovalRequest(
+            plan_id="reject-plan-001",
+            intent_id="reject-intent-001",
+            risk_score=0.95,
+            risk_band=RiskBand.CRITICAL,
+            is_destructive=True,
+            destructive_tasks=["task-1", "task-2", "task-3"],
+            cognitive_plan={"plan_id": "reject-plan-001", "domain": "infrastructure"},
+        )
 
         await approval_service.process_approval_request(plan_data)
 
@@ -156,14 +164,14 @@ class TestApprovalFlowEndToEnd:
         """Teste com multiplos planos simultaneos"""
         # Criar 3 planos
         for i in range(3):
-            await approval_service.process_approval_request(
-                {
-                    "plan_id": f"multi-plan-{i}",
-                    "intent_id": f"multi-intent-{i}",
-                    "risk_score": 0.7 + (i * 0.05),
-                    "risk_band": "high",
-                }
+            plan = ApprovalRequest(
+                plan_id=f"multi-plan-{i}",
+                intent_id=f"multi-intent-{i}",
+                risk_score=0.7 + (i * 0.05),
+                risk_band=RiskBand.HIGH,
+                cognitive_plan={"plan_id": f"multi-plan-{i}", "domain": "business"},
             )
+            await approval_service.process_approval_request(plan)
 
         # Verificar todos pendentes
         pending = await approval_service.get_pending_approvals()
@@ -240,14 +248,17 @@ class TestApprovalFlowEdgeCases:
     @pytest.mark.asyncio()
     async def test_approval_with_large_plan(self, approval_service, mock_mongodb_client):
         """Teste aprovacao com plano grande"""
-        large_plan = {
-            "plan_id": "large-plan-001",
-            "intent_id": "large-intent-001",
-            "risk_score": 0.8,
-            "risk_band": "high",
-            "tasks": [{"task_id": f"task-{i}"} for i in range(1000)],
-            "metadata": {"key": "value" * 1000},
-        }
+        large_plan = ApprovalRequest(
+            plan_id="large-plan-001",
+            intent_id="large-intent-001",
+            risk_score=0.8,
+            risk_band=RiskBand.HIGH,
+            cognitive_plan={
+                "plan_id": "large-plan-001",
+                "tasks": [{"task_id": f"task-{i}"} for i in range(1000)],
+                "metadata": {"key": "value" * 1000},
+            },
+        )
 
         result = await approval_service.process_approval_request(large_plan)
 
@@ -257,12 +268,16 @@ class TestApprovalFlowEdgeCases:
     @pytest.mark.asyncio()
     async def test_approval_with_special_characters(self, approval_service, mock_mongodb_client):
         """Teste aprovacao com caracteres especiais"""
-        special_plan = {
-            "plan_id": "plan-日本語-001",
-            "intent_id": "intent-émojis-🎉",
-            "risk_score": 0.5,
-            "description": "Descricao com acentuação e símbolos: @#$%",
-        }
+        special_plan = ApprovalRequest(
+            plan_id="plan-日本語-001",
+            intent_id="intent-émojis-🎉",
+            risk_score=0.5,
+            risk_band=RiskBand.MEDIUM,
+            cognitive_plan={
+                "plan_id": "plan-日本語-001",
+                "description": "Descricao com acentuação e símbolos: @#$%",
+            },
+        )
 
         result = await approval_service.process_approval_request(special_plan)
 

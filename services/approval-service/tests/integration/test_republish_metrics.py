@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from src.config.settings import Settings
-from src.models.approval import ApprovalRequest, ApprovalStatus, RiskBand
+from neural_hive_approval_common import ApprovalRequest, ApprovalStatus, RiskBand
 from src.observability.metrics import (
     NeuralHiveMetrics,
     approval_republish_duration_seconds,

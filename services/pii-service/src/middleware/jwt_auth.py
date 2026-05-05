@@ -1,9 +1,13 @@
 """JWT Authentication Middleware para PII Service."""
 
 from typing import Callable
+from datetime import datetime
+from uuid import UUID
 
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
+from jose import jwt, jwk, JWTError, ExpiredSignatureError
+from jose.exceptions import JWSError
 
 import structlog
 
@@ -40,6 +44,8 @@ class JWTAuthMiddleware(BaseHTTPMiddleware):
     ) -> Response:
         """
         Processa request e adiciona contexto de autenticação.
+
+        Valida JWT token usando python-jose (RS256 ou HS256).
 
         Args:
             request: Request FastAPI
@@ -83,36 +89,141 @@ class JWTAuthMiddleware(BaseHTTPMiddleware):
 
         token = authorization[7:]
 
-        # TODO: Implementar validação JWT real
-        # Por enquanto, extrair informações básicas
-        # Em produção, usar python-jose ou similar para validar
-
+        # Validar JWT token
         try:
-            # Placeholder - em produção, validar JWT
-            # claims = validate_jwt(token)
-            # user_id = claims.get("sub")
-            # tenant_id = claims.get("tenant_id")
+            from src.config.settings import get_settings
+            settings = get_settings()
 
-            # Por enquanto, usar token como user_id
-            user_id = f"user:{token[:8]}"
-            tenant_id = None  # Extrair do claims
+            # Decodificar token
+            if settings.JWKS_URL:
+                # RS256 com JWKS (produção)
+                claims = await self._validate_jwt_rs256(token, settings.JWKS_URL)
+            else:
+                # HS256 com secret (dev/staging)
+                claims = self._validate_jwt_hs256(token, settings.JWT_SECRET)
+
+            # Extrair claims padrão
+            user_id = claims.get("sub") or claims.get("user_id")
+            tenant_id = claims.get("tenant_id") or claims.get("tenantId")
+            session_id = claims.get("session_id") or claims.get("sessionId")
+
+            # Validar claims obrigatórios
+            if not user_id:
+                raise JWTError("Missing user_id (sub) claim")
+
+            # Verificar expiração
+            exp = claims.get("exp")
+            if exp:
+                exp_datetime = datetime.fromtimestamp(exp)
+                if datetime.utcnow() > exp_datetime:
+                    raise ExpiredSignatureError("Token expired")
 
             request.state.user_id = user_id
             request.state.tenant_id = tenant_id
             request.state.requestor_id = user_id
+            request.state.session_id = session_id
 
-            logger.debug("jwt_authenticated", user_id=user_id, tenant_id=tenant_id)
+            logger.debug(
+                "jwt_authenticated",
+                user_id=user_id,
+                tenant_id=tenant_id,
+                session_id=session_id,
+            )
 
-        except Exception as e:
-            logger.warning("jwt_validation_failed", error=str(e))
+        except (JWTError, ExpiredSignatureError, JWSError) as e:
+            logger.warning("jwt_validation_failed", error=str(e), error_type=type(e).__name__)
             if self.require_auth:
+                error_msg = "Token expired" if isinstance(e, ExpiredSignatureError) else "Invalid JWT token"
                 return Response(
-                    content='{"error": "Invalid JWT token"}',
+                    content=f'{{"error": "{error_msg}"}}',
                     status_code=401,
                     media_type="application/json",
                 )
             request.state.user_id = "anonymous"
             request.state.tenant_id = None
             request.state.requestor_id = "anonymous"
+            request.state.session_id = None
+
+        except Exception as e:
+            logger.error("jwt_validation_error", error=str(e), error_type=type(e).__name__)
+            if self.require_auth:
+                return Response(
+                    content='{"error": "Authentication failed"}',
+                    status_code=500,
+                    media_type="application/json",
+                )
+            request.state.user_id = "anonymous"
+            request.state.tenant_id = None
+            request.state.requestor_id = "anonymous"
+            request.state.session_id = None
 
         return await call_next(request)
+
+    def _validate_jwt_hs256(self, token: str, secret: str) -> dict:
+        """
+        Valida JWT token com HS256 (secret compartilhado).
+
+        Args:
+            token: JWT token
+            secret: Segredo compartilhado
+
+        Returns:
+            Dict com claims
+        """
+        return jwt.decode(
+            token,
+            secret,
+            algorithms=["HS256"],
+            options={
+                "verify_signature": True,
+                "verify_exp": True,
+                "verify_nbf": True,
+            }
+        )
+
+    async def _validate_jwt_rs256(self, token: str, jwks_url: str) -> dict:
+        """
+        Valida JWT token com RS256 (chave pública JWKS).
+
+        Args:
+            token: JWT token
+            jwks_url: URL do JWKS endpoint
+
+        Returns:
+            Dict com claims
+        """
+        import httpx
+
+        # Obter JWKS
+        async with httpx.AsyncClient() as client:
+            response = await client.get(jwks_url, timeout=5.0)
+            response.raise_for_status()
+            jwks = response.json()
+
+        # Obter header do token para pegar kid
+        headers = jwt.get_unverified_headers(token)
+        kid = headers.get("kid")
+
+        # Encontrar chave correta no JWKS
+        rsa_key = None
+        for key in jwks.get("keys", []):
+            if key.get("kid") == kid:
+                rsa_key = jwk.construct(key)
+                break
+
+        if rsa_key is None:
+            raise JWTError(f"Unable to find key with kid={kid}")
+
+        # Validar token
+        return jwt.decode(
+            token,
+            rsa_key.to_pem(),
+            algorithms=["RS256"],
+            audience="pii-service",
+            options={
+                "verify_signature": True,
+                "verify_exp": True,
+                "verify_nbf": True,
+                "verify_aud": True,
+            }
+        )

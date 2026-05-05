@@ -7,7 +7,7 @@ import grpc
 from pydantic import ValidationError
 
 from src.config.settings import get_settings
-from src.models.classification import NLUResult
+from src.models.classification import IntentClassifier, NLUResult
 from src.proto import nlu_pb2, nlu_pb2_grpc
 
 logger = logging.getLogger(__name__)
@@ -249,6 +249,7 @@ class NLUServiceClient:
 
 # Singleton global
 _nlu_client: NLUServiceClient | None = None
+_intent_classifier: IntentClassifier | None = None
 
 
 async def get_nlu_client() -> NLUServiceClient:
@@ -257,3 +258,47 @@ async def get_nlu_client() -> NLUServiceClient:
     if _nlu_client is None:
         _nlu_client = NLUServiceClient()
     return _nlu_client
+
+
+def get_intent_classifier() -> IntentClassifier:
+    """Obtém ou cria o singleton do Intent Classifier."""
+    global _intent_classifier
+    if _intent_classifier is None:
+        # Intent Classifier usa o NLU Client internamente
+        _intent_classifier = IntentClassifier(nlu_client=_nlu_client)
+    return _intent_classifier
+
+
+class NLUClient:
+    """
+    Wrapper para NLU Service Client usado pelo Unified Gateway.
+
+    Fornece métodos compatíveis com o router principal.
+    """
+
+    def __init__(self, nlu_service_client: NLUServiceClient | None = None):
+        """
+        Inicializa o wrapper.
+
+        Args:
+            nlu_service_client: Cliente NLU gRPC (opcional)
+        """
+        self._client = nlu_service_client or NLUServiceClient()
+
+    async def parse(
+        self,
+        text: str,
+        language: str = "pt",
+        context: dict[str, str] | None = None,
+        enable_cache: bool = True,
+    ) -> NLUResult:
+        """Processa texto completo via NLU Service."""
+        return await self._client.parse(text, language, context, enable_cache)
+
+    def get_intent_classifier(self) -> IntentClassifier:
+        """Obtém o classificador de intenção."""
+        return get_intent_classifier()
+
+    async def close(self):
+        """Fecha recursos."""
+        await self._client.close()

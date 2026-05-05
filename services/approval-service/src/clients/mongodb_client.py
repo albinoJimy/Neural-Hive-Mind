@@ -11,7 +11,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from pymongo.errors import DuplicateKeyError
 
 from src.config.settings import Settings
-from src.models.approval import ApprovalDecision, ApprovalRequest, ApprovalStats
+from neural_hive_approval_common import ApprovalDecision, ApprovalRequest, ApprovalStats
 
 logger = structlog.get_logger()
 

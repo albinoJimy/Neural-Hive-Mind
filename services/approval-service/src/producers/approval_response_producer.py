@@ -16,7 +16,7 @@ from confluent_kafka.serialization import MessageField, SerializationContext
 
 from neural_hive_observability.context import ContextManager
 from src.config.settings import Settings
-from src.models.approval import ApprovalResponse
+from neural_hive_approval_common import ApprovalResponse
 
 logger = structlog.get_logger()
 

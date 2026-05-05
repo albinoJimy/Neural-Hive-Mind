@@ -36,7 +36,9 @@ from .kafka import ApprovalKafkaProducer
 from .models import (
     ApprovalResponse,
     ApprovalStatus,
+    ApprovalStats,
     ApproveRequestBody,
+    PendingApprovalsQuery,
     RejectRequestBody,
     RevertRequestBody,
     RevertResponse,
@@ -52,6 +54,8 @@ __all__ = [
     # Models
     "UnifiedApprovalRequest",
     "UnifiedApprovalDecision",
+    "ApprovalRequest",  # Backward compatibility alias
+    "ApprovalDecision",  # Backward compatibility alias
     "ApprovalResponse",
     "ApprovalStatus",
     "RiskBand",
@@ -59,6 +63,8 @@ __all__ = [
     "RejectRequestBody",
     "RevertRequestBody",
     "RevertResponse",
+    "ApprovalStats",
+    "PendingApprovalsQuery",
     # Decision Logic
     "ApprovalDecisionLogic",
     # Kafka Integration
@@ -67,3 +73,7 @@ __all__ = [
     "MLPredictorInterface",
     "MLPredictor",
 ]
+
+# Type aliases for backward compatibility
+ApprovalRequest = UnifiedApprovalRequest
+ApprovalDecision = UnifiedApprovalDecision

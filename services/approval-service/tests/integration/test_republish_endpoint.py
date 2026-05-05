@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from src.models.approval import ApprovalRequest, ApprovalStatus, RiskBand
+from neural_hive_approval_common import ApprovalRequest, ApprovalStatus, RiskBand
 from src.services.approval_service import ApprovalService
 
 

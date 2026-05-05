@@ -19,7 +19,7 @@ from confluent_kafka.serialization import MessageField, SerializationContext
 from pymongo.errors import DuplicateKeyError
 
 from src.config.settings import Settings
-from src.models.approval import ApprovalRequest, RiskBand
+from neural_hive_approval_common import ApprovalRequest, RiskBand
 
 logger = structlog.get_logger()
 

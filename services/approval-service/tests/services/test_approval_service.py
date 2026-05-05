@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, Mock, patch
 import pytest
 from pymongo.errors import DuplicateKeyError
 from src.config.settings import Settings
-from src.models.approval import ApprovalDecision, ApprovalRequest
+from neural_hive_approval_common import ApprovalDecision, ApprovalRequest
 from src.services.approval_service import ApprovalService
 
 
@@ -121,8 +121,14 @@ def sample_approval_request():
     return ApprovalRequest(
         plan_id="plan-123",
         intent_id="intent-123",
+        risk_score=0.5,
         risk_band="medium",
         is_destructive=False,
+        cognitive_plan={
+            "plan_id": "plan-123",
+            "domain": "technical",
+            "confidence": 0.8,
+        },
         original_intent_text="Test intent for approval",
         submitted_by="user-123",
         submitted_at=datetime.now(),
@@ -161,8 +167,10 @@ class TestProcessApprovalRequest:
         invalid_request = ApprovalRequest(
             plan_id="",  # Inválido
             intent_id="",  # Inválido
+            risk_score=0.3,
             risk_band="low",
             is_destructive=False,
+            cognitive_plan={},  # Vazio mas válido
             submitted_by="user-123",
             submitted_at=datetime.now(),
         )
@@ -464,41 +472,11 @@ class TestGetApprovalStats:
         assert result["rejected"] == 10
 
 
-class TestProcessApprovalDecision:
-    """Testes para process_approval_decision."""
+class TestApprovePlan:
+    """Testes para approve_plan."""
 
     @pytest.mark.asyncio()
-    async def test_process_approval_decision_approve(
-        self,
-        approval_service,
-        mock_mongodb_client,
-        mock_response_producer,
-        mock_metrics,
-        mock_feedback_collector,
-        mock_ledger_client,
-    ):
-        """Testa processamento de decisão de aprovação."""
-        decision = ApprovalDecision(
-            plan_id="plan-123",
-            decision="approve",
-            decided_by="user-123",
-            decided_at=datetime.now(),
-            reasoning="Good plan",
-            rating=0.8,
-        )
-
-        mock_approval = Mock()
-        mock_approval.original_intent_text = "Test intent"
-        mock_mongodb_client.get_approval_by_plan_id.return_value = mock_approval
-
-        result = await approval_service.process_approval_decision(decision)
-
-        mock_mongodb_client.update_approval_status.assert_called_once()
-        mock_response_producer.publish_approval_response.assert_called_once()
-        mock_feedback_collector.submit_feedback.assert_called_once()
-
-    @pytest.mark.asyncio()
-    async def test_process_approval_decision_reject(
+    async def test_approve_plan_success(
         self,
         approval_service,
         mock_mongodb_client,
@@ -506,21 +484,76 @@ class TestProcessApprovalDecision:
         mock_metrics,
         mock_feedback_collector,
     ):
-        """Testa processamento de decisão de rejeição."""
-        decision = ApprovalDecision(
-            plan_id="plan-123",
-            decision="reject",
-            decided_by="user-123",
-            decided_at=datetime.now(),
-            reasoning="Too risky",
-            rating=0.2,
-        )
+        """Testa aprovação de plano com sucesso."""
+        from neural_hive_approval_common import ApprovalStatus
+        from datetime import datetime, timezone
 
         mock_approval = Mock()
+        mock_approval.plan_id = "plan-123"
+        mock_approval.intent_id = "intent-123"
+        mock_approval.status = ApprovalStatus.PENDING
         mock_approval.original_intent_text = "Test intent"
+        mock_approval.cognitive_plan = {"plan_id": "plan-123", "domain": "technical"}
+        mock_approval.risk_score = 0.5
+        mock_approval.risk_band = "medium"
+        mock_approval.submitted_by = "user-456"
+        mock_approval.is_destructive = False
+        mock_approval.requested_at = datetime.now(timezone.utc)
         mock_mongodb_client.get_approval_by_plan_id.return_value = mock_approval
+        mock_mongodb_client.update_approval_decision = AsyncMock(return_value=True)
 
-        result = await approval_service.process_approval_decision(decision)
+        result = await approval_service.approve_plan(
+            plan_id="plan-123", user_id="user-123", comments="Good plan"
+        )
 
-        mock_mongodb_client.update_approval_status.assert_called_once()
-        mock_response_producer.publish_approval_response.assert_called_once()
+        assert result.decision == "approved"
+        assert result.plan_id == "plan-123"
+        mock_mongodb_client.update_approval_decision.assert_called_once()
+
+    @pytest.mark.asyncio()
+    async def test_approve_plan_not_found(self, approval_service, mock_mongodb_client):
+        """Testa aprovação de plano inexistente."""
+        mock_mongodb_client.get_approval_by_plan_id.return_value = None
+
+        with pytest.raises(ValueError, match="Plano nao encontrado"):
+            await approval_service.approve_plan(
+                plan_id="plan-999", user_id="user-123", comments="Good plan"
+            )
+
+
+class TestRejectPlan:
+    """Testes para reject_plan."""
+
+    @pytest.mark.asyncio()
+    async def test_reject_plan_success(
+        self,
+        approval_service,
+        mock_mongodb_client,
+        mock_response_producer,
+        mock_metrics,
+    ):
+        """Testa rejeição de plano com sucesso."""
+        from neural_hive_approval_common import ApprovalStatus
+        from datetime import datetime, timezone
+
+        mock_approval = Mock()
+        mock_approval.plan_id = "plan-123"
+        mock_approval.intent_id = "intent-123"
+        mock_approval.status = ApprovalStatus.PENDING
+        mock_approval.original_intent_text = "Test intent"
+        mock_approval.cognitive_plan = {"plan_id": "plan-123", "domain": "technical"}
+        mock_approval.risk_score = 0.8
+        mock_approval.risk_band = "high"
+        mock_approval.submitted_by = "user-456"
+        mock_approval.is_destructive = True
+        mock_approval.requested_at = datetime.now(timezone.utc)
+        mock_mongodb_client.get_approval_by_plan_id.return_value = mock_approval
+        mock_mongodb_client.update_approval_decision = AsyncMock(return_value=True)
+
+        result = await approval_service.reject_plan(
+            plan_id="plan-123", user_id="user-123", reason="Too risky"
+        )
+
+        assert result.decision == "rejected"
+        assert result.plan_id == "plan-123"
+        mock_mongodb_client.update_approval_decision.assert_called_once()

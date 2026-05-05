@@ -19,23 +19,34 @@ SPAN_ID_PATTERN = re.compile(r"^[0-9a-f]{16}$")
 @pytest.fixture()
 def mock_pipelines_and_producer():
     """Mock dos pipelines e producer para testes de endpoint"""
-    from pipelines.nlu_pipeline import Entity, NLUResult
+    from models.intent_envelope import Entity, NLUResult
 
     nlu_result = NLUResult(
         domain="business",
         classification="request",
         confidence=0.88,
         processed_text="teste de intenção processada",
-        entities=[Entity(entity_type="ACTION", value="teste", confidence=0.9, start=0, end=5)],
+        entities=[Entity(type="ACTION", value="teste", confidence=0.9, start=0, end=5)],
         keywords=["teste", "intenção"],
         processing_time_ms=80.0,
     )
+
+    # Mock do middleware para pular validação de autenticação
+    async def mock_dispatch(request, call_next):
+        # Injeta contexto de usuário fake
+        request.state.user_context = {
+            "user_id": "test-user",
+            "tenant_id": "test-tenant",
+            "roles": ["user"],
+        }
+        return await call_next(request)
 
     with (
         patch("main.nlu_pipeline") as mock_nlu,
         patch("main.kafka_producer") as mock_kafka,
         patch("main.redis_client") as mock_redis,
         patch("main.health_manager") as mock_health,
+        patch("middleware.auth_middleware.AuthMiddleware.dispatch", mock_dispatch),
     ):
         mock_nlu.process = AsyncMock(return_value=nlu_result)
         mock_nlu.is_ready.return_value = True
@@ -111,6 +122,7 @@ class TestTracingIntegration:
             response = test_client.post(
                 "/intentions",
                 json={"text": "Preciso de ajuda com meu projeto", "language": "pt-BR"},
+                headers={"Authorization": "Bearer test-token"},
             )
 
             # Verificar resposta
@@ -140,6 +152,7 @@ class TestTracingIntegration:
             response = test_client.post(
                 "/intentions",
                 json={"text": "Preciso de ajuda com meu projeto", "language": "pt-BR"},
+                headers={"Authorization": "Bearer test-token"},
             )
 
             # Verificar resposta
@@ -172,6 +185,7 @@ class TestTracingIntegration:
                 "/intentions/voice",
                 files={"audio_file": ("test.wav", audio_content, "audio/wav")},
                 data={"language": "pt-BR"},
+                headers={"Authorization": "Bearer test-token"},
             )
 
             # Verificar resposta
@@ -205,6 +219,7 @@ class TestTracingIntegration:
                 "/intentions/voice",
                 files={"audio_file": ("test.wav", audio_content, "audio/wav")},
                 data={"language": "pt-BR"},
+                headers={"Authorization": "Bearer test-token"},
             )
 
             # Verificar resposta

@@ -10,7 +10,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from src.consumers.approval_request_consumer import ApprovalRequestConsumer
-from src.models.approval import ApprovalRequest, RiskBand
+from neural_hive_approval_common import ApprovalRequest, RiskBand
 
 
 class TestApprovalRequestConsumerDeserialize:
@@ -147,7 +147,7 @@ class TestApprovalRequestConsumerHealth:
         is_healthy, reason = consumer.is_healthy()
 
         assert is_healthy == False
-        assert "nao inicializado" in reason
+        assert "nao esta rodando" in reason
 
     def test_is_healthy_stale_poll(self, consumer):
         """Teste health check quando ultimo poll muito antigo"""

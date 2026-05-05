@@ -52,11 +52,12 @@ class TestNeuralHiveMetricsGauge:
         # Aguarda task async completar
         await asyncio.sleep(0.1)
 
-        # Verifica que aggregate foi chamado com pipeline correto
-        mock_collection.aggregate.assert_called_once()
-        call_args = mock_collection.aggregate.call_args[0][0]
-        assert call_args[0] == {"$match": {"status": "pending"}}
-        assert call_args[1] == {"$group": {"_id": "$risk_band", "count": {"$sum": 1}}}
+        # Verifica que aggregate foi chamado 2 vezes (contagem + idade maxima)
+        assert mock_collection.aggregate.call_count == 2
+        # Primeira chamada para contagem por risk_band
+        first_call_args = mock_collection.aggregate.call_args_list[0][0][0]
+        assert first_call_args[0] == {"$match": {"status": "pending"}}
+        assert first_call_args[1] == {"$group": {"_id": "$risk_band", "count": {"$sum": 1}}}
 
     @pytest.mark.asyncio()
     async def test_update_pending_gauge_handles_empty_results(self):
@@ -104,7 +105,7 @@ class TestNeuralHiveMetricsCounters:
 
     def test_increment_approval_requests_received_normalizes_enum(self):
         """Teste que risk_band enum e normalizado para string"""
-        from src.models.approval import RiskBand
+        from neural_hive_approval_common import RiskBand
 
         metrics = NeuralHiveMetrics()
 
@@ -116,7 +117,7 @@ class TestNeuralHiveMetricsCounters:
 
     def test_increment_approvals_total_normalizes_enum(self):
         """Teste que risk_band enum e normalizado para string"""
-        from src.models.approval import RiskBand
+        from neural_hive_approval_common import RiskBand
 
         metrics = NeuralHiveMetrics()
 
@@ -125,7 +126,7 @@ class TestNeuralHiveMetricsCounters:
 
     def test_observe_time_to_decision_normalizes_enum(self):
         """Teste que risk_band enum e normalizado para string"""
-        from src.models.approval import RiskBand
+        from neural_hive_approval_common import RiskBand
 
         metrics = NeuralHiveMetrics()
 

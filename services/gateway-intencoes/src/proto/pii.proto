@@ -1,0 +1,223 @@
+syntax = "proto3";
+
+package neural_hive.pii;
+
+import "google/protobuf/timestamp.proto";
+
+// Serviço PII centralizado para detecção e mascaramento de informações sensíveis
+service PIIService {
+  // Detecta PII em texto
+  rpc Detect(DetectRequest) returns (DetectResponse);
+
+  // Mascara PII em texto
+  rpc Mask(MaskRequest) returns (MaskResponse);
+
+  // Remove máscara (quando reversível, AES-256-GCM)
+  rpc Unmask(UnmaskRequest) returns (UnmaskResponse);
+
+  // Detecta e mascara em uma única operação
+  rpc DetectAndMask(DetectAndMaskRequest) returns (DetectAndMaskResponse);
+
+  // Health check do serviço PII
+  rpc HealthCheck(HealthCheckRequest) returns (HealthCheckResponse);
+
+  // Obtém capacidades do serviço
+  rpc GetCapabilities(GetCapabilitiesRequest) returns (GetCapabilitiesResponse);
+
+  // Valida token de mascaramento (para unmask reversível)
+  rpc ValidateMaskToken(ValidateMaskTokenRequest) returns (ValidateMaskTokenResponse);
+}
+
+// === Detect ===
+
+message DetectRequest {
+  string text = 1;                          // Texto para analisar
+  string language = 2;                      // Idioma do texto (pt, en, es)
+  repeated PIIType types = 3;               // Tipos de PII a detectar (vazio = todos)
+  string correlation_id = 4;                // ID de correlação
+  string trace_id = 5;                      // ID de trace OpenTelemetry
+  map<string, string> context = 6;          // Contexto adicional (tenant_id, user_id)
+  bool include_positions = 7;               // Incluir posições (INV-2: requerido)
+  double min_confidence = 8;                // Confiança mínima (0.0-1.0)
+}
+
+message DetectResponse {
+  repeated PIIFound detected_pii = 1;       // PII detectado (INV-2: com positions)
+  int32 total_found = 2;                    // Total de PII encontrados
+  map<string, int32> count_by_type = 3;     // Contagem por tipo
+  int64 processing_time_ms = 4;             // Tempo de processamento
+  google.protobuf.Timestamp detected_at = 5; // Timestamp da detecção
+  string language_used = 6;                 // Idioma utilizado na detecção
+}
+
+// === Mask ===
+
+message MaskRequest {
+  string text = 1;                          // Texto para mascarar
+  MaskStrategy strategy = 2;                // Estratégia de mascaramento (INV-2)
+  repeated PIIType types = 3;               // Tipos de PII a mascarar (vazio = todos)
+  string language = 4;                      // Idioma do texto
+  string correlation_id = 5;                // ID de correlação
+  string trace_id = 6;                      // ID de trace
+  map<string, string> context = 7;          // Contexto adicional (para audit log)
+  bool enable_audit_log = 8;                // Habilitar audit log (INV-13)
+  string requestor_id = 9;                  // ID do solicitante (para audit)
+  bool enable_reversible = 10;              // Habilitar mascaramento reversível (INV-14)
+}
+
+message MaskResponse {
+  string masked_text = 1;                   // Texto mascarado
+  repeated PIIFound detected_pii = 2;       // PII detectado e mascarado
+  repeated MaskResult masks = 3;            // Detalhes dos mascaramentos
+  string mask_id = 4;                       // ID do mascaramento (para unmask reversível)
+  int64 processing_time_ms = 5;             // Tempo de processamento
+  google.protobuf.Timestamp masked_at = 6;  // Timestamp do mascaramento
+  string audit_log_id = 7;                  // ID do audit log (se habilitado)
+}
+
+// === Unmask ===
+
+message UnmaskRequest {
+  string mask_id = 1;                       // ID do mascaramento (token criptografado)
+  string masked_text = 2;                   // Texto mascarado (para validação)
+  string correlation_id = 3;                // ID de correlação
+  string trace_id = 4;                      // ID de trace
+  map<string, string> context = 5;          // Contexto adicional
+  string requestor_id = 6;                  // ID do solicitante (para audit)
+  bool enable_audit_log = 7;                // Habilitar audit log (INV-13)
+}
+
+message UnmaskResponse {
+  string original_text = 1;                 // Texto original desmascarado
+  bool success = 2;                         // Indica se o unmask foi bem-sucedido
+  string error_message = 3;                 // Mensagem de erro (se falhou)
+  int64 processing_time_ms = 4;             // Tempo de processamento
+  google.protobuf.Timestamp unmasked_at = 5; // Timestamp do desmascaramento
+  string audit_log_id = 6;                  // ID do audit log (se habilitado)
+}
+
+// === DetectAndMask ===
+
+message DetectAndMaskRequest {
+  string text = 1;                          // Texto para processar
+  MaskStrategy strategy = 2;                // Estratégia de mascaramento
+  repeated PIIType types = 3;               // Tipos de PII (vazio = todos)
+  string language = 4;                      // Idioma do texto
+  string correlation_id = 5;                // ID de correlação
+  string trace_id = 6;                      // ID de trace
+  map<string, string> context = 7;          // Contexto adicional
+  bool enable_audit_log = 8;                // Habilitar audit log
+  string requestor_id = 9;                  // ID do solicitante
+  bool enable_reversible = 10;              // Habilitar mascaramento reversível
+}
+
+message DetectAndMaskResponse {
+  string masked_text = 1;                   // Texto mascarado
+  repeated PIIFound detected_pii = 2;       // PII detectado
+  repeated MaskResult masks = 3;            // Detalhes dos mascaramentos
+  string mask_id = 4;                       // ID do mascaramento (para unmask)
+  int64 processing_time_ms = 5;             // Tempo de processamento
+  google.protobuf.Timestamp processed_at = 6; // Timestamp do processamento
+  string audit_log_id = 7;                  // ID do audit log
+}
+
+// === Health Check ===
+
+message HealthCheckRequest {
+  string service_name = 1;                  // Nome do serviço (opcional)
+}
+
+message HealthCheckResponse {
+  enum ServingStatus {
+    UNKNOWN = 0;
+    SERVING = 1;
+    NOT_SERVING = 2;
+    SERVICE_UNKNOWN = 3;
+  }
+  ServingStatus status = 1;
+  map<string, string> details = 2;
+  string version = 3;                       // Versão do serviço
+}
+
+// === GetCapabilities ===
+
+message GetCapabilitiesRequest {}
+
+message GetCapabilitiesResponse {
+  repeated PIIType supported_types = 1;     // Tipos de PII suportados (INV-2: 7 tipos)
+  repeated MaskStrategy supported_strategies = 2; // Estratégias suportadas
+  repeated string supported_languages = 3;  // Idiomas suportados
+  bool supports_reversible_unmask = 4;      // Suporta unmask reversível (INV-14)
+  bool supports_audit_log = 5;              // Suporta audit log (INV-13)
+  map<string, string> configuration = 6;    // Configuração do serviço
+  string version = 7;                       // Versão do serviço
+}
+
+// === ValidateMaskToken ===
+
+message ValidateMaskTokenRequest {
+  string mask_id = 1;                       // ID do mascaramento (token)
+}
+
+message ValidateMaskTokenResponse {
+  bool valid = 1;                           // Indica se token é válido
+  string error_message = 2;                 // Mensagem de erro (se inválido)
+  google.protobuf.Timestamp expires_at = 3; // Timestamp de expiração
+  repeated PIIType pii_types = 4;           // Tipos de PII no token
+}
+
+// === Enums ===
+
+enum PIIType {
+  PII_UNKNOWN = 0;                          // Tipo desconhecido
+  EMAIL = 1;                                // Email (INV-2: requerido)
+  PHONE = 2;                                // Telefone (INV-2: requerido)
+  CPF = 3;                                  // CPF brasileiro (INV-2: requerido)
+  CNPJ = 4;                                 // CNPJ brasileiro (INV-2: requerido)
+  CREDIT_CARD = 5;                          // Cartão de crédito (INV-2: requerido)
+  SSN = 6;                                  // SSN americano (INV-2: requerido)
+  ADDRESS = 7;                              // Endereço (INV-2: requerido)
+  IP_ADDRESS = 8;                           // Endereço IP
+  UUID = 9;                                 // UUID
+  API_KEY = 10;                             // API Key
+  NIF = 11;                                 // NIF português
+  IBAN = 12;                                // IBAN europeu
+  PASSPORT = 13;                            // Passaporte
+  POSTAL_CODE = 14;                         // Código postal
+  RG = 15;                                  // RG brasileiro
+  TITULO_ELEITOR = 16;                      // Título de eleitor brasileiro
+  BANK_ACCOUNT = 17;                        // Conta bancária
+  PERSON = 18;                              // Nome de pessoa (via NLP)
+  ORG = 19;                                 // Organização (via NLP)
+  DATE = 20;                                // Data (via NLP)
+}
+
+enum MaskStrategy {
+  MASK_UNKNOWN = 0;                         // Estratégia desconhecida
+  MASK_FULL = 1;                            // Substituir por tag (INV-2: requerido)
+  MASK_PARTIAL = 2;                         // Mascaramento parcial (INV-2: requerido)
+  MASK_REDACT = 3;                          // Remover completamente (INV-2: requerido)
+  MASK_HASH = 4;                            // Substituir por hash
+}
+
+// === Messages ===
+
+message PIIFound {
+  PIIType type = 1;                         // Tipo de PII detectado
+  string value = 2;                         // Valor original detectado
+  int32 start = 3;                          // Posição inicial no texto (INV-2: requerido)
+  int32 end = 4;                            // Posição final no texto (INV-2: requerido)
+  double confidence = 5;                    // Confiança da detecção (0.0-1.0)
+  string masked_value = 6;                  // Valor mascarado (se aplicável)
+  map<string, string> metadata = 7;         // Metadados adicionais
+}
+
+message MaskResult {
+  PIIType type = 1;                         // Tipo de PII mascarado
+  string original_value = 2;                // Valor original
+  string masked_value = 3;                  // Valor mascarado
+  int32 start = 4;                          // Posição inicial no texto
+  int32 end = 5;                            // Posição final no texto
+  MaskStrategy strategy_used = 6;           // Estratégia utilizada
+  string mask_id = 7;                       // ID específico deste mascaramento
+}

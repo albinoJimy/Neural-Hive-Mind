@@ -8,13 +8,17 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from src.config.settings import Settings
-from src.models.approval import (
-    ApprovalDecision,
-    ApprovalRequest,
-    ApprovalResponse,
-    ApprovalStats,
+# Import from Approval Core Package
+from neural_hive_approval_common import (
     ApprovalStatus,
     RiskBand,
+    UnifiedApprovalDecision as ApprovalDecision,
+    UnifiedApprovalRequest as ApprovalRequest,
+)
+# Import API-specific models from local models
+from src.models import (
+    ApprovalResponse,
+    ApprovalStats,
 )
 from src.models.continuous_feedback import (
     ContinuousFeedbackRequest,
@@ -320,4 +324,3 @@ def mock_nlp_extractor():
         }
     )
     return extractor
-

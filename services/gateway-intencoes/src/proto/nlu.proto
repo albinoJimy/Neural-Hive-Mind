@@ -1,0 +1,185 @@
+syntax = "proto3";
+
+package neural_hive.nlu;
+
+import "google/protobuf/timestamp.proto";
+
+// Serviço NLU centralizado para processamento de linguagem natural
+service NLUService {
+  // Processa texto completo e retorna resultado NLU completo
+  rpc Parse(ParseRequest) returns (ParseResponse);
+
+  // Classifica domínio do texto (BUSINESS/TECHNICAL/INFRASTRUCTURE/SECURITY)
+  rpc ClassifyDomain(ClassifyDomainRequest) returns (ClassifyDomainResponse);
+
+  // Extrai entidades nomeadas do texto (NER)
+  rpc ExtractEntities(ExtractEntitiesRequest) returns (ExtractEntitiesResponse);
+
+  // Calcula confiança do resultado NLU
+  rpc CalculateConfidence(CalculateConfidenceRequest) returns (CalculateConfidenceResponse);
+
+  // Health check do serviço NLU
+  rpc HealthCheck(HealthCheckRequest) returns (HealthCheckResponse);
+
+  // Detecta idioma do texto
+  rpc DetectLanguage(DetectLanguageRequest) returns (DetectLanguageResponse);
+}
+
+// === Parse ===
+
+message ParseRequest {
+  string text = 1;                          // Texto para processar (1-10000 caracteres)
+  string language = 2;                      // Idioma do texto (ISO 639-1, ex: pt-BR, en-US)
+  string correlation_id = 3;                // ID de correlação para tracing distribuído
+  string trace_id = 4;                      // ID de trace OpenTelemetry
+  map<string, string> context = 5;          // Contexto adicional (tenant_id, user_id, etc)
+  bool enable_cache = 6;                    // Habilitar cache Redis
+}
+
+message ParseResponse {
+  NLUResult result = 1;                     // Resultado NLU completo
+  int64 processing_time_ms = 2;             // Tempo de processamento em milissegundos
+  google.protobuf.Timestamp processed_at = 3; // Timestamp do processamento
+  bool cached = 4;                          // Indica se resultado veio do cache
+}
+
+// === ClassifyDomain ===
+
+message ClassifyDomainRequest {
+  string text = 1;                          // Texto para classificar
+  string language = 2;                      // Idioma do texto
+  string correlation_id = 3;                // ID de correlação
+  map<string, string> context = 4;          // Contexto adicional
+}
+
+message ClassifyDomainResponse {
+  UnifiedDomain domain = 1;                 // Domínio classificado
+  double confidence = 2;                    // Confiança da classificação (0.0-1.0)
+  string reasoning = 3;                     // Explicação da classificação
+  int64 processing_time_ms = 4;             // Tempo de processamento
+  google.protobuf.Timestamp classified_at = 5; // Timestamp da classificação
+}
+
+// === ExtractEntities ===
+
+message ExtractEntitiesRequest {
+  string text = 1;                          // Texto para extrair entidades
+  string language = 2;                      // Idioma do texto
+  string correlation_id = 3;                // ID de correlação
+  repeated EntityType entity_types = 4;     // Tipos de entidades a extrair (vazio = todas)
+}
+
+message ExtractEntitiesResponse {
+  repeated Entity entities = 1;             // Entidades extraídas
+  int64 processing_time_ms = 2;             // Tempo de processamento
+  google.protobuf.Timestamp extracted_at = 3; // Timestamp da extração
+}
+
+// === CalculateConfidence ===
+
+message CalculateConfidenceRequest {
+  NLUResult nlu_result = 1;                 // Resultado NLU para calcular confiança
+}
+
+message CalculateConfidenceResponse {
+  double confidence = 1;                    // Score de confiança (0.0-1.0)
+  string confidence_status = 2;             // Status: high, medium, low
+  double adaptive_threshold = 3;            // Threshold adaptativo calculado
+  bool requires_manual_validation = 4;      // Indica se requer validação humana
+  map<string, double> factor_scores = 5;    // Scores por fator de confiança
+}
+
+// === DetectLanguage ===
+
+message DetectLanguageRequest {
+  string text = 1;                          // Texto para detectar idioma
+}
+
+message DetectLanguageResponse {
+  string language = 1;                      // Idioma detectado (ISO 639-1)
+  double confidence = 2;                    // Confiança da detecção (0.0-1.0)
+  repeated LanguageCandidate candidates = 3; // Candidatos alternativos
+}
+
+// === Health Check ===
+
+message HealthCheckRequest {
+  string service_name = 1;                  // Nome do serviço (opcional)
+}
+
+message HealthCheckResponse {
+  enum ServingStatus {
+    UNKNOWN = 0;
+    SERVING = 1;
+    NOT_SERVING = 2;
+    SERVICE_UNKNOWN = 3;
+  }
+  ServingStatus status = 1;
+  map<string, string> details = 2;
+  string version = 3;                       // Versão do serviço
+}
+
+// === Enums ===
+
+enum UnifiedDomain {
+  DOMAIN_UNKNOWN = 0;                       // Domínio desconhecido/não classificado
+  BUSINESS = 1;                             // Domínio de negócios
+  TECHNICAL = 2;                            // Domínio técnico
+  INFRASTRUCTURE = 3;                       // Domínio de infraestrutura
+  SECURITY = 4;                             // Domínio de segurança
+}
+
+enum EntityType {
+  ENTITY_UNKNOWN = 0;                       // Tipo desconhecido
+  PERSON = 1;                               // Pessoa
+  ORG = 2;                                  // Organização
+  GPE = 3;                                  // Entidade geopolítica (país, cidade)
+  LOC = 4;                                  // Localização
+  DATE = 5;                                 // Data
+  TIME = 6;                                 // Hora
+  MONEY = 7;                                // Valor monetário
+  PERCENT = 8;                              // Porcentagem
+  CARDINAL = 9;                             // Número cardinal
+  ORDINAL = 10;                             // Número ordinal
+  QUANTITY = 11;                            // Quantidade
+  PRODUCT = 12;                             // Produto
+  EVENT = 13;                               // Evento
+  WORK_OF_ART = 14;                         // Obra de arte
+  LAW = 15;                                 // Lei
+  LANGUAGE = 16;                            // Idioma
+  EMAIL = 17;                               // Email
+  PHONE = 18;                               // Telefone
+  URL = 19;                                 // URL
+  IP_ADDRESS = 20;                          // Endereço IP
+}
+
+// === Messages ===
+
+message NLUResult {
+  string processed_text = 1;                // Texto processado e normalizado
+  UnifiedDomain domain = 2;                 // Domínio classificado (INV-1: requerido)
+  string classification = 3;                // Classificação específica dentro do domínio
+  double confidence = 4;                    // Confiança da classificação (0.0-1.0) (INV-1: requerido)
+  repeated Entity entities = 5;             // Entidades extraídas (INV-1: requerido)
+  repeated string keywords = 6;             // Palavras-chave extraídas (INV-1: requerido)
+  string original_language = 7;             // Idioma detectado
+  bool requires_manual_validation = 8;      // Requer validação humana
+  string confidence_status = 9;             // Status: high, medium, low
+  double adaptive_threshold = 10;           // Threshold adaptativo calculado
+  map<string, string> metadata = 11;        // Metadados adicionais
+}
+
+message Entity {
+  EntityType type = 1;                      // Tipo da entidade (INV-1: type requerido)
+  string value = 2;                         // Valor da entidade (INV-1: value requerido)
+  double confidence = 3;                    // Confiança da extração (INV-1: confidence requerido)
+  int32 start = 4;                          // Posição inicial no texto (INV-1: start requerido)
+  int32 end = 5;                            // Posição final no texto (INV-1: end requerido)
+  string label = 6;                         // Label específico do NER
+  map<string, string> attributes = 7;       // Atributos adicionais
+}
+
+message LanguageCandidate {
+  string language = 1;                      // Código do idioma (ISO 639-1)
+  double confidence = 2;                    // Confiança da detecção
+}

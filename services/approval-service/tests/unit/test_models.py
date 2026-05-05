@@ -7,7 +7,7 @@ Testa serializacao e validacao de modelos.
 import json
 from datetime import datetime
 
-from src.models.approval import ApprovalRequest, ApprovalResponse, ApprovalStatus, RiskBand
+from neural_hive_approval_common import ApprovalRequest, ApprovalResponse, ApprovalStatus, RiskBand
 
 
 class TestApprovalResponseKafkaDict:

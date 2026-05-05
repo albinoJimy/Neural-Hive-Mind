@@ -143,6 +143,26 @@ class Settings(BaseSettings):
         description="Caminho para arquivo YAML de configuração de thresholds (opcional)",
     )
 
+    # T11: NLU Service gRPC
+    nlu_service_url: str = Field(
+        default="nlu-service:8020",
+        description="URL do NLU Service para gRPC (T11 refactor)",
+    )
+    nlu_service_timeout: float = Field(
+        default=10.0,
+        description="Timeout em segundos para chamadas ao NLU Service",
+    )
+
+    # T11: PII Service gRPC
+    pii_service_url: str = Field(
+        default="pii-service:8021",
+        description="URL do PII Service para gRPC (T11 refactor)",
+    )
+    pii_service_timeout: float = Field(
+        default=10.0,
+        description="Timeout em segundos para chamadas ao PII Service",
+    )
+
     # Redis Cache
     redis_cluster_nodes: str = Field(
         default="neural-hive-cache.redis-cluster.svc.cluster.local:6379"

@@ -17,7 +17,7 @@ from src.api.routers.approvals import (
     reject_plan,
     republish_approved_plan,
 )
-from src.models.approval import (
+from neural_hive_approval_common import (
     ApprovalDecision,
     ApprovalResponse,
     ApprovalStats,
@@ -141,7 +141,7 @@ class TestApprovePlan:
         mock_service = MagicMock()
         mock_service.approve_plan = AsyncMock(return_value=sample_approval_decision)
 
-        from src.models.approval import ApproveRequestBody
+        from neural_hive_approval_common import ApproveRequestBody
 
         body = ApproveRequestBody(comments="Aprovado")
 
@@ -212,7 +212,7 @@ class TestRejectPlan:
         )
         mock_service.reject_plan = AsyncMock(return_value=decision)
 
-        from src.models.approval import RejectRequestBody
+        from neural_hive_approval_common import RejectRequestBody
 
         body = RejectRequestBody(reason="Risco muito alto", comments=None)
 
@@ -233,7 +233,7 @@ class TestRejectPlan:
             side_effect=ValueError("Plano nao encontrado: plan-999")
         )
 
-        from src.models.approval import RejectRequestBody
+        from neural_hive_approval_common import RejectRequestBody
 
         body = RejectRequestBody(reason="Motivo")
 
@@ -250,7 +250,7 @@ class TestRejectPlan:
             side_effect=ValueError("Motivo da rejeicao e obrigatorio")
         )
 
-        from src.models.approval import RejectRequestBody
+        from neural_hive_approval_common import RejectRequestBody
 
         body = RejectRequestBody(reason="obrigatorio")  # Will be caught by pydantic min_length
 

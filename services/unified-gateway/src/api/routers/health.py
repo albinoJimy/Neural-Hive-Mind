@@ -63,7 +63,7 @@ async def detailed_health_check() -> DetailedHealthResponse:
 
     # Calcular uptime se disponível
     uptime = None
-    if hasattr(health_check, "_start_time"):
+    if hasattr(health_check, "_start_time") and health_check._start_time is not None:
         uptime = time.time() - health_check._start_time
 
     return DetailedHealthResponse(

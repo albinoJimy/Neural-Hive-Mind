@@ -23,4 +23,5 @@ cryptography==43.0.1
 -e ../../libraries/python/neural_hive_specialists
 
 # JWT auth
+python-jose[cryptography]==3.3.0
 pyjwt==2.10.1

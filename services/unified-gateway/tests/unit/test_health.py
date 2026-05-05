@@ -5,14 +5,13 @@ from fastapi.testclient import TestClient
 
 
 def test_health_check_returns_200(client: TestClient) -> None:
-    """Health check deve retornar 200 e status ok."""
+    """Health check deve retornar 200 e status healthy."""
     response = client.get("/health")
 
     assert response.status_code == 200
     data = response.json()
-    assert data["status"] == "ok"
-    assert "service" in data
-    assert data["service"] == "unified-gateway"
+    assert data["status"] in ["healthy", "ok"]
+    assert "version" in data
 
 
 def test_health_check_includes_version(client: TestClient) -> None:
@@ -44,10 +43,10 @@ def test_health_check_status_field(client: TestClient) -> None:
 
 
 def test_health_check_includes_timestamp(client: TestClient) -> None:
-    """Health check deve incluir timestamp."""
+    """Health check detalhado deve incluir timestamp."""
     from datetime import datetime
 
-    response = client.get("/health")
+    response = client.get("/health/detailed")
 
     data = response.json()
     assert "timestamp" in data

@@ -10,17 +10,19 @@ import structlog
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
 
-from src.models.approval import (
+from neural_hive_approval_common import (
     ApprovalDecision,
     ApprovalRequest,
-    ApprovalResponse,
-    ApprovalStats,
     ApproveRequestBody,
     RejectRequestBody,
-    RepublishRequestBody,
     RevertRequestBody,
-    RevertResponse,
     RiskBand,
+)
+from src.models import (
+    ApprovalResponse,
+    ApprovalStats,
+    RepublishRequestBody,
+    RevertResponse,
 )
 from src.security.auth import get_current_admin_user
 from src.services.approval_service import ApprovalService
@@ -330,7 +332,7 @@ async def approve_plan(
 
     try:
         decision = await service.approve_plan(
-            plan_id=plan_id, user_id_hash=user.get("user_id"), comments=comments
+            plan_id=plan_id, user_id=user.get("user_id"), comments=comments
         )
         return decision
 
@@ -380,7 +382,7 @@ async def reject_plan(
 
     try:
         decision = await service.reject_plan(
-            plan_id=plan_id, user_id_hash=user.get("user_id"), reason=body.reason, comments=body.comments
+            plan_id=plan_id, user_id=user.get("user_id"), reason=body.reason, comments=body.comments
         )
         return decision
 
@@ -453,7 +455,7 @@ async def republish_approved_plan(
 
     try:
         response = await service.republish_approved_plan(
-            plan_id=plan_id, user_id_hash=user.get("user_id"), force=force, comments=comments
+            plan_id=plan_id, user_id=user.get("user_id"), force=force, comments=comments
         )
         return response
 
@@ -521,7 +523,7 @@ async def revert_approval(
     try:
         response = await service.revert_approval(
             plan_id=plan_id,
-            user_id_hash=user.get("user_id"),
+            user_id=user.get("user_id"),
             reason=body.reason,
             comments=body.comments,
             ticket_id=body.ticket_id,

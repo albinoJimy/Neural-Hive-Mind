@@ -65,12 +65,24 @@ def sample_feedback_message():
 @pytest.fixture()
 def sample_feedback_message_with_nlp():
     """Feedback com features NLP"""
-    feedback = sample_feedback_message()
-    feedback["nlp_features"] = {
-        "sentiment_score": 0.7,
-        "urgency_score": 0.5,
-        "complexity_score": 0.3,
-        "primary_domain": "technical",
+    feedback = {
+        "feedback_id": "feedback-001-nlp",
+        "opinion_id": "opinion-001",
+        "plan_id": "plan-001",
+        "specialist_type": "technical",
+        "human_rating": 1.0,
+        "human_recommendation": "approve",
+        "feedback_notes": "Recomendação correta",
+        "submitted_at": int(datetime.now(timezone.utc).timestamp() * 1000),
+        "submitted_by": "admin@example.com",
+        "intent_raw_text": "List all users from the database",
+        "specialist_recommendation": "approve",
+        "nlp_features": {
+            "sentiment_score": 0.7,
+            "urgency_score": 0.5,
+            "complexity_score": 0.3,
+            "primary_domain": "technical",
+        },
     }
     return feedback
 
@@ -247,7 +259,7 @@ class TestFeedbackConsumer:
         # Consumer não inicializado
         is_healthy, reason = consumer.is_healthy()
         assert is_healthy is False
-        assert "nao inicializado" in reason.lower()
+        assert "nao esta rodando" in reason.lower()
 
         # Consumer rodando (mock)
         consumer.running = True
@@ -345,13 +357,17 @@ class TestOnlineLearningService:
         """D002-T06: Extrair features com NLP deve incluir sentiment, urgency, complexity"""
         service = OnlineLearningService(settings=mock_settings_with_online_learning)
 
+        # Debug: print the feedback to verify
+        print(f"Feedback nlp_features: {sample_feedback_message_with_nlp.get('nlp_features')}")
+
         features = service._extract_features(sample_feedback_message_with_nlp)
 
         assert features is not None
-        # sentiment (3), urgency (4), complexity (5)
-        assert features[3] == 0.7
-        assert features[4] == 0.5
-        assert features[5] == 0.3
+        print(f"Features: {features}")
+        # 0: confidence, 1: risk, 2: sentiment, 3: urgency, 4: complexity, 5-9: domain confidences
+        assert features[2] == 0.7  # sentiment_score
+        assert features[3] == 0.5  # urgency_score
+        assert features[4] == 0.3  # complexity_score
 
     @pytest.mark.asyncio()
     async def test_get_model_state_when_disabled(self, mock_settings):

@@ -443,6 +443,9 @@ class RetrainingScheduler:
             if started_at_str:
                 try:
                     started_at = datetime.fromisoformat(started_at_str)
+                    # Normalizar para UTC se naive
+                    if started_at.tzinfo is None:
+                        started_at = started_at.replace(tzinfo=timezone.utc)
                     if started_at < cutoff:
                         to_remove.append(validation_id)
                 except ValueError:

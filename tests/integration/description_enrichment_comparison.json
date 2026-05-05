@@ -8,7 +8,7 @@
     "confidence_score": 0.067,
     "mitigations": [
       {
-        "mitigation_id": "dd44c88e-4485-4ffd-b485-2115311f0aa3",
+        "mitigation_id": "232af3ad-c226-4a2d-9bdd-1bfd0237175c",
         "description": "Adicionar sanitização de inputs e proteção contra injection",
         "priority": "high",
         "category": "security"
@@ -26,25 +26,25 @@
     "confidence_score": 0.95,
     "mitigations": [
       {
-        "mitigation_id": "f71aeb66-a91b-4322-9d72-1b3bd6773f29",
+        "mitigation_id": "9ce3c27e-0b2f-4a97-8dfb-0eb8da39c197",
         "description": "Implementar validação de tokens e rotação de credenciais",
         "priority": "high",
         "category": "security"
       },
       {
-        "mitigation_id": "6cb74cd7-44af-4fa5-a5c0-ed26d41d939c",
+        "mitigation_id": "20d22910-d6c4-4f7c-b47f-d4e655799f8c",
         "description": "Adicionar sanitização de inputs e proteção contra injection",
         "priority": "high",
         "category": "security"
       },
       {
-        "mitigation_id": "6405d02b-d74e-41e5-ac4d-0f012c7d5b5d",
+        "mitigation_id": "aa6dc80f-5f98-456d-87e0-e2dc536695da",
         "description": "Configurar política de cache e índices de banco de dados",
         "priority": "medium",
         "category": "performance"
       },
       {
-        "mitigation_id": "971fe8ab-7b60-4aaa-9a32-87cbc27d747d",
+        "mitigation_id": "2c1ab611-a8d3-45be-84bf-49052f9a504a",
         "description": "Implementar testes unitários e de integração com cobertura mínima",
         "priority": "medium",
         "category": "quality"

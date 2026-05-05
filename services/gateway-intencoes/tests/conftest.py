@@ -77,9 +77,9 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from kafka.producer import KafkaIntentProducer
-from models.intent_envelope import IntentEnvelope, IntentRequest
+from models.intent_envelope import Entity, IntentEnvelope, IntentRequest, NLUResult
 from pipelines.asr_pipeline import ASRPipeline, ASRResult
-from pipelines.nlu_pipeline import Entity, NLUPipeline, NLUResult
+from pipelines.nlu_pipeline_service import NLUPipeline
 
 
 @pytest.fixture()

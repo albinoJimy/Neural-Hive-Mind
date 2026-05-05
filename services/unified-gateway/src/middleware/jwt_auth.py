@@ -261,7 +261,7 @@ class JWTAuthMiddleware(BaseHTTPMiddleware):
         # Extrair roles
         roles = claims.get("roles", [])
         if isinstance(roles, str):
-            roles = [roles]
+            roles = roles.split(",")
 
         # Extrair scopes como permissions
         permissions = claims.get("scope", [])
@@ -336,3 +336,22 @@ async def get_auth_context(request: Request) -> AuthContext:
         )
 
     return auth_context
+
+
+async def get_auth_context_optional(request: Request) -> AuthContext:
+    """
+    Dependency opcional que retorna AuthContext mesmo sem autenticação.
+
+    Útil para endpoints que funcionam com e sem autenticação.
+    """
+    if hasattr(request.state, "auth_context"):
+        return request.state.auth_context
+
+    # Retornar AuthContext vazio se não autenticado
+    return AuthContext(
+        authenticated=False,
+        user_id=None,
+        tenant_id=None,
+        session_id=None,
+        auth_method=AuthMethod.NONE,
+    )

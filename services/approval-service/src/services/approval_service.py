@@ -15,14 +15,16 @@ from src.clients.cognitive_ledger_client import CognitiveLedgerClient
 from src.clients.feature_store_client import FeatureStoreClient
 from src.clients.mongodb_client import MongoDBClient
 from src.config.settings import Settings
-from src.models.approval import (
+from neural_hive_approval_common import (
     ApprovalDecision,
     ApprovalRequest,
-    ApprovalResponse,
+    ApproveRequestBody,
     ApprovalStats,
     ApprovalStatus,
-    RevertResponse,
+    RejectRequestBody,
+    RevertRequestBody,
 )
+from src.models import ApprovalResponse, RevertResponse
 from src.observability.metrics import NeuralHiveMetrics
 from src.producers.approval_response_producer import ApprovalResponseProducer
 
@@ -914,7 +916,7 @@ class ApprovalService:
         Raises:
             ValueError: Se plano nao encontrado ou nao esta aprovado
         """
-        from src.models.approval import RevertResponse
+        from src.models import RevertResponse
 
         start_time = datetime.now(timezone.utc)
 
