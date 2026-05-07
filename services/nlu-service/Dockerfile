@@ -16,13 +16,12 @@ COPY services/nlu-service/src/ ./src/
 # Instalar dependências Python
 RUN pip install --no-cache-dir poetry && \
     poetry config virtualenvs.create false && \
-    poetry install --no-dev --no-root
+    poetry install --only root --without dev
 
 # Instalar spaCy e baixar modelos após as dependências
-# Usando retry e timeout para maior resiliência
+# Usando pip direto para melhor controle e cache
 RUN pip install --no-cache-dir spacy && \
-    python -m spacy download pt_core_news_sm || \
-    (pip install --no-cache-dir https://github.com/explosion/spacy-models/releases/download/pt_core_news_sm-3.8.0/pt_core_news_sm-3.8.0-py3-none-any.whl) && \
+    pip install --no-cache-dir https://github.com/explosion/spacy-models/releases/download/pt_core_news_sm-3.8.0/pt_core_news_sm-3.8.0-py3-none-any.whl && \
     python -m spacy download en_core_web_sm && \
     python -m spacy download es_core_news_sm && \
     mkdir -p /app/models/spacy && \
