@@ -1,0 +1,174 @@
+version: '3.8'
+
+services:
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.4.0
+    container_name: unified-zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2181:2181"
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "2181"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  kafka:
+    image: confluentinc/cp-kafka:7.4.0
+    container_name: unified-kafka
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+    ports:
+      - "19092:9092"
+      - "29092:29092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    healthcheck:
+      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: unified-redis
+    ports:
+      - "16379:6379"
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  mongodb:
+    image: mongo:7
+    container_name: unified-mongodb
+    ports:
+      - "37017:27017"
+    environment:
+      MONGO_INITDB_DATABASE: nhm_test
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # PII Service
+  pii-service:
+    build:
+      context: ./services/pii-service
+      dockerfile: Dockerfile
+    container_name: unified-pii-service
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    ports:
+      - "8021:8021"
+    environment:
+      PORT: 8021
+      MONGODB_URL: mongodb://mongodb:27017
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      LOG_LEVEL: INFO
+      AUDIT_ENABLED: "true"
+      AUDIT_MONGODB_URL: mongodb://mongodb:27017
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8021/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # NLU Service
+  nlu-service:
+    build:
+      context: ./services/nlu-service
+      dockerfile: Dockerfile
+    container_name: unified-nlu-service
+    depends_on:
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    ports:
+      - "8020:8020"
+    environment:
+      PORT: 8020
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      LOG_LEVEL: INFO
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8020/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # Unified Gateway
+  unified-gateway:
+    build:
+      context: ./services/unified-gateway
+      dockerfile: Dockerfile
+    container_name: unified-gateway
+    depends_on:
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      nlu-service:
+        condition: service_healthy
+      pii-service:
+        condition: service_healthy
+    ports:
+      - "7999:7999"
+    environment:
+      PORT: 7999
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      NLU_SERVICE_ADDRESS: nlu-service:8020
+      PII_SERVICE_ADDRESS: pii-service:8021
+      LOG_LEVEL: INFO
+      ENABLE_TRACING: "true"
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4317
+      RATE_LIMIT_ENABLED: "true"
+      RATE_LIMIT_DEFAULT: 1000
+      RATE_LIMIT_BUCKET_SIZE: 100
+      RATE_LIMIT_REFILL_RATE: 10
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:7999/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # Jaeger for tracing (optional)
+  jaeger:
+    image: jaegertracing/all-in-one:1.50
+    container_name: unified-jaeger
+    ports:
+      - "5775:5775/udp"
+      - "6831:6831/udp"
+      - "6832:6832/udp"
+      - "5778:5778"
+      - "16686:16686"  # UI
+      - "14268:14268"
+      - "14250:14250"
+      - "9411:9411"
+      - "4317:4317"
+      - "4318:4318"
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+
+networks:
+  default:
+    name: unified-gateway-network
