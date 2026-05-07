@@ -23,8 +23,10 @@ RUN pip install --no-cache-dir \
     /app/libs/neural_hive_specialists
 
 # Copiar e instalar requirements (sem dependências locais)
+COPY requirements-base.txt .
 COPY services/pii-service/requirements.txt .
-RUN grep -v "^-e" requirements.txt > requirements-docker.txt || cp requirements.txt requirements-docker.txt
+# Fix path to requirements-base.txt and filter out local library references
+RUN sed 's|-r ../../requirements-base.txt|-r requirements-base.txt|g' requirements.txt | grep -v "^-e" > requirements-docker.txt || cp requirements.txt requirements-docker.txt
 RUN pip install --no-cache-dir -r requirements-docker.txt
 
 # Compilar arquivos protobuf
