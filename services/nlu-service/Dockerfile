@@ -16,7 +16,7 @@ COPY services/nlu-service/src/ ./src/
 # Instalar dependências Python
 RUN pip install --no-cache-dir poetry && \
     poetry config virtualenvs.create false && \
-    poetry install --only root --without dev
+    poetry install --without dev
 
 # Instalar spaCy e baixar modelos após as dependências
 # Usando pip direto para melhor controle e cache
