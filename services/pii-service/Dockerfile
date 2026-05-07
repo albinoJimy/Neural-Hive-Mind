@@ -11,12 +11,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Copiar bibliotecas locais primeiro
 COPY libraries/security /app/libs/security
+COPY libraries/python/neural_hive_domain /app/libs/neural_hive_domain
 COPY libraries/python/neural_hive_observability /app/libs/neural_hive_observability
 COPY libraries/python/neural_hive_specialists /app/libs/neural_hive_specialists
 
 # Instalar bibliotecas locais
 RUN pip install --no-cache-dir \
     /app/libs/security \
+    /app/libs/neural_hive_domain \
     /app/libs/neural_hive_observability \
     /app/libs/neural_hive_specialists
 
