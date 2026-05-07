@@ -9,8 +9,8 @@ name: Example with Auto Fallback
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
+  # push:
+  #   branches: [main]  # Disabled - example workflow only
 
 jobs:
   # Job que seleciona o runner (GitHub-hosted ou Self-hosted)

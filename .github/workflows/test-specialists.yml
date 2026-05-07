@@ -23,7 +23,7 @@ jobs:
   # ============================================================
   test:
     name: Test Specialists (Python ${{ matrix.python-version }})
-    runs-on:n: ubuntu-latest
+    runs-on: ubuntu-latest
     strategy:
       matrix:
         python-version: ["3.11", "3.12"]
@@ -129,7 +129,7 @@ jobs:
 
   lint:
     name: Lint Specialists
-    runs-on:n: ubuntu-latest
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout código
         uses: actions/checkout@v4

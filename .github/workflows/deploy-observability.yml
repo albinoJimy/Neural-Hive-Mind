@@ -44,7 +44,7 @@ env:
 jobs:
   validate:
     name: Validate Configuration
-    runs-on:n: ubuntu-latest
+    runs-on: ubuntu-latest
     outputs:
       terraform-changes: ${{ steps.changes.outputs.terraform }}
       helm-changes: ${{ steps.changes.outputs.helm }}
@@ -402,7 +402,7 @@ jobs:
 
   rollback:
     name: Rollback Deployment
-    runs-on:n: ubuntu-latest
+    runs-on: ubuntu-latest
     if: inputs.rollback
 
     strategy:
