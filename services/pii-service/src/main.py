@@ -77,7 +77,7 @@ async def lifespan(app: FastAPI):
         grpc_task.cancel()
         try:
             await grpc_task
-        except Exception:
+        except (asyncio.CancelledError, Exception):
             pass
 
 
