@@ -65,6 +65,8 @@ spec:
     metadata:
       labels:
         app: unified-gateway
+        app.kubernetes.io/name: unified-gateway
+        app.kubernetes.io/instance: unified-gateway
         component: gateway
     spec:
       imagePullSecrets:
@@ -84,11 +86,11 @@ spec:
             name: unified-gateway-secrets
         resources:
           requests:
-            memory: "512Mi"
-            cpu: "250m"
+            memory: "256Mi"
+            cpu: "100m"
           limits:
-            memory: "2Gi"
-            cpu: "1000m"
+            memory: "1Gi"
+            cpu: "500m"
         livenessProbe:
           httpGet:
             path: /health

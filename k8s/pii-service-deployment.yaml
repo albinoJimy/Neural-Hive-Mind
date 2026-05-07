@@ -45,6 +45,8 @@ spec:
     metadata:
       labels:
         app: pii-service
+        app.kubernetes.io/name: pii-service
+        app.kubernetes.io/instance: pii-service
         component: pii
     spec:
       imagePullSecrets:
@@ -65,11 +67,11 @@ spec:
             name: pii-service-config
         resources:
           requests:
-            memory: "512Mi"
-            cpu: "250m"
+            memory: "256Mi"
+            cpu: "100m"
           limits:
-            memory: "2Gi"
-            cpu: "1000m"
+            memory: "1Gi"
+            cpu: "500m"
         livenessProbe:
           httpGet:
             path: /health

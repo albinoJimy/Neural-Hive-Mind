@@ -46,6 +46,8 @@ spec:
     metadata:
       labels:
         app: nlu-service
+        app.kubernetes.io/name: nlu-service
+        app.kubernetes.io/instance: nlu-service
         component: nlu
     spec:
       imagePullSecrets:
@@ -66,11 +68,11 @@ spec:
             name: nlu-service-config
         resources:
           requests:
-            memory: "1Gi"
-            cpu: "500m"
+            memory: "512Mi"
+            cpu: "200m"
           limits:
-            memory: "4Gi"
-            cpu: "2000m"
+            memory: "2Gi"
+            cpu: "1000m"
         livenessProbe:
           httpGet:
             path: /health
