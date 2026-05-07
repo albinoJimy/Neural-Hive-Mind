@@ -65,9 +65,5 @@ click==8.1.7
 pyyaml==6.0.1
 httpx==0.28.1
 
-# Libraries Neural Hive-Mind (editable installs)
--e ../../libraries/security/neural_hive_security
--e ../../libraries/python/neural_hive_observability
--e ../../libraries/python/neural_hive_common
--e ../../libraries/python/neural_hive_ml
--e ../../libraries/python/neural_hive_approval_common
+# Libraries Neural Hive-Mind (local dependencies)
+# Nota: Para Docker build, estas bibliotecas são copiadas e instaladas separadamente

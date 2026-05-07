@@ -20,8 +20,8 @@ RUN python -m pip install --no-cache-dir spacy && \
     cp -r $(python -c "import spacy; import os; print(os.path.dirname(spacy.__file__))")/es_core_news_sm /app/models/spacy/
 
 # Copiar projeto
-COPY pyproject.toml ./
-COPY src/ ./src/
+COPY services/nlu-service/pyproject.toml ./
+COPY services/nlu-service/src/ ./src/
 
 # Instalar dependências Python
 RUN pip install --no-cache-dir poetry && \

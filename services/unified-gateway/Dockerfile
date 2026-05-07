@@ -6,14 +6,25 @@ WORKDIR /app
 # Instalar dependências do sistema
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Copiar requirements primeiro para cache do Docker
-# Contexto de build é a raiz do repositório (context: .)
-COPY services/unified-gateway/requirements.txt .
+# Copiar bibliotecas locais primeiro (apenas as necessárias)
+# neural_hive_security precisa do setup.py no diretório pai
+COPY libraries/security /app/libs/security
+COPY libraries/python/neural_hive_observability /app/libs/neural_hive_observability
+COPY libraries/python/neural_hive_resilience /app/libs/neural_hive_resilience
 
-# Instalar dependências Python
-RUN pip install --no-cache-dir -r requirements.txt
+# Instalar bibliotecas locais
+RUN pip install --no-cache-dir \
+    /app/libs/security \
+    /app/libs/neural_hive_observability \
+    /app/libs/neural_hive_resilience
+
+# Copiar e instalar requirements (sem dependências locais)
+COPY services/unified-gateway/requirements.txt .
+RUN grep -v "^-e" requirements.txt > requirements-docker.txt || cp requirements.txt requirements-docker.txt
+RUN pip install --no-cache-dir -r requirements-docker.txt
 
 # Copiar código fonte
 COPY services/unified-gateway/src/ ./src/

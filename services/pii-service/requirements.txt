@@ -18,9 +18,7 @@ pymongo==4.10.1
 cryptography==43.0.1
 
 # Libraries Neural Hive-Mind
--e ../../libraries/security/neural_hive_security
--e ../../libraries/python/neural_hive_observability
--e ../../libraries/python/neural_hive_specialists
+# Nota: Para Docker build, estas bibliotecas são copiadas e instaladas separadamente
 
 # JWT auth
 python-jose[cryptography]==3.3.0
