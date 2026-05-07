@@ -53,8 +53,8 @@ spec:
         - name: ghcr-secret
       containers:
       - name: pii-service
-        image: ghcr.io/albinojimy/neural-hive-mind/pii-service:1.0.0
-        imagePullPolicy: IfNotPresent
+        image: ghcr.io/albinojimy/neural-hive-mind/pii-service:a51cf91
+        imagePullPolicy: Always
         ports:
         - containerPort: 8021
           name: grpc
@@ -75,14 +75,14 @@ spec:
         livenessProbe:
           httpGet:
             path: /health
-            port: 9021
+            port: 8021
           initialDelaySeconds: 60
           periodSeconds: 30
           timeoutSeconds: 10
         readinessProbe:
           httpGet:
             path: /health
-            port: 9021
+            port: 8021
           initialDelaySeconds: 30
           periodSeconds: 10
           timeoutSeconds: 5

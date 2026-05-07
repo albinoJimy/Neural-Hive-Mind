@@ -9,17 +9,7 @@ RUN apt-get update && apt-get install -y \
     g++ \
     && rm -rf /var/lib/apt/lists/*
 
-# Instalar spaCy models em cache
-RUN python -m pip install --no-cache-dir spacy && \
-    python -m spacy download pt_core_news_sm && \
-    python -m spacy download en_core_web_sm && \
-    python -m spacy download es_core_news_sm && \
-    mkdir -p /app/models/spacy && \
-    cp -r $(python -c "import spacy; import os; print(os.path.dirname(spacy.__file__))")/pt_core_news_sm /app/models/spacy/ && \
-    cp -r $(python -c "import spacy; import os; print(os.path.dirname(spacy.__file__))")/en_core_web_sm /app/models/spacy/ && \
-    cp -r $(python -c "import spacy; import os; print(os.path.dirname(spacy.__file__))")/es_core_news_sm /app/models/spacy/
-
-# Copiar projeto
+# Copiar projeto primeiro (para cache do poetry)
 COPY services/nlu-service/pyproject.toml ./
 COPY services/nlu-service/src/ ./src/
 
@@ -27,6 +17,18 @@ COPY services/nlu-service/src/ ./src/
 RUN pip install --no-cache-dir poetry && \
     poetry config virtualenvs.create false && \
     poetry install --no-dev --no-root
+
+# Instalar spaCy e baixar modelos após as dependências
+# Usando retry e timeout para maior resiliência
+RUN pip install --no-cache-dir spacy && \
+    python -m spacy download pt_core_news_sm || \
+    (pip install --no-cache-dir https://github.com/explosion/spacy-models/releases/download/pt_core_news_sm-3.8.0/pt_core_news_sm-3.8.0-py3-none-any.whl) && \
+    python -m spacy download en_core_web_sm && \
+    python -m spacy download es_core_news_sm && \
+    mkdir -p /app/models/spacy && \
+    cp -r $(python -c "import spacy; import os; print(os.path.dirname(spacy.__file__))")/pt_core_news_sm /app/models/spacy/ && \
+    cp -r $(python -c "import spacy; import os; print(os.path.dirname(spacy.__file__))")/en_core_web_sm /app/models/spacy/ && \
+    cp -r $(python -c "import spacy; import os; print(os.path.dirname(spacy.__file__))")/es_core_news_sm /app/models/spacy/
 
 # Expor portas
 EXPOSE 8020 8021

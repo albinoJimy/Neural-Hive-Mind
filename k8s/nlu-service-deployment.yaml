@@ -54,7 +54,7 @@ spec:
         - name: ghcr-secret
       containers:
       - name: nlu-service
-        image: ghcr.io/albinojimy/neural-hive-mind/nlu-service:1.0.0
+        image: ghcr.io/albinojimy/neural-hive-mind/nlu-service:main
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 8020
@@ -76,14 +76,14 @@ spec:
         livenessProbe:
           httpGet:
             path: /health
-            port: 8021
+            port: 8020
           initialDelaySeconds: 90
           periodSeconds: 30
           timeoutSeconds: 10
         readinessProbe:
           httpGet:
             path: /health
-            port: 8021
+            port: 8020
           initialDelaySeconds: 60
           periodSeconds: 10
           timeoutSeconds: 5
