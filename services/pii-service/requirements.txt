@@ -4,9 +4,8 @@
 -r ../../requirements-base.txt
 
 # Service-specific
-grpcio==1.68.0
-grpcio-tools==1.68.0
-protobuf==5.29.1
+# grpcio is now in requirements-base.txt
+# protobuf is now in requirements-base.txt
 pydantic-settings==2.6.1
 structlog==24.4.0
 
