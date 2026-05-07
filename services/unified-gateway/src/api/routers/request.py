@@ -24,6 +24,7 @@ from src.services.flow_router import FlowRouter, get_flow_router
 from src.services.nlu_client import NLUServiceClient, get_intent_classifier, get_nlu_client
 from src.services.resilience import ResilienceNLUService, get_resilience_nlu
 from src.services.response_processor import ResponseProcessor, get_response_processor
+from src.api.routers.status import save_request_status
 
 logger = structlog.get_logger(__name__)
 
@@ -138,6 +139,13 @@ async def nhm_request(
         input_length=len(body.input),
     )
 
+    # Status Tracking - marcar como processing
+    await save_request_status(
+        request_id=request_id,
+        status_value="processing",
+        flow_type=None,
+    )
+
     # 2. Intent Classifier - classificar intenção
     intent_classifier = get_intent_classifier()
 
@@ -227,6 +235,16 @@ async def nhm_request(
             event_published=event_published,
         )
 
+        # Status Tracking - marcar como completed
+        await save_request_status(
+            request_id=request_id,
+            status_value="completed",
+            flow_type=unified_response.flow_type,
+            processing_time_ms=processing_time_ms,
+            gateway_used=gateway_name,
+            data=unified_response.data,
+        )
+
         return NHMRequestResponse(
             request_id=request_id,
             flow_type=unified_response.flow_type,
@@ -247,6 +265,15 @@ async def nhm_request(
             request_id=request_id,
             error=str(e),
             processing_time_ms=processing_time_ms,
+        )
+
+        # Status Tracking - marcar como failed
+        await save_request_status(
+            request_id=request_id,
+            status_value="failed",
+            flow_type=classification_decision.flow_type.value if hasattr(classification_decision, 'flow_type') else None,
+            processing_time_ms=processing_time_ms,
+            error=str(e),
         )
 
         # Response Processor - formatar erro

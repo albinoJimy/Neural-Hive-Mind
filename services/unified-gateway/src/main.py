@@ -9,6 +9,8 @@ from prometheus_client import make_asgi_app
 
 from src.api.routers.health import health_router
 from src.api.routers.request import request_router
+from src.api.routers.status import status_router
+from src.api.routers.stream import stream_router
 from src.config.settings import get_settings
 from src.middleware import JWTAuthMiddleware, RateLimitMiddleware, TracingMiddleware
 
@@ -104,6 +106,8 @@ app.mount("/metrics", metrics_app)
 # Routers
 app.include_router(health_router, tags=["health"])
 app.include_router(request_router, tags=["request"])
+app.include_router(status_router, tags=["status"])
+app.include_router(stream_router, tags=["stream"])
 
 
 # Exception handlers
