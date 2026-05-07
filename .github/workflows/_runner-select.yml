@@ -31,6 +31,19 @@ on:
 
 jobs:
 
+  select-runner:
+    name: Select Runner
+    runs-on: ubuntu-latest
+    outputs:
+      runner: ${{ steps.set-runner.outputs.runner }}
+      runner-type: ${{ steps.set-runner.outputs.runner-type }}
+    steps:
+      - name: Set default runner
+        id: set-runner
+        run: |
+          echo "runner=ubuntu-latest" >> $GITHUB_OUTPUT
+          echo "runner-type=github-hosted" >> $GITHUB_OUTPUT
+
   demo-job:
     name: Demo Job with Selected Runner
     needs: select-runner

@@ -355,7 +355,6 @@ jobs:
   generate-report:
     name: Generate Validation Report
     needs: [
-      select-runner,
       terraform-validate,
       helm-validate,
       grafana-dashboards-validate,
