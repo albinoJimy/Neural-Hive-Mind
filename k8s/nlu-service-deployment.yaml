@@ -53,7 +53,7 @@ spec:
         - name: ghcr-secret
       containers:
       - name: nlu-service
-        image: ghcr.io/albinojimy/neural-hive-mind/nlu-service:main
+        image: ghcr.io/albinojimy/neural-hive-mind/nlu-service:b-20260508-090353
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 8020
