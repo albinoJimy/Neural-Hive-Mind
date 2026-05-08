@@ -8,10 +8,16 @@ Inicia:
 import asyncio
 import logging
 import os
+import sys
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
+
+# Adicionar proto dir ao sys.path antes de importar módulos que usam protobuf
+proto_dir = Path(__file__).parent / "proto"
+sys.path.insert(0, str(proto_dir))
 
 from src.api.routers.nlu import router as nlu_router
 from src.config.settings import get_settings

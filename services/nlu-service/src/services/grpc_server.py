@@ -13,22 +13,15 @@ INV-1: NLU Result Compatibility
 
 import asyncio
 import logging
-import sys
 import time
 from datetime import datetime, timezone
-from pathlib import Path
 from typing import Any
 
 import grpc
 from google.protobuf.timestamp_pb2 import Timestamp
 
-# Adicionar diretório proto ao sys.path para imports dos módulos gerados
-proto_dir = Path(__file__).parent.parent / "proto"
-sys.path.insert(0, str(proto_dir))
-
-# Importar proto gerados
-import nlu_pb2
-import nlu_pb2_grpc
+# Importar proto gerados (sys.path já configurado no main.py)
+from src.proto import nlu_pb2, nlu_pb2_grpc
 
 from src.models.nlu import (
     CalculateConfidenceResponse,
