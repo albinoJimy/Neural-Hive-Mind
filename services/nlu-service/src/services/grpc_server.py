@@ -21,8 +21,7 @@ import grpc
 from google.protobuf.timestamp_pb2 import Timestamp
 
 # Importar proto gerados
-import nlu_pb2
-import nlu_pb2_grpc
+from src.proto import nlu_pb2, nlu_pb2_grpc
 
 from src.models.nlu import (
     CalculateConfidenceResponse,
