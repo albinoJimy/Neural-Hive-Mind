@@ -19,15 +19,11 @@ RUN pip install --no-cache-dir poetry && \
     poetry install --without dev --no-root
 
 # Instalar spaCy e baixar modelos após as dependências
-# Usando pip direto para melhor controle e cache
+# Os modelos podem ser carregados diretamente via spacy.load()
 RUN pip install --no-cache-dir spacy && \
     pip install --no-cache-dir https://github.com/explosion/spacy-models/releases/download/pt_core_news_sm-3.8.0/pt_core_news_sm-3.8.0-py3-none-any.whl && \
     python -m spacy download en_core_web_sm && \
-    python -m spacy download es_core_news_sm && \
-    mkdir -p /app/models/spacy && \
-    cp -r $(python -c "import spacy; import os; print(os.path.dirname(spacy.__file__))")/pt_core_news_sm /app/models/spacy/ && \
-    cp -r $(python -c "import spacy; import os; print(os.path.dirname(spacy.__file__))")/en_core_web_sm /app/models/spacy/ && \
-    cp -r $(python -c "import spacy; import os; print(os.path.dirname(spacy.__file__))")/es_core_news_sm /app/models/spacy/
+    python -m spacy download es_core_news_sm
 
 # Expor portas
 EXPOSE 8020 8021

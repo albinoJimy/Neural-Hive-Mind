@@ -20,7 +20,6 @@ data:
   NEURAL_HIVE_COMPONENT: "nlu"
   NEURAL_HIVE_LAYER: "specialist"
   # NLU Model Settings
-  SPACY_MODEL_PATH: "/app/models/spacy"
   DEFAULT_LANGUAGE: "pt"
   CONFIDENCE_THRESHOLD: "0.5"
   MAX_TEXT_LENGTH: "5000"
