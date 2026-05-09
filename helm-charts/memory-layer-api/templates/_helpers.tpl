@@ -21,10 +21,21 @@ Usa funções do template comum via dependência
 {{- include "neural-hive.labels" (dict "context" . "component" "memory-layer-api" "layer" "conhecimento-dados") }}
 app.kubernetes.io/part-of: neural-hive-mind
 neural-hive.io/domain: memory-management
+app: {{ include "memory-layer-api.name" . }}
 {{- end }}
 
 {{- define "memory-layer-api.selectorLabels" -}}
 {{- include "neural-hive.selectorLabels" . }}
+{{- end }}
+
+{{/*
+Pod labels (selectorLabels + app legacy).
+Usar em template.metadata.labels onde Gatekeeper exige label `app`.
+NÃO usar em spec.selector.matchLabels (Deployment selector é imutável).
+*/}}
+{{- define "memory-layer-api.podLabels" -}}
+{{- include "neural-hive.selectorLabels" . }}
+app: {{ include "memory-layer-api.name" . }}
 {{- end }}
 
 {{- define "memory-layer-api.serviceAccountName" -}}

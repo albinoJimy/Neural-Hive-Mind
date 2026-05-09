@@ -12,6 +12,12 @@ imagePullSecrets:
 
 replicaCount: 1
 
+# Pod labels adicionais (merged em template.metadata.labels do Deployment).
+# Necessário porque a constraint Gatekeeper 'must-have-app-label' exige
+# `app: <name>` legacy além de `app.kubernetes.io/name`.
+podLabels:
+  app: memory-layer-api
+
 # Disable Kubernetes service links to prevent env var collisions with pydantic settings
 enableServiceLinks: false
 
