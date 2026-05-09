@@ -170,8 +170,19 @@ class JWTAuthMiddleware(BaseHTTPMiddleware):
             )
 
     def _should_skip_auth(self, path: str) -> bool:
-        """Verifica se path deve ser excluído da autenticação."""
-        return any(path.startswith(exclude_path) for exclude_path in self.exclude_paths)
+        """Verifica se path deve ser excluído da autenticação.
+
+        "/" é tratado como match exacto para evitar que startswith faça
+        match com TODOS os paths.
+        """
+        for exclude_path in self.exclude_paths:
+            if exclude_path == "/":
+                if path == "/":
+                    return True
+                continue
+            if path.startswith(exclude_path):
+                return True
+        return False
 
     async def _extract_auth_context(self, request: Request) -> AuthContext:
         """

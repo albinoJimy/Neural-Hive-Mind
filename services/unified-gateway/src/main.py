@@ -76,6 +76,7 @@ app.add_middleware(TracingMiddleware, service_name="unified-gateway")
 app.add_middleware(
     JWTAuthMiddleware,
     exclude_paths=[
+        "/",  # service descriptor — match exacto, não prefix
         "/health",
         "/health/ready",
         "/health/live",
@@ -84,7 +85,7 @@ app.add_middleware(
         "/openapi.json",
         "/redoc",
     ],
-    require_auth=False,  # Auth opcional durante MVP
+    require_auth=settings.JWT_AUTH_REQUIRED,
 )
 
 # Adicionar RateLimitMiddleware (INV-8: rate limiting por tenant)

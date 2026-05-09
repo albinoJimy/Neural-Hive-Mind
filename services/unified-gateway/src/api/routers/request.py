@@ -336,6 +336,7 @@ async def nhm_request_detailed(
     user_id = request_context.actor.user_id
 
     # 2. Intent Classifier
+    intent_classifier = get_intent_classifier()
     classification_decision = await intent_classifier.classify(
         text=body.input,
         language=body.language or "pt",
