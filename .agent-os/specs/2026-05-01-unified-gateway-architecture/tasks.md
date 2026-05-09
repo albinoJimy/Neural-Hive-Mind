@@ -555,6 +555,7 @@ Implementar arquitetura unificada com Unified Gateway (:7999) como ponto único 
 ### FASE 6: Testes E2E e Hardening (Sprint 5 - 1 semana)
 
 #### [TICKET-026] Testes E2E - Fluxo A-F
+- **Status:** ✅ Concluído — 2026-05-10
 - **Tipo:** Test
 - **Prioridade:** P0
 - **Estimativa:** 2 dias
@@ -568,10 +569,19 @@ Implementar arquitetura unificada com Unified Gateway (:7999) como ponto único 
 - **Acceptance Criteria:**
   - ✅ Teste E2E passando
   - ✅ Coverage >80%
+- **Nota de Fecho (2026-05-10):**
+  Pipeline `cliente → Unified Gateway → IntentClassifier → FlowRouter →
+  resposta unificada` exercitado com a app FastAPI real via `ASGITransport`.
+  NLU client e `FlowRouter._proxy_request` são monkeypatched; o resto
+  (middleware JWT, rate limit, context builder, response processor) corre
+  sem mocks. 2 cenários: roteamento BUSINESS→A-F e override explícito de
+  flow_type. Helpers em `tests/e2e/_unified_gateway_helpers.py`.
 - **Arquivos:**
   - `tests/e2e/test_flow_af.py`
+  - `tests/e2e/_unified_gateway_helpers.py` (fixtures partilhadas)
 
 #### [TICKET-027] Testes E2E - Fluxo G
+- **Status:** ✅ Concluído — 2026-05-10
 - **Tipo:** Test
 - **Prioridade:** P0
 - **Estimativa:** 2 dias
@@ -581,10 +591,14 @@ Implementar arquitetura unificada com Unified Gateway (:7999) como ponto único 
   - Teste E2E completo: Request → Unified Gateway → requirements-engineering → ...
 - **Acceptance Criteria:**
   - ✅ Teste E2E passando
+- **Nota de Fecho (2026-05-10):**
+  Mesmo padrão do TICKET-026. 2 cenários: domínio TECHNICAL→G e
+  propagação de headers `X-Tenant-ID`/`X-User-ID` downstream (INV-7).
 - **Arquivos:**
   - `tests/e2e/test_flow_g.py`
 
 #### [TICKET-028] Testes E2E - Fluxo H
+- **Status:** ✅ Concluído — 2026-05-10
 - **Tipo:** Test
 - **Prioridade:** P0
 - **Estimativa:** 2 dias
@@ -594,6 +608,9 @@ Implementar arquitetura unificada com Unified Gateway (:7999) como ponto único 
   - Teste E2E completo: Request → Unified Gateway → doc-ingestion → ...
 - **Acceptance Criteria:**
   - ✅ Teste E2E passando
+- **Nota de Fecho (2026-05-10):**
+  Mesmo padrão. 2 cenários: domínio INFRASTRUCTURE→H e gestão graciosa
+  de falha downstream (5xx upstream → envelope com `status != "success"`).
 - **Arquivos:**
   - `tests/e2e/test_flow_h.py`
 

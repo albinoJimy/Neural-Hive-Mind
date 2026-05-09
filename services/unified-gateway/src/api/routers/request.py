@@ -128,8 +128,8 @@ async def nhm_request(
     )
 
     request_id = request_context.request_id
-    tenant_id = request_context.tenant.tenant_id
-    user_id = request_context.actor.user_id
+    tenant_id = request_context.tenant.tenant_id if request_context.tenant else None
+    user_id = request_context.actor.user_id if request_context.actor else None
 
     logger.info(
         "processing_nhm_request",
@@ -332,8 +332,8 @@ async def nhm_request_detailed(
     )
 
     request_id = request_context.request_id
-    tenant_id = request_context.tenant.tenant_id
-    user_id = request_context.actor.user_id
+    tenant_id = request_context.tenant.tenant_id if request_context.tenant else None
+    user_id = request_context.actor.user_id if request_context.actor else None
 
     # 2. Intent Classifier
     intent_classifier = get_intent_classifier()
