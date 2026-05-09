@@ -9,7 +9,6 @@ import logging
 from typing import Any
 
 import grpc
-from google.protobuf import empty_pb2
 
 from config.settings import get_settings
 
@@ -50,8 +49,11 @@ class NLUServiceClient:
             self._channel = grpc.aio.insecure_channel(self._target)
             self._stub = nlu_pb2_grpc.NLUServiceStub(self._channel)
 
-            # Testar conexão
-            await asyncio.wait_for(self._stub.HealthCheck(empty_pb2.Empty()), timeout=5.0)
+            # Testar conexão (usar HealthCheckRequest conforme proto NLU)
+            await asyncio.wait_for(
+                self._stub.HealthCheck(nlu_pb2.HealthCheckRequest()),
+                timeout=5.0,
+            )
 
             self._connected = True
             logger.info(f"NLUServiceClient connected to {self._target}")
@@ -76,7 +78,7 @@ class NLUServiceClient:
         language: str = "pt",
         context: dict[str, Any] | None = None,
         enable_cache: bool = True,
-    ) -> nlu_pb2.NLUResult:
+    ) -> "nlu_pb2.NLUResult":
         """
         Processa texto via NLU Service.
 
@@ -105,20 +107,21 @@ class NLUServiceClient:
                 request.context[key] = str(value)
 
         try:
-            # Chamar NLU Service
+            # Chamar NLU Service - retorna ParseResponse com campo `result` (NLUResult)
             response = await asyncio.wait_for(
                 self._stub.Parse(request),
                 timeout=settings.NLU_SERVICE_TIMEOUT or 10.0,
             )
 
+            result = response.result
             logger.debug(
                 "NLU service call successful",
-                domain=response.domain,
-                confidence=response.confidence,
-                keywords_count=len(response.keywords),
+                domain=result.domain,
+                confidence=result.confidence,
+                keywords_count=len(result.keywords),
             )
 
-            return response
+            return result
 
         except asyncio.TimeoutError:
             logger.error("NLU service call timeout")
@@ -130,7 +133,7 @@ class NLUServiceClient:
     async def health_check(self) -> bool:
         """Verifica saúde do NLU Service."""
         try:
-            await self._stub.HealthCheck(empty_pb2.Empty())
+            await self._stub.HealthCheck(nlu_pb2.HealthCheckRequest())
             return True
         except Exception as e:
             logger.warning(f"NLU service health check failed: {e}")

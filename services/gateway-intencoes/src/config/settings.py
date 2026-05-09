@@ -153,9 +153,9 @@ class Settings(BaseSettings):
         description="Timeout em segundos para chamadas ao NLU Service",
     )
 
-    # T11: PII Service gRPC
+    # T11: PII Service gRPC (porta 9021 — 8021 é HTTP/REST, não gRPC)
     pii_service_url: str = Field(
-        default="pii-service:8021",
+        default="pii-service:9021",
         description="URL do PII Service para gRPC (T11 refactor)",
     )
     pii_service_timeout: float = Field(

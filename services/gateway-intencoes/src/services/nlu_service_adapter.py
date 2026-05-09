@@ -95,17 +95,17 @@ class NLUServiceAdapter:
                 confidence_status = "low"
 
             # Aplicar PII masking se PII client disponível
-            processed_text = nlu_response.text
+            processed_text = nlu_response.processed_text
             if self._pii_client:
                 try:
                     processed_text = await self._pii_client.mask(
-                        text=nlu_response.text,
+                        text=nlu_response.processed_text,
                         strategy="MASK_FULL",
                         language=language,
                     )
                 except Exception as e:
                     logger.warning(f"PII masking failed, using original text: {e}")
-                    processed_text = nlu_response.text
+                    processed_text = nlu_response.processed_text
 
             # Criar NLUResult compatível
             return NLUResult(
