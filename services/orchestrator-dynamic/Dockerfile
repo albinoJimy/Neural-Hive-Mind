@@ -12,13 +12,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Criar diretório de trabalho
 WORKDIR /build
 
-# Copiar bibliotecas internas e instalar neural_hive_ml como editable
+# Copiar bibliotecas internas e instalar como editable
 # CACHE-BUSTER: 249812b
 COPY libraries /libraries
 ARG LIBRARY_VERSION=249812b
 RUN echo "Library version: ${LIBRARY_VERSION}"
 RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install --no-cache-dir --user -e /libraries/python/neural_hive_ml
+    pip install --no-cache-dir --user -e /libraries/python/neural_hive_ml && \
+    pip install --no-cache-dir --user /libraries/python/neural_hive_security
 
 # Copiar requirements (base + service-specific) e resolver path relativo no Docker context
 # Padrão consistente com data-migration, code-forge, etc.
