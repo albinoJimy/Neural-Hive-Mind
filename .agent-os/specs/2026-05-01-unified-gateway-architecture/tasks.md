@@ -370,6 +370,7 @@ Implementar arquitetura unificada com Unified Gateway (:7999) como ponto único 
   - `libraries/python/neural_hive_approval_common/neural_hive_approval_common/__init__.py`
 
 #### [TICKET-018] Criar modelos unificados de Approval
+- **Status:** ✅ Concluído — 2026-05-10
 - **Tipo:** Feature
 - **Prioridade:** P0
 - **Estimativa:** 2 dias
@@ -385,9 +386,22 @@ Implementar arquitetura unificada com Unified Gateway (:7999) como ponto único 
   - ✅ Modelos unificados criados
   - ✅ Pydantic + Protobuf sync
   - ✅ Tests de validação
+- **Nota de Fecho (2026-05-10):**
+  - `proto/approval.proto` criado com mensagens `UnifiedApprovalRequest`,
+    `UnifiedApprovalDecision`, `ApprovalResponse` e enums `RiskBand`,
+    `ApprovalStatus`, `Decision`.
+  - `neural_hive_approval_common/proto/approval_pb2.py` gerado via
+    `grpc_tools.protoc`.
+  - `tests/test_proto_sync.py` (5 testes) garante paridade dos enums entre
+    Pydantic e proto — falha se um lado adicionar/renomear valor sem o outro.
+  - `CommonStatus` (alias de `ApprovalStatus`) já incluía `CANCELLED` e
+    `EXPIRED` no commit `41bf9876`.
 - **Arquivos:**
-  - `libraries/python/neural_hive_approval_common/models/approval.py`
   - `libraries/python/neural_hive_approval_common/proto/approval.proto`
+  - `libraries/python/neural_hive_approval_common/neural_hive_approval_common/proto/approval_pb2.py`
+  - `libraries/python/neural_hive_approval_common/neural_hive_approval_common/proto/approval_pb2.pyi`
+  - `libraries/python/neural_hive_approval_common/neural_hive_approval_common/models.py`
+  - `libraries/python/neural_hive_approval_common/tests/test_proto_sync.py`
 
 #### [TICKET-019] Extrair lógica de decisão central
 - **Tipo:** Refactor
