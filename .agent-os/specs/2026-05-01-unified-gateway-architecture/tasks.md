@@ -228,6 +228,7 @@ Implementar arquitetura unificada com Unified Gateway (:7999) como ponto único 
   - `services/gateway-intencoes/src/pipelines/nlu_pipeline.py` (REMOVIDO)
 
 #### [TICKET-011] Atualizar requirements-engineering para usar NLU Service
+- **Status:** ✅ Concluído por design (N/A) — 2026-05-10
 - **Tipo:** Refactor
 - **Prioridade:** P0
 - **Estimativa:** 1 dia
@@ -241,6 +242,13 @@ Implementar arquitetura unificada com Unified Gateway (:7999) como ponto único 
   - ✅ requirements-engineering usando NLU Service
   - ✅ ~300 LOC removidos
   - ✅ Tests passando
+- **Nota de Fecho (Codebase Review 2026-05-04 + verificação 2026-05-10):**
+  O serviço `requirements-engineering` não usa nenhum pipeline NLU local
+  (zero referências a spaCy, classificação de domínio ou NER em `src/`).
+  O processamento é integralmente feito via LLM em `services/requirements_engineer.py`
+  sobre planos cognitivos já estruturados — não há texto bruto para classificar.
+  Criar um cliente NLU sem consumidor seria over-engineering. Ticket fechado
+  como não aplicável; a spec já reflete `0 LOC` no Expected Deliverable.
 - **Arquivos:**
   - `services/requirements-engineering/src/clients/nlu_client.py`
 

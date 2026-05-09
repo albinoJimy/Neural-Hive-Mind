@@ -31,11 +31,21 @@ class ApprovalStatus(str, Enum):
     INV-6: Status transitions: PENDING -> APPROVED or PENDING -> REJECTED only.
     Once APPROVED or REJECTED, status cannot change (no reverting via normal flow).
     Revert is only allowed via Saga compensation (separate flow).
+
+    CANCELLED e EXPIRED são estados terminais alternativos:
+    - CANCELLED: requestor cancelou antes de decisão (ex: timeout do client).
+    - EXPIRED: TTL excedido sem aprovação humana.
     """
 
     PENDING = "pending"
     APPROVED = "approved"
     REJECTED = "rejected"
+    CANCELLED = "cancelled"
+    EXPIRED = "expired"
+
+
+# Alias canónico exigido pela spec (TICKET-018: CommonStatus = ApprovalStatus)
+CommonStatus = ApprovalStatus
 
 
 class UnifiedApprovalRequest(BaseModel):
