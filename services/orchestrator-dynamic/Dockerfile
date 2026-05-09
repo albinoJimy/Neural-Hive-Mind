@@ -20,9 +20,12 @@ RUN echo "Library version: ${LIBRARY_VERSION}"
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip install --no-cache-dir --user -e /libraries/python/neural_hive_ml
 
-# Copiar requirements e instalar dependências restantes
-COPY services/orchestrator-dynamic/requirements.txt .
+# Copiar requirements (base + service-specific) e resolver path relativo no Docker context
+# Padrão consistente com data-migration, code-forge, etc.
+COPY requirements-base.txt ./requirements-base.txt
+COPY services/orchestrator-dynamic/requirements.txt ./requirements-service.txt
 RUN --mount=type=cache,target=/root/.cache/pip \
+    cat requirements-service.txt | sed 's|-r ../../requirements-base.txt|-r requirements-base.txt|' > requirements.txt && \
     pip install --no-cache-dir --user -r requirements.txt \
     --default-timeout=900 --retries 3
 
