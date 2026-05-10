@@ -13,13 +13,13 @@ import sys
 from datetime import datetime
 from enum import Enum
 
-# Python 3.10 compatibility: _StrEnum was added in Python 3.11
+# Python 3.10 compatibility: StrEnum was added in Python 3.11
 if sys.version_info >= (3, 11):
-    from enum import _StrEnum as __StrEnum
+    from enum import StrEnum as __StrEnum
 else:
 
     class __StrEnum(str, Enum):
-        """Polyfill for _StrEnum on Python 3.10"""
+        """Polyfill for StrEnum on Python 3.10"""
 
 
 from typing import Any
