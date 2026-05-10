@@ -301,10 +301,20 @@ Implementar arquitetura unificada com Unified Gateway (:7999) como ponto único 
     separadores) e negativos (lowercase rejeitado, contagem errada de
     dígitos, outros country codes).
   - Suite completa de compliance: 153/153 testes passam.
-  - **Pendente para outro ticket:** consolidação física entre
-    `neural_hive_specialists/compliance` e `neural_hive_context` (gap
-    de 395 LOC); ambos os módulos coexistem com lógica parcialmente
-    duplicada.
+  - **Consolidação física diferida (Opção D — 2026-05-10):**
+    Auditoria read-only via `feature-dev:code-explorer` revelou que
+    os "395 LOC duplicados" da spec original estão sobre-estimados —
+    a duplicação real é ~150-200 LOC de regex equivalente, e o
+    `neural_hive_context.pii*` **não tem importadores externos**
+    (zero serviços de produção; só `workflow_classifier.py` interno
+    e 4 testes internos do package). Os dois packages têm
+    funcionalidades complementares: `specialists` tem `AuditLogger`/
+    `FieldEncryptor`/`ComplianceLayer` que o `context` não tem;
+    `context` tem validação matemática Luhn/CPF/CNH que o
+    `specialists` não tem. Conflitos não-triviais (BI angolano com
+    dois formatos diferentes) exigem decisão de produto antes de
+    forçar consolidação técnica. Decisão completa + pré-requisitos
+    para reabrir em `docs/PII_DUPLICATION_AUDIT.md`.
 - **Arquivos:**
   - `services/pii-service/src/services/pii_detector.py`
   - `services/pii-service/src/services/pii_masker.py`
