@@ -90,7 +90,12 @@ class _StubResilienceNLU:
 
 @pytest_asyncio.fixture
 async def unified_gateway_app(monkeypatch: pytest.MonkeyPatch):
-    """Importa a app real e desliga validações que precisam de infra externa."""
+    """Importa a app real e desliga validações que precisam de infra externa.
+
+    Faz purge de ``sys.modules['src*']`` antes do import porque há outros
+    serviços (ex: pii-service) que também usam ``src`` como nome de package
+    — sem o purge, um teste anterior pode deixar a app errada em cache.
+    """
     # JWT obrigatório por defeito desde o fix #10; nos E2E não temos IdP, então
     # configuramos antes do import para que o middleware seja construído com
     # require_auth=False.
@@ -98,6 +103,15 @@ async def unified_gateway_app(monkeypatch: pytest.MonkeyPatch):
     # Kafka producer não é mandatório e fica fail-soft, mas evitamos
     # tentativas de conexão com broker inexistente.
     monkeypatch.setenv("KAFKA_ENABLED", "false")
+
+    # Limpa qualquer "src" cacheado (pode ser de outro serviço com mesmo
+    # nome de package — ver pii-service/src/).
+    for cached in [m for m in list(sys.modules) if m == "src" or m.startswith("src.")]:
+        del sys.modules[cached]
+    # Garante prioridade do unified-gateway no sys.path.
+    if str(_UNIFIED_GATEWAY_ROOT) in sys.path:
+        sys.path.remove(str(_UNIFIED_GATEWAY_ROOT))
+    sys.path.insert(0, str(_UNIFIED_GATEWAY_ROOT))
 
     # Importação tardia para que os env vars já estejam aplicados quando o
     # ``Settings`` é instanciado.
