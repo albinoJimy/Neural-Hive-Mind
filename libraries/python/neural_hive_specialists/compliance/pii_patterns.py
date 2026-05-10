@@ -20,6 +20,7 @@ class PIICategory(str, Enum):
     GLOBAL = "global"
     EUROPEAN = "european"
     BRAZILIAN = "brazilian"
+    ANGOLAN = "angolan"
     NLP = "nlp"  # Detectado via spaCy NER
 
 
@@ -47,6 +48,10 @@ class PIIType(str, Enum):
     RG = "RG"
     TITULO_ELEITOR = "TITULO_ELEITOR"
     BANK_ACCOUNT = "BANK_ACCOUNT"
+
+    # Angolano (TICKET-013 da spec 2026-05-01-unified-gateway-architecture)
+    BI_AO = "BI_AO"  # Bilhete de Identidade angolano (9 dígitos + 2 letras + 3 dígitos)
+    PHONE_AO = "PHONE_AO"  # Telefone com prefixo +244
 
     # NLP (spaCy)
     PERSON = "PERSON"
@@ -207,6 +212,31 @@ PII_PATTERNS: list[PIIPattern] = [
         mask_strategy="partial",
         show_first=3,
         show_last=1,  # 123-*****-*
+    ),
+    # === ANGOLANO ===
+    # BI angolano: 9 dígitos + 2 letras (sigla provincial, ex: LA=Luanda)
+    # + 3 dígitos. Exemplo: 003456789LA017. Formato fixo de 14 caracteres
+    # sem separadores; o `\b` garante que não capturamos sequências maiores.
+    PIIPattern(
+        type=PIIType.BI_AO,
+        category=PIICategory.ANGOLAN,
+        regex=r"\b\d{9}[A-Z]{2}\d{3}\b",
+        flags=0,  # case-sensitive: as 2 letras provinciais são sempre maiúsculas
+        mask_strategy="partial",
+        show_first=3,
+        show_last=2,  # 003*********17
+    ),
+    # Telefone angolano com prefixo internacional +244, 9 dígitos após o
+    # código de país. Padrão mais específico que o PHONE genérico (que
+    # exige show_first=6 e fica enganoso para números em formato AO).
+    # Aceita separadores opcionais (espaço/hífen) entre grupos de 3 dígitos.
+    PIIPattern(
+        type=PIIType.PHONE_AO,
+        category=PIICategory.ANGOLAN,
+        regex=r"\+244[\s-]?\d{3}[\s-]?\d{3}[\s-]?\d{3}\b",
+        mask_strategy="partial",
+        show_first=4,
+        show_last=3,  # +244 *** *** 789
     ),
 ]
 

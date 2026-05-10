@@ -525,7 +525,7 @@ class NLUPipelineService:
             keywords = self._extract_keywords(doc)
 
             # Calcular threshold adaptativo
-            adaptive_threshold = self.confidence_threshold
+            adaptive_threshold = self.settings.nlu_confidence_threshold
             if self.settings.nlu_adaptive_threshold_enabled:
                 adaptive_threshold = self._calculate_adaptive_threshold(text, context, confidence, entities)
 

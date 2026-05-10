@@ -27,8 +27,12 @@ async def get_redis_client() -> Redis | None:
 
     settings = get_settings()
 
-    # Verificar se Redis está configurado
-    redis_url = getattr(settings, "redis_url", None)
+    # Verificar se Redis está configurado.
+    # `RATE_LIMIT_REDIS_URL` é a URL canónica do Redis no Unified Gateway
+    # (tracking de status, rate limiting, cache de contexto).
+    redis_url = getattr(settings, "RATE_LIMIT_REDIS_URL", None) or getattr(
+        settings, "redis_url", None
+    )
     if not redis_url:
         return None
 

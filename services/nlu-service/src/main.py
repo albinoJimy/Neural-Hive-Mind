@@ -71,13 +71,21 @@ app = FastAPI(
 # Health check raiz (INV-10)
 @app.get("/health")
 async def root_health():
-    """Health check básico."""
+    """Health check básico — reflecte estado real do pipeline NLU."""
+    is_ready = False
+    try:
+        service = await get_nlu_service()
+        is_ready = service.is_ready()
+    except Exception as exc:
+        logger.warning("health_check_pipeline_unavailable: %s", exc)
+
     return JSONResponse(
+        status_code=200 if is_ready else 503,
         content={
-            "status": "healthy" if True else "unhealthy",
+            "status": "healthy" if is_ready else "unhealthy",
             "version": settings.service_version,
             "service": settings.service_name,
-        }
+        },
     )
 
 

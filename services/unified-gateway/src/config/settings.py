@@ -20,8 +20,8 @@ class Settings(BaseSettings):
     PORT: int = 7999
     HOST: str = "0.0.0.0"
 
-    # NLU Service
-    NLU_SERVICE_ADDRESS: str = "nlu-service:8020"
+    # NLU Service (gRPC corre na porta 8021; 8020 é apenas HTTP/REST do NLU)
+    NLU_SERVICE_ADDRESS: str = "nlu-service:8021"
     NLU_SERVICE_TIMEOUT: int = 5
 
     @property
@@ -34,8 +34,8 @@ class Settings(BaseSettings):
         """Timeout para chamadas gRPC do NLU Service."""
         return float(self.NLU_SERVICE_TIMEOUT)
 
-    # PII Service
-    PII_SERVICE_ADDRESS: str = "pii-service:8021"
+    # PII Service (gRPC corre na porta 9021; 8021 é apenas HTTP/REST do PII)
+    PII_SERVICE_ADDRESS: str = "pii-service:9021"
     PII_SERVICE_TIMEOUT: int = 3
 
     # Flow Router
@@ -59,6 +59,9 @@ class Settings(BaseSettings):
     JWT_SECRET: str = "change-me"
     JWT_ALGORITHM: str = "RS256"
     JWKS_URL: str | None = None
+    # JWT obrigatório por defeito; só pode ser desligado explicitamente
+    # em ambientes não-produção (ex: development/MVP local).
+    JWT_AUTH_REQUIRED: bool = True
 
 
 @lru_cache

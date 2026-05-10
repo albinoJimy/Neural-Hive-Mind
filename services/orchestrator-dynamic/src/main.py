@@ -490,7 +490,7 @@ async def lifespan(app: FastAPI):
                     SchedulingPredictor,
                 )
                 from neural_hive_ml.predictive_models.model_registry import ModelRegistry
-                from src.observability.metrics import OrchestratorMetrics
+                from src.observability.metrics import get_metrics
 
                 logger.info("Inicializando modelos preditivos centralizados")
 
@@ -500,8 +500,8 @@ async def lifespan(app: FastAPI):
                     tracking_uri=mlflow_uri, experiment_prefix="neural-hive-ml"
                 )
 
-                # Metrics instance
-                metrics = OrchestratorMetrics()
+                # Metrics instance (singleton — partilhada entre todos os componentes)
+                metrics = get_metrics()
 
                 # SchedulingPredictor
                 ml_init_metrics.record_component_initialization_status(
@@ -889,13 +889,13 @@ async def lifespan(app: FastAPI):
         ):
             try:
                 from src.ml.drift_detector import DriftDetector
-                from src.observability.metrics import OrchestratorMetrics
+                from src.observability.metrics import get_metrics
 
                 logger.info("Inicializando Drift Detector")
                 app_state.drift_detector = DriftDetector(
                     config=config,
                     mongodb_client=app_state.mongodb_client,
-                    metrics=OrchestratorMetrics(),
+                    metrics=get_metrics(),
                 )
                 logger.info("Drift Detector inicializado")
 

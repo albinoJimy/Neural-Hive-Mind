@@ -1,0 +1,35 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "nlu-service.configMapName" . }}
+  labels:
+    {{- include "nlu-service.labels" . | nindent 4 }}
+data:
+  # General
+  LOG_LEVEL: {{ .Values.config.logLevel | quote }}
+  ENVIRONMENT: {{ .Values.config.environment | quote }}
+
+  # Neural Hive Observability Metadata
+  NEURAL_HIVE_SERVICE_NAME: {{ .Values.config.neuralHive.serviceName | quote }}
+  NEURAL_HIVE_COMPONENT: {{ .Values.config.neuralHive.component | quote }}
+  NEURAL_HIVE_LAYER: {{ .Values.config.neuralHive.layer | quote }}
+
+  # NLU Model Settings (consumidos pelo pydantic settings com prefixo NLU_)
+  NLU_LANGUAGE_MODEL: {{ .Values.config.nluLanguageModel | quote }}
+  NLU_CONFIDENCE_THRESHOLD: {{ .Values.config.nluConfidenceThreshold | quote }}
+  NLU_ADAPTIVE_THRESHOLD_ENABLED: {{ .Values.config.nluAdaptiveThresholdEnabled | quote }}
+  NLU_CACHE_ENABLED: {{ .Values.config.nluCacheEnabled | quote }}
+  NLU_CACHE_TTL_SECONDS: {{ .Values.config.nluCacheTtlSeconds | quote }}
+
+  # Compatibilidade com manifest k8s actual (env vars já em uso por código legado)
+  DEFAULT_LANGUAGE: {{ .Values.config.defaultLanguage | quote }}
+  CONFIDENCE_THRESHOLD: {{ .Values.config.confidenceThreshold | quote }}
+  MAX_TEXT_LENGTH: {{ .Values.config.maxTextLength | quote }}
+
+  # Redis
+  REDIS_URL: {{ .Values.config.redisUrl | quote }}
+  NLU_REDIS_URL: {{ .Values.config.redisUrl | quote }}
+
+  # gRPC Settings
+  GRPC_MAX_WORKERS: {{ .Values.config.grpcMaxWorkers | quote }}
+  GRPC_MAX_RECEIVE_MESSAGE_LENGTH: {{ .Values.config.grpcMaxReceiveMessageLength | quote }}

@@ -1,0 +1,66 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "unified-gateway.configMapName" . }}
+  labels:
+    {{- include "unified-gateway.labels" . | nindent 4 }}
+data:
+  # ---------------------------------------------------------------------------
+  # Identificação do ambiente
+  # ---------------------------------------------------------------------------
+  ENVIRONMENT: {{ .Values.config.environment | quote }}
+  LOG_LEVEL: {{ .Values.config.logLevel | quote }}
+
+  # ---------------------------------------------------------------------------
+  # Metadados de observabilidade Neural Hive
+  # ---------------------------------------------------------------------------
+  NEURAL_HIVE_SERVICE_NAME: {{ .Values.config.neuralHive.serviceName | quote }}
+  NEURAL_HIVE_COMPONENT: {{ .Values.config.neuralHive.component | quote }}
+  NEURAL_HIVE_LAYER: {{ .Values.config.neuralHive.layer | quote }}
+
+  # ---------------------------------------------------------------------------
+  # Kafka (mensageria de eventos)
+  # ---------------------------------------------------------------------------
+  KAFKA_BOOTSTRAP_SERVERS: {{ .Values.config.kafka.bootstrapServers | quote }}
+  KAFKA_BROKERS: {{ .Values.config.kafka.bootstrapServers | quote }}
+  KAFKA_TOPIC_PREFIX: {{ .Values.config.kafka.topicPrefix | quote }}
+  KAFKA_ENABLED: {{ .Values.config.kafka.enabled | quote }}
+
+  # ---------------------------------------------------------------------------
+  # Redis (rate limiting e cache)
+  # ---------------------------------------------------------------------------
+  REDIS_HOST: {{ .Values.config.redis.host | quote }}
+  REDIS_PORT: {{ .Values.config.redis.port | quote }}
+
+  # ---------------------------------------------------------------------------
+  # MongoDB (persistência operacional)
+  # ---------------------------------------------------------------------------
+  MONGODB_HOST: {{ .Values.config.mongodb.host | quote }}
+  MONGODB_PORT: {{ .Values.config.mongodb.port | quote }}
+  MONGODB_DATABASE: {{ .Values.config.mongodb.database | quote }}
+
+  # ---------------------------------------------------------------------------
+  # Serviços gRPC downstream (NLU + PII)
+  # ---------------------------------------------------------------------------
+  NLU_SERVICE_ADDRESS: {{ .Values.config.nluServiceAddress | quote }}
+  PII_SERVICE_ADDRESS: {{ .Values.config.piiServiceAddress | quote }}
+  GRPC_MAX_RECEIVE_MESSAGE_LENGTH: {{ .Values.config.grpcMaxReceiveMessageLength | quote }}
+  GRPC_TIMEOUT_SECONDS: {{ .Values.config.grpcTimeoutSeconds | quote }}
+
+  # ---------------------------------------------------------------------------
+  # Circuit Breaker (resiliência em chamadas downstream)
+  # ---------------------------------------------------------------------------
+  CIRCUIT_BREAKER_THRESHOLD: {{ .Values.config.circuitBreaker.threshold | quote }}
+  CIRCUIT_BREAKER_TIMEOUT_SECONDS: {{ .Values.config.circuitBreaker.timeoutSeconds | quote }}
+  CIRCUIT_BREAKER_HALF_OPEN_ATTEMPTS: {{ .Values.config.circuitBreaker.halfOpenAttempts | quote }}
+
+  # ---------------------------------------------------------------------------
+  # Autenticação JWT
+  # ---------------------------------------------------------------------------
+  JWT_AUTH_REQUIRED: {{ .Values.config.jwtAuthRequired | quote }}
+  JWT_ALGORITHM: {{ .Values.config.jwtAlgorithm | quote }}
+
+  # ---------------------------------------------------------------------------
+  # Rate Limiting
+  # ---------------------------------------------------------------------------
+  RATE_LIMIT_DEFAULT: {{ .Values.config.rateLimitDefault | quote }}

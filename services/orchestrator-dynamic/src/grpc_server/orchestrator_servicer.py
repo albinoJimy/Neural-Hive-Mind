@@ -22,7 +22,7 @@ import structlog
 
 from neural_hive_observability.context import set_baggage
 from neural_hive_observability.grpc_instrumentation import extract_grpc_context
-from src.observability.metrics import OrchestratorMetrics
+from src.observability.metrics import get_metrics
 from src.proto import (
     AdjustPrioritiesRequest,
     AdjustPrioritiesResponse,
@@ -89,7 +89,7 @@ class OrchestratorStrategicServicer(orchestrator_strategic_pb2_grpc.Orchestrator
         self.mongodb_client = mongodb_client
         self.kafka_producer = kafka_producer
         self.config = config
-        self.metrics = OrchestratorMetrics()
+        self.metrics = get_metrics()
         self.logger = logger.bind(component="orchestrator_strategic_servicer")
 
     async def _validate_with_opa(self, policy_path: str, input_data: dict[str, Any]) -> bool:

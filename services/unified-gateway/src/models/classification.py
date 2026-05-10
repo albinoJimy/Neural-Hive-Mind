@@ -129,16 +129,30 @@ class IntentClassifier:
             if nlu_result.keywords:
                 reasoning_parts.append(f"keywords: {', '.join(nlu_result.keywords[:3])}")
 
-            return ClassificationDecision(
+            decision = ClassificationDecision(
                 flow_type=flow_type,
                 confidence=final_confidence,
                 reasoning=" | ".join(reasoning_parts),
                 alternative=self._get_alternative(flow_type),
             )
+            self._observe_decision(decision)
+            return decision
 
         except Exception as e:
             logger.error(f"Error in NLU classification: {e}, falling back to keywords")
             return self._classify_by_keywords(text)
+
+    @staticmethod
+    def _observe_decision(decision: "ClassificationDecision") -> None:
+        """Emite métricas Prometheus sem falhar a request em caso de erro."""
+        try:
+            from src.observability import record_classification
+
+            record_classification(
+                flow_type=decision.flow_type.value, confidence=decision.confidence
+            )
+        except Exception:  # noqa: BLE001
+            pass
 
     def _domain_to_flow(self, domain: str, text: str) -> FlowType:
         """
@@ -206,22 +220,26 @@ class IntentClassifier:
         max_count = max(counts.values())
 
         if max_count == 0:
-            return ClassificationDecision(
+            decision = ClassificationDecision(
                 flow_type=FlowType.AF,
                 confidence=0.4,
                 reasoning="Sem keywords identificadas, default para A-F",
                 alternative=FlowType.G,
             )
+            self._observe_decision(decision)
+            return decision
 
         winner = max(counts, key=counts.get)
         confidence = min(max_count / 3.0, 0.8)  # Max 0.8 para keyword-only
 
-        return ClassificationDecision(
+        decision = ClassificationDecision(
             flow_type=winner,
             confidence=confidence,
             reasoning=f"Classificação por keywords: {max_count} ocorrências",
             alternative=self._get_alternative(winner),
         )
+        self._observe_decision(decision)
+        return decision
 
     def _get_alternative(self, flow_type: FlowType) -> FlowType | None:
         """Retorna flow type alternativo."""
