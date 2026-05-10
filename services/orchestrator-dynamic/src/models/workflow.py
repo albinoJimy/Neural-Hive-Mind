@@ -14,11 +14,11 @@ from typing import Any
 
 # Python 3.10 compatibility
 if sys.version_info >= (3, 11):
-    from enum import _StrEnum as __StrEnum
+    from enum import StrEnum as __StrEnum
 else:
 
     class __StrEnum(str, Enum):
-        """Polyfill para _StrEnum no Python 3.10"""
+        """Polyfill para StrEnum no Python 3.10"""
 
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
