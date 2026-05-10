@@ -21,7 +21,8 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     pip install --no-cache-dir --user -e /libraries/python/neural_hive_ml && \
     pip install --no-cache-dir --user /libraries/python/neural_hive_security && \
     pip install --no-cache-dir --user /libraries/python/neural_hive_resilience && \
-    pip install --no-cache-dir --user /libraries/neural_hive_integration
+    pip install --no-cache-dir --user /libraries/neural_hive_integration && \
+    pip install --no-cache-dir --user --force-reinstall --no-deps /libraries/python/neural_hive_observability
 
 # Copiar requirements (base + service-specific) e resolver path relativo no Docker context
 # Padrão consistente com data-migration, code-forge, etc.
