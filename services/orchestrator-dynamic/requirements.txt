@@ -1,4 +1,19 @@
 # Dependências base consolidadas para Neural-Hive-Mind
 -r ../../requirements-base.txt
 
-# Service-specific dependencies (a serem adicionadas manualmente)
+# Service-specific dependencies
+# Workflow orchestration via Temporal (versão peer com data-migration, fluxo-g-dashboard)
+temporalio==1.6.0
+
+# Circuit breaker (versão peer com data-migration, doc-ingestion, approval-gateway)
+pybreaker==1.0.2
+
+# ClickHouse client para telemetria/analytics
+clickhouse-driver==0.2.9
+
+# Confluent Kafka (consumer/producer com schema registry)
+confluent-kafka==2.8.0
+cachetools==5.5.0
+
+# Apache Kafka async consumer
+aiokafka==0.9.0
