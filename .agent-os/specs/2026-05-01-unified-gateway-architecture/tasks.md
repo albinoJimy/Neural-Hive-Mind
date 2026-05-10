@@ -274,6 +274,7 @@ Implementar arquitetura unificada com Unified Gateway (:7999) como ponto único 
   - `services/pii-service/src/main.py`
 
 #### [TICKET-013] Consolidar PII implementations
+- **Status:** ⚠️ Parcial — variantes angolanas adicionadas (2026-05-10); consolidação completa entre `neural_hive_specialists` e `neural_hive_context` permanece para outro ticket
 - **Tipo:** Refactor
 - **Prioridade:** P0
 - **Estimativa:** 3 dias
@@ -288,9 +289,27 @@ Implementar arquitetura unificada com Unified Gateway (:7999) como ponto único 
   - ✅ PII unificado criado
   - ✅ 7 tipos de PII detectados
   - ✅ Testes consolidados
+- **Nota de Fecho parcial — variantes angolanas (2026-05-10):**
+  - Adicionada `PIICategory.ANGOLAN` ao enum.
+  - Adicionados 2 tipos: `PIIType.BI_AO` (Bilhete de Identidade angolano,
+    9 dígitos + 2 letras provinciais maiúsculas + 3 dígitos, ex:
+    `003456789LA017`) e `PIIType.PHONE_AO` (telefone com prefixo `+244`
+    e 9 dígitos, aceita separadores espaço/hífen).
+  - 15 testes novos em
+    `libraries/python/neural_hive_specialists/tests/compliance/test_pii_patterns_ao.py`
+    cobrindo casos positivos (Luanda, Huambo, formato compacto/com
+    separadores) e negativos (lowercase rejeitado, contagem errada de
+    dígitos, outros country codes).
+  - Suite completa de compliance: 153/153 testes passam.
+  - **Pendente para outro ticket:** consolidação física entre
+    `neural_hive_specialists/compliance` e `neural_hive_context` (gap
+    de 395 LOC); ambos os módulos coexistem com lógica parcialmente
+    duplicada.
 - **Arquivos:**
   - `services/pii-service/src/services/pii_detector.py`
   - `services/pii-service/src/services/pii_masker.py`
+  - `libraries/python/neural_hive_specialists/compliance/pii_patterns.py` (variantes AO)
+  - `libraries/python/neural_hive_specialists/tests/compliance/test_pii_patterns_ao.py`
 
 #### [TICKET-014] Implementar PII API endpoints
 - **Tipo:** Feature
