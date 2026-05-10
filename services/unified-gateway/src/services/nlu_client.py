@@ -83,12 +83,24 @@ class NLUServiceClient:
 
         except grpc.aio.AioRpcError as e:
             logger.warning(f"NLU Service gRPC error: {e.code()}: {e.details()}")
+            self._record_fallback()
             # Fallback para classificação local (INV-12)
             return self._fallback_nlu_result(text, language)
 
         except (ValidationError, Exception) as e:
             logger.error(f"Error parsing NLU response: {e}")
+            self._record_fallback()
             return self._fallback_nlu_result(text, language)
+
+    @staticmethod
+    def _record_fallback() -> None:
+        """Métrica defensiva — falhas de import nunca devem partir o request."""
+        try:
+            from src.observability import record_nlu_fallback
+
+            record_nlu_fallback(service="nlu")
+        except Exception:  # noqa: BLE001
+            pass
 
     async def classify_domain(
         self,

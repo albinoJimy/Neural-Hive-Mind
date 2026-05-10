@@ -1,0 +1,158 @@
+# Configurações do PII Service
+# Detecção e mascaramento de PII com suporte a Presidio + spaCy
+component: "pii-service"
+layer: "specialist"
+
+nameOverride: ""
+fullnameOverride: ""
+
+image:
+  repository: ghcr.io/albinojimy/neural-hive-mind/pii-service
+  pullPolicy: Always
+  tag: "59062e6"
+
+imagePullSecrets:
+  - name: ghcr-secret
+
+replicaCount: 2
+
+# Pod labels adicionais (merged em template.metadata.labels do Deployment).
+# Necessário porque a constraint Gatekeeper 'must-have-app-label' exige
+# `app: <name>` legacy além de `app.kubernetes.io/name`.
+podLabels: {}
+
+# Disable Kubernetes service links to prevent env var collisions com pydantic settings.
+enableServiceLinks: false
+
+deployment:
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+
+# Serviço — Os nomes das portas têm de coincidir com o manifest k8s/ original
+# (8021=http, 9021=grpc). NÃO trocar.
+service:
+  type: ClusterIP
+  annotations:
+    neural-hive-mind.org/component: "pii-service"
+  httpPort: 8021
+  grpcPort: 9021
+
+# Recursos do contentor
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 1Gi
+
+# Autoscaling
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 8
+  targetCPU: 70
+  targetMemory: 80
+
+# Probes — apontam para o named port `http` (8021).
+livenessProbe:
+  httpGet:
+    path: /health
+    port: http
+  initialDelaySeconds: 60
+  periodSeconds: 30
+  timeoutSeconds: 10
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /health
+    port: http
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+# Security context
+podSecurityContext: {}
+
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop: [ALL]
+  readOnlyRootFilesystem: false
+  runAsNonRoot: false
+
+# Node scheduling
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+# Configurações da aplicação (env vars não-sensíveis -> ConfigMap)
+config:
+  # Aplicação
+  logLevel: "INFO"
+  environment: "kubernetes"
+
+  # Neural Hive Observability Metadata
+  neuralHiveServiceName: "pii-service"
+  neuralHiveComponent: "pii"
+  neuralHiveLayer: "specialist"
+
+  # PII Detection Settings
+  presidioEnabled: "true"
+  spacyModelName: "pt_core_news_sm"
+  confidenceThreshold: "0.5"
+  piiDetectionEnabled: "true"
+  piiDefaultStrategy: "MASK_PARTIAL"
+  piiEnableSpacy: "true"
+  piiMinConfidence: "0.7"
+
+  # gRPC Settings
+  grpcMaxWorkers: 10
+  grpcMaxReceiveMessageLength: "104857600"  # 100MB
+
+  # JWT Auth (INV-14: Auth required for PII operations)
+  jwtAuthRequired: true
+  jwtAlgorithm: "RS256"
+
+  # Unmask Reversível (INV-14)
+  unmaskEnabled: "true"
+  unmaskTokenTtlHours: 168  # 7 dias
+  unmaskMaxAttempts: 3
+
+  # MongoDB / Audit (INV-13)
+  mongodbDatabase: "neural_hive"
+  piiAuditLogCollection: "pii_audit_log"
+  auditLogRetentionDays: 90
+
+  # Vault (encryption key source)
+  vaultSecretPath: "secret/data/pii-service/encryption-key"
+
+  # Observabilidade
+  prometheusPort: 9090
+
+# Secrets — preencher por utilizador / SealedSecret / external-secrets.
+# Empty string mantém compatibilidade com o pattern `secrets:` do projecto.
+secrets:
+  # MongoDB URI (INV-13: audit logging)
+  mongodbUri: ""
+  # Encryption key para unmask reversível (INV-14: AES-256-GCM)
+  # Se vazia, o serviço tenta Vault; senão gera chave temporária (não recomendado).
+  encryptionKey: ""
+  # JWT secret (apenas necessário se JWKS_URL não for configurado)
+  jwtSecret: ""
+  # Vault credentials (opcional)
+  vaultAddr: ""
+  vaultToken: ""
+  # JWKS URL para validação JWT (opcional)
+  jwksUrl: ""
+
+# Service Account
+serviceAccount:
+  create: false
+  annotations: {}
+  name: ""

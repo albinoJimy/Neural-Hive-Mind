@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "unified-gateway.fullname" . }}
+  labels:
+    {{- include "unified-gateway.labels" . | nindent 4 }}
+  {{- with .Values.service.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - name: {{ .Values.service.name | default "http" }}
+      port: {{ .Values.service.port }}
+      targetPort: {{ .Values.service.targetPort | default .Values.service.port }}
+      protocol: {{ .Values.service.protocol | default "TCP" }}
+  selector:
+    {{- include "unified-gateway.selectorLabels" . | nindent 4 }}

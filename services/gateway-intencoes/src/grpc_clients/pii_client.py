@@ -9,7 +9,6 @@ import logging
 from typing import Any
 
 import grpc
-from google.protobuf import empty_pb2
 
 from config.settings import get_settings
 
@@ -34,7 +33,7 @@ class PIIServiceClient:
         Args:
             target: Endereço do PII Service (padrão: localhost:8021)
         """
-        self._target = target or settings.PII_SERVICE_URL or "localhost:8021"
+        self._target = target or settings.pii_service_url or "localhost:9021"
         self._channel: grpc.aio.Channel | None = None
         self._stub: pii_pb2_grpc.PIIServiceStub | None = None
         self._connected = False
@@ -51,7 +50,7 @@ class PIIServiceClient:
             self._stub = pii_pb2_grpc.PIIServiceStub(self._channel)
 
             # Testar conexão
-            await asyncio.wait_for(self._stub.HealthCheck(empty_pb2.Empty()), timeout=5.0)
+            await asyncio.wait_for(self._stub.HealthCheck(pii_pb2.HealthCheckRequest()), timeout=5.0)
 
             self._connected = True
             logger.info(f"PIIServiceClient connected to {self._target}")
@@ -167,7 +166,7 @@ class PIIServiceClient:
     async def health_check(self) -> bool:
         """Verifica saúde do PII Service."""
         try:
-            await self._stub.HealthCheck(empty_pb2.Empty())
+            await self._stub.HealthCheck(pii_pb2.HealthCheckRequest())
             return True
         except Exception as e:
             logger.warning(f"PII service health check failed: {e}")

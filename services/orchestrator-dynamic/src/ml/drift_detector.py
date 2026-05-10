@@ -20,7 +20,7 @@ from scipy import stats
 from src.clients.mongodb_client import MongoDBClient
 from src.config.settings import OrchestratorSettings
 from src.ml.feature_engineering import extract_ticket_features
-from src.observability.metrics import OrchestratorMetrics
+from src.observability.metrics import OrchestratorMetrics, get_metrics
 
 logger = logging.getLogger(__name__)
 
@@ -44,7 +44,7 @@ class DriftDetector:
         """
         self.config = config
         self.mongodb_client = mongodb_client
-        self.metrics = metrics or OrchestratorMetrics()
+        self.metrics = metrics or get_metrics()
 
         # Thresholds de drift
         self.psi_threshold = getattr(config, "ml_drift_psi_threshold", 0.25)

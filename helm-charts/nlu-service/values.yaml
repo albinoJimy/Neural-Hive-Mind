@@ -1,0 +1,132 @@
+# Configurações do NLU Service
+# Helm chart parametrizado a partir de k8s/nlu-service-deployment.yaml
+component: "nlu-service"
+layer: "specialist"
+
+# Namespace alvo (informativo; o namespace efectivo é controlado pelo --namespace do helm install)
+namespace: nlu
+
+image:
+  repository: ghcr.io/albinojimy/neural-hive-mind/nlu-service
+  pullPolicy: IfNotPresent
+  # Tag por defeito reflecte a última build promovida ao manifest k8s/.
+  tag: "b-20260508-090353"
+
+imagePullSecrets:
+  - name: ghcr-secret
+
+replicaCount: 2
+
+# Pod labels adicionais (merged em template.metadata.labels do Deployment).
+# Necessário porque a constraint Gatekeeper 'must-have-app-label' exige
+# `app: <name>` legacy além de `app.kubernetes.io/name`.
+podLabels:
+  app: nlu-service
+
+# Disable Kubernetes service links to prevent env var collisions com pydantic settings
+enableServiceLinks: false
+
+nameOverride: ""
+fullnameOverride: ""
+
+deployment:
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+
+# Configurações do serviço (Kubernetes Service)
+service:
+  type: ClusterIP
+  annotations:
+    neural-hive-mind.org/component: "nlu-service"
+  # 8020 = HTTP/REST (FastAPI), 8021 = gRPC
+  httpPort: 8020
+  grpcPort: 8021
+
+# Resources alinhados com k8s/nlu-service-deployment.yaml
+resources:
+  requests:
+    memory: "512Mi"
+    cpu: "200m"
+  limits:
+    memory: "2Gi"
+    cpu: "1000m"
+
+# Autoscaling
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 8
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+# Node selection
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+# Security context
+podSecurityContext: {}
+
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop: [ALL]
+  readOnlyRootFilesystem: false
+  runAsNonRoot: false
+
+# Health checks (HTTP /health na porta http=8020).
+# O endpoint /health já implementa is_ready() real (modelo spaCy + Redis), portanto
+# liveness e readiness podem partilhar o mesmo path.
+livenessProbe:
+  httpGet:
+    path: /health
+    port: http
+  initialDelaySeconds: 90
+  periodSeconds: 30
+  timeoutSeconds: 10
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /health
+    port: http
+  initialDelaySeconds: 60
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+# Configuração da aplicação (renderizada no ConfigMap como envFrom).
+# Os nomes das chaves correspondem aos env vars exactos consumidos pelo pydantic
+# settings (NLU_* prefix + LOG_LEVEL/ENVIRONMENT/NEURAL_HIVE_*/GRPC_*).
+config:
+  # General
+  logLevel: "INFO"
+  environment: "kubernetes"
+
+  # Neural Hive Observability Metadata
+  neuralHive:
+    serviceName: "nlu-service"
+    component: "nlu"
+    layer: "specialist"
+
+  # NLU Model Settings (NLU_* — mapeados para o pydantic settings)
+  nluLanguageModel: "pt_core_news_sm"
+  nluConfidenceThreshold: "0.5"
+  nluAdaptiveThresholdEnabled: "true"
+  nluCacheEnabled: "true"
+  nluCacheTtlSeconds: "3600"
+
+  # Compatibilidade com manifest k8s actual
+  defaultLanguage: "pt"
+  confidenceThreshold: "0.5"
+  maxTextLength: "5000"
+
+  # Redis
+  redisUrl: "redis://redis-cluster.redis-cluster.svc.cluster.local:6379/0"
+
+  # gRPC Settings
+  grpcMaxWorkers: "10"
+  grpcMaxReceiveMessageLength: "104857600"  # 100MB

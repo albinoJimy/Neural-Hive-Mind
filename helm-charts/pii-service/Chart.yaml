@@ -1,0 +1,27 @@
+apiVersion: v2
+name: pii-service
+description: PII Service - Detecção e mascaramento de PII
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+home: https://github.com/neural-hive-mind/infrastructure
+sources:
+  - https://github.com/neural-hive-mind/infrastructure/tree/main/services/pii-service
+maintainers:
+  - name: Neural Hive-Mind Team
+    email: team@neural-hive-mind.org
+
+keywords:
+  - pii
+  - privacy
+  - presidio
+  - masking
+  - neural-hive-mind
+  - fastapi
+  - grpc
+
+annotations:
+  category: Application
+  neural-hive-mind.org/component: "pii-service"
+  neural-hive-mind.org/layer: "specialist"
+  neural-hive-mind.org/phase: "phase3"

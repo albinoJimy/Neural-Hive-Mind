@@ -1,10 +1,10 @@
 """API REST do NLU Service.
 
-Endpoints:
+Endpoints (paths conforme spec 2026-05-01-unified-gateway-architecture, TICKET-008):
 - POST /parse - Processamento completo
-- POST /classify - Classificação de domínio
-- POST /entities - Extração de entidades
-- POST /confidence - Cálculo de confiança
+- POST /classify-domain - Classificação de domínio
+- POST /extract-entities - Extração de entidades
+- POST /calculate-confidence - Cálculo de confiança
 - POST /language - Detecção de idioma
 - GET /health - Health check (INV-10)
 """
@@ -108,7 +108,7 @@ async def parse_text(request: ParseRequest) -> ParseResponse:
         )
 
 
-@router.post("/classify", response_model=ClassifyDomainResponse)
+@router.post("/classify-domain", response_model=ClassifyDomainResponse)
 async def classify_domain(request: ClassifyDomainRequest) -> ClassifyDomainResponse:
     """Classificar domínio do texto."""
     service = await _get_service()
@@ -154,7 +154,7 @@ async def classify_domain(request: ClassifyDomainRequest) -> ClassifyDomainRespo
         )
 
 
-@router.post("/entities", response_model=ExtractEntitiesResponse)
+@router.post("/extract-entities", response_model=ExtractEntitiesResponse)
 async def extract_entities(request: ExtractEntitiesRequest) -> ExtractEntitiesResponse:
     """Extrair entidades nomeadas do texto."""
     service = await _get_service()
@@ -199,7 +199,7 @@ async def extract_entities(request: ExtractEntitiesRequest) -> ExtractEntitiesRe
         )
 
 
-@router.post("/confidence", response_model=CalculateConfidenceResponse)
+@router.post("/calculate-confidence", response_model=CalculateConfidenceResponse)
 async def calculate_confidence(request: CalculateConfidenceRequest) -> CalculateConfidenceResponse:
     """Calcular métricas de confiança detalhadas."""
     service = await _get_service()

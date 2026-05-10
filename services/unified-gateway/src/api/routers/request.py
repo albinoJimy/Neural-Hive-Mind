@@ -128,8 +128,8 @@ async def nhm_request(
     )
 
     request_id = request_context.request_id
-    tenant_id = request_context.tenant.tenant_id
-    user_id = request_context.actor.user_id
+    tenant_id = request_context.tenant.tenant_id if request_context.tenant else None
+    user_id = request_context.actor.actor_id if request_context.actor else None
 
     logger.info(
         "processing_nhm_request",
@@ -332,10 +332,11 @@ async def nhm_request_detailed(
     )
 
     request_id = request_context.request_id
-    tenant_id = request_context.tenant.tenant_id
-    user_id = request_context.actor.user_id
+    tenant_id = request_context.tenant.tenant_id if request_context.tenant else None
+    user_id = request_context.actor.actor_id if request_context.actor else None
 
     # 2. Intent Classifier
+    intent_classifier = get_intent_classifier()
     classification_decision = await intent_classifier.classify(
         text=body.input,
         language=body.language or "pt",
@@ -450,7 +451,7 @@ async def get_capabilities() -> dict[str, Any]:
             },
         },
         "classification": {
-            "nlu_service": "nlu-service:8020",
+            "nlu_service": "nlu-service:8021",
             "domains": ["BUSINESS", "TECHNICAL", "INFRASTRUCTURE", "SECURITY"],
             "fallback": "keyword-based",
         },

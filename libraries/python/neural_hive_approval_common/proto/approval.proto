@@ -1,0 +1,108 @@
+syntax = "proto3";
+
+package neural_hive.approval;
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/struct.proto";
+
+// =============================================================================
+// Enums — espelham os enums Pydantic em
+// libraries/python/neural_hive_approval_common/neural_hive_approval_common/models.py
+// O test_proto_sync.py garante que os valores se mantêm sincronizados.
+// =============================================================================
+
+// RiskBand: bandas de classificação de risco.
+enum RiskBand {
+  RISK_BAND_UNSPECIFIED = 0;
+  RISK_BAND_LOW = 1;
+  RISK_BAND_MEDIUM = 2;
+  RISK_BAND_HIGH = 3;
+  RISK_BAND_CRITICAL = 4;
+}
+
+// ApprovalStatus: estado de uma request de aprovação.
+// Inclui CANCELLED e EXPIRED para alinhamento com clients que migram do
+// approval-gateway deprecated (gap fechado em TICKET-018).
+enum ApprovalStatus {
+  APPROVAL_STATUS_UNSPECIFIED = 0;
+  APPROVAL_STATUS_PENDING = 1;
+  APPROVAL_STATUS_APPROVED = 2;
+  APPROVAL_STATUS_REJECTED = 3;
+  APPROVAL_STATUS_CANCELLED = 4;
+  APPROVAL_STATUS_EXPIRED = 5;
+}
+
+// Decision: resultado terminal de uma decisão (não inclui PENDING — para isso
+// usar ApprovalStatus). Mantido em sync com Literal["approved","rejected"]
+// no UnifiedApprovalDecision Pydantic.
+enum Decision {
+  DECISION_UNSPECIFIED = 0;
+  DECISION_APPROVED = 1;
+  DECISION_REJECTED = 2;
+}
+
+// =============================================================================
+// Messages
+// =============================================================================
+
+// UnifiedApprovalRequest: request recebido do Kafka e usado pelo
+// ApprovalDecisionEngine.
+//
+// INV-3: compatível com o formato existente do approval-service.
+// INV-9: original_intent_text é preservado para Active Learning.
+message UnifiedApprovalRequest {
+  string approval_id = 1;
+  string plan_id = 2;
+  string intent_id = 3;
+  optional string original_intent_text = 4;
+
+  double risk_score = 5;                       // 0..1
+  RiskBand risk_band = 6;
+
+  bool is_destructive = 7;
+  repeated string destructive_tasks = 8;
+  map<string, double> risk_matrix = 9;         // multi-domínio
+
+  ApprovalStatus status = 10;
+  google.protobuf.Timestamp requested_at = 11;
+
+  optional string approved_by = 12;
+  optional google.protobuf.Timestamp approved_at = 13;
+  optional string rejection_reason = 14;
+  optional string comments = 15;
+
+  // Plano cognitivo completo. google.protobuf.Struct preserva o JSON do
+  // approval-service (pydantic dict[str, Any]).
+  google.protobuf.Struct cognitive_plan = 16;
+}
+
+// UnifiedApprovalDecision: decisão produzida pelo engine.
+//
+// INV-3: deve produzir o mesmo formato que o approval-service histórico.
+message UnifiedApprovalDecision {
+  string plan_id = 1;
+  Decision decision = 2;
+  string approved_by = 3;
+  google.protobuf.Timestamp approved_at = 4;
+
+  optional string rejection_reason = 5;
+  optional string comments = 6;
+
+  // Campos extendidos para decisões via ML (R-A4)
+  optional double ml_confidence = 7;           // 0..1
+  optional string ml_model_version = 8;
+  bool auto_approved = 9;
+}
+
+// ApprovalResponse: mensagem do tópico Kafka `plan_approvals_responses`.
+//
+// INV-4: o contrato do tópico não pode mudar.
+message ApprovalResponse {
+  string plan_id = 1;
+  string intent_id = 2;
+  Decision decision = 3;
+  string approved_by = 4;
+  google.protobuf.Timestamp approved_at = 5;
+  optional string rejection_reason = 6;
+  optional google.protobuf.Struct cognitive_plan = 7;
+}

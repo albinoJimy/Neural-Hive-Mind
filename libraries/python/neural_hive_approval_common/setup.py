@@ -1,14 +1,20 @@
-"""Setup configuration for neural-hive-approval-common library."""
+"""Setup configuration for neural-hive-approval-common library.
 
-from setuptools import setup
+Layout standard: o package vive em ``./neural_hive_approval_common/`` e o
+``setup.py`` está na raiz. ``find_packages`` faz o discovery — não definir
+``package_dir`` evita o bug histórico em que o package era mapeado para a
+raiz do repositório (instalações não-editable arrastavam ``setup.py``,
+``pytest.ini`` e ``.coverage`` como módulos Python).
+"""
+
+from setuptools import find_packages, setup
 
 setup(
     name="neural-hive-approval-common",
-    version="1.0.0",
+    version="1.1.0",
     description="Unified approval models and decision logic for Neural Hive Mind",
     author="Neural Hive Mind Team",
-    packages=["neural_hive_approval_common"],
-    package_dir={"neural_hive_approval_common": "."},
+    packages=find_packages(exclude=("tests", "tests.*")),
     install_requires=[
         "pydantic>=2.5.2",
         "structlog>=23.2.0",

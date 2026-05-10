@@ -40,6 +40,14 @@ class ReversibleMaskService:
         # Cache de tokens em memória (para produção, usar Redis)
         self._token_cache: dict[str, dict] = {}
 
+        # Contador de tentativas de unmask por mask_id. Mantido fora do
+        # ciphertext porque o `attempt_count` no payload encriptado é
+        # imutável a partir do client (cada chamada redescriptografa o
+        # mesmo blob, que tem sempre 0). Persistir o counter aqui garante
+        # que ``max_attempts`` é efectivamente enforced. Em produção
+        # multi-instância isto deve ser substituído por Redis com TTL.
+        self._attempt_counters: dict[str, int] = {}
+
         logger.info(
             "reversible_mask_service_initialized",
             enabled=self.enabled,
@@ -131,18 +139,22 @@ class ReversibleMaskService:
             logger.warning("unmask_failed_token_expired")
             raise PIIUnmaskError("Mask token has expired")
 
-        # Verificar tentativas
-        attempt_count = payload.get("attempt_count", 0)
-        if attempt_count >= self.max_attempts:
-            logger.warning("unmask_failed_max_attempts", attempts=attempt_count)
+        # Contador de tentativas — vive em ``_attempt_counters`` (NÃO no
+        # payload encriptado, que é imutável). Aumenta ANTES da entrega
+        # do plaintext para que mesmo se o caller falhar a tentativa
+        # seguinte conte; o cache do ciphertext é só para inspecção.
+        current_attempts = self._attempt_counters.get(mask_id, 0)
+        if current_attempts >= self.max_attempts:
+            logger.warning("unmask_failed_max_attempts", attempts=current_attempts)
             raise PIIUnmaskError("Maximum unmask attempts exceeded")
+        new_attempts = current_attempts + 1
+        self._attempt_counters[mask_id] = new_attempts
 
-        # Incrementar tentativas
-        payload["attempt_count"] = attempt_count + 1
-
-        # Atualizar cache
+        # Mantém o cache de payload alinhado para inspecção/observabilidade.
         if mask_id in self._token_cache:
-            self._token_cache[mask_id] = payload
+            cached = self._token_cache[mask_id]
+            cached["attempt_count"] = new_attempts
+            self._token_cache[mask_id] = cached
 
         original_value = payload["original_value"]
         pii_type = payload["pii_type"]
@@ -151,7 +163,7 @@ class ReversibleMaskService:
             "unmask_successful",
             pii_type=pii_type,
             requestor_id=requestor_id,
-            attempt_count=attempt_count + 1,
+            attempt_count=new_attempts,
         )
 
         return original_value, pii_type
@@ -273,7 +285,7 @@ class ReversibleMaskService:
         return key
 
     def _cleanup_expired_tokens(self):
-        """Remove tokens expirados do cache."""
+        """Remove tokens expirados do cache (incluindo contadores de tentativas)."""
         now = datetime.now(timezone.utc)
         expired_keys = []
 
@@ -284,6 +296,9 @@ class ReversibleMaskService:
 
         for key in expired_keys:
             del self._token_cache[key]
+            # Mantém ``_attempt_counters`` alinhado — sem este pop, tokens
+            # antigos manteriam o counter indefinidamente.
+            self._attempt_counters.pop(key, None)
 
         if expired_keys:
             logger.debug("cleaned_up_expired_tokens", count=len(expired_keys))

@@ -105,6 +105,11 @@ class RateLimiter:
 
         Implementa INV-8: retorna HTTP 429 com Retry-After se excedido.
 
+        Atomicidade: usa INCR como operação atómica de incremento+verificação.
+        O contador é incrementado primeiro, e a janela é fixada com EXPIRE
+        apenas quando o contador transita 0→1, garantindo que duas requests
+        concorrentes não conseguem ultrapassar o limite por race condition.
+
         Args:
             tenant_id: ID do tenant
             tier: Tier do tenant
@@ -124,47 +129,39 @@ class RateLimiter:
         redis = await self.get_redis()
 
         try:
-            # Pipeline Redis para operações atômicas
+            # INCR é atómico em Redis. Após incrementar, comparamos com o limite —
+            # quem transitar para count > limit é o request bloqueado.
             pipe = redis.pipeline()
-
-            # Obter contador atual
-            pipe.get(minute_key)
-            # Obter TTL para reset time
+            pipe.incr(minute_key)
             pipe.ttl(minute_key)
-
             results = await pipe.execute()
 
-            current_count = int(results[0]) if results[0] else 0
-            ttl = int(results[1]) if results[1] else 60
+            current_count = int(results[0])
+            ttl = int(results[1])
 
-            # Verificar se excedeu limite
-            if current_count >= config.requests_per_minute:
-                # Rate limit excedido
-                reset_at = now + ttl
+            # Primeira request da janela: armar TTL de 60s.
+            # Também cobre o caso TTL=-1 (key sem expiry) por segurança.
+            if current_count == 1 or ttl < 0:
+                await redis.expire(minute_key, 60)
+                ttl = 60
+
+            limit = config.requests_per_minute
+            reset_at = now + ttl
+
+            if current_count > limit:
                 return RateLimitResult(
                     allowed=False,
                     remaining=0,
                     reset_at=reset_at,
-                    limit=config.requests_per_minute,
+                    limit=limit,
                     retry_after=ttl,
                 )
 
-            # Incrementar contador
-            pipe.incr(minute_key)
-            # Configurar expiry (60 segundos)
-            pipe.expire(minute_key, 60)
-
-            await pipe.execute()
-
-            # Retornar resultado permitido
-            remaining = config.requests_per_minute - current_count - 1
-            reset_at = now + (60 if ttl == 60 else ttl)
-
             return RateLimitResult(
                 allowed=True,
-                remaining=max(0, remaining),
+                remaining=max(0, limit - current_count),
                 reset_at=reset_at,
-                limit=config.requests_per_minute,
+                limit=limit,
                 retry_after=None,
             )
 
@@ -285,6 +282,12 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                 path=path,
                 retry_after=result.retry_after,
             )
+            try:
+                from src.observability import record_rate_limit_exceeded
+
+                record_rate_limit_exceeded(tenant_id=tenant_id, tier=tier.value)
+            except Exception:  # noqa: BLE001 — métricas nunca podem falhar o request
+                pass
             return self._create_rate_limit_response(result)
 
         # Processar requisição

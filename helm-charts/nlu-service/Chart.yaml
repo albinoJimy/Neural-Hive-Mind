@@ -1,0 +1,26 @@
+apiVersion: v2
+name: nlu-service
+description: NLU Service - Processamento de Linguagem Natural Centralizado
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+home: https://github.com/albinoJimy/Neural-Hive-Mind
+sources:
+  - https://github.com/albinoJimy/Neural-Hive-Mind/tree/main/services/nlu-service
+maintainers:
+  - name: Neural Hive-Mind Team
+    email: team@neural-hive-mind.org
+
+keywords:
+  - nlu
+  - natural-language
+  - spacy
+  - fastapi
+  - grpc
+  - neural-hive-mind
+
+annotations:
+  category: Application
+  neural-hive-mind.org/component: "nlu-service"
+  neural-hive-mind.org/layer: "specialist"
+  neural-hive-mind.org/domain: "nlu"

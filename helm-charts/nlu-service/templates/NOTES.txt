@@ -1,0 +1,38 @@
+{{- /*
+Mensagem pós-instalação do Helm chart `nlu-service`.
+*/ -}}
+
+NLU Service foi instalado.
+
+Release:    {{ .Release.Name }}
+Namespace:  {{ .Release.Namespace }}
+Chart:      {{ .Chart.Name }}-{{ .Chart.Version }} (appVersion {{ .Chart.AppVersion }})
+Image:      {{ .Values.image.repository }}:{{ .Values.image.tag }}
+
+Endpoints internos do cluster:
+  - HTTP/REST  : http://{{ include "nlu-service.fullname" . }}.{{ .Release.Namespace }}.svc.cluster.local:{{ .Values.service.httpPort }}
+  - gRPC       : {{ include "nlu-service.fullname" . }}.{{ .Release.Namespace }}.svc.cluster.local:{{ .Values.service.grpcPort }}
+  - Health     : http://{{ include "nlu-service.fullname" . }}.{{ .Release.Namespace }}.svc.cluster.local:{{ .Values.service.httpPort }}/health
+
+Verificar o estado:
+  kubectl get pods -n {{ .Release.Namespace }} -l app.kubernetes.io/name={{ include "nlu-service.name" . }}
+  kubectl logs -n {{ .Release.Namespace }} -l app.kubernetes.io/name={{ include "nlu-service.name" . }} --tail=50
+
+Autoscaling:
+{{- if .Values.autoscaling.enabled }}
+  HPA habilitado (min={{ .Values.autoscaling.minReplicas }}, max={{ .Values.autoscaling.maxReplicas }}, CPU={{ .Values.autoscaling.targetCPUUtilizationPercentage }}%)
+{{- else }}
+  HPA desabilitado — replicaCount fixo em {{ .Values.replicaCount }}
+{{- end }}
+
+----------------------------------------------------------------------
+TODO de seguimento (não-bloqueador deste chart):
+----------------------------------------------------------------------
+* Inconsistência detectada em `services/unified-gateway/src/config/settings.py`:
+    NLU_SERVICE_ADDRESS = "nlu-service:8020"
+  No entanto, 8020 é a porta HTTP/REST. A porta gRPC é 8021.
+  Se o unified-gateway invoca o NLU via gRPC (`grpc.aio.insecure_channel`),
+  o endereço deve ser `nlu-service:8021`. Validar e corrigir num PR separado
+  (TICKET de seguimento). Caso o unified-gateway invoque o NLU via REST,
+  manter 8020 e renomear a constante para evitar confusão.
+----------------------------------------------------------------------

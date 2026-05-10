@@ -31,6 +31,15 @@ Example usage:
     await producer.send_approval_response(decision)
 """
 
+from .core import (
+    ApprovalDecisionEngine,
+    ApprovalThresholds,
+    CommonRules,
+    DecisionConfig,
+    DecisionStrategy,
+    RiskAssessor,
+    ThresholdEvaluator,
+)
 from .decision_logic import ApprovalDecisionLogic
 from .kafka import ApprovalKafkaProducer
 from .models import (
@@ -38,6 +47,7 @@ from .models import (
     ApprovalStatus,
     ApprovalStats,
     ApproveRequestBody,
+    CommonStatus,
     PendingApprovalsQuery,
     RejectRequestBody,
     RevertRequestBody,
@@ -48,7 +58,7 @@ from .models import (
 )
 from .predictor import MLPredictor, MLPredictorInterface
 
-__version__ = "1.0.0"
+__version__ = "1.1.0"
 
 __all__ = [
     # Models
@@ -58,6 +68,7 @@ __all__ = [
     "ApprovalDecision",  # Backward compatibility alias
     "ApprovalResponse",
     "ApprovalStatus",
+    "CommonStatus",  # alias canónico exigido pela spec (TICKET-018)
     "RiskBand",
     "ApproveRequestBody",
     "RejectRequestBody",
@@ -65,8 +76,16 @@ __all__ = [
     "RevertResponse",
     "ApprovalStats",
     "PendingApprovalsQuery",
-    # Decision Logic
+    # Decision logic — wrapper de back-compat
     "ApprovalDecisionLogic",
+    # Core decomposition (TICKET-019)
+    "ApprovalDecisionEngine",
+    "ApprovalThresholds",
+    "CommonRules",
+    "DecisionConfig",
+    "DecisionStrategy",
+    "RiskAssessor",
+    "ThresholdEvaluator",
     # Kafka Integration
     "ApprovalKafkaProducer",
     # ML Predictor Interface

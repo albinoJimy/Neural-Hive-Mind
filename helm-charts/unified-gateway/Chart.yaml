@@ -1,0 +1,28 @@
+apiVersion: v2
+name: unified-gateway
+description: Unified Gateway - Ponto de entrada único do Neural Hive-Mind (NLU, PII, roteamento de fluxo e rate limiting)
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+home: https://github.com/albinoJimy/Neural-Hive-Mind
+sources:
+  - https://github.com/albinoJimy/Neural-Hive-Mind/tree/main/services/unified-gateway
+maintainers:
+  - name: Neural Hive-Mind Team
+    email: team@neural-hive-mind.org
+
+keywords:
+  - unified-gateway
+  - api-gateway
+  - neural-hive-mind
+  - fastapi
+  - nlu
+  - pii
+  - rate-limiting
+  - kafka
+
+annotations:
+  category: Application
+  neural-hive-mind.org/component: "unified-gateway"
+  neural-hive-mind.org/layer: "experiencia"
+  neural-hive-mind.org/domain: "api-gateway"

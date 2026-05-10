@@ -1,0 +1,193 @@
+# =============================================================================
+# Unified Gateway - Valores por defeito
+# =============================================================================
+# Componente que serve como ponto de entrada único do Neural Hive-Mind.
+# Expõe a porta 7999 (HTTP) e integra-se com NLU, PII, Kafka, MongoDB e Redis.
+# =============================================================================
+
+# Identificadores do componente (usados em labels e selectors)
+component: "unified-gateway"
+layer: "experiencia"
+
+# Override do nome do release (vazio usa Chart.Name + Release.Name)
+nameOverride: ""
+fullnameOverride: ""
+
+# -----------------------------------------------------------------------------
+# Imagem do contentor
+# -----------------------------------------------------------------------------
+image:
+  repository: ghcr.io/albinojimy/neural-hive-mind/unified-gateway
+  pullPolicy: IfNotPresent
+  # Tag da imagem; vazia faz fallback para .Chart.AppVersion (1.0.0).
+  # Em produção, o CI/CD substitui por SHA do commit.
+  tag: "main"
+
+# Secrets para puxar imagem do GHCR (registry privado).
+imagePullSecrets:
+  - name: ghcr-secret
+
+# -----------------------------------------------------------------------------
+# Réplicas e estratégia de deployment
+# -----------------------------------------------------------------------------
+# Número de réplicas (ignorado se autoscaling.enabled=true)
+replicaCount: 2
+
+# Labels adicionais aplicadas aos pods.
+# O helper `unified-gateway.podLabels` já injecta `app: <name>` e
+# `component: <component>` (compatível com constraints Gatekeeper); usa este
+# bloco apenas para labels extra específicas do ambiente (ex: tier=critical).
+podLabels: {}
+
+# Desactiva injecção automática de variáveis Kubernetes que poderiam
+# colidir com pydantic settings (ex: KAFKA_PORT, REDIS_HOST...).
+enableServiceLinks: false
+
+deployment:
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+
+# -----------------------------------------------------------------------------
+# Configurações do Service
+# -----------------------------------------------------------------------------
+service:
+  type: ClusterIP
+  port: 7999
+  targetPort: 7999
+  protocol: TCP
+  name: http
+  annotations: {}
+
+# -----------------------------------------------------------------------------
+# Recursos (CPU/Memória)
+# -----------------------------------------------------------------------------
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 1Gi
+
+# -----------------------------------------------------------------------------
+# Autoscaling (HPA)
+# -----------------------------------------------------------------------------
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+# -----------------------------------------------------------------------------
+# Health checks
+# -----------------------------------------------------------------------------
+# Liveness: reinicia o pod se /health falhar
+livenessProbe:
+  enabled: true
+  httpGet:
+    path: /health
+    port: http
+  initialDelaySeconds: 60
+  periodSeconds: 30
+  timeoutSeconds: 10
+  failureThreshold: 3
+
+# Readiness: retira o pod do Service se /health falhar
+readinessProbe:
+  enabled: true
+  httpGet:
+    path: /health
+    port: http
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+# -----------------------------------------------------------------------------
+# Selecção e tolerância de nós
+# -----------------------------------------------------------------------------
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+# -----------------------------------------------------------------------------
+# Security context
+# -----------------------------------------------------------------------------
+podSecurityContext: {}
+
+securityContext: {}
+
+# -----------------------------------------------------------------------------
+# Configuração da aplicação (ConfigMap)
+# -----------------------------------------------------------------------------
+config:
+  # Identificação do ambiente
+  environment: "kubernetes"
+  logLevel: "INFO"
+
+  # Metadados de observabilidade Neural Hive
+  neuralHive:
+    serviceName: "unified-gateway"
+    component: "gateway"
+    layer: "experiencia"
+
+  # Kafka (mensageria de eventos)
+  kafka:
+    bootstrapServers: "neural-hive-kafka-kafka-bootstrap.kafka.svc.cluster.local:9092"
+    topicPrefix: "unified"
+    enabled: true
+
+  # Redis (rate limiting e cache)
+  redis:
+    host: "redis.redis-cluster.svc.cluster.local"
+    port: 6379
+
+  # MongoDB (persistência operacional)
+  mongodb:
+    host: "mongodb.mongodb-cluster.svc.cluster.local"
+    port: 27017
+    database: "neural_hive"
+
+  # Serviços gRPC (NLU + PII).
+  # NLU expõe HTTP/REST em 8020 e gRPC em 8021. PII expõe HTTP em 8021 e gRPC em 9021.
+  # Ambos os endereços abaixo apontam para a porta gRPC do serviço destino.
+  nluServiceAddress: "nlu-service.nlu.svc.cluster.local:8021"
+  piiServiceAddress: "pii-service.pii.svc.cluster.local:9021"
+  grpcMaxReceiveMessageLength: "104857600"  # 100MB
+  grpcTimeoutSeconds: 30
+
+  # Circuit Breaker (resiliência em chamadas downstream)
+  circuitBreaker:
+    threshold: 5
+    timeoutSeconds: 60
+    halfOpenAttempts: 3
+
+  # Autenticação JWT
+  # Por defeito JWT é obrigatório; só desligar em dev/MVP local.
+  jwtAuthRequired: true
+  jwtAlgorithm: "RS256"
+
+  # Rate Limiting
+  rateLimitDefault: 100
+
+# -----------------------------------------------------------------------------
+# Secrets (passwords e credenciais sensíveis)
+# -----------------------------------------------------------------------------
+# IMPORTANTE: definir em valores específicos do ambiente; nunca em git.
+secrets:
+  redisPassword: ""
+  mongodbUsername: "root"
+  mongodbPassword: "local_dev_password"
+  jwtSecret: "change-me"
+
+# -----------------------------------------------------------------------------
+# Service Account
+# -----------------------------------------------------------------------------
+serviceAccount:
+  create: false
+  annotations: {}
+  name: ""

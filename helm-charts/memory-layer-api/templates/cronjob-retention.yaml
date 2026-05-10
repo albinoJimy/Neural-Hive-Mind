@@ -13,11 +13,15 @@ spec:
   successfulJobsHistoryLimit: 3
   failedJobsHistoryLimit: 3
   jobTemplate:
+    metadata:
+      labels:
+        {{- include "memory-layer-api.labels" . | nindent 8 }}
+        app.kubernetes.io/component: retention-job
     spec:
       template:
         metadata:
           labels:
-            {{- include "memory-layer-api.selectorLabels" . | nindent 12 }}
+            {{- include "memory-layer-api.podLabels" . | nindent 12 }}
             app.kubernetes.io/component: retention-job
           annotations:
             sidecar.istio.io/inject: "false"

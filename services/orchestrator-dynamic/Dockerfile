@@ -12,17 +12,24 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Criar diretório de trabalho
 WORKDIR /build
 
-# Copiar bibliotecas internas e instalar neural_hive_ml como editable
+# Copiar bibliotecas internas e instalar como editable
 # CACHE-BUSTER: 249812b
 COPY libraries /libraries
 ARG LIBRARY_VERSION=249812b
 RUN echo "Library version: ${LIBRARY_VERSION}"
 RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install --no-cache-dir --user -e /libraries/python/neural_hive_ml
+    pip install --no-cache-dir --user -e /libraries/python/neural_hive_ml && \
+    pip install --no-cache-dir --user /libraries/python/neural_hive_security && \
+    pip install --no-cache-dir --user /libraries/python/neural_hive_resilience && \
+    pip install --no-cache-dir --user /libraries/neural_hive_integration && \
+    pip install --no-cache-dir --user --force-reinstall --no-deps /libraries/python/neural_hive_observability
 
-# Copiar requirements e instalar dependências restantes
-COPY services/orchestrator-dynamic/requirements.txt .
+# Copiar requirements (base + service-specific) e resolver path relativo no Docker context
+# Padrão consistente com data-migration, code-forge, etc.
+COPY requirements-base.txt ./requirements-base.txt
+COPY services/orchestrator-dynamic/requirements.txt ./requirements-service.txt
 RUN --mount=type=cache,target=/root/.cache/pip \
+    cat requirements-service.txt | sed 's|-r ../../requirements-base.txt|-r requirements-base.txt|' > requirements.txt && \
     pip install --no-cache-dir --user -r requirements.txt \
     --default-timeout=900 --retries 3
 
