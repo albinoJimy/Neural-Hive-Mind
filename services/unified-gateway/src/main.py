@@ -12,7 +12,12 @@ from src.api.routers.request import request_router
 from src.api.routers.status import status_router
 from src.api.routers.stream import stream_router
 from src.config.settings import get_settings
-from src.middleware import JWTAuthMiddleware, RateLimitMiddleware, TracingMiddleware
+from src.middleware import (
+    JWTAuthMiddleware,
+    MetricsMiddleware,
+    RateLimitMiddleware,
+    TracingMiddleware,
+)
 
 settings = get_settings()
 logger = structlog.get_logger(__name__)
@@ -71,6 +76,12 @@ except ImportError:
 
 # Adicionar TracingMiddleware (INV-11: traceparent propagation)
 app.add_middleware(TracingMiddleware, service_name="unified-gateway")
+
+# MetricsMiddleware: latency + status code para o /metrics Prometheus.
+# Adicionado depois de TracingMiddleware para que o trace_id já esteja
+# propagado quando a métrica é registada (não dependemos disso, mas
+# mantém a ordem coerente).
+app.add_middleware(MetricsMiddleware)
 
 # Adicionar JWTAuthMiddleware (INV-7: user_id, tenant_id extraction)
 app.add_middleware(

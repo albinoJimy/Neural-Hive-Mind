@@ -490,11 +490,12 @@ kubectl get events -n gateway --field-selector type!=Normal
 
 ## Métricas-Chave a Observar
 
-> **Nota importante:** O endpoint `/metrics` do Unified Gateway (porta 7999) actualmente expõe apenas as **métricas default** do `prometheus_client` (Python runtime / process metrics) montadas via `prometheus_client.make_asgi_app()`, mais qualquer auto-instrumentação fornecida por `neural_hive_observability` (OpenTelemetry).
->
-> **Métricas customizadas** específicas do unified-gateway (request count por flow_type, latência de classificação, contador de rate limit excedido, etc.) **ainda não estão definidas no código** em `services/unified-gateway/src/`. As métricas listadas abaixo como `unified_gateway_*` são **propostas/expectativas** e **TODO confirmar** quando custom instrumentation for adicionada (ver issues abertos).
+O endpoint `/metrics` do Unified Gateway (porta 7999) expõe três grupos:
+1. **Métricas default** do `prometheus_client` (Python runtime/process).
+2. **Auto-instrumentação** OpenTelemetry via `neural_hive_observability`.
+3. **Métricas customizadas** definidas em `src/observability/metrics.py`.
 
-### Métricas Default (já expostas)
+### Métricas Default (runtime Python)
 
 | Métrica | Descrição |
 |---------|-----------|
@@ -503,16 +504,20 @@ kubectl get events -n gateway --field-selector type!=Normal
 | `python_gc_collections_total` | Contagem de GC do Python. |
 | `python_info` | Versão do Python. |
 
-### Métricas Propostas (TODO confirmar — ainda não implementadas)
+### Métricas Customizadas do Unified Gateway
 
-| Métrica | Descrição | Estado |
-|---------|-----------|--------|
-| `unified_gateway_requests_total{status_code, flow_type}` | Total de requests por status e flow. | **TODO confirmar** |
-| `unified_gateway_latency_seconds_bucket` | Histograma de latência E2E. | **TODO confirmar** |
-| `unified_gateway_rate_limit_exceeded_total{tenant_id, tier}` | Contador de 429s. | **TODO confirmar** |
-| `unified_gateway_classification_confidence` | Histograma de confidence da classificação. | **TODO confirmar** |
-| `unified_gateway_circuit_breaker_state{gateway}` | Estado do circuit breaker (0=closed, 1=open, 2=half-open). | **TODO confirmar** |
-| `unified_gateway_nlu_fallback_total` | Contador de uso do fallback keyword-based. | **TODO confirmar** |
+| Métrica | Tipo | Labels | Onde é emitida |
+|---------|------|--------|----------------|
+| `unified_gateway_requests_total` | Counter | `method, path_template, status_code` | `MetricsMiddleware` (todos os requests não-`/metrics`) |
+| `unified_gateway_request_latency_seconds` | Histogram | `method, path_template` | `MetricsMiddleware` (buckets 1ms→5s, alvo p95<20ms) |
+| `unified_gateway_rate_limit_exceeded_total` | Counter | `tenant_id (≤32 chars), tier` | `RateLimitMiddleware` em 429 |
+| `unified_gateway_classification_total` | Counter | `flow_type` (A-F/G/H) | `IntentClassifier` para cada decisão |
+| `unified_gateway_classification_confidence` | Histogram | `flow_type` | `IntentClassifier` (buckets 0.0→1.0 em 0.1) |
+| `unified_gateway_nlu_fallback_total` | Counter | `service` ("nlu") | `NLUServiceClient.parse` quando cai para keyword fallback |
+
+`path_template` colapsa segmentos parecidos com IDs em `{id}` para
+limitar cardinalidade — uma chamada a `/api/v1/nhm/status/req-abc123`
+contabiliza no template `/api/v1/nhm/status/{id}`.
 
 Enquanto estas métricas não existirem como Prometheus instruments no código, **o sinal observável vem dos logs estruturados** (`structlog`):
 - `processing_nhm_request`, `classified_intent`, `gateway_response`, `request_completed`, `request_failed`, `rate_limit_exceeded`.

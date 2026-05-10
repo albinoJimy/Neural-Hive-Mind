@@ -282,6 +282,12 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                 path=path,
                 retry_after=result.retry_after,
             )
+            try:
+                from src.observability import record_rate_limit_exceeded
+
+                record_rate_limit_exceeded(tenant_id=tenant_id, tier=tier.value)
+            except Exception:  # noqa: BLE001 — métricas nunca podem falhar o request
+                pass
             return self._create_rate_limit_response(result)
 
         # Processar requisição
