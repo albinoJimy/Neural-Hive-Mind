@@ -1,0 +1,48 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "pii-service.configMapName" . }}
+  labels:
+    {{- include "pii-service.labels" . | nindent 4 }}
+data:
+  # Application
+  LOG_LEVEL: {{ .Values.config.logLevel | quote }}
+  ENVIRONMENT: {{ .Values.config.environment | quote }}
+
+  # Neural Hive Observability Metadata
+  NEURAL_HIVE_SERVICE_NAME: {{ .Values.config.neuralHiveServiceName | quote }}
+  NEURAL_HIVE_COMPONENT: {{ .Values.config.neuralHiveComponent | quote }}
+  NEURAL_HIVE_LAYER: {{ .Values.config.neuralHiveLayer | quote }}
+
+  # PII Detection Settings
+  PRESIDIO_ENABLED: {{ .Values.config.presidioEnabled | quote }}
+  SPACY_MODEL_NAME: {{ .Values.config.spacyModelName | quote }}
+  CONFIDENCE_THRESHOLD: {{ .Values.config.confidenceThreshold | quote }}
+  PII_DETECTION_ENABLED: {{ .Values.config.piiDetectionEnabled | quote }}
+  PII_DEFAULT_STRATEGY: {{ .Values.config.piiDefaultStrategy | quote }}
+  PII_ENABLE_SPACY: {{ .Values.config.piiEnableSpacy | quote }}
+  PII_MIN_CONFIDENCE: {{ .Values.config.piiMinConfidence | quote }}
+
+  # gRPC Settings
+  GRPC_MAX_WORKERS: {{ .Values.config.grpcMaxWorkers | quote }}
+  GRPC_MAX_RECEIVE_MESSAGE_LENGTH: {{ .Values.config.grpcMaxReceiveMessageLength | quote }}
+
+  # JWT Auth (INV-14)
+  JWT_AUTH_REQUIRED: {{ .Values.config.jwtAuthRequired | quote }}
+  JWT_ALGORITHM: {{ .Values.config.jwtAlgorithm | quote }}
+
+  # Unmask Reversível (INV-14)
+  UNMASK_ENABLED: {{ .Values.config.unmaskEnabled | quote }}
+  UNMASK_TOKEN_TTL_HOURS: {{ .Values.config.unmaskTokenTtlHours | quote }}
+  UNMASK_MAX_ATTEMPTS: {{ .Values.config.unmaskMaxAttempts | quote }}
+
+  # MongoDB / Audit (INV-13)
+  MONGODB_DATABASE: {{ .Values.config.mongodbDatabase | quote }}
+  PII_AUDIT_LOG_COLLECTION: {{ .Values.config.piiAuditLogCollection | quote }}
+  AUDIT_LOG_RETENTION_DAYS: {{ .Values.config.auditLogRetentionDays | quote }}
+
+  # Vault (encryption key source)
+  VAULT_SECRET_PATH: {{ .Values.config.vaultSecretPath | quote }}
+
+  # Observabilidade
+  PROMETHEUS_PORT: {{ .Values.config.prometheusPort | quote }}

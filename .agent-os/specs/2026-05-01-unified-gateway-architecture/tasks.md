@@ -774,6 +774,7 @@ Implementar arquitetura unificada com Unified Gateway (:7999) como ponto único 
   - `docs/runbooks/TROUBLESHOOTING.md`
 
 #### [TICKET-034] Deploy staging
+- **Status:** ⚠️ Parcial — Helm charts criados (artefactos do ticket); execução de deploy depende de DevOps/cluster
 - **Tipo:** Deploy
 - **Prioridade:** P0
 - **Estimativa:** 1 dia
@@ -787,10 +788,22 @@ Implementar arquitetura unificada com Unified Gateway (:7999) como ponto único 
   - ✅ Deploy staging funcionando
   - ✅ Smoke tests passando
   - ✅ 48h stable
+- **Nota de Fecho dos artefactos (2026-05-10):**
+  - 3 Helm charts criados em paralelo por `hoyeon:worker` agents (1.468
+    linhas de YAML/Helm). Path final é `helm-charts/<service>/` (não
+    `helm/<service>/` como na spec) porque a convenção do projecto reserva
+    `helm/` para deps externas (Bitnami, Istio, Gatekeeper); os charts
+    próprios vivem em `helm-charts/` (ver `helm-charts/memory-layer-api/`).
+  - Cada chart contém `Chart.yaml`, `values.yaml`, `_helpers.tpl`,
+    `deployment.yaml`, `service.yaml`, `configmap.yaml`, `hpa.yaml` e
+    (quando aplicável) `secret.yaml`. Todos passam `helm lint` sem
+    falhas e `helm template` rendera 4-5 manifestos válidos.
+  - Smoke tests em staging + monitorização 48h ficam para o operador
+    de DevOps (fora do âmbito de geração de artefactos).
 - **Arquivos:**
-  - `helm/unified-gateway/`
-  - `helm/nlu-service/`
-  - `helm/pii-service/`
+  - `helm-charts/unified-gateway/` (8 ficheiros, 553 linhas)
+  - `helm-charts/nlu-service/` (8 ficheiros, 432 linhas)
+  - `helm-charts/pii-service/` (8 ficheiros, 483 linhas)
 
 #### [TICKET-035] Deploy produção (Blue-Green)
 - **Tipo:** Deploy
