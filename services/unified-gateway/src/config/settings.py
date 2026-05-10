@@ -20,8 +20,8 @@ class Settings(BaseSettings):
     PORT: int = 7999
     HOST: str = "0.0.0.0"
 
-    # NLU Service
-    NLU_SERVICE_ADDRESS: str = "nlu-service:8020"
+    # NLU Service (gRPC corre na porta 8021; 8020 é apenas HTTP/REST do NLU)
+    NLU_SERVICE_ADDRESS: str = "nlu-service:8021"
     NLU_SERVICE_TIMEOUT: int = 5
 
     @property

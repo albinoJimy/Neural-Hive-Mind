@@ -222,17 +222,6 @@ async def test_unmask_with_invalid_token_returns_error(
     assert body["error_message"], "Esperava error_message não vazio"
 
 
-@pytest.mark.skip(
-    reason=(
-        "max_attempts não é enforced em memória pelo design actual: "
-        "ReversibleMaskService.unmask re-descriptografa o ciphertext do "
-        "mask_id (que tem attempt_count=0 imutável) em cada chamada e só "
-        "actualiza um cache em memória. O contador correcto exige Redis "
-        "ou storage persistente que ligue mask_id→counter. Documentar "
-        "como gap (não bug deste ticket) — gap conhecido em "
-        "services/pii-service/src/services/encryption.py linhas 134-145."
-    )
-)
 async def test_unmask_max_attempts_enforced(pii_client: AsyncClient) -> None:
     """``UNMASK_MAX_ATTEMPTS=3`` é respeitado na lógica do serviço.
 
@@ -241,15 +230,17 @@ async def test_unmask_max_attempts_enforced(pii_client: AsyncClient) -> None:
     THEN a 4ª tentativa é rejeitada com ``error_message`` indicando
          excesso de tentativas.
 
-    Nota: skip — o ``ReversibleMaskService`` actual lê ``attempt_count``
-    do payload **descriptografado** do ciphertext (que é imutável,
-    sempre 0) em vez de ler do cache em memória. Sem Redis/storage
-    persistente que mute o counter por ``mask_id``, o limite nunca é
-    atingido. Reportar como gap separado.
+    O ``ReversibleMaskService`` mantém o contador num dict in-memory
+    (``_attempt_counters[mask_id]``) separado do payload encriptado;
+    o ciphertext continua imutável, mas cada chamada incrementa o
+    counter — atingido ``max_attempts``, futuras chamadas falham.
     """
     from src.services.encryption import get_reversible_mask_service  # type: ignore
 
     rms = get_reversible_mask_service()
+    # Garante que esta execução começa sem contador acumulado de outros testes.
+    rms._attempt_counters.clear()
+
     mask_id, _expires_at = rms.create_mask_token(
         original_value="EMAIL:joao@example.com",
         pii_type="EMAIL",
@@ -258,15 +249,13 @@ async def test_unmask_max_attempts_enforced(pii_client: AsyncClient) -> None:
 
     payload = {"mask_id": mask_id, "enable_audit_log": False}
 
-    last_status = None
     last_body: dict = {}
-    for _ in range(4):
+    for _ in range(rms.max_attempts + 1):
         r = await pii_client.post("/api/v1/pii/unmask", json=payload)
         assert r.status_code == 200, r.text
         last_body = r.json()
-        last_status = last_body.get("success")
 
-    assert last_status is False
+    assert last_body.get("success") is False
     err = (last_body.get("error_message") or "").lower()
     assert "attempt" in err or "max" in err or "exceeded" in err
 

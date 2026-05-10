@@ -345,33 +345,14 @@ async def test_excluded_paths_bypass_auth(
 
 
 async def test_jwt_with_alg_none_rejected(secure_client: AsyncClient) -> None:
-    """Token com ``alg=none`` em ambiente de produção deve ser rejeitado.
+    """Token com ``alg=none`` é sempre rejeitado, independentemente do ambiente.
 
-    **Comportamento real observado** (TICKET-030 finding): Em ambientes
-    não-produção (``ENVIRONMENT != "production"``), o middleware passa
-    ``verify_signature=False`` ao ``jwt.decode``. PyJWT, com signature
-    verification desligada, **ignora a lista de ``algorithms`` e aceita
-    tokens ``alg=none``** — incluindo tokens não assinados forjados.
-
-    Isto significa que o middleware **NÃO rejeita** ``alg=none`` em dev/test.
-    Em produção, ``verify_signature=True`` faz com que PyJWT rejeite tokens
-    cuja assinatura falhe (incluindo alg=none, que tem assinatura vazia).
-
-    Este teste documenta o gap actual: skip em dev (com explicação clara) e
-    valida apenas em production. Recomenda-se um ticket separado para fazer
-    o middleware rejeitar ``alg=none`` independentemente do ENVIRONMENT.
+    O middleware extrai o ``alg`` do header sem confiar no decode do PyJWT
+    (PyJWT com ``verify_signature=False`` ignora a allowlist de algorithms
+    e aceita tokens não assinados). A validação manual em
+    ``_validate_jwt_token`` rejeita ``alg=none`` antes de chegar ao
+    ``jwt.decode``.
     """
-    from src.config.settings import get_settings  # type: ignore
-
-    settings = get_settings()
-    if settings.ENVIRONMENT != "production":
-        pytest.skip(
-            "Em dev/test o middleware faz verify_signature=False, e PyJWT "
-            "ignora a allowlist de algorithms quando assinaturas não são "
-            "verificadas — alg=none passa. Comportamento documentado; "
-            "endurecer em ticket de hardening separado."
-        )
-
     # Construção manual de um token alg=none (PyJWT moderna recusa-se a
     # encodar com 'none' via API normal).
     import base64
@@ -401,7 +382,7 @@ async def test_jwt_with_alg_none_rejected(secure_client: AsyncClient) -> None:
     )
 
     assert response.status_code == 401, (
-        f"Token alg=none foi aceite em produção — risco de segurança! "
+        f"Token alg=none foi aceite — risco de segurança! "
         f"status={response.status_code} body={response.text}"
     )
 

@@ -143,9 +143,9 @@ class Settings(BaseSettings):
         description="Caminho para arquivo YAML de configuração de thresholds (opcional)",
     )
 
-    # T11: NLU Service gRPC
+    # T11: NLU Service gRPC (porta 8021 — 8020 é HTTP/REST, não gRPC)
     nlu_service_url: str = Field(
-        default="nlu-service:8020",
+        default="nlu-service:8021",
         description="URL do NLU Service para gRPC (T11 refactor)",
     )
     nlu_service_timeout: float = Field(

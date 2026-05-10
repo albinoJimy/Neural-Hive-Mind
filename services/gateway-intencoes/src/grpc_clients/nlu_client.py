@@ -31,9 +31,9 @@ class NLUServiceClient:
         Inicializa cliente gRPC.
 
         Args:
-            target: Endereço do NLU Service (padrão: localhost:8020)
+            target: Endereço do NLU Service via gRPC (padrão: localhost:8021)
         """
-        self._target = target or settings.NLU_SERVICE_URL or "localhost:8020"
+        self._target = target or settings.nlu_service_url or "localhost:8021"
         self._channel: grpc.aio.Channel | None = None
         self._stub: nlu_pb2_grpc.NLUServiceStub | None = None
         self._connected = False

@@ -451,7 +451,7 @@ async def get_capabilities() -> dict[str, Any]:
             },
         },
         "classification": {
-            "nlu_service": "nlu-service:8020",
+            "nlu_service": "nlu-service:8021",
             "domains": ["BUSINESS", "TECHNICAL", "INFRASTRUCTURE", "SECURITY"],
             "fallback": "keyword-based",
         },

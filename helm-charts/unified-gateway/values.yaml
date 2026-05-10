@@ -152,9 +152,10 @@ config:
     port: 27017
     database: "neural_hive"
 
-  # Serviços gRPC (NLU + PII)
-  # NLU corre na porta 8020; PII gRPC corre na porta 9021 (8021 é apenas HTTP).
-  nluServiceAddress: "nlu-service.nlu.svc.cluster.local:8020"
+  # Serviços gRPC (NLU + PII).
+  # NLU expõe HTTP/REST em 8020 e gRPC em 8021. PII expõe HTTP em 8021 e gRPC em 9021.
+  # Ambos os endereços abaixo apontam para a porta gRPC do serviço destino.
+  nluServiceAddress: "nlu-service.nlu.svc.cluster.local:8021"
   piiServiceAddress: "pii-service.pii.svc.cluster.local:9021"
   grpcMaxReceiveMessageLength: "104857600"  # 100MB
   grpcTimeoutSeconds: 30

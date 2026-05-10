@@ -27,7 +27,7 @@ data:
   NEURAL_HIVE_COMPONENT: "gateway"
   NEURAL_HIVE_LAYER: "experiencia"
   # gRPC Services
-  NLU_SERVICE_ADDRESS: "nlu-service.nlu.svc.cluster.local:8020"
+  NLU_SERVICE_ADDRESS: "nlu-service.nlu.svc.cluster.local:8021"
   PII_SERVICE_ADDRESS: "pii-service.pii.svc.cluster.local:9021"
   GRPC_MAX_RECEIVE_MESSAGE_LENGTH: "104857600"  # 100MB
   GRPC_TIMEOUT_SECONDS: "30"

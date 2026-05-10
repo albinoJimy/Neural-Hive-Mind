@@ -218,21 +218,41 @@ class JWTAuthMiddleware(BaseHTTPMiddleware):
                 raise JWTAuthError("Invalid JWT token")
             return AuthContext(authenticated=False, auth_method=AuthMethod.NONE)
 
+    # Algoritmos permitidos. ``none`` é proibido em qualquer ambiente —
+    # com ``verify_signature=False`` o PyJWT ignora o ``algorithms``
+    # allowlist, por isso o ``alg`` do header é validado manualmente
+    # antes de invocar o decode.
+    _ALLOWED_ALGORITHMS = ("RS256", "HS256", "RS512", "ES256")
+
     async def _validate_jwt_token(self, token: str) -> dict[str, Any]:
         """
         Valida token JWT e retorna claims.
 
-        Em produção, usa JWTVerifier da neural_hive_security.
-        Em desenvolvimento, valida apenas formato básico.
+        Em produção, usa ``JWTVerifier`` de ``neural_hive_security`` (com
+        verificação de assinatura via JWKS). Em desenvolvimento aceita
+        tokens não-assinados, mas **rejeita sempre** ``alg=none`` e qualquer
+        algoritmo fora do allowlist — independente do ambiente.
         """
-        # Em produção, usar: neural_hive_security.JWTVerifier
-        # Por enquanto, implementação básica para MVP
-
         try:
             import jwt
+        except ImportError:
+            raise JWTAuthError("JWT library not available")
 
-            # Decodificar token (sem verificação de assinatura em dev)
-            # Em produção, adicionar verificação com chave pública
+        # Pre-flight: extrair header sem confiar no `algorithms` do decode.
+        # PyJWT com `verify_signature=False` ignora o filtro de algoritmos,
+        # por isso `alg=none` ou alg arbitrários passariam silenciosamente.
+        try:
+            unverified_header = jwt.get_unverified_header(token)
+        except jwt.InvalidTokenError as exc:
+            raise JWTAuthError(f"Malformed JWT header: {exc}")
+
+        alg = unverified_header.get("alg")
+        if not alg or alg.lower() == "none":
+            raise JWTAuthError("Refusing JWT with alg=none")
+        if alg not in self._ALLOWED_ALGORITHMS:
+            raise JWTAuthError(f"JWT algorithm '{alg}' is not allowed")
+
+        try:
             payload = jwt.decode(
                 token,
                 options={
@@ -240,14 +260,9 @@ class JWTAuthMiddleware(BaseHTTPMiddleware):
                     "verify_exp": True,
                     "require": ["sub"],
                 },
-                algorithms=["RS256", "HS256"],
+                algorithms=list(self._ALLOWED_ALGORITHMS),
             )
-
             return payload
-
-        except ImportError:
-            # PyJWT não disponível - tentar decodificação manual
-            raise JWTAuthError("JWT library not available")
 
         except jwt.ExpiredSignatureError:
             raise JWTAuthError("Token has expired")
