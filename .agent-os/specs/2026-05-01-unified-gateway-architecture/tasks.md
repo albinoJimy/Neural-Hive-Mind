@@ -634,6 +634,7 @@ Implementar arquitetura unificada com Unified Gateway (:7999) como ponto único 
   - `tests/e2e/test_flow_h.py`
 
 #### [TICKET-029] Testes de carga e performance
+- **Status:** ✅ Concluído (artefactos) — 2026-05-10
 - **Tipo:** Test
 - **Prioridade:** P0
 - **Estimativa:** 2 dias
@@ -648,8 +649,26 @@ Implementar arquitetura unificada com Unified Gateway (:7999) como ponto único 
   - ✅ <20ms latência adicional
   - ✅ >200 req/s sustentados
   - ✅ Falhas graciosas funcionando
+- **Nota de Fecho (2026-05-10):**
+  `tests/performance/load_test.py` (entrypoint pytest com 4 testes)
+  reusa o `UnifiedGatewayLoadTester` do script standalone existente
+  (`unified-gateway-load-test.py`, ~660 LOC) via `importlib.util` —
+  o nome com hífenes não permite import directo. Modos:
+  - `test_quick_smoke_load` — 30s @ 50 req/s, default em CI; valida
+    p95<20ms, taxa de erro ≤1%, throughput≥40 req/s.
+  - `test_standard_load_5min` — 5 min @ 200 req/s, opt-in via
+    `RUN_LOAD_TESTS=1`; valida SLOs completos da spec.
+  - `test_sustained_load_one_hour` — 1h @ 200 req/s, opt-in via
+    `RUN_SUSTAINED_LOAD=1`; cumpre o acceptance criterion explícito.
+  - `test_graceful_degradation_under_overload` — 5x throughput
+    (1000 req/s), opt-in via `RUN_STRESS_TEST=1`; verifica que o
+    gateway ainda responde (não crasha) sob overload.
+  Todos os testes skipam graciosamente quando o gateway não está
+  acessível em `UNIFIED_GATEWAY_URL` (default `localhost:7999`).
+  Markers: `performance`, `slow` (registados em `tests/pytest.ini`).
 - **Arquivos:**
-  - `tests/performance/load_test.py`
+  - `tests/performance/load_test.py` (entrypoint pytest)
+  - `tests/performance/unified-gateway-load-test.py` (motor reutilizado)
 
 #### [TICKET-030] Testes de segurança
 - **Status:** ✅ Concluído — 2026-05-10
