@@ -34,6 +34,10 @@ tags:
     description: Health check endpoints
   - name: requests
     description: Request processing
+  - name: status
+    description: Consulta de status de requests assíncronos
+  - name: stream
+    description: Streaming SSE de status em tempo real
   - name: admin
     description: Administrative operations
 
@@ -203,6 +207,194 @@ paths:
                     type: array
                     items:
                       $ref: '#/components/schemas/Error'
+
+  /api/v1/nhm/status/{request_id}:
+    get:
+      tags: [status]
+      summary: Consultar status de request
+      description: |
+        Retorna o status de processamento de um request específico, persistido no
+        Redis com TTL de 24h. Útil para clientes que preferem polling em vez de
+        manter uma conexão SSE aberta.
+
+        O `request_id` é o UUID retornado pelo `POST /api/v1/nhm/request`.
+
+        Estados possíveis em `status.status`:
+        - `processing` — request ainda em execução no gateway downstream
+        - `completed` — request concluído com sucesso
+        - `failed` — request falhou (campo `error` preenchido)
+        - `timeout` — request excedeu timeout configurado
+      operationId: getRequestStatus
+      parameters:
+        - name: request_id
+          in: path
+          required: true
+          description: UUID do request retornado pelo POST /api/v1/nhm/request
+          schema:
+            type: string
+            minLength: 10
+            example: "550e8400-e29b-41d4-a716-446655440000"
+      responses:
+        '200':
+          description: Status retornado (pode ter exists=false se request não encontrado ou expirado)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+        '400':
+          description: request_id inválido (vazio ou muito curto)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Erro interno ao consultar Redis
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/nhm/status:
+    get:
+      tags: [status]
+      summary: Health check do endpoint de status
+      description: Verifica se o serviço de status está operacional e se o Redis está disponível
+      operationId: getStatusHealth
+      security: []
+      responses:
+        '200':
+          description: Status do serviço
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  service:
+                    type: string
+                    example: "unified-gateway-status"
+                  status:
+                    type: string
+                    example: "healthy"
+                  redis_available:
+                    type: boolean
+                  ttl_seconds:
+                    type: integer
+                    example: 86400
+
+  /api/v1/nhm/stream/{request_id}:
+    get:
+      tags: [stream]
+      summary: Stream de status via Server-Sent Events
+      description: |
+        Retorna stream SSE (`text/event-stream`) com atualizações de status em
+        tempo real para um request. O servidor sonda o Redis periodicamente e
+        emite eventos sempre que o status muda.
+
+        **Tipos de evento emitidos:**
+        - `connected` — handshake inicial, inclui `retry: 3000` (cliente reconecta após 3s)
+        - `status` — request continua a ser processado (status = "processing")
+        - `completed` — request concluído com sucesso (stream encerra)
+        - `error` — request falhou (stream encerra)
+        - `keep-alive` — emitido a cada 5s para manter a conexão viva
+        - `timeout` — stream excedeu o `timeout` configurado e vai fechar
+        - `end` — evento final antes de o servidor fechar a conexão
+
+        **Headers de resposta:**
+        - `Content-Type: text/event-stream`
+        - `Cache-Control: no-cache`
+        - `Connection: keep-alive`
+        - `X-Accel-Buffering: no` (desativa buffering em nginx)
+
+        **Formato SSE de cada evento:**
+        ```
+        event: <event-name>
+        data: <json>
+
+        ```
+      operationId: streamRequestStatus
+      parameters:
+        - name: request_id
+          in: path
+          required: true
+          description: UUID do request a monitorar
+          schema:
+            type: string
+            minLength: 10
+            example: "550e8400-e29b-41d4-a716-446655440000"
+        - name: timeout
+          in: query
+          required: false
+          description: Tempo máximo do stream em segundos (5–300, padrão 30)
+          schema:
+            type: integer
+            minimum: 5
+            maximum: 300
+            default: 30
+      responses:
+        '200':
+          description: Stream SSE aberto
+          content:
+            text/event-stream:
+              schema:
+                $ref: '#/components/schemas/StreamEvent'
+              examples:
+                connected:
+                  summary: Evento inicial de handshake
+                  value: |
+                    event: connected
+                    data: {"request_id": "550e8400-e29b-41d4-a716-446655440000", "message": "Stream connected"}
+                    retry: 3000
+                processing:
+                  summary: Atualização de status em processamento
+                  value: |
+                    event: status
+                    data: {"request_id": "550e8400-...", "status": "processing", "flow_type": null}
+                completed:
+                  summary: Request concluído (stream encerra)
+                  value: |
+                    event: completed
+                    data: {"request_id": "550e8400-...", "status": "completed", "flow_type": "A-F", "processing_time_ms": 1234}
+                keep_alive:
+                  summary: Heartbeat a cada 5s
+                  value: |
+                    event: keep-alive
+                    data: {"timestamp": "2026-05-10T12:34:56.789Z"}
+        '400':
+          description: request_id inválido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/nhm/stream:
+    get:
+      tags: [stream]
+      summary: Health check do endpoint de streaming
+      description: Verifica se o serviço de streaming está operacional
+      operationId: getStreamHealth
+      security: []
+      responses:
+        '200':
+          description: Status do serviço de streaming
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  service:
+                    type: string
+                    example: "unified-gateway-stream"
+                  status:
+                    type: string
+                    example: "healthy"
+                  redis_available:
+                    type: boolean
+                  stream_timeout_seconds:
+                    type: integer
+                    example: 30
+                  keep_alive_interval_seconds:
+                    type: integer
+                    example: 5
 
   /metrics:
     get:
@@ -388,6 +580,95 @@ components:
         recommended_flow:
           type: string
           enum: [A-F, G, H]
+
+    RequestStatus:
+      type: object
+      required: [request_id, status, created_at]
+      description: |
+        Status persistido de um request. Armazenado no Redis sob a chave
+        `request_status:{request_id}` com TTL de 86400s (24h).
+      properties:
+        request_id:
+          type: string
+          description: UUID do request
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        status:
+          type: string
+          enum: [processing, completed, failed, timeout]
+          description: Estado actual do request
+        flow_type:
+          type: string
+          nullable: true
+          description: Fluxo executado (apenas após classificação)
+          example: "A-F"
+        processing_time_ms:
+          type: integer
+          nullable: true
+          description: Tempo total de processamento em milissegundos (preenchido quando completed/failed)
+        created_at:
+          type: string
+          format: date-time
+          description: ISO 8601 UTC timestamp da criação do registo
+        completed_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: ISO 8601 UTC timestamp da conclusão (preenchido quando completed/failed)
+        error:
+          type: string
+          nullable: true
+          description: Mensagem de erro (preenchida quando status=failed)
+        gateway_used:
+          type: string
+          nullable: true
+          description: Nome do gateway downstream utilizado (ex.\\ "gateway-intencoes")
+        data:
+          type: object
+          nullable: true
+          additionalProperties: true
+          description: Dados retornados pelo gateway downstream (preenchido quando completed)
+
+    StatusResponse:
+      type: object
+      required: [request_id, exists]
+      description: Resposta do endpoint GET /api/v1/nhm/status/{request_id}
+      properties:
+        request_id:
+          type: string
+          description: UUID consultado
+        exists:
+          type: boolean
+          description: |
+            `true` se o request foi encontrado no Redis. `false` se o request
+            não existe ou se o seu TTL (24h) expirou.
+        status:
+          $ref: '#/components/schemas/RequestStatus'
+          nullable: true
+
+    StreamEvent:
+      type: object
+      required: [event, data]
+      description: |
+        Estrutura lógica de um evento SSE. Note que o formato wire é
+        `event: <event>\\ndata: <json>\\n\\n` e não JSON puro.
+      properties:
+        event:
+          type: string
+          enum: [connected, status, completed, error, keep-alive, timeout, end]
+          description: Tipo do evento SSE
+        data:
+          type: object
+          additionalProperties: true
+          description: |
+            Payload do evento. Para `status`/`completed`/`error` corresponde ao
+            objecto `RequestStatus`. Para `keep-alive` contém apenas `timestamp`.
+            Para `connected`/`timeout`/`end` contém `request_id` e `message`.
+        retry:
+          type: integer
+          nullable: true
+          description: |
+            Hint SSE para o cliente reconectar após N milissegundos. Apenas
+            emitido no evento `connected` (valor 3000).
 
     Error:
       type: object

@@ -687,6 +687,7 @@ Implementar arquitetura unificada com Unified Gateway (:7999) como ponto único 
 ### FASE 7: Documentação e Deploy (Sprint 6 - 1 semana)
 
 #### [TICKET-031] Documentação de API
+- **Status:** ✅ Concluído — 2026-05-10
 - **Tipo:** Docs
 - **Prioridade:** P0
 - **Estimativa:** 2 dias
@@ -701,11 +702,23 @@ Implementar arquitetura unificada com Unified Gateway (:7999) como ponto único 
 - **Acceptance Criteria:**
   - ✅ OpenAPI specs completas
   - ✅ Documentação publicada
+- **Nota de Fecho (2026-05-10):**
+  - `services/unified-gateway/openapi.yaml`: +280 linhas (411→691).
+    Adicionados 4 paths (`/status/{request_id}`, `/status` health,
+    `/stream/{request_id}` SSE, `/stream` health) e 3 schemas
+    (`RequestStatus`, `StatusResponse`, `StreamEvent`). Total 11 paths,
+    9 schemas. YAML validado.
+  - `docs/API_UNIFIED_GATEWAY.md` criado (335 linhas) com visão geral,
+    tabela de endpoints, autenticação JWT, rate limiting (tiers,
+    headers, 429), fluxos A-F/G/H, exemplos cURL para
+    POST/status/stream, códigos de erro, padrões de integração
+    (polling vs SSE).
 - **Arquivos:**
-  - `services/unified-gateway/docs/openapi.yaml`
+  - `services/unified-gateway/openapi.yaml`
   - `docs/API_UNIFIED_GATEWAY.md`
 
 #### [TICKET-032] Guia de migração para clientes
+- **Status:** ✅ Concluído — 2026-05-10
 - **Tipo:** Docs
 - **Prioridade:** P0
 - **Estimativa:** 1 dia
@@ -718,10 +731,19 @@ Implementar arquitetura unificada com Unified Gateway (:7999) como ponto único 
 - **Acceptance Criteria:**
   - ✅ Guia publicado
   - ✅ Exemplos funcionando
+- **Nota de Fecho (2026-05-10):**
+  `docs/MIGRATION_GUIDE_CLIENTS.md` (432 linhas, 11 secções, 11
+  exemplos código — Python, JSON, cURL). Mapeamento de endpoints
+  antigos vs novo verificado contra os routers reais dos 3 gateways
+  downstream.
+  - **Gap surfaced:** o proxy actual (`request.py:198`) chama
+    `/api/v1/process` nos downstream mas nenhum dos 3 gateways expõe
+    esse path — alvo do Sprint 2 da spec, fora do âmbito desta doc.
 - **Arquivos:**
   - `docs/MIGRATION_GUIDE_CLIENTS.md`
 
 #### [TICKET-033] Runbooks operacionais
+- **Status:** ✅ Concluído — 2026-05-10
 - **Tipo:** Docs
 - **Prioridade:** P1
 - **Estimativa:** 1 dia
@@ -734,6 +756,19 @@ Implementar arquitetura unificada com Unified Gateway (:7999) como ponto único 
 - **Acceptance Criteria:**
   - ✅ Runbooks criados
   - ✅ Alerts configurados
+- **Nota de Fecho (2026-05-10):**
+  - `docs/runbooks/DEPLOY_UNIFIED_GATEWAY.md` (418 linhas):
+    pré-requisitos, procedimento (CI/CD + kubectl apply), smoke tests,
+    blue-green (referência TICKET-035), rollback, verificação
+    pós-deploy, comandos úteis.
+  - `docs/runbooks/TROUBLESHOOTING.md` (590 linhas): 8 sintomas comuns
+    (CrashLoopBackOff, liveness probe, 5xx, 429 indevidos, latência
+    alta, JWT 401, tracing ausente, classificação errada),
+    toolkit kubectl/redis-cli/kafka, métricas-chave, escalation.
+  - **Gap honesto:** métricas Prometheus customizadas listadas como
+    `TODO confirmar` — o unified-gateway expõe apenas defaults via
+    `make_asgi_app()`, sem `Counter()`/`Histogram()` próprios.
+    Ticket de hardening de observabilidade fica em aberto.
 - **Arquivos:**
   - `docs/runbooks/DEPLOY_UNIFIED_GATEWAY.md`
   - `docs/runbooks/TROUBLESHOOTING.md`
