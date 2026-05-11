@@ -7,6 +7,7 @@ WORKDIR /app
 # Copy internal libraries for installation
 COPY libraries/python/neural_hive_domain /tmp/neural_hive_domain
 COPY libraries/python/neural_hive_security /tmp/neural_hive_security
+COPY libraries/python/neural_hive_resilience /tmp/neural_hive_resilience
 
 # Instalar dependências (base + service) e bibliotecas internas
 COPY requirements-base.txt ./requirements-base.txt
@@ -15,6 +16,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     sed 's|-r ../../requirements-base.txt|-r requirements-base.txt|' requirements-service.txt > requirements.txt && \
     pip install --no-cache-dir --user /tmp/neural_hive_domain && \
     pip install --no-cache-dir --user /tmp/neural_hive_security && \
+    pip install --no-cache-dir --user /tmp/neural_hive_resilience && \
     pip install --no-cache-dir --user -r requirements.txt && \
     python -m uvicorn --version && \
     echo "✓ uvicorn runtime verification passed"
