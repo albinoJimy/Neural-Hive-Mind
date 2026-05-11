@@ -6,10 +6,8 @@ torch>=2.1.0
 tiktoken>=0.5.0
 openai-whisper>=20230314  # ASR pipeline
 
-# gRPC clients para NLU/PII services (T11)
-grpcio==1.68.0
-grpcio-tools==1.68.0
-protobuf==5.29.1
+# gRPC clients para NLU/PII services (T11) — versões vêm de requirements-base.txt
+# (grpcio==1.71.2, grpcio-tools==1.71.2, protobuf==5.29.2)
 
 # Libraries Neural Hive-Mind
 -e ../../libraries/python/neural_hive_observability

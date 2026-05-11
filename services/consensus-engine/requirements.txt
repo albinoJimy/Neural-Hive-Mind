@@ -2,7 +2,7 @@
 -r ../../requirements-base.txt
 
 # Kafka - extras
-cachetools==5.5.0  # Required by confluent-kafka==2.8.0 schema_registry
+# cachetools vem de requirements-base.txt (==5.3.3, compatível com confluent-kafka 2.8.0)
 attrs>=23.1.0
 authlib>=1.3.0
 
