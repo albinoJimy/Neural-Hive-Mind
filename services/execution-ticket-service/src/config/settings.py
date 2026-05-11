@@ -5,7 +5,7 @@ Configurações do Execution Ticket Service usando Pydantic Settings.
 from functools import lru_cache
 from typing import Optional
 
-from pydantic import Field, field_validator, model_validator
+from pydantic import Field, ValidationInfo, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from neural_hive_security.cors import CORSConfig
@@ -165,7 +165,7 @@ class TicketServiceSettings(BaseSettings):
 
     @field_validator("jwt_secret_key")
     @classmethod
-    def validate_jwt_secret(cls, v: str, info: field_validator.Info) -> str:
+    def validate_jwt_secret(cls, v: str, info: ValidationInfo) -> str:
         """Validar que JWT secret não seja padrão em produção."""
         if info.data.get("environment") == "production" and v in ["changeme", "default", "secret"]:
             raise ValueError("JWT secret key cannot be default value in production")
@@ -181,7 +181,7 @@ class TicketServiceSettings(BaseSettings):
 
     @field_validator("postgres_ssl_mode")
     @classmethod
-    def validate_ssl_in_production(cls, v: str, info: field_validator.Info) -> str:
+    def validate_ssl_in_production(cls, v: str, info: ValidationInfo) -> str:
         """Validar SSL habilitado em produção."""
         if info.data.get("environment") == "production" and v == "disable":
             raise ValueError("SSL must be enabled in production")
