@@ -45,7 +45,9 @@ cachetools==5.3.3  # Required by confluent-kafka schema_registry
 
 # Databases
 motor==3.7.1
-pymongo==4.10.1
+# motor 3.7.1 importa pymongo.cursor._QUERY_OPTIONS (removido em pymongo 4.10).
+# Mantém pymongo<4.10 até motor suportar a API nova.
+pymongo==4.9.2
 redis[hiredis]==5.2.1
 neo4j==5.15.0
 clickhouse-connect>=0.6.0

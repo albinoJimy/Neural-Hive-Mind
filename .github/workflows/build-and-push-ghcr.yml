@@ -8,6 +8,7 @@ on:
       - 'libraries/**'
       - 'schemas/**'
       - 'base-images/**'
+      - 'requirements-base.txt'
       - '.github/workflows/build-and-push-ghcr.yml'
 
   pull_request:
@@ -15,6 +16,7 @@ on:
     paths:
       - 'services/**'
       - 'libraries/**'
+      - 'requirements-base.txt'
 
   workflow_dispatch:
     inputs:
@@ -216,6 +218,12 @@ jobs:
                   add_services_from_list "${SCHEMA_DEPENDENTS[$schema_path]}"
                 fi
               done
+            fi
+
+            # 4. requirements-base.txt afecta todos os serviços Python -> rebuild total
+            if echo "$CHANGED_FILES" | grep -qx "requirements-base.txt"; then
+              echo "requirements-base.txt alterado - rebuildando todos os serviços"
+              SERVICES=("${ALL_SERVICES[@]}")
             fi
           fi
 
