@@ -83,6 +83,11 @@ services/code-forge/scripts/test-e2e-*.sh
 # Proto gerado
 libraries/python/neural_hive_agent_sdk/proto/
 
+# Proto duplicates accidentally generated at nlu-service root
+# (canonical pb2 files live in services/nlu-service/src/proto/)
+services/nlu-service/*_pb2.py
+services/nlu-service/*_pb2_grpc.py
+
 # Tests locais
 tests/test-approval-flow.sh
 
