@@ -16,8 +16,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Copiar requirements (base + service) e instalar dependências Python diretamente no sistema
 COPY requirements-base.txt ./requirements-base.txt
 COPY services/execution-ticket-service/requirements.txt ./requirements-service.txt
+COPY libraries/python/neural_hive_security /tmp/neural_hive_security
 RUN sed 's|-r ../../requirements-base.txt|-r requirements-base.txt|' requirements-service.txt > requirements.txt && \
-    pip install --no-cache-dir -r requirements.txt
+    pip install --no-cache-dir /tmp/neural_hive_security && \
+    pip install --no-cache-dir -r requirements.txt && \
+    rm -rf /tmp/neural_hive_security
 
 # Copiar código fonte
 COPY services/execution-ticket-service/src/ ./src/

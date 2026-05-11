@@ -4,15 +4,17 @@ FROM ${REGISTRY}/neural-hive-mind/python-grpc-base:1.0.7 AS builder
 
 WORKDIR /app
 
-# Copy internal library for installation
+# Copy internal libraries for installation
 COPY libraries/python/neural_hive_domain /tmp/neural_hive_domain
+COPY libraries/python/neural_hive_security /tmp/neural_hive_security
 
-# Instalar dependências (base + service) e biblioteca interna
+# Instalar dependências (base + service) e bibliotecas internas
 COPY requirements-base.txt ./requirements-base.txt
 COPY services/consensus-engine/requirements.txt ./requirements-service.txt
 RUN --mount=type=cache,target=/root/.cache/pip \
     sed 's|-r ../../requirements-base.txt|-r requirements-base.txt|' requirements-service.txt > requirements.txt && \
     pip install --no-cache-dir --user /tmp/neural_hive_domain && \
+    pip install --no-cache-dir --user /tmp/neural_hive_security && \
     pip install --no-cache-dir --user -r requirements.txt && \
     python -m uvicorn --version && \
     echo "✓ uvicorn runtime verification passed"
