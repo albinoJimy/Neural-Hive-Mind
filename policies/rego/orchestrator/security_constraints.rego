@@ -1,5 +1,8 @@
 package neuralhive.orchestrator.security_constraints
 
+# Default values para evitar rego_unsafe_var_error quando rules não disparam
+default warnings := []
+
 # Resultado principal
 result := {
     "allow": allow,
