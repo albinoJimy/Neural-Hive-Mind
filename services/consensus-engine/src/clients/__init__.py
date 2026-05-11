@@ -9,7 +9,12 @@ try:
     from .specialists_grpc_client import SpecialistsGrpcClient
 
     _grcp_available = True
-except ImportError:
+except ImportError as _err:
+    import logging
+    logging.getLogger(__name__).warning(
+        "Optional gRPC clients unavailable: %s: %s",
+        type(_err).__name__, _err,
+    )
     _grcp_available = False
 
 __all__ = [
