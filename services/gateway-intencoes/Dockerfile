@@ -50,6 +50,7 @@ COPY libraries/python/neural_hive_security /tmp/neural_hive_security
 # Copiar biblioteca neural_hive_observability atualizada (sobrescreve versão da imagem base)
 # Necessário para incluir correções de headers OTEL gRPC lowercase
 COPY libraries/python/neural_hive_observability /tmp/neural_hive_observability
+COPY libraries/python/neural_hive_specialists /tmp/neural_hive_specialists
 
 # Instalar dependências Python em uma única camada para otimizar build
 RUN --mount=type=cache,target=/root/.cache/pip \
@@ -57,10 +58,13 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     pip install --no-cache-dir /tmp/neural_hive_domain && \
     pip install --no-cache-dir /tmp/neural_hive_security && \
     pip install --no-cache-dir --force-reinstall /tmp/neural_hive_observability && \
-    cat requirements-service.txt | sed 's|-r ../../requirements-base.txt|-r requirements-base.txt|' > requirements.txt && \
+    pip install --no-cache-dir /tmp/neural_hive_specialists && \
+    sed -e 's|-r ../../requirements-base.txt|-r requirements-base.txt|' \
+        -e '/^-e \.\.\/\.\.\/libraries\//d' \
+        requirements-service.txt > requirements.txt && \
     pip install --no-cache-dir -r requirements.txt && \
     pip install --no-cache-dir --no-deps openai-whisper && \
-    rm -rf /tmp/neural_hive_domain /tmp/neural_hive_security /tmp/neural_hive_observability
+    rm -rf /tmp/neural_hive_domain /tmp/neural_hive_security /tmp/neural_hive_observability /tmp/neural_hive_specialists
 
 # Baixar modelos spaCy para todos os idiomas suportados (pt, en, es)
 RUN --mount=type=cache,target=/root/.cache/pip \

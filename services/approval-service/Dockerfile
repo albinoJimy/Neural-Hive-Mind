@@ -17,9 +17,11 @@ COPY libraries/python/neural_hive_domain /tmp/neural_hive_domain
 COPY libraries/python/neural_hive_specialists /tmp/neural_hive_specialists
 COPY libraries/python/neural_hive_observability /tmp/neural_hive_observability
 
-# Copy requirements and install dependencies
-COPY services/approval-service/requirements.txt .
-RUN pip install --no-cache-dir --user /tmp/neural_hive_domain && \
+# Copy requirements (base + service) and install dependencies
+COPY requirements-base.txt ./requirements-base.txt
+COPY services/approval-service/requirements.txt ./requirements-service.txt
+RUN sed 's|-r ../../requirements-base.txt|-r requirements-base.txt|' requirements-service.txt > requirements.txt && \
+    pip install --no-cache-dir --user /tmp/neural_hive_domain && \
     pip install --no-cache-dir --user /tmp/neural_hive_specialists && \
     pip install --no-cache-dir --user /tmp/neural_hive_observability && \
     pip install --no-cache-dir --user -r requirements.txt && \

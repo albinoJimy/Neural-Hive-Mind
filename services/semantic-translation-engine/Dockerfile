@@ -17,9 +17,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY libraries/python/neural_hive_domain /tmp/neural_hive_domain
 COPY libraries/python/neural_hive_observability /tmp/neural_hive_observability
 
-# Copy requirements and install dependencies
-COPY services/semantic-translation-engine/requirements.txt .
-RUN pip install --no-cache-dir --user /tmp/neural_hive_domain && \
+# Copy requirements (base + service) and install dependencies
+COPY requirements-base.txt ./requirements-base.txt
+COPY services/semantic-translation-engine/requirements.txt ./requirements-service.txt
+RUN sed 's|-r ../../requirements-base.txt|-r requirements-base.txt|' requirements-service.txt > requirements.txt && \
+    pip install --no-cache-dir --user /tmp/neural_hive_domain && \
     pip install --no-cache-dir --user /tmp/neural_hive_observability && \
     pip install --no-cache-dir --user -r requirements.txt && \
     python -m uvicorn --version && \

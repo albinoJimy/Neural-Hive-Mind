@@ -13,11 +13,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Copy libraries needed for requirements.txt
 COPY libraries /libraries
 
-# Copy requirements and install dependencies in virtualenv with system site-packages
-COPY services/scout-agents/requirements.txt .
+# Copy requirements (base + service) and install dependencies in virtualenv with system site-packages
+COPY requirements-base.txt ./requirements-base.txt
+COPY services/scout-agents/requirements.txt ./requirements-service.txt
 RUN python -m venv --system-site-packages /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
-RUN pip install --no-cache-dir --upgrade pip && \
+RUN sed 's|-r ../../requirements-base.txt|-r requirements-base.txt|' requirements-service.txt > requirements.txt && \
+    pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt && \
     pip install --no-cache-dir /libraries/python/neural_hive_resilience/ && \
     pip install --no-cache-dir /libraries/neural_hive_integration/

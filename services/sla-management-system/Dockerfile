@@ -11,9 +11,11 @@ RUN apt-get update && apt-get install -y \
     libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements and install dependencies to user directory
-COPY services/sla-management-system/requirements.txt .
-RUN pip install --no-cache-dir --upgrade pip && \
+# Copy requirements (base + service) and install dependencies to user directory
+COPY requirements-base.txt ./requirements-base.txt
+COPY services/sla-management-system/requirements.txt ./requirements-service.txt
+RUN sed 's|-r ../../requirements-base.txt|-r requirements-base.txt|' requirements-service.txt > requirements.txt && \
+    pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir --user -r requirements.txt
 
 # Stage 2: Runtime - use same base to keep neural_hive_observability

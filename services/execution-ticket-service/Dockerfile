@@ -13,9 +13,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Copiar e instalar dependências Python diretamente no sistema
-COPY services/execution-ticket-service/requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# Copiar requirements (base + service) e instalar dependências Python diretamente no sistema
+COPY requirements-base.txt ./requirements-base.txt
+COPY services/execution-ticket-service/requirements.txt ./requirements-service.txt
+RUN sed 's|-r ../../requirements-base.txt|-r requirements-base.txt|' requirements-service.txt > requirements.txt && \
+    pip install --no-cache-dir -r requirements.txt
 
 # Copiar código fonte
 COPY services/execution-ticket-service/src/ ./src/

@@ -12,9 +12,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libssl-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements and install dependencies into system Python (alongside neural_hive_observability)
-COPY services/memory-layer-api/requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# Copy requirements (base + service) and install dependencies into system Python
+COPY requirements-base.txt ./requirements-base.txt
+COPY services/memory-layer-api/requirements.txt ./requirements-service.txt
+RUN sed 's|-r ../../requirements-base.txt|-r requirements-base.txt|' requirements-service.txt > requirements.txt && \
+    pip install --no-cache-dir -r requirements.txt
 
 # Create non-root user
 RUN useradd -m -u 1000 app

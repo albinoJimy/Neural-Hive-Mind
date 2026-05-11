@@ -7,9 +7,11 @@ WORKDIR /app
 # Copy internal library for installation
 COPY libraries/python/neural_hive_domain /tmp/neural_hive_domain
 
-# Instalar dependências e biblioteca interna
-COPY services/consensus-engine/requirements.txt .
+# Instalar dependências (base + service) e biblioteca interna
+COPY requirements-base.txt ./requirements-base.txt
+COPY services/consensus-engine/requirements.txt ./requirements-service.txt
 RUN --mount=type=cache,target=/root/.cache/pip \
+    sed 's|-r ../../requirements-base.txt|-r requirements-base.txt|' requirements-service.txt > requirements.txt && \
     pip install --no-cache-dir --user /tmp/neural_hive_domain && \
     pip install --no-cache-dir --user -r requirements.txt && \
     python -m uvicorn --version && \
