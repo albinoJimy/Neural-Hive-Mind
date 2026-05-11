@@ -14,9 +14,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
-# Copy requirements and install dependencies to venv
-COPY services/mcp-tool-catalog/requirements.txt .
-RUN pip install --no-cache-dir --upgrade pip && \
+# Copy requirements (base + service) and install dependencies to venv
+COPY requirements-base.txt ./requirements-base.txt
+COPY services/mcp-tool-catalog/requirements.txt ./requirements-service.txt
+RUN sed 's|-r ../../requirements-base.txt|-r requirements-base.txt|' requirements-service.txt > requirements.txt && \
+    pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
 # Copy and install neural_hive_resilience FIRST (dependency of integration)

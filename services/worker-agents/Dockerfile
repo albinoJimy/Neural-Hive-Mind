@@ -16,9 +16,11 @@ WORKDIR /app
 COPY libraries/neural_hive_integration /tmp/neural_hive_integration
 COPY libraries/python/neural_hive_resilience /tmp/neural_hive_resilience
 
-# Copy requirements and install dependencies
-COPY services/worker-agents/requirements.txt .
-RUN pip install --no-cache-dir --user /tmp/neural_hive_resilience && \
+# Copy requirements (base + service) and install dependencies
+COPY requirements-base.txt ./requirements-base.txt
+COPY services/worker-agents/requirements.txt ./requirements-service.txt
+RUN sed 's|-r ../../requirements-base.txt|-r requirements-base.txt|' requirements-service.txt > requirements.txt && \
+    pip install --no-cache-dir --user /tmp/neural_hive_resilience && \
     pip install --no-cache-dir --user /tmp/neural_hive_integration && \
     pip install --no-cache-dir --user -r requirements.txt
 

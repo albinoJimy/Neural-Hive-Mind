@@ -10,11 +10,13 @@ RUN apt-get update && apt-get install -y \
     g++ \
     && rm -rf /var/lib/apt/lists/*
 
-# Copiar requirements
-COPY services/explainability-api/requirements.txt .
+# Copiar requirements (base + service)
+COPY requirements-base.txt ./requirements-base.txt
+COPY services/explainability-api/requirements.txt ./requirements-service.txt
 
-# Instalar dependências Python (filtrando as já presentes na base image)
-RUN grep -vE "neural_hive_observability|opentelemetry-|prometheus-client|structlog|pydantic" requirements.txt > requirements-filtered.txt && \
+# Instalar dependências Python (resolvendo path base e filtrando as já presentes na base image)
+RUN sed 's|-r ../../requirements-base.txt|-r requirements-base.txt|' requirements-service.txt > requirements.txt && \
+    grep -vE "neural_hive_observability|opentelemetry-|prometheus-client|structlog|pydantic" requirements.txt > requirements-filtered.txt && \
     pip install --no-cache-dir --user -r requirements-filtered.txt
 
 # Stage 2: Runtime (herda da base de observabilidade com todos os pacotes)
