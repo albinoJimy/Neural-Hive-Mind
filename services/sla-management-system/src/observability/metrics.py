@@ -18,6 +18,9 @@ class SLAMetrics:
         return cls._instance
 
     def __init__(self):
+        if getattr(self, "_initialized", False):
+            return
+        self._initialized = True
         # Cálculos de Budget
         self.calculations_total = Counter(
             "sla_calculations_total",
@@ -53,88 +56,6 @@ class SLAMetrics:
 
         self.burn_rate = Gauge(
             "sla_burn_rate", "Taxa de consumo do budget", ["slo_id", "service_name", "window_hours"]
-        )
-
-        # SLA Alerts Metrics
-        self.sla_alerts_received_total = Counter(
-            "sla_alerts_received_total",
-            "Total de alertas SLA recebidos",
-            ["severity", "topic", "slo_id", "service_name"],
-        )
-
-        self.sla_notifications_sent_total = Counter(
-            "sla_notifications_sent_total",
-            "Total de notificações SLA enviadas",
-            ["channel", "severity", "slo_id", "service_name"],
-        )
-
-        self.sla_notification_failures_total = Counter(
-            "sla_notification_failures_total",
-            "Total de falhas ao enviar notificações",
-            ["channel", "error_type", "slo_id", "service_name"],
-        )
-
-        self.sla_notification_latency_seconds = Histogram(
-            "sla_notification_latency_seconds",
-            "Latência do envio de notificações",
-            ["channel", "slo_id", "service_name"],
-            buckets=[0.1, 0.5, 1.0, 2.0, 5.0, 10.0, 30.0, 60.0],
-        )
-
-        self.calculation_duration = Histogram(
-            "sla_calculation_duration_seconds",
-            "Duração dos cálculos de budget",
-            ["slo_id", "service_name"],
-            buckets=[0.1, 0.5, 1, 2, 5, 10],
-        )
-
-        # Error Budgets
-        self.budget_remaining = Gauge(
-            "sla_budget_remaining_percent",
-            "Percentual de budget restante",
-            ["slo_id", "service_name", "slo_type"],
-        )
-
-        self.budget_consumed = Gauge(
-            "sla_budget_consumed_percent",
-            "Percentual de budget consumido",
-            ["slo_id", "service_name", "slo_type"],
-        )
-
-        self.budget_status = Gauge(
-            "sla_budget_status",
-            "Status do budget (0=HEALTHY, 1=WARNING, 2=CRITICAL, 3=EXHAUSTED)",
-            ["slo_id", "service_name"],
-        )
-
-        self.burn_rate = Gauge(
-            "sla_burn_rate", "Taxa de consumo do budget", ["slo_id", "service_name", "window_hours"]
-        )
-
-        # SLA Alerts Metrics
-        self.sla_alerts_received_total = Counter(
-            "sla_alerts_received_total",
-            "Total de alertas SLA recebidos",
-            ["severity", "topic", "slo_id", "service_name"],
-        )
-
-        self.sla_notifications_sent_total = Counter(
-            "sla_notifications_sent_total",
-            "Total de notificações SLA enviadas",
-            ["channel", "severity", "slo_id", "service_name"],
-        )
-
-        self.sla_notification_failures_total = Counter(
-            "sla_notification_failures_total",
-            "Total de falhas ao enviar notificações",
-            ["channel", "error_type", "slo_id", "service_name"],
-        )
-
-        self.sla_notification_latency_seconds = Histogram(
-            "sla_notification_latency_seconds",
-            "Latência do envio de notificações",
-            ["channel", "slo_id", "service_name"],
-            buckets=[0.1, 0.5, 1.0, 2.0, 5.0, 10.0, 30.0, 60.0],
         )
 
         # SLA Alerts Metrics
