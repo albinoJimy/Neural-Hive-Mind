@@ -115,8 +115,8 @@ fi
 
 # ClickHouse (opcional para Fase 1)
 log_info "Checking ClickHouse cluster (opcional)..."
-if kubectl get statefulset -n clickhouse-cluster &> /dev/null; then
-    READY=$(kubectl get statefulset -n clickhouse-cluster -o jsonpath='{.items[0].status.readyReplicas}' 2>/dev/null || echo "0")
+if kubectl get statefulset -n clickhouse &> /dev/null; then
+    READY=$(kubectl get statefulset -n clickhouse -o jsonpath='{.items[0].status.readyReplicas}' 2>/dev/null || echo "0")
     READY=${READY:-0}
     if [ "$READY" -gt 0 ]; then
         track_check 0

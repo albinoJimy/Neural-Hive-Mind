@@ -33,7 +33,7 @@ echo -e "${BLUE}=== FASE 1: Infraestrutura ===${NC}"
 echo ""
 
 echo "1.1 Verificando camadas de memória..."
-for component in redis-cluster mongodb-cluster neo4j-cluster clickhouse-cluster; do
+for component in redis-cluster mongodb-cluster neo4j-cluster clickhouse; do
     if kubectl get statefulset -n ${component} &> /dev/null || kubectl get deployment -n ${component} &> /dev/null; then
         test_result 0 "${component} deployado"
     else
