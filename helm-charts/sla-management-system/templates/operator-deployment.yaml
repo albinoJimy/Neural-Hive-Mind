@@ -48,6 +48,7 @@ spec:
         - run
         - /app/src/operator/main.py
         - --verbose
+        - --liveness=http://0.0.0.0:8080/healthz
         {{- if .Values.operator.watchNamespaces }}
         - --namespace
         - {{ .Values.operator.watchNamespaces | join "," }}
