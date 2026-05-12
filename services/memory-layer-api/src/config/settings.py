@@ -76,7 +76,7 @@ class Settings(BaseSettings):
 
     # Kafka (Real-time Sync)
     kafka_bootstrap_servers: str = Field(
-        default="kafka-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092",
+        default="neural-hive-kafka-kafka-bootstrap.kafka.svc.cluster.local:9092",
         description="Kafka bootstrap servers",
     )
     kafka_sync_topic: str = Field(

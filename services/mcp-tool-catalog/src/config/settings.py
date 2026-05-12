@@ -29,7 +29,7 @@ class Settings(BaseSettings):
 
     # Kafka Configuration
     KAFKA_BOOTSTRAP_SERVERS: str = Field(
-        default="kafka-cluster-kafka-bootstrap:9092", description="Kafka bootstrap servers"
+        default="neural-hive-kafka-kafka-bootstrap:9092", description="Kafka bootstrap servers"
     )
     KAFKA_TOOL_SELECTION_REQUEST_TOPIC: str = "mcp.tool.selection.requests"
     KAFKA_TOOL_SELECTION_RESPONSE_TOPIC: str = "mcp.tool.selection.responses"
