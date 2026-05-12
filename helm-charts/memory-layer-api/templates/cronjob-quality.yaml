@@ -57,6 +57,26 @@ spec:
               value: {{ .Values.config.mongodb.database | quote }}
             - name: MONGODB_QUALITY_COLLECTION
               value: {{ .Values.config.mongodb.qualityCollection | quote }}
+            - name: NEO4J_URI
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "memory-layer-api.fullname" . }}-config
+                  key: neo4j_uri
+            - name: NEO4J_USER
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "memory-layer-api.fullname" . }}-config
+                  key: neo4j_user
+            - name: NEO4J_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "memory-layer-api.fullname" . }}-secrets
+                  key: neo4j_password
+            - name: NEO4J_DATABASE
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "memory-layer-api.fullname" . }}-config
+                  key: neo4j_database
             - name: OTEL_ENDPOINT
               value: {{ .Values.config.otel.endpoint | quote }}
             {{- with .Values.securityContext }}
