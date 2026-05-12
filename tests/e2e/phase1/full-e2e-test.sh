@@ -132,7 +132,7 @@ log_info "1.1 Verificando camadas de memória..."
 
 MEMORY_LAYERS_OK=0
 MEMORY_LAYERS_TOTAL=0
-for component in redis-cluster mongodb-cluster neo4j-cluster clickhouse-cluster; do
+for component in redis-cluster mongodb-cluster neo4j-cluster clickhouse; do
   MEMORY_LAYERS_TOTAL=$((MEMORY_LAYERS_TOTAL + 1))
   if kubectl get statefulset -n ${component} &> /dev/null; then
     log_success "${component} deployado"
@@ -140,7 +140,7 @@ for component in redis-cluster mongodb-cluster neo4j-cluster clickhouse-cluster;
     MEMORY_LAYERS_OK=$((MEMORY_LAYERS_OK + 1))
   else
     # ClickHouse é opcional para Fase 1
-    if [ "$component" = "clickhouse-cluster" ]; then
+    if [ "$component" = "clickhouse" ]; then
       log_warning "${component} NÃO deployado [OPCIONAL - não bloqueante]"
       add_test_result "Infrastructure" "warning" "${component} NOT deployed (optional)"
       # Conta como OK para não bloquear
