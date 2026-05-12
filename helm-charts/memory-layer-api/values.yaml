@@ -170,7 +170,7 @@ config:
 
   # ClickHouse (Histórico)
   clickhouse:
-    host: "clickhouse-http.clickhouse-cluster.svc.cluster.local"
+    host: "clickhouse.clickhouse.svc.cluster.local"
     port: 8123
     user: "default"
     database: "neural_hive"
@@ -207,7 +207,7 @@ config:
 
   # Kafka (Real-time Sync)
   kafka:
-    bootstrapServers: "kafka-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092"
+    bootstrapServers: "neural-hive-kafka-kafka-bootstrap.kafka.svc.cluster.local:9092"
     syncTopic: "memory.sync.events"
     dlqTopic: "memory.sync.events.dlq"
     consumerGroup: "memory-sync-consumer"
@@ -290,7 +290,7 @@ networkPolicy:
     - to:
         - namespaceSelector:
             matchLabels:
-              name: clickhouse-cluster
+              name: clickhouse
       ports:
         - protocol: TCP
           port: 8123

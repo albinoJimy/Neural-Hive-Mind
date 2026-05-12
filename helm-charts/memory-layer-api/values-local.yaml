@@ -76,7 +76,7 @@ config:
 
   # ClickHouse configuration
   clickhouse:
-    host: clickhouse-http.clickhouse-cluster.svc.cluster.local
+    host: clickhouse.clickhouse.svc.cluster.local
     port: 8123
     user: default
     database: memory
