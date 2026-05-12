@@ -1,6 +1,7 @@
 """ML Inference API - API de Inferência de Modelos ML."""
 
 import asyncio
+import os
 import signal
 
 import structlog
@@ -86,11 +87,14 @@ async def main():
     """Ponto de entrada principal."""
     global inference_service, kafka_consumer, kafka_producer, consumer_task
 
+    cache_ttl = int(os.getenv("CACHE_TTL_SECONDS", "3600"))
+    redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+    kafka_bootstrap = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
+
     # Inicializar serviço de inferência
-    inference_service = InferenceService(cache_ttl_seconds=3600)
+    inference_service = InferenceService(cache_ttl_seconds=cache_ttl)
 
     # Conectar ao Redis se disponível
-    redis_url = "redis://localhost:6379/0"
     try:
         await inference_service.connect_redis(redis_url)
     except Exception as e:
@@ -100,12 +104,14 @@ async def main():
     app = create_app(inference_service)
 
     # Inicializar producer Kafka
-    kafka_producer = InferenceResultProducer()
+    kafka_producer = InferenceResultProducer(bootstrap_servers=kafka_bootstrap)
     await kafka_producer.start()
 
     # Inicializar consumer Kafka
     kafka_consumer = InferenceRequestConsumer(
-        inference_service=inference_service, producer=kafka_producer
+        bootstrap_servers=kafka_bootstrap,
+        inference_service=inference_service,
+        producer=kafka_producer,
     )
 
     # Setup signal handlers

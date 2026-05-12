@@ -1,18 +1,6 @@
-# Requirements para ML Inference API
+# Dependências base consolidadas para Neural-Hive-Mind
+-r ../../requirements-base.txt
 
-# Web Framework
-fastapi==0.109.0
-uvicorn[standard]==0.24.0
-
-# Kafka
-aiokafka==0.9.0
-
-# Redis
-redis[hiredis]==5.0.1
-
-# Observability
-structlog==23.2.0
-neural-hive-observability==1.0.0
-
-# Pydantic
-pydantic==2.6.0
+# Service-specific dependencies
+# (todas as deps actuais — FastAPI, uvicorn, aiokafka, redis, structlog, pydantic —
+#  já estão no requirements-base.txt com versões alinhadas ao padrão da plataforma)
