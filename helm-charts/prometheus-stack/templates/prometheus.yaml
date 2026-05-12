@@ -249,16 +249,13 @@ data:
         target_label: service_name
 
     # Kafka Cluster
-    - job_name: 'kafka-cluster'
-      static_configs:
-      - targets:
-        - 'kafka-0.kafka.svc.cluster.local:9308'
-        - 'kafka-1.kafka.svc.cluster.local:9308'
-        - 'kafka-2.kafka.svc.cluster.local:9308'
-      scrape_interval: 30s
-      static_labels:
-        neural_hive_component: kafka
-        neural_hive_layer: orquestracao
+    # NOTE: Removed dead scrape job — targets `kafka-{0,1,2}.kafka.svc.cluster.local:9308`
+    # nunca existiram. Strimzi cluster real é `neural-hive-kafka-broker-0/2` (KafkaNodePool
+    # broker [0,2] + controller [1,3,4]) e não tem JMX-Prometheus exporter configurado
+    # (Kafka CR sem `metricsConfig`). Para activar métricas Kafka no futuro:
+    #   1. Criar ConfigMap kafka-metrics com regras JMX
+    #   2. Patch Kafka CR + KafkaNodePools com `metricsConfig.valueFrom.configMapKeyRef`
+    #   3. Criar PodMonitor apontando para porta 9404 (Strimzi expõe automaticamente)
 
     # Kubernetes API Server
     - job_name: 'kubernetes-apiservers'
