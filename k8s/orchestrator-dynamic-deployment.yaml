@@ -136,9 +136,12 @@ spec:
         prometheus.io/path: "/metrics"
     spec:
       # Init container para instalar neural_hive_context
+      # NOTA: imagem alinhada com main container (Python 3.11). Usa não-slim porque
+      # pip install git+... requer git no PATH; wheels com extensões nativas (pydantic_core)
+      # têm que corresponder à versão do interpretador do runtime.
       initContainers:
       - name: install-neural-hive-context
-        image: python:3.12-slim
+        image: python:3.11
         command:
           - sh
           - -c
@@ -162,7 +165,7 @@ spec:
         env:
         # PYTHONPATH para encontrar neural_hive_context
         - name: PYTHONPATH
-          value: "/app/libs:/usr/local/lib/python3.12/site-packages"
+          value: "/app/libs:/usr/local/lib/python3.11/site-packages"
         envFrom:
         - configMapRef:
             name: orchestrator-config
@@ -172,7 +175,7 @@ spec:
             name: orchestrator-secrets
         resources:
           requests:
-            memory: "256Mi"
+            memory: "350Mi"
             cpu: "200m"
           limits:
             memory: "512Mi"
