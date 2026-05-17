@@ -177,16 +177,18 @@ spec:
           limits:
             memory: "512Mi"
             cpu: "500m"
+        # Probes em 8000 — Uvicorn serve toda a app (/health, /ready, /metrics) no
+        # mesmo port. O 8003 declarado em ports era apenas histórico.
         livenessProbe:
           httpGet:
             path: /health
-            port: 8003
+            port: 8000
           initialDelaySeconds: 30
           periodSeconds: 30
         readinessProbe:
           httpGet:
             path: /ready
-            port: 8003
+            port: 8000
           initialDelaySeconds: 20
           periodSeconds: 10
         volumeMounts:
