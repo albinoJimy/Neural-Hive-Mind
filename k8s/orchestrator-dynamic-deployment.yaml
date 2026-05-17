@@ -156,7 +156,7 @@ spec:
             name: orchestrator-secrets
         resources:
           requests:
-            memory: "256Mi"
+            memory: "350Mi"
             cpu: "200m"
           limits:
             memory: "512Mi"
