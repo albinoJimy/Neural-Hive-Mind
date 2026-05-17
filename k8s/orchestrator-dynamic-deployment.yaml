@@ -38,6 +38,17 @@ data:
   TEMPORAL_NAMESPACE: "default"
   TEMPORAL_TASK_QUEUE: "neural-hive-task-queue"
 
+  # PostgreSQL (Temporal state store) — settings.py linhas 126-132
+  POSTGRES_HOST: "temporal-postgresql.temporal.svc.cluster.local"
+  POSTGRES_PORT: "5432"
+  POSTGRES_DATABASE: "temporal"
+  POSTGRES_USER: "temporal"
+  POSTGRES_SSL_MODE: "disable"
+
+  # Redis Cluster (cache) — settings.py linhas 149-153
+  REDIS_CLUSTER_NODES: "redis-cluster-lb.redis-cluster.svc.cluster.local:6379"
+  REDIS_SSL_ENABLED: "false"
+
   # Context Layer Settings
   ORCHESTRATOR_ENABLE_DYNAMIC_ROUTING: "true"
   ORCHESTRATOR_WORKFLOW_CLASSIFIER_TYPE: "multi_signal"
@@ -94,6 +105,11 @@ stringData:
   MONGODB_PASSWORD: "local_dev_password"
   TEMPORAL_CLIENT_CERT: ""
   TEMPORAL_PRIVATE_KEY: ""
+  # Passwords copiados dos secrets já existentes no cluster (dev defaults).
+  # Produção: substituir por ExternalSecrets/SealedSecrets apontando para
+  # temporal/temporal-default-store e neural-hive/redis-password.
+  POSTGRES_PASSWORD: "temporal"
+  REDIS_PASSWORD: "nhm_redis_2026"
 ---
 apiVersion: apps/v1
 kind: Deployment
