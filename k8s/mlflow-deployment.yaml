@@ -27,6 +27,10 @@ spec:
     metadata:
       labels:
         app: mlflow
+        # Gatekeeper constraint `must-have-app-label-all` exige ambas as
+        # labels `app` e `app.kubernetes.io/name` em todos os namespaces
+        # não-excluídos. Sem isto, o admission webhook recusa o pod.
+        app.kubernetes.io/name: mlflow
     spec:
       securityContext:
         runAsNonRoot: true
@@ -49,17 +53,30 @@ spec:
             secretKeyRef:
               name: mlflow-postgres-secret
               key: password
+        # mlflow:v2.9.2 não inclui o driver psycopg2 que o backend-store
+        # postgresql:// requer. Instalamos no boot para /tmp/lib (writable
+        # pelo UID 1000 não-root) e injectamos via PYTHONPATH.
+        #
+        # Workers reduzidos para 2 — historicamente o default (4) causou
+        # contenção/deadlock quando o backend ainda era SQLite; com Postgres
+        # 2 workers são suficientes para a carga típica.
+        #
+        # gunicorn timeout 120s (vs default 30s) — o boot do mlflow pode
+        # demorar >30s na primeira request (carrega routes, prepara DB pool),
+        # o que originava SIGKILL dos workers e CrashLoopBackOff repetido.
         command:
-        - mlflow
-        - server
-        - --host
-        - "0.0.0.0"
-        - --port
-        - "5000"
-        - --backend-store-uri
-        - "postgresql://mlflow:$(POSTGRES_PASSWORD)@mlflow-postgresql:5432/mlflow"
-        - --default-artifact-root
-        - "/mlflow/artifacts"
+        - sh
+        - -c
+        - >-
+          pip install --quiet --target=/tmp/lib psycopg2-binary
+          && PYTHONPATH=/tmp/lib:$PYTHONPATH exec
+          mlflow server
+          --host 0.0.0.0
+          --port 5000
+          --backend-store-uri postgresql://mlflow:${POSTGRES_PASSWORD}@mlflow-postgresql:5432/mlflow
+          --default-artifact-root /mlflow/artifacts
+          --workers 2
+          --gunicorn-opts "--timeout 120 --graceful-timeout 60"
         volumeMounts:
         - name: mlflow-data
           mountPath: /mlflow
