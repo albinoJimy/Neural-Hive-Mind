@@ -1,0 +1,32 @@
+# MongoDB Bitnami chart values override
+#
+# Contexto:
+# O release `mongodb` no namespace `mongodb-cluster` usa o chart
+# upstream `bitnami/mongodb` (não este chart local do repo, que
+# define um operator-based ReplicaSet alternativo).
+#
+# Aplicar com:
+#   helm upgrade mongodb oci://registry-1.docker.io/bitnamicharts/mongodb \
+#     -n mongodb-cluster --reuse-values -f values-bitnami-override.yaml
+#
+# Motivação (incidente 2026-05-18):
+# O readinessProbe padrão do Bitnami invoca `/bitnami/scripts/readiness-probe.sh`
+# que arranca `mongosh` (Node.js). O cold-start do mongosh demora ~25s,
+# mas o probe timeout=5s mata o processo com SIGKILL antes de completar
+# o handshake — deixando processos zombie e o pod permanentemente
+# `ready=false`, com 0 endpoints no service. Cascata:
+# consensus-engine, queen-agent e orchestrator-dynamic falhavam o
+# startup com "connection refused" ao mongodb.mongodb-cluster.svc.
+#
+# Substituímos por tcpSocket check directo ao port 27017 (instant).
+
+customReadinessProbe:
+  tcpSocket:
+    port: mongodb
+  initialDelaySeconds: 10
+  periodSeconds: 20
+  timeoutSeconds: 10
+  failureThreshold: 6
+  successThreshold: 1
+
+# Liveness mantém o script Bitnami (timeout 30s já suficiente).
