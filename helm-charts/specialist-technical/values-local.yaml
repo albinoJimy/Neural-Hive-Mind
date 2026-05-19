@@ -14,7 +14,6 @@ image:
   repository: ghcr.io/albinojimy/neural-hive-mind/specialist-technical
   tag: latest
   pullPolicy: Always
-  pullPolicy: Always
 # Reduced resources for local development (~50% of production)
 resources:
   requests:
