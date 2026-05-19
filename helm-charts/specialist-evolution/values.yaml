@@ -2,6 +2,13 @@
 component: "specialist-evolution"
 layer: "cognitiva"
 
+# Gatekeeper constraint `must-have-app-label-all` exige a label simples
+# `app` no pod template (além de `app.kubernetes.io/name` já incluído via
+# selectorLabels). Sem isto, novas réplicas falham admission webhook com:
+#   [must-have-app-label-all] missing required label
+podLabels:
+  app: specialist-evolution
+
 replicaCount: 2
 
 autoscaling:
