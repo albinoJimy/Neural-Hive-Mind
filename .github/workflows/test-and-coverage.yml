@@ -425,6 +425,11 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install pytest pytest-cov pydantic pydantic-settings
+          # tests/conftest.py importa neural_hive_observability, que
+          # depende de opentelemetry. Sem isto, pytest collection falha
+          # com ImportError antes mesmo de o test_config_validation correr.
+          pip install -e ${{ github.workspace }}/libraries/python/neural_hive_observability
+          pip install opentelemetry-api opentelemetry-sdk structlog
 
       - name: Run config validation tests
         working-directory: services/${{ matrix.service }}
