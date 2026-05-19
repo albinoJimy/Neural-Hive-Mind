@@ -39,7 +39,7 @@ spec:
 
           containers:
           - name: ml-retrainer
-            image: 37.60.241.150:30500/approval-service:latest
+            image: ghcr.io/albinojimy/neural-hive-mind/approval-service:05ca2b2
             imagePullPolicy: Always
             command:
             - python
