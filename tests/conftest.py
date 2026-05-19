@@ -8,9 +8,19 @@ Updated: 2026-03-30 (Epic F1: Infraestrutura de Testes)
 """
 
 import logging
+import sys
+from pathlib import Path
 from typing import Generator
 
 import pytest
+
+# Injectar a raiz do repo em sys.path para que ml_pipelines.* e outros
+# packages no top-level sejam importáveis nos testes sem necessitar pip
+# install -e. Resolve ModuleNotFoundError: ml_pipelines.deployment.*
+# em tests/unit/ml_pipelines/deployment/test_model_promotion.py
+_REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
 
 # Configure logging for all tests
 logging.basicConfig(
