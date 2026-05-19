@@ -61,6 +61,61 @@ curl http://registry.neural-hive.local:5000/metrics
 ./scripts/deploy-registry-ha.sh rollback
 ```
 
+## Modo pull-through proxy (cache ghcr.io)
+
+Para mitigar instabilidade de rede com ghcr.io no node vmi3306611
+(packet loss intermitente no backbone Contabo, DNS lento ~2s), o
+registry pode ser reconfigurado como pull-through cache. Pulls são
+servidos da rede interna (NodePort 30500 no master), eliminando
+travessia de backbone externo para imagens já cacheadas.
+
+**Trade-off:** em modo proxy, o registry deixa de aceitar push.
+Confirmar que nenhum pipeline faz push para `37.60.241.150:30500`
+antes de activar.
+
+### Activar server-side
+
+```bash
+helm upgrade registry helm-charts/docker-registry \
+  -n registry \
+  -f helm-charts/docker-registry/values-pullthrough-ghcr.yaml
+```
+
+### Configurar containerd (em CADA nó)
+
+Criar `/etc/containerd/certs.d/ghcr.io/hosts.toml`:
+
+```toml
+server = "https://ghcr.io"
+
+[host."http://37.60.241.150:30500"]
+  capabilities = ["pull", "resolve"]
+```
+
+E garantir que `/etc/containerd/config.toml` tem:
+
+```toml
+[plugins."io.containerd.grpc.v1.cri".registry]
+  config_path = "/etc/containerd/certs.d"
+```
+
+Recarregar containerd (não restart hard, evita matar pods):
+
+```bash
+systemctl reload containerd  # ou kill -SIGHUP $(pidof containerd)
+```
+
+### Validar
+
+```bash
+# A partir de um pod no cluster
+crictl pull ghcr.io/albinojimy/neural-hive-mind/approval-service:05ca2b2
+
+# No master, ver cache populado
+curl http://localhost:30500/v2/_catalog
+# Deve listar albinojimy/neural-hive-mind/approval-service
+```
+
 ## Troubleshooting
 
 ### Registry indisponível
