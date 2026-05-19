@@ -38,6 +38,11 @@ rules:
   empty-lines:
     level: warning
 
+  # Newline obrigatório no fim de ficheiro — warning (vários ficheiros
+  # antigos sem newline final, não worth bloquear CI por isto).
+  new-line-at-end-of-file:
+    level: warning
+
 ignore: |
   # Charts fetched ficam aqui via helm dependency build — não nossos.
   helm-charts/*/charts/
