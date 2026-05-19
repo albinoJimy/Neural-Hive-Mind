@@ -112,7 +112,8 @@ spec:
               mountPath: /etc/docker
         # GitHub Actions Runner
         - name: runner
-          image: myoung34/github-runner:latest
+          # Pinado (CI block on :latest). github-runner stable: 2.319.1
+          image: myoung34/github-runner:2.319.1-ubuntu-jammy
           env:
             - name: REPO_URL
               valueFrom:

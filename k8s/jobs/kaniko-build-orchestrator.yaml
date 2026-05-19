@@ -41,7 +41,8 @@ spec:
       restartPolicy: Never
       containers:
         - name: kaniko
-          image: gcr.io/kaniko-project/executor:latest
+          # Pinado (CI block on :latest). Kaniko stable: v1.21.0
+          image: gcr.io/kaniko-project/executor:v1.21.0
           args:
             - "--dockerfile=services/orchestrator-dynamic/Dockerfile"
             - "--context=dir:///context"

@@ -153,7 +153,8 @@ spec:
           mountPath: /app/libs
       containers:
       - name: orchestrator-dynamic
-        image: ghcr.io/albinojimy/neural-hive-mind/orchestrator-dynamic:latest
+        # Pinado (CI block on :latest). Sincronizar com a versão deployed.
+        image: ghcr.io/albinojimy/neural-hive-mind/orchestrator-dynamic:a0fac05
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 8003
