@@ -34,8 +34,11 @@ provider "aws" {
 
 # Provider Kubernetes - configurado após criação do cluster
 provider "kubernetes" {
-  host                   = module.k8s-cluster.cluster_endpoint
-  cluster_ca_certificate = base64decode(module.k8s-cluster.cluster_ca_certificate)
+  host = module.k8s-cluster.cluster_endpoint
+  # Output real do módulo k8s-cluster é "cluster_certificate_authority"
+  # (ver modules/k8s-cluster/outputs.tf:8); nome anterior causava
+  # "Reference to undeclared attribute" em terraform validate.
+  cluster_ca_certificate = base64decode(module.k8s-cluster.cluster_certificate_authority)
 
   exec {
     api_version = "client.authentication.k8s.io/v1beta1"
@@ -54,8 +57,11 @@ provider "kubernetes" {
 # Provider Helm - configurado após criação do cluster
 provider "helm" {
   kubernetes {
-    host                   = module.k8s-cluster.cluster_endpoint
-    cluster_ca_certificate = base64decode(module.k8s-cluster.cluster_ca_certificate)
+    host = module.k8s-cluster.cluster_endpoint
+    # Output real do módulo k8s-cluster é "cluster_certificate_authority"
+    # (ver modules/k8s-cluster/outputs.tf:8); nome anterior causava
+    # "Reference to undeclared attribute" em terraform validate.
+    cluster_ca_certificate = base64decode(module.k8s-cluster.cluster_certificate_authority)
 
     exec {
       api_version = "client.authentication.k8s.io/v1beta1"

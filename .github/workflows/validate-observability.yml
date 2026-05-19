@@ -1,5 +1,11 @@
 name: Validate Observability Stack
 
+# Permissions necessárias para o step "Generate Validation Report" que cria
+# comment no PR via github.rest.issues.createComment (precisa pull-requests:write).
+permissions:
+  contents: read
+  pull-requests: write
+
 on:
   pull_request:
     paths:
@@ -170,9 +176,12 @@ jobs:
       uses: actions/checkout@v4
 
     - name: Setup Prometheus
+      # URL releases/latest/download/prometheus-linux-amd64.tar.gz NÃO existe;
+      # o asset real é prometheus-${VERSION}.linux-amd64.tar.gz. Resolver via API.
       run: |
-        wget -O promtool https://github.com/prometheus/prometheus/releases/latest/download/prometheus-linux-amd64.tar.gz
-        tar -xzf prometheus-linux-amd64.tar.gz --strip-components=1 prometheus-*/promtool
+        PROM_VERSION=$(curl -s https://api.github.com/repos/prometheus/prometheus/releases/latest | grep tag_name | cut -d'"' -f4 | sed 's/^v//')
+        wget -O prometheus.tar.gz "https://github.com/prometheus/prometheus/releases/download/v${PROM_VERSION}/prometheus-${PROM_VERSION}.linux-amd64.tar.gz"
+        tar -xzf prometheus.tar.gz --strip-components=1 "prometheus-${PROM_VERSION}.linux-amd64/promtool"
         chmod +x promtool
         sudo mv promtool /usr/local/bin/
 

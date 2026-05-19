@@ -291,3 +291,17 @@ variable "aws_region" {
   type        = string
   default     = "us-east-1"
 }
+# Variáveis referenciadas pelo módulo vault-ha em main.tf (linhas 130,138)
+# mas declaração estava em falta — terraform validate falhava com
+# "Reference to undeclared input variable".
+variable "aws_account_id" {
+  description = "AWS Account ID (necessário para policies IAM no Vault HA)"
+  type        = string
+  default     = ""
+}
+
+variable "enable_vault_audit_logs" {
+  description = "Habilita logs de auditoria do Vault para bucket S3"
+  type        = bool
+  default     = true
+}

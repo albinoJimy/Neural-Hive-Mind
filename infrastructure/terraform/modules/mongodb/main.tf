@@ -20,38 +20,38 @@ resource "mongodbatlas_project" "this" {
 # -----------------------------------------------------------------------------
 
 resource "mongodbatlas_network_peering" "east" {
-  project_id    = mongodbatlas_project.this.id
+  project_id       = mongodbatlas_project.this.id
   atlas_cidr_block = "192.168.0.0/24"
 
   provider_name = "AWS"
   region        = "US_EAST_1"
 
   # VPC peering connection com AWS
-  aws_account_id    = var.aws_account_id
-  vpc_id            = var.vpc_ids["us-east-1"]
-  route_table_cidr  = var.vpc_cidrs["us-east-1"]
+  aws_account_id   = var.aws_account_id
+  vpc_id           = var.vpc_ids["us-east-1"]
+  route_table_cidr = var.vpc_cidrs["us-east-1"]
 }
 
 resource "mongodbatlas_network_peering" "west" {
-  project_id    = mongodbatlas_project.this.id
+  project_id = mongodbatlas_project.this.id
 
   provider_name = "AWS"
   region        = "US_WEST_2"
 
-  aws_account_id    = var.aws_account_id
-  vpc_id            = var.vpc_ids["us-west-2"]
-  route_table_cidr  = var.vpc_cidrs["us-west-2"]
+  aws_account_id   = var.aws_account_id
+  vpc_id           = var.vpc_ids["us-west-2"]
+  route_table_cidr = var.vpc_cidrs["us-west-2"]
 }
 
 resource "mongodbatlas_network_peering" "eu" {
-  project_id    = mongodbatlas_project.this.id
+  project_id = mongodbatlas_project.this.id
 
   provider_name = "AWS"
   region        = "EU_WEST_1"
 
-  aws_account_id    = var.aws_account_id
-  vpc_id            = var.vpc_ids["eu-west-1"]
-  route_table_cidr  = var.vpc_cidrs["eu-west-1"]
+  aws_account_id   = var.aws_account_id
+  vpc_id           = var.vpc_ids["eu-west-1"]
+  route_table_cidr = var.vpc_cidrs["eu-west-1"]
 }
 
 # -----------------------------------------------------------------------------
@@ -59,8 +59,8 @@ resource "mongodbatlas_network_peering" "eu" {
 # -----------------------------------------------------------------------------
 
 resource "mongodbatlas_advanced_cluster" "this" {
-  project_id   = mongodbatlas_project.this.id
-  name         = var.cluster_name
+  project_id = mongodbatlas_project.this.id
+  name       = var.cluster_name
 
   # Cluster Type
   cluster_type = "REPLICASET"
@@ -70,13 +70,13 @@ resource "mongodbatlas_advanced_cluster" "this" {
 
   # Bi-Connector
   bi_connector = var.enable_bi_connector ? {
-    enabled = var.enable_bi_connector
+    enabled         = var.enable_bi_connector
     read_preference = "secondary"
   } : null
 
   # Connector Configuration
   connector_config = var.enable_connector ? {
-    enabled               = var.enable_connector
+    enabled              = var.enable_connector
     connector_docker_img = var.connector_docker_image
   } : null
 
@@ -85,9 +85,9 @@ resource "mongodbatlas_advanced_cluster" "this" {
 
   # Replication Specs (Multi-region configuration)
   replication_specs {
-    region_name             = "US_EAST_1"
-    num_shards              = var.num_shards
-    zone_name               = "Zone 1"
+    region_name = "US_EAST_1"
+    num_shards  = var.num_shards
+    zone_name   = "Zone 1"
 
     # Advanced configuration for US East
     auto_merging = {
@@ -115,16 +115,16 @@ resource "mongodbatlas_advanced_cluster" "this" {
         node_count    = 3
       }
 
-      priority      = var.members[0].priority
-      votes         = var.members[0].votes
-      read_only     = var.members[0].read_only != null ? var.members[0].read_only : false
+      priority  = var.members[0].priority
+      votes     = var.members[0].votes
+      read_only = var.members[0].read_only != null ? var.members[0].read_only : false
     }
   }
 
   replication_specs {
-    region_name             = "US_WEST_2"
-    num_shards              = var.num_shards
-    zone_name               = "Zone 2"
+    region_name = "US_WEST_2"
+    num_shards  = var.num_shards
+    zone_name   = "Zone 2"
 
     # Read preference
     read_prefs = [
@@ -140,16 +140,16 @@ resource "mongodbatlas_advanced_cluster" "this" {
         node_count    = 3
       }
 
-      priority      = var.members[1].priority
-      votes         = var.members[1].votes
-      read_only     = var.members[1].read_only != null ? var.members[1].read_only : false
+      priority  = var.members[1].priority
+      votes     = var.members[1].votes
+      read_only = var.members[1].read_only != null ? var.members[1].read_only : false
     }
   }
 
   replication_specs {
-    region_name             = "EU_WEST_1"
-    num_shards              = var.num_shards
-    zone_name               = "Zone 3"
+    region_name = "EU_WEST_1"
+    num_shards  = var.num_shards
+    zone_name   = "Zone 3"
 
     # Read preference
     read_prefs = [
@@ -165,9 +165,9 @@ resource "mongodbatlas_advanced_cluster" "this" {
         node_count    = 3
       }
 
-      priority      = var.members[2].priority
-      votes         = var.members[2].votes
-      read_only     = var.members[2].read_only != null ? var.members[2].read_only : false
+      priority  = var.members[2].priority
+      votes     = var.members[2].votes
+      read_only = var.members[2].read_only != null ? var.members[2].read_only : false
     }
   }
 
@@ -177,10 +177,10 @@ resource "mongodbatlas_advanced_cluster" "this" {
   # Auto-scaling
   auto_scaling = var.autoscale != null ? {
     compute = {
-      enabled          = var.autoscale.compute_enabled != null ? var.autoscale.compute_enabled : true
+      enabled            = var.autoscale.compute_enabled != null ? var.autoscale.compute_enabled : true
       scale_down_enabled = true
-      min_instance_size = var.members[0].node_type
-      max_instance_size = "M80"
+      min_instance_size  = var.members[0].node_type
+      max_instance_size  = "M80"
     }
     disk_gb_enabled = var.autoscale.disk_gb_enabled != null ? var.autoscale.disk_gb_enabled : true
   } : null
@@ -243,11 +243,11 @@ resource "mongodbatlas_database_user" "app" {
 # -----------------------------------------------------------------------------
 
 resource "mongodbatlas_private_endpoint" "east" {
-  count              = var.enable_private_link ? 1 : 0
-  project_id         = mongodbatlas_project.this.id
-  cluster_name       = mongodbatlas_advanced_cluster.this.name
-  provider_name      = "AWS"
-  region             = "US_EAST_1"
+  count         = var.enable_private_link ? 1 : 0
+  project_id    = mongodbatlas_project.this.id
+  cluster_name  = mongodbatlas_advanced_cluster.this.name
+  provider_name = "AWS"
+  region        = "US_EAST_1"
 
   private_endpoint_ip_address = var.private_endpoint_ips["us-east-1"]
 }
@@ -282,9 +282,9 @@ resource "mongodbatlas_auditing" "this" {
   count      = var.enable_auditing ? 1 : 0
   project_id = mongodbatlas_project.this.id
 
-  audit_filter           = var.audit_filter
+  audit_filter                = var.audit_filter
   audit_authorization_success = true
-  enabled                = true
+  enabled                     = true
 }
 
 # -----------------------------------------------------------------------------

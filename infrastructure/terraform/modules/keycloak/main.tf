@@ -20,11 +20,11 @@ terraform {
 
 locals {
   keycloak_labels = merge(var.common_labels, {
-    "app.kubernetes.io/name"       = "keycloak"
-    "app.kubernetes.io/instance"   = var.instance_name
-    "app.kubernetes.io/component"  = "auth"
-    "app.kubernetes.io/part-of"    = "neural-hive-mind"
-    "neural-hive.io/layer"         = "security"
+    "app.kubernetes.io/name"             = "keycloak"
+    "app.kubernetes.io/instance"         = var.instance_name
+    "app.kubernetes.io/component"        = "auth"
+    "app.kubernetes.io/part-of"          = "neural-hive-mind"
+    "neural-hive.io/layer"               = "security"
     "neural-hive.io/data-classification" = "confidential"
   })
 }
@@ -135,16 +135,16 @@ resource "kubernetes_config_map" "keycloak_config" {
     EOT
 
     "realm-config.json" = jsonencode({
-      realm = var.realm_name
-      enabled = true
-      displayName = "Neural Hive-Mind"
+      realm           = var.realm_name
+      enabled         = true
+      displayName     = "Neural Hive-Mind"
       displayNameHtml = "<div class=\"kc-logo-text\"><span>Neural Hive-Mind</span></div>"
 
       # Token settings
-      accessTokenLifespan = var.token_lifespan
+      accessTokenLifespan                = var.token_lifespan
       accessTokenLifespanForImplicitFlow = var.token_lifespan
-      ssoSessionIdleTimeout = 1800
-      ssoSessionMaxLifespan = 36000
+      ssoSessionIdleTimeout              = 1800
+      ssoSessionMaxLifespan              = 36000
 
       # Password policy
       passwordPolicy = "hashIterations(27500) and specialChars(1) and upperCase(1) and digits(1) and notUsername(undefined) and length(8)"
@@ -152,24 +152,24 @@ resource "kubernetes_config_map" "keycloak_config" {
       # Clients
       clients = [
         {
-          clientId = "gateway-intencoes"
-          name = "Gateway de Intenções"
-          enabled = true
-          protocol = "openid-connect"
-          publicClient = false
-          serviceAccountsEnabled = true
+          clientId                     = "gateway-intencoes"
+          name                         = "Gateway de Intenções"
+          enabled                      = true
+          protocol                     = "openid-connect"
+          publicClient                 = false
+          serviceAccountsEnabled       = true
           authorizationServicesEnabled = false
-          directAccessGrantsEnabled = true
-          standardFlowEnabled = true
-          implicitFlowEnabled = false
+          directAccessGrantsEnabled    = true
+          standardFlowEnabled          = true
+          implicitFlowEnabled          = false
 
           attributes = {
-            "access.token.lifespan" = tostring(var.token_lifespan)
+            "access.token.lifespan"       = tostring(var.token_lifespan)
             "client.secret.creation.time" = tostring(timestamp())
           }
 
           redirectUris = var.gateway_redirect_uris
-          webOrigins = var.gateway_web_origins
+          webOrigins   = var.gateway_web_origins
 
           defaultClientScopes = [
             "web-origins", "acr", "profile", "roles", "email"
@@ -184,19 +184,19 @@ resource "kubernetes_config_map" "keycloak_config" {
       roles = {
         realm = [
           {
-            name = "neural-hive-user"
+            name        = "neural-hive-user"
             description = "Usuário padrão do Neural Hive-Mind"
-            composite = false
+            composite   = false
           },
           {
-            name = "neural-hive-admin"
+            name        = "neural-hive-admin"
             description = "Administrador do Neural Hive-Mind"
-            composite = false
+            composite   = false
           },
           {
-            name = "service-account"
+            name        = "service-account"
             description = "Service account role"
-            composite = false
+            composite   = false
           }
         ]
       }
@@ -240,11 +240,11 @@ resource "kubernetes_deployment" "keycloak" {
           version = var.keycloak_version
         })
         annotations = {
-          "sidecar.istio.io/inject"                = "true"
-          "neural-hive.io/monitoring"              = "enabled"
-          "prometheus.io/scrape"                   = var.enable_metrics ? "true" : "false"
-          "prometheus.io/port"                     = "9000"
-          "prometheus.io/path"                     = "/metrics"
+          "sidecar.istio.io/inject"   = "true"
+          "neural-hive.io/monitoring" = "enabled"
+          "prometheus.io/scrape"      = var.enable_metrics ? "true" : "false"
+          "prometheus.io/port"        = "9000"
+          "prometheus.io/path"        = "/metrics"
         }
       }
 

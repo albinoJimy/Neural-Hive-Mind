@@ -110,8 +110,8 @@ variable "tags" {
   description = "Tags to apply to all resources"
   type        = map(string)
   default = {
-    "neural-hive-mind.org/component" = "kafka-cluster"
-    "neural-hive-mind.org/layer"     = "infrastructure"
+    "neural-hive-mind.org/component"  = "kafka-cluster"
+    "neural-hive-mind.org/layer"      = "infrastructure"
     "neural-hive-mind.org/managed-by" = "terraform"
   }
 }

@@ -83,7 +83,7 @@ variable "realm_name" {
 variable "token_lifespan" {
   description = "Tempo de vida do token em segundos"
   type        = number
-  default     = 3600  # 1 hora
+  default     = 3600 # 1 hora
 }
 
 # OAuth2 Clients Configuration
@@ -193,7 +193,7 @@ variable "backup_enabled" {
 variable "backup_schedule" {
   description = "Schedule do backup em formato cron"
   type        = string
-  default     = "0 3 * * *"  # Diário às 3h
+  default     = "0 3 * * *" # Diário às 3h
 }
 
 variable "backup_retention_days" {
@@ -220,9 +220,9 @@ variable "common_labels" {
   description = "Labels comuns para todos os recursos"
   type        = map(string)
   default = {
-    "environment"    = "production"
-    "managed-by"     = "terraform"
-    "project"        = "neural-hive-mind"
+    "environment" = "production"
+    "managed-by"  = "terraform"
+    "project"     = "neural-hive-mind"
   }
 }
 
@@ -251,12 +251,12 @@ variable "tags" {
   description = "Tags de governança e compliance"
   type        = map(string)
   default = {
-    "data_owner"         = "team-security"
+    "data_owner"          = "team-security"
     "data_classification" = "confidential"
-    "pii_data"           = "true"
-    "retention_policy"   = "365d"
-    "sla_tier"           = "platinum"
-    "compliance"         = "oauth2-oidc"
+    "pii_data"            = "true"
+    "retention_policy"    = "365d"
+    "sla_tier"            = "platinum"
+    "compliance"          = "oauth2-oidc"
   }
 }
 
@@ -270,13 +270,13 @@ variable "theme_name" {
 variable "session_timeout" {
   description = "Timeout da sessão em segundos"
   type        = number
-  default     = 1800  # 30 minutos
+  default     = 1800 # 30 minutos
 }
 
 variable "max_session_lifespan" {
   description = "Tempo máximo de vida da sessão em segundos"
   type        = number
-  default     = 36000  # 10 horas
+  default     = 36000 # 10 horas
 }
 
 variable "password_policy" {

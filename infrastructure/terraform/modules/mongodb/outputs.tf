@@ -59,8 +59,8 @@ output "connection_strings_private_endpoint" {
 output "peering_ids" {
   description = "IDs dos peerings de rede"
   value = {
-    east  = try(mongodbatlas_network_peering.east[0].id, null)
-    west  = try(mongodbatlas_network_peering.west[0].id, null)
-    eu    = try(mongodbatlas_network_peering.eu[0].id, null)
+    east = try(mongodbatlas_network_peering.east[0].id, null)
+    west = try(mongodbatlas_network_peering.west[0].id, null)
+    eu   = try(mongodbatlas_network_peering.eu[0].id, null)
   }
 }

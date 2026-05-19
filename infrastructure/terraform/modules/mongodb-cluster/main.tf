@@ -162,7 +162,7 @@ resource "kubernetes_manifest" "mongodb_replicaset" {
                 name = "data-volume"
               }
               spec = {
-                accessModes = ["ReadWriteOnce"]
+                accessModes      = ["ReadWriteOnce"]
                 storageClassName = var.storage_class
                 resources = {
                   requests = {
@@ -219,7 +219,7 @@ resource "kubernetes_manifest" "mongodb_replicaset" {
 
       additionalMongodConfig = {
         "storage.wiredTiger.engineConfig.journalCompressor" = "zstd"
-        "net.tls.mode" = (var.tls_enabled && var.tls_secret_name != "") ? "requireTLS" : "disabled"
+        "net.tls.mode"                                      = (var.tls_enabled && var.tls_secret_name != "") ? "requireTLS" : "disabled"
       }
 
       prometheus = var.enable_metrics ? {

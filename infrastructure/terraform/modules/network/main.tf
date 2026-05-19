@@ -241,10 +241,12 @@ resource "aws_security_group" "cluster_internal" {
 resource "aws_flow_log" "main" {
   count = var.enable_flow_logs ? 1 : 0
 
-  iam_role_arn        = aws_iam_role.flow_logs[0].arn
-  log_destination_arn = aws_cloudwatch_log_group.flow_logs[0].arn
-  traffic_type        = "ALL"
-  vpc_id              = aws_vpc.main.id
+  iam_role_arn = aws_iam_role.flow_logs[0].arn
+  # AWS provider 5.x: argumento é "log_destination" (string ARN), não
+  # "log_destination_arn". O nome antigo causava terraform validate fail.
+  log_destination = aws_cloudwatch_log_group.flow_logs[0].arn
+  traffic_type    = "ALL"
+  vpc_id          = aws_vpc.main.id
 
   tags = merge(
     local.common_tags,
