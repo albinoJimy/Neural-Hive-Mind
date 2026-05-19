@@ -1,0 +1,37 @@
+# Istiod Helm chart values override
+#
+# Contexto:
+# O release `istiod` no namespace `istio-system` usa o chart upstream
+# `istiod-1.20.0` (não há chart local). Este ficheiro documenta o override
+# de resources para aplicar via:
+#
+#   helm upgrade istiod istio/istiod -n istio-system \
+#     --version 1.20.0 --reuse-values -f values-istiod-override.yaml
+#
+# Motivação (auditoria 2026-05-18):
+# istiod foi identificado como o top waster absoluto do cluster:
+#
+#   request:  cpu=150m  memory=2Gi
+#   actual:   cpu=16m   memory=296Mi
+#   waste:    cpu=134m  memory=1761Mi  (ratio 7.1x)
+#
+# istiod é o control-plane do Istio service mesh. Memória steady-state
+# escala com:
+#   - número de Services no cluster (~50 actualmente)
+#   - número de pods com sidecar Envoy
+#   - número de Custom Resources (DestinationRule, VirtualService, etc)
+#
+# Para uma malha com ~200 pods e <100 services, 1Gi é generoso. 512Mi
+# seria adequado para pequenos clusters mas damos folga 2x.
+#
+# Risco: LOW. Limit não definido por defeito (apenas request) — pod
+# pode esticar até OOM do node se necessário. CPU também sem limit no
+# istiod por convenção (latency-sensitive). Manter assim.
+
+pilot:
+  # Reduzido de 2Gi → 1Gi após observação de uso real ~300Mi steady.
+  # Liberta ~1Gi de capacity no node que hospeda istiod.
+  resources:
+    requests:
+      cpu: 100m
+      memory: 1Gi
