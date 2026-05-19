@@ -1,0 +1,48 @@
+# yamllint configuration — Neural Hive-Mind
+#
+# Defaults (line-length=80, document-start required, etc) geravam ~2605
+# erros maioritariamente cosméticos em centenas de manifests Helm/k8s.
+# Esta config relaxa as regras cosméticas mas mantém erros reais (sintaxe
+# quebrada, key-duplicates, malformed yaml).
+
+extends: default
+
+rules:
+  # K8s/Helm manifests frequentemente excedem 80 chars (URLs, env refs).
+  # Manter como warning para visibilidade sem bloquear CI.
+  line-length:
+    max: 200
+    level: warning
+
+  # Templates Helm não devem começar com "---" obrigatoriamente.
+  document-start: disable
+
+  # Indentação muito variável entre Helm templates; manter como warning.
+  indentation:
+    level: warning
+    indent-sequences: consistent
+
+  # K8s API usa "on" como nome de field em probes (não é truthy boolean).
+  truthy:
+    check-keys: false
+
+  # K8s usa muitos comentários inline em values.yaml.
+  comments:
+    min-spaces-from-content: 1
+
+  # Trailing spaces — warning não error.
+  trailing-spaces:
+    level: warning
+
+  # Empty lines no fim do ficheiro — warning.
+  empty-lines:
+    level: warning
+
+ignore: |
+  # Charts fetched ficam aqui via helm dependency build — não nossos.
+  helm-charts/*/charts/
+  # Templates Helm têm sintaxe especial que confunde yamllint.
+  **/templates/*.yaml
+  # Backups e artefactos.
+  backup/
+  .worktrees/

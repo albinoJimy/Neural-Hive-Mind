@@ -454,7 +454,7 @@ def skip_if_no_kafka():
     try:
         from confluent_kafka import Producer
         Producer({"bootstrap.servers": "localhost:9092"})
-        return lambda f: lambda f
+        return lambda f: f  # no-op decorator (era 'lambda f: lambda f', invalid)
     except Exception:
         return pytest.mark.skip("Kafka não disponível")
 
@@ -468,7 +468,7 @@ def skip_if_no_mongodb():
         from pymongo import MongoClient
         client = MongoClient("mongodb://localhost:27017", serverSelectionTimeoutMS=1000)
         client.server_info()
-        return lambda f: lambda f
+        return lambda f: f  # no-op decorator (era 'lambda f: lambda f', invalid)
     except Exception:
         return pytest.mark.skip("MongoDB não disponível")
 
@@ -479,9 +479,9 @@ def skip_if_no_temporal():
     Decorator para pular teste se Temporal não está disponível.
     """
     try:
-        from temporalio.client import Client
+        from temporalio.client import Client  # noqa: F401
         # Tenta conectar (vai falhar se não houver servidor)
         pass
-        return lambda f: lambda f
+        return lambda f: f  # no-op decorator (era 'lambda f: lambda f', invalid)
     except Exception:
         return pytest.mark.skip("Temporal não disponível")
