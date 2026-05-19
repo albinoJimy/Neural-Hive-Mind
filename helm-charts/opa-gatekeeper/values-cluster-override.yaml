@@ -1,0 +1,40 @@
+# Gatekeeper Helm chart values override (upstream chart)
+#
+# Contexto:
+# O release `gatekeeper` no namespace `gatekeeper-system` usa o chart
+# upstream `gatekeeper-3.22.0`, NÃO o wrapper local `opa-gatekeeper`
+# deste repo (que aponta para gatekeeper-3.14.0).
+#
+# Aplicar com:
+#   helm upgrade gatekeeper gatekeeper/gatekeeper -n gatekeeper-system \
+#     --version 3.22.0 --reuse-values \
+#     -f helm-charts/opa-gatekeeper/values-cluster-override.yaml
+#
+# Motivação (auditoria 2026-05-18):
+# Os 3 componentes do Gatekeeper estavam todos a 512Mi request com uso
+# real de 85-128Mi (ratio 4-6x sobre-alocado):
+#
+#   controllerManager × 2 réplicas:  request=512Mi  actual=85Mi  waste=854Mi total
+#   audit:                            request=512Mi  actual=128Mi waste=384Mi
+#
+# Total reduzível: ~768Mi (1.2Gi com headroom mantido).
+#
+# Risco: LOW. Gatekeeper é stateless (constraints em CRDs). Workload é
+# admission webhook validation + audit, ambos de baixa memória.
+# 256Mi request mantém ~2-3x headroom face ao observado.
+
+controllerManager:
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi     # Antes: 512Mi
+    limits:
+      memory: 512Mi     # Mantém limit alto para picos transientes
+
+audit:
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi     # Antes: 512Mi
+    limits:
+      memory: 512Mi
