@@ -49,10 +49,14 @@ proxy:
   ttl: 168h
 
 # Resource limits
+# Rightsized 2026-05-18: uso real observado em production = ~9Mi memory / 1m CPU
+# (docker-registry é stateless, apenas serve blobs via storage backend). Request
+# anterior de 256Mi/100m representava ~28x sobre-alocação de memória; limit
+# mantém-se generoso para picos de upload concorrente.
 resources:
   requests:
-    memory: "256Mi"
-    cpu: "100m"
+    memory: "64Mi"
+    cpu: "20m"
   limits:
     memory: "512Mi"
     cpu: "500m"
