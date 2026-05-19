@@ -37,9 +37,9 @@ spec:
             # Containerd 2.x format - adicionar diretamente
             cat >> /etc/containerd/config.toml << EOL
 
-[plugins."io.containerd.cri.v1.registry"]
-  config_path = "/etc/containerd/certs.d"
-EOL
+            [plugins."io.containerd.cri.v1.registry"]
+              config_path = "/etc/containerd/certs.d"
+            EOL
           fi
         fi
 
@@ -94,9 +94,9 @@ spec:
             # Containerd 2.x format - adicionar diretamente
             cat >> /etc/containerd/config.toml << EOL
 
-[plugins."io.containerd.cri.v1.registry"]
-  config_path = "/etc/containerd/certs.d"
-EOL
+            [plugins."io.containerd.cri.v1.registry"]
+              config_path = "/etc/containerd/certs.d"
+            EOL
           fi
         fi
 
