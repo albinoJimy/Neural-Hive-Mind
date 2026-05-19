@@ -2,6 +2,12 @@
 set -euo pipefail
 
 TESTS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Garantir que a raiz do repo está no PYTHONPATH para que packages
+# top-level como ml_pipelines sejam importáveis nos testes (resolve
+# ModuleNotFoundError: ml_pipelines.deployment.model_promotion).
+REPO_ROOT="$(cd "${TESTS_DIR}/.." && pwd)"
+export PYTHONPATH="${REPO_ROOT}:${PYTHONPATH:-}"
+
 source "${TESTS_DIR}/lib/test-runner-lib.sh"
 source "${TESTS_DIR}/../scripts/helpers/test-helpers.sh"
 

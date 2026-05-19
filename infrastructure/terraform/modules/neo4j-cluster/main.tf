@@ -127,8 +127,8 @@ resource "helm_release" "neo4j" {
   values = [
     yamlencode({
       neo4j = {
-        name    = var.cluster_name
-        edition = var.edition
+        name                   = var.cluster_name
+        edition                = var.edition
         acceptLicenseAgreement = var.edition == "enterprise" ? "yes" : "no"
 
         password = var.neo4j_password
@@ -157,19 +157,19 @@ resource "helm_release" "neo4j" {
       }
 
       config = {
-        "server.default_listen_address"           = "0.0.0.0"
-        "server.bolt.enabled"                     = "true"
-        "server.http.enabled"                     = "true"
-        "dbms.security.auth_enabled"              = "true"
-        "server.memory.heap.initial_size"         = var.heap_initial_size
-        "server.memory.heap.max_size"             = var.heap_max_size
-        "server.memory.pagecache.size"            = var.pagecache_size
-        "dbms.logs.query.enabled"                 = "true"
-        "server.metrics.enabled"                  = var.enable_metrics ? "true" : "false"
-        "server.metrics.prometheus.enabled"       = var.enable_metrics ? "true" : "false"
-        "server.metrics.prometheus.endpoint"      = "0.0.0.0:2004"
-        "dbms.security.procedures.unrestricted"   = local.plugins_list
-        "dbms.security.procedures.allowlist"      = "${local.plugins_list},gds.*"
+        "server.default_listen_address"         = "0.0.0.0"
+        "server.bolt.enabled"                   = "true"
+        "server.http.enabled"                   = "true"
+        "dbms.security.auth_enabled"            = "true"
+        "server.memory.heap.initial_size"       = var.heap_initial_size
+        "server.memory.heap.max_size"           = var.heap_max_size
+        "server.memory.pagecache.size"          = var.pagecache_size
+        "dbms.logs.query.enabled"               = "true"
+        "server.metrics.enabled"                = var.enable_metrics ? "true" : "false"
+        "server.metrics.prometheus.enabled"     = var.enable_metrics ? "true" : "false"
+        "server.metrics.prometheus.endpoint"    = "0.0.0.0:2004"
+        "dbms.security.procedures.unrestricted" = local.plugins_list
+        "dbms.security.procedures.allowlist"    = "${local.plugins_list},gds.*"
       }
 
       services = {

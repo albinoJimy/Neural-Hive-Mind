@@ -33,7 +33,8 @@ spec:
           restartPolicy: Never
           containers:
             - name: game-day-runner
-              image: neural-hive/self-healing-engine:latest
+              # Pinado (CI block on :latest). Sincronizar com a versão deployed.
+              image: ghcr.io/albinojimy/neural-hive-mind/self-healing-engine:4da71a3
               imagePullPolicy: IfNotPresent
               command:
                 - python

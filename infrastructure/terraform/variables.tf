@@ -198,24 +198,10 @@ variable "enable_image_signing" {
   default     = false
 }
 
-variable "allowed_registries" {
-  description = "Lista de registries permitidos"
-  type        = list(string)
-  default     = []
-}
-
-# Configurações OIDC (para image signing)
-variable "oidc_provider_arn" {
-  description = "ARN do provider OIDC do cluster EKS"
-  type        = string
-  default     = ""
-}
-
-variable "oidc_issuer_url" {
-  description = "URL do issuer OIDC do cluster EKS"
-  type        = string
-  default     = ""
-}
+# NOTE: As 3 variáveis seguintes (allowed_registries, oidc_provider_arn,
+# oidc_issuer_url) foram removidas em 2026-05-19 por estarem declared-but-unused
+# (TFLint terraform_unused_declarations bloqueava CI em todos PRs). Re-introduzir
+# quando o image signing for activado (ver docs/IMAGE_VERSIONING.md).
 
 variable "signing_namespace" {
   description = "Namespace para assinatura de imagens"
@@ -294,4 +280,28 @@ variable "spire_db_allocated_storage" {
   description = "Armazenamento alocado para SPIRE RDS em GB"
   type        = number
   default     = 20
+}
+
+# providers.tf referencia var.aws_region em 3 lugares (region default,
+# provider kubernetes config, alias). Declaração estava em falta no
+# root module — Terraform Validate falhava com "Reference to undeclared
+# input variable". Default "us-east-1" mantém o fallback existente.
+variable "aws_region" {
+  description = "AWS region usada pelo provider AWS no root module"
+  type        = string
+  default     = "us-east-1"
+}
+# Variáveis referenciadas pelo módulo vault-ha em main.tf (linhas 130,138)
+# mas declaração estava em falta — terraform validate falhava com
+# "Reference to undeclared input variable".
+variable "aws_account_id" {
+  description = "AWS Account ID (necessário para policies IAM no Vault HA)"
+  type        = string
+  default     = ""
+}
+
+variable "enable_vault_audit_logs" {
+  description = "Habilita logs de auditoria do Vault para bucket S3"
+  type        = bool
+  default     = true
 }

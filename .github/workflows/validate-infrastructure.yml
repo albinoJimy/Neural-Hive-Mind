@@ -155,6 +155,17 @@ jobs:
         with:
           version: ${{ env.HELM_VERSION }}
 
+      - name: Build chart dependencies
+        # Istio base e opa-gatekeeper declaram deps externas (base, istiod,
+        # gatekeeper) que precisam ser fetched antes do lint/template. Sem
+        # isto, helm lint/template falha com "missing in charts/ directory".
+        run: |
+          helm repo add istio https://istio-release.storage.googleapis.com/charts || true
+          helm repo add gatekeeper https://open-policy-agent.github.io/gatekeeper/charts || true
+          helm repo update
+          helm dependency build helm-charts/istio-base
+          helm dependency build helm-charts/opa-gatekeeper
+
       - name: Lint Istio Base Chart
         run: helm lint helm-charts/istio-base
 
@@ -194,8 +205,10 @@ jobs:
             ${{ runner.os }}-go-
 
       - name: Install OPA
+        # v0.57.0 não suportava `import rego.v1` (introduzido em v0.59+).
+        # Bump para v0.62.0 para alinhar com políticas que usam rego.v1.
         run: |
-          curl -L -o opa https://openpolicyagent.org/downloads/v0.57.0/opa_linux_amd64_static
+          curl -L -o opa https://openpolicyagent.org/downloads/v0.62.0/opa_linux_amd64_static
           chmod 755 ./opa
           sudo mv opa /usr/local/bin
 
@@ -408,9 +421,12 @@ jobs:
             # Check for incorrect naming convention (hyphen instead of dot)
             echo ""
             echo "Checking naming conventions..."
-            if grep -q "intentions-" "$KAFKA_VALUES"; then
+            # Excluir linhas de comentário para evitar auto-referência circular
+            # (o ficheiro pode conter a string "intentions-" em comentários
+            # explicativos sem que isso seja um erro real).
+            if grep -vE '^[[:space:]]*#' "$KAFKA_VALUES" | grep -q "intentions-"; then
               echo "  ✗ ERROR: Found topics with incorrect naming (using hyphen instead of dot)"
-              grep "intentions-" "$KAFKA_VALUES" | head -5
+              grep -vE '^[[:space:]]*#' "$KAFKA_VALUES" | grep "intentions-" | head -5
               exit 1
             else
               echo "  ✓ All topics use correct dot notation"
@@ -587,7 +603,9 @@ jobs:
               FOUND_CONFIG=true
 
               # Validate YAML syntax
-              if ! yq empty "$config" 2>/dev/null; then
+              # mikefarah/yq v4 (default no Ubuntu runner) não tem subcommand 'empty';
+              # usar 'eval . > /dev/null' para validar sintaxe YAML.
+              if ! yq eval '.' "$config" >/dev/null 2>&1; then
                 echo "  ✗ Invalid YAML in $config"
                 exit 1
               fi
@@ -610,7 +628,8 @@ jobs:
             echo "Checking alerts file: $ALERTS_FILE"
 
             # Validate YAML syntax
-            if ! yq empty "$ALERTS_FILE" 2>/dev/null; then
+            # mikefarah yq v4: usar 'eval' em vez de 'empty' (incompatível)
+            if ! yq eval '.' "$ALERTS_FILE" >/dev/null 2>&1; then
               echo "  ✗ Invalid YAML in alerts file"
               exit 1
             fi

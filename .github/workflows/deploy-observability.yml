@@ -39,7 +39,9 @@ on:
 env:
   TERRAFORM_VERSION: "1.5.7"
   HELM_VERSION: "3.12.3"
-  KUBECTL_VERSION: "1.28.0"
+  # azure/setup-kubectl@v3 exige prefixo 'v' (SemVer); "1.28.0" sem prefixo
+  # produz: Error: Kubectl '1.28.0' for 'amd64' arch not found.
+  KUBECTL_VERSION: "v1.28.15"
 
 jobs:
   validate:
@@ -212,7 +214,12 @@ jobs:
     name: Deploy Helm Charts
     needs: [validate, deploy-terraform]
     runs-on: ubuntu-latest
-    if: always() && !failure() && !inputs.rollback
+    # Restringir a push em main/develop (não correr em PR sem AWS creds).
+    # PR run não tem secrets de kubeconfig disponíveis no contexto.
+    if: |
+      always() && !failure() && !inputs.rollback &&
+      github.event_name == 'push' &&
+      (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
 
     strategy:
       matrix:
@@ -288,7 +295,11 @@ jobs:
     name: Deploy Monitoring Configs
     needs: [validate, deploy-helm]
     runs-on: ubuntu-latest
-    if: always() && !failure() && !inputs.rollback
+    # Restringir a push em main/develop (mesmo motivo de deploy-helm).
+    if: |
+      always() && !failure() && !inputs.rollback &&
+      github.event_name == 'push' &&
+      (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
 
     strategy:
       matrix:
@@ -349,7 +360,11 @@ jobs:
     name: Test Deployment
     needs: [deploy-monitoring]
     runs-on: ubuntu-latest
-    if: always() && !failure()
+    # Só corre se houve deploy real (que só corre em push:main/develop).
+    if: |
+      always() && !failure() &&
+      github.event_name == 'push' &&
+      (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
 
     strategy:
       matrix:
@@ -444,7 +459,13 @@ jobs:
     name: Notify Deployment Status
     needs: [test-deployment, rollback]
     runs-on: ubuntu-latest
-    if: always()
+    # Só corre quando há um deploy real (push:main/develop). Em PRs os
+    # jobs upstream são skipados; notify a always() falhava com
+    # "Observability stack validation failed".
+    if: |
+      always() &&
+      github.event_name == 'push' &&
+      (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
 
     steps:
     - name: Notify Slack - Success

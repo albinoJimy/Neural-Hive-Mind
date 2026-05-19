@@ -79,7 +79,6 @@ spec:
       network: network3
       multiCluster:
         enabled: true
-      network: network3
       clusterName: neural-hive-eu
 
     # GDPR compliance

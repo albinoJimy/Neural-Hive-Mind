@@ -98,7 +98,8 @@ spec:
           mountPath: /app/libs
       containers:
       - name: semantic-translation-engine
-        image: ghcr.io/albinojimy/neural-hive-mind/semantic-translation-engine:latest
+        # Pinado (CI block on :latest). Sincronizar com novos builds.
+        image: ghcr.io/albinojimy/neural-hive-mind/semantic-translation-engine:0318067
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 8001

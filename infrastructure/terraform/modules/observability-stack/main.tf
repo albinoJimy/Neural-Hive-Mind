@@ -17,8 +17,8 @@ resource "kubernetes_namespace" "observability" {
   metadata {
     name = var.namespace
     labels = {
-      "app.kubernetes.io/name"       = "observability"
-      "app.kubernetes.io/component"  = "monitoring"
+      "app.kubernetes.io/name"      = "observability"
+      "app.kubernetes.io/component" = "monitoring"
       "neural.hive/layer"           = "observabilidade"
       "istio-injection"             = "enabled"
     }
@@ -35,7 +35,7 @@ resource "helm_release" "prometheus_operator" {
 
   values = [
     templatefile("${path.module}/templates/prometheus-values.yaml.tpl", {
-      retention_days          = var.prometheus_retention_days
+      retention_days         = var.prometheus_retention_days
       storage_class          = var.storage_class
       storage_size           = var.prometheus_storage_size
       grafana_admin_password = var.grafana_admin_password
@@ -57,9 +57,9 @@ resource "helm_release" "opentelemetry_collector" {
 
   values = [
     templatefile("${path.module}/templates/otel-collector-values.yaml.tpl", {
-      sampling_rate           = var.otel_sampling_rate
-      prometheus_url          = "prometheus-kube-prometheus-prometheus:9090"
-      jaeger_endpoint         = "jaeger-collector:14250"
+      sampling_rate          = var.otel_sampling_rate
+      prometheus_url         = "prometheus-kube-prometheus-prometheus:9090"
+      jaeger_endpoint        = "jaeger-collector:14250"
       loki_endpoint          = var.enable_loki ? "loki-gateway:80" : ""
       resources              = var.otel_collector_resources
       enable_correlation     = var.enable_correlation_processing
@@ -87,11 +87,11 @@ resource "helm_release" "jaeger" {
   values = [
     templatefile("${path.module}/templates/jaeger-values.yaml.tpl", {
       deployment_strategy = var.jaeger_deployment_strategy
-      storage_type       = var.jaeger_storage_type
-      storage_class      = var.storage_class
-      retention_days     = var.jaeger_retention_days
-      resources          = var.jaeger_resources
-      enable_otlp        = var.jaeger_enable_otlp
+      storage_type        = var.jaeger_storage_type
+      storage_class       = var.storage_class
+      retention_days      = var.jaeger_retention_days
+      resources           = var.jaeger_resources
+      enable_otlp         = var.jaeger_enable_otlp
       sampling_strategies = var.jaeger_sampling_strategies
     })
   ]
@@ -109,17 +109,17 @@ resource "helm_release" "grafana" {
 
   values = [
     templatefile("${path.module}/templates/grafana-values.yaml.tpl", {
-      admin_password      = var.grafana_admin_password
-      domain             = var.grafana_domain
-      environment        = var.environment
-      storage_class      = var.storage_class
-      storage_size       = var.grafana_storage_size
-      replicas           = var.high_availability.grafana_replicas
-      enable_ingress     = var.enable_grafana_ingress
-      enable_loki        = var.enable_loki
-      enable_tempo       = var.enable_tempo
-      resources          = var.grafana_resources
-      security_enabled   = var.security_config.enable_pod_security
+      admin_password   = var.grafana_admin_password
+      domain           = var.grafana_domain
+      environment      = var.environment
+      storage_class    = var.storage_class
+      storage_size     = var.grafana_storage_size
+      replicas         = var.high_availability.grafana_replicas
+      enable_ingress   = var.enable_grafana_ingress
+      enable_loki      = var.enable_loki
+      enable_tempo     = var.enable_tempo
+      resources        = var.grafana_resources
+      security_enabled = var.security_config.enable_pod_security
     })
   ]
 
@@ -140,12 +140,12 @@ resource "helm_release" "loki" {
 
   values = [
     templatefile("${path.module}/templates/loki-values.yaml.tpl", {
-      storage_class      = var.storage_class
-      storage_size       = var.loki_storage_size
-      retention_days     = var.loki_retention_days
-      resources          = var.loki_resources
-      enable_promtail    = var.loki_enable_promtail
-      enable_fluent_bit  = var.loki_enable_fluent_bit
+      storage_class     = var.storage_class
+      storage_size      = var.loki_storage_size
+      retention_days    = var.loki_retention_days
+      resources         = var.loki_resources
+      enable_promtail   = var.loki_enable_promtail
+      enable_fluent_bit = var.loki_enable_fluent_bit
     })
   ]
 
@@ -176,9 +176,9 @@ resource "kubernetes_manifest" "neural_hive_service_monitor" {
       }
       endpoints = [
         {
-          port     = "metrics"
-          interval = "30s"
-          path     = "/metrics"
+          port        = "metrics"
+          interval    = "30s"
+          path        = "/metrics"
           honorLabels = true
         }
       ]
@@ -198,19 +198,19 @@ resource "kubernetes_storage_class" "observability_ssd" {
   metadata {
     name = "${var.namespace}-ssd"
     labels = {
-      "app.kubernetes.io/name"     = "observability-storage"
-      "neural.hive/component"      = "storage"
+      "app.kubernetes.io/name" = "observability-storage"
+      "neural.hive/component"  = "storage"
     }
   }
 
   storage_provisioner    = var.storage_provisioner
-  reclaim_policy        = "Retain"
-  volume_binding_mode   = "WaitForFirstConsumer"
+  reclaim_policy         = "Retain"
+  volume_binding_mode    = "WaitForFirstConsumer"
   allow_volume_expansion = true
 
   parameters = {
-    type = "gp3"
-    iops = "3000"
+    type       = "gp3"
+    iops       = "3000"
     throughput = "125"
     encrypted  = "true"
   }
@@ -222,8 +222,8 @@ resource "kubernetes_config_map" "neural_hive_configs" {
     name      = "neural-hive-observability-config"
     namespace = kubernetes_namespace.observability.metadata[0].name
     labels = {
-      "app.kubernetes.io/name"     = "neural-hive-config"
-      "neural.hive/component"      = "configuration"
+      "app.kubernetes.io/name" = "neural-hive-config"
+      "neural.hive/component"  = "configuration"
     }
   }
 
@@ -236,9 +236,9 @@ resource "kubernetes_config_map" "neural_hive_configs" {
         user_id_header   = "X-Neural-Hive-User-ID"
       }
       sampling = {
-        default_rate     = var.otel_sampling_rate
-        high_value_rate  = 1.0
-        error_rate       = 1.0
+        default_rate    = var.otel_sampling_rate
+        high_value_rate = 1.0
+        error_rate      = 1.0
       }
       slos = {
         barramento_latency_ms = 150
@@ -274,9 +274,9 @@ resource "kubernetes_manifest" "neural_hive_pod_monitor" {
       }
       podMetricsEndpoints = [
         {
-          port     = "metrics"
-          interval = "15s"
-          path     = "/metrics"
+          port        = "metrics"
+          interval    = "15s"
+          path        = "/metrics"
           honorLabels = true
         }
       ]

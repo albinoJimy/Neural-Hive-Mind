@@ -12,7 +12,7 @@ output "namespace" {
 
 output "keycloak_url" {
   description = "URL do Keycloak"
-  value       = "${var.external_url}"
+  value       = var.external_url
 }
 
 output "internal_url" {
@@ -93,14 +93,14 @@ output "logout_url" {
 output "gateway_client_config" {
   description = "Configuração OAuth2 para Gateway de Intenções"
   value = {
-    client_id     = "gateway-intencoes"
-    realm         = var.realm_name
-    auth_url      = "${var.external_url}/auth/realms/${var.realm_name}/protocol/openid-connect/auth"
-    token_url     = "${var.external_url}/auth/realms/${var.realm_name}/protocol/openid-connect/token"
-    userinfo_url  = "${var.external_url}/auth/realms/${var.realm_name}/protocol/openid-connect/userinfo"
-    jwks_uri      = "${var.external_url}/auth/realms/${var.realm_name}/protocol/openid-connect/certs"
-    issuer        = "${var.external_url}/auth/realms/${var.realm_name}"
-    scopes        = ["openid", "profile", "email", "roles"]
+    client_id    = "gateway-intencoes"
+    realm        = var.realm_name
+    auth_url     = "${var.external_url}/auth/realms/${var.realm_name}/protocol/openid-connect/auth"
+    token_url    = "${var.external_url}/auth/realms/${var.realm_name}/protocol/openid-connect/token"
+    userinfo_url = "${var.external_url}/auth/realms/${var.realm_name}/protocol/openid-connect/userinfo"
+    jwks_uri     = "${var.external_url}/auth/realms/${var.realm_name}/protocol/openid-connect/certs"
+    issuer       = "${var.external_url}/auth/realms/${var.realm_name}"
+    scopes       = ["openid", "profile", "email", "roles"]
   }
   sensitive = false
 }
@@ -109,7 +109,7 @@ output "gateway_client_config" {
 output "istio_jwt_config" {
   description = "Configuração JWT para Istio RequestAuthentication"
   value = {
-    issuer  = "${var.external_url}/auth/realms/${var.realm_name}"
+    issuer   = "${var.external_url}/auth/realms/${var.realm_name}"
     jwks_uri = "${var.external_url}/auth/realms/${var.realm_name}/protocol/openid-connect/certs"
     audiences = [
       "gateway-intencoes",
@@ -122,11 +122,11 @@ output "istio_jwt_config" {
 output "database_config" {
   description = "Configuração do banco de dados"
   value = {
-    host      = var.database_host
-    port      = var.database_port
-    database  = var.database_name
-    username  = var.database_username
-    secret    = kubernetes_secret.keycloak_database.metadata[0].name
+    host     = var.database_host
+    port     = var.database_port
+    database = var.database_name
+    username = var.database_username
+    secret   = kubernetes_secret.keycloak_database.metadata[0].name
   }
   sensitive = false
 }
@@ -152,15 +152,15 @@ output "application_config" {
   description = "Configuração para integração com aplicações"
   value = {
     # Environment variables para aplicações
-    KEYCLOAK_URL              = var.external_url
-    KEYCLOAK_REALM           = var.realm_name
-    KEYCLOAK_CLIENT_ID       = "gateway-intencoes"
-    KEYCLOAK_AUTH_URL        = "${var.external_url}/auth/realms/${var.realm_name}/protocol/openid-connect/auth"
-    KEYCLOAK_TOKEN_URL       = "${var.external_url}/auth/realms/${var.realm_name}/protocol/openid-connect/token"
-    KEYCLOAK_USERINFO_URL    = "${var.external_url}/auth/realms/${var.realm_name}/protocol/openid-connect/userinfo"
-    KEYCLOAK_JWKS_URI        = "${var.external_url}/auth/realms/${var.realm_name}/protocol/openid-connect/certs"
-    KEYCLOAK_ISSUER          = "${var.external_url}/auth/realms/${var.realm_name}"
-    KEYCLOAK_LOGOUT_URL      = "${var.external_url}/auth/realms/${var.realm_name}/protocol/openid-connect/logout"
+    KEYCLOAK_URL          = var.external_url
+    KEYCLOAK_REALM        = var.realm_name
+    KEYCLOAK_CLIENT_ID    = "gateway-intencoes"
+    KEYCLOAK_AUTH_URL     = "${var.external_url}/auth/realms/${var.realm_name}/protocol/openid-connect/auth"
+    KEYCLOAK_TOKEN_URL    = "${var.external_url}/auth/realms/${var.realm_name}/protocol/openid-connect/token"
+    KEYCLOAK_USERINFO_URL = "${var.external_url}/auth/realms/${var.realm_name}/protocol/openid-connect/userinfo"
+    KEYCLOAK_JWKS_URI     = "${var.external_url}/auth/realms/${var.realm_name}/protocol/openid-connect/certs"
+    KEYCLOAK_ISSUER       = "${var.external_url}/auth/realms/${var.realm_name}"
+    KEYCLOAK_LOGOUT_URL   = "${var.external_url}/auth/realms/${var.realm_name}/protocol/openid-connect/logout"
   }
   sensitive = false
 }
@@ -169,10 +169,10 @@ output "application_config" {
 output "backup_config" {
   description = "Configuração de backup"
   value = var.backup_enabled ? {
-    enabled           = true
-    schedule          = var.backup_schedule
-    retention_days    = var.backup_retention_days
-    config_map       = kubernetes_config_map.keycloak_config.metadata[0].name
+    enabled        = true
+    schedule       = var.backup_schedule
+    retention_days = var.backup_retention_days
+    config_map     = kubernetes_config_map.keycloak_config.metadata[0].name
   } : null
 }
 

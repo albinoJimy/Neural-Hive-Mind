@@ -300,8 +300,11 @@ networkPolicy:
         port: 14250
 
 # Configuração do subchart opentelemetry-collector
+# Sub-chart upstream requer 'mode' obrigatório (deployment/daemonset/etc)
+# mesmo quando enabled=false, porque NOTES.txt valida em template time.
 opentelemetry-collector:
   enabled: false  # Desabilitado - usando configuração própria
+  mode: deployment
 
 # Configurações de ambiente específicas
 environments:

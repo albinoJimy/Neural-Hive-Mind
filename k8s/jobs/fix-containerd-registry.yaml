@@ -21,12 +21,12 @@ spec:
 
         # Criar hosts.toml
         cat > /etc/containerd/certs.d/37.60.241.150:30500/hosts.toml << EOL
-server = "http://37.60.241.150:30500"
+        server = "http://37.60.241.150:30500"
 
-[host."http://37.60.241.150:30500"]
-  capabilities = ["pull", "resolve"]
-  skip_verify = true
-EOL
+        [host."http://37.60.241.150:30500"]
+          capabilities = ["pull", "resolve"]
+          skip_verify = true
+        EOL
 
         # Verificar e configurar config.toml para usar certs.d
         if ! grep -q "config_path" /etc/containerd/config.toml; then
@@ -37,9 +37,9 @@ EOL
             # Containerd 2.x format - adicionar diretamente
             cat >> /etc/containerd/config.toml << EOL
 
-[plugins."io.containerd.cri.v1.registry"]
-  config_path = "/etc/containerd/certs.d"
-EOL
+            [plugins."io.containerd.cri.v1.registry"]
+              config_path = "/etc/containerd/certs.d"
+            EOL
           fi
         fi
 
@@ -78,12 +78,12 @@ spec:
 
         # Criar hosts.toml
         cat > /etc/containerd/certs.d/37.60.241.150:30500/hosts.toml << EOL
-server = "http://37.60.241.150:30500"
+        server = "http://37.60.241.150:30500"
 
-[host."http://37.60.241.150:30500"]
-  capabilities = ["pull", "resolve"]
-  skip_verify = true
-EOL
+        [host."http://37.60.241.150:30500"]
+          capabilities = ["pull", "resolve"]
+          skip_verify = true
+        EOL
 
         # Verificar e configurar config.toml para usar certs.d
         if ! grep -q "config_path" /etc/containerd/config.toml; then
@@ -94,9 +94,9 @@ EOL
             # Containerd 2.x format - adicionar diretamente
             cat >> /etc/containerd/config.toml << EOL
 
-[plugins."io.containerd.cri.v1.registry"]
-  config_path = "/etc/containerd/certs.d"
-EOL
+            [plugins."io.containerd.cri.v1.registry"]
+              config_path = "/etc/containerd/certs.d"
+            EOL
           fi
         fi
 

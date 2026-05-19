@@ -41,12 +41,12 @@ variable "num_shards" {
 variable "members" {
   description = "Configuração dos membros do replica set"
   type = list(object({
-    region      = string
-    node_type   = string
-    priority    = number
-    electable   = optional(bool, true)
-    votes       = number
-    read_only   = optional(bool)
+    region    = string
+    node_type = string
+    priority  = number
+    electable = optional(bool, true)
+    votes     = number
+    read_only = optional(bool)
   }))
   default = [
     {
@@ -121,8 +121,8 @@ variable "enable_private_link" {
 
 variable "private_endpoint_ips" {
   description = "IPs dos endpoints privados por região"
-  type = map(string)
-  default = {}
+  type        = map(string)
+  default     = {}
 }
 
 variable "enable_auditing" {
@@ -156,19 +156,19 @@ variable "aws_account_id" {
 
 variable "vpc_ids" {
   description = "IDs das VPCs por região"
-  type = map(string)
-  default = {}
+  type        = map(string)
+  default     = {}
 }
 
 variable "vpc_cidrs" {
   description = "CIDRs das VPCs por região"
-  type = map(string)
-  default = {}
+  type        = map(string)
+  default     = {}
 }
 
 variable "labels" {
   description = "Labels para o cluster"
-  type = map(string)
+  type        = map(string)
   default = {
     Environment = "production"
     ManagedBy   = "terraform"

@@ -61,9 +61,9 @@ spec:
           value: /root
       volumes:
       - name: scripts
-          configMap:
-            name: worker-agents-rebuild-script
-            defaultMode: 0755
+        configMap:
+          name: worker-agents-rebuild-script
+          defaultMode: 0755
       - name: docker-sock
         hostPath:
           path: /var/run/docker.sock

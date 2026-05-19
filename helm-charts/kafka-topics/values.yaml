@@ -253,12 +253,14 @@ security:
   users:
     gatewayProducer: "neural-hive-gateway-producer"  # Main producer service
     consumers:  # Optional downstream consumers
-      - name: "intentions-processor"
+      # Naming convention: dot notation alinhada com topics (validation
+      # CI flagga qualquer "intentions-" como hyphen-instead-of-dot).
+      - name: "intentions.processor"
         topics: ["intentions.business", "intentions.technical", "intentions.infrastructure"]
-        consumerGroup: "intentions-processor-group"
-      - name: "audit-consumer"
+        consumerGroup: "intentions.processor.group"
+      - name: "audit.consumer"
         topics: ["intentions.audit"]
-        consumerGroup: "audit-consumer-group"
+        consumerGroup: "audit.consumer.group"
 
 # Configurações de governança
 governance:

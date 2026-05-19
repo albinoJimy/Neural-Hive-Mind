@@ -121,7 +121,9 @@ output "vulnerability_processor_function_name" {
 # Outputs do Sigstore IRSA
 output "sigstore_irsa_role_arn" {
   description = "ARN da IAM role criada para Sigstore Policy Controller IRSA"
-  value       = module["sigstore-irsa"].role_arn
+  # Sintaxe: módulos sem count/for_each são acedidos por atributo
+  # (não suporta bracket-string). Nome do bloco preservado com hífen.
+  value = module.sigstore-irsa.role_arn
 }
 
 # Outputs para integração com kubectl

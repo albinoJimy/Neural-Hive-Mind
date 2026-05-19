@@ -128,12 +128,18 @@ resource "kubernetes_manifest" "mongodb_replicaset" {
         authentication = {
           modes = ["SCRAM"]
         }
+        # Tipos consistentes em ambos os ramos (Terraform exige).
         tls = (var.tls_enabled && var.tls_secret_name != "") ? {
           enabled = true
           certificateKeySecret = {
             name = var.tls_secret_name
           }
-        } : {}
+          } : {
+          enabled = false
+          certificateKeySecret = {
+            name = ""
+          }
+        }
       }
 
       users = [
@@ -162,7 +168,7 @@ resource "kubernetes_manifest" "mongodb_replicaset" {
                 name = "data-volume"
               }
               spec = {
-                accessModes = ["ReadWriteOnce"]
+                accessModes      = ["ReadWriteOnce"]
                 storageClassName = var.storage_class
                 resources = {
                   requests = {
@@ -219,13 +225,19 @@ resource "kubernetes_manifest" "mongodb_replicaset" {
 
       additionalMongodConfig = {
         "storage.wiredTiger.engineConfig.journalCompressor" = "zstd"
-        "net.tls.mode" = (var.tls_enabled && var.tls_secret_name != "") ? "requireTLS" : "disabled"
+        "net.tls.mode"                                      = (var.tls_enabled && var.tls_secret_name != "") ? "requireTLS" : "disabled"
       }
 
+      # Terraform requer tipos consistentes em ternários. `: {}` (empty
+      # object) tinha shape diferente de `: {enabled, port}`. Mantém
+      # mesma forma com valores indicativos para o caso disabled.
       prometheus = var.enable_metrics ? {
         enabled = true
         port    = 9216
-      } : {}
+        } : {
+        enabled = false
+        port    = 0
+      }
     }
   }
 

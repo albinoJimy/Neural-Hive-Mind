@@ -39,6 +39,11 @@ ignore =
 # Per-file ignores for specific patterns
 per-file-ignores =
     # Tests can have longer lines, unused imports, compact format, various indentation issues
+    # NOTA: padrão `**/tests/*.py` apanhava só direct-children de tests/; usar
+    # `tests/**/*.py` (e variantes) para cobrir tests/e2e, tests/performance,
+    # tests/integration, etc.
+    tests/**/*.py: E501, F401, E704, E301, E702, E306, F841, E741, E712, E713, E714, E721, E722, E731, W391, W503, W504, C901, E101, E111, E114, E121, E122, E124, E125, E126, E127, E128, E129, E131, E203, E226, E251, E261, E262, E265, E303, E305, F402, F403, F405, F541, F601, F701, F821, W191, W291, W292, W293
+    **/tests/**/*.py: E501, F401, E704, E301, E702, E306, F841, E741, E712, E713, E714, E721, E722, E731, W391, W503, W504, C901, E101, E111, E114, E121, E122, E124, E125, E126, E127, E128, E129, E131, E203, E226, E251, E261, E262, E265, E303, E305, F402, F403, F405, F541, F601, F701, F821, W191, W291, W292, W293
     **/tests/*.py: E501, F401, E704, E301, E702, E306, F841, E741, E712, E713, E714, E721, E722, E731, W391, W503, W504, C901, E101, E111, E114, E121, E122, E124, E125, E126, E127, E128, E129, E131, E203, E226, E251, E261, E262, E265, E303, E305, F402, F403, F405, F541, F601, F701, F821, W191, W291, W292, W293
     **/test_*.py: E501, F401, E704, E301, E702, E306, F841, E712, E714, E721, W391, W503, C901, E101, E111, E114, E121, E122, E124, E125, E126, E127, E128, E129, E131, E203, E226, E251, E261, E262, E265, E303, E305, F402, F403, F405, F541, F601, F701, F821, W191, W291, W292, W293
     # Temporal/workflow tests may have unused variables

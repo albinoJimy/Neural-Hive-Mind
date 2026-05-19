@@ -289,11 +289,10 @@ variable "jaeger_sampling_strategies" {
 
 variable "tail_sampling_policies" {
   description = "Políticas de tail sampling para OTEL Collector"
-  type = list(object({
-    name = string
-    type = string
-    config = any
-  }))
+  # Terraform não consegue encontrar common base type para elementos onde
+  # `config = any` retorna shapes diferentes (status_codes vs threshold_ms
+  # vs sampling_percentage). Tipo any no exterior aceita heterogeneidade.
+  type = any
   default = [
     {
       name = "neural_hive_errors"
@@ -565,4 +564,18 @@ variable "tags" {
     CostCenter  = "infrastructure"
     Owner       = "platform-team"
   }
+}
+# Variáveis referenciadas em main.tf:43 e outputs.tf:260,275 mas
+# declaração estava em falta — terraform validate falhava com
+# "Reference to undeclared input variable".
+variable "alertmanager_config" {
+  description = "Configuração customizada do Alertmanager"
+  type        = any
+  default     = {}
+}
+
+variable "jaeger_domain" {
+  description = "Domínio para Jaeger UI (ex: jaeger.example.com)"
+  type        = string
+  default     = ""
 }
