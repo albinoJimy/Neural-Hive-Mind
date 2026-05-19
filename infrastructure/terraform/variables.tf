@@ -198,24 +198,10 @@ variable "enable_image_signing" {
   default     = false
 }
 
-variable "allowed_registries" {
-  description = "Lista de registries permitidos"
-  type        = list(string)
-  default     = []
-}
-
-# Configurações OIDC (para image signing)
-variable "oidc_provider_arn" {
-  description = "ARN do provider OIDC do cluster EKS"
-  type        = string
-  default     = ""
-}
-
-variable "oidc_issuer_url" {
-  description = "URL do issuer OIDC do cluster EKS"
-  type        = string
-  default     = ""
-}
+# NOTE: As 3 variáveis seguintes (allowed_registries, oidc_provider_arn,
+# oidc_issuer_url) foram removidas em 2026-05-19 por estarem declared-but-unused
+# (TFLint terraform_unused_declarations bloqueava CI em todos PRs). Re-introduzir
+# quando o image signing for activado (ver docs/IMAGE_VERSIONING.md).
 
 variable "signing_namespace" {
   description = "Namespace para assinatura de imagens"

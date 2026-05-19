@@ -34,7 +34,8 @@ spec:
           serviceAccountName: orchestrator-dynamic
           containers:
             - name: ml-trainer
-              image: neural-hive/orchestrator-dynamic:latest
+              # Pinado (CI block on :latest). Sincronizar com a versão deployed.
+              image: ghcr.io/albinojimy/neural-hive-mind/orchestrator-dynamic:a0fac05
               imagePullPolicy: IfNotPresent
               command:
                 - python
@@ -175,7 +176,8 @@ spec:
           serviceAccountName: orchestrator-dynamic
           containers:
             - name: drift-checker
-              image: neural-hive/orchestrator-dynamic:latest
+              # Pinado (CI block on :latest). Sincronizar com a versão deployed.
+              image: ghcr.io/albinojimy/neural-hive-mind/orchestrator-dynamic:a0fac05
               imagePullPolicy: IfNotPresent
               command:
                 - python
