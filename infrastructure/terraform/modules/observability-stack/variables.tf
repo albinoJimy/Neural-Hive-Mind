@@ -565,3 +565,17 @@ variable "tags" {
     Owner       = "platform-team"
   }
 }
+# Variáveis referenciadas em main.tf:43 e outputs.tf:260,275 mas
+# declaração estava em falta — terraform validate falhava com
+# "Reference to undeclared input variable".
+variable "alertmanager_config" {
+  description = "Configuração customizada do Alertmanager"
+  type        = any
+  default     = {}
+}
+
+variable "jaeger_domain" {
+  description = "Domínio para Jaeger UI (ex: jaeger.example.com)"
+  type        = string
+  default     = ""
+}
