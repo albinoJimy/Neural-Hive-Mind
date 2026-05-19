@@ -54,3 +54,43 @@ spec:
       - key: app.kubernetes.io/name
         allowedRegex: "^[a-z0-9-]+$"
     message: "All resources must have 'app' and 'app.kubernetes.io/name' labels"
+
+---
+# 4. Required Labels (variante strict, cluster-wide)
+# Enforça labels 'app' + 'app.kubernetes.io/name' em TODOS os namespaces
+# excepto a lista explícita de namespaces de sistema/infra.
+# `ingress-nginx` foi excluído após incidente 2026-05-18: o DS template
+# do chart bitnami/ingress-nginx só define `app.kubernetes.io/name`
+# (sem `app`), o que bloqueava criação de novos pods do DaemonSet.
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: K8sRequiredLabels
+metadata:
+  name: must-have-app-label-all
+spec:
+  enforcementAction: deny
+  match:
+    excludedNamespaces:
+      - kube-system
+      - gatekeeper-system
+      - kube-public
+      - kube-node-lease
+      - cert-manager
+      - istio-system
+      - flannel
+      - observability
+      - kafka
+      - longhorn-system
+      - kube-flannel
+      - ingress-nginx
+    kinds:
+      - apiGroups: [""]
+        kinds: ["Pod", "Deployment", "StatefulSet", "DaemonSet"]
+    namespaces:
+      - "*"
+  parameters:
+    labels:
+      - key: app
+        allowedRegex: "^[a-z0-9-]+$"
+      - key: app.kubernetes.io/name
+        allowedRegex: "^[a-z0-9-]+$"
+    message: "All resources must have 'app' and 'app.kubernetes.io/name' labels"

@@ -33,10 +33,21 @@ data:
   MONGODB_DATABASE: "neural_hive"
 
   # Temporal
-  TEMPORAL_HOST: "neural-hive-temporal.temporal.svc.cluster.local"
+  # Service real é temporal-frontend.temporal.svc; o anterior
+  # "neural-hive-temporal" não existe e provocava DNS lookup failure
+  # bloqueando o startup do orchestrator (incidente 2026-05-18).
+  TEMPORAL_HOST: "temporal-frontend.temporal.svc.cluster.local"
   TEMPORAL_PORT: "7233"
   TEMPORAL_NAMESPACE: "default"
   TEMPORAL_TASK_QUEUE: "neural-hive-task-queue"
+
+  # Scheduler
+  # service-registry está scaled 0/0 (componente cognitivo desactivado).
+  # Com intelligent_scheduler=true, o TemporalWorker._init_components
+  # bloqueia em ServiceRegistryClient.initialize() durante startup e a
+  # ASGI não consegue fazer bind ao port 8000 → startupProbe falha.
+  # Reactivar quando service-registry for re-enable.
+  ENABLE_INTELLIGENT_SCHEDULER: "false"
 
   # PostgreSQL (Temporal state store) — settings.py linhas 126-132
   POSTGRES_HOST: "temporal-postgresql.temporal.svc.cluster.local"
@@ -179,10 +190,23 @@ spec:
             memory: "350Mi"
             cpu: "200m"
           limits:
-            memory: "512Mi"
+            # 1Gi para acomodar picos durante init (Temporal SDK + 4
+            # Kafka consumers + gRPC clients). Anterior 512Mi causava
+            # OOMKill exit 137 (incidente 2026-05-18).
+            memory: "1Gi"
             cpu: "500m"
         # Probes em 8000 — Uvicorn serve toda a app (/health, /ready, /metrics) no
         # mesmo port. O 8003 declarado em ports era apenas histórico.
+        # startupProbe dá 300s de grace ao bootstrap (init container pip
+        # install + Temporal + Kafka rebalance + gRPC channels antes do
+        # uvicorn.run()). Sem isto, livenessProbe matava o pod a 30s.
+        startupProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          failureThreshold: 60
+          periodSeconds: 5
+          timeoutSeconds: 3
         livenessProbe:
           httpGet:
             path: /health
@@ -235,7 +259,9 @@ spec:
     kind: Deployment
     name: orchestrator-dynamic
   minReplicas: 2
-  maxReplicas: 10
+  # maxReplicas reduzido de 10 para 3 — cluster está memory-bound; HPA
+  # a 10 pods causava Pending por insufficient memory (incidente 2026-05-18).
+  maxReplicas: 3
   metrics:
   - type: Resource
     resource:
