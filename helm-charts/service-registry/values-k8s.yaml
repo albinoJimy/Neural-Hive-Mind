@@ -2,7 +2,20 @@
 # Neural Hive-Mind - Production/Kubernetes deployment
 # Override values for Kubernetes environments
 
-replicaCount: 0  # Disabled: image not found in registry
+# Re-enabled 2026-05-18: imagem ghcr.io/.../service-registry:c762d89 verificada
+# como funcional no cluster. Bloqueio anterior era um secret `service-registry-secret`
+# com chave `redis-password` vazia; agora o chart suporta `existingSecretKey` para
+# apontar para o secret partilhado `redis-password` (chave `password`).
+# service-registry é dependência crítica do orchestrator-dynamic intelligent_scheduler.
+replicaCount: 1
+
+# Sourcing do password de Redis a partir do secret partilhado em vez de gerar
+# vazio. O secret `redis-password` no namespace neural-hive contém a chave
+# `password` com a credencial real.
+config:
+  redis:
+    existingSecret: "redis-password"
+    existingSecretKey: "password"
 
 image:
   repository: ghcr.io/albinojimy/neural-hive-mind/service-registry
