@@ -155,6 +155,17 @@ jobs:
         with:
           version: ${{ env.HELM_VERSION }}
 
+      - name: Build chart dependencies
+        # Istio base e opa-gatekeeper declaram deps externas (base, istiod,
+        # gatekeeper) que precisam ser fetched antes do lint/template. Sem
+        # isto, helm lint/template falha com "missing in charts/ directory".
+        run: |
+          helm repo add istio https://istio-release.storage.googleapis.com/charts || true
+          helm repo add gatekeeper https://open-policy-agent.github.io/gatekeeper/charts || true
+          helm repo update
+          helm dependency build helm-charts/istio-base
+          helm dependency build helm-charts/opa-gatekeeper
+
       - name: Lint Istio Base Chart
         run: helm lint helm-charts/istio-base
 

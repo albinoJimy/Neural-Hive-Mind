@@ -12,6 +12,12 @@ terraform {
       source  = "hashicorp/kubernetes"
       version = "~> 2.23"
     }
+    # Provider tls usado em data.tls_certificate.cluster (linha 290+)
+    # para fingerprint OIDC. TFLint exigia version constraint explícita.
+    tls = {
+      source  = "hashicorp/tls"
+      version = "~> 4.0"
+    }
   }
 }
 
