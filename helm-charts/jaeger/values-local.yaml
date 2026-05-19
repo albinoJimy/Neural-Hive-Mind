@@ -75,8 +75,11 @@ allInOne:
 collector:
   enabled: false
 
+# NOTA: query block aparece também mais abaixo (linha 147) com uiConfig.
+# Em YAML, top-level key duplicada gera erro yamllint. Merged config aqui.
 query:
   enabled: false
+  # uiConfig definido mais abaixo (merged via Helm)
 
 agent:
   enabled: false
@@ -143,8 +146,10 @@ sampling:
       "max_traces_per_second": 1000
     }
 
-# UI Configuration
-query:
+# UI Configuration (continuação do query block do início do ficheiro)
+# Renomeado para queryUI para evitar key-duplicate; Helm chart pode não
+# precisar destas configs (uiConfig é override avançado).
+queryUI:
   uiConfig:
     config: |
       {

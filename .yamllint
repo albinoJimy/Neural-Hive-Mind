@@ -48,6 +48,9 @@ ignore: |
   helm-charts/*/charts/
   # Templates Helm têm sintaxe especial que confunde yamllint.
   **/templates/*.yaml
+  # Templates raiz (sem templates/ dir) usam {{- ... -}} Helm syntax.
+  **/*-template.yaml
+  **/_*.yaml
   # Backups e artefactos.
   backup/
   .worktrees/
