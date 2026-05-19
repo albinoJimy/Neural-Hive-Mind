@@ -1,0 +1,108 @@
+# Pull-through proxy cache para ghcr.io
+#
+# Contexto:
+#   vmi3306611 (worker node Contabo) tem packet loss intermitente no
+#   backbone para destinos externos. ghcr.io é alcançável mas com DNS
+#   lento (~2s) e timeouts ocasionais, causando ImagePullBackOff
+#   esporádicos e cascading helm release failures.
+#
+# Esta configuração transforma o docker-registry interno (NodePort
+# 30500 no master vmi2092350) em pull-through cache de ghcr.io. Pulls
+# subsequentes de imagens já cacheadas são servidos da rede interna
+# Contabo (sem travessia de backbone externo), eliminando a janela de
+# fragilidade do ghcr.
+#
+# IMPORTANTE: quando `proxy.enabled: true`, o registry fica em modo
+# proxy-only e DEIXA DE ACEITAR PUSH. Confirme que nenhum pipeline
+# ainda faz push para 37.60.241.150:30500 antes de aplicar.
+#
+# Para activar:
+#   helm upgrade registry helm-charts/docker-registry \
+#     -n registry \
+#     -f helm-charts/docker-registry/values-pullthrough-ghcr.yaml
+#
+# Para usar no cluster (client-side, em cada node):
+#   /etc/containerd/certs.d/ghcr.io/hosts.toml:
+#     server = "https://ghcr.io"
+#     [host."http://37.60.241.150:30500"]
+#       capabilities = ["pull", "resolve"]
+#
+# Ver helm-charts/docker-registry/README.md para detalhes.
+
+replicaCount: 1
+
+image:
+  repository: registry
+  tag: "2.8.3"
+  pullPolicy: IfNotPresent
+
+service:
+  type: NodePort
+  port: 5000
+  nodePort: 30500
+
+# Persistence: cache de blobs ghcr.io. 50Gi é folgado para imagens
+# do projecto (típico: 200-800Mi por imagem, ~30 imagens = ~15Gi).
+persistence:
+  enabled: true
+  storageClass: ""
+  size: 50Gi
+  accessMode: ReadWriteOnce
+
+storage:
+  s3:
+    enabled: false
+
+redis:
+  enabled: false
+
+# Proxy mode — pull-through cache de ghcr.io
+proxy:
+  enabled: true
+  remoteurl: https://ghcr.io
+  # Imagens públicas funcionam sem credenciais (token anonymous obtido
+  # automaticamente). Para imagens privadas ou rate-limit melhor,
+  # popular via secret externo e referenciar aqui (requer extensão do
+  # template configmap.yaml para ler de secret).
+  username: ""
+  password: ""
+  ttl: 168h  # 7 dias
+
+resources:
+  requests:
+    memory: "128Mi"
+    cpu: "50m"
+  limits:
+    memory: "512Mi"
+    cpu: "500m"
+
+nodeSelector:
+  node-role.kubernetes.io/control-plane: ""
+
+tolerations:
+  - key: "node-role.kubernetes.io/control-plane"
+    operator: "Exists"
+    effect: "NoSchedule"
+
+affinity: {}
+
+config:
+  storage:
+    delete:
+      enabled: true
+    cache:
+      blobdescriptor: inmemory
+  http:
+    addr: ":5000"
+    headers:
+      X-Content-Type-Options: [nosniff]
+  health:
+    storagedriver:
+      enabled: true
+      interval: 10s
+      threshold: 3
+
+# GC mantém-se para limpar manifests órfãos do cache
+gc:
+  enabled: true
+  schedule: "0 2 * * 0"
