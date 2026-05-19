@@ -186,10 +186,27 @@ jobs:
         sudo mv promtool /usr/local/bin/
 
     - name: Validate Alert Rules Syntax
+      # Os ficheiros em monitoring/alerts/*.yaml são ConfigMaps Kubernetes
+      # que embebem as regras em data.<key>.yaml. promtool check rules
+      # espera o formato de regras puro. Extrair antes de validar via yq.
       run: |
+        # Instalar mikefarah/yq v4 (não tem subcommand 'empty' mas tem 'eval')
+        sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+        sudo chmod +x /usr/local/bin/yq
+        mkdir -p /tmp/extracted-alerts
         for alert_file in monitoring/alerts/*.yaml; do
           echo "Validating $alert_file"
-          promtool check rules "$alert_file"
+          basename=$(basename "$alert_file")
+          # Tentar extrair regras de ConfigMap.data.*.yaml; se falhar, usar ficheiro original
+          extracted="/tmp/extracted-alerts/${basename}"
+          # Procurar pela chave em data que termina em .yaml
+          if yq eval '.kind == "ConfigMap"' "$alert_file" 2>/dev/null | grep -q true; then
+            # ConfigMap: extrair primeiro item de data que tenha 'groups:'
+            yq eval '.data | to_entries | map(select(.value | test("groups:"))) | .[0].value' "$alert_file" > "$extracted"
+          else
+            cp "$alert_file" "$extracted"
+          fi
+          promtool check rules "$extracted"
         done
 
     - name: Check Alert Rules Best Practices

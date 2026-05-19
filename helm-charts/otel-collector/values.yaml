@@ -2,6 +2,11 @@
 component: "otel-collector"
 layer: "observabilidade"
 
+# Sub-chart opentelemetry-collector requer 'mode' obrigatório.
+# Opções: deployment (default), daemonset, statefulset, sidecar.
+opentelemetry-collector:
+  mode: deployment
+
 nameOverride: ""
 fullnameOverride: ""
 
