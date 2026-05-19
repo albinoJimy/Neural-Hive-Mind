@@ -281,3 +281,13 @@ variable "spire_db_allocated_storage" {
   type        = number
   default     = 20
 }
+
+# providers.tf referencia var.aws_region em 3 lugares (region default,
+# provider kubernetes config, alias). Declaração estava em falta no
+# root module — Terraform Validate falhava com "Reference to undeclared
+# input variable". Default "us-east-1" mantém o fallback existente.
+variable "aws_region" {
+  description = "AWS region usada pelo provider AWS no root module"
+  type        = string
+  default     = "us-east-1"
+}
