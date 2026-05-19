@@ -86,10 +86,14 @@ postgresql:
       enabled: true
       size: 10Gi
       storageClass: "gp3-ssd"
+    # Rightsized 2026-05-18: uso real observado em production = 53Mi memory / 19m CPU
+    # keycloak-postgresql tem carga mínima (apenas auth state, sem cache pesado).
+    # Request 192Mi mantém ~3.6x headroom face ao steady-state; limit 1Gi continua
+    # generoso para picos de migração/backup.
     resources:
       requests:
-        cpu: 250m
-        memory: 512Mi
+        cpu: 50m
+        memory: 192Mi
       limits:
         cpu: 1
         memory: 1Gi
