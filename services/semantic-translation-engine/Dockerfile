@@ -32,7 +32,10 @@ RUN sed 's|-r ../../requirements-base.txt|-r requirements-base.txt|' requirement
     echo "spaCy models downloaded"
 
 # Stage 2: Runtime
-FROM python:3.12-slim
+# IMPORTANTE: deve ficar alinhado com a versão Python da imagem builder
+# (python-observability-base:1.2.6 -> Python 3.11). Caso contrário, os módulos
+# C compilados (ex: confluent_kafka.cimpl) ficam incompatíveis com o runtime.
+FROM python:3.11-slim
 
 # Labels for metadata
 LABEL maintainer="Neural Hive-Mind Team <team@neural-hive-mind.org>"
