@@ -869,7 +869,7 @@ spec:
       validation:
         openAPIV3Schema:
           type: object
-            properties:
+          properties:
             max_memory:
               type: string
               default: "8Gi"
