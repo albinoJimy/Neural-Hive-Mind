@@ -28,7 +28,7 @@ spec:
         readOnlyRootFilesystem: false
       containers:
       - name: self-healing-engine
-        image: 37.60.241.150:30500/self-healing-engine:latest
+        image: ghcr.io/albinojimy/neural-hive-mind/self-healing-engine:4da71a3
         imagePullPolicy: Always
         ports:
         - name: http
