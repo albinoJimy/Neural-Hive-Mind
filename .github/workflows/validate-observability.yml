@@ -240,6 +240,13 @@ jobs:
     - name: Install Library
       run: poetry install --no-interaction
 
+    - name: Install dev tools
+      # pyproject.toml usa PEP 621 ([project.optional-dependencies]) e não
+      # [tool.poetry.dependencies]. Poetry install não traz extras dev
+      # automaticamente. Instalar via pip para garantir black/isort/flake8.
+      run: |
+        poetry run pip install black isort flake8 mypy
+
     - name: Code Formatting Check
       run: |
         poetry run black --check .
