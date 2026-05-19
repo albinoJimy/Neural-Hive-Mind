@@ -8,6 +8,12 @@ terraform {
       source  = "hashicorp/aws"
       version = "~> 5.0"
     }
+    # Provider archive usado em data.archive_file.vulnerability_processor
+    # (linha 274+) para zip da Lambda. TFLint exigia version constraint.
+    archive = {
+      source  = "hashicorp/archive"
+      version = "~> 2.4"
+    }
   }
 }
 

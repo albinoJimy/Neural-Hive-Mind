@@ -70,16 +70,9 @@ variable "signing_namespace" {
   default     = "neural-hive-system"
 }
 
-variable "allowed_registries" {
-  description = "Lista de registries externos permitidos"
-  type        = list(string)
-  default = [
-    "public.ecr.aws",
-    "docker.io",
-    "gcr.io",
-    "ghcr.io"
-  ]
-}
+# NOTE: variable "allowed_registries" removida em 2026-05-19 — TFLint
+# terraform_unused_declarations bloqueava CI. Re-introduzir quando o
+# enforcement de allowlist for activado no módulo.
 
 variable "oidc_provider_arn" {
   description = "ARN do OIDC provider do cluster EKS"
