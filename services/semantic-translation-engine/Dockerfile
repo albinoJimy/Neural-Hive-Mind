@@ -52,13 +52,19 @@ RUN useradd -m -u 1000 -s /bin/bash app
 WORKDIR /app
 
 # Copy Python dependencies from builder - ensure all packages are available (--chown required for non-root user)
-# IMPORTANT: order matters - base image packages first, then user-installed packages override them
-# (e.g. neural_hive_observability newer version must win over the one pre-baked in the base image)
-COPY --from=builder --chown=app:app /usr/local/lib/python3.11/site-packages /home/app/.local/lib/python3.11/site-packages
 COPY --from=builder --chown=app:app /root/.local /home/app/.local
+COPY --from=builder --chown=app:app /usr/local/lib/python3.11/site-packages /home/app/.local/lib/python3.11/site-packages
 
 # Copy shared libraries (only neural_hive_risk_scoring, others installed via pip)
 COPY --chown=app:app libraries/python/neural_hive_risk_scoring /app/libraries/neural_hive_risk_scoring
+
+# Force-reinstall neural_hive_observability to override the older copy from the base image
+# (the base image python-observability-base:1.2.6 ships an older 2.1.1 missing
+# AttributeError handling in TraceContextMiddleware, which crashes every /health probe)
+COPY --chown=app:app libraries/python/neural_hive_observability /tmp/neural_hive_observability
+RUN pip install --no-cache-dir --force-reinstall --no-deps --target /home/app/.local/lib/python3.11/site-packages /tmp/neural_hive_observability && \
+    rm -rf /tmp/neural_hive_observability && \
+    chown -R app:app /home/app/.local/lib/python3.11/site-packages/neural_hive_observability*
 
 # Copy application code
 COPY --chown=app:app services/semantic-translation-engine/src/ ./src/
