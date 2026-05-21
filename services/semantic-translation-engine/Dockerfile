@@ -58,13 +58,23 @@ COPY --from=builder --chown=app:app /usr/local/lib/python3.11/site-packages /hom
 # Copy shared libraries (only neural_hive_risk_scoring, others installed via pip)
 COPY --chown=app:app libraries/python/neural_hive_risk_scoring /app/libraries/neural_hive_risk_scoring
 
-# Force-reinstall neural_hive_observability to override the older copy from the base image
-# (the base image python-observability-base:1.2.6 ships an older 2.1.1 missing
-# AttributeError handling in TraceContextMiddleware, which crashes every /health probe)
+# Force-reinstall neural_hive_observability to override the older copy from the base image.
+# The base image python-observability-base:1.2.6 ships an older 2.1.1 of this library
+# (missing AttributeError handling in TraceContextMiddleware), which makes every /health
+# probe crash with 500 and traps the pod in CrashLoopBackOff.
+#
+# NOTE: `pip install --force-reinstall --target` is a SILENT no-op when the target dir
+# already contains the package (which it does, copied from the base image above).
+# We must remove the stale tree first, then install with --user into the same prefix.
 COPY --chown=app:app libraries/python/neural_hive_observability /tmp/neural_hive_observability
-RUN pip install --no-cache-dir --force-reinstall --no-deps --target /home/app/.local/lib/python3.11/site-packages /tmp/neural_hive_observability && \
-    rm -rf /tmp/neural_hive_observability && \
-    chown -R app:app /home/app/.local/lib/python3.11/site-packages/neural_hive_observability*
+USER app
+RUN rm -rf /home/app/.local/lib/python3.11/site-packages/neural_hive_observability \
+           /home/app/.local/lib/python3.11/site-packages/neural_hive_observability-*.dist-info \
+           /home/app/.local/lib/python3.11/site-packages/neural_hive_observability-*.egg-info && \
+    pip install --no-cache-dir --no-deps --user /tmp/neural_hive_observability && \
+    python -c "import neural_hive_observability.middleware as m; import inspect; src=inspect.getsource(m); assert 'AttributeError' in src, 'AttributeError fix not present in installed middleware.py'; print('Middleware fix verified')"
+USER root
+RUN rm -rf /tmp/neural_hive_observability
 
 # Copy application code
 COPY --chown=app:app services/semantic-translation-engine/src/ ./src/
