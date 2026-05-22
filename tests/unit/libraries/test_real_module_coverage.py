@@ -291,7 +291,7 @@ def test_audit_logger_init():
     try:
         from neural_hive_specialists.compliance.audit_logger import AuditLogger
 
-        logger = AuditLogger("test_service")
+        logger = AuditLogger(Mock(), "test_specialist")
         assert logger is not None
     except ImportError:
         pytest.skip("AuditLogger not available")
@@ -302,7 +302,7 @@ def test_field_encryptor_init():
     try:
         from neural_hive_specialists.compliance.field_encryptor import FieldEncryptor
 
-        encryptor = FieldEncryptor(key=b"test_key_32_bytes___________!")
+        encryptor = FieldEncryptor(Mock())
         assert encryptor is not None
     except ImportError:
         pytest.skip("FieldEncryptor not available")
@@ -361,7 +361,7 @@ def test_semantic_analyzer_init():
     try:
         from neural_hive_specialists.semantic_pipeline.semantic_analyzer import SemanticAnalyzer
 
-        analyzer = SemanticAnalyzer()
+        analyzer = SemanticAnalyzer({})
         assert analyzer is not None
     except ImportError:
         pytest.skip("SemanticAnalyzer not available")
@@ -409,7 +409,7 @@ def test_circuit_breaker_init():
             MonitoredCircuitBreaker,
         )
 
-        cb = MonitoredCircuitBreaker("test_service", "test_circuit", failure_threshold=5)
+        cb = MonitoredCircuitBreaker("test_service", "test_circuit")
         assert cb is not None
     except ImportError:
         pytest.skip("MonitoredCircuitBreaker not available")
@@ -475,7 +475,7 @@ def test_registry_init():
     try:
         from neural_hive_resilience.neural_hive_resilience.registry import ResilienceRegistry
 
-        registry = ResilienceRegistry()
+        registry = ResilienceRegistry(service_name="test-service")
         assert registry is not None
     except ImportError:
         pytest.skip("ResilienceRegistry not available")
@@ -486,7 +486,7 @@ def test_risk_calculator_init():
     try:
         from neural_hive_risk_scoring.calculator import RiskCalculator
 
-        calc = RiskCalculator()
+        calc = RiskCalculator(Mock())
         assert calc is not None
     except ImportError:
         pytest.skip("RiskCalculator not available")
@@ -519,7 +519,7 @@ def test_risk_alerts_init():
     try:
         from neural_hive_risk_scoring.alerts import RiskAlertManager
 
-        alerts = RiskAlertManager()
+        alerts = RiskAlertManager(Mock(), Mock())
         assert alerts is not None
     except ImportError:
         pytest.skip("RiskAlertManager not available")
@@ -573,7 +573,7 @@ def test_drift_detector_init():
     try:
         from neural_hive_ml.drift_detector import DriftDetector
 
-        detector = DriftDetector()
+        detector = DriftDetector(Mock(), Mock())
         assert detector is not None
     except ImportError:
         pytest.skip("DriftDetector not available")
