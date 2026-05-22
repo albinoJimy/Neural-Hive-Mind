@@ -315,7 +315,7 @@ class SpecialistsGrpcClient:
                         # Converter timestamp para datetime
                         try:
                             evaluated_datetime = datetime.fromtimestamp(
-                                evaluated_at.seconds + evaluated_at.nanos / 1e9, tz=UTC
+                                evaluated_at.seconds + evaluated_at.nanos / 1e9, tz=timezone.utc
                             )
 
                             logger.debug(
