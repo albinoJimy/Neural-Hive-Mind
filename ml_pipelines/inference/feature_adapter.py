@@ -174,7 +174,14 @@ class FeatureAdapter:
         nlp_extractor = self._get_nlp_extractor()
         if nlp_extractor:
             professional_features = nlp_extractor.extract_features(text)
-            return self.to_legacy_format(professional_features, specialist_confidence)
+            result = self.to_legacy_format(professional_features, specialist_confidence)
+            # NLPFeatureExtractor não emite has_backup/has_verification/has_all;
+            # derivar destes três campos directamente do texto preserva paridade
+            # com _extract_manual_features e cumpre o contrato de saída.
+            result["has_backup"] = 1.0 if self.BACKUP_PATTERN.search(text) else 0.0
+            result["has_verification"] = 1.0 if self.VERIFICATION_PATTERN.search(text) else 0.0
+            result["has_all"] = 1.0 if self.ALL_PATTERN.search(text) else 0.0
+            return result
 
         # Fallback para extração manual se NLPFeatureExtractor não disponível
         logger.warning("Using manual feature extraction (NLPFeatureExtractor unavailable)")
