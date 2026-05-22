@@ -175,12 +175,10 @@ class FeatureAdapter:
         if nlp_extractor:
             professional_features = nlp_extractor.extract_features(text)
             result = self.to_legacy_format(professional_features, specialist_confidence)
-            # NLPFeatureExtractor não emite has_backup/has_verification/has_all;
-            # derivar destes três campos directamente do texto preserva paridade
-            # com _extract_manual_features e cumpre o contrato de saída.
-            result["has_backup"] = 1.0 if self.BACKUP_PATTERN.search(text) else 0.0
-            result["has_verification"] = 1.0 if self.VERIFICATION_PATTERN.search(text) else 0.0
-            result["has_all"] = 1.0 if self.ALL_PATTERN.search(text) else 0.0
+            # NLPFeatureExtractor não emite features dependentes da forma textual
+            # original. Derivar has_* e risk_* a partir do texto preserva
+            # paridade com _extract_manual_features e cumpre o contrato de saída.
+            self._apply_text_derived_overrides(result, text)
             return result
 
         # Fallback para extração manual se NLPFeatureExtractor não disponível
@@ -286,6 +284,41 @@ class FeatureAdapter:
             Array 2D [[feature1, feature2, ..., feature30]] compatível com sklearn
         """
         return [[legacy_features.get(f, 0.0) for f in self.LEGACY_FEATURE_ORDER]]
+
+    def _apply_text_derived_overrides(self, legacy: dict[str, float], text: str) -> None:
+        """
+        Sobrepõe features dependentes da forma textual no dicionário legado.
+
+        NLPFeatureExtractor opera sobre tokens normalizados e não consegue
+        emitir has_backup/has_verification/has_all nem alinhar risk_*/
+        simple_risk_score com as regex usadas em _extract_manual_features.
+        Esta helper aplica as mesmas regras a partir do texto original,
+        garantindo que ambos os caminhos (NLP e fallback manual) produzem
+        as mesmas 9 features sensíveis a vocabulário.
+        """
+        legacy["has_backup"] = 1.0 if self.BACKUP_PATTERN.search(text) else 0.0
+        legacy["has_verification"] = 1.0 if self.VERIFICATION_PATTERN.search(text) else 0.0
+        legacy["has_all"] = 1.0 if self.ALL_PATTERN.search(text) else 0.0
+
+        legacy["risk_high"] = (
+            1.0
+            if re.search(r"\b(delete|drop|destroy|remove|disable)\b", text, re.IGNORECASE)
+            else 0.0
+        )
+        legacy["risk_medium"] = (
+            1.0
+            if re.search(r"\b(update|change|modify|alter)\b", text, re.IGNORECASE)
+            else 0.0
+        )
+        legacy["risk_low"] = (
+            1.0
+            if re.search(r"\b(create|add|verify|check|test|backup)\b", text, re.IGNORECASE)
+            else 0.0
+        )
+
+        text_lower = text.lower()
+        dangerous_count = sum(1 for kw in self.DANGEROUS_KEYWORDS if kw in text_lower)
+        legacy["simple_risk_score"] = min(1.0, dangerous_count * 0.3)
 
     def _extract_manual_features(self, text: str, specialist_confidence: float) -> dict[str, float]:
         """
