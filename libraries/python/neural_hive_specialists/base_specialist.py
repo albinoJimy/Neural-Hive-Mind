@@ -586,10 +586,10 @@ class BaseSpecialist(ABC):
                             # Gerar embeddings se necessário (não cacheados)
                             if include_embeddings and "embedding_features" not in features:
                                 embedding_start = time.time()
-                                features["embedding_features"] = (
-                                    self.feature_extractor._extract_embedding_features(
-                                        cognitive_plan.get("tasks", [])
-                                    )
+                                features[
+                                    "embedding_features"
+                                ] = self.feature_extractor._extract_embedding_features(
+                                    cognitive_plan.get("tasks", [])
                                 )
                                 feature_extraction_time = time.time() - embedding_start
                         else:
@@ -676,10 +676,10 @@ class BaseSpecialist(ABC):
                     # Gerar embeddings se necessário (não cacheados)
                     if include_embeddings and "embedding_features" not in features:
                         embedding_start = time.time()
-                        features["embedding_features"] = (
-                            self.feature_extractor._extract_embedding_features(
-                                cognitive_plan.get("tasks", [])
-                            )
+                        features[
+                            "embedding_features"
+                        ] = self.feature_extractor._extract_embedding_features(
+                            cognitive_plan.get("tasks", [])
                         )
                         feature_extraction_time = time.time() - embedding_start
                 else:
@@ -1101,9 +1101,9 @@ class BaseSpecialist(ABC):
                     risk_score = float(prediction[1])
                     parsing_method = "numpy_array_1d"
                 else:
-                    metadata["parse_warning"] = (
-                        f"NumPy array shape não suportado: {prediction.shape}"
-                    )
+                    metadata[
+                        "parse_warning"
+                    ] = f"NumPy array shape não suportado: {prediction.shape}"
                     parsing_method = "numpy_array_unsupported"
                     logger.warning("NumPy array com shape inesperado", shape=prediction.shape)
 
@@ -1117,9 +1117,9 @@ class BaseSpecialist(ABC):
                         risk_score = float(prediction.iloc[0, 1])
                         parsing_method = "dataframe"
                     else:
-                        metadata["parse_warning"] = (
-                            f"DataFrame com colunas insuficientes: {len(prediction.columns)}"
-                        )
+                        metadata[
+                            "parse_warning"
+                        ] = f"DataFrame com colunas insuficientes: {len(prediction.columns)}"
                         parsing_method = "dataframe_insufficient"
                 elif isinstance(prediction, pd.Series):
                     if len(prediction) >= 2:
@@ -1127,9 +1127,9 @@ class BaseSpecialist(ABC):
                         risk_score = float(prediction.iloc[1])
                         parsing_method = "series"
                     else:
-                        metadata["parse_warning"] = (
-                            f"Series com elementos insuficientes: {len(prediction)}"
-                        )
+                        metadata[
+                            "parse_warning"
+                        ] = f"Series com elementos insuficientes: {len(prediction)}"
                         parsing_method = "series_insufficient"
 
             # Caso 3: Lista
@@ -1146,9 +1146,9 @@ class BaseSpecialist(ABC):
                         risk_score = float(prediction[1])
                         parsing_method = "list_flat"
                 else:
-                    metadata["parse_warning"] = (
-                        f"Lista com elementos insuficientes: {len(prediction)}"
-                    )
+                    metadata[
+                        "parse_warning"
+                    ] = f"Lista com elementos insuficientes: {len(prediction)}"
                     parsing_method = "list_insufficient"
 
             # Caso 4: Dicionário
@@ -1161,9 +1161,9 @@ class BaseSpecialist(ABC):
 
             # Caso 5: Formato desconhecido
             else:
-                metadata["parse_warning"] = (
-                    f"Formato de predição desconhecido: {type(prediction).__name__}"
-                )
+                metadata[
+                    "parse_warning"
+                ] = f"Formato de predição desconhecido: {type(prediction).__name__}"
                 parsing_method = "unknown"
                 logger.warning(
                     "Formato de predição não reconhecido",
@@ -1449,16 +1449,16 @@ class BaseSpecialist(ABC):
                             if "metadata" not in cached_opinion["opinion"]:
                                 cached_opinion["opinion"]["metadata"] = {}
 
-                            cached_opinion["opinion"]["metadata"]["original_processing_time_ms"] = (
-                                cached_opinion["processing_time_ms"]
-                            )
+                            cached_opinion["opinion"]["metadata"][
+                                "original_processing_time_ms"
+                            ] = cached_opinion["processing_time_ms"]
                             cached_opinion["processing_time_ms"] = int(processing_time * 1000)
 
                         # Preservar evaluated_at original
                         if "evaluated_at" in cached_opinion:
-                            cached_opinion["opinion"]["metadata"]["evaluated_at_original"] = (
-                                cached_opinion["evaluated_at"]
-                            )
+                            cached_opinion["opinion"]["metadata"][
+                                "evaluated_at_original"
+                            ] = cached_opinion["evaluated_at"]
                             cached_opinion["evaluated_at"] = datetime.now(timezone.utc).isoformat()
 
                         return cached_opinion
@@ -2583,9 +2583,9 @@ class BaseSpecialist(ABC):
             circuit_breaker_states["mlflow"] = self.mlflow_client.get_circuit_breaker_state()
         if self.ledger_client:
             circuit_breaker_states["ledger"] = self.ledger_client.get_circuit_breaker_state()
-        circuit_breaker_states["explainability"] = (
-            self.explainability_gen.get_circuit_breaker_state()
-        )
+        circuit_breaker_states[
+            "explainability"
+        ] = self.explainability_gen.get_circuit_breaker_state()
 
         details["circuit_breaker_states"] = circuit_breaker_states
 

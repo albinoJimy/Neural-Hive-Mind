@@ -152,9 +152,9 @@ class DisasterRecoveryManager:
 
                 # Feature Store
                 if self.config.backup_include_feature_store:
-                    futures[executor.submit(self._backup_feature_store, backup_dir, tenant_id)] = (
-                        "feature_store"
-                    )
+                    futures[
+                        executor.submit(self._backup_feature_store, backup_dir, tenant_id)
+                    ] = "feature_store"
 
                 # Métricas
                 if self.config.backup_include_metrics:
@@ -857,9 +857,9 @@ class DisasterRecoveryManager:
 
                 # Feature Store
                 if self.config.backup_include_feature_store:
-                    futures[executor.submit(self._backup_feature_store, backup_dir, tenant_id)] = (
-                        "feature_store"
-                    )
+                    futures[
+                        executor.submit(self._backup_feature_store, backup_dir, tenant_id)
+                    ] = "feature_store"
 
                 # Métricas
                 if self.config.backup_include_metrics:
@@ -1115,7 +1115,9 @@ class DisasterRecoveryManager:
             all_snapshots = self.storage_client.list_backups(prefix=snapshot_prefix)
 
             # Filtrar snapshots não expirados
-            cutoff_date = datetime.now(timezone.utc) - timedelta(days=self.config.backup_retention_days)
+            cutoff_date = datetime.now(timezone.utc) - timedelta(
+                days=self.config.backup_retention_days
+            )
             active_snapshots = []
 
             for snapshot_obj in all_snapshots:
