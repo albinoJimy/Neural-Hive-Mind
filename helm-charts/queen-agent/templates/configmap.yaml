@@ -33,7 +33,11 @@ data:
   MONGODB_MIN_POOL_SIZE: {{ .Values.config.mongodb.minPoolSize | quote }}
 
   REDIS_CLUSTER_NODES: {{ .Values.config.redis.clusterNodes | quote }}
-  REDIS_PASSWORD: {{ .Values.config.redis.password | quote }}
+  # TR-1 (spec 2026-05-22-pipeline-flow-recovery): REDIS_PASSWORD removido
+  # do ConfigMap. Credencial é injectada apenas via Secret (secrets.redisPassword
+  # em values.yaml ou ExternalSecret/Vault em produção) — ver
+  # templates/secret.yaml. ConfigMap NÃO deve transportar segredos mesmo
+  # vazios; isto evita vazamento por `kubectl get cm -o yaml`.
   REDIS_SSL_ENABLED: {{ .Values.config.redis.sslEnabled | quote }}
   REDIS_PHEROMONE_PREFIX: {{ .Values.config.redis.pheromonePrefix | quote }}
   REDIS_CACHE_TTL_SECONDS: {{ .Values.config.redis.cacheTtlSeconds | quote }}
