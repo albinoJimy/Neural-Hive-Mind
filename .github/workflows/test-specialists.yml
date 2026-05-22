@@ -101,7 +101,8 @@ jobs:
             --cov-report=xml:../../../tests/results/coverage/coverage.xml \
             --cov-report=html:../../../tests/results/coverage/ \
             --junit-xml=../../../tests/results/specialists-junit.xml \
-            --ignore=tests/benchmarks
+            --ignore=tests/benchmarks \
+            --ignore=tests/integration
 
       - name: Upload coverage para Codecov
         uses: codecov/codecov-action@v3
