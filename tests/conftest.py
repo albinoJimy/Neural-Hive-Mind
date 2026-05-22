@@ -48,7 +48,10 @@ for module in _fixture_modules:
     try:
         __import__(module)
         pytest_plugins.append(module)
-    except ImportError:
+    except (ImportError, AttributeError):
+        # AttributeError trata casos como temporalio 1.5/1.6 com
+        # protobuf 5.29.x onde EnumOptions.RegisterExtension foi removido.
+        # Fixtures e2e ficam disponíveis apenas quando deps compatíveis.
         pass
 
 
