@@ -4,6 +4,12 @@ layer: "orquestracao"
 
 replicaCount: 2
 
+# TR-4 (spec 2026-05-22-pipeline-flow-recovery): garantir que SIGKILL
+# não acontece antes do terminationDrainDuration:30s do sidecar Istio
+# terminar. Default kubelet (30s) faz race com o drain → ligações
+# Kafka/MongoDB cortadas mid-flight.
+terminationGracePeriodSeconds: 60
+
 autoscaling:
   enabled: false
   minReplicas: 2
@@ -149,6 +155,16 @@ podAnnotations:
   prometheus.io/scrape: "true"
   prometheus.io/port: "8080"
   prometheus.io/path: "/metrics"
+  # TR-4 (spec 2026-05-22-pipeline-flow-recovery): estabilizar sidecar
+  # Istio. holdApplicationUntilProxyStarts evita race app↔sidecar no
+  # startup; terminationDrainDuration garante drenagem ordenada em
+  # shutdown; proxyCPU/proxyMemory request reduzem CPU throttling em
+  # nós Contabo (vCPU partilhado) durante XDS reconnects (~30 min).
+  proxy.istio.io/config: |
+    holdApplicationUntilProxyStarts: true
+    terminationDrainDuration: 30s
+  sidecar.istio.io/proxyCPU: "500m"
+  sidecar.istio.io/proxyMemory: "256Mi"
 
 podLabels:
   app.kubernetes.io/component: approval-service
@@ -212,9 +228,12 @@ readinessProbe:
     path: /ready
     port: 8000
   initialDelaySeconds: 0
-  periodSeconds: 10
-  timeoutSeconds: 5
-  failureThreshold: 3
+  # TR-4: probe relaxado para tolerar XDS reconnect do sidecar Istio
+  # (~30 min) e CPU throttling no nó Contabo. Antes: period=10s
+  # timeout=5s failure=3 → flap durante reconnects.
+  periodSeconds: 30
+  timeoutSeconds: 10
+  failureThreshold: 5
 
 labels:
   app.kubernetes.io/name: approval-service

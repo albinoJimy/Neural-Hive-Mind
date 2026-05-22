@@ -108,7 +108,19 @@ spec:
         prometheus.io/scrape: "true"
         prometheus.io/port: "8000"
         prometheus.io/path: "/metrics"
+        # TR-4 (spec 2026-05-22-pipeline-flow-recovery): estabilizar sidecar
+        # Istio (66 restarts/dia em vmi3313361 por XDS reconnect timeout).
+        proxy.istio.io/config: |
+          holdApplicationUntilProxyStarts: true
+          terminationDrainDuration: 30s
+        sidecar.istio.io/proxyCPU: "500m"
+        sidecar.istio.io/proxyMemory: "256Mi"
     spec:
+      # TR-4: garantir que SIGKILL não acontece antes do
+      # terminationDrainDuration:30s do sidecar Istio terminar. Default
+      # do kubelet é 30s, o que faz race com o drain → ligações
+      # cortadas mid-flight.
+      terminationGracePeriodSeconds: 60
       containers:
       - name: approval-service
         image: ghcr.io/albinojimy/neural-hive-mind/approval-service:1.0.0
@@ -136,16 +148,25 @@ spec:
           httpGet:
             path: /health
             port: 8080
+          # TR-4: livenessProbe explicitamente inalterado pelo
+          # TR-4 (apenas readinessProbe é relaxado). Valores
+          # alinhados com helm-charts/approval-service/values.yaml e
+          # services/approval-service/helm/.../deployment.yaml para
+          # consistência entre os 3 manifestos.
           initialDelaySeconds: 30
-          periodSeconds: 30
-          timeoutSeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
         readinessProbe:
           httpGet:
             path: /ready
             port: 8080
+          # TR-4: probe relaxado para tolerar XDS reconnect Istio (~30 min)
+          # e CPU throttling em nós Contabo com vCPU partilhado.
           initialDelaySeconds: 20
-          periodSeconds: 10
-          timeoutSeconds: 5
+          periodSeconds: 30
+          timeoutSeconds: 10
+          failureThreshold: 5
         volumeMounts:
         - name: schemas
           mountPath: /app/schemas
