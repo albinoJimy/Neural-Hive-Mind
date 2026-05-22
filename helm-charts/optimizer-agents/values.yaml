@@ -1,6 +1,12 @@
 component: "optimizer-agents"
 layer: "otimizacao"
 
+# TR-2: labels Gatekeeper-compliant para ns `neural-hive`.
+podLabels:
+  app: optimizer-agents
+  component: optimizer-agents
+  version: "1.2.1"
+
 nameOverride: ""
 fullnameOverride: ""
 

@@ -199,6 +199,12 @@ podLabels:
   app.kubernetes.io/component: self-healing
   neural-hive.io/layer: resilience
   neural-hive.io/domain: remediation
+  # TR-2: labels Gatekeeper-compliant para ns `neural-hive`
+  # (app.kubernetes.io/* não satisfaz o constraint que pede labels
+  # bare `app`, `component`, `version`).
+  app: self-healing-engine
+  component: self-healing-engine
+  version: "1.2.0"
 
 serviceMonitor:
   enabled: false
