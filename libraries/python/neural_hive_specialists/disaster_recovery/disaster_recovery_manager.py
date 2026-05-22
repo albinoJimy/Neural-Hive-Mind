@@ -1127,9 +1127,9 @@ class DisasterRecoveryManager:
                     # Normalizar timestamp para UTC timezone-aware
                     if isinstance(snapshot_timestamp, datetime):
                         if snapshot_timestamp.tzinfo is None:
-                            snapshot_timestamp = snapshot_timestamp.replace(tzinfo=UTC)
+                            snapshot_timestamp = snapshot_timestamp.replace(tzinfo=timezone.utc)
                         else:
-                            snapshot_timestamp = snapshot_timestamp.astimezone(UTC)
+                            snapshot_timestamp = snapshot_timestamp.astimezone(timezone.utc)
 
                         # Verificar se não expirou
                         if snapshot_timestamp >= cutoff_date:
@@ -2008,9 +2008,9 @@ class DisasterRecoveryManager:
                 # Normalizar timestamp
                 if isinstance(snapshot_timestamp, datetime):
                     if snapshot_timestamp.tzinfo is None:
-                        snapshot_timestamp = snapshot_timestamp.replace(tzinfo=UTC)
+                        snapshot_timestamp = snapshot_timestamp.replace(tzinfo=timezone.utc)
                     else:
-                        snapshot_timestamp = snapshot_timestamp.astimezone(UTC)
+                        snapshot_timestamp = snapshot_timestamp.astimezone(timezone.utc)
                 else:
                     logger.warning(
                         "Timestamp inválido, pulando",
@@ -2058,10 +2058,10 @@ class DisasterRecoveryManager:
                 if isinstance(backup_timestamp, datetime):
                     if backup_timestamp.tzinfo is None:
                         # Naive datetime, assumir UTC
-                        backup_timestamp = backup_timestamp.replace(tzinfo=UTC)
+                        backup_timestamp = backup_timestamp.replace(tzinfo=timezone.utc)
                     else:
                         # Converter para UTC
-                        backup_timestamp = backup_timestamp.astimezone(UTC)
+                        backup_timestamp = backup_timestamp.astimezone(timezone.utc)
                 else:
                     logger.warning(
                         "Timestamp inválido, pulando",
