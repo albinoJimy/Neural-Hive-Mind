@@ -261,6 +261,14 @@ class ConsolidatedDecision(BaseModel):
                 if self.cognitive_plan is not None
                 else None
             ),
+            # v2 schema fields — fastavro does not honour enum defaults, so we
+            # must emit these explicitly even when the producer hasn't yet been
+            # taught to set them (the Context Layer integration that classifies
+            # workflow_type isn't wired in this pipeline yet).
+            "workflow_type": getattr(self, "workflow_type", None) or "orchestration",
+            "context_id": getattr(self, "context_id", None),
+            "workflow_confidence": getattr(self, "workflow_confidence", None) or 0.5,
+            "workflow_reasoning": getattr(self, "workflow_reasoning", None),
             "requires_human_review": self.requires_human_review,
             "created_at": int(self.created_at.timestamp() * 1000),
             "valid_until": int(self.valid_until.timestamp() * 1000) if self.valid_until else None,
