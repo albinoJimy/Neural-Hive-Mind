@@ -17,6 +17,8 @@ env:
   PIP_DISABLE_PIP_VERSION_CHECK: "1"
   PYTHONDONTWRITEBYTECODE: "1"
   PYTHONUNBUFFERED: "1"
+  # Workaround para incompatibilidade protobuf 4.x ABCMeta (TypeError: Descriptors)
+  PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION: python
 
 jobs:
   unit-tests:

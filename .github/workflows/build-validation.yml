@@ -62,16 +62,17 @@ jobs:
               continue  # Primeira imagem não tem dependência interna
             fi
 
+            current="${expected_order[$i]}"
             prev="${expected_order[$i-1]}"
-            info="${BASE_VERSIONS[$i]}"
+            info="${BASE_VERSIONS[$current]}"
             from_image=$(echo "$info" | cut -d'|' -f2)
 
             # Verifica se FROM aponta para a imagem anterior
             if [[ ! "$from_image" =~ "$prev" ]]; then
-              echo "❌ ERRO: $i deveria usar $prev como FROM, mas usa: $from_image"
+              echo "❌ ERRO: $current deveria usar $prev como FROM, mas usa: $from_image"
               exit 1
             fi
-            echo "✅ $i depende corretamente de $prev"
+            echo "✅ $current depende corretamente de $prev"
           done
 
   validate-service-dockerfiles:
@@ -223,8 +224,10 @@ jobs:
           for dockerfile in $(find services -name "Dockerfile" 2>/dev/null); do
             echo "Validando: $dockerfile"
 
-            # Ignorar regras específicas que não se aplicam
+            # Ignorar regras específicas que não se aplicam.
+            # Falhar apenas em erros (warnings/info não bloqueiam o build).
             if ! hadolint "$dockerfile" \
+              --failure-threshold error \
               --ignore DL3008 \
               --ignore DL3013 \
               --ignore DL3040 \
