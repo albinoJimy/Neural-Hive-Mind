@@ -210,7 +210,7 @@ jobs:
 
       - name: Instalar Hadolint
         run: |
-          wget -O -q https://github.com/hadolint/hadolint/releases/latest/download/hadolint-Linux-x86_64
+          wget -qO hadolint-Linux-x86_64 https://github.com/hadolint/hadolint/releases/latest/download/hadolint-Linux-x86_64
           chmod +x hadolint-Linux-x86_64
           sudo mv hadolint-Linux-x86_64 /usr/local/bin/hadolint
 
