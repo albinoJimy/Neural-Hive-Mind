@@ -83,6 +83,9 @@ spec:
       {{- if hasKey $values "enableServiceLinks" }}
       enableServiceLinks: {{ $values.enableServiceLinks }}
       {{- end }}
+      {{- if hasKey $values "terminationGracePeriodSeconds" }}
+      terminationGracePeriodSeconds: {{ $values.terminationGracePeriodSeconds }}
+      {{- end }}
       {{- with $values.podSecurityContext }}
       securityContext:
         {{- toYaml . | nindent 8 }}
