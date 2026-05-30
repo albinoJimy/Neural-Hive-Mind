@@ -17,6 +17,7 @@ COPY libraries/python/neural_hive_domain /tmp/neural_hive_domain
 COPY libraries/python/neural_hive_specialists /tmp/neural_hive_specialists
 COPY libraries/python/neural_hive_observability /tmp/neural_hive_observability
 COPY libraries/python/neural_hive_security /tmp/neural_hive_security
+COPY libraries/python/neural_hive_approval_common /tmp/neural_hive_approval_common
 
 # Copy requirements (base + service) and install dependencies
 COPY requirements-base.txt ./requirements-base.txt
@@ -26,6 +27,7 @@ RUN sed 's|-r ../../requirements-base.txt|-r requirements-base.txt|' requirement
     pip install --no-cache-dir --user /tmp/neural_hive_specialists && \
     pip install --no-cache-dir --user /tmp/neural_hive_observability && \
     pip install --no-cache-dir --user /tmp/neural_hive_security && \
+    pip install --no-cache-dir --user /tmp/neural_hive_approval_common && \
     pip install --no-cache-dir --user -r requirements.txt && \
     python -m uvicorn --version && \
     echo "✓ uvicorn runtime verification passed"
