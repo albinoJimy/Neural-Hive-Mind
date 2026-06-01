@@ -95,8 +95,8 @@ config:
       host: consensus-engine.neural-hive.svc.cluster.local
       port: 50051
     orchestrator:
-      host: orchestrator-dynamic.neural-hive.svc.cluster.local
-      port: 50051
+      host: orchestrator-dynamic.orchestrator-dynamic.svc.cluster.local
+      port: 50053
     analystAgents:
       host: analyst-agents.neural-hive.svc.cluster.local
       port: 50051

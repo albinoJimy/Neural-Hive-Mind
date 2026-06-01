@@ -37,8 +37,8 @@ config:
     prometheusPort: 9090
 
   orchestrator:
-    grpcHost: orchestrator-dynamic.neural-hive.svc.cluster.local
-    grpcPort: 50051
+    grpcHost: orchestrator-dynamic.orchestrator-dynamic.svc.cluster.local
+    grpcPort: 50053
 
   serviceRegistry:
     grpcHost: service-registry.neural-hive.svc.cluster.local
