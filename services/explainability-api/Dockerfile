@@ -1,6 +1,6 @@
 # Stage 1: Builder
 ARG REGISTRY=ghcr.io/albinojimy
-FROM ${REGISTRY}/neural-hive-mind/python-observability-base:1.2.6 AS builder
+FROM ${REGISTRY}/neural-hive-mind/python-observability-base:1.3.0 AS builder
 
 WORKDIR /build
 
@@ -21,7 +21,7 @@ RUN sed 's|-r ../../requirements-base.txt|-r requirements-base.txt|' requirement
 
 # Stage 2: Runtime (herda da base de observabilidade com todos os pacotes)
 ARG REGISTRY=ghcr.io/albinojimy
-FROM ${REGISTRY}/neural-hive-mind/python-observability-base:1.2.6
+FROM ${REGISTRY}/neural-hive-mind/python-observability-base:1.3.0
 
 WORKDIR /app
 

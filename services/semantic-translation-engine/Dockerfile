@@ -1,7 +1,7 @@
 # Multi-stage build for Semantic Translation Engine
 # Stage 1: Builder
 ARG REGISTRY=ghcr.io/albinojimy
-FROM ${REGISTRY}/neural-hive-mind/python-observability-base:1.2.6 AS builder
+FROM ${REGISTRY}/neural-hive-mind/python-observability-base:1.3.0 AS builder
 
 WORKDIR /build
 
@@ -35,7 +35,7 @@ RUN sed 's|-r ../../requirements-base.txt|-r requirements-base.txt|' requirement
 
 # Stage 2: Runtime
 # IMPORTANTE: deve ficar alinhado com a versão Python da imagem builder
-# (python-observability-base:1.2.6 -> Python 3.11). Caso contrário, os módulos
+# (python-observability-base:1.3.0 -> Python 3.11). Caso contrário, os módulos
 # C compilados (ex: confluent_kafka.cimpl) ficam incompatíveis com o runtime.
 FROM python:3.11-slim
 
@@ -59,7 +59,7 @@ COPY --from=builder --chown=app:app /usr/local/lib/python3.11/site-packages /hom
 COPY --chown=app:app libraries/python/neural_hive_risk_scoring /app/libraries/neural_hive_risk_scoring
 
 # Force-reinstall neural_hive_observability to override the older copy from the base image.
-# The base image python-observability-base:1.2.6 ships an older 2.1.1 of this library
+# The base image python-observability-base:1.3.0 ships an older 2.1.1 of this library
 # (missing AttributeError handling in TraceContextMiddleware), which makes every /health
 # probe crash with 500 and traps the pod in CrashLoopBackOff.
 #
