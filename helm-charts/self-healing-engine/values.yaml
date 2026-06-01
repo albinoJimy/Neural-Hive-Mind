@@ -82,7 +82,7 @@ config:
 
   # Integration: Orchestrator Dynamic (gRPC)
   orchestrator:
-    grpcHost: orchestrator-dynamic.orchestrator-dynamic.svc.cluster.local
+    grpcHost: orchestrator-dynamic.neural-hive.svc.cluster.local
     grpcPort: 50053
     useTls: false
     timeout: 10
