@@ -62,21 +62,21 @@ RUN mkdir -p /app/logs /app/tmp && chown -R orchestrator:orchestrator /app
 # Copiar dependências instaladas do builder
 COPY --from=builder --chown=orchestrator:orchestrator /root/.local /home/orchestrator/.local
 
-# Force-reinstall neural_hive_observability para sobrepor a cópia antiga da base image.
-# A base python-observability-base:1.2.6 traz uma versão antiga desta lib (sem o
-# tratamento de AttributeError no TraceContextMiddleware), que faz cada request crashar
-# com "'property' object has no attribute 'trace_context_extraction_total'".
-# `pip install --force-reinstall` é um no-op SILENCIOSO quando o dir target já existe;
-# é preciso remover a árvore stale primeiro e só depois reinstalar com --user.
-COPY --chown=orchestrator:orchestrator libraries/python/neural_hive_observability /tmp/neural_hive_observability
-USER orchestrator
-RUN rm -rf /home/orchestrator/.local/lib/python3.11/site-packages/neural_hive_observability \
-           /home/orchestrator/.local/lib/python3.11/site-packages/neural_hive_observability-*.dist-info \
-           /home/orchestrator/.local/lib/python3.11/site-packages/neural_hive_observability-*.egg-info && \
-    pip install --no-cache-dir --no-deps --user /tmp/neural_hive_observability && \
-    python -c "import neural_hive_observability.middleware as m; import inspect; assert 'AttributeError' in inspect.getsource(m), 'fix do middleware ausente na lib instalada'; print('Middleware fix verified')"
-USER root
-RUN rm -rf /tmp/neural_hive_observability
+# Substituir a versão STALE de neural_hive_observability na base image (/usr/local).
+# CRÍTICO: o PYTHONPATH de runtime é definido pelo deployment como
+# "/app/libs:/usr/local/lib/python3.11/site-packages" (NÃO inclui ~/.local), por isso a
+# app importa o middleware de /usr/local — é AÍ que a correção tem de estar.
+# A base python-observability-base:1.2.6 (anterior ao fix 3ebaec41) traz a versão antiga
+# do TraceContextMiddleware, que crasha cada request com "'property' object has no
+# attribute 'trace_context_extraction_total'". `pip --force-reinstall` é no-op silencioso
+# se o dir já existe; é preciso remover a árvore stale antes de reinstalar.
+COPY libraries/python/neural_hive_observability /tmp/neural_hive_observability
+RUN rm -rf /usr/local/lib/python3.11/site-packages/neural_hive_observability \
+           /usr/local/lib/python3.11/site-packages/neural_hive_observability-*.dist-info \
+           /usr/local/lib/python3.11/site-packages/neural_hive_observability-*.egg-info && \
+    pip install --no-cache-dir --no-deps --target=/usr/local/lib/python3.11/site-packages /tmp/neural_hive_observability && \
+    rm -rf /tmp/neural_hive_observability && \
+    python -c "import neural_hive_observability.middleware as m; import inspect; assert 'AttributeError' in inspect.getsource(m), 'fix do middleware ausente em /usr/local'; print('Middleware fix verified in', m.__file__)"
 
 # Definir PATH e PYTHONPATH para incluir user packages e base image packages
 ENV PATH=/home/orchestrator/.local/bin:$PATH
