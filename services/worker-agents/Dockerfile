@@ -1,6 +1,6 @@
 # Stage 1 - Builder
 ARG REGISTRY=ghcr.io/albinojimy
-FROM ${REGISTRY}/neural-hive-mind/python-observability-base:1.2.6 AS builder
+FROM ${REGISTRY}/neural-hive-mind/python-observability-base:1.3.0 AS builder
 
 # Install build dependencies
 RUN apt-get update && apt-get install -y \
@@ -26,7 +26,7 @@ RUN sed 's|-r ../../requirements-base.txt|-r requirements-base.txt|' requirement
 
 # Stage 2 - Runtime
 ARG REGISTRY=ghcr.io/albinojimy
-FROM ${REGISTRY}/neural-hive-mind/python-observability-base:1.2.6
+FROM ${REGISTRY}/neural-hive-mind/python-observability-base:1.3.0
 
 # Create non-root user
 RUN groupadd -r worker-agent && useradd -r -g worker-agent worker-agent

@@ -1,6 +1,6 @@
 # Stage 1: Builder
 ARG REGISTRY=ghcr.io/albinojimy
-FROM ${REGISTRY}/neural-hive-mind/python-observability-base:1.2.6 AS builder
+FROM ${REGISTRY}/neural-hive-mind/python-observability-base:1.3.0 AS builder
 
 # Instalar dependências de build
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -35,7 +35,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
 
 # Stage 2: Runtime - usar mesma base para manter neural_hive_observability
 ARG REGISTRY=ghcr.io/albinojimy
-FROM ${REGISTRY}/neural-hive-mind/python-observability-base:1.2.6
+FROM ${REGISTRY}/neural-hive-mind/python-observability-base:1.3.0
 
 # Metadados OCI para rastreabilidade
 LABEL org.opencontainers.image.title="Orchestrator Dynamic"
@@ -62,14 +62,13 @@ RUN mkdir -p /app/logs /app/tmp && chown -R orchestrator:orchestrator /app
 # Copiar dependências instaladas do builder
 COPY --from=builder --chown=orchestrator:orchestrator /root/.local /home/orchestrator/.local
 
-# Substituir a versão STALE de neural_hive_observability na base image (/usr/local).
+# Defense-in-depth: garante a versão corrigida de neural_hive_observability em /usr/local.
+# A base 1.3.0 já inclui o fix do TraceContextMiddleware, mas este passo protege contra
+# regressões da base e mantém a invariante explícita no serviço.
 # CRÍTICO: o PYTHONPATH de runtime é definido pelo deployment como
 # "/app/libs:/usr/local/lib/python3.11/site-packages" (NÃO inclui ~/.local), por isso a
 # app importa o middleware de /usr/local — é AÍ que a correção tem de estar.
-# A base python-observability-base:1.2.6 (anterior ao fix 3ebaec41) traz a versão antiga
-# do TraceContextMiddleware, que crasha cada request com "'property' object has no
-# attribute 'trace_context_extraction_total'". `pip --force-reinstall` é no-op silencioso
-# se o dir já existe; é preciso remover a árvore stale antes de reinstalar.
+# `pip --force-reinstall` é no-op silencioso se o dir já existe; remover a árvore antes.
 COPY libraries/python/neural_hive_observability /tmp/neural_hive_observability
 RUN rm -rf /usr/local/lib/python3.11/site-packages/neural_hive_observability \
            /usr/local/lib/python3.11/site-packages/neural_hive_observability-*.dist-info \
