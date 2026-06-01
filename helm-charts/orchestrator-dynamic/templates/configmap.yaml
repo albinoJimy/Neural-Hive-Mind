@@ -83,6 +83,10 @@ data:
   ML_DRIFT_BASELINE_ENABLED: {{ .Values.config.ml.driftBaselineEnabled | quote }}
   ML_BACKFILL_ERRORS: {{ .Values.config.ml.backfillErrors | quote }}
 
+  # gRPC Server (OrchestratorStrategic - contrato canónico porta 50053)
+  ENABLE_GRPC_SERVER: {{ .Values.config.grpc.enabled | default true | quote }}
+  GRPC_SERVER_PORT: {{ .Values.config.grpc.port | default 50053 | quote }}
+
   # SLA
   SLA_DEFAULT_TIMEOUT_MS: {{ printf "%d" (int64 .Values.config.sla.defaultTimeoutMs) | quote }}
   SLA_CHECK_INTERVAL_SECONDS: {{ .Values.config.sla.checkIntervalSeconds | quote }}

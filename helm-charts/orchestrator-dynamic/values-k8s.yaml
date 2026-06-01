@@ -14,8 +14,24 @@ fullnameOverride: ""
 
 service:
   type: ClusterIP
+  # NOTA: o template comum (neural-hive.service/deployment) usa service.ports.
+  # As chaves planas port/targetPort sao legadas/ignoradas; mantidas por compat.
   port: 80
   targetPort: 8000
+  ports:
+    http:
+      port: 8000
+      targetPort: 8000
+      protocol: TCP
+    # gRPC OrchestratorStrategic - contrato canonico (host:50053, INSECURE)
+    grpc:
+      port: 50053
+      targetPort: 50053
+      protocol: TCP
+    metrics:
+      port: 9090
+      targetPort: 9090
+      protocol: TCP
 
 ingress:
   enabled: false

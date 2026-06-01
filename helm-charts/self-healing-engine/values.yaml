@@ -82,9 +82,9 @@ config:
 
   # Integration: Orchestrator Dynamic (gRPC)
   orchestrator:
-    grpcHost: orchestrator-dynamic.neural-hive-orchestration.svc.cluster.local
-    grpcPort: 50052
-    useTls: true
+    grpcHost: orchestrator-dynamic.orchestrator-dynamic.svc.cluster.local
+    grpcPort: 50053
+    useTls: false
     timeout: 10
 
   # Integration: OPA Policy Engine
@@ -257,9 +257,9 @@ networkPolicy:
     - port: 8000
   # Orchestrator Dynamic (gRPC)
   - namespaceSelector:
-      matchLabels: neural-hive-orchestration
+      matchLabels: orchestrator-dynamic
     ports:
-    - port: 50052
+    - port: 50053
   # OPA Policy Engine (HTTP)
   - namespaceSelector:
       matchLabels: neural-hive-governance
