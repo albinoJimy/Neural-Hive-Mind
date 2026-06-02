@@ -1,7 +1,7 @@
 # Feature Map — Neural-Hive-Mind
 
 **Projecto:** Neural-Hive-Mind
-**Última Actualização:** 2026-03-31
+**Última Actualização:** 2026-06-02
 **Completude Global:** ~100%
 
 ---
@@ -336,6 +336,24 @@ Todos os 9 tickets completados:
 5. ~~**Worker Agents** — Execução paralela avançada (75% → 100%)~~ ✅ **COMPLETO** (2026-03-22)
 6. ~~**Memory Layer** — Persistência de memória de longo prazo (75% → 100%)~~ ✅ **COMPLETO** (2026-03-22)
 7. ~~**Execution Tickets** — Completar endpoints REST e testes (85% → 100%)~~ ✅ **COMPLETO** (2026-03-22)
+
+---
+
+## Consolidação de Namespaces do Orchestrator (2026-06-02)
+
+✅ **COMPLETO** — Unificação das referências fragmentadas ao serviço `orchestrator-dynamic` num único endpoint canónico.
+
+**Contrato canónico (ADR):**
+- Host: `orchestrator-dynamic.neural-hive.svc.cluster.local`
+- Porta: `50053` (gRPC, serviço `OrchestratorStrategic`)
+- TLS: `false` (insecure — SPIRE removido do cluster)
+
+**Alterações:**
+- ✅ Os 3 clientes gRPC alinhados ao contrato canónico (`queen-agent`, `optimizer-agents`, `self-healing-engine`) — PRs #112/#113/#114.
+- ✅ Deployments legacy/órfãos no namespace morto `neural-hive-orchestration` removidos.
+- ✅ Service `neural-hive/orchestrator-dynamic` valida 50053 (TCP OPEN, /health 200, 9 endpoints).
+- ✅ Egress da NetworkPolicy do `self-healing-engine` (porta `50053`) alinhada ao namespace canónico `neural-hive` (antes apontava para `orchestrator-dynamic`).
+- ✅ Teste de regressão determinístico (config-contract) que protege contra reintrodução da fragmentação: `tests/integration/test_orchestrator_namespace_consolidation.py`.
 
 ---
 
