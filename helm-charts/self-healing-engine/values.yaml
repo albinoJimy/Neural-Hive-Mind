@@ -257,7 +257,7 @@ networkPolicy:
     - port: 8000
   # Orchestrator Dynamic (gRPC)
   - namespaceSelector:
-      matchLabels: orchestrator-dynamic
+      matchLabels: neural-hive
     ports:
     - port: 50053
   # OPA Policy Engine (HTTP)
