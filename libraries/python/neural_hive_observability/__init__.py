@@ -43,12 +43,8 @@ grpc_instrumentation = _grpc_module
 kafka_instrumentation = _kafka_module
 
 # Re-export da implementação principal para conveniência
-from .neural_hive_observability import (
-    inject_context_to_metadata,  # ADICIONADO - faltava no wrapper
-)
-from .neural_hive_observability import (
-    instrument_grpc_channel,  # ADICIONADO - faltava no wrapper
-)
+from .neural_hive_observability import inject_context_to_metadata  # ADICIONADO - faltava no wrapper
+from .neural_hive_observability import instrument_grpc_channel  # ADICIONADO - faltava no wrapper
 from .neural_hive_observability import (  # Classes; Logging; gRPC instrumentation; Inicialização; Context propagation; Kafka instrumentation; Tracing
     ContextManager,
     HealthChecker,
