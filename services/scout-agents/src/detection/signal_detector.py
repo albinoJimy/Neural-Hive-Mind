@@ -10,7 +10,13 @@ from neural_hive_domain import UnifiedDomain
 
 from ..config import get_settings
 from ..models.raw_event import RawEvent
-from ..models.scout_signal import ChannelType, ScoutSignal, SignalSource, SignalType
+from ..models.scout_signal import (
+    ChannelType,
+    Geolocation,
+    ScoutSignal,
+    SignalSource,
+    SignalType,
+)
 from .bayesian_filter import BayesianFilter
 from .curiosity_scorer import CuriosityScorer
 

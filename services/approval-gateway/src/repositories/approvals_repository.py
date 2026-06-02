@@ -141,9 +141,9 @@ class ApprovalsRepository:
         """Expira solicitações pendentes antigas."""
         await self._db.connect()
 
-        cutoff = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0) - __import__(
-            "datetime"
-        ).timedelta(hours=timeout_hours)
+        cutoff = datetime.now(timezone.utc).replace(
+            hour=0, minute=0, second=0, microsecond=0
+        ) - __import__("datetime").timedelta(hours=timeout_hours)
 
         result = await self._db.database[self._collection].update_many(
             {

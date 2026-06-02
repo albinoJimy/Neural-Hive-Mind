@@ -463,7 +463,7 @@ def main():
     scorecard.observability = args.observability_score
     scorecard.security = args.security_score
 
-    logger.info(f"Scorecard calculado:")
+    logger.info("Scorecard calculado:")
     logger.info(f"  Implementacao: {scorecard.implementation}%")
     logger.info(f"  Testes: {scorecard.tests}%")
     logger.info(f"  Observabilidade: {scorecard.observability}%")

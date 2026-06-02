@@ -154,8 +154,7 @@ class TestManualFeatureExtraction:
 
         # Deve ter exatamente um primary_domain_* = 1.0
         primary_count = sum(
-            1 for k, v in features.items()
-            if k.startswith("primary_domain_") and v == 1.0
+            1 for k, v in features.items() if k.startswith("primary_domain_") and v == 1.0
         )
         assert primary_count == 1
 
@@ -345,9 +344,15 @@ class TestEdgeCases:
         features = adapter.extract_legacy_features(text, {}, 0.5)
 
         # Todos domínios devem ser 0.0
-        assert all(features.get(f"domain_{d}", 0.0) == 0.0 for d in ["security", "performance", "database", "devops", "testing"])
+        assert all(
+            features.get(f"domain_{d}", 0.0) == 0.0
+            for d in ["security", "performance", "database", "devops", "testing"]
+        )
         # Todas ações devem ser 0.0
-        assert all(features.get(f"action_{a}", 0.0) == 0.0 for a in ["create", "update", "delete", "read", "deploy"])
+        assert all(
+            features.get(f"action_{a}", 0.0) == 0.0
+            for a in ["create", "update", "delete", "read", "deploy"]
+        )
 
 
 class TestIntegrationScenarios:
@@ -380,8 +385,11 @@ class TestIntegrationScenarios:
         features = adapter.extract_legacy_features(text, {}, 0.7)
 
         # 3 domínios detectados
-        domain_count = sum(1 for d in ["security", "performance", "database", "devops", "testing"]
-                          if features.get(f"domain_{d}", 0.0) > 0)
+        domain_count = sum(
+            1
+            for d in ["security", "performance", "database", "devops", "testing"]
+            if features.get(f"domain_{d}", 0.0) > 0
+        )
         assert domain_count >= 2
 
     def test_primary_action_tie_breaking(self):
@@ -392,15 +400,19 @@ class TestIntegrationScenarios:
         features = adapter.extract_legacy_features(text, {}, 0.5)
 
         # Deve ter exatamente um primary_action
-        primary_count = sum(1 for k, v in features.items() if k.startswith("primary_action_") and v == 1.0)
+        primary_count = sum(
+            1 for k, v in features.items() if k.startswith("primary_action_") and v == 1.0
+        )
         assert primary_count == 1
 
 
 # Fixtures
 
+
 @pytest.fixture
 def mock_nlp_extractor():
     """Mock de NLPFeatureExtractor."""
+
     class MockExtractor:
         def extract_features(self, text):
             return {

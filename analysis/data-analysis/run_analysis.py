@@ -1096,7 +1096,7 @@ def generate_recommendations(perf_df):
 
 def main():
     start_time = datetime.now()
-    print(f"\nNeural Hive-Mind - Data Analysis")
+    print("\nNeural Hive-Mind - Data Analysis")
     print(f"Started at: {start_time.strftime('%Y-%m-%d %H:%M:%S')}")
     print(f"Base directory: {BASE_DIR}\n")
 
@@ -1121,7 +1121,7 @@ def main():
 
 """
 
-    summary = f"""## Executive Summary
+    summary = """## Executive Summary
 
 This report presents a comprehensive analysis of the Neural Hive-Mind distributed AI system,
 covering ML model performance, training data quality, E2E test results, and codebase metrics.

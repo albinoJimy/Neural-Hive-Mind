@@ -180,7 +180,7 @@ async def run_migration() -> None:
         print("\n" + "=" * 60)
         print("Migration concluída com sucesso!")
         print("=" * 60)
-        print(f"\nColeções criadas/atualizadas:")
+        print("\nColeções criadas/atualizadas:")
         for collection, status in result["collections"].items():
             print(f"  - {collection}: {status}")
 

@@ -46,14 +46,16 @@ class InMemoryRateLimiter:
         self.cleanup_interval = cleanup_interval
 
         # Storage: {user_id: {"tokens": float, "last_update": float, "minute_tokens": int}}
-        self._users = defaultdict(lambda: {
-            "tokens": float(burst_size),
-            "last_update": time.time(),
-            "minute_tokens": 0,
-            "hour_tokens": 0,
-            "minute_window": time.time(),
-            "hour_window": time.time(),
-        })
+        self._users = defaultdict(
+            lambda: {
+                "tokens": float(burst_size),
+                "last_update": time.time(),
+                "minute_tokens": 0,
+                "hour_tokens": 0,
+                "minute_window": time.time(),
+                "hour_window": time.time(),
+            }
+        )
 
         # Cleanup task
         self._cleanup_task: Optional[asyncio.Task] = None
@@ -81,9 +83,7 @@ class InMemoryRateLimiter:
                 # Remover usuários inativos por mais de 1 hora
                 cutoff = now - 3600
                 inactive = [
-                    user_id
-                    for user_id, data in self._users.items()
-                    if data["last_update"] < cutoff
+                    user_id for user_id, data in self._users.items() if data["last_update"] < cutoff
                 ]
                 for user_id in inactive:
                     del self._users[user_id]
@@ -263,9 +263,7 @@ class RateLimitMiddleware:
                     )
                 )
 
-                message["headers"] = [
-                    (k, v) for k, v in headers.items()
-                ]
+                message["headers"] = [(k, v) for k, v in headers.items()]
 
             await send(message)
 
@@ -338,7 +336,10 @@ def rate_limit_decorator(
                 user_id = get_user_id(request)
             else:
                 # Extração padrão
-                user_id = request.headers.get("X-User-ID", f"ip:{request.client.host if request.client else 'unknown'}")
+                user_id = request.headers.get(
+                    "X-User-ID",
+                    f"ip:{request.client.host if request.client else 'unknown'}",
+                )
 
             # Verificar rate limit
             allowed, info = await limiter.check_rate_limit(user_id)
@@ -397,7 +398,11 @@ async def check_rate_limit_middleware(
     user_id = request.headers.get("X-User-ID")
     if not user_id:
         forwarded = request.headers.get("X-Forwarded-For", "")
-        ip = forwarded.split(",")[0].strip() if forwarded else (request.client.host if request.client else "unknown")
+        ip = (
+            forwarded.split(",")[0].strip()
+            if forwarded
+            else (request.client.host if request.client else "unknown")
+        )
         user_id = f"ip:{ip}"
     else:
         user_id = f"user:{user_id}"

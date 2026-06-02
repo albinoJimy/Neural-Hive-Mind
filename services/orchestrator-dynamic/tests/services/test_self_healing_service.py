@@ -2,7 +2,7 @@
 Tests for SelfHealingService.
 """
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -108,9 +108,7 @@ class TestSelfHealingService:
 
     def test_classify_timeout_failure(self, service):
         """Testa classificação de timeout."""
-        failure_type = service._classify_failure(
-            "Task timed out after 30 seconds", "TimeoutError"
-        )
+        failure_type = service._classify_failure("Task timed out after 30 seconds", "TimeoutError")
 
         assert failure_type == FailureType.TIMEOUT
 
@@ -124,9 +122,7 @@ class TestSelfHealingService:
 
     def test_classify_validation_failure(self, service):
         """Testa classificação de validação."""
-        failure_type = service._classify_failure(
-            "Validation failed: Invalid schema", "ValueError"
-        )
+        failure_type = service._classify_failure("Validation failed: Invalid schema", "ValueError")
 
         assert failure_type == FailureType.VALIDATION_ERROR
 
@@ -140,9 +136,7 @@ class TestSelfHealingService:
 
     def test_classify_unknown_failure(self, service):
         """Testa classificação de falha desconhecida."""
-        failure_type = service._classify_failure(
-            "Something went wrong", "RuntimeError"
-        )
+        failure_type = service._classify_failure("Something went wrong", "RuntimeError")
 
         assert failure_type == FailureType.UNKNOWN
 

@@ -16,7 +16,7 @@ import json
 import os
 from pathlib import Path
 from typing import Any, Optional
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from collections import defaultdict
 from enum import Enum
 from http.server import HTTPServer, BaseHTTPRequestHandler
@@ -432,8 +432,8 @@ class CodeOptimizer:
             metrics = FileMetrics(path=file_path)
             lines = source_code.splitlines()
             metrics.total_lines = len(lines)
-            metrics.code_lines = sum(1 for l in lines if l.strip())
-            metrics.blank_lines = sum(1 for l in lines if not l.strip())
+            metrics.code_lines = sum(1 for line in lines if line.strip())
+            metrics.blank_lines = sum(1 for line in lines if not line.strip())
             issues = []
 
         return metrics, issues
@@ -750,12 +750,16 @@ class OptimizerHTTPRequestHandler(BaseHTTPRequestHandler):
                         "complexity": (
                             "high"
                             if metrics.max_complexity > 20
-                            else "medium" if metrics.max_complexity > 10 else "low"
+                            else "medium"
+                            if metrics.max_complexity > 10
+                            else "low"
                         ),
                         "maintainability": (
                             "good"
                             if len(issues) < 5
-                            else "needs_attention" if len(issues) < 10 else "poor"
+                            else "needs_attention"
+                            if len(issues) < 10
+                            else "poor"
                         ),
                     },
                 }
@@ -904,7 +908,7 @@ class OptimizerHTTPRequestHandler(BaseHTTPRequestHandler):
             if content_length > 0:
                 try:
                     data = json.loads(self.rfile.read(content_length).decode())
-                except:
+                except Exception:
                     data = {}
             else:
                 data = {}

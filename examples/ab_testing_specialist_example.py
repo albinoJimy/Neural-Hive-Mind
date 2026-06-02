@@ -83,11 +83,11 @@ def example_basic_ab_testing():
     result = specialist.evaluate_cognitive_plan(cognitive_plan)
 
     # Exibir resultado
-    print(f"\nResultado da avaliação:")
+    print("\nResultado da avaliação:")
     print(f"  Confidence Score: {result.confidence_score:.3f}")
     print(f"  Risk Score: {result.risk_score:.3f}")
     print(f"  Recommendation: {result.recommendation}")
-    print(f"\nA/B Test Metadata:")
+    print("\nA/B Test Metadata:")
     print(f"  Variant: {result.metadata.get('ab_test_variant')}")
     print(f"  Model Name: {result.metadata.get('ab_test_model_name')}")
     print(f"  Model Version: {result.metadata.get('ab_test_model_version')}")
@@ -155,12 +155,12 @@ def example_traffic_split_distribution():
         variant = result.metadata.get("ab_test_variant")
         variant_counts[variant] += 1
 
-    print(f"Distribuição observada:")
+    print("Distribuição observada:")
     print(f"  Model A: {variant_counts['model_a']}% ({variant_counts['model_a']} requests)")
     print(f"  Model B: {variant_counts['model_b']}% ({variant_counts['model_b']} requests)")
-    print(f"\nDistribuição esperada:")
-    print(f"  Model A: 30%")
-    print(f"  Model B: 70%")
+    print("\nDistribuição esperada:")
+    print("  Model A: 30%")
+    print("  Model B: 70%")
 
 
 def example_fallback_handling():
@@ -184,7 +184,7 @@ def example_fallback_handling():
         variant = result.metadata.get("ab_test_variant")
         is_fallback = result.metadata.get("ab_test_fallback", False)
 
-        print(f"\nResultado:")
+        print("\nResultado:")
         print(f"  Variant: {variant}")
         print(f"  Is Fallback: {is_fallback}")
         print(f"  Confidence: {result.confidence_score:.3f}")
@@ -217,22 +217,22 @@ def example_collect_statistics():
     stats = specialist.get_ab_test_statistics()
 
     # Exibir estatísticas
-    print(f"\n📊 Estatísticas de A/B Testing:")
-    print(f"\n  Model A:")
+    print("\n📊 Estatísticas de A/B Testing:")
+    print("\n  Model A:")
     print(f"    Sample Size: {stats['model_a']['sample_size']}")
     print(f"    Avg Confidence: {stats['model_a']['avg_confidence']:.3f}")
     print(f"    Avg Latency: {stats['model_a']['avg_latency']:.3f}s")
     print(f"    Agreement Rate: {stats['model_a']['agreement_rate']:.3f}")
     print(f"    Recommendations: {stats['model_a']['recommendation_distribution']}")
 
-    print(f"\n  Model B:")
+    print("\n  Model B:")
     print(f"    Sample Size: {stats['model_b']['sample_size']}")
     print(f"    Avg Confidence: {stats['model_b']['avg_confidence']:.3f}")
     print(f"    Avg Latency: {stats['model_b']['avg_latency']:.3f}s")
     print(f"    Agreement Rate: {stats['model_b']['agreement_rate']:.3f}")
     print(f"    Recommendations: {stats['model_b']['recommendation_distribution']}")
 
-    print(f"\n  Statistical Significance:")
+    print("\n  Statistical Significance:")
     sig = stats["statistical_significance"]
     print(f"    P-value: {sig.get('p_value', 'N/A')}")
     print(f"    Is Significant: {sig.get('is_significant', False)}")
@@ -280,8 +280,8 @@ def example_monitoring_metrics():
     print("Executando predição e publicando métricas...")
     result = specialist.evaluate_cognitive_plan(cognitive_plan)
 
-    print(f"\nMétricas publicadas no Prometheus:")
-    print(f"  - specialist_ab_test_traffic_split")
+    print("\nMétricas publicadas no Prometheus:")
+    print("  - specialist_ab_test_traffic_split")
     print(
         f"  - specialist_ab_test_variant_usage_total{{variant=\"{result.metadata.get('ab_test_variant')}\"}}"
     )
@@ -326,7 +326,7 @@ def example_hash_seed():
     print(f"Mesmo plan_id: {plan_id}")
     print(f"  Seed 'seed-1' -> variant: {result1.metadata.get('ab_test_variant')}")
     print(f"  Seed 'seed-2' -> variant: {result2.metadata.get('ab_test_variant')}")
-    print(f"\nSeed diferente pode resultar em variante diferente para mesmo plan_id")
+    print("\nSeed diferente pode resultar em variante diferente para mesmo plan_id")
 
 
 def main():

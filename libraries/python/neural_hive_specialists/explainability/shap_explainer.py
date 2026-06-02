@@ -98,7 +98,7 @@ class SHAPExplainer:
 
         try:
             # Importar SHAP
-            import shap
+            import shap  # noqa: F401
 
             # Executar com timeout
             with ThreadPoolExecutor(max_workers=1) as executor:

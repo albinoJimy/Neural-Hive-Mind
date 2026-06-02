@@ -103,9 +103,7 @@ class ModelPromotion:
             thresholds=self.thresholds,
         )
 
-    def validate_model_for_promotion(
-        self, model_data: dict[str, Any]
-    ) -> ModelValidation:
+    def validate_model_for_promotion(self, model_data: dict[str, Any]) -> ModelValidation:
         """
         Valida se modelo atende critérios para promoção.
 
@@ -131,21 +129,15 @@ class ModelPromotion:
 
         if accuracy < self.thresholds["min_accuracy"]:
             passed = False
-            reasons.append(
-                f"Accuracy {accuracy:.3f} < {self.thresholds['min_accuracy']}"
-            )
+            reasons.append(f"Accuracy {accuracy:.3f} < {self.thresholds['min_accuracy']}")
 
         if f1_score < self.thresholds["min_f1_score"]:
             passed = False
-            reasons.append(
-                f"F1-Score {f1_score:.3f} < {self.thresholds['min_f1_score']}"
-            )
+            reasons.append(f"F1-Score {f1_score:.3f} < {self.thresholds['min_f1_score']}")
 
         if drift_score > self.thresholds["max_drift_score"]:
             passed = False
-            reasons.append(
-                f"Drift score {drift_score:.3f} > {self.thresholds['max_drift_score']}"
-            )
+            reasons.append(f"Drift score {drift_score:.3f} > {self.thresholds['max_drift_score']}")
 
         if training_samples < self.thresholds["min_sample_count"]:
             passed = False
@@ -334,7 +326,9 @@ class ModelPromotion:
             current_path = self.models_dir / current_filename
 
             # Backup do modelo atual antes de rollback
-            current_version = self._get_model_version(current_path) if current_path.exists() else "unknown"
+            current_version = (
+                self._get_model_version(current_path) if current_path.exists() else "unknown"
+            )
             if current_path.exists():
                 self._backup_model(current_path, f"pre_rollback_{current_version}")
 

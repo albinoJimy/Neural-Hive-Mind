@@ -86,18 +86,18 @@ def example_basic_prediction():
     result = specialist.evaluate_cognitive_plan(cognitive_plan)
 
     # Exibir resultado
-    print(f"\nResultado da avaliação:")
+    print("\nResultado da avaliação:")
     print(f"  Confidence Score: {result.confidence_score:.3f}")
     print(f"  Risk Score: {result.risk_score:.3f}")
     print(f"  Recommendation: {result.recommendation}")
-    print(f"\nMetadata:")
+    print("\nMetadata:")
     print(f"  Ensemble Models: {result.metadata.get('ensemble_models', [])}")
     print(f"  Aggregation Method: {result.metadata.get('ensemble_aggregation_method')}")
 
     if "ensemble" in result.metadata:
         ens_meta = result.metadata["ensemble"]
         print(f"  Prediction Variance: {ens_meta.get('prediction_variance', 0):.4f}")
-        print(f"  Individual Predictions:")
+        print("  Individual Predictions:")
         for model_pred in ens_meta.get("individual_predictions", []):
             print(f"    - {model_pred['model']}: confidence={model_pred['confidence']:.3f}")
 
@@ -122,7 +122,7 @@ def example_weighted_average_aggregation():
 
     result = specialist.evaluate_cognitive_plan(cognitive_plan)
 
-    print(f"Resultado com weighted average:")
+    print("Resultado com weighted average:")
     print(f"  Confidence: {result.confidence_score:.3f}")
     print(f"  Pesos usados: {config.ensemble_weights}")
 
@@ -146,9 +146,9 @@ def example_voting_aggregation():
 
     result = specialist.evaluate_cognitive_plan(cognitive_plan)
 
-    print(f"Resultado com voting:")
+    print("Resultado com voting:")
     print(f"  Recommendation: {result.recommendation}")
-    print(f"  Vote distribution:")
+    print("  Vote distribution:")
     if "ensemble" in result.metadata:
         vote_dist = result.metadata["ensemble"].get("vote_distribution", {})
         for rec, count in vote_dist.items():
@@ -175,14 +175,14 @@ def example_with_explainability():
 
     result = specialist.evaluate_cognitive_plan(cognitive_plan)
 
-    print(f"Resultado com explainability:")
+    print("Resultado com explainability:")
     print(f"  Confidence: {result.confidence_score:.3f}")
 
     if hasattr(result, "explainability") and result.explainability:
-        print(f"\nExplainability:")
+        print("\nExplainability:")
         if "ensemble" in result.explainability:
             ens_expl = result.explainability["ensemble"]
-            print(f"  Aggregated Feature Importances:")
+            print("  Aggregated Feature Importances:")
             importances = ens_expl.get("aggregated_feature_importances", {})
             # Ordenar por importância
             sorted_features = sorted(importances.items(), key=lambda x: x[1], reverse=True)
@@ -210,7 +210,7 @@ def example_custom_thresholds():
 
     result = specialist.evaluate_cognitive_plan(cognitive_plan)
 
-    print(f"Resultado com thresholds customizados:")
+    print("Resultado com thresholds customizados:")
     print(f"  Confidence: {result.confidence_score:.3f}")
     print(f"  Recommendation: {result.recommendation}")
     print(f"  Approve threshold: {config.ensemble_approve_threshold}")
@@ -228,7 +228,7 @@ def example_loading_weights_from_mlflow():
     specialist = EnsembleSpecialist(config=config)
 
     # Os pesos foram carregados automaticamente do artifact ensemble_weights.json
-    print(f"Pesos carregados do MLflow:")
+    print("Pesos carregados do MLflow:")
     for model_name, weight in specialist.ensemble_weights.items():
         print(f"  {model_name}: {weight:.3f}")
 

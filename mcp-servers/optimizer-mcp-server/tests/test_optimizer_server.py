@@ -15,10 +15,8 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 from optimizer_server import (
     PythonAnalyzer,
     CodeOptimizer,
-    Issue,
     Severity,
     FileMetrics,
-    get_optimizer,
 )
 
 

@@ -4,7 +4,6 @@ Implementa carregamento de configurações de variáveis de ambiente
 com validação usando Pydantic Settings.
 """
 
-import os
 from typing import Optional
 
 from pydantic import Field, field_validator
@@ -145,9 +144,7 @@ class LLMSettings(BaseSettings):
         """
         provider = info.data.get("provider")
         if provider != LLMProvider.LOCAL and not v:
-            raise ValueError(
-                f"api_key é obrigatório para provider '{provider.value}'"
-            )
+            raise ValueError(f"api_key é obrigatório para provider '{provider.value}'")
         return v
 
     @field_validator("endpoint_url")
@@ -227,7 +224,7 @@ def get_llm_settings(**overrides) -> LLMSettings:
     if _settings_instance is None:
         try:
             _settings_instance = LLMSettings()
-        except Exception as e:
+        except Exception:
             # Se validação falhar, tentar sem api_key (para testes)
             import os
 

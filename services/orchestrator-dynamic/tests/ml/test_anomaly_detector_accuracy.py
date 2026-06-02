@@ -10,6 +10,7 @@ Valida que o modelo atende aos critérios mínimos de performance:
 
 import sys
 from datetime import datetime, timezone
+
 UTC = timezone.utc, timedelta
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
@@ -98,7 +99,8 @@ class TestAnomalyDetectorAccuracy:
                     "actual_duration_ms": duration,
                     "estimated_duration_ms": duration * np.random.uniform(0.8, 1.2),
                     "status": "COMPLETED",
-                    "created_at": datetime.now(timezone.utc) - timedelta(days=np.random.randint(1, 30)),
+                    "created_at": datetime.now(timezone.utc)
+                    - timedelta(days=np.random.randint(1, 30)),
                     "retry_count": np.random.choice([0, 0, 0, 1]),  # Maioria sem retry
                     "required_capabilities": ["cpu"][: np.random.randint(1, 3)],
                     "parameters": {},

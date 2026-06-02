@@ -7,7 +7,6 @@ Uso: python3 validate_intent_raw_text.py
 """
 
 import subprocess
-import sys
 
 APPROVAL_POD = "approval-service-76b976f8c8-pr499"
 STE_POD = "semantic-translation-engine-5cb5dffcf5-2w77k"

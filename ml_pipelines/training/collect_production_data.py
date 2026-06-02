@@ -9,7 +9,6 @@ Gera dataset com mínimo 10k amostras por especialista.
 """
 
 import os
-import sys
 import json
 import asyncio
 from datetime import datetime, timedelta, timezone
@@ -20,7 +19,6 @@ import numpy as np
 
 # Kafka
 from aiokafka import AIOKafkaConsumer
-from aiokafka.structs import TopicPartition
 
 # MongoDB
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -301,7 +299,7 @@ class ProductionDataCollector:
 
         if len(samples) < min_samples:
             logger.warning(
-                f"Amostras insuficientes após enriquecimento",
+                "Amostras insuficientes após enriquecimento",
                 samples=len(samples),
                 required=min_samples,
             )
@@ -323,7 +321,6 @@ class ProductionDataCollector:
     ) -> Dict[str, Any]:
         """Extrai features de um plano cognitivo."""
         tasks = plan.get("tasks", [])
-        metadata = plan.get("metadata", {})
 
         # Features básicas
         features = {

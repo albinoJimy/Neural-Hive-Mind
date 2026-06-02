@@ -1,4 +1,5 @@
 import json
+from typing import TYPE_CHECKING
 
 import structlog
 from aiokafka import AIOKafkaConsumer
@@ -7,6 +8,9 @@ from neural_hive_observability import instrument_kafka_consumer
 from neural_hive_observability.context import extract_context_from_headers, set_baggage
 from src.config import Settings
 from src.services import StrategicDecisionEngine
+
+if TYPE_CHECKING:
+    from src.producers import StrategicDecisionProducer
 
 logger = structlog.get_logger()
 

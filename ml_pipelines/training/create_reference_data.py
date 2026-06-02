@@ -14,7 +14,6 @@ FASE 0 - IA/ML Integration (TICKET 2.3)
 """
 
 import argparse
-import asyncio
 import json
 import os
 import sys
@@ -116,7 +115,9 @@ def create_baseline_from_tickets(tickets: list, model_version: str = "v7") -> di
             },
         }
 
-        print(f"  {feature_name}: n={len(values)}, mean={baseline_features[feature_name]['mean']:.3f}")
+        print(
+            f"  {feature_name}: n={len(values)}, mean={baseline_features[feature_name]['mean']:.3f}"
+        )
 
     # Criar documento de baseline
     baseline = {
@@ -262,17 +263,17 @@ def main():
         default=os.getenv("MONGODB_URL", "mongodb://localhost:27017"),
         help="MongoDB URI",
     )
+    parser.add_argument("--db-name", type=str, default="nhm", help="Database name")
     parser.add_argument(
-        "--db-name", type=str, default="nhm", help="Database name"
+        "--synthetic",
+        action="store_true",
+        help="Generate synthetic baseline instead of querying DB",
     )
+    parser.add_argument("--dry-run", action="store_true", help="Print baseline instead of saving")
     parser.add_argument(
-        "--synthetic", action="store_true", help="Generate synthetic baseline instead of querying DB"
-    )
-    parser.add_argument(
-        "--dry-run", action="store_true", help="Print baseline instead of saving"
-    )
-    parser.add_argument(
-        "--output", type=str, help="Output file path (pkl or json). If not provided, saves to MongoDB"
+        "--output",
+        type=str,
+        help="Output file path (pkl or json). If not provided, saves to MongoDB",
     )
 
     args = parser.parse_args()
@@ -354,7 +355,7 @@ def main():
             return 0
 
         else:
-            print(f"Error: Unsupported output format. Use .pkl or .json")
+            print("Error: Unsupported output format. Use .pkl or .json")
             return 1
 
     # Salvar no MongoDB (padrão)

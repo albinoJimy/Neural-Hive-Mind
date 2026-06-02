@@ -2,14 +2,13 @@
 Consumidor Kafka para Relatorios de Exclusao GDPR
 """
 
-import asyncio
 import json
 
 import structlog
 from aiokafka import AIOKafkaConsumer
 from aiokafka.errors import KafkaError
 
-from src.config.settings import Settings, get_settings
+from src.config.settings import Settings
 
 logger = structlog.get_logger()
 

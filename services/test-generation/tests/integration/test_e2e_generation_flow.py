@@ -43,12 +43,14 @@ class TestE2EGenerationFlow:
         """Testa fluxo completo: requirements → consumer → generator → mongodb."""
         # Setup mocks
         mock_llm_client = AsyncMock()
-        mock_response = _create_mock_llm_response("""import pytest
+        mock_response = _create_mock_llm_response(
+            """import pytest
 
 def test_requirement_user_authentication():
     '''Test user authentication works correctly.'''
     assert True
-""")
+"""
+        )
         mock_llm_client.generate = AsyncMock(return_value=mock_response)
 
         # Criar componentes
@@ -451,7 +453,6 @@ class TestE2EHealthAndRecovery:
             patch("consumers.requirements_consumer.AIOKafkaConsumer") as mock_consumer_class,
             patch("producers.tests_producer.AIOKafkaProducer") as mock_producer_class,
         ):
-
             # MongoDB mock
             mock_instance = MagicMock()
             mock_instance.admin.command = AsyncMock(return_value="ok")

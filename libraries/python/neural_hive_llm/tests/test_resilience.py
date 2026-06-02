@@ -1,9 +1,7 @@
 """Testes unitários para módulo de resiliência."""
 
-import asyncio
 
 import pytest
-from tenacity import RetryError
 
 from neural_hive_llm.resilience import (
     LLMRateLimitError,
@@ -114,6 +112,7 @@ class TestIsRetryableLLMError:
 
     def test_openai_rate_limit_is_retryable(self):
         """Testa que RateLimitError do OpenAI é retriável."""
+
         # O _is_retryable_llm_error verifica o nome da classe
         # Criar exceção com nome exato que OpenAI usa
         class RateLimitError(Exception):
@@ -214,7 +213,6 @@ class TestLLMCircuitBreaker:
     async def test_circuit_breaker_initialization(self):
         """Testa inicialização do circuit breaker."""
         from neural_hive_llm.circuit_breaker import (
-            LLMCircuitBreaker,
             create_llm_circuit_breaker,
         )
 

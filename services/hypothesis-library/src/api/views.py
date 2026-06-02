@@ -1,5 +1,7 @@
 """Views básicas da API."""
 
+from typing import Any
+
 from fastapi import Response
 from fastapi.responses import JSONResponse
 

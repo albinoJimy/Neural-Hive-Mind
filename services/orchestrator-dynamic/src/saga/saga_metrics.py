@@ -2,6 +2,7 @@
 
 from collections import defaultdict
 from datetime import datetime, timezone
+
 UTC = timezone.utc
 
 UTC = timezone.utc  # type: ignore

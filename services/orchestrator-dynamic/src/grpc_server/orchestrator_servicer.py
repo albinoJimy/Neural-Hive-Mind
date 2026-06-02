@@ -12,6 +12,7 @@ Este servicer recebe comandos estratégicos da Queen Agent para:
 import time
 import uuid
 from datetime import datetime, timezone
+
 UTC = timezone.utc
 
 UTC = timezone.utc  # type: ignore
@@ -528,7 +529,8 @@ class OrchestratorStrategicServicer(orchestrator_strategic_pb2_grpc.Orchestrator
                             success=True,
                             message="Workflow já está pausado",
                             paused_at=int(
-                                wf_doc.get("paused_at", datetime.now(timezone.utc)).timestamp() * 1000
+                                wf_doc.get("paused_at", datetime.now(timezone.utc)).timestamp()
+                                * 1000
                             ),
                         )
 
@@ -928,7 +930,8 @@ class OrchestratorStrategicServicer(orchestrator_strategic_pb2_grpc.Orchestrator
                         WorkflowEvent(
                             event_type=event.get("event_type", ""),
                             timestamp=int(
-                                event.get("timestamp", datetime.now(timezone.utc)).timestamp() * 1000
+                                event.get("timestamp", datetime.now(timezone.utc)).timestamp()
+                                * 1000
                             ),
                             description=event.get("description", ""),
                             metadata=event.get("metadata", {}),

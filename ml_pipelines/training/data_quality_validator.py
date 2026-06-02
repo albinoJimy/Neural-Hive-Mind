@@ -15,7 +15,7 @@ Complementa o RealDataCollector com validações avançadas sem duplicar código
 
 import os
 from datetime import datetime, timezone
-from typing import Dict, List, Any, Optional, Tuple
+from typing import Dict, List, Any, Optional
 import structlog
 import pandas as pd
 import numpy as np

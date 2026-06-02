@@ -252,7 +252,9 @@ class TestGetMetrics:
         assert "ml_approval_model_version" in response.text
 
 
-@pytest.mark.skip(reason="Endpoint DELETE /models/{version} não implementado ainda - funcionalidade futura")
+@pytest.mark.skip(
+    reason="Endpoint DELETE /models/{version} não implementado ainda - funcionalidade futura"
+)
 class TestDeleteModel:
     """Testes DELETE /models/{version}."""
 
@@ -278,7 +280,9 @@ class TestDeleteModel:
         assert response.status_code == 400
 
 
-@pytest.mark.skip(reason="Endpoint POST /models/{version}/rollback não implementado ainda - funcionalidade futura")
+@pytest.mark.skip(
+    reason="Endpoint POST /models/{version}/rollback não implementado ainda - funcionalidade futura"
+)
 class TestRollbackModel:
     """Testes POST /models/{version}/rollback."""
 
@@ -305,7 +309,9 @@ class TestRollbackModel:
         assert response.status_code == 404
 
 
-@pytest.mark.skip(reason="Endpoint GET /models/{version}/stats não implementado ainda - funcionalidade futura")
+@pytest.mark.skip(
+    reason="Endpoint GET /models/{version}/stats não implementado ainda - funcionalidade futura"
+)
 class TestGetModelStats:
     """Testes GET /models/{version}/stats."""
 
@@ -339,7 +345,9 @@ class TestGetModelStats:
         assert response.status_code == 404
 
 
-@pytest.mark.skip(reason="Endpoint GET /models/compare não implementado ainda - funcionalidade futura")
+@pytest.mark.skip(
+    reason="Endpoint GET /models/compare não implementado ainda - funcionalidade futura"
+)
 class TestModelComparison:
     """Testes GET /models/compare."""
 

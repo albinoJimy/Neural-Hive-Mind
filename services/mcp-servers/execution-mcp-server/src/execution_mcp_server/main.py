@@ -17,7 +17,7 @@ from execution_mcp_server.server import mcp
 
 async def main() -> None:
     """Função principal para executar o servidor MCP."""
-    settings = get_settings()
+    get_settings()
 
     # Executar servidor MCP via stdio
     await mcp.run(transport="stdio")

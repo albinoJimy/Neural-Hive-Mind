@@ -212,9 +212,7 @@ class TestDriftCheckExecution:
         assert report["overall_status"] == "ok"
 
     @pytest.mark.asyncio()
-    async def test_drift_check_skipped_when_disabled(
-        self, decision_consumer_no_detector
-    ):
+    async def test_drift_check_skipped_when_disabled(self, decision_consumer_no_detector):
         """Drift check deve ser skipado quando desabilitado via config."""
         # Desabilitar via config
         decision_consumer_no_detector.ml_drift_check_enabled = False
@@ -225,9 +223,7 @@ class TestDriftCheckExecution:
         assert report is None
 
     @pytest.mark.asyncio()
-    async def test_drift_check_skipped_when_no_detector(
-        self, decision_consumer_no_detector
-    ):
+    async def test_drift_check_skipped_when_no_detector(self, decision_consumer_no_detector):
         """Drift check deve ser graceful quando detector não disponível."""
         # Habilitar via config mas sem detector
         decision_consumer_no_detector.ml_drift_check_enabled = True
@@ -285,9 +281,7 @@ class TestDriftDetectionDisabled:
     """Testa comportamento quando drift detection está desabilitado."""
 
     @pytest.mark.asyncio()
-    async def test_drift_check_returns_none_when_disabled(
-        self, decision_consumer_no_detector
-    ):
+    async def test_drift_check_returns_none_when_disabled(self, decision_consumer_no_detector):
         """Drift check deve retornar None quando desabilitado."""
         decision_consumer_no_detector.ml_drift_check_enabled = False
 
@@ -574,8 +568,13 @@ class TestDriftRetrainIntegration:
 
     @pytest.mark.asyncio()
     async def test_drift_retrain_not_called_when_no_drift(
-        self, test_config, mock_temporal_client, mock_mongodb_client,
-        mock_redis_client, mock_metrics, mock_drift_detector_no_drift
+        self,
+        test_config,
+        mock_temporal_client,
+        mock_mongodb_client,
+        mock_redis_client,
+        mock_metrics,
+        mock_drift_detector_no_drift,
     ):
         """Retrain não deve ser chamado quando não há drift."""
         # Criar mock connector
@@ -619,9 +618,14 @@ class TestDriftRetrainIntegration:
 
     @pytest.mark.asyncio()
     async def test_drift_retrain_with_critical_severity(
-        self, test_config, mock_temporal_client, mock_mongodb_client,
-        mock_redis_client, mock_metrics, mock_drift_detector_with_drift,
-        mock_drift_retrain_connector
+        self,
+        test_config,
+        mock_temporal_client,
+        mock_mongodb_client,
+        mock_redis_client,
+        mock_metrics,
+        mock_drift_detector_with_drift,
+        mock_drift_retrain_connector,
     ):
         """DriftAlert com severity critical deve ser criado corretamente."""
         # Criar drift report com status critical

@@ -18,13 +18,13 @@ import argparse
 import asyncio
 import json
 import os
-import re
 import sys
 import uuid
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+import numpy as np
 import pandas as pd
 import structlog
 from tqdm import tqdm
@@ -55,7 +55,6 @@ from neural_hive_specialists.feature_extraction.feature_extractor import Feature
 try:
     from neural_hive_specialists.validation.description_validator import (
         DescriptionQualityValidator,
-        get_validator,
     )
 
     _SHARED_VALIDATOR_AVAILABLE = True
@@ -68,7 +67,7 @@ except ImportError:
 
 # Importar schema de features centralizado
 sys.path.insert(0, str(Path(__file__).parent.parent))
-from feature_store.feature_definitions import get_feature_names, get_feature_schema
+from feature_store.feature_definitions import get_feature_names
 
 
 # Fallback: definir classe localmente se o módulo compartilhado não estiver disponível

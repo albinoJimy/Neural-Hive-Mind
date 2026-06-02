@@ -59,8 +59,9 @@ class TestWorkflowClassifierPerformance:
 
         print(f"WorkflowClassifier - p95: {p95*1000:.2f}ms, p99: {p99*1000:.2f}ms")
 
-        assert p95 < performance_targets["workflow_classifier_p95"], \
-            f"p95 {p95*1000:.2f}ms excede target {performance_targets['workflow_classifier_p95']*1000:.2f}ms"
+        assert (
+            p95 < performance_targets["workflow_classifier_p95"]
+        ), f"p95 {p95*1000:.2f}ms excede target {performance_targets['workflow_classifier_p95']*1000:.2f}ms"
 
     @pytest.mark.asyncio
     async def test_classify_performance_p99(self, performance_targets):
@@ -112,8 +113,9 @@ class TestPIIDetectorPerformance:
         p95 = statistics.quantiles(times, n=20)[18]
         print(f"PIIDetector - p95: {p95*1000:.2f}ms")
 
-        assert p95 < performance_targets["pii_detector_p95"], \
-            f"p95 {p95*1000:.2f}ms excede target {performance_targets['pii_detector_p95']*1000:.2f}ms"
+        assert (
+            p95 < performance_targets["pii_detector_p95"]
+        ), f"p95 {p95*1000:.2f}ms excede target {performance_targets['pii_detector_p95']*1000:.2f}ms"
 
     def test_detect_performance_p99(self, performance_targets):
         """Detecção PII deve ser <30ms p99."""
@@ -133,14 +135,19 @@ class TestPIIDetectorPerformance:
         """Detecção em texto longo deve manter performance."""
         pii_detector = RegexPIIDetector()
         # Texto longo com múltiplas entidades
-        text = " ".join([
-            "Contato: joao@exemplo.com, maria@teste.com",
-            "Telefones: (11) 98765-4321, (21) 99876-5432",
-            "CPF: 123.456.789-09, 987.654.321-00",
-            "Cartões: 4539 1488 0343 6467, 5421 1234 5678 9010",
-            "IPs: 192.168.1.1, 10.0.0.1, 172.16.0.1",
-            "URLs: https://exemplo.com, http://teste.com.br",
-        ]) * 5  # 5x repetição = ~1500 caracteres
+        text = (
+            " ".join(
+                [
+                    "Contato: joao@exemplo.com, maria@teste.com",
+                    "Telefones: (11) 98765-4321, (21) 99876-5432",
+                    "CPF: 123.456.789-09, 987.654.321-00",
+                    "Cartões: 4539 1488 0343 6467, 5421 1234 5678 9010",
+                    "IPs: 192.168.1.1, 10.0.0.1, 172.16.0.1",
+                    "URLs: https://exemplo.com, http://teste.com.br",
+                ]
+            )
+            * 5
+        )  # 5x repetição = ~1500 caracteres
 
         times = []
         for _ in range(50):
@@ -149,8 +156,9 @@ class TestPIIDetectorPerformance:
             times.append(time.perf_counter() - start)
 
         p95 = statistics.quantiles(times, n=20)[18]
-        assert p95 < performance_targets["pii_detector_p99"], \
-            f"Texto longo p95 {p95*1000:.2f}ms excede target"
+        assert (
+            p95 < performance_targets["pii_detector_p99"]
+        ), f"Texto longo p95 {p95*1000:.2f}ms excede target"
 
 
 class TestContextManagerPerformance:
@@ -176,8 +184,9 @@ class TestContextManagerPerformance:
         p95 = statistics.quantiles(times, n=20)[18]
         print(f"ContextManager.create_context - p95: {p95*1000:.2f}ms")
 
-        assert p95 < performance_targets["context_builder_p95"], \
-            f"p95 {p95*1000:.2f}ms excede target {performance_targets['context_builder_p95']*1000:.2f}ms"
+        assert (
+            p95 < performance_targets["context_builder_p95"]
+        ), f"p95 {p95*1000:.2f}ms excede target {performance_targets['context_builder_p95']*1000:.2f}ms"
 
     @pytest.mark.asyncio
     async def test_classify_workflow_performance(self, performance_targets):

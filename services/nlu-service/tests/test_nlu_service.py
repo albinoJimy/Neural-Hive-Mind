@@ -1,7 +1,6 @@
 """Testes para o NLU Service."""
 
 import pytest
-from pytest_mock import MockerFixture
 
 from src.models.nlu import (
     CalculateConfidenceRequest,
@@ -61,7 +60,9 @@ class TestNLUPipelineService:
         """Testar classificação de domínio BUSINESS."""
         text = "Relatório de vendas do cliente"
         entities = []
-        domain, classification, confidence = nlu_service._classify_domain(text, entities, "pt", None)
+        domain, classification, confidence = nlu_service._classify_domain(
+            text, entities, "pt", None
+        )
 
         assert domain == UnifiedDomain.BUSINESS
         assert confidence > 0.5
@@ -71,7 +72,9 @@ class TestNLUPipelineService:
         """Testar classificação de domínio TECHNICAL."""
         text = "Debugar bug na API"
         entities = []
-        domain, classification, confidence = nlu_service._classify_domain(text, entities, "pt", None)
+        domain, classification, confidence = nlu_service._classify_domain(
+            text, entities, "pt", None
+        )
 
         assert domain == UnifiedDomain.TECHNICAL
         assert confidence > 0.5
@@ -81,7 +84,9 @@ class TestNLUPipelineService:
         """Testar classificação de domínio INFRASTRUCTURE."""
         text = "Deploy no Kubernetes"
         entities = []
-        domain, classification, confidence = nlu_service._classify_domain(text, entities, "pt", None)
+        domain, classification, confidence = nlu_service._classify_domain(
+            text, entities, "pt", None
+        )
 
         assert domain == UnifiedDomain.INFRASTRUCTURE
         assert confidence > 0.5
@@ -91,7 +96,9 @@ class TestNLUPipelineService:
         """Testar classificação de domínio SECURITY."""
         text = "Configurar autenticação JWT"
         entities = []
-        domain, classification, confidence = nlu_service._classify_domain(text, entities, "pt", None)
+        domain, classification, confidence = nlu_service._classify_domain(
+            text, entities, "pt", None
+        )
 
         assert domain == UnifiedDomain.SECURITY
         assert confidence > 0.5
@@ -120,6 +127,7 @@ class TestNLUPipelineService:
     @pytest.mark.asyncio
     async def test_extract_entities_mock(self, nlu_service: NLUPipelineService):
         """Testar extração de entidades com mock."""
+
         # Criar mock doc
         class MockToken:
             def __init__(self, text, label, start, end):

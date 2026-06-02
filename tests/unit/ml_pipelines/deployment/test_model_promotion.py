@@ -39,6 +39,7 @@ def sample_model_data():
     """Dados de modelo de exemplo."""
     # Criar um modelo pickle-able simples
     import sklearn.linear_model
+
     simple_model = sklearn.linear_model.LogisticRegression()
     simple_model.fit([[0], [1]], [0, 1])  # Treinar minimalmente
 
@@ -71,6 +72,7 @@ def good_model_file(temp_models_dir, sample_model_data):
 def bad_model_file(temp_models_dir):
     """Arquivo de modelo ruim (falha validação)."""
     import sklearn.linear_model
+
     simple_model = sklearn.linear_model.LogisticRegression()
     simple_model.fit([[0], [1]], [0, 1])
 
@@ -98,6 +100,7 @@ def bad_model_file(temp_models_dir):
 def current_production_model(temp_models_dir):
     """Modelo de produção atual."""
     import sklearn.linear_model
+
     simple_model = sklearn.linear_model.LogisticRegression()
     simple_model.fit([[0], [1]], [0, 1])
 
@@ -261,7 +264,9 @@ class TestModelPromotion:
         assert len(result.validation_results["reasons"]) > 0
         assert result.error_message is not None
 
-    def test_promote_creates_backup(self, model_promotion, good_model_file, current_production_model):
+    def test_promote_creates_backup(
+        self, model_promotion, good_model_file, current_production_model
+    ):
         """Promoção deve criar backup do modelo anterior."""
         result = model_promotion.promote_model(
             model_path=good_model_file,
@@ -329,7 +334,9 @@ class TestModelRollback:
         assert result.success is False
         assert "not found" in result.error_message.lower()
 
-    def test_rollback_creates_backup_of_current(self, model_promotion, good_model_file, current_production_model):
+    def test_rollback_creates_backup_of_current(
+        self, model_promotion, good_model_file, current_production_model
+    ):
         """Rollback deve fazer backup do modelo atual antes de reverter."""
         # Promover primeiro
         model_promotion.promote_model(
@@ -360,7 +367,9 @@ class TestModelRollback:
 class TestPromotionHistory:
     """Testa histórico de promoções."""
 
-    def test_promotion_saves_metadata(self, model_promotion, good_model_file, current_production_model):
+    def test_promotion_saves_metadata(
+        self, model_promotion, good_model_file, current_production_model
+    ):
         """Promoção deve salvar metadata."""
         model_promotion.promote_model(
             model_path=good_model_file,
@@ -379,7 +388,9 @@ class TestPromotionHistory:
         assert last_promotion["to_stage"] == "production"
         assert last_promotion["previous_version"] == "v7"
 
-    def test_promotion_history_limit(self, model_promotion, good_model_file, current_production_model):
+    def test_promotion_history_limit(
+        self, model_promotion, good_model_file, current_production_model
+    ):
         """Limite de histórico deve funcionar."""
         # Criar múltiplas promoções
         for _ in range(5):

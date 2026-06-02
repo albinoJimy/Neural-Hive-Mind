@@ -5,11 +5,9 @@ TDD: Tests primeiro, implementação depois.
 """
 
 import pytest
-from datetime import datetime
 from src.models.cognitive_plan import (
     CognitivePlan,
     TaskNode,
-    PlanStatus,
     RiskBand,
     WorkflowType,
 )
@@ -24,13 +22,7 @@ class TestWorkflowTypeExtension:
         return {
             "plan_id": "test-plan-123",
             "intent_id": "intent-456",
-            "tasks": [
-                TaskNode(
-                    task_id="task1",
-                    task_type="query",
-                    description="Test task"
-                )
-            ],
+            "tasks": [TaskNode(task_id="task1", task_type="query", description="Test task")],
             "execution_order": ["task1"],
             "risk_score": 0.3,
             "risk_band": RiskBand.LOW,
@@ -86,18 +78,22 @@ class TestWorkflowTypeExtension:
 
     def test_workflow_reasoning_can_be_set(self, minimal_plan_data):
         """workflow_reasoning pode ser setado."""
-        minimal_plan_data["workflow_reasoning"] = "Generation workflow selected due to create keyword"
+        minimal_plan_data[
+            "workflow_reasoning"
+        ] = "Generation workflow selected due to create keyword"
         plan = CognitivePlan(**minimal_plan_data)
         assert "Generation workflow" in plan.workflow_reasoning
 
     def test_to_avro_dict_includes_workflow_fields(self, minimal_plan_data):
         """to_avro_dict deve incluir os novos campos workflow."""
-        minimal_plan_data.update({
-            "workflow_type": WorkflowType.GENERATION,
-            "context_id": "ctx-123",
-            "workflow_confidence": 0.85,
-            "workflow_reasoning": "Test reasoning"
-        })
+        minimal_plan_data.update(
+            {
+                "workflow_type": WorkflowType.GENERATION,
+                "context_id": "ctx-123",
+                "workflow_confidence": 0.85,
+                "workflow_reasoning": "Test reasoning",
+            }
+        )
         plan = CognitivePlan(**minimal_plan_data)
         avro_dict = plan.to_avro_dict()
 
@@ -160,9 +156,7 @@ class TestWorkflowTypeExtension:
         plan_data = {
             "plan_id": avro_dict_old["plan_id"],
             "intent_id": avro_dict_old["intent_id"],
-            "tasks": [
-                TaskNode(**avro_dict_old["tasks"][0])
-            ],
+            "tasks": [TaskNode(**avro_dict_old["tasks"][0])],
             "execution_order": avro_dict_old["execution_order"],
             "risk_score": avro_dict_old["risk_score"],
             "risk_band": RiskBand(avro_dict_old["risk_band"]),

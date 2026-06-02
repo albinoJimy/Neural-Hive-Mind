@@ -10,9 +10,8 @@ Valida o fluxo completo de:
 """
 
 import pytest
-from unittest.mock import Mock, MagicMock, patch, PropertyMock
+from unittest.mock import Mock, patch
 from datetime import datetime, timedelta, timezone
-import time
 import os
 import sys
 
@@ -175,7 +174,7 @@ class TestAutoRetrainOnCriticalDrift:
         - Result has success=True
         - MLflow run ID is returned
         """
-        from auto_retrain import AutoRetrainOrchestrator, RetrainResult
+        from auto_retrain import AutoRetrainOrchestrator
 
         # Setup mocks
         mock_monitor = Mock()

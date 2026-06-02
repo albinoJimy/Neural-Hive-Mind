@@ -7,7 +7,7 @@ seguindo especificação OpenMetrics e integração com OpenTelemetry.
 
 import time
 import logging
-from typing import Dict, List, Optional, Any, Union
+from typing import Dict, List, Optional, Any
 from dataclasses import dataclass, field
 from threading import Lock
 from collections import defaultdict, deque

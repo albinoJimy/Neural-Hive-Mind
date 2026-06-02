@@ -13,12 +13,14 @@ import os
 import sys
 import subprocess
 import time
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, TYPE_CHECKING
 from datetime import datetime, timedelta
 from pathlib import Path
 import structlog
 from dataclasses import dataclass
-import json
+
+if TYPE_CHECKING:
+    import pandas as pd
 
 # Add paths
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../libraries/python"))
@@ -584,9 +586,9 @@ class AutoRetrainOrchestrator:
             msg = MIMEMultipart()
             msg["From"] = smtp_user
             msg["To"] = ", ".join(recipients)
-            msg["Subject"] = (
-                f"Auto-Retrain {status.upper()} - {details.get('specialist_type', 'N/A')}"
-            )
+            msg[
+                "Subject"
+            ] = f"Auto-Retrain {status.upper()} - {details.get('specialist_type', 'N/A')}"
 
             body = f"""
 Auto-Retrain Status: {status.upper()}

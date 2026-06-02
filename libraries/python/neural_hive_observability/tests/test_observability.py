@@ -39,10 +39,13 @@ class TestObservabilityConfig:
     def test_config_env_overrides(self):
         """Testa overrides de variáveis de ambiente."""
         with patch.dict(
-            "os.environ", {"NEURAL_HIVE_COMPONENT": "test-component", "LOG_LEVEL": "DEBUG"}
+            "os.environ",
+            {"NEURAL_HIVE_COMPONENT": "test-component", "LOG_LEVEL": "DEBUG"},
         ):
             config = ObservabilityConfig(
-                service_name="test-service", neural_hive_component="original", log_level="INFO"
+                service_name="test-service",
+                neural_hive_component="original",
+                log_level="INFO",
             )
 
             assert config.neural_hive_component == "test-component"
@@ -241,7 +244,11 @@ class TestHealthChecker:
     @pytest.mark.asyncio()
     async def test_custom_health_check(self):
         """Testa health check customizado."""
-        from neural_hive_observability.health import HealthCheck, HealthCheckResult, HealthStatus
+        from neural_hive_observability.health import (
+            HealthCheck,
+            HealthCheckResult,
+            HealthStatus,
+        )
 
         class TestHealthCheck(HealthCheck):
             async def check(self):
@@ -415,7 +422,9 @@ class TestIntegration:
             init_observability,
         )
         from neural_hive_observability.context import ContextManager
-        from neural_hive_observability.kafka_instrumentation import instrument_kafka_producer
+        from neural_hive_observability.kafka_instrumentation import (
+            instrument_kafka_producer,
+        )
 
         # Inicializar observabilidade primeiro
         init_observability(

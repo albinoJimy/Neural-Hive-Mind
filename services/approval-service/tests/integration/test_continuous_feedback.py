@@ -4,8 +4,6 @@ Integration Tests para Continuous Feedback (EPIC 3.3)
 Testa o fluxo completo de feedback continuo desde a API ate o Kafka.
 """
 
-import asyncio
-import json
 import os
 from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -21,7 +19,6 @@ os.environ.setdefault("APPROVAL_SERVICE_REQUIRE_AUTH", "false")
 from src.config.settings import Settings
 from src.models.continuous_feedback import (
     ContinuousFeedbackRequest,
-    ContinuousFeedbackResponse,
 )
 from src.services.continuous_feedback_service import ContinuousFeedbackService
 from src.producers.training_data_producer import TrainingDataProducer
@@ -35,7 +32,10 @@ from src.api.routers.continuous_feedback import (
 )
 
 # Mock auth dependency in the router module
-cf_router_module.get_current_admin_user = lambda: {"user_id": "test-admin", "email": "admin@test.com"}
+cf_router_module.get_current_admin_user = lambda: {
+    "user_id": "test-admin",
+    "email": "admin@test.com",
+}
 
 test_app = FastAPI()
 test_app.include_router(cf_router)
@@ -267,18 +267,14 @@ class TestContinuousFeedbackService:
 class TestContinuousFeedbackAPI:
     """Testes da API de continuous feedback"""
 
-    async def test_submit_continuous_feedback_endpoint(
-        self, continuous_feedback_service
-    ):
+    async def test_submit_continuous_feedback_endpoint(self, continuous_feedback_service):
         """Testa endpoint POST /api/v1/feedback/continuous"""
         # Configura servico no router
         set_continuous_feedback_service(continuous_feedback_service)
 
         # Cria client HTTP
         transport = ASGITransport(app=test_app)
-        async with AsyncClient(
-            transport=transport, base_url="http://test"
-        ) as client:
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
             response = await client.post(
                 "/api/v1/feedback/continuous",
                 json={
@@ -302,9 +298,7 @@ class TestContinuousFeedbackAPI:
         set_continuous_feedback_service(continuous_feedback_service)
 
         transport = ASGITransport(app=test_app)
-        async with AsyncClient(
-            transport=transport, base_url="http://test"
-        ) as client:
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
             response = await client.post(
                 "/api/v1/feedback/continuous",
                 json={
@@ -321,9 +315,7 @@ class TestContinuousFeedbackAPI:
         set_continuous_feedback_service(continuous_feedback_service)
 
         transport = ASGITransport(app=test_app)
-        async with AsyncClient(
-            transport=transport, base_url="http://test"
-        ) as client:
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
             response = await client.post(
                 "/api/v1/feedback/continuous",
                 json={
@@ -340,9 +332,7 @@ class TestContinuousFeedbackAPI:
         set_continuous_feedback_service(continuous_feedback_service)
 
         transport = ASGITransport(app=test_app)
-        async with AsyncClient(
-            transport=transport, base_url="http://test"
-        ) as client:
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
             response = await client.post(
                 "/api/v1/feedback/continuous",
                 json={
@@ -375,9 +365,7 @@ class TestContinuousFeedbackAPI:
         )
 
         transport = ASGITransport(app=test_app)
-        async with AsyncClient(
-            transport=transport, base_url="http://test"
-        ) as client:
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
             response = await client.get("/api/v1/feedback/continuous/stats")
 
             assert response.status_code == 200
@@ -391,9 +379,7 @@ class TestContinuousFeedbackAPI:
         set_continuous_feedback_service(continuous_feedback_service)
 
         transport = ASGITransport(app=test_app)
-        async with AsyncClient(
-            transport=transport, base_url="http://test"
-        ) as client:
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
             response = await client.get("/api/v1/feedback/continuous/health")
 
             assert response.status_code == 200

@@ -8,7 +8,7 @@ import structlog
 from aiokafka import AIOKafkaProducer
 from aiokafka.errors import KafkaError
 
-from src.config.settings import Settings, get_settings
+from src.config.settings import Settings
 
 logger = structlog.get_logger()
 

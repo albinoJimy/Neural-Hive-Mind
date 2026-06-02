@@ -81,7 +81,13 @@ class TestExperimentsNetworkPolicy:
             docs = list(yaml.safe_load_all(f))
 
         deny_all = next(
-            (d for d in docs if d and d.get("kind") == "NetworkPolicy" and "deny-all" in d.get("metadata", {}).get("name", "")),
+            (
+                d
+                for d in docs
+                if d
+                and d.get("kind") == "NetworkPolicy"
+                and "deny-all" in d.get("metadata", {}).get("name", "")
+            ),
             None,
         )
 
@@ -103,7 +109,13 @@ class TestExperimentsNetworkPolicy:
             docs = list(yaml.safe_load_all(f))
 
         dns_policy = next(
-            (d for d in docs if d and d.get("kind") == "NetworkPolicy" and "dns" in d.get("metadata", {}).get("name", "")),
+            (
+                d
+                for d in docs
+                if d
+                and d.get("kind") == "NetworkPolicy"
+                and "dns" in d.get("metadata", {}).get("name", "")
+            ),
             None,
         )
 
@@ -115,9 +127,7 @@ class TestExperimentsNetworkPolicy:
         ports = egress_rules[0].get("ports", [])
         assert any(p.get("port") == 53 for p in ports)
 
-    def test_networkpolicy_can_be_created(
-        self, k8s_networking_client, test_experiments_namespace
-    ):
+    def test_networkpolicy_can_be_created(self, k8s_networking_client, test_experiments_namespace):
         """
         Testa que a NetworkPolicy pode ser criada no namespace.
 
@@ -205,9 +215,7 @@ class TestExperimentsNetworkPolicy:
             name="deny-all", namespace=namespace_name
         )
 
-    def test_networkpolicy_allow_internal(
-        self, k8s_networking_client, test_experiments_namespace
-    ):
+    def test_networkpolicy_allow_internal(self, k8s_networking_client, test_experiments_namespace):
         """
         Testa que a policy allow-internal funciona.
 
@@ -255,9 +263,7 @@ class TestExperimentsNetworkPolicy:
         )
 
         # Verificar que policies existem
-        policies = k8s_networking_client.list_namespaced_network_policy(
-            namespace=namespace_name
-        )
+        policies = k8s_networking_client.list_namespaced_network_policy(namespace=namespace_name)
         assert len(policies.items) >= 2
 
         # Cleanup
@@ -268,9 +274,7 @@ class TestExperimentsNetworkPolicy:
             name="allow-internal", namespace=namespace_name
         )
 
-    def test_networkpolicy_egress_dns(
-        self, k8s_networking_client, test_experiments_namespace
-    ):
+    def test_networkpolicy_egress_dns(self, k8s_networking_client, test_experiments_namespace):
         """
         Testa que a policy allow-dns permite consultas DNS.
 
@@ -358,9 +362,7 @@ class TestExperimentsNetworkPolicyNegative:
         policy = client.V1NetworkPolicy(
             metadata=client.V1ObjectMeta(name="invalid-policy"),
             spec=client.V1NetworkPolicySpec(
-                pod_selector=client.V1LabelSelector(
-                    match_labels={"a" * 300: "value"}
-                ),
+                pod_selector=client.V1LabelSelector(match_labels={"a" * 300: "value"}),
                 policy_types=["Ingress"],
             ),
         )

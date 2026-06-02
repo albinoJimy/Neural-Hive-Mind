@@ -6,7 +6,7 @@ Configura sys.path para permitir imports do src e das bibliotecas neural_hive.
 
 import sys
 from pathlib import Path
-from unittest.mock import MagicMock, PropertyMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -40,7 +40,9 @@ if libs_alt.is_dir():
             sys.path.insert(0, str(pkg_dir))
 
 # Adicionar neural_hive_integration (está fora de libraries/python)
-integration_lib = Path(__file__).parent.parent.parent.parent / "libraries" / "neural_hive_integration"
+integration_lib = (
+    Path(__file__).parent.parent.parent.parent / "libraries" / "neural_hive_integration"
+)
 if integration_lib.is_dir() and str(integration_lib) not in sys.path:
     sys.path.insert(0, str(integration_lib))
 
@@ -55,22 +57,31 @@ def pytest_configure(config):
     # Mock get_metrics ANTES de qualquer import de src.main
     mock_metrics = MagicMock()
     mock_metrics.trace_context_extraction_total = MagicMock()
-    mock_metrics.trace_context_extraction_total.labels = MagicMock(return_value=mock_metrics.trace_context_extraction_total)
+    mock_metrics.trace_context_extraction_total.labels = MagicMock(
+        return_value=mock_metrics.trace_context_extraction_total
+    )
     mock_metrics.trace_context_extraction_total.inc = MagicMock()
     mock_metrics.trace_context_extraction_success_total = MagicMock()
-    mock_metrics.trace_context_extraction_success_total.labels = MagicMock(return_value=mock_metrics.trace_context_extraction_success_total)
+    mock_metrics.trace_context_extraction_success_total.labels = MagicMock(
+        return_value=mock_metrics.trace_context_extraction_success_total
+    )
     mock_metrics.trace_context_extraction_success_total.inc = MagicMock()
     mock_metrics.trace_context_extraction_failure_total = MagicMock()
-    mock_metrics.trace_context_extraction_failure_total.labels = MagicMock(return_value=mock_metrics.trace_context_extraction_failure_total)
+    mock_metrics.trace_context_extraction_failure_total.labels = MagicMock(
+        return_value=mock_metrics.trace_context_extraction_failure_total
+    )
     mock_metrics.trace_context_extraction_failure_total.inc = MagicMock()
     mock_metrics.trace_parent_missing_total = MagicMock()
-    mock_metrics.trace_parent_missing_total.labels = MagicMock(return_value=mock_metrics.trace_parent_missing_total)
+    mock_metrics.trace_parent_missing_total.labels = MagicMock(
+        return_value=mock_metrics.trace_parent_missing_total
+    )
     mock_metrics.trace_parent_missing_total.inc = MagicMock()
     mock_metrics.config = MagicMock()
     mock_metrics.config.common_labels = {}
 
     # Patch get_metrics no nível do módulo neural_hive_observability
     import neural_hive_observability as obs
+
     obs._metrics = mock_metrics  # Sobrescrever a property com o mock real
 
     # Também patchar a função get_metrics

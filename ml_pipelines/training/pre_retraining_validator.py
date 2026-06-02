@@ -841,7 +841,6 @@ class PreRetrainingValidator:
         Usa MLflow para recuperar metadados do treinamento anterior.
         """
         try:
-            import mlflow
             from mlflow.tracking import MlflowClient
 
             # Mapear specialist_type para model_name

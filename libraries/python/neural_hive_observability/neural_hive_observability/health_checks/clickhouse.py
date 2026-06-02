@@ -84,7 +84,9 @@ class ClickHouseSchemaHealthCheck(HealthCheck):
             connection_ok = await self._check_connection()
             if not connection_ok:
                 return self._create_result(
-                    HealthStatus.UNHEALTHY, "Cannot connect to ClickHouse", start_time=start_time
+                    HealthStatus.UNHEALTHY,
+                    "Cannot connect to ClickHouse",
+                    start_time=start_time,
                 )
 
             # Check database exists
@@ -158,7 +160,9 @@ class ClickHouseSchemaHealthCheck(HealthCheck):
         except Exception as e:
             logger.error(f"Error checking ClickHouse schema: {e}")
             return self._create_result(
-                HealthStatus.UNHEALTHY, f"Error checking schema: {e!s}", start_time=start_time
+                HealthStatus.UNHEALTHY,
+                f"Error checking schema: {e!s}",
+                start_time=start_time,
             )
 
     async def _check_connection(self) -> bool:
@@ -280,11 +284,15 @@ class ClickHouseConnectionHealthCheck(HealthCheck):
                 )
                 if result:
                     return self._create_result(
-                        HealthStatus.HEALTHY, "ClickHouse connection OK", start_time=start_time
+                        HealthStatus.HEALTHY,
+                        "ClickHouse connection OK",
+                        start_time=start_time,
                     )
 
             return self._create_result(
-                HealthStatus.UNHEALTHY, "ClickHouse connection failed", start_time=start_time
+                HealthStatus.UNHEALTHY,
+                "ClickHouse connection failed",
+                start_time=start_time,
             )
 
         except asyncio.TimeoutError:

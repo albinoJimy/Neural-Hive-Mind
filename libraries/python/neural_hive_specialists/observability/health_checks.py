@@ -228,7 +228,7 @@ class SpecialistHealthChecker:
 
             if model_name:
                 try:
-                    registered_model = client.get_registered_model(model_name)
+                    client.get_registered_model(model_name)
                     latest_versions = client.get_latest_versions(model_name, stages=["Production"])
 
                     model_status = "registered"

@@ -437,7 +437,7 @@ class TransformExecutor(BaseTaskExecutor):
                                         else:
                                             dt = datetime.utcfromtimestamp(old_value)
                                         new_value = dt.strftime(value)
-                                except:
+                                except Exception:
                                     pass
                             obj[field_name] = new_value
                         elif rule_type == "number":

@@ -10,7 +10,6 @@ import pytest
 import subprocess
 from typing import AsyncGenerator
 import httpx
-from pymongo import MongoClient
 from motor.motor_asyncio import AsyncIOMotorClient
 
 

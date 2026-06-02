@@ -158,9 +158,7 @@ class DLQProducer:
         now = time.time()
         # Remover timestamps fora da janela
         cutoff = now - self._rate_limit_window
-        self._rate_limit_timestamps = [
-            ts for ts in self._rate_limit_timestamps if ts > cutoff
-        ]
+        self._rate_limit_timestamps = [ts for ts in self._rate_limit_timestamps if ts > cutoff]
 
         if len(self._rate_limit_timestamps) < self._rate_limit_max:
             self._rate_limit_timestamps.append(now)
@@ -271,6 +269,7 @@ class DLQProducer:
             # Atualizar métricas Prometheus (se disponível)
             try:
                 from src.observability.metrics import ConsensusMetrics
+
                 ConsensusMetrics.increment_dlq_message_sent(dlq_message.error_type)
             except ImportError:
                 pass

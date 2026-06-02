@@ -1,5 +1,4 @@
 import pytest
-import asyncio
 from datetime import datetime
 from services.code_forge.src.models.execution_ticket import (
     ExecutionTicket,
@@ -14,7 +13,6 @@ from services.code_forge.src.models.execution_ticket import (
     Durability,
     SecurityLevel,
 )
-from services.code_forge.src.services.pipeline_engine import PipelineEngine
 
 
 @pytest.mark.asyncio

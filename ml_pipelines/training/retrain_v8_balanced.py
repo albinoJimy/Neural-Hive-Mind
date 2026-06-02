@@ -14,7 +14,6 @@ Data: 2026-03-17
 import os
 import sys
 import pickle
-import json
 import pandas as pd
 import numpy as np
 from datetime import datetime
@@ -112,7 +111,7 @@ def load_feedback_data(
     # Query base para feedbacks com NLP features
     query = {
         "nlp_features": {"$exists": True, "$ne": {}},
-        "final_decision": {"$exists": True, "$ne": None, "$ne": ""},
+        "final_decision": {"$exists": True, "$nin": [None, ""]},
     }
 
     if balanced_only:
@@ -139,7 +138,7 @@ def load_feedback_data(
         for fb in feedbacks:
             decision = fb.get("final_decision", "unknown")
             class_dist[decision] = class_dist.get(decision, 0) + 1
-        print(f"  Distribuição de classes:")
+        print("  Distribuição de classes:")
         for decision, count in sorted(class_dist.items()):
             pct = count / len(feedbacks) * 100
             print(f"    {decision}: {count} ({pct:.1f}%)")
@@ -258,7 +257,7 @@ def train_and_save_model(df, version: str, model_type: str = "random_forest"):
     print(f"Conjunto de teste: {X_test.shape}")
 
     # Distribuição no treino
-    print(f"\nDistribuição no treino:")
+    print("\nDistribuição no treino:")
     for decision, count in y_train.value_counts().items():
         print(f"  {decision}: {count}")
 
@@ -268,15 +267,15 @@ def train_and_save_model(df, version: str, model_type: str = "random_forest"):
     # Avaliar
     metrics = evaluate_model(model, X_test, y_test, feature_cols)
 
-    print(f"\nMétricas no conjunto de teste:")
+    print("\nMétricas no conjunto de teste:")
     print(f"  F1-Score: {metrics['f1_score']:.4f}")
     print(f"  Precision: {metrics['precision']:.4f}")
     print(f"  Recall: {metrics['recall']:.4f}")
 
-    print(f"\nRelatório por classe:")
+    print("\nRelatório por classe:")
     print(metrics["classification_report"])
 
-    print(f"\nTop 10 Features:")
+    print("\nTop 10 Features:")
     for i, (feat, imp) in enumerate(
         zip(
             metrics["feature_importances"]["features"][:10],
@@ -336,7 +335,7 @@ def train_and_save_model(df, version: str, model_type: str = "random_forest"):
         upsert=True,
     )
 
-    print(f"Metadata salvo no MongoDB")
+    print("Metadata salvo no MongoDB")
 
     return model_data
 
@@ -397,7 +396,7 @@ def main():
         print(f"Modelo: {args.model_type}")
         print(f"F1-Score: {model_data['metrics']['f1_score']:.4f}")
         print(f"Amostras: {model_data['training_samples']}")
-        print(f"Dataset balanceado: SIM")
+        print("Dataset balanceado: SIM")
         print()
         print("Para fazer deploy:")
         print(f"  1. Atualizar Dockerfile para copiar nhm_approval_model_{MODEL_VERSION}.pkl")

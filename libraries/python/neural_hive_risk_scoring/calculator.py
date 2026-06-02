@@ -86,14 +86,6 @@ class RiskCalculator:
         # Encontrar domínio de maior risco
         highest_risk_domain = self._find_highest_risk_domain(assessments)
 
-        # Calcular fatores agregados
-        aggregate_factors = self._aggregate_factors(assessments)
-
-        # Gerar reasoning
-        reasoning = self._generate_aggregate_reasoning(
-            assessments, overall_score, overall_band, highest_risk_domain
-        )
-
         matrix = RiskMatrix(
             entity_id=entity_id,
             entity_type=entity_type,

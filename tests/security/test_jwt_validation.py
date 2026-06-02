@@ -6,8 +6,6 @@ Testa scenarios de validação de tokens JWT via SPIFFE/python-jose.
 
 import pytest
 from datetime import datetime, timedelta, timezone
-from unittest.mock import MagicMock, AsyncMock, patch
-from uuid import uuid4
 
 
 # =============================================================================
@@ -166,7 +164,6 @@ class TestJWTAlgorithms:
     def test_jwt_rejects_unsupported_algorithm(self):
         """Deve rejeitar token com algoritmo não suportado."""
         from jose import jwt
-        import json
 
         secret = "test-secret"
         payload = {"user": "test"}

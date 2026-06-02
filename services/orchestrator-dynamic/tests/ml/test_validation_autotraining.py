@@ -9,6 +9,7 @@ Valida os fluxos de:
 """
 
 from datetime import datetime, timezone
+
 UTC = timezone.utc
 from unittest.mock import AsyncMock, MagicMock
 

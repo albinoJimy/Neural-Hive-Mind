@@ -10,7 +10,6 @@ from enum import Enum
 from typing import Any
 
 import structlog
-from temporalio import workflow
 from temporalio.client import Client
 
 from neural_hive_observability import get_tracer
@@ -270,9 +269,7 @@ class SelfHealingService:
         )
 
         # Obter handler específico para o tipo de falha
-        handler = self.correction_strategies.get(
-            failure.failure_type, self._handle_unknown
-        )
+        handler = self.correction_strategies.get(failure.failure_type, self._handle_unknown)
 
         correction = await handler(failure, retry_count)
 
@@ -318,9 +315,7 @@ class SelfHealingService:
             if correction.strategy == CorrectionStrategy.RETRY:
                 result = await self._execute_retry(correction, workflow_id)
             elif correction.strategy == CorrectionStrategy.PARAMETER_ADJUSTMENT:
-                result = await self._execute_parameter_adjustment(
-                    correction, workflow_id
-                )
+                result = await self._execute_parameter_adjustment(correction, workflow_id)
             elif correction.strategy == CorrectionStrategy.FALLBACK:
                 result = await self._execute_fallback(correction, workflow_id)
             elif correction.strategy == CorrectionStrategy.ESCALATION:
@@ -367,9 +362,7 @@ class SelfHealingService:
             raise RuntimeError("Temporal client not configured")
 
         # Obter workflow original
-        handle = self.temporal_client.get_workflow_handle(
-            workflow_id, run_id=original_run_id
-        )
+        handle = self.temporal_client.get_workflow_handle(workflow_id, run_id=original_run_id)
 
         # Descrever workflow para obter informações
         description = await handle.describe()
@@ -442,9 +435,7 @@ class SelfHealingService:
                 requires_approval=True,
             )
 
-    async def _handle_timeout(
-        self, failure: WorkflowFailure, retry_count: int
-    ) -> CorrectionAction:
+    async def _handle_timeout(self, failure: WorkflowFailure, retry_count: int) -> CorrectionAction:
         """Handler para timeouts."""
         if retry_count < self.max_retry_attempts:
             return CorrectionAction(
@@ -501,9 +492,7 @@ class SelfHealingService:
             requires_approval=True,
         )
 
-    async def _handle_unknown(
-        self, failure: WorkflowFailure, retry_count: int
-    ) -> CorrectionAction:
+    async def _handle_unknown(self, failure: WorkflowFailure, retry_count: int) -> CorrectionAction:
         """Handler para falhas desconhecidas."""
         if retry_count == 0:
             return CorrectionAction(
@@ -551,8 +540,6 @@ class SelfHealingService:
             "description": correction.description,
         }
 
-    async def _execute_skip(
-        self, correction: CorrectionAction, workflow_id: str
-    ) -> dict[str, Any]:
+    async def _execute_skip(self, correction: CorrectionAction, workflow_id: str) -> dict[str, Any]:
         """Executa skip."""
         return {"status": "skipped", "reason": "non_critical_task"}

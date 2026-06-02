@@ -12,8 +12,6 @@ Uso:
         --headless -u 100 -r 10 --run-time 10m
 """
 
-import asyncio
-import json
 import logging
 import os
 import random
@@ -25,7 +23,7 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Set
 
 from locust import HttpUser, TaskSet, task, events, between
-from locust.runners import MasterRunner, WorkerRunner
+from locust.runners import WorkerRunner
 
 logger = logging.getLogger(__name__)
 
@@ -333,7 +331,7 @@ class FlowCCircuitBreakerTasks(TaskSet):
                         test_state.record_circuit_breaker_trip(component)
                         response.success()  # Esperado quando CB esta aberto
                     else:
-                        response.failure(f"Erro 503 nao relacionado a CB")
+                        response.failure("Erro 503 nao relacionado a CB")
                 except Exception:
                     response.failure("Erro 503 inesperado")
             elif response.status_code in (200, 201, 202):

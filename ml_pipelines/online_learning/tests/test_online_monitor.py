@@ -2,8 +2,8 @@
 
 import pytest
 import numpy as np
-from unittest.mock import Mock, MagicMock, patch
-from datetime import datetime, timedelta, timezone
+from unittest.mock import Mock, patch
+from datetime import datetime, timezone
 
 
 # ============================================================================
@@ -102,7 +102,6 @@ _monitor_patch.start()
 # Agora é seguro importar
 from ml_pipelines.online_learning.online_monitor import (
     OnlinePerformanceMonitor,
-    Alert,
 )
 from ml_pipelines.online_learning.config import OnlineLearningConfig
 

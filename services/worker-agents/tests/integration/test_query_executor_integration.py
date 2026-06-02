@@ -255,11 +255,13 @@ class TestNeo4jIntegration:
 
         # Limpar e criar dados de teste
         await client.execute_write("MATCH (n:TestNode) DETACH DELETE n")
-        await client.execute_write("""
+        await client.execute_write(
+            """
             CREATE (n1:TestNode {name: 'node1', value: 100}),
                    (n2:TestNode {name: 'node2', value: 200}),
                    (n1)-[:RELATED_TO]->(n2)
-        """)
+        """
+        )
 
         yield client
 

@@ -5,7 +5,6 @@ Valida se as métricas do Neural Hive-Mind estão sendo coletadas corretamente
 """
 
 import sys
-import time
 import json
 import argparse
 import requests
@@ -64,7 +63,6 @@ class MetricsValidator:
             return not validation.critical
 
         data = result.get("data", {})
-        result_type = data.get("resultType", "")
         results = data.get("result", [])
 
         if not results:

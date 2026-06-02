@@ -17,7 +17,9 @@ def mock_service():
     """Mock do FeedbackReplayService."""
 
     class MockService:
-        async def check_model_improvement(self, old_model_version, new_model_version, metrics_old, metrics_new):
+        async def check_model_improvement(
+            self, old_model_version, new_model_version, metrics_old, metrics_new
+        ):
             # Simular melhoria significativa se precision aumentar >10%
             old_precision = metrics_old.get("precision", 0)
             new_precision = metrics_new.get("precision", 0)
@@ -35,7 +37,9 @@ def mock_service():
                 "workflows": ["wf-1", "wf-2"],
             }
 
-        async def register_failed_workflow(self, workflow_id, run_id, failure_reason, model_version, **kwargs):
+        async def register_failed_workflow(
+            self, workflow_id, run_id, failure_reason, model_version, **kwargs
+        ):
             return {"status": "registered", "workflow_id": workflow_id}
 
         def get_metrics(self):
@@ -47,7 +51,9 @@ def mock_service():
 @pytest.fixture()
 def integration(mock_service):
     """Retorna instância da integração com serviço mockado."""
-    with patch("src.ml.feedback_replay_integration.get_feedback_replay_service", return_value=mock_service):
+    with patch(
+        "src.ml.feedback_replay_integration.get_feedback_replay_service", return_value=mock_service
+    ):
         integration = FeedbackReplayIntegration(enabled=True)
         integration.feedback_replay_service = mock_service
         return integration
@@ -203,6 +209,7 @@ class TestSingleton:
         """Testa que singleton retorna mesma instância."""
         # Reset singleton
         import src.ml.feedback_replay_integration as mod
+
         mod._integration_instance = None
 
         instance1 = get_feedback_replay_integration()
@@ -213,6 +220,7 @@ class TestSingleton:
     def test_singleton_persists(self):
         """Testa que singleton persiste entre chamadas."""
         import src.ml.feedback_replay_integration as mod
+
         mod._integration_instance = None
 
         integration = get_feedback_replay_integration()

@@ -6,7 +6,7 @@ Testa workflows, activities, e signals do Temporal.
 """
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 from enum import Enum

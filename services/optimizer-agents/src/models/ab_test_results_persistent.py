@@ -9,7 +9,10 @@ from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 
 UTC = timezone.utc  # type: ignore
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from src.experimentation.ab_testing_engine import ABTestResults
 
 
 @dataclass

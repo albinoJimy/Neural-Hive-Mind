@@ -15,7 +15,6 @@ Argumentos:
 
 import os
 import sys
-import json
 import argparse
 from datetime import datetime
 from pymongo import MongoClient
@@ -60,7 +59,7 @@ def get_retraining_summary() -> dict:
 
     # Contar feedbacks por decisao
     pipeline = [
-        {"$match": {"nlp_features": {"$exists": True}, "final_decision": {"$ne": None, "$ne": ""}}},
+        {"$match": {"nlp_features": {"$exists": True}, "final_decision": {"$nin": [None, ""]}}},
         {"$group": {"_id": "$final_decision", "count": {"$sum": 1}}},
         {"$sort": {"count": -1}},
     ]
@@ -133,7 +132,7 @@ def main():
     print()
 
     if not sample_status["should_retrain"]:
-        print(f"NAO HA NOVAS AMOSTAS SUFICIENTES")
+        print("NAO HA NOVAS AMOSTAS SUFICIENTES")
         print(f"Minimo necessario: {args.min_samples}")
         print(f"Novas amostras: {sample_status['new_samples']}")
         print()

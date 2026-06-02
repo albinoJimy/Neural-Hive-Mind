@@ -174,7 +174,7 @@ class FeatureStore:
                         self.redis_client.setex(
                             cache_key, self.cache_ttl_seconds, document["features"]
                         )
-                    except:
+                    except Exception:
                         pass
 
                 return features

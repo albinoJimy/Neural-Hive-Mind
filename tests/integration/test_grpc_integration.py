@@ -2,10 +2,7 @@
 Testes de integração gRPC entre serviços
 """
 
-import asyncio
-from typing import Dict
 
-import grpc
 import pytest
 
 # Imports dos clientes

@@ -3,10 +3,8 @@ Testes do Fallback Storage para Redis com MongoDB.
 
 Gap P0-3: State Divergence - Redis primário sem fallback MongoDB
 """
-import asyncio
 from datetime import datetime, timezone, timedelta
 from unittest.mock import AsyncMock, MagicMock, Mock
-from unittest.mock import patch
 
 import pytest
 
@@ -157,7 +155,9 @@ class TestFallbackStorage:
         assert collection.update_one.call_count == 1
 
     @pytest.mark.asyncio
-    async def test_set_redis_fails_mongodb_succeeds(self, fallback_storage, mock_redis, mock_mongodb):
+    async def test_set_redis_fails_mongodb_succeeds(
+        self, fallback_storage, mock_redis, mock_mongodb
+    ):
         """Testa SET quando Redis falha mas MongoDB sucesso"""
         mock_redis.set.side_effect = Exception("Redis down")
 
@@ -446,7 +446,9 @@ class TestConsisntencyGuarantees:
         assert fallback_storage._fallback_hits == 1
 
     @pytest.mark.asyncio
-    async def test_restore_to_redis_on_background_task(self, fallback_storage, mock_redis, mock_mongodb):
+    async def test_restore_to_redis_on_background_task(
+        self, fallback_storage, mock_redis, mock_mongodb
+    ):
         """Testa que dados do MongoDB são restaurados para Redis em background"""
         # Simular restauração
         mock_redis.set = AsyncMock(return_value=True)

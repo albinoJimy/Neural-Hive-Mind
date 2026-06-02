@@ -7,6 +7,7 @@ Saga distribuida com compensacao automatica.
 
 import sys
 from datetime import datetime, timezone
+
 UTC = timezone.utc
 from enum import Enum
 from typing import Any

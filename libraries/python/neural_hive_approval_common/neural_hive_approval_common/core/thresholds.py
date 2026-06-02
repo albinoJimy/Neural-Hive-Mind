@@ -58,9 +58,7 @@ class ThresholdEvaluator:
     def __init__(self, thresholds: Optional[ApprovalThresholds] = None) -> None:
         self.thresholds = thresholds or ApprovalThresholds()
 
-    def evaluate(
-        self, request: UnifiedApprovalRequest
-    ) -> Optional[ThresholdDecision]:
+    def evaluate(self, request: UnifiedApprovalRequest) -> Optional[ThresholdDecision]:
         """Decide com base no par (risk_band, risk_score).
 
         Retorna ``None`` se a banda for CRITICAL ou se nenhum threshold
@@ -76,10 +74,7 @@ class ThresholdEvaluator:
         if band == RiskBand.LOW and risk <= self.thresholds.auto_approve_max_risk_low:
             return "approved", f"Low risk ({risk:.2f}) below threshold"
 
-        if (
-            band == RiskBand.MEDIUM
-            and risk <= self.thresholds.auto_approve_max_risk_medium
-        ):
+        if band == RiskBand.MEDIUM and risk <= self.thresholds.auto_approve_max_risk_medium:
             return "approved", f"Medium risk ({risk:.2f}) below threshold"
 
         if band == RiskBand.HIGH and risk <= self.thresholds.auto_approve_max_risk_high:

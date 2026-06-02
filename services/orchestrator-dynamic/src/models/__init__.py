@@ -38,6 +38,7 @@ __all__ = [
     "Consistency",
     "DeliveryMode",
     "Durability",
+    "MigrationStatus",
     "ExecutionTicket",
     "Priority",
     "QoS",

@@ -5,8 +5,7 @@ import asyncio
 import logging
 import argparse
 from datetime import datetime, timedelta
-from typing import Dict, Any, List, Tuple
-import numpy as np
+from typing import Dict, Any
 from sklearn.metrics import precision_score, recall_score, f1_score, confusion_matrix
 
 logging.basicConfig(level=logging.INFO)
@@ -98,7 +97,7 @@ async def test_anomaly_detector_accuracy(
         "recall": float(recall),
         "f1_score": float(f1),
         "total_samples": len(tickets),
-        "true_anomalies": sum(1 for l in true_labels if l == -1),
+        "true_anomalies": sum(1 for label in true_labels if label == -1),
         "predicted_anomalies": sum(1 for p in predictions if p == -1),
         "confusion_matrix": {
             "true_negatives": int(cm[0][0]),

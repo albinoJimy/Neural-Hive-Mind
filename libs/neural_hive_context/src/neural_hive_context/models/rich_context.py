@@ -17,8 +17,7 @@ class IntentContext(BaseModel):
     intent_type: Optional[str] = Field(None, description="Tipo de intent classificado")
     entities: Dict[str, Any] = Field(default_factory=dict, description="Entidades extraídas")
     semantic_features: Dict[str, float] = Field(
-        default_factory=dict,
-        description="Features semânticas (quando disponível)"
+        default_factory=dict, description="Features semânticas (quando disponível)"
     )
 
 
@@ -26,35 +25,25 @@ class SystemContext(BaseModel):
     """Contexto do estado do sistema."""
 
     affected_services: List[str] = Field(
-        default_factory=list,
-        description="Serviços potencialmente afetados"
+        default_factory=list, description="Serviços potencialmente afetados"
     )
     service_states: Dict[str, str] = Field(
-        default_factory=dict,
-        description="Estado dos serviços (running, stopped, etc)"
+        default_factory=dict, description="Estado dos serviços (running, stopped, etc)"
     )
     resource_utilization: Dict[str, float] = Field(
-        default_factory=dict,
-        description="Utilização de recursos por serviço"
+        default_factory=dict, description="Utilização de recursos por serviço"
     )
-    active_workflows: int = Field(
-        default=0,
-        description="Número de workflows ativos no sistema"
-    )
+    active_workflows: int = Field(default=0, description="Número de workflows ativos no sistema")
 
 
 class TemporalContext(BaseModel):
     """Contexto temporal."""
 
     current_time: str = Field(..., description="Timestamp atual ISO 8601")
-    time_of_day: str = Field(
-        ...,
-        description="Período do dia: morning, afternoon, evening, night"
-    )
+    time_of_day: str = Field(..., description="Período do dia: morning, afternoon, evening, night")
     day_of_week: str = Field(..., description="Dia da semana")
     is_business_hours: bool = Field(
-        default=False,
-        description="Se está dentro do horário comercial"
+        default=False, description="Se está dentro do horário comercial"
     )
 
 
@@ -64,14 +53,10 @@ class SecurityContext(BaseModel):
     user_id: Optional[str] = Field(None, description="ID do usuário")
     session_id: Optional[str] = Field(None, description="ID da sessão")
     risk_score: float = Field(
-        default=0.0,
-        ge=0.0,
-        le=1.0,
-        description="Score de risco da requisição"
+        default=0.0, ge=0.0, le=1.0, description="Score de risco da requisição"
     )
     requires_approval: bool = Field(
-        default=False,
-        description="Se a operação requer aprovação humana"
+        default=False, description="Se a operação requer aprovação humana"
     )
 
 
@@ -82,17 +67,10 @@ class ConversationContext(BaseModel):
     user_id: Optional[str] = Field(None, description="ID do usuário")
     turn_count: int = Field(default=0, description="Número de turnos da conversa")
     previous_intents: List[str] = Field(
-        default_factory=list,
-        description="Intents anteriores na sessão"
+        default_factory=list, description="Intents anteriores na sessão"
     )
-    has_repetition: bool = Field(
-        default=False,
-        description="Se o atual intent é uma repetição"
-    )
-    has_escalation: bool = Field(
-        default=False,
-        description="Se houve escalamento para humano"
-    )
+    has_repetition: bool = Field(default=False, description="Se o atual intent é uma repetição")
+    has_escalation: bool = Field(default=False, description="Se houve escalamento para humano")
 
 
 class RichContext(BaseModel):
@@ -107,9 +85,7 @@ class RichContext(BaseModel):
     system: SystemContext = Field(..., description="Contexto do sistema")
     temporal: TemporalContext = Field(..., description="Contexto temporal")
     security: SecurityContext = Field(..., description="Contexto de segurança")
-    conversation: ConversationContext = Field(
-        ..., description="Contexto conversacional"
-    )
+    conversation: ConversationContext = Field(..., description="Contexto conversacional")
 
     # Metadata
     context_id: str = Field(..., description="ID único do contexto")

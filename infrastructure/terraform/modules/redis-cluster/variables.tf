@@ -49,7 +49,7 @@ variable "replicas_per_master" {
 variable "default_ttl_seconds" {
   description = "TTL padrão para cache (segundos)"
   type        = number
-  default     = 600  # 10 minutos
+  default     = 600 # 10 minutos
 }
 
 variable "memory_policy" {
@@ -86,7 +86,7 @@ variable "backup_enabled" {
 variable "backup_schedule" {
   description = "Schedule do backup em formato cron"
   type        = string
-  default     = "0 2 * * *"  # Diário às 2h
+  default     = "0 2 * * *" # Diário às 2h
 }
 
 variable "backup_storage_size" {
@@ -164,9 +164,9 @@ variable "common_labels" {
   description = "Labels comuns para todos os recursos"
   type        = map(string)
   default = {
-    "environment"    = "production"
-    "managed-by"     = "terraform"
-    "project"        = "neural-hive-mind"
+    "environment" = "production"
+    "managed-by"  = "terraform"
+    "project"     = "neural-hive-mind"
   }
 }
 
@@ -194,10 +194,10 @@ variable "tags" {
   description = "Tags de governança e compliance"
   type        = map(string)
   default = {
-    "data_owner"         = "team-sre"
+    "data_owner"          = "team-sre"
     "data_classification" = "internal"
-    "pii_data"           = "false"
-    "retention_policy"   = "90d"
-    "sla_tier"           = "gold"
+    "pii_data"            = "false"
+    "retention_policy"    = "90d"
+    "sla_tier"            = "gold"
   }
 }

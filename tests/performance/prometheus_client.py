@@ -8,7 +8,7 @@ import asyncio
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import Dict, List, Optional
 
 import httpx
 
@@ -197,7 +197,7 @@ class PrometheusClient:
                     try:
                         result.value = float(value_data[1])
                         result.timestamp = datetime.fromtimestamp(float(value_data[0]))
-                    except (ValueError, TypeError) as e:
+                    except (ValueError, TypeError):
                         # Pode ser 'NaN' ou 'Inf'
                         if value_data[1] == "NaN":
                             result.value = None

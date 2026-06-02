@@ -45,7 +45,7 @@ def _proto_enum_values(enum_descriptor) -> set[str]:
             break
     prefix = "_".join(prefix_tokens) + "_" if prefix_tokens else ""
 
-    return {name[len(prefix):].lower() for name in real_names}
+    return {name[len(prefix) :].lower() for name in real_names}
 
 
 # ---- Enum sync -------------------------------------------------------------
@@ -110,9 +110,7 @@ def test_unified_approval_decision_pydantic_round_trip_matches_proto_decision() 
     }
     for literal_value, proto_value in literal_to_proto.items():
         # Constrói o Pydantic com o literal e confirma que é representável.
-        d = UnifiedApprovalDecision(
-            plan_id="p", decision=literal_value, approved_by="u"
-        )
+        d = UnifiedApprovalDecision(plan_id="p", decision=literal_value, approved_by="u")
         assert d.decision == literal_value
         # E que o proto tem o equivalente.
         assert proto_value != approval_pb2.DECISION_UNSPECIFIED

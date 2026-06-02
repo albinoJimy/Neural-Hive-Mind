@@ -19,11 +19,10 @@ Uso:
 
 import argparse
 import sys
-from pathlib import Path
 import pandas as pd
 import numpy as np
 import structlog
-from typing import Dict, List, Tuple
+from typing import Dict, Tuple
 
 logger = structlog.get_logger()
 
@@ -163,12 +162,12 @@ def print_report(report: Dict):
     print("BACKGROUND DATASET STATISTICS REPORT")
     print("=" * 80)
 
-    print(f"\nDataset Overview:")
+    print("\nDataset Overview:")
     print(f"  Samples: {report['num_samples']}")
     print(f"  Features: {report['num_features']} ({report['num_numeric_features']} numeric)")
     print(f"  Memory Usage: {report['memory_usage_mb']:.2f} MB")
 
-    print(f"\nTop 10 Features by Variance:")
+    print("\nTop 10 Features by Variance:")
     features_by_var = sorted(
         report["feature_statistics"].items(), key=lambda x: x[1]["variance"], reverse=True
     )[:10]

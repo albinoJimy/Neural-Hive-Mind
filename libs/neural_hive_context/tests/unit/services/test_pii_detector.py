@@ -91,8 +91,7 @@ class TestRegexPIIDetector:
     def test_detect_multiple_entities(self, pii_detector):
         """Múltiplas entidades devem ser detectadas."""
         result = pii_detector.detect(
-            "Contato: joao@exemplo.com, telefone +55 11 98765-4321, "
-            "CPF 123.456.789-09"
+            "Contato: joao@exemplo.com, telefone +55 11 98765-4321, " "CPF 123.456.789-09"
         )
 
         assert result.has_pii is True

@@ -112,7 +112,7 @@ class KeycloakAdminClient:
                 token_data.get("expires_in", self.token_cache_ttl), self.token_cache_ttl
             )
             self._token_expires_at = datetime.fromtimestamp(
-                datetime.now(timezone.utc).timestamp() + expires_in, tz=UTC
+                datetime.now(timezone.utc).timestamp() + expires_in, tz=timezone.utc
             )
 
             logger.debug("keycloak_admin.token_refreshed", expires_in=expires_in)

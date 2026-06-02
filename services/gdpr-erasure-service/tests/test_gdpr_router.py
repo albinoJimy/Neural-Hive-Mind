@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, MagicMock
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from src.api.routers.gdpr import router, set_erasure_service, get_erasure_service
+from src.api.routers.gdpr import router, set_erasure_service
 from src.models.erasure import DataType, ErasureScope, ErasureStatus
 
 
@@ -114,10 +114,7 @@ class TestVerifyErasureRequest:
         """Testa verificacao com sucesso"""
         response = client.post(
             "/api/v1/gdpr/erasure/req-123/verify",
-            json={
-                "request_id": "req-123",
-                "token": "a" * 32  # Token com tamanho minimo
-            },
+            json={"request_id": "req-123", "token": "a" * 32},  # Token com tamanho minimo
         )
 
         assert response.status_code == 200
@@ -128,16 +125,11 @@ class TestVerifyErasureRequest:
 
     def test_verify_invalid_token(self, client, mock_erasure_service):
         """Testa erro com token invalido"""
-        mock_erasure_service.verify_erasure_request.side_effect = ValueError(
-            "Token invalido"
-        )
+        mock_erasure_service.verify_erasure_request.side_effect = ValueError("Token invalido")
 
         response = client.post(
             "/api/v1/gdpr/erasure/req-123/verify",
-            json={
-                "request_id": "req-123",
-                "token": "a" * 32  # Token com tamanho valido
-            },
+            json={"request_id": "req-123", "token": "a" * 32},  # Token com tamanho valido
         )
 
         assert response.status_code == 400

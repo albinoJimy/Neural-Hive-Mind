@@ -11,14 +11,12 @@ que apenas mensagens do teste atual sejam consumidas, evitando interferência
 de mensagens históricas em ambientes compartilhados.
 """
 
-import asyncio
 import uuid
 from collections import defaultdict
 from typing import Dict, List, Optional
 
 import pytest
 from confluent_kafka import Consumer, KafkaError, TopicPartition
-from confluent_kafka.admin import AdminClient
 
 # Imports condicionais para evitar falhas em ambientes sem Kafka
 try:

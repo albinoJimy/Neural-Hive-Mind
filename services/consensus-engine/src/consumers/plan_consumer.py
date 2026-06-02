@@ -21,7 +21,9 @@ logger = structlog.get_logger()
 class PlanConsumer:
     """Consumer Kafka para tópico plans.ready usando confluent-kafka"""
 
-    def __init__(self, config, specialists_client, mongodb_client, pheromone_client, dlq_producer=None):
+    def __init__(
+        self, config, specialists_client, mongodb_client, pheromone_client, dlq_producer=None
+    ):
         self.config = config
         self.specialists_client = specialists_client
         self.mongodb_client = mongodb_client
@@ -861,7 +863,7 @@ class PlanConsumer:
                 backoff = self.dlq_producer.calculate_backoff(current_failure_count)
             else:
                 backoff = min(
-                    self.config.consumer_base_backoff_seconds * (2 ** current_failure_count),
+                    self.config.consumer_base_backoff_seconds * (2**current_failure_count),
                     self.config.consumer_max_backoff_seconds,
                 )
 
@@ -872,7 +874,9 @@ class PlanConsumer:
                     message_key=message_key,
                     backoff_remaining=backoff - time_since_last_failure,
                 )
-                raise Exception(f"Backoff em andamento: {backoff - time_since_last_failure:.1f}s restantes")
+                raise Exception(
+                    f"Backoff em andamento: {backoff - time_since_last_failure:.1f}s restantes"
+                )
 
         # Tentar processar mensagem
         try:

@@ -53,7 +53,9 @@ class SPIFFEJWTValidator:
             # Try to use PyJWT with proper verification
             try:
                 import jwt
-                from cryptography.hazmat.primitives import serialization
+                from cryptography.hazmat.primitives import (  # noqa: F401 - deteção de feature
+                    serialization,
+                )
 
                 JWT_AVAILABLE = True
             except ImportError:

@@ -463,7 +463,8 @@ class TestDLQConsumerReprocessorIntegration:
                 "intent_id": "intent-callback-001",
                 "decision": "approved",
             },
-            failed_at=datetime.now(timezone.utc) - timedelta(hours=1),  # Suficiente para passar backoff
+            failed_at=datetime.now(timezone.utc)
+            - timedelta(hours=1),  # Suficiente para passar backoff
             correlation_id="corr-callback-001",
         )
 

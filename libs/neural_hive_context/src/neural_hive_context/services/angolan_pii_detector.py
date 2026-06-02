@@ -27,17 +27,12 @@ class AngolanPIIDetector(RegexPIIDetector):
     # Padrões regex específicos para Angola
     ANGOLAN_PATTERNS: Dict[PIIType, re.Pattern] = {
         PIIType.NIF: re.compile(
-            r'\b\d{9}\b',  # 9 dígitos (NIF Angola tem formato específico)
-            re.IGNORECASE
+            r"\b\d{9}\b", re.IGNORECASE  # 9 dígitos (NIF Angola tem formato específico)
         ),
         PIIType.BI: re.compile(
-            r'\b\d{12}[A-Z]{2}\b',  # XXXZZZZAA (12 dígitos + 2 letras)
-            re.IGNORECASE
+            r"\b\d{12}[A-Z]{2}\b", re.IGNORECASE  # XXXZZZZAA (12 dígitos + 2 letras)
         ),
-        PIIType.NUIT: re.compile(
-            r'\b\d{9}\b',  # 9 dígitos (similar formato NIF)
-            re.IGNORECASE
-        ),
+        PIIType.NUIT: re.compile(r"\b\d{9}\b", re.IGNORECASE),  # 9 dígitos (similar formato NIF)
     }
 
     # Mapeamento de risco para tipos angolanos
@@ -69,13 +64,21 @@ class AngolanPIIDetector(RegexPIIDetector):
 
         # Incluir padrões brasileiros se solicitado
         if include_brazilian:
-            enabled_types.update({
-                PIIType.EMAIL, PIIType.PHONE, PIIType.CPF,
-                PIIType.CREDIT_CARD, PIIType.PASSPORT,
-                PIIType.DRIVERS_LICENSE, PIIType.BANK_ACCOUNT,
-                PIIType.ADDRESS, PIIType.SSN, PIIType.IP_ADDRESS,
-                PIIType.URL,
-            })
+            enabled_types.update(
+                {
+                    PIIType.EMAIL,
+                    PIIType.PHONE,
+                    PIIType.CPF,
+                    PIIType.CREDIT_CARD,
+                    PIIType.PASSPORT,
+                    PIIType.DRIVERS_LICENSE,
+                    PIIType.BANK_ACCOUNT,
+                    PIIType.ADDRESS,
+                    PIIType.SSN,
+                    PIIType.IP_ADDRESS,
+                    PIIType.URL,
+                }
+            )
 
         super().__init__(enabled_types=enabled_types, min_confidence=min_confidence)
 
@@ -85,8 +88,8 @@ class AngolanPIIDetector(RegexPIIDetector):
 
         # Sobrescrever padrão PHONE para incluir código angolano +244
         self.PATTERNS[PIIType.PHONE] = re.compile(
-            r'\+55\s?\(?\d{2,3}\)?[\s-]?\d{4,5}[\s-]?\d{4}|\+244\s?\d{3}[\s-]?\d{3}[\s-]?\d{3}|\(?\d{2,3}\)?[\s-]?\d{4,5}[\s-]?\d{4}',
-            re.IGNORECASE
+            r"\+55\s?\(?\d{2,3}\)?[\s-]?\d{4,5}[\s-]?\d{4}|\+244\s?\d{3}[\s-]?\d{3}[\s-]?\d{3}|\(?\d{2,3}\)?[\s-]?\d{4,5}[\s-]?\d{4}",
+            re.IGNORECASE,
         )
 
     def _is_valid_match(self, entity_type: PIIType, text: str) -> bool:
@@ -106,27 +109,27 @@ class AngolanPIIDetector(RegexPIIDetector):
             # XXX = número de sequência (7 dígitos na prática)
             # ZZZZ = zeros ou dígito verificador
             # AA = letras
-            if not re.match(r'^\d{12}[A-Z]{2}$', text, re.IGNORECASE):
+            if not re.match(r"^\d{12}[A-Z]{2}$", text, re.IGNORECASE):
                 return False
             return True
 
         if entity_type == PIIType.NIF:
             # NIF angolano: 9 dígitos, começa com dígitos específicos
             # Formato: Primeiro dígito indica tipo de contribuinte
-            digits = re.sub(r'[^\d]', '', text)
+            digits = re.sub(r"[^\d]", "", text)
             if len(digits) != 9:
                 return False
             # Validação básica: não pode ser todos iguais
             if digits == digits[0] * 9:
                 return False
             # NIF Angola geralmente começa com 0, 1 ou 5
-            if digits[0] not in '015':
+            if digits[0] not in "015":
                 return False  # Possível falso positivo
             return True
 
         if entity_type == PIIType.NUIT:
             # NUIT angolano: 9 dígitos
-            digits = re.sub(r'[^\d]', '', text)
+            digits = re.sub(r"[^\d]", "", text)
             if len(digits) != 9:
                 return False
             # Validação básica: não pode ser todos iguais

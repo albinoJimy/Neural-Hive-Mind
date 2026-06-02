@@ -65,7 +65,7 @@ class TestWorkflowClassifierService:
             "id": "test-3",
             "intent": {
                 "text": "Gerar uma API REST para gerenciamento de usuários",
-            "domain": "development",
+                "domain": "development",
             },
         }
 
@@ -146,9 +146,7 @@ class TestWorkflowClassifierService:
             "historical_context": {"similar_intents": []},
         }
 
-        workflow_type, metadata = classifier.classify(
-            intent_envelope, intermediate_repr
-        )
+        workflow_type, metadata = classifier.classify(intent_envelope, intermediate_repr)
 
         assert workflow_type == WorkflowType.GENERATION
         assert metadata["signals"]["complexity"] > 0.5
@@ -167,9 +165,7 @@ class TestWorkflowClassifierService:
             "historical_context": {"similar_intents": []},
         }
 
-        workflow_type, metadata = classifier.classify(
-            intent_envelope, intermediate_repr
-        )
+        workflow_type, metadata = classifier.classify(intent_envelope, intermediate_repr)
 
         assert workflow_type == WorkflowType.ORCHESTRATION
         assert metadata["signals"]["complexity"] < 0.5

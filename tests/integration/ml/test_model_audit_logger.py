@@ -11,7 +11,6 @@ Valida o registro e consulta de eventos do ciclo de vida de modelos ML:
 import asyncio
 import datetime
 import uuid
-from typing import Dict, Any
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest

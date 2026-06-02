@@ -327,7 +327,10 @@ async def approve_plan(
     comments = body.comments if body else None
 
     logger.info(
-        "Aprovando plano", plan_id=plan_id, user_id_hash=user.get("user_id"), has_comments=bool(comments)
+        "Aprovando plano",
+        plan_id=plan_id,
+        user_id_hash=user.get("user_id"),
+        has_comments=bool(comments),
     )
 
     try:
@@ -378,7 +381,9 @@ async def reject_plan(
         404: Se plan_id nao encontrado
         409: Se plano ja foi aprovado/rejeitado
     """
-    logger.info("Rejeitando plano", plan_id=plan_id, user_id_hash=user.get("user_id"), reason=body.reason)
+    logger.info(
+        "Rejeitando plano", plan_id=plan_id, user_id_hash=user.get("user_id"), reason=body.reason
+    )
 
     try:
         decision = await service.reject_plan(

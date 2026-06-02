@@ -13,7 +13,6 @@ Data: 2026-03-16
 import os
 import sys
 import pickle
-import json
 import pandas as pd
 import numpy as np
 from datetime import datetime
@@ -21,7 +20,7 @@ from pathlib import Path
 from pymongo import MongoClient
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import classification_report, f1_score, precision_score, recall_score
+from sklearn.metrics import f1_score, precision_score, recall_score
 import warnings
 
 warnings.filterwarnings("ignore")
@@ -97,7 +96,7 @@ def load_feedback_data(min_samples: int = 20):
     cursor = db["specialist_feedback"].find(
         {
             "nlp_features": {"$exists": True, "$ne": {}},
-            "final_decision": {"$exists": True, "$ne": None, "$ne": ""},
+            "final_decision": {"$exists": True, "$nin": [None, ""]},
         }
     )
 
@@ -127,7 +126,7 @@ def prepare_dataframe(feedbacks):
     df = pd.DataFrame(data)
 
     print(f"Dataframe shape: {df.shape}")
-    print(f"Distribuicao de classes:")
+    print("Distribuicao de classes:")
     for decision, count in df["final_decision"].value_counts().items():
         print(f"  {decision}: {count}")
 
@@ -190,13 +189,13 @@ def train_and_save_model(df, version: str):
     precision = precision_score(y_test, y_pred, average="weighted", zero_division=0)
     recall = recall_score(y_test, y_pred, average="weighted", zero_division=0)
 
-    print(f"\nMétricas no conjunto de teste:")
+    print("\nMétricas no conjunto de teste:")
     print(f"  F1-Score: {f1:.4f}")
     print(f"  Precision: {precision:.4f}")
     print(f"  Recall: {recall:.4f}")
 
     # Feature importances
-    print(f"\nTop 10 Features:")
+    print("\nTop 10 Features:")
     importances = model.feature_importances_
     indices = np.argsort(importances)[::-1][:10]
 
@@ -240,7 +239,7 @@ def train_and_save_model(df, version: str):
         upsert=True,
     )
 
-    print(f"Metadata salvo no MongoDB")
+    print("Metadata salvo no MongoDB")
 
     return model_data
 

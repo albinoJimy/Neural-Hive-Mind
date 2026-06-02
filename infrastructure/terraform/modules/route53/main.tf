@@ -135,7 +135,7 @@ resource "aws_route53_record" "failover_primary" {
     evaluate_target_health = true
   }
 
-  set_identifier = "${each.key}-primary"
+  set_identifier  = "${each.key}-primary"
   health_check_id = aws_route53_health_check["${each.key}_health"].id
 }
 

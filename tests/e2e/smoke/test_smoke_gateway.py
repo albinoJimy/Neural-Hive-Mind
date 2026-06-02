@@ -9,8 +9,6 @@ Valida:
 
 import pytest
 
-from tests.e2e.smoke.conftest import SERVICE_URLS
-
 
 pytestmark = pytest.mark.smoke
 

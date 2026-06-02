@@ -21,10 +21,8 @@ Notas de implementação:
 
 from __future__ import annotations
 
-import importlib
 import sys
 from datetime import datetime, timedelta, timezone
-from pathlib import Path
 from typing import Any
 
 import jwt as pyjwt
@@ -297,9 +295,9 @@ async def test_request_with_valid_jwt_passes_through(
 
     # O FlowRouter foi atingido — sinal de que o middleware deixou passar.
     forwarded_headers = capture_proxy_target_secure["last_headers"]
-    assert forwarded_headers is not None, (
-        "FlowRouter._proxy_request não foi invocado: middleware bloqueou ou app errou"
-    )
+    assert (
+        forwarded_headers is not None
+    ), "FlowRouter._proxy_request não foi invocado: middleware bloqueou ou app errou"
 
     # INV-7: user_id e tenant_id propagados downstream.
     # Comparação case-insensitive para tolerar normalização de headers.
@@ -367,9 +365,7 @@ async def test_jwt_with_alg_none_rejected(secure_client: AsyncClient) -> None:
             {
                 "sub": "attacker",
                 "tenant_id": "evil",
-                "exp": int(
-                    (datetime.now(timezone.utc) + timedelta(minutes=5)).timestamp()
-                ),
+                "exp": int((datetime.now(timezone.utc) + timedelta(minutes=5)).timestamp()),
             }
         ).encode()
     )

@@ -6,6 +6,7 @@ para dar lugar a tickets de alta prioridade.
 """
 
 from datetime import timezone
+
 UTC = timezone.utc
 
 UTC = timezone.utc  # type: ignore

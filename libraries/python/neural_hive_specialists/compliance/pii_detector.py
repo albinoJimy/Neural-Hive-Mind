@@ -360,7 +360,7 @@ class PIIDetectorLite:
         """
         try:
             from .pii_masker import MaskStrategy, PIIMasker
-            from .pii_patterns import PIIType, get_pattern_registry
+            from .pii_patterns import get_pattern_registry
 
             self.masker = PIIMasker(
                 strategy=MaskStrategy.PARTIAL,

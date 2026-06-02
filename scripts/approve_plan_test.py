@@ -8,7 +8,6 @@ import asyncio
 import json
 import os
 from datetime import datetime, timezone
-from typing import Optional
 
 from pymongo import MongoClient
 from confluent_kafka import Producer

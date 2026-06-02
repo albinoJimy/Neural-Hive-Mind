@@ -230,7 +230,6 @@ class TestKafkaIntegrationFlow:
             patch("src.consumers.requirements_consumer.AIOKafkaConsumer") as mock_kafka_consumer,
             patch("src.producers.tests_producer.AIOKafkaProducer") as mock_kafka_producer,
         ):
-
             mock_consumer_instance = AsyncMock()
             mock_consumer_instance.start = AsyncMock()
             mock_kafka_consumer.return_value = mock_consumer_instance

@@ -488,7 +488,7 @@ class TestNotificationManager:
     @pytest.mark.asyncio
     async def test_notify_retrain_triggered(self):
         """Testa notificação de retrain triggered."""
-        from notifications.config import NotificationConfig, NotificationTemplate
+        from notifications.config import NotificationConfig
         from notifications.notifier import NotificationManager
 
         config = NotificationConfig(

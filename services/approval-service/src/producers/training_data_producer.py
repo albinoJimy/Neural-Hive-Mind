@@ -98,8 +98,7 @@ class TrainingDataProducer:
                 ]
             else:
                 headers = [
-                    (k, v.encode("utf-8") if isinstance(v, str) else v)
-                    for k, v in headers.items()
+                    (k, v.encode("utf-8") if isinstance(v, str) else v) for k, v in headers.items()
                 ]
 
             # Partition key pelo prediction_id

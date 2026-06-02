@@ -73,7 +73,13 @@ class TestExperimentsLimitRange:
             docs = list(yaml.safe_load_all(f))
 
         limit_range = next(
-            (d for d in docs if d and d.get("kind") == "LimitRange" and "limits" in d.get("metadata", {}).get("name", "")),
+            (
+                d
+                for d in docs
+                if d
+                and d.get("kind") == "LimitRange"
+                and "limits" in d.get("metadata", {}).get("name", "")
+            ),
             None,
         )
 
@@ -166,9 +172,7 @@ class TestExperimentsLimitRange:
         assert container_limits["max"]["cpu"] == "2"
         assert container_limits["max"]["memory"] == "4Gi"
 
-    def test_limitrange_can_be_created(
-        self, k8s_core_client, test_experiments_namespace
-    ):
+    def test_limitrange_can_be_created(self, k8s_core_client, test_experiments_namespace):
         """
         Testa que o LimitRange pode ser criado no namespace.
 
@@ -207,13 +211,9 @@ class TestExperimentsLimitRange:
         assert created.metadata.name == "test-limits"
 
         # Cleanup
-        k8s_core_client.delete_namespaced_limit_range(
-            name="test-limits", namespace=namespace_name
-        )
+        k8s_core_client.delete_namespaced_limit_range(name="test-limits", namespace=namespace_name)
 
-    def test_limitrange_applies_defaults_to_pod(
-        self, k8s_core_client, test_experiments_namespace
-    ):
+    def test_limitrange_applies_defaults_to_pod(self, k8s_core_client, test_experiments_namespace):
         """
         Testa que os defaults são aplicados a pods sem recursos.
 
@@ -236,9 +236,7 @@ class TestExperimentsLimitRange:
                 ]
             ),
         )
-        k8s_core_client.create_namespaced_limit_range(
-            namespace=namespace_name, body=limit_range
-        )
+        k8s_core_client.create_namespaced_limit_range(namespace=namespace_name, body=limit_range)
 
         # Criar pod sem recursos especificados
         pod = client.V1Pod(
@@ -253,9 +251,7 @@ class TestExperimentsLimitRange:
                 ]
             ),
         )
-        k8s_core_client.create_namespaced_pod(
-            namespace=namespace_name, body=pod
-        )
+        k8s_core_client.create_namespaced_pod(namespace=namespace_name, body=pod)
 
         # Aguardar pod ser criado e defaults aplicados
         time.sleep(2)
@@ -273,16 +269,12 @@ class TestExperimentsLimitRange:
         assert container.resources.limits.memory == "256Mi"
 
         # Cleanup
-        k8s_core_client.delete_namespaced_pod(
-            name="no-resources-pod", namespace=namespace_name
-        )
+        k8s_core_client.delete_namespaced_pod(name="no-resources-pod", namespace=namespace_name)
         k8s_core_client.delete_namespaced_limit_range(
             name="test-defaults", namespace=namespace_name
         )
 
-    def test_limitrange_enforces_max_limits(
-        self, k8s_core_client, test_experiments_namespace
-    ):
+    def test_limitrange_enforces_max_limits(self, k8s_core_client, test_experiments_namespace):
         """
         Testa que os limites máximos são aplicados.
 
@@ -304,9 +296,7 @@ class TestExperimentsLimitRange:
                 ]
             ),
         )
-        k8s_core_client.create_namespaced_limit_range(
-            namespace=namespace_name, body=limit_range
-        )
+        k8s_core_client.create_namespaced_limit_range(namespace=namespace_name, body=limit_range)
 
         # Tentar criar pod que excede o max
         pod = client.V1Pod(
@@ -325,21 +315,18 @@ class TestExperimentsLimitRange:
         )
 
         with pytest.raises(ApiException) as exc_info:
-            k8s_core_client.create_namespaced_pod(
-                namespace=namespace_name, body=pod
-            )
+            k8s_core_client.create_namespaced_pod(namespace=namespace_name, body=pod)
 
         assert exc_info.value.status == 403
-        assert "max limit" in str(exc_info.value.body).lower() or "exceeds" in str(exc_info.value.body).lower()
-
-        # Cleanup
-        k8s_core_client.delete_namespaced_limit_range(
-            name="test-max", namespace=namespace_name
+        assert (
+            "max limit" in str(exc_info.value.body).lower()
+            or "exceeds" in str(exc_info.value.body).lower()
         )
 
-    def test_limitrange_enforces_min_limits(
-        self, k8s_core_client, test_experiments_namespace
-    ):
+        # Cleanup
+        k8s_core_client.delete_namespaced_limit_range(name="test-max", namespace=namespace_name)
+
+    def test_limitrange_enforces_min_limits(self, k8s_core_client, test_experiments_namespace):
         """
         Testa que os limites mínimos são aplicados.
 
@@ -361,9 +348,7 @@ class TestExperimentsLimitRange:
                 ]
             ),
         )
-        k8s_core_client.create_namespaced_limit_range(
-            namespace=namespace_name, body=limit_range
-        )
+        k8s_core_client.create_namespaced_limit_range(namespace=namespace_name, body=limit_range)
 
         # Tentar criar pod abaixo do min - Kubernetes deve rejeitar ou ajustar
         pod = client.V1Pod(
@@ -382,16 +367,12 @@ class TestExperimentsLimitRange:
         )
 
         with pytest.raises(ApiException) as exc_info:
-            k8s_core_client.create_namespaced_pod(
-                namespace=namespace_name, body=pod
-            )
+            k8s_core_client.create_namespaced_pod(namespace=namespace_name, body=pod)
 
         assert exc_info.value.status == 403
 
         # Cleanup
-        k8s_core_client.delete_namespaced_limit_range(
-            name="test-min", namespace=namespace_name
-        )
+        k8s_core_client.delete_namespaced_limit_range(name="test-min", namespace=namespace_name)
 
     def test_limitrange_pod_limits(self, k8s_core_client, test_experiments_namespace):
         """
@@ -414,9 +395,7 @@ class TestExperimentsLimitRange:
                 ]
             ),
         )
-        k8s_core_client.create_namespaced_limit_range(
-            namespace=namespace_name, body=limit_range
-        )
+        k8s_core_client.create_namespaced_limit_range(namespace=namespace_name, body=limit_range)
 
         # Verificar que LimitRange foi criada
         created = k8s_core_client.read_namespaced_limit_range(

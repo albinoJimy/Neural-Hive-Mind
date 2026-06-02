@@ -95,15 +95,9 @@ async def pii_app(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setattr(audit_logger_mock, "initialize", AsyncMock(return_value=None))
     monkeypatch.setattr(audit_logger_mock, "close", AsyncMock(return_value=None))
     # As operações log_* são chamadas dentro do PIIService — mockamos sempre.
-    monkeypatch.setattr(
-        audit_logger_mock, "log_mask_operation", AsyncMock(return_value=None)
-    )
-    monkeypatch.setattr(
-        audit_logger_mock, "log_unmask_operation", AsyncMock(return_value=None)
-    )
-    monkeypatch.setattr(
-        audit_logger_mock, "log_detect_operation", AsyncMock(return_value=None)
-    )
+    monkeypatch.setattr(audit_logger_mock, "log_mask_operation", AsyncMock(return_value=None))
+    monkeypatch.setattr(audit_logger_mock, "log_unmask_operation", AsyncMock(return_value=None))
+    monkeypatch.setattr(audit_logger_mock, "log_detect_operation", AsyncMock(return_value=None))
 
     from src.main import app  # type: ignore
 
@@ -149,9 +143,7 @@ async def test_detect_finds_email_in_text(pii_client: AsyncClient) -> None:
     assert "EMAIL" in types, f"Expected EMAIL detected, got {types}"
 
     # Position invariant (INV-2)
-    email_item = next(
-        item for item in body["detected_pii"] if item["type"] == "EMAIL"
-    )
+    email_item = next(item for item in body["detected_pii"] if item["type"] == "EMAIL")
     assert email_item["start"] >= 0
     assert email_item["end"] > email_item["start"]
     assert email_item["value"] == _EMAIL_VALUE
@@ -180,17 +172,14 @@ async def test_mask_replaces_email_with_placeholder(pii_client: AsyncClient) -> 
     masked = body["masked_text"]
 
     # O email original NÃO pode estar presente no texto mascarado.
-    assert _EMAIL_VALUE not in masked, (
-        f"PII leak: email original presente no masked_text: {masked!r}"
-    )
+    assert (
+        _EMAIL_VALUE not in masked
+    ), f"PII leak: email original presente no masked_text: {masked!r}"
     # O texto deve ter sido alterado.
     assert masked != _EMAIL_TEXT
     # Algum padrão de masking foi aplicado (placeholder/tag ou *).
     has_placeholder = (
-        "[EMAIL]" in masked
-        or "EMAIL" in masked
-        or "*" in masked
-        or "[REDACTED]" in masked
+        "[EMAIL]" in masked or "EMAIL" in masked or "*" in masked or "[REDACTED]" in masked
     )
     assert has_placeholder, f"Nenhum padrão de masking detectado em {masked!r}"
 
@@ -314,9 +303,7 @@ async def test_pii_not_leaked_in_response_logs(pii_client: AsyncClient) -> None:
     body = resp.json()
 
     # masked_text NUNCA pode conter o PII original.
-    assert _EMAIL_VALUE not in body["masked_text"], (
-        "PII leak no masked_text"
-    )
+    assert _EMAIL_VALUE not in body["masked_text"], "PII leak no masked_text"
     # masked_at é metadata, não pode conter PII.
     assert _EMAIL_VALUE not in body.get("masked_at", "")
     # mask_id é (potencialmente) um token AES; nunca o PII em claro.
@@ -324,9 +311,9 @@ async def test_pii_not_leaked_in_response_logs(pii_client: AsyncClient) -> None:
     # detected_pii[].masked_value não deve repetir o original em texto claro.
     for item in body.get("detected_pii", []):
         masked_value = item.get("masked_value") or ""
-        assert _EMAIL_VALUE not in masked_value, (
-            f"PII leak em detected_pii[].masked_value: {masked_value!r}"
-        )
+        assert (
+            _EMAIL_VALUE not in masked_value
+        ), f"PII leak em detected_pii[].masked_value: {masked_value!r}"
 
 
 async def test_capabilities_endpoint_does_not_require_auth(

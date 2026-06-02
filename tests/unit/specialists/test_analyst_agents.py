@@ -6,10 +6,8 @@ Testa análise de dados, insights, e recomendações.
 """
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from uuid import uuid4
-import asyncio
 
 
 # =============================================================================

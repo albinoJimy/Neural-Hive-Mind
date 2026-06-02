@@ -312,13 +312,15 @@ class TestCuriosityAggregation:
 
             # dir_b tem código mais interessante
             (dir_a / "simple.py").write_text("x = 1")
-            (dir_b / "complex.py").write_text("""
+            (dir_b / "complex.py").write_text(
+                """
 class Complex:
     def __init__(self):
         self._observers = []
     def attach(self, obs):
         self._observers.append(obs)
-""")
+"""
+            )
 
             scores = curiosity_calculator.rank_directories(tmpdir)
 

@@ -399,7 +399,7 @@ class RetentionManager:
         """
         try:
             # Registrar deleção para auditoria
-            deleted_count = self._audit_deletion(correlation_id, reason)
+            self._audit_deletion(correlation_id, reason)
 
             # Deletar documentos
             result = self.collection.delete_many({"correlation_id": correlation_id})

@@ -12,16 +12,14 @@ Uso:
 import sys
 
 # Importar submódulos do subpacote interno
-from .neural_hive_observability import (
-    config as _config_module,
-    context as _context_module,
-    grpc_instrumentation as _grpc_module,
-    health as _health_module,
-    kafka_instrumentation as _kafka_module,
-    logging as _logging_module,
-    metrics as _metrics_module,
-    tracing as _tracing_module,
-)
+from .neural_hive_observability import config as _config_module
+from .neural_hive_observability import context as _context_module
+from .neural_hive_observability import grpc_instrumentation as _grpc_module
+from .neural_hive_observability import health as _health_module
+from .neural_hive_observability import kafka_instrumentation as _kafka_module
+from .neural_hive_observability import logging as _logging_module
+from .neural_hive_observability import metrics as _metrics_module
+from .neural_hive_observability import tracing as _tracing_module
 
 # Registrar aliases no sys.modules para permitir imports como:
 # from neural_hive_observability.context import extract_context_from_metadata
@@ -46,7 +44,12 @@ kafka_instrumentation = _kafka_module
 
 # Re-export da implementação principal para conveniência
 from .neural_hive_observability import (
-    # Classes
+    inject_context_to_metadata,  # ADICIONADO - faltava no wrapper
+)
+from .neural_hive_observability import (
+    instrument_grpc_channel,  # ADICIONADO - faltava no wrapper
+)
+from .neural_hive_observability import (  # Classes; Logging; gRPC instrumentation; Inicialização; Context propagation; Kafka instrumentation; Tracing
     ContextManager,
     HealthChecker,
     InstrumentedAIOKafkaConsumer,
@@ -60,22 +63,14 @@ from .neural_hive_observability import (
     get_config,
     get_context_manager,
     get_health_checker,
-    # Logging
     get_logger,
     get_metrics,
     get_tracer,
-    # gRPC instrumentation
     init_grpc_instrumentation,
-    # Inicialização
     init_observability,
-    # Context propagation
-    inject_context_to_metadata,  # ADICIONADO - faltava no wrapper
-    instrument_grpc_channel,  # ADICIONADO - faltava no wrapper
     instrument_kafka_consumer,
-    # Kafka instrumentation
     instrument_kafka_producer,
     trace_grpc_method,
-    # Tracing
     trace_intent,
     trace_plan,
 )

@@ -6,9 +6,8 @@ Testa timeout, retry, backoff em chamadas gRPC.
 """
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
-from datetime import datetime, timedelta, timezone
-from uuid import uuid4
+from unittest.mock import AsyncMock, MagicMock
+from datetime import datetime, timezone
 import asyncio
 
 
@@ -74,8 +73,6 @@ class TestGRPCServerDeadline:
     @pytest.mark.asyncio
     async def test_server_respects_deadline(self):
         """O servidor deve respeitar deadline do cliente."""
-        from grpc import StatusCode
-        from datetime import datetime, timedelta
 
         # Simular contexto RPC com deadline
         mock_context = MagicMock()
@@ -115,7 +112,6 @@ class TestGRPCRetryWithBackoff:
     @pytest.mark.asyncio
     async def test_retry_on_transient_error(self):
         """Deve retentar em erro transitório."""
-        from grpc import StatusCode
 
         attempt_count = 0
         max_retries = 3
@@ -156,7 +152,6 @@ class TestGRPCRetryWithBackoff:
     @pytest.mark.asyncio
     async def test_max_retries_exceeded(self):
         """Deve falhar após máximo de tentativas."""
-        from grpc import StatusCode
 
         max_retries = 3
 

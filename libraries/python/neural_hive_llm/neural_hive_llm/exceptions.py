@@ -4,7 +4,7 @@ Hierarquia de exceções para tratamento de erros específicos
 de operações LLM.
 """
 
-from typing import Any, Optional
+from typing import Any
 
 
 class LLMError(Exception):

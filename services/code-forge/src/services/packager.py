@@ -10,6 +10,7 @@ if TYPE_CHECKING:
     from ..clients.artifact_registry_client import ArtifactRegistryClient
     from ..clients.postgres_client import PostgresClient
     from ..clients.s3_artifact_client import S3ArtifactClient
+    from ..models.artifact import ValidationResult
     from ..clients.trivy_client import TrivyClient
 
 logger = structlog.get_logger()

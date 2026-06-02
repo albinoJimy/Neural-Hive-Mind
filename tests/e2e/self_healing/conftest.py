@@ -7,12 +7,10 @@ Provides mock servers and clients for:
 - OPA Policy Engine (HTTP)
 """
 
-import asyncio
-import json
 from datetime import datetime, timezone
 from typing import Dict, Any, List, Optional
 from uuid import uuid4
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 import pytest_asyncio

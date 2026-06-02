@@ -296,6 +296,7 @@ async def test_drift_detector_prediction_drift(
 
         def _create_mock_cursor(self, tickets):
             """Create a cursor-like mock with limit and to_list methods."""
+
             class MockCursor:
                 def __init__(self, tickets_list):
                     self.tickets_list = tickets_list
@@ -380,6 +381,7 @@ async def test_drift_detector_target_drift(
 
         def _create_mock_cursor(self, tickets):
             """Create a cursor-like mock with limit and to_list methods."""
+
             class MockCursor:
                 def __init__(self, tickets_list):
                     self.tickets_list = tickets_list
@@ -825,7 +827,9 @@ def test_save_feature_baseline_empty_data(test_drift_config, mock_metrics):
 
 
 @pytest.mark.asyncio
-async def test_drift_detected_counter_feature_drift(test_drift_detector_feature_drift, mock_metrics):
+async def test_drift_detected_counter_feature_drift(
+    test_drift_detector_feature_drift, mock_metrics
+):
     """
     Test que drift_detected_total Counter é incrementado para feature drift.
 
@@ -839,16 +843,21 @@ async def test_drift_detected_counter_feature_drift(test_drift_detector_feature_
     if mock_metrics.record_drift_detected.called:
         calls = mock_metrics.record_drift_detected.call_args_list
         feature_calls = [
-            call for call in calls
-            if call.kwargs.get('drift_type') == 'feature' or
-            (len(call.args) >= 2 and call.args[1] == 'feature')
+            call
+            for call in calls
+            if call.kwargs.get("drift_type") == "feature"
+            or (len(call.args) >= 2 and call.args[1] == "feature")
         ]
         # Deve ter pelo menos uma chamada para feature drift
-        assert len(feature_calls) >= 1, "Expected at least one record_drift_detected call for feature drift"
+        assert (
+            len(feature_calls) >= 1
+        ), "Expected at least one record_drift_detected call for feature drift"
 
 
 @pytest.mark.asyncio
-async def test_drift_detected_counter_prediction_drift(test_drift_detector_prediction_drift, mock_metrics):
+async def test_drift_detected_counter_prediction_drift(
+    test_drift_detector_prediction_drift, mock_metrics
+):
     """
     Test que drift_detected_total Counter é incrementado para prediction drift.
 
@@ -867,12 +876,15 @@ async def test_drift_detected_counter_prediction_drift(test_drift_detector_predi
     if mock_metrics.record_drift_detected.called:
         calls = mock_metrics.record_drift_detected.call_args_list
         prediction_calls = [
-            call for call in calls
-            if call.kwargs.get('drift_type') == 'prediction' or
-            (len(call.args) >= 2 and call.args[1] == 'prediction')
+            call
+            for call in calls
+            if call.kwargs.get("drift_type") == "prediction"
+            or (len(call.args) >= 2 and call.args[1] == "prediction")
         ]
         # Deve ter pelo menos uma chamada para prediction drift
-        assert len(prediction_calls) >= 1, "Expected at least one record_drift_detected call for prediction drift"
+        assert (
+            len(prediction_calls) >= 1
+        ), "Expected at least one record_drift_detected call for prediction drift"
 
 
 @pytest.mark.asyncio
@@ -895,9 +907,12 @@ async def test_drift_detected_counter_target_drift(test_drift_detector_target_dr
     if mock_metrics.record_drift_detected.called:
         calls = mock_metrics.record_drift_detected.call_args_list
         target_calls = [
-            call for call in calls
-            if call.kwargs.get('drift_type') == 'target' or
-            (len(call.args) >= 2 and call.args[1] == 'target')
+            call
+            for call in calls
+            if call.kwargs.get("drift_type") == "target"
+            or (len(call.args) >= 2 and call.args[1] == "target")
         ]
         # Deve ter pelo menos uma chamada para target drift
-        assert len(target_calls) >= 1, "Expected at least one record_drift_detected call for target drift"
+        assert (
+            len(target_calls) >= 1
+        ), "Expected at least one record_drift_detected call for target drift"

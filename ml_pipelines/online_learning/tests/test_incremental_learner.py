@@ -4,7 +4,6 @@ import pytest
 import numpy as np
 import tempfile
 import os
-from unittest.mock import Mock, patch, MagicMock
 
 from ml_pipelines.online_learning.incremental_learner import IncrementalLearner
 from ml_pipelines.online_learning.config import OnlineLearningConfig

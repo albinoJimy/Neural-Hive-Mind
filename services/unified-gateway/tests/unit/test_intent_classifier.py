@@ -2,7 +2,6 @@
 
 import pytest
 from src.models.classification import (
-    ClassificationDecision,
     FlowType,
     IntentClassifier,
     NLUResult,
@@ -12,7 +11,13 @@ from src.models.classification import (
 class MockNLUClient:
     """Mock do NLU Client para testes."""
 
-    async def parse(self, text: str, language: str = "pt", context: dict | None = None, enable_cache: bool = True):
+    async def parse(
+        self,
+        text: str,
+        language: str = "pt",
+        context: dict | None = None,
+        enable_cache: bool = True,
+    ):
         """Retorna resultado NLU mockado baseado no texto."""
 
         # Texto vazio retorna baixa confiança
@@ -30,12 +35,17 @@ class MockNLUClient:
         text_lower = text.lower()
 
         # Primeiro verificar INFRASTRUCTURE (migration tem prioridade)
-        if any(kw in text_lower for kw in ["migrar", "legado", "migration", "atualizar", "modernizar"]):
+        if any(
+            kw in text_lower for kw in ["migrar", "legado", "migration", "atualizar", "modernizar"]
+        ):
             domain = "INFRASTRUCTURE"
             confidence = 0.9
             keywords = ["migrar", "legado"]
         # Depois verificar TECHNICAL (mas não se já for INFRA)
-        elif any(kw in text_lower for kw in ["gerar", "criar", "código", "app", "build", "desenvolver", "implementar"]):
+        elif any(
+            kw in text_lower
+            for kw in ["gerar", "criar", "código", "app", "build", "desenvolver", "implementar"]
+        ):
             domain = "TECHNICAL"
             confidence = 0.85
             keywords = ["gerar", "código"]
@@ -97,6 +107,7 @@ class TestIntentClassifier:
 
     async def test_classify_low_confidence_fallback_to_keywords(self, classifier):
         """Testar fallback para keywords quando confiança é baixa."""
+
         # Override mock para retornar baixa confiança
         async def low_confidence_parse(*args, **kwargs):
             text = args[0] if args else ""

@@ -45,6 +45,8 @@ __all__ = [
     "RiskMatrix",
     "RiskScoringConfig",
     "UnifiedDomain",
+    "get_domain_enum",
+    "get_domain_value",
     # Calculator
     "AggregationStrategy",
     # Thresholds

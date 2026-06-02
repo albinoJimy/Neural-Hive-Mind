@@ -7,7 +7,6 @@ Generated from SPIRE workload.proto
 # In production, these should be generated from the official SPIRE .proto files
 # using protoc
 
-from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
 from typing import List, Optional
 

@@ -6,6 +6,7 @@ que podem indicar problemas de configuração ou comportamento inesperado.
 """
 
 from datetime import timezone
+
 UTC = timezone.utc
 
 UTC = timezone.utc  # type: ignore
@@ -180,7 +181,9 @@ class AnomalyDetector:
         from datetime import datetime, timedelta
 
         try:
-            cutoff_date = datetime.now(timezone.utc) - timedelta(days=self.config.ml_training_window_days)
+            cutoff_date = datetime.now(timezone.utc) - timedelta(
+                days=self.config.ml_training_window_days
+            )
 
             count = await self.mongodb_client.db["execution_tickets"].count_documents(
                 {"completed_at": {"$gte": cutoff_date}}
@@ -873,5 +876,5 @@ class AnomalyDetector:
         try:
             metadata = await self.model_registry.get_model_metadata(self.model_name)
             return metadata.get("version")
-        except:
+        except Exception:
             return None

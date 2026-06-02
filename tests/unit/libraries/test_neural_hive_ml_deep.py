@@ -8,7 +8,6 @@ Testa pipelines ML, feature engineering, e drift detection.
 import pytest
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
-import numpy as np
 
 
 # =============================================================================

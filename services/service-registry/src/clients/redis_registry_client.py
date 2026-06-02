@@ -25,14 +25,23 @@ logger = structlog.get_logger()
 class RedisRegistryClient:
     """Cliente assíncrono para operações de registro com Redis"""
 
-    def __init__(self, cluster_nodes: list[str], prefix: str, password: str = "", timeout: int = 5, cluster_mode: bool = False):
+    def __init__(
+        self,
+        cluster_nodes: list[str],
+        prefix: str,
+        password: str = "",
+        timeout: int = 5,
+        cluster_mode: bool = False,
+    ):
         self.cluster_nodes = cluster_nodes
         self.prefix = prefix
         self.password = password
         self.timeout = timeout
         self.cluster_mode = cluster_mode
         self.client: Optional[redis.Redis | AsyncRedisCluster] = None
-        self._pubsub_client: Optional[redis.Redis] = None  # Cliente separado para pub/sub em cluster mode
+        self._pubsub_client: Optional[
+            redis.Redis
+        ] = None  # Cliente separado para pub/sub em cluster mode
         self._pubsub: Optional[redis.client.PubSub] = None
         self._watch_task: Optional[asyncio.Task] = None
 

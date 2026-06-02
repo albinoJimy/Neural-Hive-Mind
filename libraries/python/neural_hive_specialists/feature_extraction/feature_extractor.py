@@ -91,7 +91,6 @@ class FeatureExtractor:
 
         tasks = cognitive_plan.get("tasks", [])
         domain = cognitive_plan.get("original_domain")
-        priority = cognitive_plan.get("original_priority", "normal")
 
         # 1. Features de metadados
         metadata_features = self._extract_metadata_features(cognitive_plan)

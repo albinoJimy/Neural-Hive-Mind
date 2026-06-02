@@ -225,45 +225,14 @@ grafana:
       # Configuração de notification policies
       notification_timeout_seconds: 30
       max_concurrent_renders: 10
-      # Configuração de screenshot
-      screenshot:
-        capture_timeout: 10s
-        max_concurrent_screenshots: 5
       # Configuração de evaluação
       evaluation_timeout_seconds: 30
       max_rule_group_execution_time: 30s
-      # Notification policies
-      notification_policies:
-        - object_matchers:
-          - ["severity", "=", "critical"]
-          routes:
-          - receiver: "neural-hive-critical"
-            group_wait: "10s"
-            group_interval: "5m"
-            repeat_interval: "12h"
-        - object_matchers:
-          - ["neural_hive_component", "=~", ".*"]
-          routes:
-          - receiver: "neural-hive-slack"
-            group_wait: "30s"
-            group_interval: "10m"
-            repeat_interval: "1h"
-
-      # Contact points for alerting
-      contact_points:
-      - name: "neural-hive-critical"
-        slack_configs:
-        - api_url: "${SLACK_CRITICAL_WEBHOOK}"
-          channel: "#neural-hive-critical"
-          title: "🚨 Critical Alert - Neural Hive-Mind"
-          text: |
-            Alerta crítico registrado no cluster Neural Hive-Mind.
-            Consulte o Prometheus para detalhes do alerta e acione o runbook correspondente.
-      - name: "neural-hive-slack"
-        slack_configs:
-        - api_url: "${SLACK_GENERAL_WEBHOOK}"
-          channel: "#neural-hive-monitoring"
-          title: "Alert - Neural Hive-Mind"
+      # NOTA: notification_policies, contact_points e screenshot foram removidos
+      # daqui porque o unified alerting do Grafana 10+ NÃO se provisiona via
+      # grafana.ini (block scalar). Estas estruturas não-escalares quebravam a
+      # renderização do block scalar. O provisioning de alerting deve ser feito
+      # via ficheiros de provisioning dedicados (alerting/*.yaml).
 
     # Live settings
     live:

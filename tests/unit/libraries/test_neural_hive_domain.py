@@ -6,9 +6,8 @@ Testa modelos de domínio e entidades compartilhadas.
 """
 
 import pytest
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from uuid import uuid4
-from enum import Enum
 
 
 # =============================================================================

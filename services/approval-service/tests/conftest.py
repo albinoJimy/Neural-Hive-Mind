@@ -8,6 +8,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from src.config.settings import Settings
+
 # Import from Approval Core Package
 from neural_hive_approval_common import (
     ApprovalStatus,
@@ -15,6 +16,7 @@ from neural_hive_approval_common import (
     UnifiedApprovalDecision as ApprovalDecision,
     UnifiedApprovalRequest as ApprovalRequest,
 )
+
 # Import API-specific models from local models
 from src.models import (
     ApprovalResponse,
@@ -22,7 +24,6 @@ from src.models import (
 )
 from src.models.continuous_feedback import (
     ContinuousFeedbackRequest,
-    ContinuousFeedbackResponse,
 )
 
 

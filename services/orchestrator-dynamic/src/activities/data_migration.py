@@ -15,6 +15,7 @@ Implementa as atividades chamadas pelo DataMigrationWorkflow:
 
 import uuid
 from datetime import datetime, timezone
+
 UTC = timezone.utc
 from typing import Any, Optional
 

@@ -16,11 +16,11 @@ terraform {
 
 locals {
   redis_labels = merge(var.common_labels, {
-    "app.kubernetes.io/name"       = "redis-cluster"
-    "app.kubernetes.io/instance"   = var.cluster_name
-    "app.kubernetes.io/component"  = "cache"
-    "app.kubernetes.io/part-of"    = "neural-hive-mind"
-    "neural-hive.io/layer"         = "memory"
+    "app.kubernetes.io/name"             = "redis-cluster"
+    "app.kubernetes.io/instance"         = var.cluster_name
+    "app.kubernetes.io/component"        = "cache"
+    "app.kubernetes.io/part-of"          = "neural-hive-mind"
+    "neural-hive.io/layer"               = "memory"
     "neural-hive.io/data-classification" = "internal"
   })
 }
@@ -127,7 +127,7 @@ resource "kubernetes_manifest" "redis_cluster" {
       namespace = kubernetes_namespace.redis_cluster.metadata[0].name
       labels    = local.redis_labels
     }
-    spec = {
+    spec = merge({
       clusterSize = var.cluster_size
       redisExporter = {
         enabled = var.enable_metrics
@@ -167,30 +167,20 @@ resource "kubernetes_manifest" "redis_cluster" {
       }
       redisConfig = {
         # Configurações de TTL e memória
-        "maxmemory-policy"     = var.memory_policy
-        "timeout"              = "300"
-        "tcp-keepalive"        = "60"
-        "save"                 = var.enable_persistence ? "900 1 300 10 60 10000" : ""
-        "appendonly"           = var.enable_persistence ? "yes" : "no"
-        "appendfsync"          = "everysec"
+        "maxmemory-policy"            = var.memory_policy
+        "timeout"                     = "300"
+        "tcp-keepalive"               = "60"
+        "save"                        = var.enable_persistence ? "900 1 300 10 60 10000" : ""
+        "appendonly"                  = var.enable_persistence ? "yes" : "no"
+        "appendfsync"                 = "everysec"
         "auto-aof-rewrite-percentage" = "100"
         "auto-aof-rewrite-min-size"   = "64mb"
         # TTL padrão configurável via aplicação
         "notify-keyspace-events" = "Ex"
       }
-      # TLS Configuration
-      dynamic "TLS" {
-        for_each = var.tls_enabled ? [1] : []
-        content {
-          enabled = true
-          secret = {
-            name = kubernetes_secret.redis_ca_cert[0].metadata[0].name
-          }
-        }
-      }
       # Anti-affinity para distribuição multi-zona
       podAnnotations = merge(var.pod_annotations, {
-        "sidecar.istio.io/inject" = "false"  # Redis não precisa de sidecar
+        "sidecar.istio.io/inject" = "false" # Redis não precisa de sidecar
       })
       affinity = {
         podAntiAffinity = {
@@ -209,7 +199,18 @@ resource "kubernetes_manifest" "redis_cluster" {
           ]
         }
       }
-    }
+      },
+      # TLS Configuration: bloco condicional via merge (HCL não suporta
+      # `dynamic` dentro de literais de mapa/expressões).
+      var.tls_enabled ? {
+        TLS = {
+          enabled = true
+          secret = {
+            name = kubernetes_secret.redis_ca_cert[0].metadata[0].name
+          }
+        }
+      } : {}
+    )
   }
 
   depends_on = [

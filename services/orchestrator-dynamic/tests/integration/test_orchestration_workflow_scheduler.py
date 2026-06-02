@@ -9,6 +9,7 @@ Cobertura:
 """
 
 from datetime import datetime, timezone
+
 UTC = timezone.utc, timedelta
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock

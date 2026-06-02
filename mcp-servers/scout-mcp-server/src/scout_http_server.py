@@ -11,16 +11,13 @@ Este servidor HTTP expõe as mesmas funcionalidades do Scout MCP Server
 mas usando endpoints REST simples em vez do protocolo MCP stdio.
 """
 
-import asyncio
 import json
 import os
 from pathlib import Path
 from typing import Any
 from dataclasses import dataclass, field
-from collections import defaultdict
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import parse_qs, urlparse
-import cgi
 
 # ============ Models ============
 
@@ -124,21 +121,6 @@ class CodeScanner:
         self, path: str = ".", max_depth: int = 5, exclude_dirs: str = ""
     ) -> dict[str, Any]:
         """Escaneia diretório recursivamente."""
-        exclude_list = [d.strip() for d in exclude_dirs.split(",") if d.strip()]
-        exclude_set = set(exclude_list) | {
-            ".git",
-            ".svn",
-            ".hg",
-            "node_modules",
-            "__pycache__",
-            ".pytest_cache",
-            ".venv",
-            "venv",
-            "dist",
-            "build",
-            "target",
-        }
-
         result = ScanResult(path=path)
         root_path = Path(self.base_path) / path
 
@@ -381,7 +363,7 @@ class ScoutHTTPRequestHandler(BaseHTTPRequestHandler):
             if content_length > 0:
                 try:
                     data = json.loads(self.rfile.read(content_length).decode())
-                except:
+                except Exception:
                     data = {}
             else:
                 data = {}

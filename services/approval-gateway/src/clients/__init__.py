@@ -3,7 +3,7 @@
 from .llm_client_wrapper import LLMClient
 
 try:
-    from .engineering_service_registry_client import (
+    from .engineering_service_registry_client import (  # noqa: F401
         EngineeringServiceRegistryClient,
         register_engineering_service,
     )

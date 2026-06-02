@@ -231,7 +231,7 @@ class KanikoCacheOptimizer:
 
             # Verificar se PVC já existe
             try:
-                existing = k8s_api.read_namespaced_persistent_volume_claim(
+                k8s_api.read_namespaced_persistent_volume_claim(
                     name=pvc_name,
                     namespace=namespace,
                 )

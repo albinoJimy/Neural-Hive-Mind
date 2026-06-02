@@ -3,11 +3,8 @@ Testes de integração para rotação de credenciais MongoDB via Vault
 """
 
 import pytest
-import asyncio
 from datetime import datetime, timedelta, timezone
-from unittest.mock import AsyncMock, MagicMock, patch
-import sys
-import os
+from unittest.mock import AsyncMock, MagicMock
 
 # Import shared module loader
 from tests.integration.conftest_vault import get_vault_integration_class

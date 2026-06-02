@@ -6,7 +6,6 @@ de requisitos e documentação gerados no Fluxo G.
 """
 
 import asyncio
-from datetime import timedelta
 from typing import Any
 
 import httpx
@@ -110,9 +109,7 @@ async def generate_code(
                 status_code=response.status_code,
                 response_text=response.text,
             )
-            raise RuntimeError(
-                f"Falha ao iniciar geração: HTTP {response.status_code}"
-            )
+            raise RuntimeError(f"Falha ao iniciar geração: HTTP {response.status_code}")
 
         result = response.json()
         request_id = result.get("request_id")
@@ -177,9 +174,7 @@ async def _wait_for_generation(
             raise TimeoutError(f"Geração timeout após {max_wait}s")
 
         try:
-            response = await client.get(
-                f"http://code-forge:8020/api/v1/generate/{request_id}"
-            )
+            response = await client.get(f"http://code-forge:8020/api/v1/generate/{request_id}")
 
             if response.status_code == 200:
                 status_data = response.json()
@@ -215,9 +210,7 @@ async def _wait_for_generation(
                         "code_artifact_id": code_artifact.get("artifact_id"),
                         "language": code_artifact.get("language", "python"),
                         "framework": code_artifact.get("framework", "fastapi"),
-                        "generation_method": code_artifact.get(
-                            "generation_method", "TEMPLATE"
-                        ),
+                        "generation_method": code_artifact.get("generation_method", "TEMPLATE"),
                         "confidence_score": code_artifact.get("confidence_score", 0.8),
                         "code_preview": status_data.get("code_preview", ""),
                         "lines_of_code": code_artifact.get("lines_of_code", 0),

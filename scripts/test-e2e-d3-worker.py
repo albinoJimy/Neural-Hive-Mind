@@ -11,7 +11,6 @@ import subprocess
 import sys
 import time
 import uuid
-from datetime import datetime
 
 
 def kubectl_exec(namespace: str, pod: str, command: str) -> str:
@@ -46,8 +45,6 @@ def submit_build_to_worker_agent():
     }
 
     # Executar dentro do pod do worker-agent para enviar mensagem Kafka
-    json_str = str(ticket).replace("'", '"')
-
     cmd = f"""python3 -c "
 import json
 from kafka import KafkaProducer
@@ -133,7 +130,7 @@ def check_codeforge_results():
                 name = pod["metadata"]["name"]
                 print(f"CodeForge pod: {name}")
                 print(f"Status: {pod['status']['phase']}")
-        except:
+        except Exception:
             pass
 
 

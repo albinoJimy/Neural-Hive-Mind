@@ -117,7 +117,9 @@ def export_to_pdf_text(insight: InsightResponse) -> bytes:
     created_str = (
         created_at.isoformat()
         if hasattr(created_at, "isoformat")
-        else str(created_at) if created_at else ""
+        else str(created_at)
+        if created_at
+        else ""
     )
 
     lines = [

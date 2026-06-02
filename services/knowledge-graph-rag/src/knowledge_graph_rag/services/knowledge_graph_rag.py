@@ -88,7 +88,7 @@ class KnowledgeGraphRAG:
         self._logger.info("searching_graph", query=query.query_text)
 
         # Gerar embedding da query
-        query_embedding = await self._generate_embedding(query.query_text)
+        await self._generate_embedding(query.query_text)
 
         # TODO: Buscar no Qdrant por similaridade de cosseno
         # Por ora, retorna placeholder

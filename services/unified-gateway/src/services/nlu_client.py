@@ -226,10 +226,7 @@ class NLUServiceClient:
             NLUResult (modelo Pydantic)
         """
         # Converter entidades
-        entities = {
-            nlu_pb2.EntityType.Name(e.type): e.value
-            for e in proto_result.entities
-        }
+        entities = {nlu_pb2.EntityType.Name(e.type): e.value for e in proto_result.entities}
 
         return NLUResult(
             text=original_text,

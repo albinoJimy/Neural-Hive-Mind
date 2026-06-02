@@ -238,7 +238,9 @@ class TestInstrumentedKafkaProducerValidation:
 
         assert "config não pode ser None" in str(exc_info.value)
 
-    def test_instrumented_kafka_producer_raises_type_error_when_config_is_invalid_type(self):
+    def test_instrumented_kafka_producer_raises_type_error_when_config_is_invalid_type(
+        self,
+    ):
         """Teste 15: Verificar que config de tipo errado lança TypeError."""
         producer = DummyProducer()
 
@@ -247,7 +249,9 @@ class TestInstrumentedKafkaProducerValidation:
 
         assert "ObservabilityConfig" in str(exc_info.value)
 
-    def test_instrumented_kafka_producer_raises_value_error_when_service_name_is_none(self):
+    def test_instrumented_kafka_producer_raises_value_error_when_service_name_is_none(
+        self,
+    ):
         """Verificar que service_name=None lança ValueError."""
         producer = DummyProducer()
 
@@ -319,7 +323,9 @@ class TestInstrumentKafkaProducerFunction:
 class TestInstrumentedAIOKafkaProducerValidation:
     """Testes de validação para InstrumentedAIOKafkaProducer."""
 
-    def test_instrumented_aiokafka_producer_raises_value_error_when_config_is_none(self):
+    def test_instrumented_aiokafka_producer_raises_value_error_when_config_is_none(
+        self,
+    ):
         """Verificar que config=None lança ValueError para AIOKafkaProducer."""
         producer = MagicMock()
 
@@ -328,7 +334,9 @@ class TestInstrumentedAIOKafkaProducerValidation:
 
         assert "config não pode ser None" in str(exc_info.value)
 
-    def test_instrumented_aiokafka_producer_raises_type_error_when_config_is_invalid(self):
+    def test_instrumented_aiokafka_producer_raises_type_error_when_config_is_invalid(
+        self,
+    ):
         """Verificar que config de tipo errado lança TypeError para AIOKafkaProducer."""
         producer = MagicMock()
 
@@ -341,7 +349,9 @@ class TestInstrumentedAIOKafkaProducerValidation:
 class TestInstrumentedAIOKafkaConsumerValidation:
     """Testes de validação para InstrumentedAIOKafkaConsumer."""
 
-    def test_instrumented_aiokafka_consumer_raises_value_error_when_config_is_none(self):
+    def test_instrumented_aiokafka_consumer_raises_value_error_when_config_is_none(
+        self,
+    ):
         """Verificar que config=None lança ValueError para AIOKafkaConsumer."""
         consumer = DummyAIOKafkaConsumer()
 
@@ -350,7 +360,9 @@ class TestInstrumentedAIOKafkaConsumerValidation:
 
         assert "config não pode ser None" in str(exc_info.value)
 
-    def test_instrumented_aiokafka_consumer_raises_type_error_when_config_is_invalid(self):
+    def test_instrumented_aiokafka_consumer_raises_type_error_when_config_is_invalid(
+        self,
+    ):
         """Verificar que config de tipo errado lança TypeError para AIOKafkaConsumer."""
         consumer = DummyAIOKafkaConsumer()
 

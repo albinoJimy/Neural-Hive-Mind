@@ -41,9 +41,11 @@ def test_ingress_gateway_service_exists(k8s_api):
 def test_webhook_configurations_exist(k8s_api):
     """Validate webhook configurations are registered"""
     apiextensions = client.ApiextensionsV1Api()
-    mutating = [webhook.metadata.name for webhook in
-                 k8s_api.list_mutating_webhook_configuration().items]
-    validating = [webhook.metadata.name for webhook in
-                  k8s_api.list_validating_webhook_configuration().items]
+    mutating = [
+        webhook.metadata.name for webhook in k8s_api.list_mutating_webhook_configuration().items
+    ]
+    validating = [
+        webhook.metadata.name for webhook in k8s_api.list_validating_webhook_configuration().items
+    ]
 
     assert any("istiod" in name for name in validating)

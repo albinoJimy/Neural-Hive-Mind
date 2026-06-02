@@ -6,9 +6,7 @@ Testa circuit breakers, retries, e timeouts.
 """
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
 from datetime import datetime, timedelta, timezone
-from uuid import uuid4
 import asyncio
 
 

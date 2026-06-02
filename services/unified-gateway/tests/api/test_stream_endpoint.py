@@ -45,7 +45,10 @@ class TestStreamEndpoint:
 
         # Verificar cabeçalhos de streaming
         assert "cache-control" in response.headers
-        assert "no-cache" in response.headers["cache-control"] or "no-cache" in response.headers.get("cache-control", "").lower()
+        assert (
+            "no-cache" in response.headers["cache-control"]
+            or "no-cache" in response.headers.get("cache-control", "").lower()
+        )
 
     def test_stream_timeout_parameter(self, client: AsyncClient):
         """Testa parâmetro de timeout."""
@@ -83,7 +86,7 @@ class TestStreamEvents:
         sse_string = await _generate_sse(event)
 
         assert "event: test\n" in sse_string
-        assert "data: {\"message\": \"hello\"}\n" in sse_string
+        assert 'data: {"message": "hello"}\n' in sse_string
         assert "retry: 3000\n" in sse_string
         assert sse_string.endswith("\n\n")
 

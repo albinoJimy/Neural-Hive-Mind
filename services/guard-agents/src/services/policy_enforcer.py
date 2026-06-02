@@ -11,8 +11,8 @@ logger = structlog.get_logger()
 
 # Importa clientes OPA e Istio quando disponíveis
 try:
-    from src.clients.istio_client import IstioClient
-    from src.clients.opa_client import OPAClient
+    from src.clients.istio_client import IstioClient  # noqa: F401 - deteção de feature
+    from src.clients.opa_client import OPAClient  # noqa: F401 - deteção de feature
 
     OPA_AVAILABLE = True
     ISTIO_AVAILABLE = True

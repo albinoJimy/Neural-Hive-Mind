@@ -59,8 +59,14 @@ class DesignPlanner(BasePlanner):
 
                 settings = get_settings()
                 if settings.llm.provider and settings.llm.api_key:
-                    provider = LLMProvider.OPENAI if settings.llm.provider == "openai" else LLMProvider.ANTHROPIC
-                    llm = LLMClient(provider=provider, api_key=settings.llm.api_key, model=settings.llm.model)
+                    provider = (
+                        LLMProvider.OPENAI
+                        if settings.llm.provider == "openai"
+                        else LLMProvider.ANTHROPIC
+                    )
+                    llm = LLMClient(
+                        provider=provider, api_key=settings.llm.api_key, model=settings.llm.model
+                    )
                     import asyncio
 
                     try:

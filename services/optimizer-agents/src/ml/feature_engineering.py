@@ -6,7 +6,7 @@ e métricas em tempo real para alimentar LoadPredictor e SchedulingOptimizer.
 """
 
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 UTC = timezone.utc  # type: ignore, timedelta
 

@@ -8,6 +8,7 @@ e do worker Temporal, permitindo treinamento confiável e isolado.
 import asyncio
 import sys
 from datetime import datetime, timezone
+
 UTC = timezone.utc
 
 UTC = timezone.utc  # type: ignore
@@ -253,7 +254,7 @@ def main() -> int:
         try:
             metrics = get_metrics()
             metrics.record_training_job(status="failure", trigger="scheduled")
-        except:
+        except Exception:
             pass  # Não falhar se registro de métricas falhar
 
         # Publicar métrica de falha
@@ -262,7 +263,7 @@ def main() -> int:
                 push_metrics_to_gateway(
                     {"status": "failed", "error": str(e)}, config.prometheus_pushgateway_url
                 )
-            except:
+            except Exception:
                 pass  # Não falhar se push de métricas falhar
 
         return 1

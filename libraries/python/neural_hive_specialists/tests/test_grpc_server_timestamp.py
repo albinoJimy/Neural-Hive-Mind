@@ -6,7 +6,7 @@ que as validações implementadas na v1.0.7 permaneçam funcionais.
 """
 
 import json
-from datetime import datetime, timezone
+from datetime import datetime
 from unittest.mock import MagicMock
 
 import pytest

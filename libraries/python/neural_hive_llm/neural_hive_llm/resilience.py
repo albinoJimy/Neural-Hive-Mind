@@ -7,15 +7,9 @@ configurado especificamente para operações LLM (rate limits, timeouts, 5xx).
 import asyncio
 from collections.abc import Callable
 from functools import wraps
-from typing import Any, ParamSpec, TypeVar
+from typing import ParamSpec, TypeVar
 
 import structlog
-from tenacity import (
-    RetryError,
-    retry_if_exception_type,
-    stop_after_attempt,
-    wait_exponential,
-)
 
 from neural_hive_resilience import (
     CircuitBreakerOpenError as ResilienceCircuitBreakerOpenError,

@@ -6,7 +6,6 @@ Testa a integração completa entre Kafka, MongoDB e Redis no cluster K8s
 
 import subprocess
 import json
-import time
 from datetime import datetime, timezone
 import uuid
 

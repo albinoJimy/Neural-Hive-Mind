@@ -26,7 +26,6 @@ from neural_hive_integration.clients.orchestrator_client import (
 from neural_hive_integration.clients.service_registry_client import ServiceRegistryClient, AgentInfo
 from neural_hive_integration.clients.execution_ticket_client import ExecutionTicketClient
 from neural_hive_integration.clients.worker_agent_client import WorkerAgentClient
-from neural_hive_integration.clients.code_forge_client import CodeForgeClient
 from neural_hive_integration.clients.sla_management_client import SLAManagementClient
 from neural_hive_integration.models.flow_c_context import FlowCContext, FlowCStep, FlowCResult
 from neural_hive_integration.telemetry.flow_c_telemetry import FlowCTelemetryPublisher
@@ -626,7 +625,6 @@ class FlowCOrchestrator:
             if is_direct_plan:
                 # Plan direto do STE - validar campos do cognitive plan
                 required_fields = ["intent_id", "plan_id", "tasks"]
-                optional_fields = ["decision_id"]  # Não existe em plans diretos
                 self.logger.info(
                     "c1_validating_direct_ste_plan",
                     plan_id=decision.get("plan_id"),
@@ -635,7 +633,6 @@ class FlowCOrchestrator:
             else:
                 # Decisão consolidada - validar campos padrão
                 required_fields = ["intent_id", "plan_id", "cognitive_plan"]
-                optional_fields = ["decision_id"]
 
             for field in required_fields:
                 if field not in decision:

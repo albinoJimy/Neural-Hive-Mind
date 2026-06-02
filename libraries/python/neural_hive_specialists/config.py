@@ -7,7 +7,7 @@ from typing import Literal, Optional
 
 import structlog
 from pydantic import Field, field_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import BaseSettings
 
 logger = structlog.get_logger()
 
@@ -1601,10 +1601,6 @@ class SpecialistConfig(BaseSettings):
         if v not in valid_modes:
             raise ValueError(f"backup_mode deve ser um de {valid_modes}, recebido: {v}")
         return v
-
-        model_config = SettingsConfigDict(
-            env_file=".env", env_file_encoding="utf-8", case_sensitive=False
-        )
 
     def to_dict(self) -> dict:
         """Converte configuração para dicionário."""

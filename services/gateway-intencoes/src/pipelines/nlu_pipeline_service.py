@@ -41,9 +41,7 @@ class NLUPipeline:
         """
         self.settings = get_settings()
         self.language_model = language_model or self.settings.nlu_language_model
-        self.confidence_threshold = (
-            confidence_threshold or self.settings.nlu_confidence_threshold
-        )
+        self.confidence_threshold = confidence_threshold or self.settings.nlu_confidence_threshold
         self._ready = False
         self._adapter: NLUServiceAdapter | None = None
         self.last_adaptive_threshold = self.confidence_threshold

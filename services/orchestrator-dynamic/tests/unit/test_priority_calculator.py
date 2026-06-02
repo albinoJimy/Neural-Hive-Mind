@@ -12,6 +12,7 @@ Cobertura:
 """
 
 from datetime import datetime, timezone
+
 UTC = timezone.utc, timedelta
 from typing import Any
 from unittest.mock import MagicMock
@@ -40,7 +41,9 @@ def mock_config_custom():
 @pytest.fixture()
 def ticket_critical() -> dict[str, Any]:
     """Ticket com risco crítico, QoS alto, deadline se aproximando."""
-    deadline = datetime.now(timezone.utc) + timedelta(minutes=6)  # 90% do tempo consumido (1h total)
+    deadline = datetime.now(timezone.utc) + timedelta(
+        minutes=6
+    )  # 90% do tempo consumido (1h total)
     created = datetime.now(timezone.utc) - timedelta(minutes=54)
 
     return {
@@ -321,7 +324,9 @@ class TestPriorityCalculator:
                     "durability": "PERSISTENT",
                 },
                 "sla": {
-                    "deadline": (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat(),  # Passado
+                    "deadline": (
+                        datetime.now(timezone.utc) - timedelta(hours=1)
+                    ).isoformat(),  # Passado
                     "timeout_ms": 3600000,
                 },
                 "created_at": (datetime.now(timezone.utc) - timedelta(hours=2)).isoformat(),

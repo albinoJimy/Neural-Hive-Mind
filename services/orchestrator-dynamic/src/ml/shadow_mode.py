@@ -17,6 +17,7 @@ import asyncio
 import time
 import uuid
 from datetime import datetime, timezone
+
 UTC = timezone.utc
 
 UTC = timezone.utc  # type: ignore
@@ -369,11 +370,14 @@ class ShadowModeRunner:
 
             # Registrar erro no circuit breaker
             if self.circuit_breaker:
+                # Bind do erro numa variável local: o nome `e` do `except` é
+                # apagado ao sair do bloco, mas o lambda pode ser invocado depois.
+                captured_error = e
                 try:
-                    self.circuit_breaker.call(lambda: self._raise_error(e))
+                    self.circuit_breaker.call(lambda: self._raise_error(captured_error))
                 except pybreaker.CircuitBreakerError:
                     pass
-                except:
+                except Exception:
                     pass
 
             # Registrar erro nas métricas

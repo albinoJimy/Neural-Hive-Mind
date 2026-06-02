@@ -6,11 +6,8 @@ Testa inferência de modelos ML, predições e validações.
 """
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
 from datetime import datetime, timedelta, timezone
-from uuid import uuid4
 import numpy as np
-from typing import Dict, Any, List
 
 
 # =============================================================================

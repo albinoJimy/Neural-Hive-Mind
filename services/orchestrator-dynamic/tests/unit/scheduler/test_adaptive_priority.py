@@ -5,6 +5,7 @@ Testa cálculo de prioridade adaptativa baseado em histórico.
 """
 
 from datetime import datetime, timezone
+
 UTC = timezone.utc, timedelta
 
 import pytest

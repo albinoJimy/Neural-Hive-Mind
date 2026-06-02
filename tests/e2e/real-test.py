@@ -125,7 +125,7 @@ def print_summary(results):
     # Estatísticas de latência
     latencies = [r["latency_ms"] for r in results if r["status_code"] == 200]
     if latencies:
-        print(f"Latências:")
+        print("Latências:")
         print(f"  Min: {min(latencies):.2f}ms")
         print(f"  Max: {max(latencies):.2f}ms")
         print(f"  Média: {sum(latencies)/len(latencies):.2f}ms\n")
@@ -137,7 +137,7 @@ def print_summary(results):
             domain = r["analysis"]["domain"]
             domains[domain] = domains.get(domain, 0) + 1
 
-    print(f"Distribuição por domínio:")
+    print("Distribuição por domínio:")
     for domain, count in sorted(domains.items()):
         print(f"  {domain}: {count}")
 
@@ -155,7 +155,7 @@ def main():
     print_test_header()
 
     # Verifica health do gateway
-    print(f"Verificando health do gateway...")
+    print("Verificando health do gateway...")
     if not test_gateway_health():
         print(f"{RED}✗ Gateway não está saudável. Abortando.{RESET}")
         return 1

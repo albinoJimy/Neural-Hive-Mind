@@ -11,11 +11,8 @@ Valida:
 import pytest
 import uuid
 import asyncio
-from typing import Dict, Any, List, Optional
 
 from tests.e2e.utils.kafka_helpers import (
-    wait_for_kafka_message,
-    collect_kafka_messages,
     wait_for_avro_message,
     collect_avro_messages,
 )
@@ -115,7 +112,7 @@ async def test_correlation_id_propagation_gateway_to_tickets(
             if plan_doc:
                 assert (
                     plan_doc.get("correlation_id") == correlation_id
-                ), f"MongoDB cognitive_ledger não tem correlation_id correto"
+                ), "MongoDB cognitive_ledger não tem correlation_id correto"
 
         # Verificar consensus_decisions
         decisions_collection = test_mongodb_collections.get("consensus_decisions")
@@ -124,7 +121,7 @@ async def test_correlation_id_propagation_gateway_to_tickets(
             if decision_doc:
                 assert (
                     decision_doc.get("correlation_id") == correlation_id
-                ), f"MongoDB consensus_decisions não tem correlation_id correto"
+                ), "MongoDB consensus_decisions não tem correlation_id correto"
 
 
 @pytest.mark.e2e
@@ -262,4 +259,4 @@ async def test_correlation_id_persistence_in_mongodb(
         assert plan_doc is not None, f"Plano {plan_id} não encontrado em cognitive_ledger"
         assert (
             plan_doc.get("correlation_id") == correlation_id
-        ), f"correlation_id incorreto em cognitive_ledger"
+        ), "correlation_id incorreto em cognitive_ledger"

@@ -8,9 +8,12 @@ import argparse
 import asyncio
 import sys
 from datetime import datetime
-from typing import Optional, List, Any
+from typing import Optional, Any, TYPE_CHECKING
 
 import structlog
+
+if TYPE_CHECKING:
+    from .config import OnlineLearningConfig
 
 logger = structlog.get_logger(__name__)
 
@@ -178,7 +181,6 @@ async def cmd_validate(args) -> int:
     from .shadow_validator import ShadowValidator
     from .incremental_learner import IncrementalLearner
     from .config import OnlineLearningConfig
-    import numpy as np
 
     logger.info(
         "starting_shadow_validation", specialist_type=args.specialist_type, samples=args.samples
@@ -210,14 +212,14 @@ async def cmd_validate(args) -> int:
 
     # Obter resumo das validações (histórico existente)
     summary = validator.get_validation_summary()
-    print(f"\nResultados da validação:")
+    print("\nResultados da validação:")
     print(f"  Total validações: {summary['total_validations']}")
     print(f"  Taxa de aprovação: {summary['pass_rate']:.2%}")
     print(f"  KL divergence média: {summary['avg_kl_divergence']:.4f}")
     print(f"  Latência ratio média: {summary['avg_latency_ratio']:.2f}")
 
     if summary.get("common_failures"):
-        print(f"\n  Falhas comuns:")
+        print("\n  Falhas comuns:")
         for failure in summary["common_failures"]:
             print(f"    - {failure['type']}: {failure['count']}x")
 
@@ -248,7 +250,7 @@ async def cmd_rollback(args) -> int:
         # execute_rollback é síncrono, não async
         result = manager.execute_rollback(reason=args.reason, target_version=args.version)
 
-        print(f"\nRollback executado com sucesso!")
+        print("\nRollback executado com sucesso!")
         print(f"  ID: {result.get('rollback_id')}")
         print(f"  Versão anterior: {result.get('from_version')}")
         print(f"  Versão atual: {result.get('to_version')}")
@@ -364,12 +366,12 @@ async def cmd_metrics(args) -> int:
         print(f"[{specialist_type.upper()}]")
 
         convergence = status.get("convergence_metrics", {})
-        print(f"  Convergência:")
+        print("  Convergência:")
         print(f"    Loss médio: {convergence.get('average_loss', 0):.6f}")
         print(f"    Taxa convergência: {convergence.get('convergence_rate', 0):.4f}")
 
         prediction = status.get("prediction_metrics", {})
-        print(f"  Predições:")
+        print("  Predições:")
         print(f"    Total: {prediction.get('total', 0)}")
         print(f"    Latência média: {prediction.get('avg_latency_ms', 0):.2f}ms")
         print(f"    Confiança média: {prediction.get('avg_confidence', 0):.4f}")
@@ -409,12 +411,12 @@ async def cmd_deploy(args) -> int:
 
     # Obter status atual do orchestrator
     status = orchestrator.get_status()
-    print(f"\nStatus atual:")
+    print("\nStatus atual:")
     print(f"  Rollout atual: {status.get('current_rollout_percentage', 0)}%")
     print(f"  Versão do modelo: {status.get('model_version', 'N/A')}")
 
     # Na prática, isso atualizaria configuração de roteamento via ensemble
-    print(f"\nDeploy configurado com sucesso!")
+    print("\nDeploy configurado com sucesso!")
     print(f"Auto-rollback: {'habilitado' if args.auto_rollback else 'desabilitado'}")
 
     orchestrator.close()
@@ -440,10 +442,8 @@ def _load_batch_model(specialist_type: str, config: "OnlineLearningConfig") -> A
     """
     try:
         import mlflow
-        from mlflow.tracking import MlflowClient
 
         mlflow.set_tracking_uri(config.mlflow_tracking_uri)
-        client = MlflowClient()
 
         # Buscar modelo em produção para o especialista
         model_name = f"{specialist_type}_specialist"

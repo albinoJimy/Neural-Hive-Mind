@@ -78,9 +78,7 @@ class LLMClient:
         await self._ensure_client()
 
         if not self._client:
-            return ChatCompletion.from_text(
-                self._get_fallback_text(messages), model or self.model
-            )
+            return ChatCompletion.from_text(self._get_fallback_text(messages), model or self.model)
 
         try:
             # Extrair prompt e system prompt das mensagens
@@ -100,13 +98,10 @@ class LLMClient:
 
         except Exception as e:
             logger.warning("llm_generate_failed", error=str(e))
-            return ChatCompletion.from_text(
-                self._get_fallback_text(messages), model or self.model
-            )
+            return ChatCompletion.from_text(self._get_fallback_text(messages), model or self.model)
 
     def _get_fallback_text(self, messages: list[dict[str, str]]) -> str:
         """Retorna resposta padrão quando LLM não disponível."""
-        last_content = messages[-1].get("content", "") if messages else ""
         return "[]"
 
     async def close(self):

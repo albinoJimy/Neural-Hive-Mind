@@ -6,6 +6,7 @@ PreemptionManager e AdaptivePriorityCalculator.
 """
 
 from datetime import datetime, timezone
+
 UTC = timezone.utc
 from unittest.mock import Mock
 

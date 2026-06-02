@@ -28,20 +28,20 @@ variable "create_public_zone" {
 variable "records" {
   description = "Mapa de registros DNS"
   type = map(object({
-    type        = string
-    ttl         = optional(number)
-    records     = optional(list(string))
-    alias       = optional(object({
+    type    = string
+    ttl     = optional(number)
+    records = optional(list(string))
+    alias = optional(object({
       name                   = string
       zone_id                = string
       evaluate_target_health = optional(bool, true)
     }))
-    health_check        = optional(bool, false)
-    multivalue_answer   = optional(bool)
-    region              = optional(string)
-    failover_routing    = optional(map(string))
-    latency_routing     = optional(map(string))
-    secondary_alias     = optional(object({
+    health_check      = optional(bool, false)
+    multivalue_answer = optional(bool)
+    region            = optional(string)
+    failover_routing  = optional(map(string))
+    latency_routing   = optional(map(string))
+    secondary_alias = optional(object({
       name                   = string
       zone_id                = string
       evaluate_target_health = optional(bool, true)

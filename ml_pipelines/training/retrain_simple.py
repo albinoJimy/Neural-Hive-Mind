@@ -9,9 +9,7 @@ usando apenas as funções essenciais de coleta de dados e treinamento.
 import os
 import sys
 import asyncio
-from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Dict, Any
 
 # Adicionar paths
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -20,9 +18,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent / "libraries" / "pyth
 import pandas as pd
 import numpy as np
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.model_selection import train_test_split
 from sklearn.metrics import (
-    classification_report,
     precision_score,
     recall_score,
     f1_score,
@@ -240,7 +236,7 @@ def main():
 
         print()
         print(f"Model registered as: {model_name}")
-        print(f"Version: (check MLflow UI)")
+        print("Version: (check MLflow UI)")
 
     print()
     print("=" * 50)

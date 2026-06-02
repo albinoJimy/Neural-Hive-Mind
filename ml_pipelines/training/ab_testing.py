@@ -12,12 +12,11 @@ Integra com MLflow para versionamento de modelos.
 """
 
 import os
-import sys
 import json
 import random
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, List, Any, Optional
+from typing import Dict, Any, Optional
 from enum import Enum
 import structlog
 

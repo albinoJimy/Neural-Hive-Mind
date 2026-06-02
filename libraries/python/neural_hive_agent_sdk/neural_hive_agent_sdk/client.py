@@ -10,7 +10,7 @@ from .config import AgentConfig
 
 # F3: Importar stubs gRPC gerados (ou usar fallback se não disponível)
 try:
-    from proto.agent_service_pb2 import (
+    from proto.agent_service_pb2 import (  # noqa: F401
         AgentTelemetry as ProtoAgentTelemetry,
         AgentType as ProtoAgentType,
         DeregisterRequest,

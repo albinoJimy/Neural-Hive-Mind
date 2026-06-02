@@ -288,7 +288,10 @@ class TestResilientOTLPSpanExporter:
         mock_inner = Mock()
         mock_otlp_class.return_value = mock_inner
 
-        headers_with_problems = {"X-Service": "my%service", "X-Component": "test{component}"}
+        headers_with_problems = {
+            "X-Service": "my%service",
+            "X-Component": "test{component}",
+        }
 
         ResilientOTLPSpanExporter(
             endpoint="http://localhost:4317",
@@ -502,7 +505,9 @@ class TestTLSConfiguration:
 
         # Com TLS desabilitado
         exporter_insecure = ResilientOTLPSpanExporter(
-            endpoint="http://localhost:4317", service_name="test-service", tls_enabled=False
+            endpoint="http://localhost:4317",
+            service_name="test-service",
+            tls_enabled=False,
         )
         assert exporter_insecure._tls_enabled is False
         assert exporter_insecure._inner_exporter is not None

@@ -28,7 +28,7 @@ from neural_hive_specialists import BaseSpecialist
 
 # Evolution Hooks imports (opcional, só se habilitado)
 try:
-    from neural_hive_specialists.evolution_hooks import (
+    from neural_hive_specialists.evolution_hooks import (  # noqa: F401 - deteção de feature
         DEFAULT_WEIGHTS,
         FingerprintExtractor,
         PatternMatcher,

@@ -1,10 +1,13 @@
 import threading
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 from pydantic import Field, PrivateAttr, field_validator, model_validator
 from pydantic_settings import BaseSettings
 
 from neural_hive_security.cors import CORSConfig
+
+if TYPE_CHECKING:
+    from src.clients.vault_client import VaultClient
 
 
 class Settings(BaseSettings):

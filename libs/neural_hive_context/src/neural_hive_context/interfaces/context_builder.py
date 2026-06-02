@@ -20,11 +20,7 @@ class IContextBuilder(ABC):
     """
 
     @abstractmethod
-    async def build(
-        self,
-        intent_data: Dict[str, Any],
-        user_context: Dict[str, Any]
-    ) -> RichContext:
+    async def build(self, intent_data: Dict[str, Any], user_context: Dict[str, Any]) -> RichContext:
         """
         Constrói RichContext agregando múltiplas dimensões.
 

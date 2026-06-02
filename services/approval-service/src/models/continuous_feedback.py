@@ -24,9 +24,7 @@ class ContinuousFeedbackRequest(BaseModel):
 
     prediction_id: str = Field(..., description="ID unico da predicao ML")
     prediction: str = Field(..., description="Predicao do modelo (approve/reject)")
-    actual_result: str = Field(
-        ..., description="Resultado real observado (approve/reject)"
-    )
+    actual_result: str = Field(..., description="Resultado real observado (approve/reject)")
     timestamp: datetime = Field(
         default_factory=datetime.utcnow, description="Timestamp da observacao"
     )
@@ -39,9 +37,7 @@ class ContinuousFeedbackRequest(BaseModel):
         None, ge=0.0, le=1.0, description="Confianca da predicao original"
     )
     model_version: Optional[str] = Field(None, description="Versao do modelo usada")
-    features: Optional[dict[str, Any]] = Field(
-        None, description="Features adicionais do contexto"
-    )
+    features: Optional[dict[str, Any]] = Field(None, description="Features adicionais do contexto")
 
     model_config = ConfigDict(use_enum_values=True)
 
@@ -103,6 +99,4 @@ class ContinuousFeedbackStats(BaseModel):
     rejections_incorrect: int = Field(..., description="Predicoes reject incorretas")
     accuracy: float = Field(..., description="Acuracia geral (0-1)")
     avg_confidence: Optional[float] = Field(None, description="Confianca media")
-    with_nlp_features: int = Field(
-        ..., description="Feedbacks com features NLP enriquecidas"
-    )
+    with_nlp_features: int = Field(..., description="Feedbacks com features NLP enriquecidas")

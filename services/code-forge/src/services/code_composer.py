@@ -663,58 +663,58 @@ export default {className}App;
 package main
 
 import (
-	"encoding/json"
-	"log"
-	"net/http"
-	"os"
-	"time"
+    "encoding/json"
+    "log"
+    "net/http"
+    "os"
+    "time"
 )
 
 // HealthResponse representa a resposta do health check
 type HealthResponse struct {{
-	Status    string    `json:"status"`
-	Service   string    `json:"service"`
-	Timestamp time.Time `json:"timestamp"`
+    Status    string    `json:"status"`
+    Service   string    `json:"service"`
+    Timestamp time.Time `json:"timestamp"`
 }}
 
 // Response representa uma resposta genérica da API
 type Response struct {{
-	Message string `json:"message"`
-	Version string `json:"version"`
+    Message string `json:"message"`
+    Version string `json:"version"`
 }}
 
 func healthHandler(w http.ResponseWriter, r *http.Request) {{
-	w.Header().Set("Content-Type", "application/json")
-	resp := HealthResponse{{
-		Status:    "healthy",
-		Service:   "{service_name}",
-		Timestamp: time.Now(),
-	}}
-	json.NewEncoder(w).Encode(resp)
+    w.Header().Set("Content-Type", "application/json")
+    resp := HealthResponse{{
+        Status:    "healthy",
+        Service:   "{service_name}",
+        Timestamp: time.Now(),
+    }}
+    json.NewEncoder(w).Encode(resp)
 }}
 
 func rootHandler(w http.ResponseWriter, r *http.Request) {{
-	w.Header().Set("Content-Type", "application/json")
-	resp := Response{{
-		Message: "Welcome to {service_name}",
-		Version: "1.0.0",
-	}}
-	json.NewEncoder(w).Encode(resp)
+    w.Header().Set("Content-Type", "application/json")
+    resp := Response{{
+        Message: "Welcome to {service_name}",
+        Version: "1.0.0",
+    }}
+    json.NewEncoder(w).Encode(resp)
 }}
 
 func main() {{
-	port := os.Getenv("PORT")
-	if port == "" {{
-		port = "8080"
-	}}
+    port := os.Getenv("PORT")
+    if port == "" {{
+        port = "8080"
+    }}
 
-	http.HandleFunc("/health", healthHandler)
-	http.HandleFunc("/", rootHandler)
+    http.HandleFunc("/health", healthHandler)
+    http.HandleFunc("/", rootHandler)
 
-	log.Printf("{service_name} listening on port %s", port)
-	if err := http.ListenAndServe(":"+port, nil); err != nil {{
-		log.Fatalf("Failed to start server: %v", err)
-	}}
+    log.Printf("{service_name} listening on port %s", port)
+    if err := http.ListenAndServe(":"+port, nil); err != nil {{
+        log.Fatalf("Failed to start server: %v", err)
+    }}
 }}
 """
 
@@ -925,41 +925,41 @@ export default {className};
 package {package_name}
 
 import (
-	"fmt"
-	"log"
+    "fmt"
+    "log"
 )
 
 // Options represents library configuration
 type Options struct {{
-	Debug bool
+    Debug bool
 }}
 
 // Library is the main struct
 type Library struct {{
-	opts Options
+    opts Options
 }}
 
 // New creates a new Library instance
 func New(opts Options) *Library {{
-	if opts.Debug {{
-		log.SetFlags(log.LstdFlags | log.Lshortfile)
-	}}
-	return &Library{{
-		opts: opts,
-	}}
+    if opts.Debug {{
+        log.SetFlags(log.LstdFlags | log.Lshortfile)
+    }}
+    return &Library{{
+        opts: opts,
+    }}
 }}
 
 // Process processes input data
 func (l *Library) Process(data interface{{}}) interface{{}} {{
-	if l.opts.Debug {{
-		log.Printf("[{lib_name}] Processing: %v", data)
-	}}
-	return data
+    if l.opts.Debug {{
+        log.Printf("[{lib_name}] Processing: %v", data)
+    }}
+    return data
 }}
 
 // Transform applies a transformation function
 func (l *Library) Transform(data interface{{}}, fn func(interface{{}}) interface{{}}) interface{{}} {{
-	return fn(data)
+    return fn(data)
 }}
 """
 

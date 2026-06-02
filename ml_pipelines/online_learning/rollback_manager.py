@@ -6,7 +6,6 @@ quando degradação de performance é detectada.
 """
 
 import os
-import shutil
 import time
 import uuid
 from datetime import datetime, timedelta, timezone

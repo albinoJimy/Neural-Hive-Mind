@@ -70,8 +70,12 @@ Responda em JSON:
             if not settings.llm.provider or not settings.llm.api_key:
                 raise ConnectionError("LLM not configured: provider or api_key missing")
 
-            provider = LLMProvider.OPENAI if settings.llm.provider == "openai" else LLMProvider.ANTHROPIC
-            self._llm_client = LLMClient(provider=provider, api_key=settings.llm.api_key, model=self._model)
+            provider = (
+                LLMProvider.OPENAI if settings.llm.provider == "openai" else LLMProvider.ANTHROPIC
+            )
+            self._llm_client = LLMClient(
+                provider=provider, api_key=settings.llm.api_key, model=self._model
+            )
             await self._llm_client.start()
             self._llm_started = True
         elif not self._llm_started:

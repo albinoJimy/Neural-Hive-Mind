@@ -6,8 +6,7 @@ Testa componentes de especialistas com baixa cobertura.
 """
 
 import pytest
-import asyncio
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from uuid import uuid4
 
 

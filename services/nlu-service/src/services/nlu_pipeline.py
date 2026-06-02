@@ -24,14 +24,9 @@ import yaml
 
 from src.config.settings import get_settings
 from src.models.nlu import (
-    CalculateConfidenceRequest,
     CalculateConfidenceResponse,
-    ClassifyDomainRequest,
-    ClassifyDomainResponse,
     Entity,
     EntityType,
-    ExtractEntitiesRequest,
-    ExtractEntitiesResponse,
     NLUResult,
     UnifiedDomain,
 )
@@ -41,7 +36,6 @@ logger = logging.getLogger(__name__)
 # Import tracer if available
 try:
     from opentelemetry import trace
-    from opentelemetry.trace import Status, StatusCode
 
     tracer = trace.get_tracer(__name__)
 except ImportError:
@@ -201,7 +195,14 @@ class NLUPipelineService:
                             "kpi",
                         ],
                         "sales": ["venda", "vendas", "sales", "selling", "conversão", "conversion"],
-                        "customer": ["cliente", "clientes", "customer", "client", "prospect", "lead"],
+                        "customer": [
+                            "cliente",
+                            "clientes",
+                            "customer",
+                            "client",
+                            "prospect",
+                            "lead",
+                        ],
                         "marketing": ["marketing", "campanha", "campaign", "anúncio", "ad"],
                     },
                 },
@@ -362,8 +363,21 @@ class NLUPipelineService:
                             "access",
                             "iam",
                         ],
-                        "encryption": ["criptografia", "encryption", "ssl", "tls", "certificate", "key"],
-                        "security": ["segurança", "security", "vulnerabilidade", "vulnerability", "firewall"],
+                        "encryption": [
+                            "criptografia",
+                            "encryption",
+                            "ssl",
+                            "tls",
+                            "certificate",
+                            "key",
+                        ],
+                        "security": [
+                            "segurança",
+                            "security",
+                            "vulnerabilidade",
+                            "vulnerability",
+                            "firewall",
+                        ],
                     },
                 },
             },
@@ -481,7 +495,9 @@ class NLUPipelineService:
         """Verificar se pipeline está pronto."""
         return self._ready and self.nlp is not None
 
-    async def parse(self, text: str, language: str = "pt", context: dict[str, Any] | None = None) -> NLUResult:
+    async def parse(
+        self, text: str, language: str = "pt", context: dict[str, Any] | None = None
+    ) -> NLUResult:
         """Processar texto completo (Parse - opera��o principal)."""
         if not self.is_ready():
             raise RuntimeError("NLU Pipeline não inicializado")
@@ -521,13 +537,17 @@ class NLUPipelineService:
 
             # Extrair entidades e classificar
             entities = self._extract_entities(doc)
-            domain, classification, confidence = self._classify_domain(text, entities, detected_lang, context)
+            domain, classification, confidence = self._classify_domain(
+                text, entities, detected_lang, context
+            )
             keywords = self._extract_keywords(doc)
 
             # Calcular threshold adaptativo
             adaptive_threshold = self.settings.nlu_confidence_threshold
             if self.settings.nlu_adaptive_threshold_enabled:
-                adaptive_threshold = self._calculate_adaptive_threshold(text, context, confidence, entities)
+                adaptive_threshold = self._calculate_adaptive_threshold(
+                    text, context, confidence, entities
+                )
 
             # Determinar confidence status
             if confidence >= 0.75:
@@ -648,9 +668,7 @@ class NLUPipelineService:
             return None
 
         try:
-            cached_data = await asyncio.wait_for(
-                self.redis_client.get(cache_key), timeout=0.005
-            )
+            cached_data = await asyncio.wait_for(self.redis_client.get(cache_key), timeout=0.005)
             if cached_data:
                 data = json.loads(cached_data) if isinstance(cached_data, str) else cached_data
                 return NLUResult(**data)
@@ -824,11 +842,15 @@ class NLUPipelineService:
             confidence = min(0.95, (max_score / 3.0) * 0.85 + 0.15)
 
             # Aplicar boosts
-            text_length_config = self.classification_rules.get("confidence_boosters", {}).get("text_length_boost", {})
+            text_length_config = self.classification_rules.get("confidence_boosters", {}).get(
+                "text_length_boost", {}
+            )
             if len(text) > text_length_config.get("threshold", 50):
                 confidence = min(0.95, confidence + text_length_config.get("boost", 0.05))
 
-            entity_config = self.classification_rules.get("confidence_boosters", {}).get("entity_presence_boost", {})
+            entity_config = self.classification_rules.get("confidence_boosters", {}).get(
+                "entity_presence_boost", {}
+            )
             if len(entities) >= entity_config.get("threshold", 2):
                 confidence = min(0.95, confidence + entity_config.get("boost", 0.05))
 

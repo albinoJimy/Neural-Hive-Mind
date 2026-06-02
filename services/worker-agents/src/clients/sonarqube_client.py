@@ -293,7 +293,6 @@ class SonarQubeClient:
                     # Fetch updated analysis status
                     response = await self._client.get(f"/api/project_analyses/{analysis_id}")
                     response.raise_for_status()
-                    analysis_data = response.json()
 
                     duration = (datetime.now(timezone.utc) - start_time).total_seconds()
 

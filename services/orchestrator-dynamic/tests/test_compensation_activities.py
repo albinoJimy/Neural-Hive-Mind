@@ -9,6 +9,7 @@ Cobre:
 """
 
 from datetime import timezone
+
 UTC = timezone.utc
 from unittest.mock import AsyncMock, MagicMock
 

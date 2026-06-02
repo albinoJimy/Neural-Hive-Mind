@@ -14,10 +14,10 @@ Usage:
 Exemplos:
     # Diagnóstico automático (encontra pod automaticamente)
     python diagnose_gateway.py
-    
+
     # Diagnóstico em namespace específico
     python diagnose_gateway.py --namespace gateway-intencoes
-    
+
     # Diagnóstico em pod específico
     python diagnose_gateway.py --pod gateway-intencoes-7c4b8f9d5-x2k9m
 """
@@ -26,7 +26,7 @@ import argparse
 import json
 import subprocess
 import sys
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any
 
 
 class Colors:
@@ -159,6 +159,7 @@ def check_health_endpoint(namespace: str, pod_name: str) -> Dict[str, Any]:
 
 def check_redis_ping(namespace: str, pod_name: str) -> Dict[str, Any]:
     """Verifica se RedisClient.ping funciona corretamente."""
+    # Script de diagnóstico injetado no pod via stdin do kubectl.
     test_script = """
 import asyncio
 import sys
@@ -166,22 +167,22 @@ sys.path.insert(0, '/app/src')
 
 try:
     from cache.redis_client import get_redis_client
-    
+
     async def test():
         client = await get_redis_client()
-        
+
         # Testar se ping é callable
         if not hasattr(client, 'ping'):
             print("ERROR: RedisClient não tem atributo 'ping'")
             return
-        
+
         ping_method = client.ping
-        
+
         # Testar se é coroutine
         import inspect
         is_coro = inspect.iscoroutinefunction(ping_method)
         print(f"ping é coroutine: {is_coro}")
-        
+
         # Testar chamada
         try:
             if is_coro:
@@ -192,11 +193,11 @@ try:
             print(f"ping tipo resultado: {type(result)}")
         except Exception as e:
             print(f"ping erro: {e}")
-    
+
     asyncio.run(test())
 except Exception as e:
     print(f"IMPORT ERROR: {e}")
-"""
+"""  # noqa: F841
 
     # Escrever script temporário no pod
     _, stderr, rc = run_kubectl(f"exec {pod_name} -- sh -c 'cat > /tmp/test_redis.py'", namespace)

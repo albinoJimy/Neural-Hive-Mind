@@ -1,6 +1,5 @@
 """Tests para Deployment models."""
 
-import pytest
 from src.models.deployment import (
     DeploymentRequest,
     DeploymentResponse,

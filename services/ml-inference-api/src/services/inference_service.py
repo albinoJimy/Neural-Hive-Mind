@@ -186,7 +186,6 @@ class InferenceService:
                 return cached
 
         # Carregar modelo se necessário
-        model_key = f"{request.model_name}:{request.model_version}"
         model = self._model_registry.get_model(request.model_name, request.model_version)
         if not model:
             await self._model_registry.load_model(request.model_name, request.model_version)

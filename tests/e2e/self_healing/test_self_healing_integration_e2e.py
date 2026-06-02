@@ -9,9 +9,6 @@ Tests the complete self-healing flow including:
 """
 
 import pytest
-import pytest_asyncio
-from datetime import datetime
-from unittest.mock import patch, MagicMock, AsyncMock
 import time
 
 

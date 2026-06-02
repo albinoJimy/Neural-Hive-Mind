@@ -5,7 +5,6 @@ para o Unified Gateway (status tracking, rate limiting, etc.).
 """
 
 import logging
-from typing import Any
 
 from redis.asyncio import Redis
 

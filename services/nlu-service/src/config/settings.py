@@ -1,6 +1,5 @@
 """Configurações do NLU Service."""
 
-import os
 from pathlib import Path
 from typing import List
 
@@ -19,9 +18,7 @@ class NLUServiceSettings(BaseSettings):
     grpc_port: int = Field(default=8021, description="Porta gRPC")
 
     # NLU Model
-    nlu_language_model: str = Field(
-        default="pt_core_news_sm", description="Modelo spaCy principal"
-    )
+    nlu_language_model: str = Field(default="pt_core_news_sm", description="Modelo spaCy principal")
     nlu_model_cache_dir: Path = Field(
         default=Path("/app/models/spacy"), description="Diretório de cache dos modelos"
     )
@@ -40,9 +37,7 @@ class NLUServiceSettings(BaseSettings):
     )
 
     # Redis
-    redis_url: str = Field(
-        default="redis://localhost:6379/0", description="URL do Redis"
-    )
+    redis_url: str = Field(default="redis://localhost:6379/0", description="URL do Redis")
     redis_pool_size: int = Field(default=10, description="Tamanho do pool de conexões")
     redis_socket_timeout: float = Field(default=5.0, description="Timeout do socket Redis")
 
@@ -63,9 +58,7 @@ class NLUServiceSettings(BaseSettings):
     max_text_length: int = Field(
         default=10000, ge=1, le=50000, description="Tamanho máximo do texto"
     )
-    min_text_length: int = Field(
-        default=3, ge=1, description="Tamanho mínimo do texto"
-    )
+    min_text_length: int = Field(default=3, ge=1, description="Tamanho mínimo do texto")
     processing_timeout_ms: int = Field(
         default=5000, ge=100, description="Timeout de processamento em ms"
     )

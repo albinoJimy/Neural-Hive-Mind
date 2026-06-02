@@ -11,9 +11,8 @@ import json
 import statistics
 import argparse
 import logging
-from typing import List, Dict, Tuple
+from typing import List, Dict
 from dataclasses import dataclass, asdict
-from concurrent.futures import ThreadPoolExecutor
 import numpy as np
 
 # Configure logging

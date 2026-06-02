@@ -265,14 +265,7 @@ class Settings(BaseSettings):
 
         Emite aviso se ETCD_* está sendo usado como fallback.
         """
-        import os
         import warnings
-
-        # Verificar se REGISTRY_REDIS_* foi definido no environment
-        # (mesmo que seja None no modelo, pode ter sido setado explicitamente como vazio)
-        redis_endpoints_env = os.getenv("REGISTRY_REDIS_ENDPOINTS")
-        redis_prefix_env = os.getenv("REGISTRY_REDIS_PREFIX")
-        redis_timeout_env = os.getenv("REGISTRY_REDIS_TIMEOUT_SECONDS")
 
         # Migrar ENDPOINTS
         if not hasattr(self, "_resolved_redis_endpoints"):

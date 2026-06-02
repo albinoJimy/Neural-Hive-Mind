@@ -78,10 +78,12 @@ class TestTestGeneratorService:
 
     async def test_generate_unit_tests(self, service):
         """Testa geração de testes unitários."""
-        code_data = {"code": """
+        code_data = {
+            "code": """
 def calculate_sum(a: int, b: int) -> int:
     return a + b
-"""}
+"""
+        }
 
         request = TestGenerationRequest(
             source_type="code",

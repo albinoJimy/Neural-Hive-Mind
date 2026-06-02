@@ -46,15 +46,11 @@ class Entity(BaseModel):
 
     type: EntityType = Field(..., description="Tipo da entidade")
     value: str = Field(..., description="Valor da entidade")
-    confidence: float = Field(
-        default=0.8, ge=0.0, le=1.0, description="Confiança da extração"
-    )
+    confidence: float = Field(default=0.8, ge=0.0, le=1.0, description="Confiança da extração")
     start: int | None = Field(None, description="Posição inicial no texto")
     end: int | None = Field(None, description="Posição final no texto")
     label: str | None = Field(None, description="Label específico do NER")
-    attributes: dict[str, str] = Field(
-        default_factory=dict, description="Atributos adicionais"
-    )
+    attributes: dict[str, str] = Field(default_factory=dict, description="Atributos adicionais")
 
 
 class NLUResult(BaseModel):
@@ -63,28 +59,18 @@ class NLUResult(BaseModel):
     processed_text: str = Field(..., description="Texto processado e normalizado")
     domain: UnifiedDomain = Field(..., description="Domínio classificado (INV-1)")
     classification: str = Field(default="general", description="Classificação específica")
-    confidence: float = Field(
-        ..., ge=0.0, le=1.0, description="Confiança da classificação (INV-1)"
-    )
-    entities: list[Entity] = Field(
-        default_factory=list, description="Entidades extraídas (INV-1)"
-    )
+    confidence: float = Field(..., ge=0.0, le=1.0, description="Confiança da classificação (INV-1)")
+    entities: list[Entity] = Field(default_factory=list, description="Entidades extraídas (INV-1)")
     keywords: list[str] = Field(
         default_factory=list, description="Palavras-chave extraídas (INV-1)"
     )
     original_language: str = Field(default="pt", description="Idioma detectado")
-    requires_manual_validation: bool = Field(
-        default=False, description="Requer validação humana"
-    )
-    confidence_status: str = Field(
-        default="medium", description="Status: high, medium, low"
-    )
+    requires_manual_validation: bool = Field(default=False, description="Requer validação humana")
+    confidence_status: str = Field(default="medium", description="Status: high, medium, low")
     adaptive_threshold: float | None = Field(
         None, ge=0.0, le=1.0, description="Threshold adaptativo calculado"
     )
-    metadata: dict[str, str] = Field(
-        default_factory=dict, description="Metadados adicionais"
-    )
+    metadata: dict[str, str] = Field(default_factory=dict, description="Metadados adicionais")
 
     @field_validator("domain", mode="before")
     @classmethod
@@ -118,7 +104,9 @@ class ParseResponse(BaseModel):
 
     result: NLUResult = Field(..., description="Resultado NLU completo")
     processing_time_ms: int = Field(..., description="Tempo de processamento em ms")
-    processed_at: datetime = Field(default_factory=datetime.now, description="Timestamp do processamento")
+    processed_at: datetime = Field(
+        default_factory=datetime.now, description="Timestamp do processamento"
+    )
     cached: bool = Field(default=False, description="Indica se resultado veio do cache")
 
 
@@ -138,13 +126,17 @@ class ClassifyDomainResponse(BaseModel):
     confidence: float = Field(..., ge=0.0, le=1.0, description="Confiança da classificação")
     reasoning: str = Field(default="", description="Explicação da classificação")
     processing_time_ms: int = Field(..., description="Tempo de processamento")
-    classified_at: datetime = Field(default_factory=datetime.now, description="Timestamp da classificação")
+    classified_at: datetime = Field(
+        default_factory=datetime.now, description="Timestamp da classificação"
+    )
 
 
 class ExtractEntitiesRequest(BaseModel):
     """Request para extração de entidades."""
 
-    text: str = Field(..., min_length=1, max_length=10000, description="Texto para extrair entidades")
+    text: str = Field(
+        ..., min_length=1, max_length=10000, description="Texto para extrair entidades"
+    )
     language: str = Field(default="pt", description="Idioma do texto")
     correlation_id: str | None = Field(None, description="ID de correlação")
     entity_types: list[EntityType] = Field(
@@ -157,7 +149,9 @@ class ExtractEntitiesResponse(BaseModel):
 
     entities: list[Entity] = Field(..., description="Entidades extraídas")
     processing_time_ms: int = Field(..., description="Tempo de processamento")
-    extracted_at: datetime = Field(default_factory=datetime.now, description="Timestamp da extração")
+    extracted_at: datetime = Field(
+        default_factory=datetime.now, description="Timestamp da extração"
+    )
 
 
 class CalculateConfidenceRequest(BaseModel):

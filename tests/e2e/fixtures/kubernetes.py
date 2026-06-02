@@ -4,7 +4,7 @@ import signal
 import subprocess
 import time
 import uuid
-from typing import Dict, Optional
+from typing import Dict
 
 import pytest
 from kubernetes import client, config

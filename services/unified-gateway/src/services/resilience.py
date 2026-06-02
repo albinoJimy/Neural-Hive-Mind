@@ -12,7 +12,7 @@ from neural_hive_resilience import MonitoredCircuitBreaker
 from pydantic import BaseModel
 
 from src.config.settings import get_settings
-from src.models.classification import ClassificationDecision, FlowType, NLUResult
+from src.models.classification import NLUResult
 
 logger = logging.getLogger(__name__)
 
@@ -77,6 +77,7 @@ class ResilienceNLUService:
         Returns:
             NLUResult do NLU Service ou resultado do fallback local
         """
+
         async def _call_nlu():
             if self._nlu_client is None:
                 raise RuntimeError("NLU client not configured")
@@ -116,8 +117,16 @@ class ResilienceNLUService:
 
         # Keywords BUSINESS
         business_keywords = [
-            "consultar", "buscar", "analisar", "listar", "mostrar",
-            "dashboard", "relatório", "dados", "métrica", "kpi"
+            "consultar",
+            "buscar",
+            "analisar",
+            "listar",
+            "mostrar",
+            "dashboard",
+            "relatório",
+            "dados",
+            "métrica",
+            "kpi",
         ]
         if any(kw in text_lower for kw in business_keywords):
             domain = "BUSINESS"
@@ -126,8 +135,16 @@ class ResilienceNLUService:
 
         # Keywords TECHNICAL
         technical_keywords = [
-            "gerar", "criar", "build", "desenvolver", "código",
-            "implementar", "app", "sistema", "api", "funcão"
+            "gerar",
+            "criar",
+            "build",
+            "desenvolver",
+            "código",
+            "implementar",
+            "app",
+            "sistema",
+            "api",
+            "funcão",
         ]
         if any(kw in text_lower for kw in technical_keywords):
             domain = "TECHNICAL"
@@ -136,8 +153,15 @@ class ResilienceNLUService:
 
         # Keywords INFRASTRUCTURE
         infra_keywords = [
-            "migrar", "migration", "legado", "legacy", "atualizar",
-            "modernizar", "deploy", "kubernetes", "docker"
+            "migrar",
+            "migration",
+            "legado",
+            "legacy",
+            "atualizar",
+            "modernizar",
+            "deploy",
+            "kubernetes",
+            "docker",
         ]
         if any(kw in text_lower for kw in infra_keywords):
             domain = "INFRASTRUCTURE"
@@ -146,8 +170,13 @@ class ResilienceNLUService:
 
         # Keywords SECURITY
         security_keywords = [
-            "segurança", "autenticação", "permissão", "acesso",
-            "criptografia", "vulnerabilidade", "firewall"
+            "segurança",
+            "autenticação",
+            "permissão",
+            "acesso",
+            "criptografia",
+            "vulnerabilidade",
+            "firewall",
         ]
         if any(kw in text_lower for kw in security_keywords):
             domain = "SECURITY"
@@ -235,6 +264,7 @@ class ResiliencePIIService:
         Returns:
             Lista de PII encontrados (dict com type, value, start, end)
         """
+
         async def _call_pii():
             if self._pii_client is None:
                 raise RuntimeError("PII client not configured")
@@ -266,21 +296,23 @@ class ResiliencePIIService:
 
         # PII types e patterns básicos
         pii_patterns = {
-            "EMAIL": (r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b', 0.9),
-            "PHONE": (r'\b\d{2}[- ]?\d{4,5}[- ]?\d{4}\b', 0.8),
-            "CPF": (r'\b\d{3}[.\s]?\d{3}[.\s]?\d{3}[-]?\d{2}\b', 0.95),
-            "CNPJ": (r'\b\d{2}[.\s]?\d{3}[.\s]?\d{3}[\/]?\d{4}[-]?\d{2}\b', 0.95),
+            "EMAIL": (r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b", 0.9),
+            "PHONE": (r"\b\d{2}[- ]?\d{4,5}[- ]?\d{4}\b", 0.8),
+            "CPF": (r"\b\d{3}[.\s]?\d{3}[.\s]?\d{3}[-]?\d{2}\b", 0.95),
+            "CNPJ": (r"\b\d{2}[.\s]?\d{3}[.\s]?\d{3}[\/]?\d{4}[-]?\d{2}\b", 0.95),
         }
 
         for pii_type, (pattern, confidence) in pii_patterns.items():
             for match in re.finditer(pattern, text):
-                pii_found.append({
-                    "type": pii_type,
-                    "value": match.group(),
-                    "confidence": confidence,
-                    "start": match.start(),
-                    "end": match.end(),
-                })
+                pii_found.append(
+                    {
+                        "type": pii_type,
+                        "value": match.group(),
+                        "confidence": confidence,
+                        "start": match.start(),
+                        "end": match.end(),
+                    }
+                )
 
         logger.info(
             "fallback_pii_detection",
@@ -307,6 +339,7 @@ class ResiliencePIIService:
         Returns:
             Texto mascarado
         """
+
         async def _call_pii():
             if self._pii_client is None:
                 raise RuntimeError("PII client not configured")
@@ -335,10 +368,10 @@ class ResiliencePIIService:
 
         # PII patterns
         pii_patterns = {
-            "EMAIL": (r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b', '[EMAIL]'),
-            "PHONE": (r'\b\d{2}[- ]?\d{4,5}[- ]?\d{4}\b', '[PHONE]'),
-            "CPF": (r'\b\d{3}[.\s]?\d{3}[.\s]?\d{3}[-]?\d{2}\b', '[CPF]'),
-            "CNPJ": (r'\b\d{2}[.\s]?\d{3}[.\s]?\d{3}[\/]?\d{4}[-]?\d{2}\b', '[CNPJ]'),
+            "EMAIL": (r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b", "[EMAIL]"),
+            "PHONE": (r"\b\d{2}[- ]?\d{4,5}[- ]?\d{4}\b", "[PHONE]"),
+            "CPF": (r"\b\d{3}[.\s]?\d{3}[.\s]?\d{3}[-]?\d{2}\b", "[CPF]"),
+            "CNPJ": (r"\b\d{2}[.\s]?\d{3}[.\s]?\d{3}[\/]?\d{4}[-]?\d{2}\b", "[CNPJ]"),
         }
 
         for pattern, replacement in pii_patterns.values():

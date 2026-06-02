@@ -4,13 +4,12 @@ Testes para ErasureService - Corrigidos com AsyncMock
 
 import pytest
 from datetime import datetime, timezone
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 from src.models.erasure import (
     DataType,
     ErasureScope,
     ErasureStatus,
-    ServiceErasureResult,
 )
 from src.services.erasure_service import ErasureService
 
@@ -117,9 +116,7 @@ class TestErasureServiceCreateRequest:
         mock_redis_client.client.setex.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_create_request_existing_pending(
-        self, erasure_service, mock_collection
-    ):
+    async def test_create_request_existing_pending(self, erasure_service, mock_collection):
         """Testa erro ao criar solicitacao quando ja existe pendente"""
         user_id = "user-123"
         input_data = {"email": "test@example.com"}
@@ -149,9 +146,7 @@ class TestErasureServiceVerifyRequest:
         token = "valid-token-12345678"
 
         # Mock Redis
-        mock_redis_client.client.get = AsyncMock(
-            return_value=f"{request_id}:user-123".encode()
-        )
+        mock_redis_client.client.get = AsyncMock(return_value=f"{request_id}:user-123".encode())
         mock_redis_client.client.delete = AsyncMock()
 
         # Mock MongoDB - request atualizado
@@ -176,9 +171,7 @@ class TestErasureServiceVerifyRequest:
         mock_collection.update_one.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_verify_request_invalid_token(
-        self, erasure_service, mock_redis_client
-    ):
+    async def test_verify_request_invalid_token(self, erasure_service, mock_redis_client):
         """Testa erro com token invalido"""
         mock_redis_client.client.get = AsyncMock(return_value=None)
 

@@ -119,7 +119,9 @@ class TestLearningEventConsumer:
         mock_mlflow_run.info.run_id = "test_run_123"
         mock_mlflow_run.info.experiment_id = 1
         mock_mlflow_run.info.status = "FINISHED"
-        mock_mlflow_run.info.start_time = int((datetime.now(timezone.utc).timestamp() - 3600) * 1000)
+        mock_mlflow_run.info.start_time = int(
+            (datetime.now(timezone.utc).timestamp() - 3600) * 1000
+        )
         mock_mlflow_run.info.end_time = int(datetime.now(timezone.utc).timestamp() * 1000)
         mock_mlflow_run.info.artifact_uri = "s3://mlflow/artifacts/test_run_123"
         mock_mlflow_run.data.metrics = {"accuracy": 0.85, "val_accuracy": 0.82}
@@ -157,7 +159,9 @@ class TestLearningEventConsumer:
         mock_mlflow_run.info.run_id = "promoted_run"
         mock_mlflow_run.info.experiment_id = 1
         mock_mlflow_run.info.status = "FINISHED"
-        mock_mlflow_run.info.start_time = int((datetime.now(timezone.utc).timestamp() - 3600) * 1000)
+        mock_mlflow_run.info.start_time = int(
+            (datetime.now(timezone.utc).timestamp() - 3600) * 1000
+        )
         mock_mlflow_run.info.end_time = int(datetime.now(timezone.utc).timestamp() * 1000)
         mock_mlflow_run.info.artifact_uri = "s3://mlflow/artifacts/promoted_run"
         mock_mlflow_run.data.metrics = {"val_accuracy": 0.92}
@@ -188,7 +192,9 @@ class TestLearningEventConsumer:
         mock_mlflow_run.info.run_id = "problematic_run"
         mock_mlflow_run.info.experiment_id = 1
         mock_mlflow_run.info.status = "FINISHED"
-        mock_mlflow_run.info.start_time = int((datetime.now(timezone.utc).timestamp() - 3600) * 1000)
+        mock_mlflow_run.info.start_time = int(
+            (datetime.now(timezone.utc).timestamp() - 3600) * 1000
+        )
         mock_mlflow_run.info.end_time = int(datetime.now(timezone.utc).timestamp() * 1000)
         mock_mlflow_run.info.artifact_uri = "s3://mlflow/artifacts/problematic_run"
         mock_mlflow_run.data.metrics = {}

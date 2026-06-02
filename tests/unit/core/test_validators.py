@@ -5,10 +5,7 @@ GAP-04: Cobertura de Testes 16% → 70%
 Testa validação de dados e transformação.
 """
 
-import pytest
-import asyncio
-from datetime import datetime, timedelta
-from uuid import uuid4
+from datetime import datetime
 from decimal import Decimal
 
 

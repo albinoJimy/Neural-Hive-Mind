@@ -18,11 +18,8 @@ from src.config.settings import Settings
 from neural_hive_approval_common import (
     ApprovalDecision,
     ApprovalRequest,
-    ApproveRequestBody,
     ApprovalStats,
     ApprovalStatus,
-    RejectRequestBody,
-    RevertRequestBody,
 )
 from src.models import ApprovalResponse, RevertResponse
 from src.observability.metrics import NeuralHiveMetrics

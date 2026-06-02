@@ -4,7 +4,6 @@ Fixtures para Schema Registry (Apicurio) em testes E2E.
 Fornece clientes HTTP e mocks para validação de schemas Avro.
 """
 
-import uuid
 from typing import Dict, Optional
 
 import httpx

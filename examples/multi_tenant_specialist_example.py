@@ -192,7 +192,7 @@ def simulate_request(specialist: ExampleTechnicalSpecialist, tenant_id: str, pla
 
         # Aplicar configurações do tenant
         original_config = specialist._apply_tenant_config_overrides(tenant_config)
-        print(f"✅ Configurações do tenant aplicadas:")
+        print("✅ Configurações do tenant aplicadas:")
         print(f"   - min_confidence_score: {specialist.config.min_confidence_score}")
         print(f"   - rate_limit: {tenant_config.rate_limit_per_second} req/s")
 
@@ -201,7 +201,7 @@ def simulate_request(specialist: ExampleTechnicalSpecialist, tenant_id: str, pla
             cognitive_plan=request.cognitive_plan, context=request.context
         )
 
-        print(f"\n📊 Opinião Gerada:")
+        print("\n📊 Opinião Gerada:")
         print(f"   - Recomendação: {opinion['recommendation']}")
         print(f"   - Confidence: {opinion['confidence_score']:.2f}")
         print(f"   - Risk: {opinion['risk_score']:.2f}")
@@ -210,17 +210,17 @@ def simulate_request(specialist: ExampleTechnicalSpecialist, tenant_id: str, pla
         # Demonstrar isolamento de cache
         plan_bytes = json.dumps(request.cognitive_plan, sort_keys=True).encode()
         cache_key = f"opinion:{tenant_id}:technical:1.0.0:{hash(plan_bytes)}"
-        print(f"\n🔑 Cache Key (isolado por tenant):")
+        print("\n🔑 Cache Key (isolado por tenant):")
         print(f"   {cache_key}")
 
         # Demonstrar isolamento de ledger
-        print(f"\n💾 Ledger Document (seria salvo com):")
+        print("\n💾 Ledger Document (seria salvo com):")
         print(f"   - opinion_id: opinion-{plan_id}")
         print(f"   - plan_id: {plan_id}")
         print(f"   - tenant_id: {tenant_id}")
-        print(f"   - specialist_type: technical")
+        print("   - specialist_type: technical")
 
-        print(f"\n✅ Request processado com sucesso!")
+        print("\n✅ Request processado com sucesso!")
 
     except ValueError as e:
         print(f"\n❌ Erro ao processar request: {e}")
@@ -292,7 +292,7 @@ def main():
 
     # Request sem tenant_id (usa default)
     print(f"\n{'='*80}")
-    print(f"Simulando request SEM tenant_id (fallback para default)")
+    print("Simulando request SEM tenant_id (fallback para default)")
     print(f"{'='*80}")
 
     class MockRequestNoTenant:
@@ -309,33 +309,33 @@ def main():
     print(f"✅ Fallback para tenant: {extracted}")
 
     # 5. Demonstrar isolamento de dados
-    print(f"\n5. Demonstrando isolamento de dados...")
+    print("\n5. Demonstrando isolamento de dados...")
     print(f"\n{'='*80}")
 
     # Mesmo plan_id, tenants diferentes
     plan_id_shared = "shared-plan-999"
 
-    print(f"\n📝 Cenário: Dois tenants com MESMO plan_id")
+    print("\n📝 Cenário: Dois tenants com MESMO plan_id")
     print(f"   plan_id: {plan_id_shared}")
 
-    print(f"\n   Tenant A - Cache Key:")
-    cache_key_a = f"opinion:tenant-enterprise-A:technical:1.0.0:abc123"
+    print("\n   Tenant A - Cache Key:")
+    cache_key_a = "opinion:tenant-enterprise-A:technical:1.0.0:abc123"
     print(f"   {cache_key_a}")
 
-    print(f"\n   Tenant B - Cache Key:")
-    cache_key_b = f"opinion:tenant-startup-B:technical:1.0.0:abc123"
+    print("\n   Tenant B - Cache Key:")
+    cache_key_b = "opinion:tenant-startup-B:technical:1.0.0:abc123"
     print(f"   {cache_key_b}")
 
-    print(f"\n   ✅ Cache keys são DIFERENTES mesmo com inputs idênticos")
+    print("\n   ✅ Cache keys são DIFERENTES mesmo com inputs idênticos")
     assert cache_key_a != cache_key_b
 
-    print(f"\n   Tenant A - Ledger Query:")
+    print("\n   Tenant A - Ledger Query:")
     print(f"   {{'plan_id': '{plan_id_shared}', 'tenant_id': 'tenant-enterprise-A'}}")
 
-    print(f"\n   Tenant B - Ledger Query:")
+    print("\n   Tenant B - Ledger Query:")
     print(f"   {{'plan_id': '{plan_id_shared}', 'tenant_id': 'tenant-startup-B'}}")
 
-    print(f"\n   ✅ Queries ao ledger SEMPRE incluem tenant_id")
+    print("\n   ✅ Queries ao ledger SEMPRE incluem tenant_id")
 
     # 6. Resumo
     print(f"\n{'='*80}")

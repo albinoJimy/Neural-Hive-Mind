@@ -64,3 +64,7 @@ exclude = ["tests", "tests.*"]
 
 [tool.setuptools.package-data]
 "*" = ["*.yaml", "*.yml", "*.json"]
+
+# Perfil black para compatibilidade entre isort e black (ambos correm no CI)
+[tool.isort]
+profile = "black"

@@ -4,18 +4,17 @@ Fixtures compartilhadas para testes do Neural-Hive-Mind.
 Estas fixtures podem ser usadas em todos os testes do projeto,
 garantindo consistência e reduzindo duplicação.
 """
-import asyncio
 from datetime import datetime, timedelta, timezone
-from typing import AsyncGenerator, Generator, Dict, Any, Optional
-from unittest.mock import AsyncMock, MagicMock, Mock
+from typing import Dict, Any
+from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
 import pytest
-from pytest_mock_resources import MR
 
 # =============================================================================
 # Config Fixtures
 # =============================================================================
+
 
 @pytest.fixture
 def mock_settings():
@@ -76,13 +75,13 @@ def sample_cognitive_plan() -> Dict[str, Any]:
                 "task_type": "query",
                 "description": "Consultar dados",
                 "target": "sales",
-                "parameters": {"query": "SELECT * FROM sales"}
+                "parameters": {"query": "SELECT * FROM sales"},
             }
         ],
         "risk_band": "medium",
         "estimated_duration_ms": 5000,
         "priority": "normal",
-        "created_at": datetime.now(timezone.utc).isoformat()
+        "created_at": datetime.now(timezone.utc).isoformat(),
     }
 
 
@@ -99,14 +98,10 @@ def sample_execution_result() -> Dict[str, Any]:
         "workflow_id": f"workflow-{uuid4()}",
         "correlation_id": f"corr-{uuid4()}",
         "status": "COMPLETED",
-        "result": {
-            "success": True,
-            "output": {"data": [1, 2, 3]},
-            "error": None
-        },
+        "result": {"success": True, "output": {"data": [1, 2, 3]}, "error": None},
         "started_at": (datetime.now(timezone.utc) - timedelta(seconds=10)).isoformat(),
         "completed_at": datetime.now(timezone.utc).isoformat(),
-        "duration_ms": 10000
+        "duration_ms": 10000,
     }
 
 
@@ -123,13 +118,14 @@ def sample_slo_definition() -> Dict[str, Any]:
         "slo_target": 0.95,  # 95% dos requests
         "slo_window": "7d",
         "measurement_type": "latency",
-        "threshold_ms": 500
+        "threshold_ms": 500,
     }
 
 
 # =============================================================================
 # Kafka Fixtures
 # =============================================================================
+
 
 @pytest.fixture
 def mock_kafka_message():
@@ -138,6 +134,7 @@ def mock_kafka_message():
 
     Simula uma mensagem Kafka com value, topic, partition, offset.
     """
+
     class MockKafkaMessage:
         def __init__(self):
             self.topic = "test-topic"
@@ -192,6 +189,7 @@ async def mock_kafka_consumer():
 # gRPC Fixtures
 # =============================================================================
 
+
 @pytest.fixture
 def mock_grpc_server():
     """
@@ -221,6 +219,7 @@ def mock_grpc_channel():
 # =============================================================================
 # Temporal Fixtures
 # =============================================================================
+
 
 @pytest.fixture
 def mock_temporal_client():
@@ -269,6 +268,7 @@ def mock_temporal_activity():
 # Database Fixtures
 # =============================================================================
 
+
 @pytest.fixture
 def mock_mongodb_client():
     """
@@ -312,6 +312,7 @@ def mock_redis_client():
 # Authentication/Security Fixtures
 # =============================================================================
 
+
 @pytest.fixture
 def sample_jwt_token():
     """
@@ -325,7 +326,7 @@ def sample_jwt_token():
         "email": "test@example.com",
         "role": "admin",
         "exp": (datetime.now(timezone.utc) + timedelta(hours=1)).timestamp(),
-        "iat": datetime.now(timezone.utc).timestamp()
+        "iat": datetime.now(timezone.utc).timestamp(),
     }
 
 
@@ -336,14 +337,13 @@ def sample_jwt_headers():
 
     Retorna dict com Authorization header.
     """
-    return {
-        "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.test"
-    }
+    return {"Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.test"}
 
 
 # =============================================================================
 # Metrics/Fixtures
 # =============================================================================
+
 
 @pytest.fixture
 def mock_metrics():
@@ -373,6 +373,7 @@ def mock_metrics():
 # =============================================================================
 # Async Context Managers
 # =============================================================================
+
 
 @pytest.fixture
 async def async_mongodb_client():
@@ -410,6 +411,7 @@ async def async_redis_client():
 # Test Data Generators
 # =============================================================================
 
+
 @pytest.fixture
 def generate_ticket_id():
     """
@@ -441,6 +443,7 @@ def generate_workflow_id():
 # Skip Markers
 # =============================================================================
 
+
 @pytest.fixture
 def skip_if_no_kafka():
     """
@@ -453,6 +456,7 @@ def skip_if_no_kafka():
     """
     try:
         from confluent_kafka import Producer
+
         Producer({"bootstrap.servers": "localhost:9092"})
         return lambda f: f  # no-op decorator (era 'lambda f: lambda f', invalid)
     except Exception:
@@ -466,6 +470,7 @@ def skip_if_no_mongodb():
     """
     try:
         from pymongo import MongoClient
+
         client = MongoClient("mongodb://localhost:27017", serverSelectionTimeoutMS=1000)
         client.server_info()
         return lambda f: f  # no-op decorator (era 'lambda f: lambda f', invalid)
@@ -480,6 +485,7 @@ def skip_if_no_temporal():
     """
     try:
         from temporalio.client import Client  # noqa: F401
+
         # Tenta conectar (vai falhar se não houver servidor)
         pass
         return lambda f: f  # no-op decorator (era 'lambda f: lambda f', invalid)

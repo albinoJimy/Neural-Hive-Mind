@@ -292,12 +292,6 @@ Com base na análise, recomendamos:
             DocumentType.MONTHLY_SUMMARY,
             DocumentType.DAILY_SUMMARY,
         ):
-            period_name = {
-                DocumentType.DAILY_SUMMARY: "Diário",
-                DocumentType.WEEKLY_SUMMARY: "Semanal",
-                DocumentType.MONTHLY_SUMMARY: "Mensal",
-            }.get(doc_type, "Periódico")
-
             return """# {{ title }} - Relatório {{ period_name }}
 
 **Gerado em:** {{ generated_at.strftime('%Y-%m-%d %H:%M:%S') UTC }

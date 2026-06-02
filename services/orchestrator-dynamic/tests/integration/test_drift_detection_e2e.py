@@ -5,9 +5,7 @@ Estes testes validam a integração completa do drift detector com o orchestrato
 """
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
-from datetime import datetime, timezone
-import numpy as np
+from unittest.mock import AsyncMock, patch
 
 from src.ml.drift_detector import DriftDetector
 from src.consumers.decision_consumer import DecisionConsumer
@@ -39,9 +37,7 @@ async def drift_detector(drift_settings, mock_mongo_client):
     """Instância do DriftDetector para testes."""
     metrics = OrchestratorMetrics()
     detector = DriftDetector(
-        config=drift_settings,
-        mongodb_client=mock_mongo_client,
-        metrics=metrics
+        config=drift_settings, mongodb_client=mock_mongo_client, metrics=metrics
     )
     return detector
 
@@ -74,6 +70,7 @@ class TestDriftDetectionWithDrift:
     @pytest.mark.asyncio
     async def test_drift_detected_with_imbalanced_data(self, drift_detector, mock_mongo_client):
         """Com dados desbalanceados, drift deve ser detectado."""
+
         # Setup mock para retornar dados desbalanceados
         async def mock_aggregate(*args, **kwargs):
             class Result:
@@ -82,6 +79,7 @@ class TestDriftDetectionWithDrift:
                         {"duration_ms": 90000, "complexity": 0.95},
                         {"duration_ms": 85000, "complexity": 0.9},
                     ]
+
             return Result()
 
         mock_mongo_client.aggregate.return_value = mock_aggregate()
@@ -101,22 +99,22 @@ class TestDecisionMarkingWithDrift:
         """Quando drift detectado, decisões devem ser marcadas."""
         metrics = OrchestratorMetrics()
         drift_detector = DriftDetector(
-            config=drift_settings,
-            mongodb_client=mock_mongo_client,
-            metrics=metrics
+            config=drift_settings, mongodb_client=mock_mongo_client, metrics=metrics
         )
 
         consumer = DecisionConsumer(
-            settings=drift_settings,
-            metrics=metrics,
-            drift_detector=drift_detector
+            settings=drift_settings, metrics=metrics, drift_detector=drift_detector
         )
 
         # Mock drift check para retornar warning
-        with patch.object(drift_detector, 'run_drift_check', return_value={
-            "overall_status": "warning",
-            "recommendations": ["Feature drift detectado"]
-        }):
+        with patch.object(
+            drift_detector,
+            "run_drift_check",
+            return_value={
+                "overall_status": "warning",
+                "recommendations": ["Feature drift detectado"],
+            },
+        ):
             result = await consumer._check_ml_drift()
 
         # Validar marcação
@@ -133,24 +131,24 @@ class TestE2EOrchestratorWithDrift:
         """Teste E2E: mensagem processada com drift check ativo."""
         metrics = OrchestratorMetrics()
         drift_detector = DriftDetector(
-            config=drift_settings,
-            mongodb_client=mock_mongo_client,
-            metrics=metrics
+            config=drift_settings, mongodb_client=mock_mongo_client, metrics=metrics
         )
 
         consumer = DecisionConsumer(
-            settings=drift_settings,
-            metrics=metrics,
-            drift_detector=drift_detector
+            settings=drift_settings, metrics=metrics, drift_detector=drift_detector
         )
 
         # Mock drift check
-        with patch.object(drift_detector, 'run_drift_check', return_value={
-            "overall_status": "ok",
-            "feature_drift": {},
-            "prediction_drift": {},
-            "target_drift": {}
-        }):
+        with patch.object(
+            drift_detector,
+            "run_drift_check",
+            return_value={
+                "overall_status": "ok",
+                "feature_drift": {},
+                "prediction_drift": {},
+                "target_drift": {},
+            },
+        ):
             drift_result = await consumer._check_ml_drift()
 
         # Validar processamento
@@ -167,11 +165,7 @@ class TestDriftDetectorGracefulDegradation:
         metrics = OrchestratorMetrics()
 
         # Criar consumer SEM drift detector
-        consumer = DecisionConsumer(
-            settings=drift_settings,
-            metrics=metrics,
-            drift_detector=None
-        )
+        consumer = DecisionConsumer(settings=drift_settings, metrics=metrics, drift_detector=None)
 
         # Executar check sem detector
         result = await consumer._check_ml_drift()

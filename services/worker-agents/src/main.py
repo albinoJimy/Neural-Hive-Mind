@@ -878,7 +878,9 @@ async def heartbeat_loop(config, registry_client):
                     expected_status=(
                         "HEALTHY"
                         if success_rate >= 0.5
-                        else "DEGRADED" if success_rate >= 0.3 else "UNHEALTHY"
+                        else "DEGRADED"
+                        if success_rate >= 0.3
+                        else "UNHEALTHY"
                     ),
                 )
             else:

@@ -12,12 +12,9 @@ Target Throughput:
 """
 
 import io
-import json
 import random
 import time
 import uuid
-from datetime import datetime
-from typing import List
 
 from locust import HttpUser, task, between, events
 
@@ -103,20 +100,14 @@ class DocIngestionUser(HttpUser):
         """Upload de documento PDF."""
         filename = f"test_doc_{uuid.uuid4().hex[:8]}.pdf"
 
-        files = {
-            "file": (
-                filename,
-                io.BytesIO(SAMPLE_PDF_CONTENT),
-                "application/pdf"
-            )
-        }
+        files = {"file": (filename, io.BytesIO(SAMPLE_PDF_CONTENT), "application/pdf")}
 
         data = {
             "title": f"Test Document {uuid.uuid4().hex[:8]}",
             "description": "Load test document",
             "uploaded_by": f"load_test_user_{random.randint(1, 10)}",
             "project_id": f"project_{random.randint(1, 5)}",
-            "tags": "load-test,automated"
+            "tags": "load-test,automated",
         }
 
         with self.client.post(
@@ -124,7 +115,7 @@ class DocIngestionUser(HttpUser):
             files=files,
             data=data,
             name="/api/v1/documents/upload (POST)",
-            catch_response=True
+            catch_response=True,
         ) as response:
             if response.status_code == 201:
                 json_data = response.json()
@@ -148,7 +139,7 @@ class DocIngestionUser(HttpUser):
         with self.client.get(
             f"/api/v1/documents/{doc_id}/status",
             name="/api/v1/documents/{id}/status (GET)",
-            catch_response=True
+            catch_response=True,
         ) as response:
             if response.status_code == 200:
                 response.success()
@@ -167,9 +158,7 @@ class DocIngestionUser(HttpUser):
         doc_id = random.choice(self.uploaded_files)
 
         with self.client.get(
-            f"/api/v1/documents/{doc_id}",
-            name="/api/v1/documents/{id} (GET)",
-            catch_response=True
+            f"/api/v1/documents/{doc_id}", name="/api/v1/documents/{id} (GET)", catch_response=True
         ) as response:
             if response.status_code == 200:
                 response.success()
@@ -188,13 +177,12 @@ class DocIngestionUser(HttpUser):
 
         # Adicionar filtros aleatórios
         if random.random() > 0.5:
-            params["status"] = random.choice(["uploaded", "parsing", "parsed", "extracting", "completed"])
+            params["status"] = random.choice(
+                ["uploaded", "parsing", "parsed", "extracting", "completed"]
+            )
 
         with self.client.get(
-            "/api/v1/documents",
-            params=params,
-            name="/api/v1/documents (GET)",
-            catch_response=True
+            "/api/v1/documents", params=params, name="/api/v1/documents (GET)", catch_response=True
         ) as response:
             if response.status_code == 200:
                 response.success()
@@ -212,7 +200,7 @@ class DocIngestionUser(HttpUser):
         with self.client.post(
             f"/api/v1/documents/{doc_id}/parse",
             name="/api/v1/documents/{id}/parse (POST)",
-            catch_response=True
+            catch_response=True,
         ) as response:
             if response.status_code in [200, 202, 400]:
                 # 400 é aceitável se já foi parseado
@@ -231,7 +219,7 @@ class DocIngestionUser(HttpUser):
         with self.client.post(
             f"/api/v1/documents/{doc_id}/extract",
             name="/api/v1/documents/{id}/extract (POST)",
-            catch_response=True
+            catch_response=True,
         ) as response:
             if response.status_code in [200, 202, 400]:
                 response.success()
@@ -249,7 +237,7 @@ class DocIngestionUser(HttpUser):
         with self.client.get(
             f"/api/v1/documents/{doc_id}/entities",
             name="/api/v1/documents/{id}/entities (GET)",
-            catch_response=True
+            catch_response=True,
         ) as response:
             if response.status_code in [200, 404]:
                 response.success()
@@ -275,17 +263,17 @@ class DataMigrationUser(HttpUser):
             "modern_db_url": "postgresql://localhost:5432/modern_db",
             "tables": [
                 f"test_table_{random.randint(1, 10)}",
-                f"test_table_{random.randint(11, 20)}"
+                f"test_table_{random.randint(11, 20)}",
             ],
             "batch_size": random.choice([100, 500, 1000]),
-            "auto_approve": False
+            "auto_approve": False,
         }
 
         with self.client.post(
             "/api/v1/migrations",
             json=payload,
             name="/api/v1/migrations (POST)",
-            catch_response=True
+            catch_response=True,
         ) as response:
             if response.status_code == 201:
                 json_data = response.json()
@@ -310,7 +298,7 @@ class DataMigrationUser(HttpUser):
         with self.client.get(
             f"/api/v1/migrations/{job_id}",
             name="/api/v1/migrations/{id} (GET)",
-            catch_response=True
+            catch_response=True,
         ) as response:
             if response.status_code == 200:
                 response.success()
@@ -332,7 +320,7 @@ class DataMigrationUser(HttpUser):
             "/api/v1/migrations",
             params=params,
             name="/api/v1/migrations (GET)",
-            catch_response=True
+            catch_response=True,
         ) as response:
             if response.status_code == 200:
                 response.success()
@@ -350,7 +338,7 @@ class DataMigrationUser(HttpUser):
         with self.client.get(
             f"/api/v1/migrations/{job_id}/schema",
             name="/api/v1/migrations/{id}/schema (GET)",
-            catch_response=True
+            catch_response=True,
         ) as response:
             if response.status_code == 200:
                 response.success()
@@ -367,15 +355,13 @@ class DataMigrationUser(HttpUser):
 
         job_id = random.choice(self.migration_job_ids)
 
-        payload = {
-            "auto_approve": False
-        }
+        payload = {"auto_approve": False}
 
         with self.client.post(
             f"/api/v1/migrations/{job_id}/start",
             json=payload,
             name="/api/v1/migrations/{id}/start (POST)",
-            catch_response=True
+            catch_response=True,
         ) as response:
             if response.status_code in [200, 202, 400, 404]:
                 response.success()
@@ -393,7 +379,7 @@ class DataMigrationUser(HttpUser):
         with self.client.post(
             f"/api/v1/migrations/{job_id}/pause",
             name="/api/v1/migrations/{id}/pause (POST)",
-            catch_response=True
+            catch_response=True,
         ) as response:
             if response.status_code in [200, 400, 404]:
                 response.success()
@@ -411,7 +397,7 @@ class DataMigrationUser(HttpUser):
         with self.client.post(
             f"/api/v1/migrations/{job_id}/validate",
             name="/api/v1/migrations/{id}/validate (POST)",
-            catch_response=True
+            catch_response=True,
         ) as response:
             if response.status_code in [200, 400, 404]:
                 response.success()
@@ -438,20 +424,18 @@ class DocIngestionDataMigrationMixUser(HttpUser):
 
         try:
             filename = f"mixed_test_doc_{uuid.uuid4().hex[:8]}.pdf"
-            files = {
-                "file": (filename, io.BytesIO(SAMPLE_PDF_CONTENT), "application/pdf")
-            }
+            files = {"file": (filename, io.BytesIO(SAMPLE_PDF_CONTENT), "application/pdf")}
             data = {
                 "title": f"Mixed Test Document {uuid.uuid4().hex[:8]}",
                 "uploaded_by": "mixed_load_test_user",
-                "project_id": f"project_{random.randint(1, 3)}"
+                "project_id": f"project_{random.randint(1, 3)}",
             }
 
             response = requests.post(
                 f"{self.doc_ingestion_host}/api/v1/documents/upload",
                 files=files,
                 data=data,
-                timeout=10
+                timeout=10,
             )
 
             if response.status_code == 201:
@@ -462,7 +446,7 @@ class DocIngestionDataMigrationMixUser(HttpUser):
             else:
                 self.environment.doc_upload_failed += 1
 
-        except Exception as e:
+        except Exception:
             self.environment.doc_upload_failed += 1
 
     @task(1)
@@ -476,13 +460,11 @@ class DocIngestionDataMigrationMixUser(HttpUser):
                 "modern_db_url": "postgresql://localhost:5432/modern_test",
                 "tables": ["users", "orders"],
                 "batch_size": 500,
-                "auto_approve": False
+                "auto_approve": False,
             }
 
             response = requests.post(
-                f"{self.data_migration_host}/api/v1/migrations",
-                json=payload,
-                timeout=10
+                f"{self.data_migration_host}/api/v1/migrations", json=payload, timeout=10
             )
 
             if response.status_code == 201:
@@ -493,7 +475,7 @@ class DocIngestionDataMigrationMixUser(HttpUser):
             else:
                 self.environment.migration_create_failed += 1
 
-        except Exception as e:
+        except Exception:
             self.environment.migration_create_failed += 1
 
     @task(3)
@@ -503,10 +485,7 @@ class DocIngestionDataMigrationMixUser(HttpUser):
 
         # Doc Ingestion health
         try:
-            response = requests.get(
-                f"{self.doc_ingestion_host}/health",
-                timeout=2
-            )
+            response = requests.get(f"{self.doc_ingestion_host}/health", timeout=2)
             if response.status_code == 200:
                 self.environment.doc_health_ok += 1
             else:
@@ -516,10 +495,7 @@ class DocIngestionDataMigrationMixUser(HttpUser):
 
         # Data Migration health
         try:
-            response = requests.get(
-                f"{self.data_migration_host}/health",
-                timeout=2
-            )
+            response = requests.get(f"{self.data_migration_host}/health", timeout=2)
             if response.status_code == 200:
                 self.environment.migration_health_ok += 1
             else:
@@ -529,6 +505,7 @@ class DocIngestionDataMigrationMixUser(HttpUser):
 
 
 # ========== Event Handlers para Métricas ==========
+
 
 @events.test_start.add_listener
 def on_test_start(environment, **kwargs):

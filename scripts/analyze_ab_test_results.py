@@ -13,8 +13,8 @@ Uso:
 import argparse
 import json
 import sys
-from datetime import datetime, timedelta, timezone
-from typing import Dict, Any, Optional
+from datetime import datetime, timezone
+from typing import Dict, Any
 import structlog
 
 try:

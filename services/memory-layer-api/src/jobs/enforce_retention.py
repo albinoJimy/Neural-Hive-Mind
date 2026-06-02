@@ -215,7 +215,9 @@ class RetentionEnforcer:
         """
         logger.info("Aplicando retenção no ClickHouse...")
 
-        cutoff_date = datetime.now(timezone.utc) - timedelta(days=self.clickhouse_retention_months * 30)
+        cutoff_date = datetime.now(timezone.utc) - timedelta(
+            days=self.clickhouse_retention_months * 30
+        )
         database = self.clickhouse_client.database
 
         tables = ["operational_context_history", "data_lineage_history", "quality_metrics_history"]

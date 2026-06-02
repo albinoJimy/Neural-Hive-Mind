@@ -11,7 +11,7 @@ Executar no MongoDB shell:
   )
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime
 
 
 def upgrade(mongo):

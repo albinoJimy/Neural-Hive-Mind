@@ -32,12 +32,11 @@ import os
 import json
 import time
 import uuid
-import string
 import random
 import traceback
 import argparse
 from datetime import datetime, timezone
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any
 from pathlib import Path
 
 import grpc
@@ -877,7 +876,7 @@ class TestResultsDocumenter:
             import google.protobuf
 
             return google.protobuf.__version__
-        except:
+        except Exception:
             return "unknown"
 
     def _get_grpcio_version(self) -> str:
@@ -886,7 +885,7 @@ class TestResultsDocumenter:
             import grpc
 
             return grpc.__version__
-        except:
+        except Exception:
             return "unknown"
 
 
@@ -962,14 +961,14 @@ def print_banner(args):
         import google.protobuf
 
         print(f"Protobuf:     {google.protobuf.__version__}")
-    except:
+    except Exception:
         print("Protobuf:     unknown")
 
     try:
         import grpc
 
         print(f"gRPC:         {grpc.__version__}")
-    except:
+    except Exception:
         print("gRPC:         unknown")
 
     print(f"Python:       {sys.version.split()[0]}")

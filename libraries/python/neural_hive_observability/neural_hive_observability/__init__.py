@@ -34,7 +34,7 @@ def process_intention(intent_id: str, user_input: str):
 
 import logging as stdlib_logging  # Import with alias to avoid conflict with local .logging module
 import os
-from typing import Any, Dict, Optional
+from typing import Optional
 
 from .config import ObservabilityConfig
 from .context import ContextManager, inject_context_to_metadata
@@ -84,6 +84,14 @@ from .kafka_instrumentation import (
 )
 from .logging import get_logger, init_logging
 from .metrics import NeuralHiveMetrics, init_metrics
+from .middleware import (
+    TraceContextMiddleware,
+    extract_traceparent_from_request,
+    extract_tracestate_from_request,
+    get_trace_id_from_request,
+    parse_traceparent,
+    validate_trace_context,
+)
 from .privacy import (
     PII_FIELDS,
     get_safe_email,
@@ -97,14 +105,6 @@ from .rate_limit import (
     RateLimitMiddleware,
     check_rate_limit_middleware,
     rate_limit_decorator,
-)
-from .middleware import (
-    TraceContextMiddleware,
-    extract_traceparent_from_request,
-    extract_tracestate_from_request,
-    get_trace_id_from_request,
-    parse_traceparent,
-    validate_trace_context,
 )
 from .tracing import (
     flush_traces,
@@ -259,6 +259,12 @@ __all__ = [
     "trace_intent",
     "trace_plan",
     "get_tracer",
+    "init_tracing",
+    "flush_traces",
+    "shutdown_tracing",
+    "sync_span",
+    "get_current_span_id",
+    "get_current_trace_id",
     # Métricas
     "NeuralHiveMetrics",
     "get_metrics",
@@ -300,8 +306,14 @@ __all__ = [
     "instrument_grpc_channel",
     "NeuralHiveGrpcServerInterceptor",
     "trace_grpc_method",
+    "inject_grpc_context",
     # Context propagation
     "inject_context_to_metadata",
+    # Rate limiting
+    "InMemoryRateLimiter",
+    "RateLimitMiddleware",
+    "check_rate_limit_middleware",
+    "rate_limit_decorator",
     # Kafka instrumentation
     "instrument_kafka_producer",
     "instrument_kafka_consumer",

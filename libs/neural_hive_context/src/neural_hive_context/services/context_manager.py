@@ -219,12 +219,14 @@ class ContextManagerService(IContextManager):
         )
 
         enriched = cognitive_plan.copy()
-        enriched.update({
-            "workflow_type": workflow_type_value,
-            "context_id": context.context_id,
-            "workflow_confidence": classification.confidence,
-            "workflow_reasoning": classification.reasoning,
-        })
+        enriched.update(
+            {
+                "workflow_type": workflow_type_value,
+                "context_id": context.context_id,
+                "workflow_confidence": classification.confidence,
+                "workflow_reasoning": classification.reasoning,
+            }
+        )
         return enriched
 
     async def _fetch_system_context(self) -> SystemContext:
@@ -238,7 +240,7 @@ class ContextManagerService(IContextManager):
                     resource_utilization=state.get("resource_utilization", {}),
                     system_load=state.get("system_load", 0.0),
                 )
-            except Exception as e:
+            except Exception:
                 # Fallback para contexto vazio
                 return SystemContext()
         return SystemContext()

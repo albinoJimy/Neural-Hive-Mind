@@ -6,7 +6,7 @@ Testa avaliação de risco e scoring de decisões.
 """
 
 import pytest
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from uuid import uuid4
 
 

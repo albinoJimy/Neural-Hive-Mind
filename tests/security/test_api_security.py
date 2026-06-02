@@ -7,8 +7,6 @@ Testa segurança de endpoints FastAPI: rate limiting, input validation, etc.
 
 import pytest
 from datetime import datetime, timedelta, timezone
-from unittest.mock import AsyncMock, MagicMock, patch
-from uuid import uuid4
 import json
 
 
@@ -366,7 +364,6 @@ class TestCommandInjectionPrevention:
         user_input = "file.txt"
 
         # Uso correto: lista de argumentos, não string
-        import subprocess
 
         args = ["cat", user_input]
 

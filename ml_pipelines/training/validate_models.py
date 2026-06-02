@@ -11,11 +11,10 @@ Calcula métricas de qualidade para modelos treinados:
 Aprova modelos apenas se métricas superiores ao baseline.
 """
 
-import os
-import sys
+import json
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, List, Any, Optional, Tuple
+from typing import Dict, Any
 import pandas as pd
 import numpy as np
 from sklearn.metrics import (
@@ -25,9 +24,6 @@ from sklearn.metrics import (
     accuracy_score,
     confusion_matrix,
     classification_report,
-    brier_score_loss,
-    roc_auc_score,
-    roc_curve,
 )
 import structlog
 
@@ -144,7 +140,7 @@ class ModelValidator:
         report["classification_report"] = classification_report(
             y_test,
             y_pred,
-            target_names=[self._label_to_name(l) for l in unique_labels],
+            target_names=[self._label_to_name(label) for label in unique_labels],
             zero_division=0,
             output_dict=True,
         )

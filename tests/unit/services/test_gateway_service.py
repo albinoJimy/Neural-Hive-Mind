@@ -5,8 +5,6 @@ GAP-04: Cobertura de Testes 16% → 70%
 Testa roteamento, validação e processamento de intenções.
 """
 
-import pytest
-import asyncio
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 

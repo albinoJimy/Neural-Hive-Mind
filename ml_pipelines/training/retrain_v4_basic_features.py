@@ -10,16 +10,14 @@ Objetivo: Criar modelo estável antes de ter mais dados semânticos.
 """
 
 import os
-import sys
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, List, Any
 
 import pandas as pd
 import numpy as np
 from pymongo import MongoClient
 from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
-from sklearn.model_selection import train_test_split, cross_val_score
+from sklearn.model_selection import train_test_split
 from sklearn.metrics import (
     precision_score,
     recall_score,
@@ -48,7 +46,7 @@ LABEL_NAMES = {0: "reject", 1: "approve", 2: "review_required"}
 print("=" * 70)
 print(f"🤖 RETRAINING {SPECIALIST.upper()} - BASIC FEATURES (v4)")
 print("=" * 70)
-print(f"MongoDB: mongodb.mongodb-cluster.svc.cluster.local:27017")
+print("MongoDB: mongodb.mongodb-cluster.svc.cluster.local:27017")
 print(f"Min samples: {MIN_SAMPLES}, Days: {DAYS}")
 print()
 
@@ -171,7 +169,7 @@ X_train, X_test, y_train, y_test = train_test_split(
     X, y, test_size=0.2, random_state=42, stratify=y
 )
 
-print(f"📈 Distribuição de labels:")
+print("📈 Distribuição de labels:")
 for label, name in LABEL_NAMES.items():
     count_train = (y_train == label).sum()
     count_test = (y_test == label).sum()
@@ -182,7 +180,7 @@ for label, name in LABEL_NAMES.items():
     )
 
 # 4. Treinar modelos
-print(f"\n🤖 Treinando modelos...")
+print("\n🤖 Treinando modelos...")
 
 # Calcular pesos de classe para balancear
 from sklearn.utils.class_weight import compute_class_weight
@@ -255,7 +253,7 @@ print(
 
 # 8. Matriz de confusão
 cm = confusion_matrix(y_test, best_predictions)
-print(f"\n📊 Confusion Matrix:")
+print("\n📊 Confusion Matrix:")
 print("              Predicted")
 print("        Reject  Approve  Review")
 for i, row in enumerate(cm):

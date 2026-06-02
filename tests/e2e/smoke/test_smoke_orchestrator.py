@@ -107,7 +107,7 @@ class TestOrchestratorSmokeComplete:
 
         # Se não disponível, skip teste
         if not result["health"]["available"]:
-            pytest.skip(f"Orchestrator não disponível")
+            pytest.skip("Orchestrator não disponível")
 
         assert result["health"]["status_code"] == 200
         assert result["ready"]["status_code"] in {200, 503}

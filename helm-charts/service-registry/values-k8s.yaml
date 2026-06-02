@@ -16,6 +16,9 @@ config:
   redis:
     existingSecret: "redis-password"
     existingSecretKey: "password"
+  environment: "production"
+  logLevel: "INFO"
+  debug: false
 
 image:
   repository: ghcr.io/albinojimy/neural-hive-mind/service-registry
@@ -82,11 +85,6 @@ readinessProbe:
   periodSeconds: 10
   timeoutSeconds: 5
   failureThreshold: 3
-
-config:
-  environment: "production"
-  logLevel: "INFO"
-  debug: false
 
 serviceMonitor:
   enabled: false

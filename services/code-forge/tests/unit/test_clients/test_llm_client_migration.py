@@ -30,9 +30,7 @@ async def test_llm_client_initialization():
     assert client.model_name == "llama2"
 
     # Testar com provider OpenAI
-    client = LLMClient(
-        provider=LLMProvider.OPENAI, api_key="sk-test", model_name="gpt-4"
-    )
+    client = LLMClient(provider=LLMProvider.OPENAI, api_key="sk-test", model_name="gpt-4")
     assert client.provider == LLMProvider.OPENAI
     assert client.api_key == "sk-test"
 
@@ -115,7 +113,9 @@ async def test_generate_code_extracts_markdown_blocks():
     with patch("src.clients.llm_client_wrapper.NeuralHiveLLMClient") as mock_client_class:
         mock_response = MagicMock()
         # Resposta com markdown code blocks
-        mock_response.text = 'Aqui está o código:\n```python\ndef func():\n    pass\n```\nEspero que ajude!'
+        mock_response.text = (
+            "Aqui está o código:\n```python\ndef func():\n    pass\n```\nEspero que ajude!"
+        )
         mock_response.prompt_tokens = 50
         mock_response.completion_tokens = 20
 
@@ -195,9 +195,7 @@ async def test_generate_code_handles_errors():
         client = LLMClient(provider=LLMProvider.LOCAL)
         client._client = mock_instance
 
-        result = await client.generate_code(
-            prompt="Test", constraints={"language": "python"}
-        )
+        result = await client.generate_code(prompt="Test", constraints={"language": "python"})
 
         # Deve retornar None em caso de erro
         assert result is None
@@ -209,9 +207,7 @@ async def test_generate_code_without_initialization():
     client = LLMClient(provider=LLMProvider.LOCAL)
     # Não chamar start()
 
-    result = await client.generate_code(
-        prompt="Test", constraints={"language": "python"}
-    )
+    result = await client.generate_code(prompt="Test", constraints={"language": "python"})
 
     assert result is None
 
@@ -258,9 +254,7 @@ async def test_generate_code_returns_token_counts(mock_neural_hive_response):
         client = LLMClient(provider=LLMProvider.LOCAL)
         client._client = mock_instance
 
-        result = await client.generate_code(
-            prompt="Test", constraints={"language": "python"}
-        )
+        result = await client.generate_code(prompt="Test", constraints={"language": "python"})
 
         assert result is not None
         assert result["prompt_tokens"] == 100

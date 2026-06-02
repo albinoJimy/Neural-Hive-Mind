@@ -5,11 +5,8 @@ GAP-04: Cobertura de Testes 16% → 70%
 Testa logging, métricas, e tracing.
 """
 
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
-import json
 
 
 # =============================================================================

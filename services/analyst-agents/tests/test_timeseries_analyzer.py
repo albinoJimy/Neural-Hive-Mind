@@ -181,7 +181,8 @@ async def test_detect_anomalies_async_zscore(timeseries_analyzer):
     )
 
     data = [
-        (datetime.now(timezone.utc) - timedelta(minutes=i), 50.0 + np.random.randn() * 2) for i in range(20)
+        (datetime.now(timezone.utc) - timedelta(minutes=i), 50.0 + np.random.randn() * 2)
+        for i in range(20)
     ]
     # Adicionar anomalia
     data[10] = (data[10][0], 95.0)
@@ -208,7 +209,8 @@ async def test_detect_anomalies_async_iqr(timeseries_analyzer):
     # Dados com variância
     np.random.seed(42)
     data = [
-        (datetime.now(timezone.utc) - timedelta(minutes=i), 50.0 + np.random.randn() * 3) for i in range(20)
+        (datetime.now(timezone.utc) - timedelta(minutes=i), 50.0 + np.random.randn() * 3)
+        for i in range(20)
     ]
     data[5] = (data[5][0], 100.0)
 
@@ -232,7 +234,8 @@ async def test_detect_anomalies_async_moving_avg(timeseries_analyzer):
     # Dados com variância
     np.random.seed(42)
     data = [
-        (datetime.now(timezone.utc) - timedelta(minutes=i), 50.0 + np.random.randn() * 2) for i in range(20)
+        (datetime.now(timezone.utc) - timedelta(minutes=i), 50.0 + np.random.randn() * 2)
+        for i in range(20)
     ]
     data[10] = (data[10][0], 95.0)
 

@@ -217,7 +217,11 @@ async def startup_event():
 
         # Inicializar Kafka consumer (com DLQ producer)
         state.plan_consumer = PlanConsumer(
-            settings, state.specialists_client, state.mongodb_client, state.pheromone_client, state.dlq_producer
+            settings,
+            state.specialists_client,
+            state.mongodb_client,
+            state.pheromone_client,
+            state.dlq_producer,
         )
         await state.plan_consumer.initialize()
         state.plan_consumer = instrument_kafka_consumer(state.plan_consumer)
@@ -247,12 +251,12 @@ async def startup_event():
         if state.mongodb_client:
             try:
                 await state.mongodb_client.close()
-            except:
+            except Exception:
                 pass
         if state.redis_client:
             try:
                 await state.redis_client.close()
-            except:
+            except Exception:
                 pass
         raise
 

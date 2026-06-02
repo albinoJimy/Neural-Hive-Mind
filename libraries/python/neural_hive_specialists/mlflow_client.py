@@ -270,9 +270,6 @@ class MLflowClient:
 
                         # Attempt 1: Try loading via sklearn directly with custom unpickler
                         try:
-                            import io
-                            import pickle
-
                             # Download model artifacts
                             artifacts_path = mlflow.artifacts.download_artifacts(
                                 artifact_uri=model_uri

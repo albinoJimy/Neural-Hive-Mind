@@ -6,11 +6,8 @@ Testa roteamento, NLU, e comunicação com STE.
 """
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch, Mock
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
-import asyncio
-import json
 
 
 # =============================================================================

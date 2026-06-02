@@ -5,7 +5,6 @@ TDD approach.
 """
 
 import pytest
-from datetime import datetime
 
 from neural_hive_context.services.workflow_classifier import MultiSignalWorkflowClassifier
 from neural_hive_context.models import (
@@ -32,12 +31,12 @@ class TestMultiSignalWorkflowClassifier:
                 current_time="2026-04-23T10:00:00Z",
                 time_of_day="morning",
                 day_of_week="Wednesday",
-                is_business_hours=True
+                is_business_hours=True,
             ),
             security=SecurityContext(),
             conversation=ConversationContext(),
             context_id="test-ctx-123",
-            created_at="2026-04-23T10:00:00Z"
+            created_at="2026-04-23T10:00:00Z",
         )
 
     @pytest.mark.asyncio
@@ -79,7 +78,7 @@ class TestMultiSignalWorkflowClassifier:
             "worker-agents",
             "analyst-agents",
             "scout-agents",
-            "optimizer-agents"
+            "optimizer-agents",
         ]
         classifier = MultiSignalWorkflowClassifier()
         result = await classifier.classify(minimal_context)
@@ -90,15 +89,14 @@ class TestMultiSignalWorkflowClassifier:
     @pytest.mark.asyncio
     async def test_pii_signal_favors_orchestration(self, minimal_context):
         """Presença de PII deve favorecer ORCHESTRATION."""
+
         # Mock PII detector que retorna PII detectado
         class MockPIIDetector:
             def detect(self, text):
                 from neural_hive_context.models import PIIResult, PIIRiskLevel
+
                 return PIIResult(
-                    has_pii=True,
-                    entities=[],
-                    risk_level=PIIRiskLevel.HIGH,
-                    requires_redaction=True
+                    has_pii=True, entities=[], risk_level=PIIRiskLevel.HIGH, requires_redaction=True
                 )
 
         classifier = MultiSignalWorkflowClassifier(pii_detector=MockPIIDetector())
@@ -173,12 +171,12 @@ class TestSignalExtraction:
                 current_time="2026-04-23T10:00:00Z",
                 time_of_day="morning",
                 day_of_week="Wednesday",
-                is_business_hours=True
+                is_business_hours=True,
             ),
             security=SecurityContext(),
             conversation=ConversationContext(),
             context_id="test",
-            created_at="2026-04-23T10:00:00Z"
+            created_at="2026-04-23T10:00:00Z",
         )
 
         signal = classifier._extract_user_input_signal(context)
@@ -194,12 +192,12 @@ class TestSignalExtraction:
                 current_time="2026-04-23T10:00:00Z",
                 time_of_day="morning",
                 day_of_week="Wednesday",
-                is_business_hours=True
+                is_business_hours=True,
             ),
             security=SecurityContext(),
             conversation=ConversationContext(),
             context_id="test",
-            created_at="2026-04-23T10:00:00Z"
+            created_at="2026-04-23T10:00:00Z",
         )
 
         signal = classifier._extract_user_input_signal(context)
@@ -215,12 +213,12 @@ class TestSignalExtraction:
                 current_time="2026-04-23T10:00:00Z",
                 time_of_day="morning",
                 day_of_week="Wednesday",
-                is_business_hours=True
+                is_business_hours=True,
             ),
             security=SecurityContext(),
             conversation=ConversationContext(),
             context_id="test",
-            created_at="2026-04-23T10:00:00Z"
+            created_at="2026-04-23T10:00:00Z",
         )
 
         signal = classifier._extract_affected_services_signal(context)
@@ -235,12 +233,12 @@ class TestSignalExtraction:
                 current_time="2026-04-23T10:00:00Z",
                 time_of_day="morning",
                 day_of_week="Wednesday",
-                is_business_hours=True
+                is_business_hours=True,
             ),
             security=SecurityContext(),
             conversation=ConversationContext(),
             context_id="test",
-            created_at="2026-04-23T10:00:00Z"
+            created_at="2026-04-23T10:00:00Z",
         )
 
         signal = classifier._extract_affected_services_signal(context)

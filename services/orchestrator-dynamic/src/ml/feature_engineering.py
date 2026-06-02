@@ -5,7 +5,8 @@ Utilitários compartilhados para extração e normalização de features de tick
 para modelos de predição de duração e detecção de anomalias.
 """
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
+
 UTC = timezone.utc
 
 UTC = timezone.utc  # type: ignore, timedelta
@@ -156,7 +157,7 @@ def extract_ticket_features(
                 try:
                     dt = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
                     hour_of_day = dt.hour
-                except:
+                except Exception:
                     pass
             elif isinstance(created_at, datetime):
                 hour_of_day = created_at.hour
@@ -165,7 +166,7 @@ def extract_ticket_features(
                     # Converte timestamp em milissegundos para datetime
                     dt = datetime.fromtimestamp(created_at / 1000, tz=UTC)
                     hour_of_day = dt.hour
-                except:
+                except Exception:
                     pass
 
         # Features históricas (se disponíveis)

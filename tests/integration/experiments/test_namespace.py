@@ -190,15 +190,11 @@ class TestExperimentsNamespace:
 
         # Verificar que o configmap NÃO existe no namespace default
         with pytest.raises(ApiException) as exc_info:
-            k8s_core_client.read_namespaced_config_map(
-                name=configmap_name, namespace="default"
-            )
+            k8s_core_client.read_namespaced_config_map(name=configmap_name, namespace="default")
         assert exc_info.value.status == 404
 
         # Limpeza
-        k8s_core_client.delete_namespaced_config_map(
-            name=configmap_name, namespace=namespace_name
-        )
+        k8s_core_client.delete_namespaced_config_map(name=configmap_name, namespace=namespace_name)
 
     def test_namespace_deletion(self, k8s_core_client, test_experiments_namespace):
         """

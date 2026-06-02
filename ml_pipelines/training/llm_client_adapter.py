@@ -121,9 +121,9 @@ class LLMClientAdapter:
                 headers["Authorization"] = f"Bearer {self.api_key}"
             elif self.provider == LLMProvider.OPENROUTER:
                 headers["Authorization"] = f"Bearer {self.api_key}"
-                headers["HTTP-Referer"] = (
-                    "https://neural-hive-mind.local"  # Requerido pelo OpenRouter
-                )
+                headers[
+                    "HTTP-Referer"
+                ] = "https://neural-hive-mind.local"  # Requerido pelo OpenRouter
                 headers["X-Title"] = "Neural Hive Mind Dataset Generator"
             elif self.provider == LLMProvider.ANTHROPIC:
                 headers["x-api-key"] = self.api_key

@@ -146,7 +146,7 @@ class LLMClient:
             )
 
     @property
-    def chat(self) -> "Chat":
+    def chat(self) -> "Chat":  # noqa: F821 - Chat é classe local definida no corpo deste property
         """Propriedade para compatibilidade com openai.AsyncOpenAI.chat."""
 
         class Chat:

@@ -1,6 +1,5 @@
 """Testes unitários para TokenCounter."""
 
-import pytest
 
 from neural_hive_llm.token_counter import (
     ModelPricing,

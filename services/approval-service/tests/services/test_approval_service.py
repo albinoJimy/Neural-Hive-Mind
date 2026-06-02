@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, Mock, patch
 import pytest
 from pymongo.errors import DuplicateKeyError
 from src.config.settings import Settings
-from neural_hive_approval_common import ApprovalDecision, ApprovalRequest
+from neural_hive_approval_common import ApprovalRequest
 from src.services.approval_service import ApprovalService
 
 

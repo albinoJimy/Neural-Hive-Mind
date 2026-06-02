@@ -103,7 +103,7 @@ def create_test_plan_approvals():
         }
 
         # Criar approval request
-        approval_request = {
+        approval_request = {  # noqa: F841
             "approval_id": str(uuid.uuid4()),
             "plan_id": plan_id,
             "intent_id": intent_id,
@@ -133,7 +133,6 @@ def create_test_plan_approvals():
 
 if __name__ == "__main__":
     import json
-    import sys
 
     print("=" * 60)
     print("CRIANDO PLAN_APPROVALS DE TESTE")
@@ -153,4 +152,4 @@ if __name__ == "__main__":
     # Salvar para referência
     with open("scripts/test_plan_ids.json", "w") as f:
         json.dump(plans, f, indent=2)
-    print(f"Plan IDs salvos em: scripts/test_plan_ids.json")
+    print("Plan IDs salvos em: scripts/test_plan_ids.json")

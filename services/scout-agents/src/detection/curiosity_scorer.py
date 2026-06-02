@@ -117,7 +117,7 @@ class CuriosityScorer:
             try:
                 distance = np.linalg.norm(features - hist_features)
                 distances.append(distance)
-            except:
+            except Exception:
                 continue
 
         if not distances:
@@ -223,7 +223,7 @@ class CuriosityScorer:
 
             return float(uncertainty)
 
-        except:
+        except Exception:
             return 0.5
 
     def adapt_weights(self, domain: UnifiedDomain, feedback_score: float):

@@ -14,7 +14,7 @@ import os
 import pickle
 import tempfile
 from pathlib import Path
-from unittest.mock import Mock, MagicMock, patch
+from unittest.mock import Mock, patch
 
 import pytest
 import numpy as np
@@ -232,8 +232,6 @@ class TestApprovalPredictorProfessionalMode:
                 "ml_pipelines.inference.feature_adapter.get_feature_adapter",
                 return_value=mock_feature_adapter,
             ):
-                from ml_pipelines.inference.approval_predictor import ApprovalPredictor
-
                 # Força reload do módulo para pegar a variável de ambiente
                 import importlib
                 import ml_pipelines.inference.approval_predictor as ap_module
@@ -293,8 +291,6 @@ class TestApprovalPredictorFallback:
                 "ml_pipelines.inference.feature_adapter.get_feature_adapter",
                 return_value=failing_adapter,
             ):
-                from ml_pipelines.inference.approval_predictor import ApprovalPredictor
-
                 import importlib
                 import ml_pipelines.inference.approval_predictor as ap_module
 
@@ -328,8 +324,6 @@ class TestFeatureCompatibility:
 
         model_path_legacy = create_test_model_file()
         try:
-            from ml_pipelines.inference.approval_predictor import ApprovalPredictor
-
             import importlib
             import ml_pipelines.inference.approval_predictor as ap_module
 
@@ -378,8 +372,6 @@ class TestModelInfo:
         model_path = create_test_model_file()
 
         try:
-            from ml_pipelines.inference.approval_predictor import ApprovalPredictor
-
             import importlib
             import ml_pipelines.inference.approval_predictor as ap_module
 

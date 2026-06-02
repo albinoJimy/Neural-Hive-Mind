@@ -249,7 +249,7 @@ async def test_anomaly_detection_real(orchestrator_url, anomalous_ticket):
                     assert metadata["anomaly_detected"] is True
                     assert metadata["priority_score"] > 0.5  # Boosted
 
-                    print(f"✅ Anomalia detectada com sucesso:")
+                    print("✅ Anomalia detectada com sucesso:")
                     print(f"   - Tipo: {anomaly['type']}")
                     print(f"   - Score: {anomaly['score']:.2f}")
                     print(f"   - Priority boosted: {metadata['priority_score']:.2f}")
@@ -294,7 +294,7 @@ async def test_load_forecast_real(orchestrator_url):
         for ts in forecast["timestamps"]:
             datetime.fromisoformat(ts.replace("Z", "+00:00"))
 
-        print(f"✅ Load forecast obtido com sucesso:")
+        print("✅ Load forecast obtido com sucesso:")
         print(f"   - Horizonte: {forecast['horizon_minutes']} minutos")
         print(f"   - Pontos: {len(forecast['forecast'])}")
         print(f"   - Modelo: {forecast['model_type']}")

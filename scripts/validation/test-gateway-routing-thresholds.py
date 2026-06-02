@@ -12,8 +12,8 @@ import argparse
 import json
 import requests
 import time
-from collections import Counter, defaultdict
-from typing import List, Dict, Tuple
+from collections import Counter
+from typing import List, Dict
 import statistics
 
 
@@ -116,17 +116,17 @@ def print_summary(summary: Dict):
     print("RESUMO DOS TESTES")
     print("=" * 60)
     print(f"\nTotal de intents testadas: {summary['total_intents']}")
-    print(f"\nDistribuição de status:")
+    print("\nDistribuição de status:")
     for status, count in summary["status_distribution"].items():
         percentage = (count / summary["total_intents"]) * 100
         print(f"  {status}: {count} ({percentage:.1f}%)")
 
-    print(f"\nTaxas:")
+    print("\nTaxas:")
     print(f"  Processamento normal: {summary['processed_rate_percent']}%")
     print(f"  Baixa confiança: {summary['low_confidence_rate_percent']}%")
     print(f"  Validação manual: {summary['validation_rate_percent']}%")
 
-    print(f"\nEstatísticas de confidence:")
+    print("\nEstatísticas de confidence:")
     stats = summary["confidence_stats"]
     print(f"  Média: {stats['mean']}")
     print(f"  Mediana: {stats['median']}")
@@ -134,7 +134,7 @@ def print_summary(summary: Dict):
     print(f"  Min: {stats['min']} | Max: {stats['max']}")
 
     if summary["accuracy_percent"]:
-        print(f"\nPrecisão de classificação:")
+        print("\nPrecisão de classificação:")
         print(
             f"  Corretas: {summary['correct_classifications']}/{summary['total_with_expected_domain']}"
         )

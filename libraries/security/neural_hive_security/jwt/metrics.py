@@ -12,7 +12,7 @@ Integração com SEC-008: Observabilidade da validação de trust bundle.
 from functools import lru_cache
 
 try:
-    from prometheus_client import REGISTRY, Counter, Gauge, Histogram
+    from prometheus_client import Counter, Gauge, Histogram
 
     PROMETHEUS_AVAILABLE = True
 except ImportError:

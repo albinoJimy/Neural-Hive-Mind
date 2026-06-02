@@ -14,7 +14,6 @@ Migra feedbacks da versão 1.0.0 para 2.0.0 do schema, adicionando:
 
 import sys
 from datetime import datetime, timezone
-from pathlib import Path
 from pymongo import MongoClient, UpdateOne
 from tqdm import tqdm
 
@@ -155,9 +154,7 @@ def migrate_feedbacks(client, db, opinions_map):
         # Executar em batches
         if len(bulk_updates) >= BATCH_SIZE:
             if not DRY_RUN:
-                result = feedbacks_col.bulk_write(bulk_updates)
-            else:
-                result = type("obj", (object,), {"modified_count": len(bulk_updates)})()
+                feedbacks_col.bulk_write(bulk_updates)
             bulk_updates = []
             print(f"  ✓ Batch de {BATCH_SIZE} processado")
 
@@ -170,7 +167,7 @@ def migrate_feedbacks(client, db, opinions_map):
 
 def verify_migration(client, db):
     """Verifica se a migração foi bem-sucedida."""
-    print(f"\n🔍 Verificando migração...")
+    print("\n🔍 Verificando migração...")
 
     feedbacks_col = db[FEEDBACK_COLLECTION]
 
@@ -185,7 +182,7 @@ def verify_migration(client, db):
 
     total = feedbacks_col.estimated_document_count()
 
-    print(f"📊 Status:")
+    print("📊 Status:")
     print(f"  Total de feedbacks: {total}")
     print(f"  Feedbacks enriquecidos: {enriched}")
     print(f"  Coverage: {enriched/total*100:.1f}%")
@@ -194,7 +191,7 @@ def verify_migration(client, db):
     sample = feedbacks_col.find_one({"opinion_recommendation": {"$exists": True}})
 
     if sample:
-        print(f"\n📄 Amostra de feedback enriquecido:")
+        print("\n📄 Amostra de feedback enriquecido:")
         print(f"  schema_version: {sample.get('schema_version')}")
         print(f"  opinion_recommendation: {sample.get('opinion_recommendation')}")
         print(f"  opinion_confidence: {sample.get('opinion_confidence')}")
@@ -205,7 +202,7 @@ def main():
     print("=" * 60)
     print("MIGRAÇÃO DE FEEDBACKS v1.0.0 → v2.0.0")
     print("=" * 60)
-    print(f"MongoDB: mongodb.mongodb-cluster.svc.cluster.local:27017")
+    print("MongoDB: mongodb.mongodb-cluster.svc.cluster.local:27017")
     print(f"Database: {DB_NAME}")
     print(f"DRY_RUN: {DRY_RUN}")
     print("=" * 60)
@@ -225,7 +222,7 @@ def main():
         # Migrar feedbacks
         migrated, skipped = migrate_feedbacks(client, db, opinions_map)
 
-        print(f"\n📊 Resultado:")
+        print("\n📊 Resultado:")
         print(f"  Migrados: {migrated}")
         print(f"  Pulados (opinião não encontrada): {skipped}")
 

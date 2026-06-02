@@ -57,7 +57,10 @@ class TestContextManagerHttpHeaders:
         )
         ctx_manager = ContextManager(config)
 
-        headers = {"X-Neural-Hive-Intent-Id": "intent-123", "X-Neural-Hive-Channel": "api"}
+        headers = {
+            "X-Neural-Hive-Intent-Id": "intent-123",
+            "X-Neural-Hive-Channel": "api",
+        }
 
         result = ctx_manager.extract_http_headers(headers)
 
@@ -117,7 +120,10 @@ class TestContextManagerKafkaHeaders:
         )
         ctx_manager = ContextManager(config)
 
-        headers = {b"X-Neural-Hive-Intent-Id": b"intent-123", b"X-Neural-Hive-Plan-Id": b"plan-456"}
+        headers = {
+            b"X-Neural-Hive-Intent-Id": b"intent-123",
+            b"X-Neural-Hive-Plan-Id": b"plan-456",
+        }
 
         result = ctx_manager.extract_kafka_headers(headers)
 
@@ -389,7 +395,11 @@ class TestExtractContextFromMetadata:
 
     def test_extract_from_grpc_metadata_lowercase(self):
         """Testa extração de metadata gRPC (lowercase)."""
-        metadata = {"intent-id": "intent-123", "plan-id": "plan-456", "user-id": "user-789"}
+        metadata = {
+            "intent-id": "intent-123",
+            "plan-id": "plan-456",
+            "user-id": "user-789",
+        }
 
         result = extract_context_from_metadata(metadata)
 

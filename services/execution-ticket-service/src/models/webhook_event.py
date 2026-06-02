@@ -15,9 +15,9 @@ class WebhookEvent(BaseModel):
     """Evento de webhook para notificar Worker Agents."""
 
     event_id: str = Field(..., description="UUID do evento")
-    event_type: Literal["ticket.created", "ticket.updated", "ticket.completed", "ticket.failed"] = (
-        Field(..., description="Tipo de evento")
-    )
+    event_type: Literal[
+        "ticket.created", "ticket.updated", "ticket.completed", "ticket.failed"
+    ] = Field(..., description="Tipo de evento")
     ticket_id: str = Field(..., description="ID do ticket")
     ticket: ExecutionTicket = Field(..., description="Payload completo do ticket")
     timestamp: int = Field(..., description="Timestamp Unix (millis)")

@@ -5,10 +5,8 @@ GAP-04: Cobertura de Testes 16% → 70%
 Testa validação de aprovações, feedbacks e decisões.
 """
 
-import pytest
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
-from enum import Enum
 
 
 # =============================================================================

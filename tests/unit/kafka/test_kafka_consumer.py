@@ -6,9 +6,7 @@ Testa funcionalidades de consumo de mensagens Kafka via aiokafka.
 """
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
-from datetime import datetime, timedelta
-from uuid import uuid4
+from unittest.mock import AsyncMock, MagicMock
 
 
 # =============================================================================
@@ -220,7 +218,6 @@ class TestKafkaConsumerErrors:
     @pytest.mark.asyncio
     async def test_handle_deserialization_error(self):
         """Deve tratar erro de deserialização."""
-        from aiokafka.errors import KafkaError
 
         mock_message = MagicMock()
         mock_message.value = b"invalid-json"

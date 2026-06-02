@@ -6,7 +6,6 @@ Testes de integração para a API de memória unificada do Neural Hive-Mind.
 
 import pytest
 from httpx import AsyncClient
-from datetime import datetime, timedelta
 
 
 @pytest.mark.e2e

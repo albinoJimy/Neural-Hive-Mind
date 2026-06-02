@@ -8,7 +8,6 @@ import structlog
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from src.models.erasure import (
-    DataType,
     ErasureRequestInput,
     ErasureScope,
     ErasureStatusResponse,
@@ -84,9 +83,7 @@ async def create_erasure_request(
 
     except ValueError as e:
         if "ja existe" in str(e):
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT, detail=str(e)
-            )
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except Exception as e:
         logger.error("Erro ao criar solicitacao", error=str(e))
@@ -241,12 +238,7 @@ async def list_erasure_requests(
     if status_filter:
         query["status"] = status_filter
 
-    cursor = (
-        service.collection.find(query)
-        .sort("created_at", -1)
-        .skip(offset)
-        .limit(limit)
-    )
+    cursor = service.collection.find(query).sort("created_at", -1).skip(offset).limit(limit)
     requests = await cursor.to_list(length=limit)
 
     # Remover campos sensíveis

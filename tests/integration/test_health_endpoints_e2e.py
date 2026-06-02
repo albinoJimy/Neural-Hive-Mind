@@ -317,8 +317,12 @@ class TestHealthEndpoint:
         """
         result = await service_client.check_health()
 
-        assert result["success"] is True, f"Serviço {service_client.service_name} não respondeu: {result['error']}"
-        assert result["status_code"] == 200, f"Status code esperado 200, recebido {result['status_code']}"
+        assert (
+            result["success"] is True
+        ), f"Serviço {service_client.service_name} não respondeu: {result['error']}"
+        assert (
+            result["status_code"] == 200
+        ), f"Status code esperado 200, recebido {result['status_code']}"
         assert result["data"] is not None, "Response body está vazio"
 
         data = result["data"]
@@ -382,8 +386,13 @@ class TestReadyEndpoint:
         """
         result = await service_client.check_ready()
 
-        assert result["success"] is True, f"Serviço {service_client.service_name} não respondeu: {result['error']}"
-        assert result["status_code"] in [200, 503], f"Status code esperado 200 ou 503, recebido {result['status_code']}"
+        assert (
+            result["success"] is True
+        ), f"Serviço {service_client.service_name} não respondeu: {result['error']}"
+        assert result["status_code"] in [
+            200,
+            503,
+        ], f"Status code esperado 200 ou 503, recebido {result['status_code']}"
 
     async def test_ready_response_contains_status(self, service_client: ServiceHealthClient):
         """
@@ -447,8 +456,12 @@ class TestStartupEndpoint:
         """
         result = await service_client.check_startup()
 
-        assert result["success"] is True, f"Serviço {service_client.service_name} não respondeu: {result['error']}"
-        assert result["status_code"] == 200, f"Status code esperado 200, recebido {result['status_code']}"
+        assert (
+            result["success"] is True
+        ), f"Serviço {service_client.service_name} não respondeu: {result['error']}"
+        assert (
+            result["status_code"] == 200
+        ), f"Status code esperado 200, recebido {result['status_code']}"
 
     async def test_startup_response_contains_status(self, service_client: ServiceHealthClient):
         """
@@ -509,11 +522,13 @@ async def test_all_services_health_accessible(service_clients):
     for service_name, client in service_clients.items():
         result = await client.check_health()
         if not result["success"] or result["status_code"] != 200:
-            failed_services.append({
-                "service": service_name,
-                "error": result.get("error"),
-                "status_code": result.get("status_code"),
-            })
+            failed_services.append(
+                {
+                    "service": service_name,
+                    "error": result.get("error"),
+                    "status_code": result.get("status_code"),
+                }
+            )
 
     assert len(failed_services) == 0, f"Serviços com health falhando: {failed_services}"
 
@@ -533,11 +548,13 @@ async def test_all_services_ready_responds(service_clients):
     for service_name, client in service_clients.items():
         result = await client.check_ready()
         if not result["success"] or result["status_code"] not in [200, 503]:
-            failed_services.append({
-                "service": service_name,
-                "error": result.get("error"),
-                "status_code": result.get("status_code"),
-            })
+            failed_services.append(
+                {
+                    "service": service_name,
+                    "error": result.get("error"),
+                    "status_code": result.get("status_code"),
+                }
+            )
 
     assert len(failed_services) == 0, f"Serviços com ready falhando: {failed_services}"
 
@@ -559,11 +576,13 @@ async def test_services_with_startup_implement_it(service_clients):
             client = service_clients[service_name]
             result = await client.check_startup()
             if not result["success"] or result["status_code"] != 200:
-                failed_services.append({
-                    "service": service_name,
-                    "error": result.get("error"),
-                    "status_code": result.get("status_code"),
-                })
+                failed_services.append(
+                    {
+                        "service": service_name,
+                        "error": result.get("error"),
+                        "status_code": result.get("status_code"),
+                    }
+                )
 
     assert len(failed_services) == 0, f"Serviços com startup falhando: {failed_services}"
 
@@ -581,6 +600,4 @@ def pytest_configure(config: pytest.Config) -> None:
     config.addinivalue_line(
         "markers", "e2e: Testes E2E que validam fluxos completos entre serviços"
     )
-    config.addinivalue_line(
-        "markers", "health: Testes de health checks em todos os serviços"
-    )
+    config.addinivalue_line("markers", "health: Testes de health checks em todos os serviços")

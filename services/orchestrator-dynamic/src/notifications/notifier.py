@@ -261,9 +261,7 @@ class EmailNotifier(BaseNotifier):
         try:
             # Executa em thread pool pois smtplib é síncrono
             loop = asyncio.get_event_loop()
-            result = await loop.run_in_executor(
-                None, self._send_sync, subject, html_body
-            )
+            result = await loop.run_in_executor(None, self._send_sync, subject, html_body)
 
             self.logger.info(
                 "email_notification_sent",
@@ -367,9 +365,7 @@ class NotificationManager:
                     self.notifiers.append(slack)
                     self.logger.info("slack_notifier_initialized")
                 else:
-                    self.logger.warning(
-                        "slack_notifier_disabled_invalid_config"
-                    )
+                    self.logger.warning("slack_notifier_disabled_invalid_config")
 
             elif channel == "email" and self.config.is_channel_enabled("email"):
                 email = EmailNotifier(self.config)
@@ -377,9 +373,7 @@ class NotificationManager:
                     self.notifiers.append(email)
                     self.logger.info("email_notifier_initialized")
                 else:
-                    self.logger.warning(
-                        "email_notifier_disabled_invalid_config"
-                    )
+                    self.logger.warning("email_notifier_disabled_invalid_config")
 
         self.logger.info(
             "notification_manager_initialized",

@@ -153,7 +153,7 @@ class AnthropicProvider(BaseProvider):
         try:
             if not self._client:
                 await self.start()
-            response = await self._client.messages.create(
+            await self._client.messages.create(
                 model=self.model,
                 max_tokens=5,
                 messages=[{"role": "user", "content": "Hi"}],

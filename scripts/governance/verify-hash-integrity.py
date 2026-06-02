@@ -16,7 +16,7 @@ import json
 import hashlib
 import argparse
 from datetime import datetime
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any
 
 try:
     from pymongo import MongoClient

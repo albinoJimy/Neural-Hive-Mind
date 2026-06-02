@@ -14,7 +14,6 @@ import time
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, HTTPException, status
-from fastapi.responses import JSONResponse
 
 from src.models.nlu import (
     CalculateConfidenceRequest,
@@ -129,7 +128,9 @@ async def classify_domain(request: ClassifyDomainRequest) -> ClassifyDomainRespo
         )
 
         # Gerar reasoning
-        reasoning = f"Classificado como {domain.value} com base em análise de palavras-chave e padrões"
+        reasoning = (
+            f"Classificado como {domain.value} com base em análise de palavras-chave e padrões"
+        )
 
         processing_time_ms = int((time.time() - start_time) * 1000)
 
@@ -238,9 +239,7 @@ async def detect_language(request: DetectLanguageRequest) -> DetectLanguageRespo
         return DetectLanguageResponse(
             language=language,
             confidence=confidence,
-            candidates=[
-                {"language": lang, "confidence": conf} for lang, conf in candidates
-            ],
+            candidates=[{"language": lang, "confidence": conf} for lang, conf in candidates],
         )
 
     except Exception as e:

@@ -7,7 +7,7 @@ correlação e endpoints de exportação.
 
 import os
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Any
+from typing import Dict, Optional, Any
 from urllib.parse import urlparse
 
 

@@ -584,7 +584,9 @@ class TestInitMetrics:
     def test_init_metrics_singleton(self):
         """Testa que init_metrics retorna singleton."""
         config = ObservabilityConfig(
-            service_name="test-service", neural_hive_component="test-component", prometheus_port=0
+            service_name="test-service",
+            neural_hive_component="test-component",
+            prometheus_port=0,
         )
 
         metrics1 = init_metrics(config)
@@ -629,7 +631,9 @@ class TestGetMetrics:
     def test_get_metrics_returns_instance_after_init(self):
         """Testa que retorna instância após inicialização."""
         config = ObservabilityConfig(
-            service_name="test-service", neural_hive_component="test-component", prometheus_port=0
+            service_name="test-service",
+            neural_hive_component="test-component",
+            prometheus_port=0,
         )
 
         init_metrics(config)

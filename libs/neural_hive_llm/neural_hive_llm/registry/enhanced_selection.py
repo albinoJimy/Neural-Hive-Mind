@@ -4,7 +4,6 @@ Enhanced Selection Context with Additional Criteria.
 Contexto de seleção expandido com novos critérios.
 """
 
-from datetime import datetime
 from enum import Enum
 from typing import Optional
 
@@ -66,9 +65,7 @@ class EnhancedSelectionContext(BaseModel):
     require_domain_expertise: bool = False
 
     # Requisitos de compliance
-    compliance_requirements: list[ComplianceRequirement] = Field(
-        default_factory=list
-    )
+    compliance_requirements: list[ComplianceRequirement] = Field(default_factory=list)
     data_residency: Optional[DataResidencyRequirement] = None
 
     # Prioridade e SLA
@@ -84,9 +81,7 @@ class EnhancedSelectionContext(BaseModel):
     # Factores dinâmicos
     consider_load: bool = True
     consider_time_of_day: bool = False
-    current_hour: Optional[int] = Field(
-        default=None, ge=0, le=23, description="Hora actual (0-23)"
-    )
+    current_hour: Optional[int] = Field(default=None, ge=0, le=23, description="Hora actual (0-23)")
 
     # Filtros de confiabilidade
     min_uptime_percentage: float = Field(default=95.0, ge=0.0, le=100.0)
@@ -94,9 +89,7 @@ class EnhancedSelectionContext(BaseModel):
 
     # Feedback do utilizador
     require_positive_user_feedback: bool = False
-    min_user_rating: Optional[float] = Field(
-        default=None, ge=0.0, le=5.0
-    )
+    min_user_rating: Optional[float] = Field(default=None, ge=0.0, le=5.0)
 
     # Factores operacionais
     require_enterprise_tier: bool = False

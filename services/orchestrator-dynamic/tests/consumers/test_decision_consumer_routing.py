@@ -4,8 +4,7 @@ Tests para Decision Consumer workflow routing logic.
 TDD: Tests para a lógica de seleção de workflow baseado em workflow_type.
 """
 
-import pytest
-from unittest.mock import Mock, AsyncMock, patch
+from unittest.mock import patch
 
 from src.consumers.decision_consumer import (
     _select_workflow_class,

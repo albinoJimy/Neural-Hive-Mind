@@ -10,7 +10,7 @@ import os
 import sys
 import datetime
 import uuid
-from typing import Dict, Any, List
+from typing import Dict, Any
 from unittest.mock import MagicMock, patch
 
 import pytest

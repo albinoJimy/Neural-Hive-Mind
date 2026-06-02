@@ -73,7 +73,13 @@ class TestExperimentsRBAC:
             docs = list(yaml.safe_load_all(f))
 
         admin_role = next(
-            (d for d in docs if d and d.get("kind") == "Role" and d.get("metadata", {}).get("name") == "experiments-admin"),
+            (
+                d
+                for d in docs
+                if d
+                and d.get("kind") == "Role"
+                and d.get("metadata", {}).get("name") == "experiments-admin"
+            ),
             None,
         )
 
@@ -93,7 +99,13 @@ class TestExperimentsRBAC:
             docs = list(yaml.safe_load_all(f))
 
         viewer_role = next(
-            (d for d in docs if d and d.get("kind") == "Role" and d.get("metadata", {}).get("name") == "experiments-viewer"),
+            (
+                d
+                for d in docs
+                if d
+                and d.get("kind") == "Role"
+                and d.get("metadata", {}).get("name") == "experiments-viewer"
+            ),
             None,
         )
 
@@ -102,7 +114,11 @@ class TestExperimentsRBAC:
         # Verificar que viewer tem apenas permissões de leitura
         for rule in viewer_role["rules"]:
             for verb in rule["verbs"]:
-                assert verb in ["get", "list", "watch"], "Viewer deve ter apenas permissões de leitura"
+                assert verb in [
+                    "get",
+                    "list",
+                    "watch",
+                ], "Viewer deve ter apenas permissões de leitura"
 
     def test_rbac_has_service_account(self, experiments_manifests_dir):
         """
@@ -117,7 +133,13 @@ class TestExperimentsRBAC:
             docs = list(yaml.safe_load_all(f))
 
         sa = next(
-            (d for d in docs if d and d.get("kind") == "ServiceAccount" and d.get("metadata", {}).get("name") == "experiment-pod"),
+            (
+                d
+                for d in docs
+                if d
+                and d.get("kind") == "ServiceAccount"
+                and d.get("metadata", {}).get("name") == "experiment-pod"
+            ),
             None,
         )
 
@@ -142,9 +164,7 @@ class TestExperimentsRBAC:
         assert "experiments-viewer-binding" in binding_names
         assert "experiments-executor-binding" in binding_names
 
-    def test_rbac_admin_role_can_create_pods(
-        self, k8s_rbac_client, test_experiments_namespace
-    ):
+    def test_rbac_admin_role_can_create_pods(self, k8s_rbac_client, test_experiments_namespace):
         """
         Testa que a role admin pode criar pods.
 
@@ -168,21 +188,15 @@ class TestExperimentsRBAC:
             ],
         )
 
-        created = k8s_rbac_client.create_namespaced_role(
-            namespace=namespace_name, body=role
-        )
+        created = k8s_rbac_client.create_namespaced_role(namespace=namespace_name, body=role)
 
         assert created is not None
         assert "create" in created.rules[0].verbs
 
         # Cleanup
-        k8s_rbac_client.delete_namespaced_role(
-            name="test-admin", namespace=namespace_name
-        )
+        k8s_rbac_client.delete_namespaced_role(name="test-admin", namespace=namespace_name)
 
-    def test_rbac_viewer_role_cannot_create_pods(
-        self, k8s_rbac_client, test_experiments_namespace
-    ):
+    def test_rbac_viewer_role_cannot_create_pods(self, k8s_rbac_client, test_experiments_namespace):
         """
         Testa que a role viewer NÃO pode criar pods.
 
@@ -206,9 +220,7 @@ class TestExperimentsRBAC:
             ],
         )
 
-        created = k8s_rbac_client.create_namespaced_role(
-            namespace=namespace_name, body=role
-        )
+        created = k8s_rbac_client.create_namespaced_role(namespace=namespace_name, body=role)
 
         assert created is not None
         assert "create" not in created.rules[0].verbs
@@ -216,13 +228,9 @@ class TestExperimentsRBAC:
         assert "update" not in created.rules[0].verbs
 
         # Cleanup
-        k8s_rbac_client.delete_namespaced_role(
-            name="test-viewer", namespace=namespace_name
-        )
+        k8s_rbac_client.delete_namespaced_role(name="test-viewer", namespace=namespace_name)
 
-    def test_rbac_service_account_can_be_created(
-        self, k8s_core_client, test_experiments_namespace
-    ):
+    def test_rbac_service_account_can_be_created(self, k8s_core_client, test_experiments_namespace):
         """
         Testa que o ServiceAccount pode ser criado.
 
@@ -247,9 +255,7 @@ class TestExperimentsRBAC:
         assert created.metadata.name == "test-sa"
 
         # Cleanup
-        k8s_core_client.delete_namespaced_service_account(
-            name="test-sa", namespace=namespace_name
-        )
+        k8s_core_client.delete_namespaced_service_account(name="test-sa", namespace=namespace_name)
 
     def test_rbac_role_binding_links_role_to_subject(
         self, k8s_rbac_client, k8s_core_client, test_experiments_namespace
@@ -264,12 +270,8 @@ class TestExperimentsRBAC:
         namespace_name = test_experiments_namespace
 
         # Criar ServiceAccount
-        sa = client.V1ServiceAccount(
-            metadata=client.V1ObjectMeta(name="test-binding-sa")
-        )
-        k8s_core_client.create_namespaced_service_account(
-            namespace=namespace_name, body=sa
-        )
+        sa = client.V1ServiceAccount(metadata=client.V1ObjectMeta(name="test-binding-sa"))
+        k8s_core_client.create_namespaced_service_account(namespace=namespace_name, body=sa)
 
         # Criar Role
         role = client.V1Role(
@@ -282,9 +284,7 @@ class TestExperimentsRBAC:
                 )
             ],
         )
-        k8s_rbac_client.create_namespaced_role(
-            namespace=namespace_name, body=role
-        )
+        k8s_rbac_client.create_namespaced_role(namespace=namespace_name, body=role)
 
         # Criar RoleBinding
         binding = client.V1RoleBinding(
@@ -315,9 +315,7 @@ class TestExperimentsRBAC:
         k8s_rbac_client.delete_namespaced_role_binding(
             name="test-binding", namespace=namespace_name
         )
-        k8s_rbac_client.delete_namespaced_role(
-            name="test-binding-role", namespace=namespace_name
-        )
+        k8s_rbac_client.delete_namespaced_role(name="test-binding-role", namespace=namespace_name)
         k8s_core_client.delete_namespaced_service_account(
             name="test-binding-sa", namespace=namespace_name
         )
@@ -359,15 +357,11 @@ class TestExperimentsRBACNegative:
         )
 
         with pytest.raises(ApiException) as exc_info:
-            k8s_rbac_client.create_namespaced_role_binding(
-                namespace=namespace_name, body=binding
-            )
+            k8s_rbac_client.create_namespaced_role_binding(namespace=namespace_name, body=binding)
 
         assert exc_info.value.status == 404
 
-    def test_rbac_invalid_role_ref_kind_fails(
-        self, k8s_rbac_client, test_experiments_namespace
-    ):
+    def test_rbac_invalid_role_ref_kind_fails(self, k8s_rbac_client, test_experiments_namespace):
         """
         Testa que kind inválido em RoleRef falha.
 
@@ -394,8 +388,6 @@ class TestExperimentsRBACNegative:
         )
 
         with pytest.raises(ApiException) as exc_info:
-            k8s_rbac_client.create_namespaced_role_binding(
-                namespace=namespace_name, body=binding
-            )
+            k8s_rbac_client.create_namespaced_role_binding(namespace=namespace_name, body=binding)
 
         assert exc_info.value.status == 422

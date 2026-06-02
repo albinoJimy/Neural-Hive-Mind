@@ -51,7 +51,7 @@ class LIMEExplainer:
 
         try:
             # Importar LIME
-            from lime import lime_tabular
+            from lime import lime_tabular  # noqa: F401
 
             # Executar com timeout
             with ThreadPoolExecutor(max_workers=1) as executor:

@@ -8,6 +8,7 @@ intent_id e plan_id para facilitar troubleshooting distribuído.
 import logging
 import sys
 from datetime import datetime, timezone
+
 UTC = timezone.utc
 from typing import Any, Optional
 
@@ -479,7 +480,11 @@ def log_intent_start(logger, intent_id: str, user_input: str, channel: str = "un
 
 
 def log_intent_completion(
-    logger, intent_id: str, confidence: float, processing_duration: float, channel: str = "unknown"
+    logger,
+    intent_id: str,
+    confidence: float,
+    processing_duration: float,
+    channel: str = "unknown",
 ):
     """Log conclusão de processamento de intenção (legado)."""
     if isinstance(logger, NeuralHiveLogger):

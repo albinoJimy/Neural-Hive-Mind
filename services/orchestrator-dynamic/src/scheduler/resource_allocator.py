@@ -192,9 +192,9 @@ class ResourceAllocator:
                 critical_tickets = {}
                 for worker in available_workers:
                     worker_id = worker.get("agent_id")
-                    critical_tickets[worker_id] = (
-                        await self.affinity_tracker.get_critical_tickets_on_worker(worker_id)
-                    )
+                    critical_tickets[
+                        worker_id
+                    ] = await self.affinity_tracker.get_critical_tickets_on_worker(worker_id)
 
                 affinity_data = {
                     "plan_allocations": plan_allocations,

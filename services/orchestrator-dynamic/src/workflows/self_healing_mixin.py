@@ -234,10 +234,12 @@ class SelfHealingMixin:
             )
 
             # Registrar no histórico
-            self._correction_history.append({
-                "timestamp": workflow.now().isoformat(),
-                "correction": correction,
-            })
+            self._correction_history.append(
+                {
+                    "timestamp": workflow.now().isoformat(),
+                    "correction": correction,
+                }
+            )
 
         except Exception as e:
             workflow.logger.warning(
@@ -245,9 +247,7 @@ class SelfHealingMixin:
                 error=str(e),
             )
 
-    async def _check_failure_patterns(
-        self, activity_name: str
-    ) -> dict[str, Any]:
+    async def _check_failure_patterns(self, activity_name: str) -> dict[str, Any]:
         """
         Verifica padrões de falha históricos.
 

@@ -15,6 +15,8 @@ import grpc
 from opentelemetry.sdk.trace import ReadableSpan
 from opentelemetry.sdk.trace.export import SpanExporter, SpanExportResult
 
+logger = logging.getLogger(__name__)
+
 # Import resiliente de OTLPSpanExporter
 try:
     from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
@@ -27,8 +29,6 @@ except ImportError as e:
 
 if TYPE_CHECKING:
     from .metrics import NeuralHiveMetrics
-
-logger = logging.getLogger(__name__)
 
 
 # Flag para indicar se métricas foram inicializadas
@@ -183,7 +183,10 @@ class ResilientOTLPSpanExporter(SpanExporter):
             # Configurar TLS ou modo inseguro
             if tls_enabled:
                 credentials = self._create_tls_credentials(
-                    tls_cert_path, tls_key_path, tls_ca_cert_path, tls_insecure_skip_verify
+                    tls_cert_path,
+                    tls_key_path,
+                    tls_ca_cert_path,
+                    tls_insecure_skip_verify,
                 )
                 if credentials is not None:
                     exporter_kwargs["credentials"] = credentials

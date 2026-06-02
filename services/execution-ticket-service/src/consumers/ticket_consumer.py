@@ -422,9 +422,9 @@ class TicketConsumer:
             if getattr(self.settings, "kafka_ssl_ca_location", None):
                 security_config["ssl.ca.location"] = self.settings.kafka_ssl_ca_location
             if getattr(self.settings, "kafka_ssl_certificate_location", None):
-                security_config["ssl.certificate.location"] = (
-                    self.settings.kafka_ssl_certificate_location
-                )
+                security_config[
+                    "ssl.certificate.location"
+                ] = self.settings.kafka_ssl_certificate_location
             if getattr(self.settings, "kafka_ssl_key_location", None):
                 security_config["ssl.key.location"] = self.settings.kafka_ssl_key_location
 

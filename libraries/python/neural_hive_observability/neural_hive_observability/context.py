@@ -11,7 +11,8 @@ from contextlib import contextmanager
 from typing import Any, Optional
 
 from opentelemetry import context, trace
-from opentelemetry.baggage import get_all as get_all_baggage, set_baggage
+from opentelemetry.baggage import get_all as get_all_baggage
+from opentelemetry.baggage import set_baggage
 from opentelemetry.context import attach, detach
 from opentelemetry.propagate import extract, inject
 
@@ -237,7 +238,7 @@ class ContextManager:
         try:
             # Extrair contexto OpenTelemetry
             ctx = extract(headers)
-            token = attach(ctx)
+            attach(ctx)
 
             # Extrair headers customizados
             extracted_context = {}

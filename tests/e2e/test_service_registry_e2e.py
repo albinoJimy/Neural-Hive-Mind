@@ -14,11 +14,10 @@ Valida:
 import asyncio
 import logging
 import os
-import time
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List, Optional
+from datetime import datetime, timezone
+from typing import Dict, List, Optional
 
 import grpc
 import pytest
@@ -337,7 +336,7 @@ async def test_register_multiple_agents_same_capabilities(service_registry_clien
         for agent_id in registered_agents:
             assert agent_id in discovered_ids, f"Agent {agent_id} not found in discovery"
 
-        logger.info(f"Successfully registered 3 agents with same capabilities")
+        logger.info("Successfully registered 3 agents with same capabilities")
 
     finally:
         # Cleanup
@@ -816,7 +815,7 @@ async def test_discover_agents_cache_hit(service_registry_client):
         # Asserção adicional: latencia apos TTL deve ser similar a primeira discovery (mais lenta)
         # Cache hit tipicamente e mais rapido que cache miss
         if third_discovery_latency > second_discovery_latency * 0.8:
-            logger.info(f"Latency increase after TTL confirms cache miss")
+            logger.info("Latency increase after TTL confirms cache miss")
 
         logger.info(
             f"Cache TTL expiry verified. Final metrics - hits: {post_ttl_hits}, misses: {post_ttl_misses}"

@@ -15,7 +15,7 @@ Endpoints:
 import asyncio
 import uuid
 from datetime import datetime, timezone
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -27,6 +27,12 @@ from ..clients.redis_client import RedisClient
 from ..models.execution_ticket import ExecutionTicket
 from ..models.pipeline_context import PipelineContext
 from ..services.code_composer import CodeComposer
+
+if TYPE_CHECKING:
+    from ..clients.analyst_agents_client import AnalystAgentsClient
+    from ..clients.llm_client_wrapper import LLMClient
+    from ..clients.mcp_tool_catalog_client import MCPToolCatalogClient
+    from ..clients.mongodb_client import MongoDBClient
 
 logger = structlog.get_logger()
 tracer = trace.get_tracer(__name__)

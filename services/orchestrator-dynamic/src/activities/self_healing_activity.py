@@ -2,8 +2,6 @@
 Activity Temporal para Self-Healing e Replay de Workflows.
 """
 
-import asyncio
-from datetime import timedelta
 from typing import Any
 
 import structlog
@@ -262,9 +260,7 @@ async def check_failure_pattern(
     }
 
 
-def _get_pattern_suggestion(
-    recurring: list[str], failure_types: dict[str, int]
-) -> str:
+def _get_pattern_suggestion(recurring: list[str], failure_types: dict[str, int]) -> str:
     """Gera sugestão baseada em padrões de falha."""
     if not recurring:
         return "No clear pattern, standard retry recommended"

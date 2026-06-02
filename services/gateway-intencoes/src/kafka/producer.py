@@ -117,9 +117,9 @@ class KafkaIntentProducer:
                 security_config["ssl.ca.location"] = self.settings.kafka_ssl_ca_location
 
             if self.settings.kafka_ssl_certificate_location:
-                security_config["ssl.certificate.location"] = (
-                    self.settings.kafka_ssl_certificate_location
-                )
+                security_config[
+                    "ssl.certificate.location"
+                ] = self.settings.kafka_ssl_certificate_location
 
             if self.settings.kafka_ssl_key_location:
                 security_config["ssl.key.location"] = self.settings.kafka_ssl_key_location
@@ -528,7 +528,7 @@ class KafkaIntentProducer:
             try:
                 if use_transaction:
                     producer_to_use.abort_transaction()
-            except:
+            except Exception:
                 pass
             raise
 

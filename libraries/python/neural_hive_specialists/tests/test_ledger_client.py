@@ -5,7 +5,7 @@ Cobertura: inicialização, save_opinion (com/sem fallback), buffer/flush,
 retrieval, verificação de integridade, circuit breaker transitions.
 """
 
-from datetime import datetime, timezone
+from datetime import timezone
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest

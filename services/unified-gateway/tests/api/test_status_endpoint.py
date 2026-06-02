@@ -1,12 +1,8 @@
 """Testes para o endpoint de status de requests."""
 
-import json
-from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from httpx import AsyncClient
-
-from src.main import app
 
 
 @pytest.mark.asyncio

@@ -240,9 +240,7 @@ class KubernetesDeployer:
             },
             "spec": {
                 "replicas": request.replicas,
-                "selector": {
-                    "matchLabels": {"app": request.service_name}
-                },
+                "selector": {"matchLabels": {"app": request.service_name}},
                 "template": {
                     "metadata": {
                         "labels": {
@@ -378,9 +376,7 @@ class KubernetesDeployer:
         scheme = "https" if ingress.tls_enabled else "http"
         return f"{scheme}://{ingress.host}{ingress.path}"
 
-    async def _wait_for_rollout(
-        self, deployment_name: str, namespace: str, timeout: int = 600
-    ):
+    async def _wait_for_rollout(self, deployment_name: str, namespace: str, timeout: int = 600):
         """Aguarda o rollout completar."""
         cmd = [
             "kubectl",
@@ -440,8 +436,12 @@ class KubernetesDeployer:
                     ready_pods += 1
 
         # Determinar status dos health checks
-        liveness = HealthCheckStatus.HEALTHY if ready_pods == total_pods else HealthCheckStatus.PENDING
-        readiness = HealthCheckStatus.HEALTHY if ready_pods == total_pods else HealthCheckStatus.PENDING
+        liveness = (
+            HealthCheckStatus.HEALTHY if ready_pods == total_pods else HealthCheckStatus.PENDING
+        )
+        readiness = (
+            HealthCheckStatus.HEALTHY if ready_pods == total_pods else HealthCheckStatus.PENDING
+        )
 
         return HealthCheckResult(
             liveness=liveness,
@@ -449,9 +449,7 @@ class KubernetesDeployer:
             custom={"ready_pods": ready_pods, "total_pods": total_pods},
         )
 
-    async def _get_deployment_info(
-        self, deployment_name: str, namespace: str
-    ) -> KubernetesInfo:
+    async def _get_deployment_info(self, deployment_name: str, namespace: str) -> KubernetesInfo:
         """Obtém informações do deployment."""
         cmd = [
             "kubectl",

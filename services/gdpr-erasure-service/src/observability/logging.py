@@ -18,9 +18,7 @@ except ImportError:
 
             user_id = event_dict["user_id"]
             if isinstance(user_id, str):
-                event_dict["user_id_hash"] = hashlib.sha256(
-                    user_id.encode()
-                ).hexdigest()[:16]
+                event_dict["user_id_hash"] = hashlib.sha256(user_id.encode()).hexdigest()[:16]
                 del event_dict["user_id"]
         if "email" in event_dict:
             email = event_dict["email"]
@@ -48,9 +46,7 @@ def configure_logging_with_pii_masking():
 
     structlog.configure(
         processors=processors,
-        wrapper_class=structlog.make_filtering_bound_logger(
-            structlog.get_logger().level
-        ),
+        wrapper_class=structlog.make_filtering_bound_logger(structlog.get_logger().level),
         context_class=dict,
         logger_factory=structlog.PrintLoggerFactory(),
         cache_logger_on_first_use=True,

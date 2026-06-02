@@ -1,11 +1,13 @@
 """Serviço principal de PII - integra detecção, mascaramento, unmask e audit."""
 
 import hashlib
-from datetime import timezone
 
 import structlog
 from neural_hive_specialists.compliance.pii_detector import PIIDetectorLite
-from neural_hive_specialists.compliance.pii_masker import MaskStrategy as SpecialistMaskStrategy, PIIMasker
+from neural_hive_specialists.compliance.pii_masker import (
+    MaskStrategy as SpecialistMaskStrategy,
+    PIIMasker,
+)
 from neural_hive_specialists.compliance.pii_patterns import PIIType as SpecialistPIIType
 
 from src.config.settings import get_settings
@@ -15,7 +17,6 @@ from src.models.pii import (
     PIIType,
     PIIFound,
     PIIUnmaskError,
-    PIIServiceError,
 )
 from src.services.audit import get_audit_logger
 from src.services.encryption import get_reversible_mask_service
@@ -122,13 +123,6 @@ class PIIService:
         """
         if not self.enabled or not text:
             return []
-
-        # Mapear tipos para specialist
-        specialist_types = None
-        if types_to_detect:
-            specialist_types = [
-                PII_TYPE_REVERSE_MAPPING[t] for t in types_to_detect if t in PII_TYPE_REVERSE_MAPPING
-            ]
 
         # Detectar usando PIIDetectorLite
         detected = self.detector.detect_pii(text)

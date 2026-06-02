@@ -1,11 +1,7 @@
 """Testes de PII Masker."""
 
-import pytest
 from neural_hive_specialists.compliance.pii_masker import (
-    PIIMasker,
     MaskStrategy,
-    MaskResult,
-    PIIType,
     create_masker,
 )
 

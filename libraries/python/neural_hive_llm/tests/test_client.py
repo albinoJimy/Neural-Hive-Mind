@@ -7,7 +7,6 @@ import pytest
 from neural_hive_llm import (
     LLMClient,
     LLMProvider,
-    LLMRateLimitError,
     LLMTimeoutError,
 )
 from neural_hive_llm.models import LLMResponse
@@ -104,9 +103,7 @@ class TestLLMClientRetry:
         # Sobrescrever retry policy para testar
         client.retry_policy.max_retries = 1
 
-        with patch.object(
-            client, "_execute_generate", new=AsyncMock()
-        ) as mock_generate:
+        with patch.object(client, "_execute_generate", new=AsyncMock()) as mock_generate:
             # Primeira chamada succeed (sem retry necessário neste teste)
             mock_generate.return_value = LLMResponse(
                 text="Sucesso",
@@ -124,9 +121,7 @@ class TestLLMClientRetry:
         """Testa erro quando retries esgotados."""
         client = LLMClient(provider=LLMProvider.LOCAL, model="llama3")
 
-        with patch.object(
-            client, "_execute_generate", new=AsyncMock()
-        ) as mock_generate:
+        with patch.object(client, "_execute_generate", new=AsyncMock()) as mock_generate:
             # Todas as chamadas falham
             mock_generate.side_effect = LLMTimeoutError("Timeout", provider="local")
 

@@ -5,13 +5,12 @@ Simula o comportamento do Unified Gateway para validação do script de load tes
 """
 
 import asyncio
-import json
 import random
 import time
 from datetime import datetime
 from typing import Dict, Any
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
@@ -114,8 +113,7 @@ async def nhm_request(request: NHMRequest, http_request: Request) -> NHMRequestR
 
     # Simular detecção de PII
     pii_detected = any(
-        word in text_lower
-        for word in ["senha", "password", "cpf", "email@", "telefone", "ssn"]
+        word in text_lower for word in ["senha", "password", "cpf", "email@", "telefone", "ssn"]
     )
 
     # Gerar request_id
@@ -218,6 +216,6 @@ if __name__ == "__main__":
 
     print("🚀 Starting Mock Unified Gateway for load testing...")
     print(f"   Simulating latency: {MOCK_LATENCY_MIN}-{MOCK_LATENCY_MAX}ms")
-    print(f"   Endpoints: /health, /api/v1/nhm/request")
+    print("   Endpoints: /health, /api/v1/nhm/request")
 
     uvicorn.run(app, host="0.0.0.0", port=7999)

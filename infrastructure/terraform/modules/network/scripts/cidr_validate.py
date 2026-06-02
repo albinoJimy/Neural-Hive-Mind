@@ -59,7 +59,7 @@ def validate_cidr_containment_and_overlap(vpc_cidr: str, subnets: List[str]) -> 
             "overlap": "true" if overlap else "false",
         }
 
-    except (ipaddress.AddressValueError, ValueError) as e:
+    except (ipaddress.AddressValueError, ValueError):
         # Em caso de erro de parsing, considera como inválido
         return {"contains": "false", "overlap": "true"}
 
@@ -85,7 +85,7 @@ def main():
         # Escreve resultado JSON no stdout
         json.dump(result, sys.stdout)
 
-    except Exception as e:
+    except Exception:
         # Em caso de qualquer erro, retorna validação falhando
         error_result = {"contains": "false", "overlap": "true"}
         json.dump(error_result, sys.stdout)

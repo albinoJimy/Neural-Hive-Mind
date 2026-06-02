@@ -6,7 +6,7 @@ from .tool_registry import ToolRegistry
 
 # Lazy import for GeneticToolSelector (requires deap)
 try:
-    from .genetic_tool_selector import GeneticToolSelector
+    from .genetic_tool_selector import GeneticToolSelector  # noqa: F401
 
     _genetic_available = True
 except ImportError:

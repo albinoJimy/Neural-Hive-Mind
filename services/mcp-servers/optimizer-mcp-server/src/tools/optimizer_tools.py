@@ -170,8 +170,6 @@ def analyze_performance(path: str = ".", service: str = "", duration: str = "1h"
     """
     logger.info("analyze_performance_called", path=path, service=service, duration=duration)
 
-    metrics_path = Path(path)
-
     # Métricas simuladas baseadas em padrões
     if service:
         # Em produção, buscaria métricas do Prometheus/MongoDB

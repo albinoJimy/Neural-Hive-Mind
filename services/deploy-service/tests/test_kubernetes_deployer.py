@@ -83,9 +83,7 @@ class TestKubernetesDeployer:
         assert deployer.kubeconfig is not None
 
     @pytest.mark.asyncio()
-    async def test_deploy_success(
-        self, deployer, mock_kubectl, sample_deployment_request
-    ):
+    async def test_deploy_success(self, deployer, mock_kubectl, sample_deployment_request):
         """Testa deployment bem-sucedido."""
         result = await deployer.deploy(sample_deployment_request)
 
@@ -136,9 +134,7 @@ class TestKubernetesDeployer:
                 await deployer.rollback("test-service-v1.0.0", "nhm")
 
     @pytest.mark.asyncio()
-    async def test_deploy_without_ingress(
-        self, deployer, mock_kubectl, sample_deployment_request
-    ):
+    async def test_deploy_without_ingress(self, deployer, mock_kubectl, sample_deployment_request):
         """Testa deployment sem ingress."""
         sample_deployment_request.ingress = None
 
@@ -161,9 +157,7 @@ class TestKubernetesDeployer:
         assert result.status == DeploymentStatus.DEPLOYED
 
     @pytest.mark.asyncio()
-    async def test_deploy_with_tls_ingress(
-        self, deployer, mock_kubectl, sample_deployment_request
-    ):
+    async def test_deploy_with_tls_ingress(self, deployer, mock_kubectl, sample_deployment_request):
         """Testa deployment com ingress TLS."""
         sample_deployment_request.ingress.tls_enabled = True
 

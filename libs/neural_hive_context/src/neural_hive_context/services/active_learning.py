@@ -125,11 +125,8 @@ class StubActiveLearningService(IActiveLearningService):
             additional_features=additional_features,
         )
 
-        should_collect = await self.should_enqueue_for_collection(
-            information_value=info_value,
-            threshold=self.default_threshold,
-        )
-
+        # from_value já calcula should_collect internamente (value >= threshold),
+        # logo não é necessário invocar should_enqueue_for_collection aqui.
         return ActiveLearningSignal.from_value(
             value=info_value,
             threshold=self.default_threshold,

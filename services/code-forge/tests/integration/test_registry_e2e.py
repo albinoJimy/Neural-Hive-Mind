@@ -260,7 +260,6 @@ class TestSecurityE2E:
         logger.addHandler(handler)
 
         try:
-
             # Criar token (que normalmente seria logado)
             from datetime import datetime, timedelta
 

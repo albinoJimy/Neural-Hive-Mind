@@ -8,13 +8,12 @@ import sys
 import os
 from pathlib import Path
 from datetime import datetime, timedelta
-from typing import Dict, Any, List
+from typing import Dict, Any
 
 import pandas as pd
 import numpy as np
 from motor.motor_asyncio import AsyncIOMotorClient
 import mlflow
-from mlflow.tracking import MlflowClient
 
 # Adiciona path da biblioteca
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "libraries" / "python"))
@@ -56,8 +55,6 @@ class PredictiveModelsTrainer:
 
         # ClickHouse (se disponível)
         try:
-            from clickhouse_driver import Client as SyncClickHouseClient
-
             logger.info(f"Conectando ao ClickHouse: {self.clickhouse_host}:{self.clickhouse_port}")
 
             # Criar cliente ClickHouse de forma síncrona
@@ -67,7 +64,7 @@ class PredictiveModelsTrainer:
             )
 
             # Testar conexão
-            result = await loop.run_in_executor(None, self.clickhouse_client.execute, "SELECT 1")
+            await loop.run_in_executor(None, self.clickhouse_client.execute, "SELECT 1")
 
             logger.info("ClickHouse conectado com sucesso")
 
@@ -409,7 +406,7 @@ class PredictiveModelsTrainer:
                 )
                 logger.info(f"✅ Modelo {model_name} v{new_version.version} promovido com sucesso")
             else:
-                logger.info(f"Novo modelo não é significativamente melhor, mantendo Production")
+                logger.info("Novo modelo não é significativamente melhor, mantendo Production")
 
         except Exception as e:
             logger.error(f"Erro ao avaliar/promover {model_name}: {e}")

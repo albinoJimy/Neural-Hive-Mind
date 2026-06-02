@@ -6,6 +6,7 @@ um ticket de baixa prioridade que está em execução.
 """
 
 from datetime import timezone
+
 UTC = timezone.utc
 
 UTC = timezone.utc  # type: ignore

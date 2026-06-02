@@ -13,7 +13,13 @@ UTC = timezone.utc
 import structlog
 from src.clients.mongodb_client import MongoDBClient
 from src.clients.neo4j_client import Neo4jClient
-from src.models.cognitive_plan import ApprovalStatus, CognitivePlan, PlanStatus, RiskBand, WorkflowType
+from src.models.cognitive_plan import (
+    ApprovalStatus,
+    CognitivePlan,
+    PlanStatus,
+    RiskBand,
+    WorkflowType,
+)
 from src.observability.metrics import correlation_id_missing_total
 from src.producers.approval_producer import KafkaApprovalProducer
 from src.producers.plan_producer import KafkaPlanProducer
@@ -113,8 +119,12 @@ class SemanticTranslationOrchestrator:
                     intent_envelope, intermediate_repr
                 )
                 span.set_attribute("neural.hive.workflow_type", workflow_type.value)
-                span.set_attribute("neural.hive.classification.score", classification_metadata["score"])
-                span.set_attribute("neural.hive.classification.confidence", classification_metadata["confidence"])
+                span.set_attribute(
+                    "neural.hive.classification.score", classification_metadata["score"]
+                )
+                span.set_attribute(
+                    "neural.hive.classification.confidence", classification_metadata["confidence"]
+                )
 
             # B3: Decompose into DAG
             logger.info("B3: Gerando DAG de tarefas", intent_id=intent_id)

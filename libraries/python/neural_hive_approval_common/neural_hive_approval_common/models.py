@@ -110,9 +110,7 @@ class UnifiedApprovalDecision(BaseModel):
     ml_model_version: Optional[str] = Field(
         None, description="Versao do modelo ML usado (se aplicavel)"
     )
-    auto_approved: bool = Field(
-        default=False, description="Se foi aprovacao automatica via ML"
-    )
+    auto_approved: bool = Field(default=False, description="Se foi aprovacao automatica via ML")
 
 
 class ApprovalResponse(BaseModel):

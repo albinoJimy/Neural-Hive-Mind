@@ -14,7 +14,7 @@ def test_fastapi():
     """Testa import do FastAPI."""
     try:
         from fastapi import FastAPI
-        from fastapi.middleware.cors import CORSMiddleware
+        from fastapi.middleware.cors import CORSMiddleware  # noqa: F401
 
         print("✅ FastAPI import OK")
         print(
@@ -29,7 +29,7 @@ def test_fastapi():
 def test_confluent_kafka():
     """Testa import do confluent-kafka."""
     try:
-        from confluent_kafka import Producer, Consumer
+        from confluent_kafka import Producer, Consumer  # noqa: F401
 
         print("✅ confluent-kafka import OK")
         return True
@@ -49,7 +49,7 @@ def test_python_jose():
 
         # Encode
         token = jwt.encode(payload, secret, algorithm="HS256")
-        print(f"✅ python-jose import OK")
+        print("✅ python-jose import OK")
         print(f"   Token: {token[:50]}...")
 
         # Decode
@@ -68,7 +68,7 @@ def test_python_jose():
 def test_avro_serialization():
     """Testa serialização Avro do confluent-kafka."""
     try:
-        from confluent_kafka.schema_registry.avro import AvroSerializer
+        from confluent_kafka.schema_registry.avro import AvroSerializer  # noqa: F401
 
         print("✅ Avro serialization import OK")
         return True

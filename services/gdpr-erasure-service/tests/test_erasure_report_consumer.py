@@ -3,7 +3,6 @@ Testes para ErasureReportConsumer
 """
 
 import pytest
-import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from src.consumers.erasure_report_consumer import ErasureReportConsumer

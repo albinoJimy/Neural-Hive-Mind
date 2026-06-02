@@ -9,7 +9,7 @@ import numpy as np
 import pytest
 from sklearn.ensemble import RandomForestRegressor, IsolationForest
 from sklearn.preprocessing import StandardScaler
-from typing import Tuple, Any
+from typing import Tuple
 
 
 def create_duration_predictor(seed: int = 42, n_estimators: int = 10) -> RandomForestRegressor:

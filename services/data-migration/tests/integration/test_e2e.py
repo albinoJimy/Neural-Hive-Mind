@@ -185,23 +185,27 @@ class TestDataMigrationE2E:
         cursor = postgres_client.cursor()
 
         # Criar tabela de teste
-        cursor.execute("""
+        cursor.execute(
+            """
             CREATE TABLE IF NOT EXISTS test_customers (
                 id SERIAL PRIMARY KEY,
                 name VARCHAR(100),
                 email VARCHAR(100),
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
-        """)
+        """
+        )
 
         # Inserir dados de teste
-        cursor.execute("""
+        cursor.execute(
+            """
             INSERT INTO test_customers (name, email)
             VALUES
                 ('Alice', 'alice@example.com'),
                 ('Bob', 'bob@example.com'),
                 ('Charlie', 'charlie@example.com')
-        """)
+        """
+        )
         postgres_client.commit()
         cursor.close()
         postgres_client.close()
@@ -278,7 +282,8 @@ class TestDataMigrationE2E:
         postgres_client = postgres_container.get_connection()
         cursor = postgres_client.cursor()
 
-        cursor.execute("""
+        cursor.execute(
+            """
             CREATE TABLE IF NOT EXISTS test_schema_types (
                 id SERIAL PRIMARY KEY,
                 name VARCHAR(50),
@@ -287,7 +292,8 @@ class TestDataMigrationE2E:
                 active BOOLEAN,
                 created_at TIMESTAMP
             )
-        """)
+        """
+        )
         postgres_client.commit()
         cursor.close()
         postgres_client.close()

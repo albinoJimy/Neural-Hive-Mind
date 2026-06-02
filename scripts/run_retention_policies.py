@@ -111,7 +111,7 @@ def run_retention_policies(dry_run: bool = False, policy_name: str = None, verbo
             # Simular execução
             status = retention_manager.get_retention_status()
             logger.info("Status de retenção (dry-run)", **status)
-            print(f"\n✓ Dry-run concluído com sucesso")
+            print("\n✓ Dry-run concluído com sucesso")
             print(f"  Total de documentos: {status.get('total_documents', 0)}")
             print(f"  Documentos expirados: {status.get('expired_documents', 0)}")
             print(f"  Documentos mascarados: {status.get('masked_documents', 0)}")
@@ -136,7 +136,7 @@ def run_retention_policies(dry_run: bool = False, policy_name: str = None, verbo
         logger.info("Políticas de retenção executadas", **stats, duration_seconds=duration)
 
         # Exibir resumo
-        print(f"\n✓ Políticas de retenção executadas com sucesso")
+        print("\n✓ Políticas de retenção executadas com sucesso")
         print(f"  Documentos processados: {stats['documents_processed']}")
         print(f"  Documentos mascarados: {stats['documents_masked']}")
         print(f"  Documentos deletados: {stats['documents_deleted']}")

@@ -88,7 +88,7 @@ class GraphAnalyzer:
         try:
             critical_path_length = nx.dag_longest_path_length(G)
             features["critical_path_length"] = critical_path_length
-        except:
+        except Exception:
             features["critical_path_length"] = 0
 
         # Paralelização potencial (largura máxima)

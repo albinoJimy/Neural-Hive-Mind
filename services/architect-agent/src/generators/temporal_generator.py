@@ -378,7 +378,7 @@ class {self._to_pascal_case(wf.name)}Workflow:
             self._saga_state["error"] = str(e)
 
             raise ApplicationError(
-                f"Workflow falhou: {e}",
+                f"Workflow falhou: {{e}}",
                 type="WorkflowError",
                 details={{"compensated": self._compensation_triggered}}
             )
@@ -401,9 +401,9 @@ class {self._to_pascal_case(wf.name)}Workflow:
 
             try:
                 await self._execute_compensation(step, context)
-                workflow.logger.info(f"Compensação executada: {step_id}")
+                workflow.logger.info(f"Compensação executada: {{step_id}}")
             except Exception as e:
-                workflow.logger.error(f"Erro na compensação de {step_id}: {e}")
+                workflow.logger.error(f"Erro na compensação de {{step_id}}: {{e}}")
                 # Continuar compensação mesmo com erro
 
     async def _execute_step(
@@ -414,7 +414,7 @@ class {self._to_pascal_case(wf.name)}Workflow:
         step_id = step["step_id"]
         activity_type = step["original_activity"]["type"]
 
-        workflow.logger.info(f"Executando passo: {step_id}")
+        workflow.logger.info(f"Executando passo: {{step_id}}")
 
         result = await workflow.execute_activity(
             activity_type,

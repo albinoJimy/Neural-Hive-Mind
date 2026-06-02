@@ -2,7 +2,6 @@
 
 # Reutilizar modelo Pydantic do Orchestrator
 import os
-import sys
 from importlib.util import module_from_spec, spec_from_file_location
 
 # Caminho para o módulo execution_ticket do orchestrator

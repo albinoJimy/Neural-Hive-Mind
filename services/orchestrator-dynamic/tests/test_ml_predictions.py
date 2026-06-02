@@ -6,6 +6,7 @@ FeatureEngineering e TrainingPipeline com mocks de dependências externas.
 """
 
 from datetime import datetime, timezone
+
 UTC = timezone.utc
 from unittest.mock import AsyncMock, Mock, patch
 

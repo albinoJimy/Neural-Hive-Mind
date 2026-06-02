@@ -14,7 +14,7 @@ import os
 import sys
 import datetime
 from datetime import timezone
-from unittest.mock import MagicMock, patch, PropertyMock
+from unittest.mock import MagicMock, patch
 from typing import Dict, Any, List
 
 import pytest

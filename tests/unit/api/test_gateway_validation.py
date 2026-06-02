@@ -5,10 +5,8 @@ GAP-04: Cobertura de Testes 16% → 70%
 Testa validação de intents, NLU e roteamento.
 """
 
-import pytest
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
-from pydantic import ValidationError
 
 
 # =============================================================================

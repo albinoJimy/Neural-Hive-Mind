@@ -28,7 +28,6 @@ class TestApprovalFlowEndToEnd:
         async def save_request(approval):
             # Garante que requested_at é timezone-aware para evitar erro de comparação
             if approval.requested_at.tzinfo is None:
-                from datetime import datetime
                 approval.requested_at = approval.requested_at.replace(tzinfo=timezone.utc)
             storage[approval.plan_id] = approval
             return approval.approval_id

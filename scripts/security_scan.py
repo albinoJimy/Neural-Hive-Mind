@@ -47,8 +47,8 @@ class SecurityScanner:
                     "LOW": 0,
                     "MEDIUM": 0,
                     "HIGH": 0,
-                }
-            }
+                },
+            },
         }
 
     def run_bandit(self, service: str) -> dict:
@@ -65,11 +65,15 @@ class SecurityScanner:
             subprocess.run(
                 [
                     "bandit",
-                    "-r", str(service_path),
-                    "-f", "json",
-                    "-o", str(output_file),
+                    "-r",
+                    str(service_path),
+                    "-f",
+                    "json",
+                    "-o",
+                    str(output_file),
                     # Skip some noisy tests
-                    "-skip", "B101,B601",
+                    "-skip",
+                    "B101,B601",
                 ],
                 capture_output=True,
                 text=True,
@@ -108,7 +112,7 @@ class SecurityScanner:
         """Scan a single service."""
         print(f"\n{'='*60}")
         print(f"Scanning {service}...")
-        print("="*60)
+        print("=" * 60)
 
         result = self.run_bandit(service)
 
@@ -143,7 +147,7 @@ class SecurityScanner:
         print("Neural Hive Mind - Python Security Scan")
         print(f"Timestamp: {self.timestamp}")
         print(f"Output directory: {self.output_dir}")
-        print("="*60)
+        print("=" * 60)
 
         for service in self.services:
             self.scan_service(service)
@@ -154,7 +158,7 @@ class SecurityScanner:
         """Print scan summary."""
         print(f"\n{'='*60}")
         print("SCAN SUMMARY")
-        print("="*60)
+        print("=" * 60)
 
         summary = self.results["summary"]
         print(f"Services scanned: {summary['total_services']}")
@@ -184,7 +188,7 @@ class SecurityScanner:
         """Run safety check for dependency vulnerabilities."""
         print(f"\n{'='*60}")
         print("Running Safety Check (Dependency Vulnerabilities)")
-        print("="*60)
+        print("=" * 60)
 
         requirements_files = list(self.project_root.glob("**/requirements.txt"))
 
@@ -218,29 +222,20 @@ class SecurityScanner:
 
 def main():
     """Main entry point."""
-    parser = argparse.ArgumentParser(
-        description="Python security scan for Neural Hive Mind"
-    )
+    parser = argparse.ArgumentParser(description="Python security scan for Neural Hive Mind")
     parser.add_argument(
         "--project-root",
         type=Path,
         default=Path.cwd(),
-        help="Project root directory (default: cwd)"
+        help="Project root directory (default: cwd)",
     )
     parser.add_argument(
         "--output-dir",
         type=Path,
-        help="Output directory for reports (default: project-root/security-scans)"
+        help="Output directory for reports (default: project-root/security-scans)",
     )
-    parser.add_argument(
-        "--safety",
-        action="store_true",
-        help="Run safety check for dependencies"
-    )
-    parser.add_argument(
-        "--service",
-        help="Scan only this service (e.g., requirements-engineering)"
-    )
+    parser.add_argument("--safety", action="store_true", help="Run safety check for dependencies")
+    parser.add_argument("--service", help="Scan only this service (e.g., requirements-engineering)")
 
     args = parser.parse_args()
 

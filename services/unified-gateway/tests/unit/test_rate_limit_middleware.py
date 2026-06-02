@@ -1,6 +1,5 @@
 """Testes unitários para Rate Limit Middleware."""
 
-import pytest
 
 from src.middleware.rate_limit import (
     RateLimiter,

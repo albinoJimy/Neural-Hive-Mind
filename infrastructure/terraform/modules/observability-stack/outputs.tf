@@ -67,7 +67,7 @@ output "service_endpoints" {
       port    = 80
     }
     jaeger_collector = {
-      service = "jaeger-collector"
+      service   = "jaeger-collector"
       grpc_port = 14250
       http_port = 14268
     }
@@ -76,7 +76,7 @@ output "service_endpoints" {
       port    = 16686
     }
     otel_collector = {
-      service = "opentelemetry-collector"
+      service        = "opentelemetry-collector"
       otlp_grpc_port = 4317
       otlp_http_port = 4318
       metrics_port   = 8888
@@ -124,8 +124,8 @@ output "slo_config" {
     plan_generation_ms    = 120
     capture_latency_ms    = 200
     error_budget_burn_rate = {
-      fast   = 14.4  # 1 hour
-      slow   = 1.0   # 6 hours
+      fast = 14.4 # 1 hour
+      slow = 1.0  # 6 hours
     }
   }
 }
@@ -141,15 +141,15 @@ output "api_keys" {
 output "dashboard_urls" {
   description = "URLs dos dashboards principais"
   value = {
-    neural_hive_overview      = "/d/neural-hive-overview/neural-hive-overview"
-    fluxo_a_captura          = "/d/fluxo-a-captura/fluxo-a-captura-intencoes"
-    fluxo_b_geracao          = "/d/fluxo-b-geracao/fluxo-b-geracao-planos"
-    fluxo_c_orquestracao     = "/d/fluxo-c-orq/fluxo-c-orquestracao"
-    fluxo_d_observabilidade  = "/d/fluxo-d-obs/fluxo-d-observabilidade"
-    fluxo_e_autocura         = "/d/fluxo-e-autocura/fluxo-e-autocura"
-    fluxo_f_experimentos     = "/d/fluxo-f-exp/fluxo-f-experimentos"
-    slos_error_budgets       = "/d/slos-eb/slos-error-budgets"
-    kubernetes_infra         = "/d/k8s-infra/kubernetes-infrastructure"
+    neural_hive_overview    = "/d/neural-hive-overview/neural-hive-overview"
+    fluxo_a_captura         = "/d/fluxo-a-captura/fluxo-a-captura-intencoes"
+    fluxo_b_geracao         = "/d/fluxo-b-geracao/fluxo-b-geracao-planos"
+    fluxo_c_orquestracao    = "/d/fluxo-c-orq/fluxo-c-orquestracao"
+    fluxo_d_observabilidade = "/d/fluxo-d-obs/fluxo-d-observabilidade"
+    fluxo_e_autocura        = "/d/fluxo-e-autocura/fluxo-e-autocura"
+    fluxo_f_experimentos    = "/d/fluxo-f-exp/fluxo-f-experimentos"
+    slos_error_budgets      = "/d/slos-eb/slos-error-budgets"
+    kubernetes_infra        = "/d/k8s-infra/kubernetes-infrastructure"
     istio_mesh              = "/d/istio-mesh/istio-service-mesh"
   }
 }
@@ -169,9 +169,9 @@ output "health_check_endpoints" {
 output "thanos_config" {
   description = "Configuração do Thanos (se habilitado)"
   value = var.enable_thanos ? {
-    query_url      = "http://thanos-query.${kubernetes_namespace.observability.metadata[0].name}.svc.cluster.local:9090"
-    store_gateway  = "thanos-store-gateway.${kubernetes_namespace.observability.metadata[0].name}.svc.cluster.local:10901"
-    compactor_url  = "thanos-compactor.${kubernetes_namespace.observability.metadata[0].name}.svc.cluster.local:10902"
+    query_url     = "http://thanos-query.${kubernetes_namespace.observability.metadata[0].name}.svc.cluster.local:9090"
+    store_gateway = "thanos-store-gateway.${kubernetes_namespace.observability.metadata[0].name}.svc.cluster.local:10901"
+    compactor_url = "thanos-compactor.${kubernetes_namespace.observability.metadata[0].name}.svc.cluster.local:10902"
   } : null
 }
 
@@ -189,30 +189,30 @@ output "backup_config" {
 output "deployment_info" {
   description = "Informações do deployment para scripts"
   value = {
-    namespace           = kubernetes_namespace.observability.metadata[0].name
-    environment         = var.environment
-    cluster_name        = var.cluster_name
+    namespace    = kubernetes_namespace.observability.metadata[0].name
+    environment  = var.environment
+    cluster_name = var.cluster_name
     helm_releases = {
       prometheus_stack        = helm_release.prometheus_stack.name
-      grafana               = helm_release.grafana.name
-      jaeger                = helm_release.jaeger.name
+      grafana                 = helm_release.grafana.name
+      jaeger                  = helm_release.jaeger.name
       opentelemetry_collector = helm_release.opentelemetry_collector.name
-      loki                  = var.enable_loki ? helm_release.loki[0].name : null
-      tempo                 = var.enable_tempo ? helm_release.tempo[0].name : null
+      loki                    = var.enable_loki ? helm_release.loki[0].name : null
+      tempo                   = var.enable_tempo ? helm_release.tempo[0].name : null
     }
-    storage_class         = var.storage_class
-    created_at           = timestamp()
+    storage_class = var.storage_class
+    created_at    = timestamp()
   }
 }
 
 output "grafana_config" {
   description = "Configuração específica do Grafana para scripts"
   value = {
-    admin_user           = "admin"
-    admin_password       = var.grafana_admin_password
-    internal_url         = "http://grafana.${kubernetes_namespace.observability.metadata[0].name}.svc.cluster.local"
-    api_url              = "http://grafana.${kubernetes_namespace.observability.metadata[0].name}.svc.cluster.local/api"
-    external_url         = var.enable_grafana_ingress ? "https://grafana.${var.grafana_domain}" : null
+    admin_user     = "admin"
+    admin_password = var.grafana_admin_password
+    internal_url   = "http://grafana.${kubernetes_namespace.observability.metadata[0].name}.svc.cluster.local"
+    api_url        = "http://grafana.${kubernetes_namespace.observability.metadata[0].name}.svc.cluster.local/api"
+    external_url   = var.enable_grafana_ingress ? "https://grafana.${var.grafana_domain}" : null
     datasources = {
       prometheus = "http://prometheus-stack-prometheus.${kubernetes_namespace.observability.metadata[0].name}.svc.cluster.local:9090"
       jaeger     = "http://jaeger-query.${kubernetes_namespace.observability.metadata[0].name}.svc.cluster.local:16686"
@@ -220,11 +220,11 @@ output "grafana_config" {
       tempo      = var.enable_tempo ? "http://tempo-query-frontend.${kubernetes_namespace.observability.metadata[0].name}.svc.cluster.local:3200" : null
     }
     features_enabled = {
-      loki                = var.enable_loki
-      tempo               = var.enable_tempo
-      alerting           = true
-      public_dashboards  = true
-      library_panels     = true
+      loki              = var.enable_loki
+      tempo             = var.enable_tempo
+      alerting          = true
+      public_dashboards = true
+      library_panels    = true
     }
   }
   sensitive = true
@@ -233,14 +233,14 @@ output "grafana_config" {
 output "prometheus_config" {
   description = "Configuração específica do Prometheus para validação"
   value = {
-    internal_url        = "http://prometheus-stack-prometheus.${kubernetes_namespace.observability.metadata[0].name}.svc.cluster.local:9090"
+    internal_url       = "http://prometheus-stack-prometheus.${kubernetes_namespace.observability.metadata[0].name}.svc.cluster.local:9090"
     api_url            = "http://prometheus-stack-prometheus.${kubernetes_namespace.observability.metadata[0].name}.svc.cluster.local:9090/api/v1"
     pushgateway_url    = "http://prometheus-prometheus-pushgateway.${kubernetes_namespace.observability.metadata[0].name}.svc.cluster.local:9091"
     node_exporter_url  = "http://prometheus-prometheus-node-exporter.${kubernetes_namespace.observability.metadata[0].name}.svc.cluster.local:9100"
     kube_state_metrics = "http://prometheus-kube-state-metrics.${kubernetes_namespace.observability.metadata[0].name}.svc.cluster.local:8080"
     service_monitors = {
       neural_hive_services = "neural.hive/metrics=enabled"
-      neural_hive_pods    = "neural.hive/instrumented=true"
+      neural_hive_pods     = "neural.hive/instrumented=true"
     }
     retention = {
       days = var.prometheus_retention_days
@@ -262,7 +262,7 @@ output "jaeger_config" {
     storage_type        = var.jaeger_storage_type
     retention_days      = var.jaeger_retention_days
     deployment_strategy = var.jaeger_deployment_strategy
-    otlp_enabled       = var.jaeger_enable_otlp
+    otlp_enabled        = var.jaeger_enable_otlp
   }
 }
 
@@ -289,19 +289,19 @@ output "validation_endpoints" {
   description = "Endpoints para validação da stack completa"
   value = {
     health_checks = {
-      prometheus     = "http://prometheus-stack-prometheus.${kubernetes_namespace.observability.metadata[0].name}.svc.cluster.local:9090/-/healthy"
-      grafana        = "http://grafana.${kubernetes_namespace.observability.metadata[0].name}.svc.cluster.local/api/health"
-      jaeger_query   = "http://jaeger-query.${kubernetes_namespace.observability.metadata[0].name}.svc.cluster.local:16687/"
+      prometheus       = "http://prometheus-stack-prometheus.${kubernetes_namespace.observability.metadata[0].name}.svc.cluster.local:9090/-/healthy"
+      grafana          = "http://grafana.${kubernetes_namespace.observability.metadata[0].name}.svc.cluster.local/api/health"
+      jaeger_query     = "http://jaeger-query.${kubernetes_namespace.observability.metadata[0].name}.svc.cluster.local:16687/"
       jaeger_collector = "http://jaeger-collector.${kubernetes_namespace.observability.metadata[0].name}.svc.cluster.local:14269/"
-      otel_collector = "http://opentelemetry-collector.${kubernetes_namespace.observability.metadata[0].name}.svc.cluster.local:13133/"
-      alertmanager   = "http://prometheus-stack-alertmanager.${kubernetes_namespace.observability.metadata[0].name}.svc.cluster.local:9093/-/healthy"
+      otel_collector   = "http://opentelemetry-collector.${kubernetes_namespace.observability.metadata[0].name}.svc.cluster.local:13133/"
+      alertmanager     = "http://prometheus-stack-alertmanager.${kubernetes_namespace.observability.metadata[0].name}.svc.cluster.local:9093/-/healthy"
     }
     test_endpoints = {
-      prometheus_targets = "http://prometheus-stack-prometheus.${kubernetes_namespace.observability.metadata[0].name}.svc.cluster.local:9090/api/v1/targets"
-      prometheus_rules   = "http://prometheus-stack-prometheus.${kubernetes_namespace.observability.metadata[0].name}.svc.cluster.local:9090/api/v1/rules"
+      prometheus_targets  = "http://prometheus-stack-prometheus.${kubernetes_namespace.observability.metadata[0].name}.svc.cluster.local:9090/api/v1/targets"
+      prometheus_rules    = "http://prometheus-stack-prometheus.${kubernetes_namespace.observability.metadata[0].name}.svc.cluster.local:9090/api/v1/rules"
       grafana_datasources = "http://grafana.${kubernetes_namespace.observability.metadata[0].name}.svc.cluster.local/api/datasources"
-      jaeger_services    = "http://jaeger-query.${kubernetes_namespace.observability.metadata[0].name}.svc.cluster.local:16686/api/services"
-      otel_metrics       = "http://opentelemetry-collector.${kubernetes_namespace.observability.metadata[0].name}.svc.cluster.local:8888/metrics"
+      jaeger_services     = "http://jaeger-query.${kubernetes_namespace.observability.metadata[0].name}.svc.cluster.local:16686/api/services"
+      otel_metrics        = "http://opentelemetry-collector.${kubernetes_namespace.observability.metadata[0].name}.svc.cluster.local:8888/metrics"
     }
   }
 }
@@ -310,13 +310,13 @@ output "integration_config" {
   description = "Configuração para integração com aplicações Neural Hive-Mind"
   value = {
     instrumentation = {
-      otel_exporter_otlp_endpoint = "http://opentelemetry-collector.${kubernetes_namespace.observability.metadata[0].name}.svc.cluster.local:4317"
+      otel_exporter_otlp_endpoint   = "http://opentelemetry-collector.${kubernetes_namespace.observability.metadata[0].name}.svc.cluster.local:4317"
       otel_exporter_jaeger_endpoint = "http://jaeger-collector.${kubernetes_namespace.observability.metadata[0].name}.svc.cluster.local:14250"
-      prometheus_pushgateway = "http://prometheus-prometheus-pushgateway.${kubernetes_namespace.observability.metadata[0].name}.svc.cluster.local:9091"
+      prometheus_pushgateway        = "http://prometheus-prometheus-pushgateway.${kubernetes_namespace.observability.metadata[0].name}.svc.cluster.local:9091"
     }
     labels_required = {
-      service_monitor = "neural.hive/metrics=enabled"
-      pod_monitor     = "neural.hive/instrumented=true"
+      service_monitor  = "neural.hive/metrics=enabled"
+      pod_monitor      = "neural.hive/instrumented=true"
       neural_component = "neural.hive/component"
       neural_layer     = "neural.hive/layer"
       neural_domain    = "neural.hive/domain"

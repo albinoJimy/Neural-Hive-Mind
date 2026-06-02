@@ -61,8 +61,11 @@ from .exceptions import (
 )
 
 # Resiliência
-from .circuit_breaker import LLMCircuitBreaker, LLMCircuitBreakerOpenError as CBError, create_llm_circuit_breaker
-from .resilience import LLMRateLimitError as ResilienceRateLimitError, LLMRetryPolicy, llm_retry
+from .circuit_breaker import (
+    LLMCircuitBreaker,
+    create_llm_circuit_breaker,
+)
+from .resilience import LLMRetryPolicy, llm_retry
 
 # Observabilidade e métricas
 from .observability import LLMTracer, OperationType, get_llm_tracer
@@ -114,7 +117,12 @@ __all__ = [
 
 # Importar conditional para evitar erros se dependências não instaladas
 try:
-    from .providers import BaseProvider, OpenAIProvider, AnthropicProvider, LocalProvider
+    from .providers import (  # noqa: F401
+        BaseProvider,
+        OpenAIProvider,
+        AnthropicProvider,
+        LocalProvider,
+    )
 
     __all__.extend(
         [

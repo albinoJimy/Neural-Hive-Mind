@@ -120,7 +120,7 @@ class TemporalTestHelper:
             except Exception as e:
                 error = str(e)
         elif status == "failed":
-            error = f"Workflow failed"
+            error = "Workflow failed"
 
         return WorkflowStatus(
             workflow_id=workflow_id,
