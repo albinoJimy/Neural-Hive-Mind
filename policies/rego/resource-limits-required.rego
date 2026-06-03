@@ -39,8 +39,8 @@ violation[{"msg": msg}] {
 violation[{"msg": msg}] {
     container := input_containers[_]
     cpu_limit := container.resources.limits.cpu
-    cpu_limit_value := units.parse_cpu(cpu_limit)
-    max_cpu := units.parse_cpu(input.parameters.max_cpu)
+    cpu_limit_value := parse_cpu(cpu_limit)
+    max_cpu := parse_cpu(input.parameters.max_cpu)
     cpu_limit_value > max_cpu
     msg := sprintf("Container '%v' excede CPU limit máximo: %v > %v", [container.name, cpu_limit, input.parameters.max_cpu])
 }
@@ -49,8 +49,8 @@ violation[{"msg": msg}] {
 violation[{"msg": msg}] {
     container := input_containers[_]
     memory_limit := container.resources.limits.memory
-    memory_limit_value := units.parse_memory(memory_limit)
-    max_memory := units.parse_memory(input.parameters.max_memory)
+    memory_limit_value := parse_memory(memory_limit)
+    max_memory := parse_memory(input.parameters.max_memory)
     memory_limit_value > max_memory
     msg := sprintf("Container '%v' excede memory limit máximo: %v > %v", [container.name, memory_limit, input.parameters.max_memory])
 }
@@ -58,8 +58,8 @@ violation[{"msg": msg}] {
 # Violação se ratio entre limits e requests for muito alto
 violation[{"msg": msg}] {
     container := input_containers[_]
-    cpu_limit := units.parse_cpu(container.resources.limits.cpu)
-    cpu_request := units.parse_cpu(container.resources.requests.cpu)
+    cpu_limit := parse_cpu(container.resources.limits.cpu)
+    cpu_request := parse_cpu(container.resources.requests.cpu)
     ratio := cpu_limit / cpu_request
     ratio > input.parameters.max_ratio
     msg := sprintf("Container '%v' tem ratio CPU limit/request muito alto: %.2f", [container.name, ratio])
@@ -80,12 +80,6 @@ input_containers[container] {
 
 input_containers[container] {
     container := input.review.object.spec.template.spec.initContainers[_]
-}
-
-# Namespace de unidades para parsing de CPU e Memory
-units := {
-    "parse_cpu": parse_cpu,
-    "parse_memory": parse_memory
 }
 
 # Parser de CPU (converte para millicores)
