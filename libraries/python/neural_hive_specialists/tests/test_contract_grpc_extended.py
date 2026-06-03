@@ -55,8 +55,9 @@ def test_evaluate_plan_full_opinion_structure(grpc_stub, sample_cognitive_plan):
 
     # Metadados (mapa string->string - protobuf ScalarMapContainer)
     assert hasattr(opinion, "metadata")
-    # Protobuf maps não são dict nativos, mas têm interface similar
-    assert hasattr(opinion.metadata, "get")
+    # Protobuf maps não são dict nativos: suportam acesso por chave e iteração,
+    # mas não têm método .get(). Validamos que o mapa é iterável.
+    assert hasattr(opinion.metadata, "__iter__")
 
 
 @pytest.mark.contract()
@@ -194,8 +195,9 @@ def test_health_check_all_status_values(grpc_stub):
     assert response.status in valid_statuses
 
     # details é map string->string (protobuf ScalarMapContainer)
-    # Protobuf maps não são dict nativos, mas têm interface similar
-    assert hasattr(response.details, "get")
+    # Protobuf maps não são dict nativos: suportam acesso por chave e iteração,
+    # mas não têm método .get(). Validamos que o mapa é iterável.
+    assert hasattr(response.details, "__iter__")
 
 
 @pytest.mark.contract()
@@ -243,7 +245,8 @@ def test_get_capabilities_complete_structure(grpc_stub):
         assert len(version.split(".")) in [2, 3]
 
     # configuration é map protobuf (pode ser vazio)
-    assert hasattr(response.configuration, "get")
+    # Protobuf maps não têm método .get(); validamos que o mapa é iterável.
+    assert hasattr(response.configuration, "__iter__")
 
     # Validar métricas se presente
     if response.HasField("metrics"):

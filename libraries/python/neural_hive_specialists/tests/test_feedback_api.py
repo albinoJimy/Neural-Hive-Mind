@@ -221,7 +221,7 @@ class TestFeedbackAPIAuthentication:
 
     def test_submit_feedback_with_valid_token(self, auth_client, valid_feedback_request):
         """Teste com token JWT válido."""
-        from datetime import datetime, timedelta
+        from datetime import datetime, timedelta, timezone
 
         import jwt
 
@@ -277,7 +277,7 @@ class TestFeedbackAPIAuthentication:
 
     def test_audit_log_unauthorized_role(self, auth_client, auth_app, valid_feedback_request):
         """Teste que role não autorizado é auditado."""
-        from datetime import datetime, timedelta
+        from datetime import datetime, timedelta, timezone
 
         import jwt
 
@@ -309,7 +309,7 @@ class TestFeedbackAPIAuthentication:
 
     def test_audit_log_expired_token(self, auth_client, auth_app, valid_feedback_request):
         """Teste que token expirado é auditado."""
-        from datetime import datetime, timedelta
+        from datetime import datetime, timedelta, timezone
 
         import jwt
 

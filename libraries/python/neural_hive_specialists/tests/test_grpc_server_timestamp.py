@@ -6,7 +6,7 @@ que as validações implementadas na v1.0.7 permaneçam funcionais.
 """
 
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from unittest.mock import MagicMock
 
 import pytest
@@ -148,7 +148,7 @@ class TestBuildEvaluatePlanResponseTimestamp:
         Cria datetime específico e valida que seconds e nanos correspondem.
         """
         # Arrange
-        test_dt = datetime(2025, 1, 15, 10, 30, 45, 123456, tzinfo=UTC)
+        test_dt = datetime(2025, 1, 15, 10, 30, 45, 123456, tzinfo=timezone.utc)
 
         # Act
         timestamp = Timestamp()

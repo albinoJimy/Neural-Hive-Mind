@@ -9,6 +9,7 @@ incluindo integração com MongoDB e MLflow.
 import os
 import sys
 import datetime
+from datetime import timezone
 import uuid
 from typing import Dict, Any
 from unittest.mock import MagicMock, patch
@@ -29,8 +30,6 @@ def mongodb_test_data(mongodb_ml_client, event_loop) -> Dict[str, Any]:
 
     Cria opiniões com feedback para simular cenário realista.
     """
-    import datetime
-
     np.random.seed(42)
     base_time = datetime.datetime.now(timezone.utc) - datetime.timedelta(days=30)
 
@@ -92,8 +91,6 @@ def mongodb_insufficient_data(mongodb_ml_client, event_loop) -> Dict[str, Any]:
     """
     Popula MongoDB com dados insuficientes para validação.
     """
-    import datetime
-
     np.random.seed(42)
     base_time = datetime.datetime.now(timezone.utc) - datetime.timedelta(days=30)
 

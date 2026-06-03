@@ -6,6 +6,7 @@ Fornece dados sintéticos para testes de predição, validação e promoção de
 """
 
 import datetime
+from datetime import timezone
 from typing import Dict, List, Any
 
 import numpy as np

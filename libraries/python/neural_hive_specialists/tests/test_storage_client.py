@@ -10,7 +10,7 @@ Tests cover:
 import os
 import sys
 import tempfile
-from datetime import datetime
+from datetime import datetime, timezone
 from types import ModuleType
 from unittest.mock import Mock, patch
 
@@ -180,19 +180,19 @@ class TestS3StorageClient:
                 {
                     "Key": "backups/backup-1.tar.gz",
                     "Size": 1024,
-                    "LastModified": datetime(2024, 1, 1, tzinfo=UTC),
+                    "LastModified": datetime(2024, 1, 1, tzinfo=timezone.utc),
                     "ETag": '"abc123"',
                 },
                 {
                     "Key": "backups/backup-3.tar.gz",
                     "Size": 3072,
-                    "LastModified": datetime(2024, 3, 1, tzinfo=UTC),
+                    "LastModified": datetime(2024, 3, 1, tzinfo=timezone.utc),
                     "ETag": '"ghi789"',
                 },
                 {
                     "Key": "backups/backup-2.tar.gz",
                     "Size": 2048,
-                    "LastModified": datetime(2024, 2, 1, tzinfo=UTC),
+                    "LastModified": datetime(2024, 2, 1, tzinfo=timezone.utc),
                     "ETag": '"def456"',
                 },
             ]
@@ -221,7 +221,7 @@ class TestS3StorageClient:
         mock_response = {
             "ContentLength": 2048,
             "ETag": '"abc123"',
-            "LastModified": datetime(2024, 1, 1, tzinfo=UTC),
+            "LastModified": datetime(2024, 1, 1, tzinfo=timezone.utc),
             "Metadata": {"custom": "value"},
         }
         mock_boto3_client.head_object.return_value = mock_response
@@ -382,13 +382,13 @@ class TestGCSStorageClient:
         mock_blob1 = Mock()
         mock_blob1.name = "backups/backup-1.tar.gz"
         mock_blob1.size = 1024
-        mock_blob1.updated = datetime(2024, 1, 1, tzinfo=UTC)
+        mock_blob1.updated = datetime(2024, 1, 1, tzinfo=timezone.utc)
         mock_blob1.md5_hash = "abc123"
 
         mock_blob2 = Mock()
         mock_blob2.name = "backups/backup-2.tar.gz"
         mock_blob2.size = 2048
-        mock_blob2.updated = datetime(2024, 2, 1, tzinfo=UTC)
+        mock_blob2.updated = datetime(2024, 2, 1, tzinfo=timezone.utc)
         mock_blob2.md5_hash = "def456"
 
         mock_client.list_blobs.return_value = [mock_blob1, mock_blob2]
@@ -418,7 +418,7 @@ class TestGCSStorageClient:
         mock_blob = Mock()
         mock_blob.size = 2048
         mock_blob.md5_hash = "abc123"
-        mock_blob.updated = datetime(2024, 1, 1, tzinfo=UTC)
+        mock_blob.updated = datetime(2024, 1, 1, tzinfo=timezone.utc)
         mock_blob.metadata = {"custom": "value"}
         mock_bucket.blob.return_value = mock_blob
 
