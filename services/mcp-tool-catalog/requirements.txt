@@ -3,3 +3,6 @@
 
 # Service-specific dependencies
 deap==1.4.1
+
+# Validação de schemas de tools (src/validators/schema_validator.py)
+jsonschema>=4.20.0
