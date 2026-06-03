@@ -522,7 +522,9 @@ class TestComplianceChecks:
         cutoff_date = datetime.now(timezone.utc) - timedelta(days=retention_days)
 
         expired_records = [
-            r for r in records if datetime.fromisoformat(r["created_at"]) < cutoff_date
+            r
+            for r in records
+            if datetime.fromisoformat(r["created_at"]).replace(tzinfo=timezone.utc) < cutoff_date
         ]
 
         assert len(expired_records) == 1  # Registro de 2025 expirou
