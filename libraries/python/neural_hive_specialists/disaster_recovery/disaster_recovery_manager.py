@@ -2416,7 +2416,7 @@ class DisasterRecoveryManager:
                     cluster_nodes.append({"host": host, "port": int(port)})
 
                 # Criar cliente Redis Cluster
-                redis_client = RedisCluster(
+                redis_client = RedisCluster(  # type: ignore[abstract]
                     startup_nodes=cluster_nodes,
                     password=self.config.redis_password,
                     ssl=self.config.redis_ssl_enabled,
