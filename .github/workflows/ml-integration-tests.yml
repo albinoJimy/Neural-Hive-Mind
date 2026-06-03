@@ -84,6 +84,9 @@ jobs:
         env:
           MONGODB_URI: mongodb://localhost:27017
           MLFLOW_TRACKING_URI: file:///tmp/mlflow_test
+          # MLflow recente recusa o file store por default ("maintenance mode");
+          # opt-out explícito, já que os testes usam backend de ficheiros temporário.
+          MLFLOW_ALLOW_FILE_STORE: "true"
           PYTHONPATH: services/orchestrator-dynamic/src
         run: |
           pytest tests/integration/ml/ \
