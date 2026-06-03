@@ -63,8 +63,10 @@ def _monkey_patch_sklearn_trees():
 
         for cls in tree_classes:
             cls.__getattribute__ = create_patched_getattribute(cls.__getattribute__)
-            # Mark that we've patched this class
-            object.__setattr__(cls, "_monotonic_cst_patched", True)
+            # Mark that we've patched this class.
+            # As classes sklearn usam metaclass ABCMeta, que rejeita
+            # object.__setattr__ direto; setattr respeita o __setattr__ da metaclass.
+            setattr(cls, "_monotonic_cst_patched", True)
 
         # Also patch BaseForest's validation method
         if hasattr(BaseForest, "_validate_X_predict"):
