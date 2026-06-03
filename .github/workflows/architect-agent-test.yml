@@ -50,6 +50,8 @@ jobs:
       working-directory: ./services/architect-agent
       env:
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        # O código usa imports absolutos 'from src.X'; expor a raiz do serviço no path.
+        PYTHONPATH: ${{ github.workspace }}/services/architect-agent
       run: |
         pytest tests/unit/ -v --tb=short
 

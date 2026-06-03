@@ -149,6 +149,14 @@ ignore_missing_imports = true
 # códigos de erro ao nível do pacote — postura de gradual typing coerente com o
 # `disallow_untyped_calls = false # Gradualmente habilitar` já adoptado pela equipa.
 # Reativar progressivamente conforme os módulos forem anotados.
+# Bibliotecas de terceiros sem stubs de tipo (pybreaker, fastapi) — ignorar imports.
+[[tool.mypy.overrides]]
+module = [
+    "pybreaker.*",
+    "fastapi.*",
+]
+ignore_missing_imports = true
+
 [[tool.mypy.overrides]]
 module = [
     "neural_hive_specialists.*",
