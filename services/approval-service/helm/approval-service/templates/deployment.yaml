@@ -22,8 +22,20 @@ spec:
         prometheus.io/scrape: "true"
         prometheus.io/port: "{{ .Values.service.ports.metrics }}"
         prometheus.io/path: "/metrics"
+        # TR-4: estabilizar sidecar Istio (66 restarts/dia em vmi3313361).
+        # holdApplicationUntilProxyStarts evita corrida entre app + sidecar
+        # no startup; proxyCPU request reduz CPU throttling em nós Contabo
+        # com vCPU partilhado durante XDS reconnects (a cada ~30 min).
+        proxy.istio.io/config: |
+          holdApplicationUntilProxyStarts: true
+          terminationDrainDuration: 30s
+        sidecar.istio.io/proxyCPU: "500m"
+        sidecar.istio.io/proxyMemory: "256Mi"
     spec:
       serviceAccountName: {{ .Values.serviceAccount.name }}
+      # TR-4: SIGKILL deve esperar pelo terminationDrainDuration:30s
+      # do sidecar Istio. Default kubelet (30s) faz race com o drain.
+      terminationGracePeriodSeconds: 60
       containers:
         - name: {{ .Chart.Name }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
@@ -54,10 +66,13 @@ spec:
             httpGet:
               path: /ready
               port: http
+            # TR-4: probe relaxado para tolerar XDS reconnects do sidecar
+            # Istio (~30 min) e CPU throttling no nó Contabo. Antes:
+            # period=5s timeout=3s failure=3 → flap a cada ~3 min sob carga.
             initialDelaySeconds: 10
-            periodSeconds: 5
-            timeoutSeconds: 3
-            failureThreshold: 3
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 5
           securityContext:
             runAsNonRoot: true
             runAsUser: 1000

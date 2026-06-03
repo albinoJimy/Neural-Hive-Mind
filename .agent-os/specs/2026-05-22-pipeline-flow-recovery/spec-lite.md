@@ -1,0 +1,3 @@
+# Spec Summary (Lite)
+
+Recuperar o pipeline cognitivo NHM end-to-end. Hoje funciona apenas até consenso (3/7 fluxos OK). Quatro defeitos pré-existentes inativam Flow D (execução): (a) Queen-Agent usa Redis standalone client contra cluster de 6 nós, gerando `CLUSTERDOWN Hash slot not served` em cascata para consensus-engine; (b) 6 deployments de workers/agentes estão `0/0` há 100+ dias; (c) `orchestrator-dynamic` duplicado em 2 namespaces partilha o mesmo Kafka consumer group; (d) sidecar Istio do approval-service perde readiness probe a cada ~5min causando 66 restarts/dia. Spec entrega Flow D ativo, Queen sem erros Redis em 1h, lag de plans.ready em 0, namespace consolidado e approval-service estável.
