@@ -5,10 +5,9 @@ Verifica que o wrapper mantém compatibilidade com a API existente.
 """
 
 import json
-
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
 from src.planners.llm_client import LLMClient
 
 

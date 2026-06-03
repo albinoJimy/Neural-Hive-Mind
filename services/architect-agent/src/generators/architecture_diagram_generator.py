@@ -5,7 +5,6 @@ from pathlib import Path
 from structlog import get_logger
 
 from neural_hive_llm import LLMClient, LLMProvider, LLMResponse
-
 from src.generators.c4_diagram import C4DiagramGenerator
 from src.generators.mermaid_renderer import MermaidRenderer
 from src.models.architecture import Component

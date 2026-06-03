@@ -6,7 +6,6 @@ from structlog import get_logger
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 from neural_hive_llm import LLMClient, LLMProvider, LLMResponse
-
 from src.models.tech_stack import TechChoice, TechStackRecommendation
 from src.recommenders.knowledge_base import TECH_KNOWLEDGE_BASE
 

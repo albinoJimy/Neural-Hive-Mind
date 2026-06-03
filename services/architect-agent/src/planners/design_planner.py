@@ -8,7 +8,6 @@ from typing import Any
 from pydantic import ValidationError
 
 from neural_hive_llm import LLMClient, LLMProvider
-
 from src.models.architecture import (
     ArchitecturePlan,
     ArchitectureType,
@@ -72,8 +71,9 @@ class DesignPlanner(BasePlanner):
                     try:
                         loop = asyncio.get_event_loop()
                         if loop.is_running():
-                            # Já em contexto async, criar task
-                            asyncio.create_task(llm.start())
+                            # Já em contexto async, criar task.
+                            # Guardar referência evita garbage-collection prematuro (RUF006).
+                            self._startup_task = asyncio.create_task(llm.start())
                         else:
                             loop.run_until_complete(llm.start())
                     except RuntimeError:

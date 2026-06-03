@@ -3,8 +3,9 @@
 from unittest.mock import AsyncMock, Mock
 
 import pytest
-from neural_hive_llm import LLMResponse, LLMProvider
 from src.recommenders.tech_stack import TechStackRecommender
+
+from neural_hive_llm import LLMProvider, LLMResponse
 
 
 @pytest.fixture

@@ -6,7 +6,6 @@ from structlog import get_logger
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 from neural_hive_llm import LLMClient, LLMProvider, LLMResponse
-
 from src.models.bounded_context import (
     BoundedContext,
     BoundedContextRelationship,
