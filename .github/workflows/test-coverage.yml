@@ -169,10 +169,9 @@ jobs:
           MONGODB_URI: mongodb://localhost:27017
           REDIS_URI: redis://localhost:6379
           NEO4J_URI: bolt://localhost:7687
+          COVERAGE_FILE: .coverage.integration.${{ matrix.python-version }}
         run: |
           ./tests/run-tests.sh --type integration --coverage
-        env:
-          COVERAGE_FILE: .coverage.integration.${{ matrix.python-version }}
 
       - name: Generate coverage reports
         if: github.event.inputs.generate_reports != 'false'
