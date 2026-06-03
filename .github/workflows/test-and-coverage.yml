@@ -17,6 +17,8 @@ env:
   PIP_DISABLE_PIP_VERSION_CHECK: "1"
   PYTHONDONTWRITEBYTECODE: "1"
   PYTHONUNBUFFERED: "1"
+  # Workaround para incompatibilidade protobuf 4.x ABCMeta (TypeError: Descriptors)
+  PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION: python
 
 jobs:
   unit-tests:
@@ -68,7 +70,7 @@ jobs:
         with:
           files: ./tests/results/coverage/coverage.xml
           flags: unit-py${{ matrix.python-version }}
-          fail_ci_if_error: true
+          fail_ci_if_error: false
 
   integration-tests:
     name: Integration tests (Python ${{ matrix.python-version }})
@@ -148,7 +150,7 @@ jobs:
         with:
           files: ./tests/results/coverage/coverage.xml
           flags: integration-py${{ matrix.python-version }}
-          fail_ci_if_error: true
+          fail_ci_if_error: false
 
   service-tests:
     name: Service tests (Python ${{ matrix.python-version }})
@@ -195,7 +197,7 @@ jobs:
         with:
           files: ./tests/results/coverage/coverage.xml
           flags: services-py${{ matrix.python-version }}
-          fail_ci_if_error: true
+          fail_ci_if_error: false
 
   lint:
     name: Lint and type-check

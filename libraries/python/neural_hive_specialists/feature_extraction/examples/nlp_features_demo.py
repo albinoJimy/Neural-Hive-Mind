@@ -86,7 +86,8 @@ def main():
     print("=" * 60)
     print()
 
-    print("""
+    print(
+        """
 from feedback.feedback_collector import FeedbackCollector
 from feature_extraction.nlp_feature_extractor import get_nlp_extractor
 
@@ -112,7 +113,8 @@ feedback_data = collector.enrich_with_nlp_features(
 feedback_id = collector.submit_feedback(feedback_data)
 print(f"Feedback salvo: {feedback_id}")
 print(f"NLP features: {feedback_data.get('nlp_features', {})}")
-    """)
+    """
+    )
 
     print("=" * 60)
     print(f"Total de features extraídas: {len(extractor.get_feature_names())}")

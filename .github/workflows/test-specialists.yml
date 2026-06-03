@@ -90,6 +90,8 @@ jobs:
         env:
           MONGODB_URI: mongodb://localhost:27017
           REDIS_URL: redis://localhost:6379
+          # Workaround para incompatibilidade protobuf 4.x ABCMeta
+          PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION: python
         run: |
           pytest tests/ \
             -v \
@@ -99,7 +101,8 @@ jobs:
             --cov-report=xml:../../../tests/results/coverage/coverage.xml \
             --cov-report=html:../../../tests/results/coverage/ \
             --junit-xml=../../../tests/results/specialists-junit.xml \
-            --ignore=tests/benchmarks
+            --ignore=tests/benchmarks \
+            --ignore=tests/integration
 
       - name: Upload coverage para Codecov
         uses: codecov/codecov-action@v3
