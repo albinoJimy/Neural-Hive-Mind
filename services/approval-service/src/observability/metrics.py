@@ -243,6 +243,12 @@ class NeuralHiveMetrics:
                     risk_band = item["_id"]
                     oldest = item.get("oldest_requested_at")
                     if oldest:
+                        # MongoDB pode devolver a data como string ISO; converte
+                        # para datetime antes de aceder a tzinfo para evitar AttributeError
+                        if isinstance(oldest, str):
+                            # Normaliza o sufixo 'Z' (Zulu) para offset explícito '+00:00',
+                            # pois datetime.fromisoformat não o parseia em Python < 3.11
+                            oldest = datetime.fromisoformat(oldest.replace("Z", "+00:00"))
                         # Calcula idade em segundos
                         if oldest.tzinfo is None:
                             oldest = oldest.replace(tzinfo=timezone.utc)

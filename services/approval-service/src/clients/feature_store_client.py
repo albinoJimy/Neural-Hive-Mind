@@ -78,7 +78,13 @@ class FeatureStoreClient:
                 return None
 
         except httpx.RequestError as e:
-            logger.error("Erro de requisição ao Feature Store", plan_id=plan_id, error=str(e))
+            # Falha de DNS/conexão (ex.: feature-store inexistente no cluster) é degradação
+            # esperada: degradamos para WARNING e seguimos sem features ML via fallback.
+            logger.warning(
+                "Feature Store indisponível (degradação esperada): a continuar sem features ML",
+                plan_id=plan_id,
+                error=str(e),
+            )
             return None
         except Exception as e:
             logger.error("Erro ao buscar features", plan_id=plan_id, error=str(e))
@@ -123,7 +129,13 @@ class FeatureStoreClient:
                 return None
 
         except httpx.RequestError as e:
-            logger.error("Erro de requisição ao Feature Store", plan_id=plan_id, error=str(e))
+            # Falha de DNS/conexão (ex.: feature-store inexistente no cluster) é degradação
+            # esperada: degradamos para WARNING e seguimos sem features ML via fallback.
+            logger.warning(
+                "Feature Store indisponível (degradação esperada): a continuar sem features ML",
+                plan_id=plan_id,
+                error=str(e),
+            )
             return None
         except Exception as e:
             logger.error("Erro ao computar features", plan_id=plan_id, error=str(e))
@@ -156,6 +168,14 @@ class FeatureStoreClient:
                 )
                 return {}
 
+        except httpx.RequestError as e:
+            # Falha de DNS/conexão (ex.: feature-store inexistente no cluster) é degradação
+            # esperada: degradamos para WARNING e seguimos sem features ML via fallback.
+            logger.warning(
+                "Feature Store indisponível (degradação esperada): a continuar sem features ML",
+                error=str(e),
+            )
+            return {}
         except Exception as e:
             logger.error("Erro ao buscar features múltiplas", error=str(e))
             return {}

@@ -309,13 +309,16 @@ class QueenAgentGrpcClient:
 
         request = queen_agent_pb2.GetSystemStatusRequest()
 
+        # Timeout configurável; check secundário de saúde, mais tolerante que a chamada principal
+        status_timeout_s = getattr(self.config, "queen_agent_status_timeout_ms", 30000) / 1000.0
+
         # Função interna para a chamada gRPC
         async def _grpc_call():
             for attempt in range(MAX_RETRIES):
                 try:
                     metadata = await self._get_grpc_metadata()
                     response = await self.stub.GetSystemStatus(
-                        request, metadata=metadata, timeout=10.0
+                        request, metadata=metadata, timeout=status_timeout_s
                     )
 
                     return {
@@ -332,7 +335,8 @@ class QueenAgentGrpcClient:
                         grpc.StatusCode.UNAVAILABLE,
                         grpc.StatusCode.DEADLINE_EXCEEDED,
                     ]
-                    logger.error(
+                    # Check secundário de saúde: falha é degradação esperada, não erro crítico
+                    logger.warning(
                         "grpc_get_system_status_failed",
                         error=str(e),
                         code=e.code().name if hasattr(e, "code") else "UNKNOWN",
