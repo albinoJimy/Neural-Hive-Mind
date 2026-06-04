@@ -9,7 +9,7 @@ Valida que todo o fluxo funciona com SPIFFE/SPIRE:
 
 import os
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import List, Dict, Any, Optional

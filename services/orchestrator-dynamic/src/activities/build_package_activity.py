@@ -5,7 +5,6 @@ Integra com code-forge via API REST para build, testes e empacotamento.
 """
 
 import asyncio
-from datetime import timedelta
 from typing import Any
 
 import httpx
@@ -93,9 +92,7 @@ async def build_package(
                 status_code=response.status_code,
                 response_text=response.text,
             )
-            raise RuntimeError(
-                f"Falha ao iniciar build: HTTP {response.status_code}"
-            )
+            raise RuntimeError(f"Falha ao iniciar build: HTTP {response.status_code}")
 
         result = response.json()
         pipeline_id = result.get("pipeline_id")
@@ -156,7 +153,6 @@ async def _wait_for_build_completion(
         RuntimeError: Se o build falhar
     """
     started = asyncio.get_event_loop().time()
-    last_stage = None
 
     while True:
         elapsed = asyncio.get_event_loop().time() - started
@@ -165,15 +161,12 @@ async def _wait_for_build_completion(
             raise TimeoutError(f"Build timeout após {max_wait}s")
 
         try:
-            response = await client.get(
-                f"http://code-forge:8020/api/v1/pipelines/{pipeline_id}"
-            )
+            response = await client.get(f"http://code-forge:8020/api/v1/pipelines/{pipeline_id}")
 
             if response.status_code == 200:
                 status_data = response.json()
                 status = status_data.get("status")
                 stage = status_data.get("stage", "")
-                last_stage = stage
 
                 logger.debug(
                     "build_package_poll",
@@ -214,9 +207,7 @@ async def _wait_for_build_completion(
                         "image_tag": container_image.get("metadata", {}).get("tag")
                         if container_image
                         else f"service-{plan_id}:1.0.0",
-                        "test_results": test_results.get("content", {})
-                        if test_results
-                        else {},
+                        "test_results": test_results.get("content", {}) if test_results else {},
                         "sbom": sbom.get("content_uri") if sbom else "",
                         "quality_score": status_data.get("quality_score", 0.8),
                         "security_scan": status_data.get("security_scan", {}),
@@ -269,9 +260,7 @@ async def validate_build_quality(
     # Verificar quality score
     if quality_score < min_quality_score:
         approved = False
-        reasons.append(
-            f"Quality score {quality_score:.2f} abaixo do mínimo {min_quality_score}"
-        )
+        reasons.append(f"Quality score {quality_score:.2f} abaixo do mínimo {min_quality_score}")
 
     # Verificar taxa de testes
     passed = test_results.get("passed", 0)
@@ -280,9 +269,7 @@ async def validate_build_quality(
 
     if pass_rate < min_test_pass_rate:
         approved = False
-        reasons.append(
-            f"Taxa de testes {pass_rate:.1%} abaixo do mínimo {min_test_pass_rate:.1%}"
-        )
+        reasons.append(f"Taxa de testes {pass_rate:.1%} abaixo do mínimo {min_test_pass_rate:.1%}")
 
     # Verificar vulnerabilidades críticas
     vulnerabilities = security_scan.get("vulnerabilities", {})

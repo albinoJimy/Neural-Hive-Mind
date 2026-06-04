@@ -6,7 +6,6 @@ Testa estados, transições e execução de workflows.
 """
 
 import pytest
-import asyncio
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 from enum import Enum

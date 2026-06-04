@@ -56,9 +56,7 @@ class TestAngolanPIIDetector:
 
     def test_detect_multiple_angolan_entities(self, angolan_detector):
         """Múltiplas entidades angolanas devem ser detectadas."""
-        result = angolan_detector.detect(
-            "NIF 005123456, BI 001234567891AB, NUIT 541234567"
-        )
+        result = angolan_detector.detect("NIF 005123456, BI 001234567891AB, NUIT 541234567")
 
         assert result.has_pii is True
         assert len(result.entities) >= 3
@@ -147,9 +145,7 @@ class TestAngolanPIIDetector:
 
     def test_combined_brazilian_angolan_pii(self, angolan_detector):
         """Deve detectar PII brasileiro e angolano juntos."""
-        result = angolan_detector.detect(
-            "CPF 123.456.789-09 e NIF 005123456"
-        )
+        result = angolan_detector.detect("CPF 123.456.789-09 e NIF 005123456")
 
         assert result.has_pii is True
         types_found = {e.type for e in result.entities}

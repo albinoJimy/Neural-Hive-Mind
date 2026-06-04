@@ -183,7 +183,7 @@ class TestTimestampFix:
                 return decision
 
             # Loop terminou sem encontrar decisão
-            error_msg = f"Consumer terminou sem receber decisão"
+            error_msg = "Consumer terminou sem receber decisão"
             self.results["errors"].append(error_msg)
             logger.error(error_msg, plan_id=self.test_plan_id)
             print(f"{Colors.RED}✗ {error_msg}{Colors.RESET}")

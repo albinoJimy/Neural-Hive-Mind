@@ -5,7 +5,6 @@ GAP-04: Cobertura de Testes 16% → 70%
 Testa integração entre serviços e Redis.
 """
 
-import pytest
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 

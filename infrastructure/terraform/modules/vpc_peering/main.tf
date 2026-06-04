@@ -56,7 +56,7 @@ resource "aws_route" "requester_routes" {
   provider = aws.requester
   count    = length(var.requester_route_table_ids)
 
-  route_table_id         = var.requester_route_table_ids[count.index]
+  route_table_id                        = var.requester_route_table_ids[count.index]
   destination_vpc_peering_connection_id = aws_vpc_peering_connection.this.id
 
   depends_on = [
@@ -72,7 +72,7 @@ resource "aws_route" "accepter_routes" {
   provider = aws.accepter
   count    = length(var.accepter_route_table_ids)
 
-  route_table_id         = var.accepter_route_table_ids[count.index]
+  route_table_id                        = var.accepter_route_table_ids[count.index]
   destination_vpc_peering_connection_id = aws_vpc_peering_connection.this.id
 
   depends_on = [

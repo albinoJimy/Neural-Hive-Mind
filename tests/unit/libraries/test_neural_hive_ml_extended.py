@@ -6,11 +6,8 @@ Testa detecção de drift, retreinamento e modelos preditivos.
 """
 
 import pytest
-import asyncio
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
-from unittest.mock import Mock, AsyncMock, MagicMock
-import json
 
 
 # =============================================================================
@@ -519,7 +516,7 @@ class TestABTesting:
 
     def test_statistical_significance(self):
         """Deve verificar significância estatística."""
-        from statistics import mean, stdev
+        from statistics import mean
 
         variant_a_results = [1, 0, 1, 1, 0]
         variant_b_results = [1, 1, 1, 0, 1]

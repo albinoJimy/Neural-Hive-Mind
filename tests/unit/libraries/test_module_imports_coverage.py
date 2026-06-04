@@ -6,9 +6,6 @@ Importa módulos reais para aumentar cobertura.
 """
 
 import pytest
-from datetime import datetime, timedelta
-from unittest.mock import Mock, patch, MagicMock
-from uuid import uuid4
 
 
 # =============================================================================
@@ -410,7 +407,6 @@ class TestConfigurationModuleCoverage:
 
     def test_config_environment_variables(self):
         """Deve ler variáveis de ambiente."""
-        import os
 
         # Simular variáveis de ambiente
         env_vars = {

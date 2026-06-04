@@ -54,15 +54,15 @@ output "connection_string_tls" {
 output "gateway_integration" {
   description = "Configuração para integração com Gateway"
   value = {
-    endpoint           = "${var.cluster_name}.${kubernetes_namespace.redis_cluster.metadata[0].name}.svc.cluster.local"
-    port               = 6379
-    auth_secret        = kubernetes_secret.redis_auth.metadata[0].name
-    auth_secret_key    = "password"
-    tls_enabled        = var.tls_enabled
-    ca_cert_secret     = var.tls_enabled ? kubernetes_secret.redis_ca_cert[0].metadata[0].name : null
-    default_ttl        = var.default_ttl_seconds
-    memory_policy      = var.memory_policy
-    namespace          = kubernetes_namespace.redis_cluster.metadata[0].name
+    endpoint        = "${var.cluster_name}.${kubernetes_namespace.redis_cluster.metadata[0].name}.svc.cluster.local"
+    port            = 6379
+    auth_secret     = kubernetes_secret.redis_auth.metadata[0].name
+    auth_secret_key = "password"
+    tls_enabled     = var.tls_enabled
+    ca_cert_secret  = var.tls_enabled ? kubernetes_secret.redis_ca_cert[0].metadata[0].name : null
+    default_ttl     = var.default_ttl_seconds
+    memory_policy   = var.memory_policy
+    namespace       = kubernetes_namespace.redis_cluster.metadata[0].name
   }
   sensitive = false
 }
@@ -115,8 +115,8 @@ output "client_config" {
     REDIS_TLS_ENABLED     = tostring(var.tls_enabled)
     REDIS_DEFAULT_TTL     = tostring(var.default_ttl_seconds)
     REDIS_MAX_CONNECTIONS = "100"
-    REDIS_POOL_SIZE      = "10"
-    REDIS_TIMEOUT        = "5000"
+    REDIS_POOL_SIZE       = "10"
+    REDIS_TIMEOUT         = "5000"
   }
   sensitive = false
 }
@@ -125,16 +125,16 @@ output "client_config" {
 output "cluster_config" {
   description = "Configuração atual do cluster"
   value = {
-    size              = var.cluster_size
-    redis_version     = var.redis_version
-    storage_size      = var.storage_size
-    storage_class     = var.storage_class
-    memory_policy     = var.memory_policy
-    persistence       = var.enable_persistence
-    metrics_enabled   = var.enable_metrics
-    backup_enabled    = var.backup_enabled
-    tls_enabled       = var.tls_enabled
-    auth_enabled      = var.enable_auth
+    size            = var.cluster_size
+    redis_version   = var.redis_version
+    storage_size    = var.storage_size
+    storage_class   = var.storage_class
+    memory_policy   = var.memory_policy
+    persistence     = var.enable_persistence
+    metrics_enabled = var.enable_metrics
+    backup_enabled  = var.backup_enabled
+    tls_enabled     = var.tls_enabled
+    auth_enabled    = var.enable_auth
   }
 }
 

@@ -81,7 +81,7 @@ class FeatureStore:
                 host, port = node.strip().split(":")
                 nodes.append({"host": host, "port": int(port)})
 
-            self.redis_client = RedisCluster(
+            self.redis_client = RedisCluster(  # type: ignore[abstract]
                 startup_nodes=nodes,
                 password=redis_password,
                 ssl=redis_ssl_enabled,
@@ -174,7 +174,7 @@ class FeatureStore:
                         self.redis_client.setex(
                             cache_key, self.cache_ttl_seconds, document["features"]
                         )
-                    except:
+                    except Exception:
                         pass
 
                 return features

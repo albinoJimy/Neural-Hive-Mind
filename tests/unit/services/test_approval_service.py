@@ -6,10 +6,8 @@ Testa aprovação, rejeição, e feedback de decisões.
 """
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
-from typing import Dict, Any, List
 
 
 # =============================================================================

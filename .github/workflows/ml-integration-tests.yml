@@ -64,13 +64,15 @@ jobs:
         run: |
           pip install --upgrade pip
           pip install -r tests/requirements-test.txt
+          # Instalar requirements base primeiro (resolvido a partir da raiz do repo)
+          pip install -r requirements-base.txt
           # Instalar bibliotecas locais na ordem correta de dependências
           pip install -e libraries/python/neural_hive_resilience
           pip install -e libraries/security
           pip install -e libraries/python/neural_hive_ml
           pip install -e libraries/neural_hive_integration
-          # Instalar requirements filtrando paths absolutos do Docker
-          grep -v '^/libraries' services/orchestrator-dynamic/requirements.txt | pip install -r /dev/stdin
+          # Instalar requirements do orchestrator (filtrar paths Docker e refs -r já resolvidas)
+          grep -vE '^/libraries|^-r ' services/orchestrator-dynamic/requirements.txt | pip install -r /dev/stdin
           pip install scikit-learn pandas numpy mlflow pytest-asyncio motor
 
       - name: Verify MongoDB connection
@@ -82,6 +84,9 @@ jobs:
         env:
           MONGODB_URI: mongodb://localhost:27017
           MLFLOW_TRACKING_URI: file:///tmp/mlflow_test
+          # MLflow recente recusa o file store por default ("maintenance mode");
+          # opt-out explícito, já que os testes usam backend de ficheiros temporário.
+          MLFLOW_ALLOW_FILE_STORE: "true"
           PYTHONPATH: services/orchestrator-dynamic/src
         run: |
           pytest tests/integration/ml/ \

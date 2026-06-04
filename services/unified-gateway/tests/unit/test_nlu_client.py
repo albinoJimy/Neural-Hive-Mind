@@ -1,7 +1,7 @@
 """Testes para o NLU Service Client."""
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, Mock, patch
+from unittest.mock import AsyncMock, Mock
 
 from src.models.classification import NLUResult
 from src.services.nlu_client import NLUServiceClient
@@ -89,8 +89,7 @@ class TestNLUServiceClient:
 
         # Chamar classify_domain
         domain, confidence, reasoning = await nlu_client.classify_domain(
-            "Gerar código",
-            language="pt"
+            "Gerar código", language="pt"
         )
 
         # Verificar resultado
@@ -242,10 +241,11 @@ class TestGetNLIClientSingleton:
 
     async def test_singleton_returns_same_instance(self):
         """Testar que singleton retorna mesma instância."""
-        from src.services.nlu_client import get_nlu_client, _nlu_client
+        from src.services.nlu_client import get_nlu_client
 
         # Reset singleton
         import src.services.nlu_client as nlu_client_module
+
         nlu_client_module._nlu_client = None
 
         # Obter duas instâncias

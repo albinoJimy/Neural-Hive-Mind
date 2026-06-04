@@ -8,12 +8,10 @@ Implementa INV-11: Distributed tracing propagated via traceparent header.
 """
 
 import time
-import uuid
-from typing import Any
 
 import structlog
 from fastapi import Request
-from opentelemetry import trace, propagate
+from opentelemetry import trace
 from opentelemetry.trace import Status, StatusCode
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response
@@ -197,9 +195,6 @@ def inject_traceparent(headers: dict[str, str]) -> None:
         # headers agora contém traceparent
     """
     try:
-        from opentelemetry.propagators.b3 import B3MultiFormat
-        from opentelemetry.trace import get_current_span
-
         # Usar propagador W3C Trace Context
         from opentelemetry.propagators.tracecontext import TraceContextPropagator
 

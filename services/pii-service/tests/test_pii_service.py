@@ -148,9 +148,7 @@ class TestPIIServiceUnmask:
     @pytest.mark.asyncio
     async def test_unmask_invalid_token(self, pii_service):
         """Testa unmask com token inválido."""
-        original, success, error = await pii_service.unmask(
-            mask_id="invalid_token"
-        )
+        original, success, error = await pii_service.unmask(mask_id="invalid_token")
 
         assert not success
         assert error is not None
@@ -171,16 +169,11 @@ class TestPIIServiceCapabilities:
         assert "version" in capabilities
 
         # Verificar tipos requeridos por INV-2
-        required_types = [
-            "EMAIL", "PHONE", "CPF", "CNPJ",
-            "CREDIT_CARD", "SSN", "ADDRESS"
-        ]
+        required_types = ["EMAIL", "PHONE", "CPF", "CNPJ", "CREDIT_CARD", "SSN", "ADDRESS"]
         for t in required_types:
             assert t in capabilities["supported_types"]
 
         # Verificar estratégias requeridas por INV-2
-        required_strategies = [
-            "MASK_FULL", "MASK_PARTIAL", "MASK_REDACT"
-        ]
+        required_strategies = ["MASK_FULL", "MASK_PARTIAL", "MASK_REDACT"]
         for s in required_strategies:
             assert s in capabilities["supported_strategies"]

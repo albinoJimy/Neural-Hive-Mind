@@ -321,7 +321,9 @@ class ThreatDetector:
         try:
             import json
 
-            anomaly_id = f"anomaly:{anomaly.get('threat_type')}:{datetime.now(timezone.utc).timestamp()}"
+            anomaly_id = (
+                f"anomaly:{anomaly.get('threat_type')}:{datetime.now(timezone.utc).timestamp()}"
+            )
             await self.redis.set(anomaly_id, json.dumps(anomaly), ex=3600)  # 1 hora
         except Exception as e:
             logger.warning("threat_detector.cache_failed", error=str(e))

@@ -6,11 +6,8 @@ Testa orquestração de workflows, Temporal, e coordenação de workers.
 """
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch, Mock
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
-import asyncio
-import json
 
 
 # =============================================================================

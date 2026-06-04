@@ -19,7 +19,7 @@ resource "kubernetes_namespace" "postgres_temporal" {
         "app.kubernetes.io/name"      = "postgres-temporal"
         "app.kubernetes.io/component" = "database"
         "neural-hive.io/layer"        = "infrastructure"
-        "environment"                  = var.environment
+        "environment"                 = var.environment
       }
     )
   }

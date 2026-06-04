@@ -15,14 +15,13 @@ import asyncio
 import json
 import time
 import uuid
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 import httpx
 import pytest
 from confluent_kafka.avro import AvroConsumer, AvroProducer
 
 from tests.e2e.utils.assertions import (
-    assert_avro_message_valid,
     assert_cognitive_plan_structure,
     assert_consolidated_decision_structure,
     assert_execution_ticket_structure,
@@ -290,7 +289,7 @@ class TestSpecialistsInvocation:
             f"Invocados com sucesso: {specialists_invoked}"
         )
 
-        print(f"\n✅ Todos os 5 specialists foram invocados via gRPC")
+        print("\n✅ Todos os 5 specialists foram invocados via gRPC")
 
         # Aguardar decisão consolidada com specialist_votes
         decision = await wait_for_avro_message(
@@ -323,7 +322,7 @@ class TestSpecialistsInvocation:
             assert "recommendation" in vote
             assert "processing_time_ms" in vote
 
-        print(f"   ✅ ConsolidatedDecision contém votos de todos os 5 specialists")
+        print("   ✅ ConsolidatedDecision contém votos de todos os 5 specialists")
 
 
 # ============================================
@@ -523,7 +522,7 @@ class TestCompleteAvroFlow:
             metrics["flow_c_latency_ms"] = (metrics["flow_c_end"] - metrics["flow_b_end"]) * 1000
 
         # Log de métricas para análise
-        print(f"\n📊 Métricas do Fluxo Avro Completo:")
+        print("\n📊 Métricas do Fluxo Avro Completo:")
         print(f"   Latência Total: {metrics['total_latency_ms']:.2f}ms")
         print(f"   Fluxo A: {metrics['flow_a_latency_ms']:.2f}ms")
         print(f"   Fluxo B: {metrics['flow_b_latency_ms']:.2f}ms")
@@ -581,7 +580,6 @@ class TestSchemaEvolution:
         """
         from confluent_kafka import avro
         from confluent_kafka.avro import AvroConsumer, AvroProducer
-        from confluent_kafka.avro.error import ClientError
 
         test_subject = f"schema-evolution-test-{uuid.uuid4().hex[:8]}-value"
         test_topic = f"schema-evolution-{uuid.uuid4().hex[:8]}"
@@ -716,7 +714,7 @@ class TestSchemaEvolution:
         # Cleanup: remover subject de teste
         await schema_registry_client.delete(f"/apis/ccompat/v6/subjects/{test_subject}")
 
-        print(f"\n✅ Schema Evolution Test:")
+        print("\n✅ Schema Evolution Test:")
         print(f"   Schema v1 ID: {schema_v1_id}")
         print(f"   Schema v2 ID: {schema_v2_id}")
         print(f"   Mensagens deserializadas: {len(messages_received)}")
@@ -1016,7 +1014,7 @@ class TestErrorHandlingInvalidMagicByte:
             "Esperava-se que mensagens com magic byte inválido não gerassem decisões."
         )
 
-        print(f"   ✅ Nenhuma ConsolidatedDecision emitida para plan_id inválido")
+        print("   ✅ Nenhuma ConsolidatedDecision emitida para plan_id inválido")
 
         # Verificar que o consumer do consensus-engine continua ativo
         # Publicar uma mensagem válida após o erro e verificar que é processada
@@ -1045,7 +1043,7 @@ class TestErrorHandlingInvalidMagicByte:
             f"Indicadores encontrados nos logs: {logs_after[-500:]}"
         )
 
-        print(f"   ✅ Consensus-engine continua ativo após erro de magic byte")
+        print("   ✅ Consensus-engine continua ativo após erro de magic byte")
 
 
 # ============================================
@@ -1094,7 +1092,7 @@ class TestPerformanceAvroSerialization:
         throughput = num_messages / total_time
         avg_latency = sum(latencies) / len(latencies)
 
-        print(f"\n📊 Métricas de Performance Avro:")
+        print("\n📊 Métricas de Performance Avro:")
         print(f"   Mensagens: {num_messages}")
         print(f"   Tempo Total: {total_time:.2f}s")
         print(f"   Throughput: {throughput:.2f} msgs/s")

@@ -78,8 +78,13 @@ class TestVaultFailOpenValidation:
 
         assert "vault_fail_open" in str(exc_info.value)
 
-    def test_vault_fail_open_true_in_staging_allowed(self, monkeypatch):
-        """vault_fail_open=true e permitido em staging."""
+    def test_vault_fail_open_true_in_staging_rejected(self, monkeypatch):
+        """vault_fail_open=true e rejeitado em staging (postura fail-closed/zero-trust).
+
+        Staging segue a mesma politica de seguranca de producao: apenas
+        ambientes de desenvolvimento (development/dev/local/test) podem
+        permitir fail_open. Ver validador em src/config/settings.py.
+        """
         monkeypatch.setenv("ENVIRONMENT", "staging")
         monkeypatch.setenv("VAULT_FAIL_OPEN", "true")
         monkeypatch.setenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
@@ -89,9 +94,10 @@ class TestVaultFailOpenValidation:
         monkeypatch.setenv("MONGODB_URI", "mongodb://localhost:27017")
         monkeypatch.setenv("REDIS_CLUSTER_NODES", "localhost:6379")
 
-        settings = OrchestratorSettings()
-        assert settings.vault_fail_open is True
-        assert settings.environment == "staging"
+        with pytest.raises(ValidationError) as exc_info:
+            OrchestratorSettings()
+
+        assert "vault_fail_open" in str(exc_info.value)
 
 
 class TestRedisPasswordValidation:

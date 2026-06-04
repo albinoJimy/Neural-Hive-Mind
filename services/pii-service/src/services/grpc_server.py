@@ -1,7 +1,5 @@
 """Servidor gRPC para PII Service."""
 
-import asyncio
-from datetime import timezone
 
 import grpc
 import structlog
@@ -68,9 +66,6 @@ class PIIGrpcServicer(pii_pb2_grpc.PIIServiceServicer):
     async def Detect(self, request, context):
         """Detecta PII em texto (INV-2: 7 tipos com positions)."""
         try:
-            # Extrair context
-            requestor_id = request.context.get("requestor_id", "grpc_anonymous")
-
             # Detectar
             detected = pii_service.detect(
                 text=request.text,
@@ -128,9 +123,7 @@ class PIIGrpcServicer(pii_pb2_grpc.PIIServiceServicer):
                 pii_pb2.MASK_REDACT: "MASK_REDACT",
                 pii_pb2.MASK_HASH: "MASK_HASH",
             }
-            strategy = strategy_map.get(
-                request.strategy, "MASK_PARTIAL"
-            )
+            strategy = strategy_map.get(request.strategy, "MASK_PARTIAL")
 
             # Tipos para mascarar
             types_to_mask = [t.name for t in request.types] if request.types else None

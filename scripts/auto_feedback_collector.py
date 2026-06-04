@@ -17,7 +17,6 @@ subprocess.check_call([sys.executable, "-m", "pip", "install", "pymongo", "-q"])
 
 from pymongo import MongoClient
 from datetime import datetime, timezone
-import random
 import time
 
 MONGO_URI = "mongodb://root:local_dev_password@mongodb.mongodb-cluster.svc.cluster.local:27017/neural_hive?authSource=admin"
@@ -31,7 +30,6 @@ def generate_auto_feedback(opinion):
     """Gera feedback automático baseado em heurísticas."""
     confidence = opinion.get("opinion", {}).get("confidence_score", 0.5)
     model_rec = opinion.get("opinion", {}).get("recommendation", "review_required")
-    specialist = opinion.get("specialist_type", "unknown")
 
     # Heurística 1: Baixa confiança → requer revisão humana (mas vamos marcar como review_required)
     if confidence < 0.3:
@@ -97,7 +95,7 @@ def collect_batch(batch_size=50):
         }
 
         try:
-            result = feedback_col.insert_one(feedback_doc)
+            feedback_col.insert_one(feedback_doc)
             collected += 1
 
             # Progresso a cada 10
@@ -119,7 +117,7 @@ if __name__ == "__main__":
     parser.add_argument("--target", type=int, default=100, help="Target total de feedbacks")
     args = parser.parse_args()
 
-    print(f"Iniciando coleta automática de feedback...")
+    print("Iniciando coleta automática de feedback...")
     print(f"Meta: {args.target} feedbacks")
     print(f"Lote: {args.batch} opiniões por execução")
     print()
@@ -150,6 +148,6 @@ if __name__ == "__main__":
         if pending > 0:
             time.sleep(1)  # Pequena pausa entre lotes
 
-    print(f"\n✓ Coleta concluída!")
+    print("\n✓ Coleta concluída!")
     print(f"  Feedbacks coletados: {with_fb}")
     print(f"  Progresso: {(with_fb/total*100):.1f}%")

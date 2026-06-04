@@ -201,16 +201,21 @@ add_pytest_tests() {
 
 discover_tests_recursive() {
   local -n arr=$1
-  add_pytest_tests arr "${REPO_ROOT}/tests/unit" "unit"
+  # Suite unit: selecção por diretório (tests/unit), sem filtro de marker.
+  # Nenhum teste em tests/unit usa @pytest.mark.unit, pelo que filtrar por
+  # "-m unit" deselecionava todos (~1675) os testes.
+  add_pytest_tests arr "${REPO_ROOT}/tests/unit" ""
   add_bash_tests arr "${REPO_ROOT}/tests/integration"
   add_pytest_tests arr "${REPO_ROOT}/tests/integration" "integration"
   add_bash_tests arr "${REPO_ROOT}/tests/e2e/phase1"
   add_bash_tests arr "${REPO_ROOT}/tests/e2e/phase2"
   add_bash_tests arr "${REPO_ROOT}/tests/e2e/specialists"
   add_pytest_tests arr "${REPO_ROOT}/tests/e2e" "e2e"
-  add_pytest_tests arr "${REPO_ROOT}/tests/specialists" "specialists"
+  # specialists/services: nenhum teste usa @pytest.mark.{specialists,services};
+  # selecção por diretório para não deselecionar tudo.
+  add_pytest_tests arr "${REPO_ROOT}/tests/specialists" ""
   add_bash_tests arr "${REPO_ROOT}/tests/services"
-  add_pytest_tests arr "${REPO_ROOT}/tests/services" "services"
+  add_pytest_tests arr "${REPO_ROOT}/tests/services" ""
   add_bash_tests arr "${REPO_ROOT}/tests/specialists"
   add_bash_tests arr "${REPO_ROOT}/tests/performance"
 }
@@ -236,7 +241,8 @@ discover_tests() {
 
   case "$type" in
     unit)
-      add_pytest_tests results "${REPO_ROOT}/tests/unit" "unit"
+      # Selecção por diretório (tests/unit), sem filtro de marker inexistente.
+      add_pytest_tests results "${REPO_ROOT}/tests/unit" ""
       ;;
     integration)
       add_bash_tests results "${REPO_ROOT}/tests/integration"

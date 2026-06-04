@@ -82,9 +82,7 @@ class TemporalContext(BaseModel):
     requested_at: datetime = Field(default_factory=datetime.utcnow)
     received_at: datetime = Field(default_factory=datetime.utcnow)
     processed_at: datetime | None = None
-    expires_at: datetime = Field(
-        default_factory=lambda: datetime.utcnow() + timedelta(hours=1)
-    )
+    expires_at: datetime = Field(default_factory=lambda: datetime.utcnow() + timedelta(hours=1))
 
 
 class SecurityContext(BaseModel):

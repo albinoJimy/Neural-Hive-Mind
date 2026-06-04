@@ -16,9 +16,6 @@ from tests.test_helpers.factories import (
     TestTaskFactory,
     create_test_plan,
     create_test_opinion,
-    create_test_decision,
-    create_test_ticket,
-    create_test_feedback,
 )
 
 from tests.test_helpers.asserts import (
@@ -26,8 +23,6 @@ from tests.test_helpers.asserts import (
     assert_valid_confidence,
     assert_valid_domain,
     assert_valid_risk_band,
-    assert_valid_specialist_id,
-    assert_valid_status,
     assert_tasks_dependent,
     assert_no_circular_dependencies,
     assert_cognitive_plan,
@@ -38,7 +33,6 @@ from tests.test_helpers.asserts import (
 
 from tests.test_helpers.mocks import (
     MockKafkaProducer,
-    MockKafkaConsumer,
     MockKafkaMessage,
     MockMongoDBClient,
     MockRedisClient,

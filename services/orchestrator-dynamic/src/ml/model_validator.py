@@ -251,9 +251,9 @@ class ModelValidator:
 
         if not passed:
             if mae_pct >= self.mae_threshold:
-                result["recommendation"] = (
-                    f"MAE ({mae_pct:.1%}) excede threshold ({self.mae_threshold:.0%})"
-                )
+                result[
+                    "recommendation"
+                ] = f"MAE ({mae_pct:.1%}) excede threshold ({self.mae_threshold:.0%})"
             if r2 <= self.r2_threshold:
                 result["recommendation"] = f"R² ({r2:.3f}) abaixo de {self.r2_threshold}"
 
@@ -296,9 +296,9 @@ class ModelValidator:
             if not is_unbiased:
                 result["recommendation"] = f"Viés detectado: erro médio = {mean_error:.3f}"
             elif ks_p <= 0.01:
-                result["recommendation"] = (
-                    "Distribuição de predições difere significativamente dos targets"
-                )
+                result[
+                    "recommendation"
+                ] = "Distribuição de predições difere significativamente dos targets"
 
         return result
 
@@ -418,9 +418,9 @@ class ModelValidator:
         }
 
         if not passed:
-            result["recommendation"] = (
-                f"Disparidade significativa entre grupos (ratio={max_disparity:.2f})"
-            )
+            result[
+                "recommendation"
+            ] = f"Disparidade significativa entre grupos (ratio={max_disparity:.2f})"
 
         return result
 
@@ -485,9 +485,9 @@ class ModelValidator:
         }
 
         if not passed:
-            result["recommendation"] = (
-                f"FPR ({fpr:.2%}) excede threshold ({self.fpr_threshold:.0%})"
-            )
+            result[
+                "recommendation"
+            ] = f"FPR ({fpr:.2%}) excede threshold ({self.fpr_threshold:.0%})"
 
         return result
 

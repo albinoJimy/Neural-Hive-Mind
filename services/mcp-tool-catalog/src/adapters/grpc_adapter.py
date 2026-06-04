@@ -77,7 +77,6 @@ class GRPCAdapter(BaseToolAdapter):
 
         # Extrair service name e método do command
         service_name = tool_name
-        method_name = command.split(":")[-1] if ":" in command else command
 
         # Descobrir serviço
         service_info = await self._discover_service(service_name)

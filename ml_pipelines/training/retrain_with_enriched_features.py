@@ -11,17 +11,13 @@ Total: ~40 features para predição de decisão humana
 """
 
 import os
-import sys
-import asyncio
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, List, Any
 
 import pandas as pd
-import numpy as np
 from pymongo import MongoClient
 from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
-from sklearn.model_selection import train_test_split, cross_val_score
+from sklearn.model_selection import train_test_split
 from sklearn.metrics import (
     precision_score,
     recall_score,
@@ -48,7 +44,7 @@ LABEL_NAMES = {0: "reject", 1: "approve", 2: "review_required"}
 print("=" * 70)
 print(f"🤖 RETRAINING {SPECIALIST.upper()} WITH ENRICHED FEATURES (v3)")
 print("=" * 70)
-print(f"MongoDB: mongodb.mongodb-cluster.svc.cluster.local:27017")
+print("MongoDB: mongodb.mongodb-cluster.svc.cluster.local:27017")
 print(f"Min samples: {MIN_SAMPLES}, Days: {DAYS}")
 print()
 
@@ -195,7 +191,7 @@ X_train, X_test, y_train, y_test = train_test_split(
     X, y, test_size=0.2, random_state=42, stratify=y
 )
 
-print(f"\n📈 Distribuição de labels:")
+print("\n📈 Distribuição de labels:")
 for label, name in LABEL_NAMES.items():
     count_train = (y_train == label).sum()
     count_test = (y_test == label).sum()
@@ -210,7 +206,7 @@ from sklearn.utils.class_weight import compute_sample_weight
 
 sample_weights = compute_sample_weight("balanced", y_train)
 
-print(f"\n🤖 Treinando modelos...")
+print("\n🤖 Treinando modelos...")
 models = {
     "RandomForest": RandomForestClassifier(
         n_estimators=100,

@@ -10,7 +10,12 @@ from .context_builder import (
 )
 from .flow_router import FlowRouter, get_flow_router
 from .nlu_client import NLUClient, NLUServiceClient, get_intent_classifier, get_nlu_client
-from .resilience import ResilienceNLUService, ResiliencePIIService, get_resilience_nlu, get_resilience_pii
+from .resilience import (
+    ResilienceNLUService,
+    ResiliencePIIService,
+    get_resilience_nlu,
+    get_resilience_pii,
+)
 from .response_processor import ResponseProcessor, get_response_processor
 
 __all__ = [

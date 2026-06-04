@@ -107,7 +107,9 @@ class DatabaseHealthCheck(HealthCheck):
                     timeout=self.timeout_seconds,
                 ):
                     return self._create_result(
-                        HealthStatus.HEALTHY, "Conexão com database OK", start_time=start_time
+                        HealthStatus.HEALTHY,
+                        "Conexão com database OK",
+                        start_time=start_time,
                     )
                 else:
                     return self._create_result(
@@ -161,11 +163,15 @@ class KafkaHealthCheck(HealthCheck):
                     timeout=self.timeout_seconds,
                 ):
                     return self._create_result(
-                        HealthStatus.HEALTHY, "Conexão com Kafka OK", start_time=start_time
+                        HealthStatus.HEALTHY,
+                        "Conexão com Kafka OK",
+                        start_time=start_time,
                     )
                 else:
                     return self._create_result(
-                        HealthStatus.UNHEALTHY, "Falha na conexão com Kafka", start_time=start_time
+                        HealthStatus.UNHEALTHY,
+                        "Falha na conexão com Kafka",
+                        start_time=start_time,
                     )
             else:
                 return self._create_result(

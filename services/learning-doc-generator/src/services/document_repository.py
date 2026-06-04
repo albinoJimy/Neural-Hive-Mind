@@ -235,7 +235,10 @@ class DocumentRepository:
             True se atualizado
         """
         try:
-            update_dict: dict[str, Any] = {"status": status.value, "updated_at": datetime.now(timezone.utc)}
+            update_dict: dict[str, Any] = {
+                "status": status.value,
+                "updated_at": datetime.now(timezone.utc),
+            }
 
             if status == DocumentStatus.COMPLETED:
                 update_dict["generated_at"] = datetime.now(timezone.utc)

@@ -7,8 +7,8 @@ Foco: health checks, readiness probes, conectividade básica.
 
 import asyncio
 import os
-from typing import AsyncGenerator, Dict, Optional
-from unittest.mock import AsyncMock, MagicMock
+from typing import AsyncGenerator, Dict
+from unittest.mock import MagicMock
 
 import httpx
 import pytest

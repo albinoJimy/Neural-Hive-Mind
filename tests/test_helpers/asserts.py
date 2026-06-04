@@ -5,7 +5,6 @@ Este módulo fornece assertions reutilizáveis e específicos
 para o domínio Neural Hive Mind.
 """
 
-import re
 from typing import Any, Dict, List, Optional
 
 

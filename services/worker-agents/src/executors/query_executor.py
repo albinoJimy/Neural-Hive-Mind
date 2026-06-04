@@ -489,7 +489,7 @@ class QueryExecutor(BaseTaskExecutor):
                         if value:
                             try:
                                 values[key] = json.loads(value)
-                            except:
+                            except Exception:
                                 values[key] = value
 
                 result = {"keys": keys, "count": len(keys), "pattern": pattern}
@@ -623,5 +623,5 @@ class QueryExecutor(BaseTaskExecutor):
         try:
             json.loads(value)
             return True
-        except:
+        except Exception:
             return False

@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, Header, HTTPException, status
 from pydantic import BaseModel, Field
 
 from src.config.settings import get_settings
-from src.models.pii import MaskStrategy, PIIType, PIIUnmaskError
+from src.models.pii import MaskStrategy, PIIType
 from src.services.pii_service import get_pii_service
 
 pii_router = APIRouter(prefix="/api/v1/pii", tags=["PII"])
@@ -39,7 +39,9 @@ class MaskRequest(BaseModel):
     """Request para mascaramento de PII."""
 
     text: str = Field(..., description="Texto para mascarar", min_length=1)
-    strategy: MaskStrategy = Field(MaskStrategy.MASK_PARTIAL, description="Estratégia de mascaramento")
+    strategy: MaskStrategy = Field(
+        MaskStrategy.MASK_PARTIAL, description="Estratégia de mascaramento"
+    )
     types: list[PIIType] | None = Field(None, description="Tipos de PII a mascarar")
     enable_reversible: bool = Field(False, description="Habilitar unmask reversível (INV-14)")
     enable_audit_log: bool = Field(True, description="Habilitar audit log (INV-13)")

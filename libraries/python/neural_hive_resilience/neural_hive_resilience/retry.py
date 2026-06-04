@@ -228,7 +228,6 @@ def retry(
             @wraps(func)
             async def async_wrapper(*args: Any, **kwargs: Any) -> Any:
                 last_exception: Optional[Exception] = None
-                start_time = time.time()
 
                 for attempt in range(policy.max_attempts):
                     try:

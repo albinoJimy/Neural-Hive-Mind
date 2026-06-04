@@ -22,8 +22,7 @@ import os
 import uuid
 import pytest
 import structlog
-from typing import Dict, Any, Optional
-from datetime import datetime
+from typing import Dict, Optional
 from dataclasses import dataclass
 
 # Imports condicionais para Kubernetes/Docker

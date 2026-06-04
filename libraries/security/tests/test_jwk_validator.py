@@ -7,13 +7,11 @@ e validação de campos obrigatórios.
 
 import pytest
 from datetime import datetime, timedelta, timezone
-from unittest.mock import MagicMock, AsyncMock, patch
 import time
 
-from neural_hive_security.jwt.jwk_validator import JWKValidator, JWKValidationError
+from neural_hive_security.jwt.jwk_validator import JWKValidator
 from neural_hive_security.jwt.jwt_verifier import (
     JWTVerifier,
-    JWTVerificationError,
     VerificationStatus,
 )
 from neural_hive_security.config import SPIFFEConfig
@@ -253,7 +251,6 @@ class TestJWTVerifier:
     async def test_verify_valid_jwt_token(self, valid_rsa_key, spiffe_config):
         """Deve verificar token JWT válido."""
         # Mock para criar token válido
-        import jwt
 
         # Usar segredo simples para HS256 nos testes (RS256 requer chave real)
         secret = "test-secret"
@@ -284,7 +281,6 @@ class TestJWTVerifier:
     @pytest.mark.asyncio
     async def test_verify_expired_token(self, spiffe_config):
         """Deve rejeitar token expirado."""
-        import jwt
 
         secret = "test-secret"
         payload = {
@@ -309,7 +305,6 @@ class TestJWTVerifier:
     @pytest.mark.asyncio
     async def test_verify_token_with_invalid_signature(self):
         """Deve rejeitar token com assinatura inválida."""
-        import jwt
 
         secret1 = "secret-1-32-bytes-long-hmac-key"
         secret2 = "secret-2-32-bytes-long-hmac-key"  # Segredo diferente
@@ -335,7 +330,6 @@ class TestJWTVerifier:
     @pytest.mark.asyncio
     async def test_verify_token_without_sub_claim(self):
         """Deve rejeitar token sem claim 'sub' (SPIFFE ID)."""
-        import jwt
 
         secret = "test-secret"
         payload = {
@@ -360,7 +354,6 @@ class TestJWTVerifier:
     @pytest.mark.asyncio
     async def test_verify_token_with_invalid_spiffe_id(self):
         """Deve rejeitar token com SPIFFE ID inválido."""
-        import jwt
 
         secret = "test-secret"
         payload = {
@@ -385,7 +378,6 @@ class TestJWTVerifier:
     @pytest.mark.asyncio
     async def test_verify_token_with_wrong_trust_domain(self):
         """Deve rejeitar token com trust domain diferente."""
-        import jwt
 
         secret = "test-secret"
         payload = {
@@ -410,7 +402,6 @@ class TestJWTVerifier:
     @pytest.mark.asyncio
     async def test_verify_token_with_nbf_claim_future(self):
         """Deve rejeitar token com nbf (not before) no futuro."""
-        import jwt
 
         secret = "test-secret"
         payload = {
@@ -540,7 +531,6 @@ class TestTokenSubstitutionAttack:
     @pytest.mark.asyncio
     async def test_reject_token_with_different_kid(self):
         """Deve rejeitar token assinado com chave diferente do kid no header."""
-        import jwt
 
         # Token com kid=key-1 no header
         secret1 = "secret-1-32-bytes-long-hmac-key"
@@ -672,7 +662,6 @@ class TestPrometheusMetrics:
     async def test_jwt_verification_metrics(self):
         """Deve registrar métricas de verificação JWT."""
         from neural_hive_security.jwt.metrics import (
-            JWTVerificationMetrics,
             get_jwt_verification_metrics,
         )
 
@@ -693,7 +682,6 @@ class TestPrometheusMetrics:
     async def test_jwk_validation_metrics(self):
         """Deve registrar métricas de validação JWK."""
         from neural_hive_security.jwt.metrics import (
-            JWKValidationMetrics,
             get_jwk_validation_metrics,
         )
 

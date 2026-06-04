@@ -23,7 +23,7 @@ from typing import Any, Dict, List, Optional
 import httpx
 import pytest
 
-from tests.e2e.utils.metrics import get_metric_value, query_prometheus
+from tests.e2e.utils.metrics import query_prometheus
 
 logger = logging.getLogger(__name__)
 
@@ -312,7 +312,7 @@ async def test_create_ticket_with_dependencies(
     stored_deps = row[0] if isinstance(row[0], list) else json.loads(row[0])
     assert ticket_a.ticket_id in stored_deps
 
-    logger.info(f"Ticket B created with dependency on Ticket A")
+    logger.info("Ticket B created with dependency on Ticket A")
 
 
 # ============================================
@@ -382,7 +382,7 @@ async def test_list_tickets_by_plan_id(execution_ticket_client):
     for ticket in tickets_list:
         assert ticket["plan_id"] == plan_id_1
 
-    logger.info(f"Successfully listed tickets by plan_id")
+    logger.info("Successfully listed tickets by plan_id")
 
 
 @pytest.mark.e2e
@@ -934,7 +934,7 @@ async def test_query_performance_with_indexes(execution_ticket_client, postgresq
 
     # Query by status
     start = time.time()
-    response = await execution_ticket_client.get(f"/api/v1/tickets?status=PENDING&limit=100")
+    response = await execution_ticket_client.get("/api/v1/tickets?status=PENDING&limit=100")
     status_query_time = (time.time() - start) * 1000
 
     assert response.status_code == 200

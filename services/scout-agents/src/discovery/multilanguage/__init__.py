@@ -8,10 +8,9 @@ Suporta:
 - JSON (configurações estruturais)
 """
 
-import ast
 import re
 from enum import Enum
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Optional
 
 import structlog
 

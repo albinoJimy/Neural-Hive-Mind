@@ -7,7 +7,7 @@ Valida integração entre os componentes implementados na FASE 4.
 import pytest
 import asyncio
 from datetime import datetime, timezone
-from typing import AsyncGenerator, Dict, Any
+from typing import AsyncGenerator, Dict
 import httpx
 
 UTC = timezone.utc
@@ -64,9 +64,7 @@ class TestExperimentationCoreE2E:
         hypothesis_id = hypothesis["hypothesis_id"]
 
         # 2. Propor hipótese
-        response = await http_client.post(
-            f"{base_url}/api/v1/hypotheses/{hypothesis_id}/propose"
-        )
+        response = await http_client.post(f"{base_url}/api/v1/hypotheses/{hypothesis_id}/propose")
         assert response.status_code == 200
 
         # 3. Aprovar hipótese
@@ -141,7 +139,10 @@ class TestRollbackE2E:
                 "experiment_name": "Rollback Test - Degraded",
                 "experiment_type": "A_B_TEST",
                 "baseline_metrics": {"accuracy": 0.90, "latency_p95": 100},
-                "treatment_metrics": {"accuracy": 0.75, "latency_p95": 180},  # Degradação significativa
+                "treatment_metrics": {
+                    "accuracy": 0.75,
+                    "latency_p95": 180,
+                },  # Degradação significativa
                 "start_time": datetime.now(UTC).isoformat(),
                 "end_time": datetime.now(UTC).isoformat(),
             },
@@ -150,9 +151,7 @@ class TestRollbackE2E:
         degraded_analysis = response.json()
 
         # 3. Verificar detecção de impacto negativo
-        response = await http_client.get(
-            f"{base_url}/api/v1/impact/experiment/rollback-test-001"
-        )
+        response = await http_client.get(f"{base_url}/api/v1/impact/experiment/rollback-test-001")
         assert response.status_code == 200
         summary = response.json()
         assert summary["has_degradation"] is True
@@ -241,7 +240,9 @@ class TestFluxCDE2E:
                             capture_output=True,
                             text=True,
                         )
-                        assert result.returncode == 0, f"Failed to validate {filepath}: {result.stderr}"
+                        assert (
+                            result.returncode == 0
+                        ), f"Failed to validate {filepath}: {result.stderr}"
 
 
 # ============================================================================
@@ -305,9 +306,7 @@ class TestDocumentGenerationE2E:
         await asyncio.sleep(2)
 
         # 3. Download PDF
-        response = await http_client.get(
-            f"{base_url}/api/v1/docs/{doc_id}/download?format=pdf"
-        )
+        response = await http_client.get(f"{base_url}/api/v1/docs/{doc_id}/download?format=pdf")
         # PDF pode não estar disponível se WeasyPrint não estiver instalado
         # Aceitamos 200 ou 404 (feature opcional)
         assert response.status_code in [200, 404, 422]

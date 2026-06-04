@@ -14,25 +14,15 @@ Padroes de carga testados:
 
 import asyncio
 import logging
-import os
 import time
-import uuid
 from dataclasses import dataclass, field
-from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 import pytest
 
 from tests.performance.prometheus_client import PrometheusClient, MetricsSnapshot
 from tests.performance.kubernetes_client import KubernetesClient, ScalingEvent
-from tests.performance.bottleneck_analyzer import BottleneckAnalyzer
-from tests.performance.slo_validator import SLOValidator, LoadTestMetrics
-from tests.performance.report_generator import (
-    PerformanceReportGenerator,
-    PerformanceTestResults,
-    ScalingEventSummary,
-    StepLatencyStats,
-)
+from tests.performance.slo_validator import LoadTestMetrics
 from tests.performance.conftest import generate_cognitive_plans, generate_consolidated_decisions
 
 logger = logging.getLogger(__name__)
@@ -656,7 +646,7 @@ class TestFlowCThroughput:
 
             assert (
                 metrics.workflows_completed + metrics.workflows_failed == 100
-            ), f"Todos os 100 workflows devem ser processados"
+            ), "Todos os 100 workflows devem ser processados"
 
             # SLO: Throughput
             tickets_per_second = metrics.tickets_per_second
@@ -677,7 +667,7 @@ class TestFlowCThroughput:
                 ), f"Latencia P95 deve ser < 4h, obtido: {p95_hours:.2f}h"
 
             # Report
-            logger.info(f"\n[Throughput Sequencial]")
+            logger.info("\n[Throughput Sequencial]")
             logger.info(f"  Workflows: {metrics.workflows_started}")
             logger.info(f"  Completados: {metrics.workflows_completed}")
             logger.info(f"  Falhados: {metrics.workflows_failed}")
@@ -745,8 +735,8 @@ class TestFlowCThroughput:
                     for comp, state in snapshot.circuit_breaker_states.items():
                         assert state != "open", f"Circuit breaker {comp} nao deve estar aberto"
 
-            logger.info(f"\n[Concorrencia Moderada]")
-            logger.info(f"  Workflows: 50 (concorrentes)")
+            logger.info("\n[Concorrencia Moderada]")
+            logger.info("  Workflows: 50 (concorrentes)")
             logger.info(f"  Sucesso: {success_count}")
             logger.info(f"  Taxa de sucesso: {metrics.success_rate*100:.1f}%")
             logger.info(f"  Duracao: {metrics.duration_seconds:.1f}s")
@@ -887,8 +877,8 @@ class TestFlowCThroughput:
                             f"{hpa_status.current_replicas} replicas"
                         )
 
-            logger.info(f"\n[Alta Concorrencia - Resumo]")
-            logger.info(f"  Workflows: 100 (concorrentes)")
+            logger.info("\n[Alta Concorrencia - Resumo]")
+            logger.info("  Workflows: 100 (concorrentes)")
             logger.info(f"  Taxa de sucesso: {metrics.success_rate*100:.1f}%")
             logger.info(f"  Throughput: {metrics.tickets_per_second:.2f} tickets/s")
             if metrics.latency_p95_ms:
@@ -1026,7 +1016,7 @@ class TestFlowCAutoscaling:
                 total_scale_up_events > 0
             ), "DEVE haver pelo menos 1 evento de scale-up durante teste de carga"
 
-            logger.info(f"\n[Autoscaling - Resultados]")
+            logger.info("\n[Autoscaling - Resultados]")
             logger.info(f"  Replicas iniciais: {initial_replicas}")
             logger.info(f"  Max replicas observadas: {max_replicas_observed}")
             logger.info(f"  Replicas finais: {final_replicas}")
@@ -1036,7 +1026,7 @@ class TestFlowCAutoscaling:
                 logger.info(f"  - {event.event_type}: {event.from_replicas} -> {event.to_replicas}")
 
             # Aguardar cooldown e verificar scale-down (Comment 3)
-            logger.info(f"Aguardando cooldown para verificar scale-down...")
+            logger.info("Aguardando cooldown para verificar scale-down...")
             cooldown_seconds = 180  # 3 minutos
             await asyncio.sleep(cooldown_seconds)
 
@@ -1218,7 +1208,7 @@ class TestFlowCCircuitBreakers:
 
                 # 6. Se CB abriu, aguardar transicao para half_open
                 if post_injection_state == "open" or open_state_reached:
-                    logger.info(f"  Aguardando transicao para half_open...")
+                    logger.info("  Aguardando transicao para half_open...")
 
                     half_open_reached = await tester.wait_for_circuit_breaker_state(
                         component, "half_open", timeout_seconds=60

@@ -13,6 +13,7 @@ from apscheduler.triggers.cron import CronTrigger
 from src.config import get_settings
 from src.models import (
     DocumentFormat,
+    DocumentStatus,
     DocumentType,
     LearningDocument,
 )
@@ -310,7 +311,6 @@ class DocumentScheduler:
         """Gera resumo executivo do período"""
         total = len(experiment_runs)
         finished = sum(1 for r in experiment_runs if r.status == "FINISHED")
-        failed = sum(1 for r in experiment_runs if r.status == "FAILED")
 
         high_confidence_insights = sum(1 for i in insights if i.confidence.value == "high")
 

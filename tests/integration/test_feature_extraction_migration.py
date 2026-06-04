@@ -156,50 +156,52 @@ class TestFeatureCompatibility:
 
             # Domínios
             domains = {
-                "domain_security": 1.0 if any(
-                    kw in text_lower for kw in ["security", "auth", "password", "login"]
-                ) else 0.0,
-                "domain_performance": 1.0 if any(
-                    kw in text_lower for kw in ["performance", "optimization", "cache"]
-                ) else 0.0,
-                "domain_database": 1.0 if any(
-                    kw in text_lower for kw in ["database", "sql", "query", "table"]
-                ) else 0.0,
-                "domain_devops": 1.0 if any(
-                    kw in text_lower for kw in ["deploy", "docker", "kubernetes"]
-                ) else 0.0,
-                "domain_testing": 1.0 if any(
-                    kw in text_lower for kw in ["test", "testing", "unit"]
-                ) else 0.0,
+                "domain_security": 1.0
+                if any(kw in text_lower for kw in ["security", "auth", "password", "login"])
+                else 0.0,
+                "domain_performance": 1.0
+                if any(kw in text_lower for kw in ["performance", "optimization", "cache"])
+                else 0.0,
+                "domain_database": 1.0
+                if any(kw in text_lower for kw in ["database", "sql", "query", "table"])
+                else 0.0,
+                "domain_devops": 1.0
+                if any(kw in text_lower for kw in ["deploy", "docker", "kubernetes"])
+                else 0.0,
+                "domain_testing": 1.0
+                if any(kw in text_lower for kw in ["test", "testing", "unit"])
+                else 0.0,
             }
 
             # Ações
             actions = {
-                "action_create": 1.0 if any(
-                    kw in text_lower for kw in ["create", "add", "insert", "new"]
-                ) else 0.0,
-                "action_update": 1.0 if any(
-                    kw in text_lower for kw in ["update", "modify", "change"]
-                ) else 0.0,
-                "action_delete": 1.0 if any(
-                    kw in text_lower for kw in ["delete", "drop", "remove"]
-                ) else 0.0,
-                "action_read": 1.0 if any(
-                    kw in text_lower for kw in ["get", "fetch", "find", "read"]
-                ) else 0.0,
-                "action_deploy": 1.0 if any(
-                    kw in text_lower for kw in ["deploy", "release", "publish"]
-                ) else 0.0,
+                "action_create": 1.0
+                if any(kw in text_lower for kw in ["create", "add", "insert", "new"])
+                else 0.0,
+                "action_update": 1.0
+                if any(kw in text_lower for kw in ["update", "modify", "change"])
+                else 0.0,
+                "action_delete": 1.0
+                if any(kw in text_lower for kw in ["delete", "drop", "remove"])
+                else 0.0,
+                "action_read": 1.0
+                if any(kw in text_lower for kw in ["get", "fetch", "find", "read"])
+                else 0.0,
+                "action_deploy": 1.0
+                if any(kw in text_lower for kw in ["deploy", "release", "publish"])
+                else 0.0,
             }
 
             # Risco (derivado de actions)
             risk_high = actions.get("action_delete", 0.0)
             risk_medium = actions.get("action_update", 0.0)
             risk_low = (
-                1.0 if any(
+                1.0
+                if any(
                     actions.get(f"action_{action}", 0.0) > 0
                     for action in ["create", "read", "deploy"]
-                ) else 0.0
+                )
+                else 0.0
             )
 
             # Primary domain (argmax)
@@ -222,7 +224,9 @@ class TestFeatureCompatibility:
                 "risk_low": risk_low,
                 "simple_risk_score": min(1.0, risk_high * 0.5 + risk_medium * 0.3),
                 "primary_domain_security": 1.0 if primary_domain == "domain_security" else 0.0,
-                "primary_domain_performance": 1.0 if primary_domain == "domain_performance" else 0.0,
+                "primary_domain_performance": 1.0
+                if primary_domain == "domain_performance"
+                else 0.0,
                 "primary_domain_database": 1.0 if primary_domain == "domain_database" else 0.0,
                 "primary_domain_devops": 1.0 if primary_domain == "domain_devops" else 0.0,
                 "primary_domain_testing": 1.0 if primary_domain == "domain_testing" else 0.0,
@@ -248,7 +252,6 @@ class TestFeatureCompatibility:
                 "ml_pipelines.inference.feature_adapter.get_feature_adapter",
                 return_value=mock_feature_adapter,
             ):
-
                 import importlib
 
                 import ml_pipelines.inference.approval_predictor as ap_module
@@ -273,12 +276,12 @@ class TestFeatureCompatibility:
         features_profissional = predictor_professional.extract_nlp_features(text)
 
         # Validar que ambos retornaram 30 features
-        assert len(features_legado) == 30, (
-            f"Modo legado retornou {len(features_legado)} features, esperava 30"
-        )
-        assert len(features_profissional) == 30, (
-            f"Modo profissional retornou {len(features_profissional)} features, esperava 30"
-        )
+        assert (
+            len(features_legado) == 30
+        ), f"Modo legado retornou {len(features_legado)} features, esperava 30"
+        assert (
+            len(features_profissional) == 30
+        ), f"Modo profissional retornou {len(features_profissional)} features, esperava 30"
 
         # Validar nomes das features
         expected_keys = {
@@ -314,17 +317,17 @@ class TestFeatureCompatibility:
             "primary_action_deploy",
         }
 
-        assert set(features_legado.keys()) == expected_keys, (
-            f"Chaves do legado não correspondem. Missing: {expected_keys - set(features_legado.keys())}"
-        )
-        assert set(features_profissional.keys()) == expected_keys, (
-            f"Chaves do profissional não correspondem. Missing: {expected_keys - set(features_profissional.keys())}"
-        )
+        assert (
+            set(features_legado.keys()) == expected_keys
+        ), f"Chaves do legado não correspondem. Missing: {expected_keys - set(features_legado.keys())}"
+        assert (
+            set(features_profissional.keys()) == expected_keys
+        ), f"Chaves do profissional não correspondem. Missing: {expected_keys - set(features_profissional.keys())}"
 
         # Validar que ambos têm as mesmas chaves
-        assert set(features_legado.keys()) == set(features_profissional.keys()), (
-            "Chaves das features diferem entre modos legado e profissional"
-        )
+        assert set(features_legado.keys()) == set(
+            features_profissional.keys()
+        ), "Chaves das features diferem entre modos legado e profissional"
 
     def test_features_compatibility_values(self, predictor_legacy, predictor_professional):
         """
@@ -339,12 +342,14 @@ class TestFeatureCompatibility:
 
         # Validar que valores são floats
         for key, value in features_legado.items():
-            assert isinstance(value, int | float), f"Feature legado {key} não é numérico: {type(value)}"
+            assert isinstance(
+                value, int | float
+            ), f"Feature legado {key} não é numérico: {type(value)}"
 
         for key, value in features_profissional.items():
-            assert isinstance(value, int | float), (
-                f"Feature profissional {key} não é numérico: {type(value)}"
-            )
+            assert isinstance(
+                value, int | float
+            ), f"Feature profissional {key} não é numérico: {type(value)}"
 
         # Validar que features binárias são 0.0 ou 1.0
         binary_features = [
@@ -377,12 +382,14 @@ class TestFeatureCompatibility:
         ]
 
         for feature in binary_features:
-            assert features_legado[feature] in [0.0, 1.0], (
-                f"Feature legado {feature} não é binária: {features_legado[feature]}"
-            )
-            assert features_profissional[feature] in [0.0, 1.0], (
-                f"Feature profissional {feature} não é binária: {features_profissional[feature]}"
-            )
+            assert features_legado[feature] in [
+                0.0,
+                1.0,
+            ], f"Feature legado {feature} não é binária: {features_legado[feature]}"
+            assert features_profissional[feature] in [
+                0.0,
+                1.0,
+            ], f"Feature profissional {feature} não é binária: {features_profissional[feature]}"
 
     def test_domain_detection_compatibility(self, predictor_legacy, predictor_professional):
         """
@@ -396,12 +403,10 @@ class TestFeatureCompatibility:
         features_profissional = predictor_professional.extract_nlp_features(text)
 
         # Ambos devem detectar security
-        assert features_legado["domain_security"] > 0, (
-            "Modo legado não detectou security domain"
-        )
-        assert features_profissional["domain_security"] > 0, (
-            "Modo profissional não detectou security domain"
-        )
+        assert features_legado["domain_security"] > 0, "Modo legado não detectou security domain"
+        assert (
+            features_profissional["domain_security"] > 0
+        ), "Modo profissional não detectou security domain"
 
     def test_empty_text_handling(self, predictor_legacy, predictor_professional):
         """
@@ -416,7 +421,9 @@ class TestFeatureCompatibility:
         assert features_legado == {}, "Modo legado não retornou dict vazio para texto vazio"
 
         # Profissional também deve retornar vazio (via adapter)
-        assert features_profissional == {}, "Modo profissional não retornou dict vazio para texto vazio"
+        assert (
+            features_profissional == {}
+        ), "Modo profissional não retornou dict vazio para texto vazio"
 
 
 # =============================================================================
@@ -490,7 +497,9 @@ class TestPredictionCompatibility:
 
         for text in test_cases:
             result_legado = predictor_legado.predict_from_text(text, specialist_confidence=0.7)
-            result_profissional = predictor_profissional.predict_from_text(text, specialist_confidence=0.7)
+            result_profissional = predictor_profissional.predict_from_text(
+                text, specialist_confidence=0.7
+            )
 
             # Decision deve ser a mesma (mesmo modelo, mesmas features)
             assert result_legado["decision"] == result_profissional["decision"], (
@@ -515,12 +524,12 @@ class TestPredictionCompatibility:
         # Validar estrutura
         expected_keys = {"decision", "confidence", "probabilities", "model_version"}
 
-        assert set(result_legado.keys()) == expected_keys, (
-            f"Estrutura legado incorreta: {set(result_legado.keys())}"
-        )
-        assert set(result_profissional.keys()) == expected_keys, (
-            f"Estrutura profissional incorreta: {set(result_profissional.keys())}"
-        )
+        assert (
+            set(result_legado.keys()) == expected_keys
+        ), f"Estrutura legado incorreta: {set(result_legado.keys())}"
+        assert (
+            set(result_profissional.keys()) == expected_keys
+        ), f"Estrutura profissional incorreta: {set(result_profissional.keys())}"
 
         # Validar tipos
         assert isinstance(result_legado["decision"], str)
@@ -543,7 +552,9 @@ class TestPredictionCompatibility:
 
         # Baixa confiança
         result_low_legado = predictor_legado.predict_from_text(text, specialist_confidence=0.2)
-        result_low_profissional = predictor_profissional.predict_from_text(text, specialist_confidence=0.2)
+        result_low_profissional = predictor_profissional.predict_from_text(
+            text, specialist_confidence=0.2
+        )
 
         # Alta confiança
         result_high_legado = predictor_legado.predict_from_text(text, specialist_confidence=0.9)
@@ -643,7 +654,9 @@ class TestLatencyBenchmark:
         # Log para diagnóstico
         print(f"\nBenchmark Extração de Features ({iterations} iterações):")
         print(f"  Legado: {latency_legado:.4f}s ({latency_legado/iterations*1000:.2f}ms/iter)")
-        print(f"  Profissional: {latency_profissional:.4f}s ({latency_profissional/iterations*1000:.2f}ms/iter)")
+        print(
+            f"  Profissional: {latency_profissional:.4f}s ({latency_profissional/iterations*1000:.2f}ms/iter)"
+        )
         print(f"  Ratio: {ratio:.2f}x")
 
     def test_latency_benchmark_prediction(self, predictors):
@@ -681,7 +694,9 @@ class TestLatencyBenchmark:
         # Log para diagnóstico
         print(f"\nBenchmark Predição Completa ({iterations} iterações):")
         print(f"  Legado: {latency_legado:.4f}s ({latency_legado/iterations*1000:.2f}ms/iter)")
-        print(f"  Profissional: {latency_profissional:.4f}s ({latency_profissional/iterations*1000:.2f}ms/iter)")
+        print(
+            f"  Profissional: {latency_profissional:.4f}s ({latency_profissional/iterations*1000:.2f}ms/iter)"
+        )
         print(f"  Ratio: {ratio:.2f}x")
 
     def test_latency_p95_threshold(self, predictors):
@@ -708,9 +723,9 @@ class TestLatencyBenchmark:
         p95_latency = latencies_sorted[p95_index]
 
         # P95 deve ser < 100ms
-        assert p95_latency < 0.1, (
-            f"P95 latency ({p95_latency*1000:.2f}ms) excede threshold de 100ms"
-        )
+        assert (
+            p95_latency < 0.1
+        ), f"P95 latency ({p95_latency*1000:.2f}ms) excede threshold de 100ms"
 
         print(f"\nP95 Latency: {p95_latency*1000:.2f}ms")
 
@@ -874,6 +889,7 @@ class TestRealModelIntegration:
         # Tentar importar sklearn para verificar versão
         try:
             import sklearn
+
             sklearn_version = sklearn.__version__
             # Model v7 foi treinado com sklearn 1.8.0, atual é 1.5.2
             # Isso causa incompatibilidade com numpy._core
@@ -897,6 +913,7 @@ class TestRealModelIntegration:
 
         try:
             import sklearn
+
             sklearn_version = sklearn.__version__
             # Model v7 foi treinado com sklearn 1.8.0
             if sklearn_version < "1.8.0":
@@ -1076,9 +1093,7 @@ class TestApprovalServiceIntegration:
         assert len(features) == 30
         assert features["action_create"] == 1.0
 
-    def test_approval_service_feature_extraction_integration(
-        self, approval_service_with_predictor
-    ):
+    def test_approval_service_feature_extraction_integration(self, approval_service_with_predictor):
         """
         Teste 20: Extração de features no approval service.
 

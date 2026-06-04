@@ -84,11 +84,11 @@ def main():
         public_key=str(public_key_path),
     )
 
-    print(f"\n✅ Chaves geradas com sucesso!")
+    print("\n✅ Chaves geradas com sucesso!")
     print(f"\n📁 Chave privada: {private_key_path}")
     print(f"📁 Chave pública: {public_key_path}")
-    print(f"\n⚠️  IMPORTANTE: Mantenha a chave privada segura e nunca a commite no Git!")
-    print(f"\n📝 Configure no .env:")
+    print("\n⚠️  IMPORTANTE: Mantenha a chave privada segura e nunca a commite no Git!")
+    print("\n📝 Configure no .env:")
     print(f"   LEDGER_PRIVATE_KEY_PATH={private_key_path}")
     print(f"   LEDGER_PUBLIC_KEY_PATH={public_key_path}")
 

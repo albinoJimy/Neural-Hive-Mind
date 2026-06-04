@@ -10,20 +10,17 @@ import os
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, List, Any
 
 import pandas as pd
-import numpy as np
 from pymongo import MongoClient
 from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
-from sklearn.model_selection import train_test_split, cross_val_score
+from sklearn.model_selection import train_test_split
 from sklearn.metrics import (
     precision_score,
     recall_score,
     f1_score,
     accuracy_score,
     classification_report,
-    confusion_matrix,
 )
 import pickle
 import json
@@ -54,7 +51,7 @@ SEMANTIC_FACTORS = [
 print("=" * 70)
 print(f"🤖 RETRAINING {SPECIALIST.upper()} - SEMANTIC FEATURES (v5)")
 print("=" * 70)
-print(f"MongoDB: mongodb.mongodb-cluster.svc.cluster.local:27017")
+print("MongoDB: mongodb.mongodb-cluster.svc.cluster.local:27017")
 print(f"Min samples: {MIN_SAMPLES}")
 print()
 
@@ -158,7 +155,7 @@ for feat in available_features:
     print(f"  {feat:30}: {non_null:3} ({pct:5.1f}%) - mean={mean_val:.4f}")
 
 # Distribuição de labels
-print(f"\n📈 Distribuição de labels:")
+print("\n📈 Distribuição de labels:")
 for label, name in LABEL_NAMES.items():
     count = (df["label"] == label).sum()
     pct = count / len(df) * 100 if len(df) > 0 else 0
@@ -194,14 +191,14 @@ except ValueError as e:
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
     print(f"\n⚠️ Split normal (sem estratificação): {e}")
 
-print(f"\n📈 Distribuição no split:")
+print("\n📈 Distribuição no split:")
 for label, name in LABEL_NAMES.items():
     count_train = (y_train == label).sum()
     count_test = (y_test == label).sum()
     print(f"  {name:15}: Train {count_train:2} | Test {count_test:2}")
 
 # 4. Treinar modelos
-print(f"\n🤖 Treinando modelos...")
+print("\n🤖 Treinando modelos...")
 models = {
     "RandomForest": RandomForestClassifier(
         n_estimators=50, max_depth=8, min_samples_split=2, random_state=42, n_jobs=-1

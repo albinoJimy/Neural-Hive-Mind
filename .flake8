@@ -19,9 +19,13 @@ exclude =
     .benchmarks,
     venv,
     .venv,
+    # Worktrees git (cópias completas do repo; lintadas no seu próprio contexto)
+    .worktrees,
     # Arquivos de exemplo e temporarios
     examples,
     .tmp,
+    # Documentacao e raw-data de testes (nao e codigo fonte)
+    docs,
     # Arquivos auto-gerados pelo protobuf
     *_pb2.py,
     *_pb2_grpc.py,
@@ -33,6 +37,12 @@ ignore =
     E402,
     # W503: line break before binary operator (conflicts with black)
     W503,
+    # E203: whitespace before ':' (conflito direto com a formatação do black em slices)
+    E203,
+    # E501: line too long — o black (line-length=100) gere o comprimento; o
+    # residual são strings/URLs não-quebráveis. Manter E501 ligado duplicaria
+    # o trabalho do black com noqa em strings inteiras.
+    E501,
     # F811: redefinition of unused (common in test files with duplicated test classes)
     F811
 
@@ -42,15 +52,17 @@ per-file-ignores =
     # NOTA: padrão `**/tests/*.py` apanhava só direct-children de tests/; usar
     # `tests/**/*.py` (e variantes) para cobrir tests/e2e, tests/performance,
     # tests/integration, etc.
-    tests/**/*.py: E501, F401, E704, E301, E702, E306, F841, E741, E712, E713, E714, E721, E722, E731, W391, W503, W504, C901, E101, E111, E114, E121, E122, E124, E125, E126, E127, E128, E129, E131, E203, E226, E251, E261, E262, E265, E303, E305, F402, F403, F405, F541, F601, F701, F821, W191, W291, W292, W293
-    **/tests/**/*.py: E501, F401, E704, E301, E702, E306, F841, E741, E712, E713, E714, E721, E722, E731, W391, W503, W504, C901, E101, E111, E114, E121, E122, E124, E125, E126, E127, E128, E129, E131, E203, E226, E251, E261, E262, E265, E303, E305, F402, F403, F405, F541, F601, F701, F821, W191, W291, W292, W293
-    **/tests/*.py: E501, F401, E704, E301, E702, E306, F841, E741, E712, E713, E714, E721, E722, E731, W391, W503, W504, C901, E101, E111, E114, E121, E122, E124, E125, E126, E127, E128, E129, E131, E203, E226, E251, E261, E262, E265, E303, E305, F402, F403, F405, F541, F601, F701, F821, W191, W291, W292, W293
-    **/test_*.py: E501, F401, E704, E301, E702, E306, F841, E712, E714, E721, W391, W503, C901, E101, E111, E114, E121, E122, E124, E125, E126, E127, E128, E129, E131, E203, E226, E251, E261, E262, E265, E303, E305, F402, F403, F405, F541, F601, F701, F821, W191, W291, W292, W293
+    tests/**/*.py: E501, F401, E704, E301, E702, E306, F841, E741, E711, E712, E713, E714, E721, E722, E731, W391, W503, W504, C901, E101, E111, E114, E121, E122, E124, E125, E126, E127, E128, E129, E131, E203, E226, E251, E261, E262, E265, E303, E305, F402, F403, F405, F541, F601, F701, F821, W191, W291, W292, W293
+    **/tests/**/*.py: E501, F401, E704, E301, E702, E306, F841, E741, E711, E712, E713, E714, E721, E722, E731, W391, W503, W504, C901, E101, E111, E114, E121, E122, E124, E125, E126, E127, E128, E129, E131, E203, E226, E251, E261, E262, E265, E303, E305, F402, F403, F405, F541, F601, F701, F821, W191, W291, W292, W293
+    **/tests/*.py: E501, F401, E704, E301, E702, E306, F841, E741, E711, E712, E713, E714, E721, E722, E731, W391, W503, W504, C901, E101, E111, E114, E121, E122, E124, E125, E126, E127, E128, E129, E131, E203, E226, E251, E261, E262, E265, E303, E305, F402, F403, F405, F541, F601, F701, F821, W191, W291, W292, W293
+    **/test_*.py: E501, F401, E704, E301, E702, E306, F841, E711, E712, E714, E721, W391, W503, C901, E101, E111, E114, E121, E122, E124, E125, E126, E127, E128, E129, E131, E203, E226, E251, E261, E262, E265, E303, E305, F402, F403, F405, F541, F601, F701, F821, W191, W291, W292, W293
     # Temporal/workflow tests may have unused variables
     **/temporal/test_*.py: E306, F841, E226
     **/workflows/test_*.py: E226, F841
     # Analysis and performance scripts
     **/analysis/**/*.py: F841, E501, E741, PLR0915, B905, I001, ICN001, Q000
+    # Variante para analysis/ na raiz do repo (o glob **/ nao apanha o prefixo vazio)
+    analysis/**/*.py: F841, E501, E741, PLR0915, B905, I001, ICN001, Q000
     **/performance/**/*.py: F401, F841, E501
     # Temporal/workflow source files
     **/temporal/**/*.py: F841, E501, E226

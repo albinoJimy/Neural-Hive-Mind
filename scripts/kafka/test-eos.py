@@ -124,7 +124,7 @@ class EOSProducer:
             logger.error(f"Error in producer {self.producer_id}: {e}")
             try:
                 self.producer.abort_transaction()
-            except:
+            except Exception:
                 pass
             raise
 
@@ -213,7 +213,7 @@ class EOSConsumer:
             # Final commit
             try:
                 self.consumer.commit(asynchronous=False)
-            except:
+            except Exception:
                 pass
 
         logger.info(
@@ -298,7 +298,7 @@ class EOSTestRunner:
             for producer in producers:
                 try:
                     producer.close()
-                except:
+                except Exception:
                     pass
 
     async def run_consumers(self) -> Dict[str, Dict[str, int]]:
@@ -334,7 +334,7 @@ class EOSTestRunner:
             for consumer in consumers:
                 try:
                     consumer.close()
-                except:
+                except Exception:
                     pass
 
     async def run_test(self) -> EOSTestResults:

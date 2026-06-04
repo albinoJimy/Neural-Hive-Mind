@@ -55,15 +55,12 @@ class ModelPromotionError(Exception):
     """Erro base durante promoção de modelo."""
 
 
-
 class ModelValidationError(ModelPromotionError):
     """Erro durante validação de modelo."""
 
 
-
 class ModelBackupError(ModelPromotionError):
     """Erro durante backup de modelo."""
-
 
 
 class ModelMetrics:
@@ -135,9 +132,7 @@ class ModelMetrics:
         errors = []
 
         if self.accuracy < min_accuracy:
-            errors.append(
-                f"Acurácia {self.accuracy:.2%} abaixo do mínimo {min_accuracy:.2%}"
-            )
+            errors.append(f"Acurácia {self.accuracy:.2%} abaixo do mínimo {min_accuracy:.2%}")
 
         if self.f1_score < min_f1_score:
             errors.append(f"F1-Score {self.f1_score:.2%} abaixo do mínimo {min_f1_score:.2%}")
@@ -148,9 +143,7 @@ class ModelMetrics:
             )
 
         if errors:
-            raise ModelValidationError(
-                f"Validação de métricas falhou: {'; '.join(errors)}"
-            )
+            raise ModelValidationError(f"Validação de métricas falhou: {'; '.join(errors)}")
 
         logger.info(
             "model_metrics_validated",
@@ -337,11 +330,13 @@ def update_model_version(
     }
 
     # Adicionar ao histórico
-    new_data["promotion_history"].append({
-        "version": model_version,
-        "timestamp": datetime.now().isoformat(),
-        "previous_version": current_data.get("current_version", "unknown"),
-    })
+    new_data["promotion_history"].append(
+        {
+            "version": model_version,
+            "timestamp": datetime.now().isoformat(),
+            "previous_version": current_data.get("current_version", "unknown"),
+        }
+    )
 
     # Manter apenas últimos 10 registros no histórico
     if len(new_data["promotion_history"]) > 10:
@@ -628,12 +623,14 @@ def list_backups(
                 model_data = pickle.load(f)
             version = model_data.get("version", "unknown")
 
-            backups.append({
-                "path": str(backup_path),
-                "version": version,
-                "size_bytes": stat.st_size,
-                "created_at": datetime.fromtimestamp(stat.st_mtime).isoformat(),
-            })
+            backups.append(
+                {
+                    "path": str(backup_path),
+                    "version": version,
+                    "size_bytes": stat.st_size,
+                    "created_at": datetime.fromtimestamp(stat.st_mtime).isoformat(),
+                }
+            )
         except Exception as e:
             logger.warning("failed_to_read_backup", path=str(backup_path), error=str(e))
 

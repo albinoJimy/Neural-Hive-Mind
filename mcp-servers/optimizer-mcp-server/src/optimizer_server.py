@@ -13,7 +13,7 @@ import ast
 import os
 from pathlib import Path
 from typing import Any, Optional
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from collections import defaultdict
 from enum import Enum
 
@@ -444,8 +444,8 @@ class CodeOptimizer:
             metrics = FileMetrics(path=file_path)
             lines = source_code.splitlines()
             metrics.total_lines = len(lines)
-            metrics.code_lines = sum(1 for l in lines if l.strip())
-            metrics.blank_lines = sum(1 for l in lines if not l.strip())
+            metrics.code_lines = sum(1 for line in lines if line.strip())
+            metrics.blank_lines = sum(1 for line in lines if not line.strip())
             issues = []
 
         return metrics, issues
@@ -715,12 +715,16 @@ async def analyze_file_performance(file_path: str) -> dict[str, Any]:
                 "complexity": (
                     "high"
                     if metrics.max_complexity > 20
-                    else "medium" if metrics.max_complexity > 10 else "low"
+                    else "medium"
+                    if metrics.max_complexity > 10
+                    else "low"
                 ),
                 "maintainability": (
                     "good"
                     if len(issues_dict) < 5
-                    else "needs_attention" if len(issues_dict) < 10 else "poor"
+                    else "needs_attention"
+                    if len(issues_dict) < 10
+                    else "poor"
                 ),
             },
         }
@@ -854,7 +858,7 @@ async def detect_code_smells(
     Returns:
         Code smells encontrados por categoria
     """
-    optimizer = get_optimizer()
+    get_optimizer()
 
     try:
         analysis = await analyze_directory_performance(path=path)
@@ -925,5 +929,5 @@ if __name__ == "__main__":
     import uvicorn
 
     port = int(os.getenv("PORT", "3000"))
-    # Usar o sse_app diretamente que já inclui as rotas MCP
-    uvicorn.run(sse_app, host="0.0.0.0", port=port)
+    # Usar o http_app diretamente que já inclui as rotas MCP
+    uvicorn.run(http_app, host="0.0.0.0", port=port)

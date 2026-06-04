@@ -6,10 +6,8 @@ Testa supervisão e coordenação de agentes.
 """
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
-import asyncio
 
 
 # =============================================================================

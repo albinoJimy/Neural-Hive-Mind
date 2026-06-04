@@ -153,8 +153,12 @@ class SpecialistsGrpcClient:
             self.circuit_breaker = get_grpc_circuit_breaker()
             logger.info(
                 "specialists_circuit_breaker_enabled",
-                failure_threshold=getattr(self.config, "circuit_breaker_specialist_failure_threshold", 3),
-                recovery_timeout=getattr(self.config, "circuit_breaker_specialist_recovery_timeout", 30),
+                failure_threshold=getattr(
+                    self.config, "circuit_breaker_specialist_failure_threshold", 3
+                ),
+                recovery_timeout=getattr(
+                    self.config, "circuit_breaker_specialist_recovery_timeout", 30
+                ),
             )
 
     async def _get_grpc_metadata(self, specialist_type: str) -> list[tuple[str, str]]:
@@ -207,9 +211,9 @@ class SpecialistsGrpcClient:
 
                     # Serializar plano para bytes (JSON)
                     # Usar serializer customizado para lidar com datetime do Avro deserializer
-                    plan_bytes = json.dumps(cognitive_plan, default=_json_datetime_serializer).encode(
-                        "utf-8"
-                    )
+                    plan_bytes = json.dumps(
+                        cognitive_plan, default=_json_datetime_serializer
+                    ).encode("utf-8")
 
                     # Criar request
                     request = specialist_pb2.EvaluatePlanRequest(
@@ -286,7 +290,9 @@ class SpecialistsGrpcClient:
                             )
 
                         # Validações preventivas do timestamp
-                        if not hasattr(evaluated_at, "seconds") or not hasattr(evaluated_at, "nanos"):
+                        if not hasattr(evaluated_at, "seconds") or not hasattr(
+                            evaluated_at, "nanos"
+                        ):
                             raise AttributeError(
                                 f"Timestamp missing required fields: "
                                 f'has_seconds={hasattr(evaluated_at, "seconds")}, '
@@ -345,7 +351,9 @@ class SpecialistsGrpcClient:
                                     else "None"
                                 ),
                                 nanos_type=(
-                                    type(nanos_value).__name__ if nanos_value is not None else "None"
+                                    type(nanos_value).__name__
+                                    if nanos_value is not None
+                                    else "None"
                                 ),
                                 error=str(e),
                                 error_type=type(e).__name__,
@@ -434,12 +442,16 @@ class SpecialistsGrpcClient:
         # Usar circuit breaker se habilitado (Gap P1)
         if self.circuit_breaker_enabled and self.circuit_breaker:
             try:
-                return await self.circuit_breaker.call_specialist(specialist_type, _grpc_call_with_retry)
+                return await self.circuit_breaker.call_specialist(
+                    specialist_type, _grpc_call_with_retry
+                )
             except Exception as e:
                 # Circuit breaker aberto ou erro na chamada
                 duration = time() - start_time
                 ConsensusMetrics.observe_specialist_invocation_duration(
-                    duration=duration, specialist_type=specialist_type, status="circuit_breaker_open"
+                    duration=duration,
+                    specialist_type=specialist_type,
+                    status="circuit_breaker_open",
                 )
                 ConsensusMetrics.increment_specialist_invocation(
                     specialist_type=specialist_type, status="circuit_breaker_open"

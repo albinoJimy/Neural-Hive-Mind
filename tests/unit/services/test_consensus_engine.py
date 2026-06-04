@@ -6,10 +6,8 @@ Testa orquestração de consenso, timeouts, e fallback.
 """
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
-from datetime import datetime, timedelta, timezone
-from uuid import uuid4
-from typing import Dict, Any, List
+from unittest.mock import AsyncMock
+from datetime import datetime, timezone
 import asyncio
 
 

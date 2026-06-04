@@ -251,15 +251,15 @@ class GeneticToolSelector:
         for _ in range(population_size):
             # Randomly select one tool from each required category
             selected_tools = []
-            for category, tools in available_tools.items():
+            for category, category_tools in available_tools.items():
                 # Prefer preferred_tools if specified
                 if request.preferred_tools:
-                    preferred = [t for t in tools if t.tool_id in request.preferred_tools]
+                    preferred = [t for t in category_tools if t.tool_id in request.preferred_tools]
                     if preferred:
                         selected_tools.append(random.choice(preferred))
                         continue
 
-                selected_tools.append(random.choice(tools))
+                selected_tools.append(random.choice(category_tools))
 
             combination = ToolCombination(tools=selected_tools, generation=0)
             population.append(combination)
@@ -317,9 +317,9 @@ class GeneticToolSelector:
         selected_tools = []
         idx = 1
 
-        for category, tools in available_tools.items():
+        for category, category_tools in available_tools.items():
             # Sort by reputation and select best
-            best_tool = max(tools, key=lambda t: t.reputation_score)
+            best_tool = max(category_tools, key=lambda t: t.reputation_score)
 
             selected_tools.append(
                 SelectedTool(

@@ -13,6 +13,7 @@ import asyncio
 import contextlib
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+
 UTC = timezone.utc
 
 UTC = timezone.utc  # type: ignore
@@ -305,7 +306,9 @@ class ModelPromotionManager:
             PromotionRequest com status
         """
         # Criar request
-        request_id = f"promo_{model_name}_{version}_{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}"
+        request_id = (
+            f"promo_{model_name}_{version}_{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}"
+        )
 
         config = self.default_config
         if config_overrides:

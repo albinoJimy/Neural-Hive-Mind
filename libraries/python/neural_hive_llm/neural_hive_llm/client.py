@@ -6,31 +6,28 @@ integração com resiliência, contagem de tokens e observabilidade.
 
 import asyncio
 import time
-from typing import Any, AsyncIterator, Optional
+from typing import Any, AsyncIterator
 
 import structlog
 
-from .circuit_breaker import LLMCircuitBreaker, create_llm_circuit_breaker
+from .circuit_breaker import create_llm_circuit_breaker
 from .exceptions import (
     LLMConfigurationError,
     LLMConnectionError,
     LLMError,
     LLMProviderError,
     LLMRateLimitError,
-    LLMResponseParsingError,
     LLMTimeoutError,
 )
 from .models import (
-    LLMConfig,
     LLMProvider,
-    LLMRequest,
     LLMResponse,
     LLMStreamChunk,
 )
-from .observability import LLMTracer, OperationType, get_llm_tracer
+from .observability import OperationType, get_llm_tracer
 from .resilience import LLMRetryPolicy, llm_retry
 from .settings import get_llm_settings
-from .token_counter import TokenCounter, get_token_counter
+from .token_counter import get_token_counter
 
 logger = structlog.get_logger()
 
@@ -426,7 +423,6 @@ class LLMClient:
         text = response.choices[0].message.content
         prompt_tokens = response.usage.prompt_tokens
         completion_tokens = response.usage.completion_tokens
-        total_tokens = response.usage.total_tokens
         finish_reason = response.choices[0].finish_reason
 
         # Calcular custo
@@ -479,7 +475,6 @@ class LLMClient:
         text = message.content[0].text
         prompt_tokens = message.usage.input_tokens
         completion_tokens = message.usage.output_tokens
-        total_tokens = prompt_tokens + completion_tokens
         finish_reason = message.stop_reason
 
         # Calcular custo
@@ -573,8 +568,6 @@ class LLMClient:
 
         if self.provider == LLMProvider.LOCAL:
             raise LLMError("Streaming não suportado para provedor local")
-
-        start_time = time.time()
 
         try:
             if self.provider == LLMProvider.OPENAI:

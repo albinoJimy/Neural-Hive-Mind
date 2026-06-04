@@ -10,7 +10,6 @@ from datetime import datetime, timezone
 from typing import Any, Optional
 
 import structlog
-from motor.motor_asyncio import AsyncIOMotorClient
 
 from src.clients.mongodb_client import MongoDBClient
 from src.config.settings import Settings
@@ -202,9 +201,7 @@ class ContinuousFeedbackService:
             created_at=timestamp,
         )
 
-    async def get_feedback_by_prediction_id(
-        self, prediction_id: str
-    ) -> Optional[dict[str, Any]]:
+    async def get_feedback_by_prediction_id(self, prediction_id: str) -> Optional[dict[str, Any]]:
         """
         Busca feedback por prediction_id.
 
@@ -243,9 +240,7 @@ class ContinuousFeedbackService:
                         }
                     ],
                     "avg_confidence": [
-                        {
-                            "$match": {"confidence": {"$ne": None, "$ne": 0}}  # type: ignore
-                        },
+                        {"$match": {"confidence": {"$nin": [None, 0]}}},  # type: ignore
                         {
                             "$group": {
                                 "_id": None,
@@ -311,9 +306,7 @@ class ContinuousFeedbackService:
             with_nlp_features=with_nlp,
         )
 
-    async def get_recent_feedbacks(
-        self, limit: int = 50, offset: int = 0
-    ) -> list[dict[str, Any]]:
+    async def get_recent_feedbacks(self, limit: int = 50, offset: int = 0) -> list[dict[str, Any]]:
         """
         Lista feedbacks recentes.
 
@@ -324,12 +317,7 @@ class ContinuousFeedbackService:
         Returns:
             Lista de feedbacks ordenados por timestamp DESC
         """
-        cursor = (
-            self.collection.find({})
-            .sort("timestamp", -1)
-            .skip(offset)
-            .limit(limit)
-        )
+        cursor = self.collection.find({}).sort("timestamp", -1).skip(offset).limit(limit)
 
         results = []
         async for document in cursor:

@@ -233,7 +233,7 @@ class SchemaVersionManager:
                 return True
             elif schema_version == "1.0.0":
                 # Tentar migrar e validar
-                migrated = SchemaVersionManager.migrate_to_v2(document)
+                SchemaVersionManager.migrate_to_v2(document)
                 return True
             else:
                 logger.error("Unsupported schema version", version=schema_version)

@@ -4,9 +4,7 @@ SPIFFE Workload API client for workload identity management
 
 import asyncio
 import grpc
-import json
-import base64
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 import structlog

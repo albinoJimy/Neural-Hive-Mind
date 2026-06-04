@@ -9,19 +9,18 @@ Implementa o endpoint POST /api/v1/nhm/request que orquestra:
 Este é o endpoint principal especificado na US-001 do spec.
 """
 
-import logging
 import time
 from typing import Any
 
 import structlog
-from fastapi import APIRouter, Depends, Request, Response, status
+from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel, Field
 
 from src.middleware import get_auth_context_optional
 from src.models.classification import ClassificationDecision, FlowType
 from src.services.context_builder import ContextBuilder, get_context_builder
 from src.services.flow_router import FlowRouter, get_flow_router
-from src.services.nlu_client import NLUServiceClient, get_intent_classifier, get_nlu_client
+from src.services.nlu_client import get_intent_classifier
 from src.services.resilience import ResilienceNLUService, get_resilience_nlu
 from src.services.response_processor import ResponseProcessor, get_response_processor
 from src.api.routers.status import save_request_status
@@ -210,9 +209,7 @@ async def nhm_request(
         )
 
         # 4. Response Processor - formatar e publicar evento
-        gateway_used = flow_router.GATEWAY_CONFIGS.get(
-            classification_decision.flow_type
-        )
+        gateway_used = flow_router.GATEWAY_CONFIGS.get(classification_decision.flow_type)
         gateway_name = gateway_used.name if gateway_used else None
 
         unified_response, event_published = await response_processor.process_and_publish(
@@ -271,7 +268,9 @@ async def nhm_request(
         await save_request_status(
             request_id=request_id,
             status_value="failed",
-            flow_type=classification_decision.flow_type.value if hasattr(classification_decision, 'flow_type') else None,
+            flow_type=classification_decision.flow_type.value
+            if hasattr(classification_decision, "flow_type")
+            else None,
             processing_time_ms=processing_time_ms,
             error=str(e),
         )
@@ -403,7 +402,9 @@ async def nhm_request_detailed(
                 flow_type=classification_decision.flow_type.value,
                 confidence=classification_decision.confidence,
                 reasoning=classification_decision.reasoning,
-                alternative=classification_decision.alternative.value if classification_decision.alternative else None,
+                alternative=classification_decision.alternative.value
+                if classification_decision.alternative
+                else None,
             ),
             nlu_result=nlu_result_dict,
         )

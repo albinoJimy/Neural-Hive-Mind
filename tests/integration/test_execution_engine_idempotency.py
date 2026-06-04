@@ -6,7 +6,6 @@ e que o sistema continua funcionando mesmo quando Redis está indisponível (fai
 """
 
 import sys
-import os
 from pathlib import Path
 
 # Add worker-agents src to path
@@ -16,7 +15,7 @@ if str(WORKER_SRC) not in sys.path:
 
 import pytest
 import asyncio
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 
 @pytest.fixture

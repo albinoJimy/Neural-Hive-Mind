@@ -45,9 +45,7 @@ class OpenAIProvider(BaseProvider):
                 timeout=self.timeout,
             )
         except ImportError as e:
-            raise ImportError(
-                "SDK OpenAI não instalado. Instale com: pip install openai"
-            ) from e
+            raise ImportError("SDK OpenAI não instalado. Instale com: pip install openai") from e
 
     async def stop(self):
         """Fecha cliente OpenAI."""
@@ -167,7 +165,7 @@ class OpenAIProvider(BaseProvider):
             if not self._client:
                 await self.start()
             # Chamada simples de teste
-            response = await self._client.chat.completions.create(
+            await self._client.chat.completions.create(
                 model=self.model,
                 messages=[{"role": "user", "content": "Hi"}],
                 max_tokens=5,

@@ -36,7 +36,8 @@ logger = structlog.get_logger()
 
 # Drift detection support
 try:
-    from src.ml.drift_detector import DriftDetector
+    from src.ml.drift_detector import DriftDetector  # noqa: F401 - deteção de feature
+
     DRIFT_DETECTION_AVAILABLE = True
 except ImportError:
     DRIFT_DETECTION_AVAILABLE = False
@@ -44,17 +45,17 @@ except ImportError:
 
 # Drift-retrain connector support (FASE 0)
 try:
-    from src.ml.drift_retrain_connector import (
+    from src.ml.drift_retrain_connector import (  # noqa: F401 - deteção de feature
         DriftAlert,
         DriftRetrainConnector,
         get_drift_retrain_connector,
     )
+
     DRIFT_RETRAIN_AVAILABLE = True
 except ImportError:
     DRIFT_RETRAIN_AVAILABLE = False
     logger.warning(
-        "drift_retrain_connector_not_available",
-        message="DriftRetrainConnector module not found"
+        "drift_retrain_connector_not_available", message="DriftRetrainConnector module not found"
     )
 
 
@@ -526,7 +527,11 @@ class DecisionConsumer:
                     drift_type = dt
                     drift_details = data
 
-            severity = "ok" if overall_status == "ok" else ("warning" if overall_status == "warning" else "critical")
+            severity = (
+                "ok"
+                if overall_status == "ok"
+                else ("warning" if overall_status == "warning" else "critical")
+            )
 
             # Parse timestamp (pode ser string ISO ou datetime)
             timestamp_str = drift_report.get("timestamp")

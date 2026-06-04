@@ -32,10 +32,7 @@ class CommonRules:
 
     def evaluate(self, request: UnifiedApprovalRequest) -> RuleResult:
         """Aplica as regras na ordem em que devem bloquear o request."""
-        if (
-            self.thresholds.require_manual_for_destructive
-            and request.is_destructive
-        ):
+        if self.thresholds.require_manual_for_destructive and request.is_destructive:
             return RuleResult(
                 status="pending",
                 reason="Destructive operations require manual approval",

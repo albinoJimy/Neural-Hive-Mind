@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
 from prometheus_client import REGISTRY
 
 from src.observability import metrics as m
@@ -95,14 +94,10 @@ def test_record_classification_clamps_confidence_to_unit_range() -> None:
     m.record_classification(flow_type="A-F", confidence=1.5)  # >1
     m.record_classification(flow_type="A-F", confidence=-0.2)  # <0
 
-    count = _sample_value(
-        "unified_gateway_classification_total", flow_type="A-F"
-    )
+    count = _sample_value("unified_gateway_classification_total", flow_type="A-F")
     assert count >= 3
 
-    hist_count = _sample_value(
-        "unified_gateway_classification_confidence_count", flow_type="A-F"
-    )
+    hist_count = _sample_value("unified_gateway_classification_confidence_count", flow_type="A-F")
     assert hist_count >= 3
 
 

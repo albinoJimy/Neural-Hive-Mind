@@ -5,11 +5,10 @@ Fixtures de teste para MLflow.
 Configura ambiente de tracking MLflow isolado para testes de integração.
 """
 
-import os
 import shutil
 import tempfile
 from typing import Dict, Any, Optional
-from unittest.mock import MagicMock, AsyncMock
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -320,7 +319,7 @@ async def seed_mlflow_models(mlflow_test_client, mock_duration_predictor) -> Dic
                 "v2": {"run_id": run_id_v2, "version": result_v2.version},
             }
 
-        except Exception as e:
+        except Exception:
             # Fallback para mock em caso de erro
             return {
                 "v1": {"run_id": "run_v1_fallback", "version": "1"},

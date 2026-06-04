@@ -63,7 +63,9 @@ class TestHealthCheckResult:
     def test_create_result_with_details(self):
         """Testa criação com detalhes."""
         result = HealthCheckResult(
-            name="test-check", status=HealthStatus.HEALTHY, details={"key": "value", "count": 42}
+            name="test-check",
+            status=HealthStatus.HEALTHY,
+            details={"key": "value", "count": 42},
         )
 
         assert result.details == {"key": "value", "count": 42}

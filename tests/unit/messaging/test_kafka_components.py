@@ -6,10 +6,8 @@ Testa produtores, consumidores e tópicos Kafka.
 """
 
 import pytest
-import asyncio
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from uuid import uuid4
-from unittest.mock import AsyncMock, MagicMock
 
 
 # =============================================================================

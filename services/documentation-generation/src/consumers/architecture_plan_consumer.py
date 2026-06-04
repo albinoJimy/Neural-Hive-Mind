@@ -112,7 +112,6 @@ class ArchitecturePlanConsumer:
             data: Dados do evento
         """
         plan_id = data.get("plan_id", "")
-        cognitive_plan_id = data.get("cognitive_plan_id", "")
 
         if not plan_id:
             self._logger.warning("missing_plan_id")
@@ -134,7 +133,7 @@ class ArchitecturePlanConsumer:
                 "tech_stack": data.get("tech_stack", "Microservices"),
             }
 
-            readme_doc = await self._readme_generator.generate_from_dict(readme_request)
+            await self._readme_generator.generate_from_dict(readme_request)
 
             # Gerar documentação de código para cada componente
             for component in data.get("components", []):

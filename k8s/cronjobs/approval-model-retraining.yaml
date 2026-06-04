@@ -8,6 +8,7 @@ metadata:
   namespace: neural-hive
   labels:
     app: neural-hive
+    app.kubernetes.io/name: approval-model-retraining
     component: approval-model-retraining
     layer: ml-ops
 spec:
@@ -23,6 +24,7 @@ spec:
         metadata:
           labels:
             app: neural-hive
+            app.kubernetes.io/name: approval-model-retraining
             component: approval-model-retraining
         spec:
           restartPolicy: OnFailure

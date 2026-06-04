@@ -11,13 +11,12 @@ import os
 import pickle
 import time
 import uuid
-from datetime import datetime, timedelta, timezone
-from typing import Dict, Any, Optional, List, Tuple, Union
+from datetime import datetime, timezone
+from typing import Dict, Any, Optional, List, Union
 import structlog
 import numpy as np
 from sklearn.linear_model import SGDClassifier, PassiveAggressiveClassifier, Perceptron
 from sklearn.preprocessing import StandardScaler
-from sklearn.pipeline import Pipeline
 from prometheus_client import Counter, Histogram, Gauge
 import joblib
 
@@ -600,7 +599,7 @@ class IncrementalLearner:
 
             if computed_hash != checkpoint.get("model_hash"):
                 raise CheckpointError(
-                    f"Hash do modelo não corresponde. " f"Checkpoint pode estar corrompido."
+                    "Hash do modelo não corresponde. " "Checkpoint pode estar corrompido."
                 )
 
             # Restaurar estado

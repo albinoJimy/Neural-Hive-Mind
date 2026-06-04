@@ -3,11 +3,17 @@ name: opa-gatekeeper-neural-hive
 description: OPA Gatekeeper para governança policy-as-code do Neural Hive-Mind
 type: application
 version: 1.0.0
-appVersion: "3.14.0"
+# REMEDIAÇÃO P0: alinhado de 3.14.0 -> 3.22.0 para coincidir com o release vivo
+# em produção (gatekeeper-3.22.0) e com o chart helm/gatekeeper. As correcções
+# P0 foram validadas contra as chaves do subchart 3.22.0.
+appVersion: "3.22.0"
 
+# CHART CANÓNICO PARA PRODUÇÃO: este wrapper (`helm-charts/opa-gatekeeper`) é o
+# usado pelo workflow deploy-foundation.yml. O wrapper `helm/gatekeeper` é
+# redundante; manter ambos sincronizados na versão 3.22.0 do subchart.
 dependencies:
   - name: gatekeeper
-    version: "3.14.0"
+    version: "3.22.0"
     repository: https://open-policy-agent.github.io/gatekeeper/charts
 
 maintainers:

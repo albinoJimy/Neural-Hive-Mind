@@ -130,9 +130,9 @@ class TestApprovalGateManualReview:
         from src.services.approval_gate import ApprovalGate
 
         # Adicionar target_repo para permitir criacao de MR
-        sample_pipeline_context_with_validations.ticket.parameters["target_repo"] = (
-            "https://github.com/test/repo"
-        )
+        sample_pipeline_context_with_validations.ticket.parameters[
+            "target_repo"
+        ] = "https://github.com/test/repo"
 
         gate = ApprovalGate(
             git_client=mock_git_client, auto_approval_threshold=0.9, min_quality_score=0.5
@@ -162,9 +162,9 @@ class TestApprovalGateManualReview:
         from src.services.approval_gate import ApprovalGate
 
         # Adicionar target_repo para permitir criacao de MR
-        sample_pipeline_context_with_validations.ticket.parameters["target_repo"] = (
-            "https://github.com/test/repo"
-        )
+        sample_pipeline_context_with_validations.ticket.parameters[
+            "target_repo"
+        ] = "https://github.com/test/repo"
 
         gate = ApprovalGate(
             git_client=mock_git_client, auto_approval_threshold=0.9, min_quality_score=0.5
@@ -225,9 +225,9 @@ class TestApprovalGateMergeRequestContent:
         from src.services.approval_gate import ApprovalGate
 
         # Adicionar target_repo para permitir criacao de MR
-        sample_pipeline_context_with_validations.ticket.parameters["target_repo"] = (
-            "https://github.com/test/repo"
-        )
+        sample_pipeline_context_with_validations.ticket.parameters[
+            "target_repo"
+        ] = "https://github.com/test/repo"
 
         gate = ApprovalGate(
             git_client=mock_git_client, auto_approval_threshold=0.9, min_quality_score=0.5
@@ -260,9 +260,9 @@ class TestApprovalGateMergeRequestContent:
         from src.services.approval_gate import ApprovalGate
 
         # Adicionar target_repo para permitir criacao de MR
-        sample_pipeline_context_with_validations.ticket.parameters["target_repo"] = (
-            "https://github.com/test/repo"
-        )
+        sample_pipeline_context_with_validations.ticket.parameters[
+            "target_repo"
+        ] = "https://github.com/test/repo"
 
         gate = ApprovalGate(
             git_client=mock_git_client, auto_approval_threshold=0.9, min_quality_score=0.5
@@ -294,9 +294,9 @@ class TestApprovalGateMergeRequestContent:
         from src.services.approval_gate import ApprovalGate
 
         # Adicionar target_repo para permitir criacao de MR
-        sample_pipeline_context_with_validations.ticket.parameters["target_repo"] = (
-            "https://github.com/test/repo"
-        )
+        sample_pipeline_context_with_validations.ticket.parameters[
+            "target_repo"
+        ] = "https://github.com/test/repo"
 
         gate = ApprovalGate(
             git_client=mock_git_client, auto_approval_threshold=0.9, min_quality_score=0.5
@@ -336,9 +336,9 @@ class TestApprovalGateCommitAndPush:
         mock_mongodb_client.get_artifact_content = AsyncMock(return_value=mock_code)
 
         # Configurar ticket com target_repo
-        sample_pipeline_context_with_artifacts.ticket.parameters["target_repo"] = (
-            "https://github.com/test/repo"
-        )
+        sample_pipeline_context_with_artifacts.ticket.parameters[
+            "target_repo"
+        ] = "https://github.com/test/repo"
 
         gate = ApprovalGate(git_client=mock_git_client, mongodb_client=mock_mongodb_client)
 
@@ -430,9 +430,9 @@ class TestApprovalGateCommitAndPush:
         mock_code = "code"
         mock_mongodb_client.get_artifact_content = AsyncMock(return_value=mock_code)
         mock_git_client.commit_artifacts = AsyncMock(return_value="abc123def")
-        sample_pipeline_context_with_artifacts.ticket.parameters["target_repo"] = (
-            "https://github.com/test/repo"
-        )
+        sample_pipeline_context_with_artifacts.ticket.parameters[
+            "target_repo"
+        ] = "https://github.com/test/repo"
 
         gate = ApprovalGate(git_client=mock_git_client, mongodb_client=mock_mongodb_client)
 
@@ -520,9 +520,9 @@ class TestApprovalGateAutoApprovedCommit:
         sample_pipeline_context_with_validations.generated_artifacts.append(artifact)
 
         # Modificar ticket para incluir target_repo
-        sample_pipeline_context_with_validations.ticket.parameters["target_repo"] = (
-            "https://github.com/test/repo"
-        )
+        sample_pipeline_context_with_validations.ticket.parameters[
+            "target_repo"
+        ] = "https://github.com/test/repo"
 
         mock_mongodb_client.get_artifact_content = AsyncMock(return_value="def main(): pass")
 

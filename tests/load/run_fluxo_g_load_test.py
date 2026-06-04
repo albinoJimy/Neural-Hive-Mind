@@ -24,11 +24,16 @@ def run_locust(
 
     cmd = [
         "locust",
-        "-f", "tests/load/fluxo_g_locustfile.py",
-        "--users", str(users),
-        "--spawn-rate", str(spawn_rate),
-        "--run-time", run_time,
-        "--html", "fluxo_g_load_test_report.html",
+        "-f",
+        "tests/load/fluxo_g_locustfile.py",
+        "--users",
+        str(users),
+        "--spawn-rate",
+        str(spawn_rate),
+        "--run-time",
+        run_time,
+        "--html",
+        "fluxo_g_load_test_report.html",
     ]
 
     if headless:
@@ -44,10 +49,14 @@ def run_locust(
             cmd.extend(["--master-host", master_host])
 
     # Output configs
-    cmd.extend([
-        "--logfile", "fluxo_g_locust.log",
-        "--loglevel", "INFO",
-    ])
+    cmd.extend(
+        [
+            "--logfile",
+            "fluxo_g_locust.log",
+            "--loglevel",
+            "INFO",
+        ]
+    )
 
     print(f"Running: {' '.join(cmd)}")
     subprocess.run(cmd, check=True)
@@ -73,44 +82,21 @@ Examples:
 
   # Stress test
   python run_fluxo_g_load_test.py --users 5000 --spawn-rate 500 --run-time 10m
-        """
+        """,
+    )
+    parser.add_argument("--users", type=int, default=100, help="Number of users (default: 100)")
+    parser.add_argument(
+        "--spawn-rate", type=float, default=10, help="Users spawned per second (default: 10)"
     )
     parser.add_argument(
-        "--users",
-        type=int,
-        default=100,
-        help="Number of users (default: 100)"
+        "--run-time", default="5m", help="Test duration, e.g., 5m, 1h (default: 5m)"
     )
     parser.add_argument(
-        "--spawn-rate",
-        type=float,
-        default=10,
-        help="Users spawned per second (default: 10)"
+        "--gui", action="store_true", help="Run with web UI instead of headless mode"
     )
-    parser.add_argument(
-        "--run-time",
-        default="5m",
-        help="Test duration, e.g., 5m, 1h (default: 5m)"
-    )
-    parser.add_argument(
-        "--gui",
-        action="store_true",
-        help="Run with web UI instead of headless mode"
-    )
-    parser.add_argument(
-        "--master",
-        action="store_true",
-        help="Run as master in distributed mode"
-    )
-    parser.add_argument(
-        "--worker",
-        action="store_true",
-        help="Run as worker in distributed mode"
-    )
-    parser.add_argument(
-        "--master-host",
-        help="Master host for workers (default: localhost)"
-    )
+    parser.add_argument("--master", action="store_true", help="Run as master in distributed mode")
+    parser.add_argument("--worker", action="store_true", help="Run as worker in distributed mode")
+    parser.add_argument("--master-host", help="Master host for workers (default: localhost)")
 
     args = parser.parse_args()
 

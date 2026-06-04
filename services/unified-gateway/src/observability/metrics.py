@@ -90,8 +90,21 @@ request_latency_seconds: Histogram = _make_histogram(
     "End-to-end request latency observed at the Unified Gateway.",
     labelnames=("method", "path_template"),
     buckets=(
-        0.001, 0.0025, 0.005, 0.0075, 0.01, 0.015, 0.02, 0.025, 0.05,
-        0.1, 0.25, 0.5, 1.0, 2.5, 5.0,
+        0.001,
+        0.0025,
+        0.005,
+        0.0075,
+        0.01,
+        0.015,
+        0.02,
+        0.025,
+        0.05,
+        0.1,
+        0.25,
+        0.5,
+        1.0,
+        2.5,
+        5.0,
     ),
 )
 
@@ -154,9 +167,10 @@ def _normalise_path(path: str) -> str:
             continue
         # Heuristic: hex/uuid-ish segments and obvious IDs become {id}.
         looks_like_id = (
-            (len(segment) >= 8 and segment.replace("-", "").isalnum() and any(c.isdigit() for c in segment))
-            or (segment.isdigit())
-        )
+            len(segment) >= 8
+            and segment.replace("-", "").isalnum()
+            and any(c.isdigit() for c in segment)
+        ) or (segment.isdigit())
         normalised.append("{id}" if looks_like_id else segment)
     return "/".join(normalised)
 
@@ -174,9 +188,7 @@ def record_request(*, method: str, path: str, status_code: int, latency_seconds:
 
 def record_rate_limit_exceeded(*, tenant_id: str | None, tier: str) -> None:
     """Record a rate-limit rejection."""
-    rate_limit_exceeded_total.labels(
-        tenant_id=_truncate_tenant(tenant_id), tier=str(tier)
-    ).inc()
+    rate_limit_exceeded_total.labels(tenant_id=_truncate_tenant(tenant_id), tier=str(tier)).inc()
 
 
 def record_classification(*, flow_type: str, confidence: float) -> None:

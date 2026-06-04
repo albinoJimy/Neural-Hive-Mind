@@ -394,7 +394,7 @@ class E2ETracingValidator:
                 "logs": span.get("logs", []),
                 "warnings": span.get("warnings", []),
                 "has_error": any(
-                    t["key"] == "error" and t["value"] == True for t in span.get("tags", [])
+                    t["key"] == "error" and t["value"] is True for t in span.get("tags", [])
                 ),
             }
             spans_by_service[service_name].append(span_info)

@@ -15,7 +15,6 @@ from temporalio.exceptions import ApplicationError
 
 # Import activities
 with workflow.unsafe.imports_passed_through():
-
     from neural_hive_observability import get_tracer
     from neural_hive_observability.context import set_baggage
     from src.activities.build_package_activity import (
@@ -92,7 +91,6 @@ class FluxoGWorkflow:
         """
         cognitive_plan = input_data.get("cognitive_plan", {})
         original_intent = input_data.get("original_intent")
-        consolidated_decision = input_data.get("consolidated_decision")
         skip_approvals = input_data.get("skip_approvals", False)
 
         workflow_id = workflow.info().workflow_id

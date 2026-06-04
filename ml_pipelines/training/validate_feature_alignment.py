@@ -19,7 +19,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "libraries" / "python"))
 
 import pandas as pd
-from feature_store.feature_definitions import get_feature_names, get_feature_schema
+from feature_store.feature_definitions import get_feature_names
 
 
 def validate_feature_extractor():
@@ -87,7 +87,7 @@ def validate_dataset(dataset_path: str):
     print(f"\nValidando dataset: {dataset_path}")
 
     if not os.path.exists(dataset_path):
-        print(f"   Dataset nao encontrado")
+        print("   Dataset nao encontrado")
         return None  # Retorna None para indicar arquivo nao encontrado
 
     try:

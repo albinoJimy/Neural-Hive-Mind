@@ -214,11 +214,18 @@ jobs:
 
       - name: Validate Rego Policies
         run: |
+          # Gate real: acumula falhas e reporta todas antes de sair.
+          fail=0
           for policy in policies/rego/*.rego; do
             echo "Validating $policy"
-            opa fmt --diff "$policy"
+            # Gate de compilação/tipos (deteta erros como funções inexistentes)
+            opa check "$policy" || fail=1
+            # Gate de formatação canónica
+            opa fmt --diff --fail "$policy" || fail=1
+            # Testes (opcionais — não falham na ausência de ficheiros de teste)
             opa test "$policy" || echo "No tests found for $policy"
           done
+          exit $fail
 
       - name: Test Constraint Templates
         run: |

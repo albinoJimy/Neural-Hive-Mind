@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 UTC = timezone.utc  # type: ignore, timedelta
 from typing import Any
@@ -256,7 +256,9 @@ class MongoDBClient:
     async def get_optimization_history(self, component: str, days: int = 30) -> list[dict]:
         """Histórico de otimizações por componente."""
         try:
-            cutoff_date = datetime.now(timezone.utc).timestamp() * 1000 - (days * 24 * 60 * 60 * 1000)
+            cutoff_date = datetime.now(timezone.utc).timestamp() * 1000 - (
+                days * 24 * 60 * 60 * 1000
+            )
 
             cursor = (
                 self.optimization_collection.find(
@@ -281,7 +283,9 @@ class MongoDBClient:
     async def get_success_rate(self, optimization_type: OptimizationType, days: int = 30) -> float:
         """Taxa de sucesso por tipo de otimização."""
         try:
-            cutoff_date = datetime.now(timezone.utc).timestamp() * 1000 - (days * 24 * 60 * 60 * 1000)
+            cutoff_date = datetime.now(timezone.utc).timestamp() * 1000 - (
+                days * 24 * 60 * 60 * 1000
+            )
 
             pipeline = [
                 {
@@ -397,7 +401,9 @@ class MongoDBClient:
         """
         try:
             # Calcular timestamp de corte (milissegundos desde epoch)
-            cutoff_timestamp = datetime.now(timezone.utc).timestamp() * 1000 - (hours * 60 * 60 * 1000)
+            cutoff_timestamp = datetime.now(timezone.utc).timestamp() * 1000 - (
+                hours * 60 * 60 * 1000
+            )
 
             count = await self.optimization_collection.count_documents(
                 {"applied_at": {"$gte": cutoff_timestamp}}
@@ -809,7 +815,11 @@ class MongoDBClient:
 
             # Top experimentos (maior efeito positivo)
             top_pipeline = [
-                {"$match": {"created_at": {"$gte": datetime.now(timezone.utc) - timedelta(days=days)}}},
+                {
+                    "$match": {
+                        "created_at": {"$gte": datetime.now(timezone.utc) - timedelta(days=days)}
+                    }
+                },
                 {"$unwind": "$primary_metrics_analysis"},
                 {
                     "$match": {
@@ -841,7 +851,11 @@ class MongoDBClient:
 
             # Breakdown por métrica (todas as métricas primárias)
             metrics_pipeline = [
-                {"$match": {"created_at": {"$gte": datetime.now(timezone.utc) - timedelta(days=days)}}},
+                {
+                    "$match": {
+                        "created_at": {"$gte": datetime.now(timezone.utc) - timedelta(days=days)}
+                    }
+                },
                 {"$unwind": "$primary_metrics_analysis"},
                 {
                     "$group": {

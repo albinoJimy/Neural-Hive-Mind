@@ -68,9 +68,7 @@ async def get_deployment(deployment_id: str) -> DeploymentResponse:
 
 
 @router.post("/{deployment_id}/rollback", response_model=RollbackResponse)
-async def rollback_deployment(
-    deployment_id: str, request: RollbackRequest
-) -> RollbackResponse:
+async def rollback_deployment(deployment_id: str, request: RollbackRequest) -> RollbackResponse:
     """
     Executa rollback de um deployment.
 
@@ -161,10 +159,8 @@ async def delete_deployment(deployment_id: str):
             detail=f"Deployment {deployment_id} not found",
         )
 
-    deployment = _deployments[deployment_id]
-
     # TODO: Implementar delete no Kubernetes
-    # kubectl delete deployment/{deployment.kubernetes.deployment_name}
+    # kubectl delete deployment/{_deployments[deployment_id].kubernetes.deployment_name}
 
     del _deployments[deployment_id]
 

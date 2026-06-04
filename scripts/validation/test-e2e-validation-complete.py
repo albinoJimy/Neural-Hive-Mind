@@ -9,7 +9,6 @@ Extends test-fluxo-completo-e2e.py with:
 """
 
 import sys
-import os
 import time
 import json
 import argparse
@@ -522,7 +521,7 @@ def test_gateway_health() -> bool:
     try:
         response = requests.get(f"{GATEWAY_URL}/health", timeout=5)
         return response.status_code == 200
-    except:
+    except Exception:
         return False
 
 
@@ -659,7 +658,7 @@ def generate_summary_report(metrics_collector: E2EMetricsCollector):
     print(f"{BOLD}GENERAL SUMMARY{RESET}")
     print(f"{'─'*60}")
     print(f"Total Tests Executed: {stats['total_tests']}")
-    print(f"")
+    print("")
     if stats["success_rate"] >= 95:
         color = GREEN
     elif stats["success_rate"] >= 90:
@@ -673,7 +672,7 @@ def generate_summary_report(metrics_collector: E2EMetricsCollector):
     print(
         f"{RED}✗ Tests Failed:{RESET} {stats['failed_tests']}/{stats['total_tests']} ({100-stats['success_rate']:.1f}%)"
     )
-    print(f"")
+    print("")
 
     if stats["timestamp_validation_rate"] == 100:
         ts_color = GREEN
@@ -690,9 +689,9 @@ def generate_summary_report(metrics_collector: E2EMetricsCollector):
     # Section 2: Results by Specialist
     print(f"\n{BOLD}RESULTS BY SPECIALIST{RESET}")
     print(f"{'─'*60}")
-    print(f"┌─────────────────┬──────────┬──────────┬─────────────────┐")
-    print(f"│ Specialist      │ Success  │ Failures │ Success Rate    │")
-    print(f"├─────────────────┼──────────┼──────────┼─────────────────┤")
+    print("┌─────────────────┬──────────┬──────────┬─────────────────┐")
+    print("│ Specialist      │ Success  │ Failures │ Success Rate    │")
+    print("├─────────────────┼──────────┼──────────┼─────────────────┤")
 
     for specialist in ["business", "technical", "behavior", "evolution", "architecture"]:
         if specialist in stats["specialist_stats"]:
@@ -706,14 +705,14 @@ def generate_summary_report(metrics_collector: E2EMetricsCollector):
                 f"│ {specialist:<15} │ {sp_stats['passed']}/{sp_stats['total']:<7} │ {sp_stats['failed']:<8} │ {rate_color}{sp_stats['success_rate']:>6.1f}%{RESET}         │"
             )
 
-    print(f"└─────────────────┴──────────┴──────────┴─────────────────┘")
+    print("└─────────────────┴──────────┴──────────┴─────────────────┘")
 
     # Section 3: Latency Metrics
     print(f"\n{BOLD}LATENCY METRICS{RESET}")
     print(f"{'─'*60}")
-    print(f"┌─────────────────┬─────────┬─────────┬─────────┬─────────┐")
-    print(f"│ Specialist      │ Min     │ Max     │ Avg     │ Median  │")
-    print(f"├─────────────────┼─────────┼─────────┼─────────┼─────────┤")
+    print("┌─────────────────┬─────────┬─────────┬─────────┬─────────┐")
+    print("│ Specialist      │ Min     │ Max     │ Avg     │ Median  │")
+    print("├─────────────────┼─────────┼─────────┼─────────┼─────────┤")
 
     for specialist in ["business", "technical", "behavior", "evolution", "architecture"]:
         if specialist in stats["specialist_stats"]:
@@ -722,11 +721,11 @@ def generate_summary_report(metrics_collector: E2EMetricsCollector):
                 f"│ {specialist:<15} │ {sp_stats['latency_min']:>6.0f}ms │ {sp_stats['latency_max']:>6.0f}ms │ {sp_stats['latency_avg']:>6.0f}ms │ {sp_stats['latency_median']:>6.0f}ms │"
             )
 
-    print(f"└─────────────────┴─────────┴─────────┴─────────┴─────────┘")
+    print("└─────────────────┴─────────┴─────────┴─────────┴─────────┘")
 
     # Overall latency
     lat = stats["latency_overall"]
-    print(f"\nOverall Latency Statistics:")
+    print("\nOverall Latency Statistics:")
     print(
         f"  Mean: {lat['mean']:.2f}ms | Median: {lat['median']:.2f}ms | Std Dev: {lat['stdev']:.2f}ms"
     )
@@ -751,7 +750,7 @@ def generate_summary_report(metrics_collector: E2EMetricsCollector):
         print(f"\n{BOLD}{RED}ERRORS DETECTED{RESET}")
         print(f"{'─'*60}")
         print(f"Total Errors: {stats['total_errors']}")
-        print(f"\nErrors by Type:")
+        print("\nErrors by Type:")
         for error_type, count in stats["errors_by_type"].items():
             print(f"  - {error_type}: {count}")
 
@@ -823,7 +822,7 @@ def main():
     print(f"\n{BOLD}{CYAN}{'='*60}{RESET}")
     print(f"{BOLD}{CYAN}E2E VALIDATION TEST SUITE{RESET}")
     print(f"{BOLD}{CYAN}{'='*60}{RESET}")
-    print(f"Configuration:")
+    print("Configuration:")
     print(f"  Gateway URL: {GATEWAY_URL}")
     print(f"  Iterations: {NUM_ITERATIONS}")
     print(f"  Timeout: {TIMEOUT}s")

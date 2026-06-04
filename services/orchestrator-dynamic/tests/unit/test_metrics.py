@@ -283,7 +283,10 @@ class TestDriftMetrics:
             )
 
             metrics.ml_drift_detected_total.labels.assert_called_once_with(
-                model_version="v7", drift_type="prediction", feature="duration_ms", severity="critical"
+                model_version="v7",
+                drift_type="prediction",
+                feature="duration_ms",
+                severity="critical",
             )
             mock_labels.inc.assert_called_once()
 

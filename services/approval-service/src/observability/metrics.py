@@ -245,7 +245,7 @@ class NeuralHiveMetrics:
                     if oldest:
                         # Calcula idade em segundos
                         if oldest.tzinfo is None:
-                            oldest = oldest.replace(tzinfo=UTC)
+                            oldest = oldest.replace(tzinfo=timezone.utc)
                         age_seconds = (now - oldest).total_seconds()
                         approval_requests_max_pending_age_seconds.labels(risk_band=risk_band).set(
                             age_seconds

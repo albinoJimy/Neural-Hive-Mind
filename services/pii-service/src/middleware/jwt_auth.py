@@ -2,7 +2,6 @@
 
 from typing import Callable
 from datetime import datetime
-from uuid import UUID
 
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -39,9 +38,7 @@ class JWTAuthMiddleware(BaseHTTPMiddleware):
         self.exclude_paths = set(exclude_paths or [])
         self.require_auth = require_auth
 
-    async def dispatch(
-        self, request: Request, call_next: Callable
-    ) -> Response:
+    async def dispatch(self, request: Request, call_next: Callable) -> Response:
         """
         Processa request e adiciona contexto de autenticação.
 
@@ -92,6 +89,7 @@ class JWTAuthMiddleware(BaseHTTPMiddleware):
         # Validar JWT token
         try:
             from src.config.settings import get_settings
+
             settings = get_settings()
 
             # Decodificar token
@@ -133,7 +131,9 @@ class JWTAuthMiddleware(BaseHTTPMiddleware):
         except (JWTError, ExpiredSignatureError, JWSError) as e:
             logger.warning("jwt_validation_failed", error=str(e), error_type=type(e).__name__)
             if self.require_auth:
-                error_msg = "Token expired" if isinstance(e, ExpiredSignatureError) else "Invalid JWT token"
+                error_msg = (
+                    "Token expired" if isinstance(e, ExpiredSignatureError) else "Invalid JWT token"
+                )
                 return Response(
                     content=f'{{"error": "{error_msg}"}}',
                     status_code=401,
@@ -178,7 +178,7 @@ class JWTAuthMiddleware(BaseHTTPMiddleware):
                 "verify_signature": True,
                 "verify_exp": True,
                 "verify_nbf": True,
-            }
+            },
         )
 
     async def _validate_jwt_rs256(self, token: str, jwks_url: str) -> dict:
@@ -225,5 +225,5 @@ class JWTAuthMiddleware(BaseHTTPMiddleware):
                 "verify_exp": True,
                 "verify_nbf": True,
                 "verify_aud": True,
-            }
+            },
         )

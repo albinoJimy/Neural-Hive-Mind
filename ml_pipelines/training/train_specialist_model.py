@@ -17,7 +17,6 @@ from typing import Dict, Any, Tuple, Optional
 import structlog
 import pandas as pd
 import numpy as np
-import sklearn
 from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
 from sklearn.neural_network import MLPClassifier
 from sklearn.model_selection import train_test_split
@@ -26,7 +25,6 @@ from sklearn.metrics import (
     recall_score,
     f1_score,
     accuracy_score,
-    confusion_matrix,
     brier_score_loss,
     log_loss,
 )
@@ -1434,7 +1432,7 @@ def main():
     """Ponto de entrada principal."""
     args = parse_args()
 
-    print(f"🤖 Neural Hive - Model Retraining Pipeline")
+    print("🤖 Neural Hive - Model Retraining Pipeline")
     print(f"   Specialist: {args.specialist_type}")
     print(f"   Model type: {args.model_type}")
     print(f"   Feedback count: {args.feedback_count}")
@@ -1515,7 +1513,7 @@ def main():
         # 0. Validação de pré-requisitos (antes de carregar dados)
         if args.skip_validation == "false":
             if _PRE_RETRAINING_VALIDATOR_AVAILABLE:
-                print(f"🔍 Executando validação de pré-requisitos...")
+                print("🔍 Executando validação de pré-requisitos...")
 
                 validator = PreRetrainingValidator(
                     mongodb_uri=os.getenv("MONGODB_URI"),
@@ -1539,11 +1537,11 @@ def main():
 
                     # Verificar se validação passou
                     if not validation_report["passed"]:
-                        print(f"❌ Validação de pré-requisitos FALHOU")
+                        print("❌ Validação de pré-requisitos FALHOU")
                         print(f"   Recomendação: {validation_report['recommendation']}")
 
                         if validation_report["blocking_issues"]:
-                            print(f"   Problemas bloqueantes:")
+                            print("   Problemas bloqueantes:")
                             for issue in validation_report["blocking_issues"]:
                                 print(f"     - {issue}")
 
@@ -1561,7 +1559,7 @@ def main():
                                 f"Investigue a qualidade dos dados antes de retreinar."
                             )
 
-                    print(f"✅ Validação de pré-requisitos PASSOU")
+                    print("✅ Validação de pré-requisitos PASSOU")
                     print(
                         f"   Amostras disponíveis: {validation_report['checks']['sample_count']['current']}"
                     )
@@ -1633,12 +1631,12 @@ def main():
                     reason="PreRetrainingValidator import failed",
                 )
                 print(
-                    f"⚠️  Validador de pré-requisitos não disponível, continuando sem validação..."
+                    "⚠️  Validador de pré-requisitos não disponível, continuando sem validação..."
                 )
                 mlflow.log_param("pre_validation_passed", "skipped_unavailable")
 
         else:
-            print(f"⚠️  PULANDO validação de pré-requisitos (--skip-validation=true)")
+            print("⚠️  PULANDO validação de pré-requisitos (--skip-validation=true)")
             logger.warning(
                 "pre_retraining_validation_skipped",
                 specialist_type=args.specialist_type,
@@ -1687,7 +1685,7 @@ def main():
             if data_metadata.get("date_range_end"):
                 mlflow.log_param("data_date_range_end", data_metadata["date_range_end"])
 
-            print(f"📁 Using REAL dataset from MongoDB")
+            print("📁 Using REAL dataset from MongoDB")
             print(f"   Samples: {data_metadata.get('real_samples_count', len(df_base))}")
             print(f"   Quality score: {data_metadata.get('quality_score', 'N/A')}")
             if data_metadata.get("date_range_start") and data_metadata.get("date_range_end"):
@@ -1719,7 +1717,7 @@ def main():
                 ):
                     mlflow.log_metric(label_key, divergence)
 
-            print(f"⚠️  Using SYNTHETIC dataset for training")
+            print("⚠️  Using SYNTHETIC dataset for training")
             print(f"   Samples: {data_metadata.get('synthetic_samples_count', len(df_base))}")
             print(f"   Label distribution: {data_metadata.get('label_distribution', {})}")
             print(f"   Warning: {data_metadata.get('warning', 'Model trained on synthetic data')}")
@@ -1751,7 +1749,7 @@ def main():
 
         mlflow.log_metric("total_dataset_size", len(df_enriched))
 
-        print(f"📊 Dataset sizes:")
+        print("📊 Dataset sizes:")
         print(f"   Base ({data_source}): {len(df_base)}")
         print(f"   Additional Feedback: {len(df_feedback)}")
         print(f"   Total: {len(df_enriched)}")
@@ -1853,7 +1851,7 @@ def main():
             X_val = df_val[feature_cols]
             y_val = df_val["label"]
             X_test = df_test[feature_cols]
-            y_test = df_test["label"]
+            y_test = df_test["label"]  # noqa: F841
 
             # Log informações temporais
             mlflow.log_dict(split_metadata, "temporal_split_metadata.json")
@@ -1917,7 +1915,7 @@ def main():
             raise
 
         # 6. Avaliar modelo
-        print(f"📊 Evaluating model...")
+        print("📊 Evaluating model...")
         try:
             metrics = evaluate_model(model, X_val, y_val)
         except Exception as eval_error:
@@ -1973,7 +1971,7 @@ def main():
         print()
 
         # 7. Registrar modelo
-        print(f"💾 Registering model...")
+        print("💾 Registering model...")
 
         # Criar signature explícita para enforcement de schema
         # Usar predict_proba() se disponível para saída probabilística
@@ -2124,19 +2122,16 @@ def main():
             # Logar modelo sem registro apenas para debugging (não para promoção)
             try:
                 mlflow.sklearn.log_model(sk_model=model, artifact_path="model_unregistered")
-                print(f"   ⚠️  Model logged as unregistered artifact for debugging only")
+                print("   ⚠️  Model logged as unregistered artifact for debugging only")
             except Exception as e2:
                 logger.error("fallback_model_logging_failed", error=str(e2))
 
             # Marcar que o modelo não foi registrado
             model_registered = False
 
-        run_id = mlflow.active_run().info.run_id
-        model_uri = f"runs:/{run_id}/model"
-
         # 8. Comparar com baseline e promover
         if args.promote_if_better == "true":
-            print(f"🔍 Checking if model should be promoted...")
+            print("🔍 Checking if model should be promoted...")
 
             # Verificar se o modelo foi registrado com sucesso antes de tentar promover
             if not model_registered:
@@ -2145,7 +2140,7 @@ def main():
                     model_name=model_name,
                     reason="Model was not successfully registered, skipping promotion",
                 )
-                print(f"   ⚠️  Skipping promotion - model was not successfully registered")
+                print("   ⚠️  Skipping promotion - model was not successfully registered")
                 mlflow.log_param("promoted", "false")
                 mlflow.log_param("promotion_skip_reason", "model_not_registered")
             else:
@@ -2212,7 +2207,7 @@ def main():
                             print(f"   📋 Archived versions: {archived_versions}")
                 else:
                     print(
-                        f"ℹ️  Model kept in Staging - performance below threshold or did not improve over baseline"
+                        "ℹ️  Model kept in Staging - performance below threshold or did not improve over baseline"
                     )
                     mlflow.log_param("promoted", "false")
                     mlflow.log_param("promotion_skip_reason", "metrics_below_threshold")
@@ -2263,7 +2258,7 @@ def main():
             )
 
         print()
-        print(f"✅ Retraining pipeline completed")
+        print("✅ Retraining pipeline completed")
         print(f"   Run ID: {mlflow.active_run().info.run_id}")
 
 

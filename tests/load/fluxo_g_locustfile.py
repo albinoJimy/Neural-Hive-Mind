@@ -8,11 +8,8 @@ Tests load on:
 - approval-gateway (8017)
 """
 
-import json
-import random
 import time
 from locust import HttpUser, task, between, events
-from locust.runners import MasterRunner
 
 
 class RequirementsEngineeringUser(HttpUser):
@@ -34,8 +31,7 @@ class RequirementsEngineeringUser(HttpUser):
     def list_requirements(self):
         """Lista requisitos existentes."""
         self.client.get(
-            "/api/v1/requirements?page=1&page_size=20",
-            name="/api/v1/requirements (GET)"
+            "/api/v1/requirements?page=1&page_size=20", name="/api/v1/requirements (GET)"
         )
 
 
@@ -54,8 +50,7 @@ class DocumentationGenerationUser(HttpUser):
     def list_docs(self):
         """Lista documentação gerada."""
         self.client.get(
-            "/api/v1/documentation?page=1&page_size=20",
-            name="/api/v1/documentation (GET)"
+            "/api/v1/documentation?page=1&page_size=20", name="/api/v1/documentation (GET)"
         )
 
 
@@ -78,9 +73,9 @@ class KnowledgeGraphRAGUser(HttpUser):
             json={
                 "query": "Como implementar autenticação JWT em FastAPI?",
                 "top_k": 5,
-                "include_sources": True
+                "include_sources": True,
             },
-            name="/api/v1/rag/query (POST)"
+            name="/api/v1/rag/query (POST)",
         )
 
 
@@ -98,10 +93,7 @@ class ApprovalGatewayUser(HttpUser):
     @task(1)
     def list_approvals(self):
         """Lista aprovações."""
-        self.client.get(
-            "/api/v1/approvals?page=1&page_size=20",
-            name="/api/v1/approvals (GET)"
-        )
+        self.client.get("/api/v1/approvals?page=1&page_size=20", name="/api/v1/approvals (GET)")
 
 
 class FluxoGMixUser(HttpUser):
@@ -112,11 +104,12 @@ class FluxoGMixUser(HttpUser):
     @task(1)
     def test_requirements_service(self):
         """Testa requirements-engineering."""
-        if not hasattr(self, 'client'):
+        if not hasattr(self, "client"):
             return
 
         # Usar HTTP client direto para diferentes hosts
         import requests
+
         try:
             response = requests.get("http://localhost:8010/health", timeout=2)
             if response.status_code == 200:
@@ -128,6 +121,7 @@ class FluxoGMixUser(HttpUser):
     def test_documentation_service(self):
         """Testa documentation-generation."""
         import requests
+
         try:
             response = requests.get("http://localhost:8014/health", timeout=2)
             if response.status_code == 200:
@@ -139,6 +133,7 @@ class FluxoGMixUser(HttpUser):
     def test_kg_rag_service(self):
         """Testa knowledge-graph-rag."""
         import requests
+
         try:
             response = requests.get("http://localhost:8016/health", timeout=2)
             if response.status_code == 200:
@@ -150,6 +145,7 @@ class FluxoGMixUser(HttpUser):
     def test_approval_service(self):
         """Testa approval-gateway."""
         import requests
+
         try:
             response = requests.get("http://localhost:8017/health", timeout=2)
             if response.status_code == 200:
@@ -200,10 +196,18 @@ def on_test_stop(environment, **kwargs):
     print(f"  Health Failed: {environment.approval_health_failed}")
     print()
 
-    total_ok = (environment.reqs_health_ok + environment.docs_health_ok +
-                environment.kg_health_ok + environment.approval_health_ok)
-    total_failed = (environment.reqs_health_failed + environment.docs_health_failed +
-                    environment.kg_health_failed + environment.approval_health_failed)
+    total_ok = (
+        environment.reqs_health_ok
+        + environment.docs_health_ok
+        + environment.kg_health_ok
+        + environment.approval_health_ok
+    )
+    total_failed = (
+        environment.reqs_health_failed
+        + environment.docs_health_failed
+        + environment.kg_health_failed
+        + environment.approval_health_failed
+    )
     total = total_ok + total_failed
 
     if total > 0:

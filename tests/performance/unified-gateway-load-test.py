@@ -14,9 +14,8 @@ import json
 import statistics
 import argparse
 import logging
-from typing import List, Dict, Tuple
+from typing import List, Dict
 from dataclasses import dataclass, asdict
-from concurrent.futures import ThreadPoolExecutor
 import numpy as np
 
 # Configure logging
@@ -104,13 +103,33 @@ class UnifiedGatewayLoadTester:
     # Amostras de intents para teste
     SAMPLE_INTENTS = [
         {"text": "Listar todos os usuários do sistema", "language": "pt-BR", "expected_flow": "G"},
-        {"text": "Criar novo usuário com permissões de admin", "language": "pt-BR", "expected_flow": "G"},
-        {"text": "Resetar senha do usuário joao@empresa.com", "language": "pt-BR", "expected_flow": "A"},
-        {"text": "Relatório de vendas do último trimestre", "language": "pt-BR", "expected_flow": "F"},
+        {
+            "text": "Criar novo usuário com permissões de admin",
+            "language": "pt-BR",
+            "expected_flow": "G",
+        },
+        {
+            "text": "Resetar senha do usuário joao@empresa.com",
+            "language": "pt-BR",
+            "expected_flow": "A",
+        },
+        {
+            "text": "Relatório de vendas do último trimestre",
+            "language": "pt-BR",
+            "expected_flow": "F",
+        },
         {"text": "Deploy da versão 2.0 para produção", "language": "pt-BR", "expected_flow": "H"},
-        {"text": "Analisar dados de transações bancárias", "language": "pt-BR", "expected_flow": "F"},
+        {
+            "text": "Analisar dados de transações bancárias",
+            "language": "pt-BR",
+            "expected_flow": "F",
+        },
         {"text": "Configurar autenticação two-factor", "language": "pt-BR", "expected_flow": "A"},
-        {"text": "Gerar dashboard de métricas do sistema", "language": "pt-BR", "expected_flow": "F"},
+        {
+            "text": "Gerar dashboard de métricas do sistema",
+            "language": "pt-BR",
+            "expected_flow": "F",
+        },
     ]
 
     def __init__(self, config: UnifiedGatewayLoadTestConfig):
@@ -510,11 +529,15 @@ def print_results(results: UnifiedGatewayLoadTestResults):
     # Requisitos da spec
     print("\n--- SPEC REQUIREMENTS VALIDATION ---")
     throughput_status = "✅ PASS" if results.meets_throughput_requirement else "❌ FAIL"
-    print(f"  Throughput >{results.config.target_throughput} req/s: {throughput_status} ({results.requests_per_second:.2f} req/s)")
+    print(
+        f"  Throughput >{results.config.target_throughput} req/s: {throughput_status} ({results.requests_per_second:.2f} req/s)"
+    )
 
     p95_latency = results.latency_stats.get("overall", {}).get("p95", "N/A")
     latency_status = "✅ PASS" if results.meets_latency_requirement else "❌ FAIL"
-    print(f"  P95 Latency <{results.config.max_p95_latency_ms}ms: {latency_status} ({p95_latency} ms)")
+    print(
+        f"  P95 Latency <{results.config.max_p95_latency_ms}ms: {latency_status} ({p95_latency} ms)"
+    )
 
     print("\n--- LATENCY STATISTICS ---")
     if results.latency_stats.get("overall"):
@@ -556,7 +579,9 @@ def print_results(results: UnifiedGatewayLoadTestResults):
     # Avaliação de performance
     print("\n--- PERFORMANCE ASSESSMENT ---")
 
-    all_requirements_met = results.meets_throughput_requirement and results.meets_latency_requirement
+    all_requirements_met = (
+        results.meets_throughput_requirement and results.meets_latency_requirement
+    )
 
     if all_requirements_met and results.success_rate >= 0.99:
         print("🟢 EXCELLENT: All requirements met, high success rate")
@@ -580,10 +605,14 @@ async def main():
     parser.add_argument("--timeout", type=int, default=30, help="Request timeout in seconds")
     parser.add_argument("--output", help="Output file for JSON results")
     parser.add_argument("--verbose", "-v", action="store_true", help="Verbose logging")
-    parser.add_argument("--target-throughput", type=int, default=200, help="Target throughput (req/s)")
+    parser.add_argument(
+        "--target-throughput", type=int, default=200, help="Target throughput (req/s)"
+    )
     parser.add_argument("--max-p95-latency", type=float, default=20.0, help="Max P95 latency (ms)")
     # Rate limiting test arguments
-    parser.add_argument("--test-rate-limit", action="store_true", help="Test rate limiting behavior")
+    parser.add_argument(
+        "--test-rate-limit", action="store_true", help="Test rate limiting behavior"
+    )
     parser.add_argument("--tenant-id", default="test_tenant", help="Tenant ID for testing")
     parser.add_argument("--user-id", default="test_user", help="User ID for testing")
     parser.add_argument("--expected-rate-limit", type=int, default=1000, help="Expected rate limit")

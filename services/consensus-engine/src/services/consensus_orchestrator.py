@@ -389,7 +389,7 @@ class ConsensusOrchestrator:
                         try:
                             seniority = parse_seniority_level(config_seniority)
                             seniority_level = seniority.value
-                            seniority_multiplier = SENIORITY_MULTIPLIERS.get(seniorior)
+                            seniority_multiplier = SENIORITY_MULTIPLIERS.get(seniority)
                         except ValueError:
                             pass
 

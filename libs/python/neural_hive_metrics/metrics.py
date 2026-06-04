@@ -7,15 +7,15 @@ com suporte a exemplars, correlação distribuída e SLOs.
 
 import time
 import logging
-from typing import Dict, List, Optional, Any, Union, Callable
-from abc import ABC, abstractmethod
+from typing import Dict, List, Optional, Any, Callable
+from abc import ABC
 from dataclasses import dataclass, field
 from functools import wraps
 from contextlib import contextmanager
 from threading import Lock
 
 from .config import get_config
-from .correlation import get_correlation_context, CorrelationContext
+from .correlation import get_correlation_context
 from .exemplars import get_exemplar_collector, create_exemplar_from_current_context
 
 

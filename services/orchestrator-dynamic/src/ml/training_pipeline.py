@@ -10,7 +10,8 @@ baseado em drift, performance e volume de dados.
 
 import asyncio
 import contextlib
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
+
 UTC = timezone.utc
 
 UTC = timezone.utc  # type: ignore, timedelta
@@ -23,7 +24,7 @@ logger = structlog.get_logger(__name__)
 
 # Import opcional do RetrainingTriggerSystem
 try:
-    from .retraining_triggers import RetrainingTriggerSystem, TriggerType
+    from .retraining_triggers import RetrainingTriggerSystem
 
     HAS_RETRAINING_TRIGGERS = True
 except ImportError:
@@ -685,7 +686,8 @@ class TrainingPipeline:
                     backfill_record = {
                         "timestamp": datetime.now(timezone.utc),
                         "stats": stats,
-                        "retention_until": datetime.now(timezone.utc) + timedelta(days=retention_days),
+                        "retention_until": datetime.now(timezone.utc)
+                        + timedelta(days=retention_days),
                     }
                     await self.mongodb_client.db["ml_backfill_history"].insert_one(backfill_record)
                 except Exception as e:

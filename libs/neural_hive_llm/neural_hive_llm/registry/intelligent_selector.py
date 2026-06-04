@@ -82,6 +82,7 @@ class SelectionResult:
     def __post_init__(self):
         if self.timestamp is None:
             from datetime import timezone
+
             self.timestamp = datetime.now(timezone.utc)
 
 
@@ -315,7 +316,6 @@ class IntelligentSelector:
 
         for model in models:
             model_metrics = metrics[model.model_id]
-            request_count = model_metrics.get("request_count", 0)
 
             # Qualidade do registry
             quality = model.capabilities.benchmark_quality_score or 0.5

@@ -1,10 +1,7 @@
 """Testes para RollbackManager."""
 
 import pytest
-import numpy as np
-from unittest.mock import Mock, MagicMock, patch, AsyncMock
-from datetime import datetime, timedelta
-import os
+from unittest.mock import Mock, patch
 
 
 # ============================================================================
@@ -152,7 +149,7 @@ _rollback_patch = patch(
 _rollback_patch.start()
 
 # Agora é seguro importar
-from ml_pipelines.online_learning.rollback_manager import RollbackManager, ModelVersion
+from ml_pipelines.online_learning.rollback_manager import RollbackManager
 from ml_pipelines.online_learning.config import OnlineLearningConfig
 
 

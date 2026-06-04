@@ -66,14 +66,14 @@ resource "aws_db_instance" "spire" {
   identifier_prefix = "${var.cluster_name}-spire-"
 
   # Engine configuration
-  engine               = "postgres"
-  engine_version       = "15.4"
-  instance_class       = var.instance_class
+  engine         = "postgres"
+  engine_version = "15.4"
+  instance_class = var.instance_class
 
   # Storage configuration
-  allocated_storage     = var.allocated_storage
-  storage_type          = "gp3"
-  storage_encrypted     = true
+  allocated_storage = var.allocated_storage
+  storage_type      = "gp3"
+  storage_encrypted = true
 
   # Database configuration
   db_name  = "spire"
@@ -91,15 +91,15 @@ resource "aws_db_instance" "spire" {
 
   # Backup configuration
   backup_retention_period = var.backup_retention_days
-  backup_window          = "03:00-04:00"  # UTC
-  maintenance_window     = "mon:04:00-mon:05:00"  # UTC
+  backup_window           = "03:00-04:00"         # UTC
+  maintenance_window      = "mon:04:00-mon:05:00" # UTC
 
   # Performance Insights
   enabled_cloudwatch_logs_exports = ["postgresql", "upgrade"]
 
   # Deletion protection
-  deletion_protection = var.environment == "prod" ? true : false
-  skip_final_snapshot = var.environment != "prod"
+  deletion_protection       = var.environment == "prod" ? true : false
+  skip_final_snapshot       = var.environment != "prod"
   final_snapshot_identifier = var.environment == "prod" ? "${var.cluster_name}-spire-final-snapshot-${formatdate("YYYY-MM-DD-hhmm", timestamp())}" : null
 
   # Auto minor version upgrade
@@ -144,11 +144,11 @@ resource "aws_secretsmanager_secret" "spire_db" {
 resource "aws_secretsmanager_secret_version" "spire_db" {
   secret_id = aws_secretsmanager_secret.spire_db.id
   secret_string = jsonencode({
-    username = aws_db_instance.spire.username
-    password = random_password.spire_db_password.result
-    host     = aws_db_instance.spire.address
-    port     = aws_db_instance.spire.port
-    database = aws_db_instance.spire.db_name
+    username          = aws_db_instance.spire.username
+    password          = random_password.spire_db_password.result
+    host              = aws_db_instance.spire.address
+    port              = aws_db_instance.spire.port
+    database          = aws_db_instance.spire.db_name
     connection_string = "postgresql://${aws_db_instance.spire.username}:${random_password.spire_db_password.result}@${aws_db_instance.spire.address}:${aws_db_instance.spire.port}/${aws_db_instance.spire.db_name}?sslmode=require"
   })
 }

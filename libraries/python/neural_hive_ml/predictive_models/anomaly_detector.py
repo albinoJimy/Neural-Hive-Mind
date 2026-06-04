@@ -233,7 +233,7 @@ class AnomalyDetector(BasePredictor):
                 self.model = self._build_autoencoder(input_dim)
 
                 # Treina autoencoder
-                history = self.model.fit(
+                self.model.fit(
                     X_scaled, X_scaled, epochs=50, batch_size=32, validation_split=0.15, verbose=0
                 )
 

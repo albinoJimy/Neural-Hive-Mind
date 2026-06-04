@@ -1,9 +1,14 @@
+from typing import TYPE_CHECKING
+
 import structlog
 
 from neural_hive_resilience.circuit_breaker import CircuitBreakerError
 from src.clients import MongoDBClient
 from src.config import Settings
 from src.models import ApprovalStatus, ExceptionApproval, ExceptionType
+
+if TYPE_CHECKING:
+    from src.models import RiskAssessment
 
 logger = structlog.get_logger()
 

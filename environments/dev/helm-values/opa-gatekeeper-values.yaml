@@ -33,8 +33,10 @@ gatekeeper:
 
   # Development-specific constraint violation enforcement
   constraintViolationsLimit: 20
-  auditInterval: 60
-  auditMatchKindOnly: false
+  # REMEDIAÇÃO P0: audit eficiente mesmo em dev para não martelar o etcd.
+  auditInterval: 300
+  auditMatchKindOnly: true
+  auditFromCache: true
 
   # Metrics and monitoring
   enableMetrics: true
@@ -45,14 +47,41 @@ gatekeeper:
   validatingWebhookName: gatekeeper-validating-webhook-configuration
   validatingWebhookTimeoutSeconds: 3
   validatingWebhookCheckIgnoreFailurePolicy: Ignore
-  validatingWebhookCustomRules: {}
-  validatingWebhookExemptNamespacesLabels: {}
+  # REMEDIAÇÃO P0: removidas as chaves vazias `validatingWebhookCustomRules: {}`
+  # e `validatingWebhookExemptNamespacesLabels: {}` — sobrepunham os defaults do
+  # chart com objectos vazios, podendo remover exemptions já configuradas e
+  # levar o webhook a validar namespaces de sistema. Usam-se agora os defaults
+  # do chart (a isenção de namespaces de sistema é feita via `namespaceSelector`
+  # mais abaixo neste ficheiro).
 
   # Mutating webhook (disabled in dev for simplicity)
-  enableMutation: false
+  # REMEDIAÇÃO P0: a chave correcta do subchart é `disableMutation` (não
+  # `enableMutation`, que é config morta). disableMutation=true elimina o
+  # MutatingWebhookConfiguration catch-all "*" que sufocava o apiserver.
+  disableMutation: true
   mutatingWebhookFailurePolicy: Ignore
   mutatingWebhookReinvocationPolicy: Never
-  mutatingWebhookTimeoutSeconds: 1
+  mutatingWebhookTimeoutSeconds: 3
+  # Defesa em profundidade: se a mutação for reactivada, restringe o scope.
+  mutatingWebhookCustomRules:
+    - apiGroups: ["", "apps", "batch"]
+      apiVersions: ["v1"]
+      operations: ["CREATE", "UPDATE"]
+      resources:
+        - pods
+        - deployments
+        - statefulsets
+        - daemonsets
+        - replicasets
+        - jobs
+        - cronjobs
+      scope: Namespaced
+  mutatingWebhookExemptNamespacesLabels:
+    kubernetes.io/metadata.name:
+      - kube-system
+      - kube-public
+      - kube-node-lease
+      - gatekeeper-system
 
   # Node selection for development
   nodeSelector: {}

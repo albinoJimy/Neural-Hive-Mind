@@ -7,17 +7,13 @@ ponderados para decidir entre ORCHESTRATION e GENERATION.
 Precisão esperada: 80-85%
 """
 
-import asyncio
 from typing import Dict, Any
-from datetime import datetime
 
 from neural_hive_context.interfaces import IWorkflowClassifier
 from neural_hive_context.models import (
     RichContext,
     WorkflowClassification,
     WorkflowType,
-    IntentContext,
-    SystemContext,
 )
 
 
@@ -49,16 +45,37 @@ class MultiSignalWorkflowClassifier(IWorkflowClassifier):
 
     # Keywords que indicam geração
     GENERATION_KEYWORDS = {
-        "gerar", "gere", "generate", "criar", "create",
-        "escrever", "escreva", "write", "produzir", "build",
-        "relatório", "report", "código", "code", "script"
+        "gerar",
+        "gere",
+        "generate",
+        "criar",
+        "create",
+        "escrever",
+        "escreva",
+        "write",
+        "produzir",
+        "build",
+        "relatório",
+        "report",
+        "código",
+        "code",
+        "script",
     }
 
     # Keywords que indicam orquestração
     ORCHESTRATION_KEYWORDS = {
-        "analisar", "análise", "analise", "analyze", "examinar",
-        "investigar", "diagnosticar", "coordenar", "coordenação",
-        "aprovar", "validate", "validar"
+        "analisar",
+        "análise",
+        "analise",
+        "analyze",
+        "examinar",
+        "investigar",
+        "diagnosticar",
+        "coordenar",
+        "coordenação",
+        "aprovar",
+        "validate",
+        "validar",
     }
 
     def __init__(self, pii_detector=None):
@@ -137,7 +154,7 @@ class MultiSignalWorkflowClassifier(IWorkflowClassifier):
             avg_util = sum(util_values) / len(util_values)
             util_signal = avg_util / 100.0
             # Combinar: mais atividade = orquestração
-            return (workflow_signal * 0.6 + util_signal * 0.4)
+            return workflow_signal * 0.6 + util_signal * 0.4
         else:
             # Sem dados de utilização, usa apenas workflow signal
             return workflow_signal
@@ -240,18 +257,14 @@ class MultiSignalWorkflowClassifier(IWorkflowClassifier):
             total += value * weight
         return round(total, 3)
 
-    def _determine_workflow(
-        self, score: float, signals: Dict[str, Any]
-    ) -> WorkflowType:
+    def _determine_workflow(self, score: float, signals: Dict[str, Any]) -> WorkflowType:
         """
         Determina workflow baseado no score.
 
         score < 0.45: GENERATION
         score >= 0.45: ORCHESTRATION (threshold ajustado para mais sensibilidade)
         """
-        return (
-            WorkflowType.ORCHESTRATION if score >= 0.45 else WorkflowType.GENERATION
-        )
+        return WorkflowType.ORCHESTRATION if score >= 0.45 else WorkflowType.GENERATION
 
     def _calculate_confidence(self, signals: Dict[str, Any]) -> float:
         """

@@ -47,7 +47,7 @@ class FeatureCache:
                 for node in redis_cluster_nodes.split(",")
             ]
 
-            self.redis = RedisCluster(
+            self.redis = RedisCluster(  # type: ignore[abstract]
                 startup_nodes=nodes,
                 password=redis_password,
                 ssl=redis_ssl_enabled,

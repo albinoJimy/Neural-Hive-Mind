@@ -167,7 +167,7 @@ class EnvelopeValidator:
             decoder = BinaryDecoder(bytes_reader)
             reader = DatumReader(self.avro_schema)
 
-            deserialized = reader.read(decoder)
+            reader.read(decoder)
 
             logger.info("✅ Validação Avro passou")
 
@@ -248,11 +248,11 @@ class EnvelopeValidator:
             if isinstance(timestamp, str):
                 # Tentar converter ISO string para timestamp Unix em ms
                 try:
-                    from datetime import datetime, timezone
+                    from datetime import datetime
 
                     dt = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
                     converted["timestamp"] = int(dt.timestamp() * 1000)
-                except:
+                except Exception:
                     # Se falhar, usar timestamp atual
                     import time
 
@@ -316,7 +316,7 @@ class EnvelopeValidator:
 
 def create_sample_envelope() -> Dict[str, Any]:
     """Criar envelope de exemplo para teste"""
-    from datetime import datetime
+    from datetime import datetime, timezone
     import uuid
 
     return {
@@ -384,7 +384,7 @@ def main():
         validator = EnvelopeValidator(args.schema_dir)
         result = validator.validate_file(args.file)
 
-        print(f"\n=== ENVELOPE VALIDATION RESULTS ===")
+        print("\n=== ENVELOPE VALIDATION RESULTS ===")
         print(f"File: {args.file}")
         print(f"Valid: {'✅ PASS' if result['valid'] else '❌ FAIL'}")
 

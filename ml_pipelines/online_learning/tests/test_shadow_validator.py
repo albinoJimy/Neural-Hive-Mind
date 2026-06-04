@@ -2,8 +2,7 @@
 
 import pytest
 import numpy as np
-from unittest.mock import Mock, MagicMock, patch
-from datetime import datetime
+from unittest.mock import Mock, patch
 
 
 # ============================================================================

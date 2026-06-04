@@ -107,7 +107,8 @@ def upgrade() -> None:
     )
 
     # Criar trigger para atualizar updated_at automaticamente
-    op.execute("""
+    op.execute(
+        """
         CREATE OR REPLACE FUNCTION update_updated_at_column()
         RETURNS TRIGGER AS $$
         BEGIN
@@ -115,14 +116,17 @@ def upgrade() -> None:
             RETURN NEW;
         END;
         $$ language 'plpgsql';
-    """)
+    """
+    )
 
-    op.execute("""
+    op.execute(
+        """
         CREATE TRIGGER update_execution_tickets_updated_at
         BEFORE UPDATE ON execution_tickets
         FOR EACH ROW
         EXECUTE FUNCTION update_updated_at_column();
-    """)
+    """
+    )
 
 
 def downgrade() -> None:

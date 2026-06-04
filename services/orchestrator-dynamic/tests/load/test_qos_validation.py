@@ -11,6 +11,7 @@ Valida que garantias de QoS são respeitadas sob carga:
 import asyncio
 import statistics
 from datetime import datetime, timezone
+
 UTC = timezone.utc, timedelta
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock

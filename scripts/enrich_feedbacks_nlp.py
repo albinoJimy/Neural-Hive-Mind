@@ -5,7 +5,6 @@ Sem dependências complexas (networkx, etc.)
 """
 
 import re
-import uuid
 from datetime import datetime, timezone
 
 
@@ -113,7 +112,6 @@ def extract_basic_nlp_features(text):
 
 if __name__ == "__main__":
     import sys
-    import json
     from pymongo import MongoClient
 
     # Conectar ao MongoDB
@@ -172,5 +170,5 @@ if __name__ == "__main__":
             except Exception as e:
                 print(f"Error: {e}")
 
-        print(f"")
+        print("")
         print(f"Enriched: {enriched}/{len(feedbacks)}")

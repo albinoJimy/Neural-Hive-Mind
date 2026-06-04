@@ -4,7 +4,6 @@ Esta migration cria a coleção model_versions para rastrear
 versões de modelos de aprovação com metadados e drift metrics.
 """
 
-from typing import Optional
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 

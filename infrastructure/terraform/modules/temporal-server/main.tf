@@ -19,7 +19,7 @@ resource "kubernetes_namespace" "temporal" {
         "app.kubernetes.io/name"      = "temporal"
         "app.kubernetes.io/component" = "workflow-engine"
         "neural-hive.io/layer"        = "infrastructure"
-        "environment"                  = var.environment
+        "environment"                 = var.environment
       }
     )
   }

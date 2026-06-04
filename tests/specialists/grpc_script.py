@@ -8,7 +8,6 @@ NOTA: Este script realiza apenas testes básicos de conectividade gRPC.
 """
 import grpc
 import sys
-import json
 import os
 from datetime import datetime
 
@@ -38,14 +37,14 @@ def test_health_check(specialist_name, address):
         # Testa conectividade básica
         try:
             grpc.channel_ready_future(channel).result(timeout=5)
-            print(f"✓ Conectividade: Canal gRPC estabelecido")
+            print("✓ Conectividade: Canal gRPC estabelecido")
         except grpc.FutureTimeoutError:
-            print(f"✗ Conectividade: Timeout ao conectar")
+            print("✗ Conectividade: Timeout ao conectar")
             return False
 
         # Aqui testaríamos o HealthCheck, mas sem o stub gerado
         # vamos apenas verificar se o canal está pronto
-        print(f"✓ Health Check: Specialist respondendo")
+        print("✓ Health Check: Specialist respondendo")
 
         channel.close()
         return True

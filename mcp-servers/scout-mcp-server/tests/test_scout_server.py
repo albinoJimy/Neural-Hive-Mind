@@ -15,7 +15,6 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 from scout_server import (
     CodeScanner,
     ScanResult,
-    get_scanner,
     _format_size,
 )
 

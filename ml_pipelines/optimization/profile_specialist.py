@@ -14,7 +14,6 @@ import cProfile
 import pstats
 from io import StringIO
 import sys
-import os
 
 # Adicionar paths necessários
 sys.path.insert(0, "/home/jimy/NHM/Neural-Hive-Mind/services/specialist-business/src")
@@ -111,20 +110,19 @@ def profile_step_by_step(specialist, cognitive_plan: dict) -> dict:
     # 1. Validação de plano
     start = time.time()
     try:
-        validated_plan = specialist._validate_plan(cognitive_plan)
+        specialist._validate_plan(cognitive_plan)
         timings["plan_validation"] = (time.time() - start) * 1000
     except AttributeError:
-        validated_plan = cognitive_plan
         timings["plan_validation"] = 0
 
     # 2. Hash do plano (para cache)
     start = time.time()
-    plan_hash = specialist._hash_plan(cognitive_plan)
+    specialist._hash_plan(cognitive_plan)
     timings["plan_hashing"] = (time.time() - start) * 1000
 
     # 3. Feature extraction
     start = time.time()
-    features = specialist.feature_extractor.extract_features(
+    specialist.feature_extractor.extract_features(
         cognitive_plan, include_embeddings=specialist.model is not None
     )
     timings["feature_extraction"] = (time.time() - start) * 1000
@@ -174,8 +172,8 @@ def run_profiling():
     # Verificar se podemos importar o specialist
     try:
         # Tentar importar com mock config para profiling local
-        from neural_hive_specialists import BaseSpecialist
-        from neural_hive_specialists.config import SpecialistConfig
+        from neural_hive_specialists import BaseSpecialist  # noqa: F401
+        from neural_hive_specialists.config import SpecialistConfig  # noqa: F401
         from pydantic_settings import BaseSettings, SettingsConfigDict
 
         print("\n✓ Imports successful")

@@ -542,16 +542,11 @@ class CutoverManager:
             return
 
         try:
-            metric_name = f"cutover_{name}"
-            metric_tags = {
-                "cutover_id": self.cutover_id,
-                "phase": _get_phase_value(self.status.phase),
-                **(tags or {}),
-            }
-
             # Implementação depende do cliente de métricas
-            # Exemplo com Prometheus:
-            # self.metrics_client.counter(metric_name).labels(**metric_tags).inc(value)
+            # Exemplo com Prometheus (usar f"cutover_{name}" e tags do cutover):
+            # tags = {"cutover_id": self.cutover_id, "phase": ..., **(tags or {})}
+            # self.metrics_client.counter(f"cutover_{name}").labels(**tags).inc(value)
+            pass
         except Exception as e:
             self.logger.warning("record_metrics_failed", error=str(e))
 

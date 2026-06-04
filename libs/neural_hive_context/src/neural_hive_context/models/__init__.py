@@ -6,7 +6,7 @@ from neural_hive_context.models.rich_context import (
     RichContext,
     IntentContext,
     SystemContext,
-   TemporalContext,
+    TemporalContext,
     SecurityContext,
     ConversationContext,
 )

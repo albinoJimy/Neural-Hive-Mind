@@ -2,7 +2,6 @@
 Activity Temporal para Feedback Loop - Coleta de métricas pós-deploy.
 """
 
-from datetime import timedelta
 from typing import Any
 
 import structlog
@@ -117,9 +116,7 @@ async def analyze_deployment_quality(
         0,
         1 - (performance.get("response_time_ms", 0) / thresholds["max_response_time_ms"]),
     )
-    error_rate_score = max(
-        0, 1 - (performance.get("error_rate", 0) / thresholds["max_error_rate"])
-    )
+    error_rate_score = max(0, 1 - (performance.get("error_rate", 0) / thresholds["max_error_rate"]))
     uptime_score = min(
         1,
         reliability.get("uptime_pct", 0) / thresholds["min_uptime_pct"],
@@ -231,7 +228,9 @@ async def generate_specialist_feedback(
     # Adicionar recomendações
     if quality_analysis.get("status") in ["needs_improvement", "acceptable"]:
         feedback["recommendations"] = quality_analysis.get("recommendations", [])
-        feedback["priority"] = "high" if quality_analysis.get("status") == "needs_improvement" else "normal"
+        feedback["priority"] = (
+            "high" if quality_analysis.get("status") == "needs_improvement" else "normal"
+        )
     else:
         feedback["recommendations"] = ["Deployment successful, continue monitoring"]
         feedback["priority"] = "low"
@@ -295,9 +294,7 @@ async def record_feedback_for_ml(
         },
         "labels": {
             "success": quality_score > 0.7,
-            "user_satisfied": user_feedback.get("rating", 5) >= 4
-            if user_feedback
-            else None,
+            "user_satisfied": user_feedback.get("rating", 5) >= 4 if user_feedback else None,
         },
         "metadata": {
             "deployment_id": deployment_result.get("deployment_id"),
@@ -379,29 +376,19 @@ def _generate_recommendations(issues: list[str], overall_score: float) -> list[s
     recommendations = []
 
     if "high_response_time" in issues:
-        recommendations.append(
-            "Optimize code performance or increase resource allocation"
-        )
+        recommendations.append("Optimize code performance or increase resource allocation")
 
     if "high_error_rate" in issues:
-        recommendations.append(
-            "Investigate and fix errors, consider rollback if severe"
-        )
+        recommendations.append("Investigate and fix errors, consider rollback if severe")
 
     if "low_uptime" in issues:
-        recommendations.append(
-            "Review infrastructure stability and add redundancy"
-        )
+        recommendations.append("Review infrastructure stability and add redundancy")
 
     if "low_test_coverage" in issues:
-        recommendations.append(
-            "Increase test coverage before next deployment"
-        )
+        recommendations.append("Increase test coverage before next deployment")
 
     if "high_cpu_usage" in issues:
-        recommendations.append(
-            "Optimize resource usage or scale horizontally"
-        )
+        recommendations.append("Optimize resource usage or scale horizontally")
 
     if overall_score >= 0.9 and not issues:
         recommendations.append("Excellent deployment, consider as gold standard")

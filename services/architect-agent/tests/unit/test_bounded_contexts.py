@@ -3,13 +3,14 @@
 from unittest.mock import AsyncMock, Mock
 
 import pytest
-from neural_hive_llm import LLMResponse, LLMProvider
 from src.identifiers.bounded_contexts import BoundedContextsIdentifier
 from src.models.bounded_context import (
     BoundedContext,
     BoundedContextRelationship,
     BoundedContextsAnalysis,
 )
+
+from neural_hive_llm import LLMProvider, LLMResponse
 
 
 @pytest.fixture

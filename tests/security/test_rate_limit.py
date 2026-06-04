@@ -171,9 +171,7 @@ def _install_fake_redis(monkeypatch: pytest.MonkeyPatch) -> _FakeRedis:
 # ---------------------------------------------------------------------------
 
 
-async def test_under_limit_allows_request(
-    monkeypatch: pytest.MonkeyPatch, gateway_client
-):
+async def test_under_limit_allows_request(monkeypatch: pytest.MonkeyPatch, gateway_client):
     """Request sob o limite passa e expõe X-RateLimit-Remaining = limite-1."""
     _install_fake_redis(monkeypatch)
 
@@ -216,9 +214,7 @@ async def test_over_limit_returns_429_with_retry_after(
     assert body["retry_after"] == int(retry_after)
 
 
-async def test_atomic_increment_under_concurrency(
-    monkeypatch: pytest.MonkeyPatch, gateway_client
-):
+async def test_atomic_increment_under_concurrency(monkeypatch: pytest.MonkeyPatch, gateway_client):
     """50 requests concorrentes: a soma dos sucessos nunca excede o limite.
 
     Garante que o INCR atómico previne a race condition (em vez de SET-after-GET
@@ -228,9 +224,7 @@ async def test_atomic_increment_under_concurrency(
 
     # Janela DEFAULT = 100; lançamos 50 → todas devem passar e o contador
     # final tem que reflectir exactamente 50 incrementos.
-    responses = await asyncio.gather(
-        *[gateway_client.get("/") for _ in range(50)]
-    )
+    responses = await asyncio.gather(*[gateway_client.get("/") for _ in range(50)])
 
     successes = [r for r in responses if r.status_code == 200]
     rate_limited = [r for r in responses if r.status_code == 429]
@@ -245,9 +239,7 @@ async def test_atomic_increment_under_concurrency(
     assert fake.get_count(key) == 50
 
 
-async def test_excluded_paths_skip_rate_limit(
-    monkeypatch: pytest.MonkeyPatch, gateway_client
-):
+async def test_excluded_paths_skip_rate_limit(monkeypatch: pytest.MonkeyPatch, gateway_client):
     """``/health`` ignora o middleware mesmo com fake redis pré-populado.
 
     Verificamos que:
@@ -260,9 +252,7 @@ async def test_excluded_paths_skip_rate_limit(
     # Pré-popular a chave equivalente para garantir que o middleware,
     # se fosse executado, retornaria 429 — provando que foi mesmo skipado.
     minute_window = int(time.time()) // 60
-    health_key = (
-        f"unified_gateway:rate_limit:anonymous:/health:rate_limit:{minute_window}"
-    )
+    health_key = f"unified_gateway:rate_limit:anonymous:/health:rate_limit:{minute_window}"
     fake.seed(health_key, count=999, ttl_seconds=60)
 
     # 200 hits — todos devem passar, sem 429 e sem headers de rate limit.
@@ -411,9 +401,7 @@ async def test_expire_armed_only_on_first_hit(monkeypatch: pytest.MonkeyPatch):
     )
 
 
-async def test_response_body_is_valid_json_on_429(
-    monkeypatch: pytest.MonkeyPatch, gateway_client
-):
+async def test_response_body_is_valid_json_on_429(monkeypatch: pytest.MonkeyPatch, gateway_client):
     """O body do 429 é JSON válido com campos esperados."""
     fake = _install_fake_redis(monkeypatch)
 

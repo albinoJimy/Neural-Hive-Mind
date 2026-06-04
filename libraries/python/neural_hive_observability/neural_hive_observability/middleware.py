@@ -33,6 +33,7 @@ from starlette.types import ASGIApp
 
 from .metrics import NeuralHiveMetrics
 
+
 # Type checking para evitar property objects
 def is_valid_metrics(obj) -> bool:
     """Verifica se obj é uma instância válida de NeuralHiveMetrics e não um property/stub."""
@@ -46,6 +47,7 @@ def is_valid_metrics(obj) -> bool:
         return False
     # Verificar se tem os atributos necessários
     return hasattr(obj, "trace_context_extraction_total")
+
 
 logger = logging.getLogger(__name__)
 
@@ -152,7 +154,11 @@ class TraceContextMiddleware(BaseHTTPMiddleware):
 
         # Store default labels for metrics (from config if available)
         self._metric_labels = {}
-        if self.metrics and hasattr(self.metrics, "config") and hasattr(self.metrics.config, "common_labels"):
+        if (
+            self.metrics
+            and hasattr(self.metrics, "config")
+            and hasattr(self.metrics.config, "common_labels")
+        ):
             self._metric_labels = self.metrics.config.common_labels
 
         logger.info("TraceContextMiddleware initialized")
@@ -170,7 +176,6 @@ class TraceContextMiddleware(BaseHTTPMiddleware):
         """
         # Extrair traceparent do request
         traceparent = extract_traceparent_from_request(request)
-        tracestate = extract_tracestate_from_request(request)
 
         # Métrica: total de extrações
         if self.metrics:

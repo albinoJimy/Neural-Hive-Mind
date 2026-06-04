@@ -20,9 +20,7 @@ class MongoDBClient:
 
     async def initialize(self) -> None:
         """Inicializa a conexao MongoDB"""
-        self.client = motor.motor_asyncio.AsyncIOMotorClient(
-            self.settings.mongodb_uri
-        )
+        self.client = motor.motor_asyncio.AsyncIOMotorClient(self.settings.mongodb_uri)
         # Ping para verificar conexao
         await self.client.admin.command("ping")
         print(f"MongoDB conectado: {self.settings.mongodb_uri}")

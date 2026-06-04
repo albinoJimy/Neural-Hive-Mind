@@ -8,7 +8,6 @@ Testa o framework de especialistas em detalhes.
 import pytest
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
-from enum import Enum
 
 
 # =============================================================================

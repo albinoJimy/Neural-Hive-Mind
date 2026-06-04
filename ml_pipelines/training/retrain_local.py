@@ -19,7 +19,6 @@ import pandas as pd
 import numpy as np
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import (
-    classification_report,
     precision_score,
     recall_score,
     f1_score,
@@ -230,8 +229,8 @@ def main():
         f.write(f"Model: {SPECIALIST_TYPE}-evaluator\n")
         f.write(f"Data: {datetime.now(timezone.utc).isoformat()}\n")
         f.write(f"Samples: {len(df)}\n")
-        f.write(f"Data source: real (MongoDB)\n")
-        f.write(f"\nMetrics:\n")
+        f.write("Data source: real (MongoDB)\n")
+        f.write("\nMetrics:\n")
         for split, split_metrics in metrics.items():
             f.write(f"\n{split.capitalize()}:\n")
             for metric_name, value in split_metrics.items():

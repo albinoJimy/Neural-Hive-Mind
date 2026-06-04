@@ -5,10 +5,9 @@ para observabilidade completa de operações LLM.
 """
 
 import time
-from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager, contextmanager
 from enum import Enum
-from typing import Any, Final, Optional
+from typing import Any, Optional
 
 import structlog
 from prometheus_client import CollectorRegistry, Counter, Histogram
@@ -114,7 +113,6 @@ class LLMTracer:
 
         # Iniciar span OpenTelemetry se disponível
         if self._otel_available and self._tracer:
-            from opentelemetry import trace
             from opentelemetry.trace import Status, StatusCode
 
             span = self._tracer.start_span(
@@ -215,7 +213,6 @@ class LLMTracer:
         status = "success"
 
         if self._otel_available and self._tracer:
-            from opentelemetry import trace
             from opentelemetry.trace import Status, StatusCode
 
             span = self._tracer.start_span(

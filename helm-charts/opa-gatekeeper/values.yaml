@@ -1,30 +1,118 @@
 # Valores padrão para OPA Gatekeeper - Neural Hive-Mind
 # Configuração para policy-as-code com governança dinâmica
+#
+# IMPORTANTE (remediação P0 2026-06-04):
+# Estes valores são consumidos pelo SUBCHART OFICIAL `gatekeeper` (3.14.0),
+# logo TÊM de usar as chaves DE TOPO desse subchart sob `gatekeeper:`
+# (ex.: gatekeeper.disableMutation, gatekeeper.mutatingWebhookCustomRules,
+# gatekeeper.auditFromCache). Chaves "inventadas" (mutatingWebhook.enabled,
+# validatingWebhook.namespaceSelector aninhado, audit.auditInterval, etc.)
+# NÃO são lidas pelo subchart e ficam como config morta — foi essa a causa
+# do drift repo↔cluster e do webhook de mutação catch-all "*" ter ficado
+# activo a sufocar o apiserver.
 
 gatekeeper:
-  # Configurações de replicação para alta disponibilidade
+  # ---------------------------------------------------------------------------
+  # WEBHOOK DE MUTAÇÃO — REMEDIAÇÃO P0
+  # ---------------------------------------------------------------------------
+  # No subchart oficial a mutação é controlada por `disableMutation`
+  # (default false = mutação LIGADA). Como NÃO existem mutators
+  # (Assign/AssignMetadata/ModifySet/AssignImage) no repositório, o
+  # MutatingWebhookConfiguration `mutation.gatekeeper.sh` corria com as rules
+  # default catch-all (apiGroups:['*'], resources:['*'], CREATE/UPDATE),
+  # interceptando subjectaccessreviews/tokenreviews/leases/events e
+  # esmagando o kube-apiserver/etcd.
+  #
+  # Solução de raiz: DESLIGAR por completo o webhook de mutação. Elimina o
+  # MutatingWebhookConfiguration inteiro em vez de só restringir o scope.
+  disableMutation: true
+
+  # Defesa em profundidade: caso a mutação venha a ser reactivada
+  # (disableMutation: false), estas customRules SUBSTITUEM o catch-all "*"
+  # e limitam o webhook a workloads reais em scope Namespaced. NUNCA incluem
+  # authorization.k8s.io/coordination.k8s.io, pelo que subjectaccessreviews,
+  # tokenreviews, leases e events deixam de ser intercetados.
+  mutatingWebhookFailurePolicy: Ignore
+  mutatingWebhookTimeoutSeconds: 3
+  mutatingWebhookCustomRules:
+    - apiGroups: ["", "apps", "batch"]
+      apiVersions: ["v1"]
+      operations: ["CREATE", "UPDATE"]
+      resources:
+        - pods
+        - deployments
+        - statefulsets
+        - daemonsets
+        - replicasets
+        - jobs
+        - cronjobs
+      scope: Namespaced
+  # Exclui namespaces de sistema do webhook de mutação (defesa adicional).
+  mutatingWebhookExemptNamespacesLabels:
+    kubernetes.io/metadata.name:
+      - kube-system
+      - kube-public
+      - kube-node-lease
+      - gatekeeper-system
+
+  # ---------------------------------------------------------------------------
+  # AUDIT EFICIENTE — REMEDIAÇÃO P0
+  # ---------------------------------------------------------------------------
+  # Estas TRÊS são chaves de TOPO do subchart (gatekeeper.*), NÃO
+  # gatekeeper.audit.* — senão não têm efeito.
+  # auditFromCache=true   -> lê do informer cache em vez de martelar o apiserver
+  # auditMatchKindOnly=true-> só audita kinds que têm constraints associadas
+  # auditInterval=300     -> reconcilia a intenção do repo (era 60 no cluster)
+  auditFromCache: true
+  auditMatchKindOnly: true
+  auditInterval: 300
+
+  # ---------------------------------------------------------------------------
+  # WEBHOOK DE VALIDAÇÃO — chaves planas do subchart (efectivas)
+  # ---------------------------------------------------------------------------
+  # Mantém a intenção do repo (failurePolicy=Fail) mas agora de forma efectiva.
+  # O failurePolicy=Fail é seguro porque o webhook de validação tem timeout
+  # curto e os namespaces de sistema são excluídos.
+  validatingWebhookFailurePolicy: Fail
+  validatingWebhookTimeoutSeconds: 3
+  validatingWebhookExemptNamespacesLabels:
+    kubernetes.io/metadata.name:
+      - kube-system
+      - kube-public
+      - kube-node-lease
+      - gatekeeper-system
+
+  # ---------------------------------------------------------------------------
+  # RÉPLICAS
+  # ---------------------------------------------------------------------------
+  # `replicas` (de topo) controla o controller-manager no subchart oficial.
+  # O audit NÃO tem chave de réplicas no subchart 3.22.0 (corre sempre 1 pod).
   replicas: 3
 
-  # Configurações de recursos
-  resources:
-    limits:
-      cpu: 1000m
-      memory: 1Gi
-    requests:
-      cpu: 500m
-      memory: 512Mi
+  # ---------------------------------------------------------------------------
+  # CONTROLLER MANAGER — recursos
+  # ---------------------------------------------------------------------------
+  # O aninhamento correcto é gatekeeper.controllerManager.resources
+  # (gatekeeper.resources de topo NÃO é lido pelo subchart para o controller).
+  # Mantém 512Mi: validado ao vivo que o uso real é ~94Mi e que os 176 restarts
+  # eram liveness timeouts causados pelo mutating webhook (já removido), NÃO OOM.
+  # 512Mi (5x headroom) cabe na ResourceQuota security-quota do namespace (2Gi).
+  controllerManager:
+    resources:
+      limits:
+        cpu: 1000m
+        memory: 512Mi
+      requests:
+        cpu: 500m
+        memory: 256Mi
 
-  # Configurações de audit
+  # ---------------------------------------------------------------------------
+  # AUDIT — recursos
+  # ---------------------------------------------------------------------------
+  # NOTA: o subchart oficial 3.22.0 NÃO expõe réplicas para o audit (a antiga
+  # chave `audit.replicas` era config morta — o audit corre sempre como 1 pod).
+  # Mantemos apenas `audit.resources`, que é uma chave comprovada do subchart.
   audit:
-    replicas: 2
-    logLevel: INFO
-    # Intervalo de auditoria em segundos
-    auditInterval: 60
-    # Limite de violações por enforcement
-    constraintViolationLimit: 20
-    # Chunk size para audit
-    auditChunkSize: 50
-    # Configurações de recursos para audit
     resources:
       limits:
         cpu: 500m
@@ -33,58 +121,19 @@ gatekeeper:
         cpu: 200m
         memory: 256Mi
 
-  # Configurações de validating webhook
-  validatingWebhook:
-    # Timeout em segundos
-    timeoutSeconds: 10
-    # Failure policy (Ignore ou Fail)
-    failurePolicy: Fail
-    # Namespaces excluídos da validação
-    namespaceSelector:
-      matchExpressions:
-        - key: neuralhive.ai/policy-enforcement
-          operator: NotIn
-          values: ["disabled"]
-        - key: name
-          operator: NotIn
-          values: ["kube-system", "kube-public", "kube-node-lease", "gatekeeper-system"]
-
-  # Configurações de webhook
-  webhook:
-    replicas: 3
-    logLevel: INFO
-    # Porta do webhook
-    port: 8443
-    # Certificados TLS
-    certDir: /certs
-    resources:
-      limits:
-        cpu: 500m
-        memory: 512Mi
-      requests:
-        cpu: 200m
-        memory: 256Mi
-
-  # Configurações de controller manager
-  controllerManager:
-    # Porta de métricas
-    metricsPort: 8888
-    # Porta de health
-    healthPort: 8090
-    # Porta de readiness
-    readinessPort: 8091
-    # Log level
-    logLevel: INFO
-    # Modo de enforcement
-    exemptNamespacesFromWebhook:
-      - kube-system
-      - kube-public
-      - kube-node-lease
-      - gatekeeper-system
+  # ---------------------------------------------------------------------------
+  # Diversos (chaves do subchart)
+  # ---------------------------------------------------------------------------
+  logLevel: INFO
 
   # Pod Disruption Budget
-  podDisruptionBudget:
-    minAvailable: 1
+  # REMEDIAÇÃO P0: a chave correcta do subchart oficial é
+  # `pdb.controllerManager.minAvailable` (a antiga `podDisruptionBudget.minAvailable`
+  # NÃO existe no subchart e era config morta — o PDB nunca era criado, expondo
+  # o controller-manager a disrupções durante upgrades).
+  pdb:
+    controllerManager:
+      minAvailable: 1
 
   # Configurações de segurança
   podSecurityContext:
@@ -128,9 +177,9 @@ gatekeeper:
     enabled: true
     port: 8888
 
-  # Configurações de mutation (preview)
-  mutatingWebhook:
-    enabled: false
+  # NOTA: a antiga chave `mutatingWebhook.enabled: false` foi REMOVIDA — não
+  # existe no subchart oficial e era config morta. A mutação é agora
+  # controlada por `gatekeeper.disableMutation: true` (ver topo do ficheiro).
 
   # Configurações de expansão de template
   expansionTemplates:

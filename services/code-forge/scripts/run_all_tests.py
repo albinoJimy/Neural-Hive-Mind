@@ -86,7 +86,8 @@ class TestSuite:
         project_dir = self.test_dir / "python-fastapi"
         project_dir.mkdir(exist_ok=True)
 
-        (project_dir / "main.py").write_text("""from fastapi import FastAPI
+        (project_dir / "main.py").write_text(
+            """from fastapi import FastAPI
 app = FastAPI()
 
 @app.get("/")
@@ -96,11 +97,14 @@ def read_root():
 @app.get("/health")
 def health():
     return {"status": "healthy"}
-""")
+"""
+        )
 
-        (project_dir / "requirements.txt").write_text("""fastapi==0.104.1
+        (project_dir / "requirements.txt").write_text(
+            """fastapi==0.104.1
 uvicorn==0.24.0
-""")
+"""
+        )
 
         return project_dir
 
@@ -109,7 +113,8 @@ uvicorn==0.24.0
         project_dir = self.test_dir / "nodejs-express"
         project_dir.mkdir(exist_ok=True)
 
-        (project_dir / "package.json").write_text("""{
+        (project_dir / "package.json").write_text(
+            """{
   "name": "test-express",
   "version": "1.0.0",
   "main": "index.js",
@@ -117,13 +122,16 @@ uvicorn==0.24.0
     "express": "^4.18.2"
   }
 }
-""")
+"""
+        )
 
-        (project_dir / "index.js").write_text("""const express = require('express');
+        (project_dir / "index.js").write_text(
+            """const express = require('express');
 const app = express();
 app.get('/', (req, res) => res.json({message: 'Hello World'}));
 app.listen(3000);
-""")
+"""
+        )
 
         return project_dir
 
@@ -132,7 +140,8 @@ app.listen(3000);
         project_dir = self.test_dir / "go-gin"
         project_dir.mkdir(exist_ok=True)
 
-        (project_dir / "main.go").write_text("""package main
+        (project_dir / "main.go").write_text(
+            """package main
 
 import "github.com/gin-gonic/gin"
 
@@ -143,14 +152,17 @@ func main() {
     })
     r.Run(":8080")
 }
-""")
+"""
+        )
 
-        (project_dir / "go.mod").write_text("""module test-gin
+        (project_dir / "go.mod").write_text(
+            """module test-gin
 
 go 1.21
 
 require github.com/gin-gonic/gin v1.9.1
-""")
+"""
+        )
 
         return project_dir
 
@@ -165,7 +177,7 @@ require github.com/gin-gonic/gin v1.9.1
             subprocess.run(["python3", "--version"], capture_output=True, check=True)
             prereqs["python"] = True
             self.print_success("Python 3 disponível")
-        except:
+        except Exception:
             prereqs["python"] = False
             self.print_error("Python 3 não encontrado")
 
@@ -174,7 +186,7 @@ require github.com/gin-gonic/gin v1.9.1
             subprocess.run(["docker", "--version"], capture_output=True, check=True)
             prereqs["docker"] = True
             self.print_success("Docker disponível")
-        except:
+        except Exception:
             prereqs["docker"] = False
             self.print_error("Docker não encontrado")
 
@@ -183,7 +195,7 @@ require github.com/gin-gonic/gin v1.9.1
             subprocess.run(["kubectl", "version", "--client"], capture_output=True, check=True)
             prereqs["kubectl"] = True
             self.print_success("kubectl disponível")
-        except:
+        except Exception:
             prereqs["kubectl"] = False
             self.print_info("kubectl não encontrado (opcional)")
 
@@ -192,7 +204,7 @@ require github.com/gin-gonic/gin v1.9.1
             subprocess.run(["kubectl", "cluster-info"], capture_output=True, check=True, timeout=5)
             prereqs["cluster"] = True
             self.print_success("Cluster Kubernetes conectado")
-        except:
+        except Exception:
             prereqs["cluster"] = False
             self.print_info("Cluster não conectado (Kaniko tests serão pulados)")
 
@@ -398,7 +410,7 @@ require github.com/gin-gonic/gin v1.9.1
                         capture_output=True,
                         check=False,
                     )
-                except:
+                except Exception:
                     pass
             else:
                 result.error = build_result.error_message
@@ -443,7 +455,7 @@ require github.com/gin-gonic/gin v1.9.1
             metrics_file = Path("metrics/build_metrics.jsonl")
             if metrics_file.exists():
                 content = metrics_file.read_text()
-                line_count = len([l for l in content.split("\n") if l.strip()])
+                line_count = len([line for line in content.split("\n") if line.strip()])
                 result.details.append(f"Metrics file: {metrics_file} ({line_count} records)")
 
             result.passed = True
@@ -528,7 +540,9 @@ require github.com/gin-gonic/gin v1.9.1
             status_color = (
                 Colors.GREEN
                 if result.passed
-                else Colors.RED if not result.skipped else Colors.YELLOW
+                else Colors.RED
+                if not result.skipped
+                else Colors.YELLOW
             )
             status = "PASS" if result.passed else "SKIP" if result.skipped else "FAIL"
             print(f"{status_color}{status}{Colors.END} | {result.tc_id} | {result.name}")
@@ -576,7 +590,7 @@ require github.com/gin-gonic/gin v1.9.1
             subprocess.run(
                 ["docker", "rmi", "-f", "test-python:latest"], capture_output=True, check=False
             )
-        except:
+        except Exception:
             pass
 
         self.print_success("Limpeza concluída")

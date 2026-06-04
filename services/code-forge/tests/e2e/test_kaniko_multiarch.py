@@ -58,11 +58,13 @@ class TestKanikoMultiArchQEMU:
         with tempfile.TemporaryDirectory() as tmpdir:
             dockerfile_path = os.path.join(tmpdir, "Dockerfile")
             with open(dockerfile_path, "w") as f:
-                f.write("""FROM alpine:3.19
+                f.write(
+                    """FROM alpine:3.19
 RUN echo "Native AMD64 build" > /tmp/arch.txt
 RUN uname -m >> /tmp/arch.txt || echo "arch check skipped"
 CMD ["/bin/sh"]
-""")
+"""
+                )
 
             builder = ContainerBuilder(builder_type=BuilderType.KANIKO, timeout_seconds=600)
 
@@ -95,11 +97,13 @@ CMD ["/bin/sh"]
             dockerfile_path = os.path.join(tmpdir, "Dockerfile")
             with open(dockerfile_path, "w") as f:
                 # Dockerfile simples que funciona em multi-arch
-                f.write("""FROM alpine:3.19
+                f.write(
+                    """FROM alpine:3.19
 RUN echo "Multi-arch build test" > /tmp/test.txt
 RUN cat /tmp/test.txt
 CMD ["/bin/sh"]
-""")
+"""
+                )
 
             builder = ContainerBuilder(
                 builder_type=BuilderType.KANIKO,
@@ -138,10 +142,12 @@ CMD ["/bin/sh"]
         with tempfile.TemporaryDirectory() as tmpdir:
             dockerfile_path = os.path.join(tmpdir, "Dockerfile")
             with open(dockerfile_path, "w") as f:
-                f.write("""FROM alpine:3.19
+                f.write(
+                    """FROM alpine:3.19
 RUN echo "ARM v7 test" > /tmp/test.txt
 CMD ["/bin/sh"]
-""")
+"""
+                )
 
             builder = ContainerBuilder(builder_type=BuilderType.KANIKO, timeout_seconds=900)
 
@@ -171,11 +177,13 @@ CMD ["/bin/sh"]
         with tempfile.TemporaryDirectory() as tmpdir:
             dockerfile_path = os.path.join(tmpdir, "Dockerfile")
             with open(dockerfile_path, "w") as f:
-                f.write("""FROM alpine:3.19
+                f.write(
+                    """FROM alpine:3.19
 RUN echo "Dual platform build" > /tmp/test.txt
 RUN uname -m > /tmp/arch.txt 2>/dev/null || echo "arch unknown" > /tmp/arch.txt
 CMD ["/bin/sh"]
-""")
+"""
+                )
 
             builder = ContainerBuilder(
                 builder_type=BuilderType.KANIKO, timeout_seconds=1200  # 20 minutos para dual arch
@@ -210,10 +218,12 @@ CMD ["/bin/sh"]
         with tempfile.TemporaryDirectory() as tmpdir:
             dockerfile_path = os.path.join(tmpdir, "Dockerfile")
             with open(dockerfile_path, "w") as f:
-                f.write("""FROM alpine:3.19
+                f.write(
+                    """FROM alpine:3.19
 RUN echo "Alias test" > /tmp/test.txt
 CMD ["/bin/sh"]
-""")
+"""
+                )
 
             builder = ContainerBuilder(builder_type=BuilderType.KANIKO, timeout_seconds=900)
 
@@ -249,12 +259,14 @@ class TestKanikoMultiArchPython:
         with tempfile.TemporaryDirectory() as tmpdir:
             dockerfile_path = os.path.join(tmpdir, "Dockerfile")
             with open(dockerfile_path, "w") as f:
-                f.write("""FROM python:3.11-slim
+                f.write(
+                    """FROM python:3.11-slim
 WORKDIR /app
 RUN echo "Python ARM64 build" > /tmp/test.txt
 RUN python3 --version
 CMD ["/bin/sh"]
-""")
+"""
+                )
 
             builder = ContainerBuilder(
                 builder_type=BuilderType.KANIKO, timeout_seconds=1200  # 20 minutos - Python é maior
@@ -288,13 +300,15 @@ CMD ["/bin/sh"]
         with tempfile.TemporaryDirectory() as tmpdir:
             dockerfile_path = os.path.join(tmpdir, "Dockerfile")
             with open(dockerfile_path, "w") as f:
-                f.write("""FROM python:3.11-slim
+                f.write(
+                    """FROM python:3.11-slim
 WORKDIR /app
 RUN pip install --no-cache-dir fastapi uvicorn
 RUN echo 'from fastapi import FastAPI\\napp = FastAPI()\\n@app.get("/")\\ndef read_root():\\n    return {"status": "ok", "arch": "multi-arch"}' > /app/main.py
 EXPOSE 8000
 CMD ["/bin/sh"]
-""")
+"""
+                )
 
             builder = ContainerBuilder(builder_type=BuilderType.KANIKO, timeout_seconds=1200)
 

@@ -50,7 +50,9 @@ class PIIServiceClient:
             self._stub = pii_pb2_grpc.PIIServiceStub(self._channel)
 
             # Testar conexão
-            await asyncio.wait_for(self._stub.HealthCheck(pii_pb2.HealthCheckRequest()), timeout=5.0)
+            await asyncio.wait_for(
+                self._stub.HealthCheck(pii_pb2.HealthCheckRequest()), timeout=5.0
+            )
 
             self._connected = True
             logger.info(f"PIIServiceClient connected to {self._target}")
@@ -101,13 +103,15 @@ class PIIServiceClient:
             # Converter para lista de dicts
             pii_list = []
             for pii in response.pii_found:
-                pii_list.append({
-                    "type": pii.type,
-                    "value": pii.value,
-                    "start": pii.start,
-                    "end": pii.end,
-                    "confidence": pii.confidence,
-                })
+                pii_list.append(
+                    {
+                        "type": pii.type,
+                        "value": pii.value,
+                        "start": pii.start,
+                        "end": pii.end,
+                        "confidence": pii.confidence,
+                    }
+                )
 
             logger.debug(f"PII detection found {len(pii_list)} items")
 

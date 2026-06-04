@@ -1,7 +1,6 @@
 """Teste de integração do Scheduler com modelos ML."""
 
 import pytest
-import asyncio
 from unittest.mock import AsyncMock, MagicMock
 
 from src.scheduler.intelligent_scheduler import IntelligentScheduler

@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, Mock
 
 import httpx
 
-from src.config.settings import Settings, get_settings
+from src.config.settings import Settings
 from src.models.classification import ClassificationDecision, FlowType
 from src.services.flow_router import FlowGatewayConfig, FlowRouter, get_flow_router
 
@@ -302,9 +302,7 @@ class TestFlowRouterHelperMethods:
         assert url == "http://gateway:8000/api/test"
 
         # Com query
-        url = flow_router._build_target_url(
-            "http://gateway:8000/", "/api/test", "param=value"
-        )
+        url = flow_router._build_target_url("http://gateway:8000/", "/api/test", "param=value")
         assert url == "http://gateway:8000/api/test?param=value"
 
         # Base com trailing slash

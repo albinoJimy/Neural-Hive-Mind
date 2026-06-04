@@ -14,7 +14,8 @@ from contextlib import contextmanager
 from typing import Any, Optional
 
 from opentelemetry import context, trace
-from opentelemetry.baggage import get_all as get_all_baggage, set_baggage
+from opentelemetry.baggage import get_all as get_all_baggage
+from opentelemetry.baggage import set_baggage
 from opentelemetry.context import attach, detach
 from opentelemetry.propagate import extract, inject
 from opentelemetry.sdk.resources import Resource

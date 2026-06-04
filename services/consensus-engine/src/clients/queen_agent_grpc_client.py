@@ -261,7 +261,9 @@ class QueenAgentGrpcClient:
                             "message": response.message,
                         }
                     else:
-                        logger.warning("strategic_decision_creation_failed", message=response.message)
+                        logger.warning(
+                            "strategic_decision_creation_failed", message=response.message
+                        )
                         return {"success": False, "message": response.message}
 
                 except grpc.RpcError as e:
@@ -312,7 +314,9 @@ class QueenAgentGrpcClient:
             for attempt in range(MAX_RETRIES):
                 try:
                     metadata = await self._get_grpc_metadata()
-                    response = await self.stub.GetSystemStatus(request, metadata=metadata, timeout=10.0)
+                    response = await self.stub.GetSystemStatus(
+                        request, metadata=metadata, timeout=10.0
+                    )
 
                     return {
                         "system_score": response.system_score,

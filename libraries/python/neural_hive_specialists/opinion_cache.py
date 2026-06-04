@@ -58,7 +58,7 @@ class OpinionCache:
                 host, port = node.strip().split(":")
                 nodes.append({"host": host, "port": int(port)})
 
-            self.redis_client = RedisCluster(
+            self.redis_client = RedisCluster(  # type: ignore[abstract]
                 startup_nodes=nodes,
                 password=redis_password,
                 ssl=redis_ssl_enabled,

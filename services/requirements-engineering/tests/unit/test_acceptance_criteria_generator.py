@@ -13,7 +13,11 @@ def mock_llm_client():
     """Fixture para mock LLM client."""
     mock_client = AsyncMock()
     mock_client.generate = AsyncMock(
-        return_value=Mock(choices=[Mock(message={"content": """```json
+        return_value=Mock(
+            choices=[
+                Mock(
+                    message={
+                        "content": """```json
 [
   {
     "id": "AC-001",
@@ -32,7 +36,12 @@ def mock_llm_client():
     "type": "performance"
   }
 ]
-```""", "role": "assistant"})])
+```""",
+                        "role": "assistant",
+                    }
+                )
+            ]
+        )
     )
     return mock_client
 
@@ -104,7 +113,11 @@ async def test_generate_acceptance_criteria_maps_types_correctly(mock_llm_client
     """Testa que tipos de critério são mapeados corretamente."""
     mock_client = AsyncMock()
     mock_client.generate = AsyncMock(
-        return_value=Mock(choices=[Mock(message={"content": """```json
+        return_value=Mock(
+            choices=[
+                Mock(
+                    message={
+                        "content": """```json
 [
   {"id": "AC-001", "statement": "Functional criterion test case", "given": "g", "when": "w", "then": "t", "type": "functional"},
   {"id": "AC-002", "statement": "Performance criterion test case", "given": "g", "when": "w", "then": "t", "type": "performance"},
@@ -112,7 +125,12 @@ async def test_generate_acceptance_criteria_maps_types_correctly(mock_llm_client
   {"id": "AC-004", "statement": "Security criterion test case", "given": "g", "when": "w", "then": "t", "type": "security"},
   {"id": "AC-005", "statement": "Compliance criterion test case", "given": "g", "when": "w", "then": "t", "type": "compliance"}
 ]
-```""", "role": "assistant"})])
+```""",
+                        "role": "assistant",
+                    }
+                )
+            ]
+        )
     )
 
     generator = AcceptanceCriteriaGenerator(llm_client=mock_client)
@@ -140,11 +158,20 @@ async def test_generate_acceptance_criteria_default_type():
     """Testa que critérios sem tipo definido usam FUNCTIONAL como padrão."""
     mock_client = AsyncMock()
     mock_client.generate = AsyncMock(
-        return_value=Mock(choices=[Mock(message={"content": """```json
+        return_value=Mock(
+            choices=[
+                Mock(
+                    message={
+                        "content": """```json
 [
   {"id": "AC-001", "statement": "Test criterion with valid length", "given": "g", "when": "w", "then": "t"}
 ]
-```""", "role": "assistant"})])
+```""",
+                        "role": "assistant",
+                    }
+                )
+            ]
+        )
     )
 
     generator = AcceptanceCriteriaGenerator(llm_client=mock_client)
@@ -230,12 +257,21 @@ async def test_generate_acceptance_criteria_handles_invalid_criterion_data(mock_
     """Testa que critérios inválidos são ignorados."""
     mock_client = AsyncMock()
     mock_client.generate = AsyncMock(
-        return_value=Mock(choices=[Mock(message={"content": """```json
+        return_value=Mock(
+            choices=[
+                Mock(
+                    message={
+                        "content": """```json
 [
   {"id": "AC-001", "statement": "Valid criterion test statement", "given": "g", "when": "w", "then": "t"},
   {"invalid": "missing required fields"}
 ]
-```""", "role": "assistant"})])
+```""",
+                        "role": "assistant",
+                    }
+                )
+            ]
+        )
     )
 
     generator = AcceptanceCriteriaGenerator(llm_client=mock_client)
@@ -260,11 +296,20 @@ async def test_generate_acceptance_criteria_uses_user_story_format():
     """Testa que o formato da user story é usado no prompt."""
     mock_client = AsyncMock()
     mock_client.generate = AsyncMock(
-        return_value=Mock(choices=[Mock(message={"content": """```json
+        return_value=Mock(
+            choices=[
+                Mock(
+                    message={
+                        "content": """```json
 [
   {"id": "AC-001", "statement": "Test criterion with valid length", "given": "g", "when": "w", "then": "t"}
 ]
-```""", "role": "assistant"})])
+```""",
+                        "role": "assistant",
+                    }
+                )
+            ]
+        )
     )
 
     generator = AcceptanceCriteriaGenerator(llm_client=mock_client)

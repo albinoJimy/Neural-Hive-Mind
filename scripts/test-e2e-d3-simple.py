@@ -83,7 +83,7 @@ def create_ticket():
         print(f"✓ Ticket criado: {ticket_id}")
         return ticket_id, trace_id
     else:
-        print(f"✗ Falha ao criar ticket")
+        print("✗ Falha ao criar ticket")
         print(f"Response: {response}")
         return None, None
 
@@ -96,7 +96,7 @@ def check_ticket_status(ticket_id: str) -> str:
     try:
         data = json.loads(response)
         return data.get("status", "UNKNOWN")
-    except:
+    except Exception:
         return "PARSE_ERROR"
 
 
@@ -123,7 +123,7 @@ def monitor_ticket(ticket_id: str, timeout: int = 120) -> bool:
                 print("✗ Ticket falhou")
                 return False
             elif status in ("UNKNOWN", "PARSE_ERROR"):
-                print(f"  Erro ao verificar status")
+                print("  Erro ao verificar status")
 
         except Exception as e:
             print(f"  Erro: {e}")
@@ -159,8 +159,7 @@ def check_logs(trace_id: str):
 
     # Logs do Worker Agent
     print("Logs do Worker Agent:")
-    cmd = f'grep -i "{trace_id}" /proc/1/fd/1 2>/dev/null || echo "Searching in logs..."'
-    result = kubectl_exec(
+    kubectl_exec(
         f"bash -c \"grep -i {trace_id} /app/logs/*.log 2>/dev/null | tail -20 || echo 'No logs found'\"",
         capture=False,
     )

@@ -90,6 +90,9 @@ jobs:
         env:
           MONGODB_URI: mongodb://localhost:27017
           REDIS_URL: redis://localhost:6379
+          # Stubs *_pb2.py gerados com protobuf 5.28.x; runtime instalado é 5.29.x.
+          # Implementação pura-Python evita "Descriptors cannot be created directly".
+          PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION: python
         run: |
           pytest tests/ \
             -v \

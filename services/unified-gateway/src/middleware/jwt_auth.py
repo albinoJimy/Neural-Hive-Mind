@@ -8,7 +8,6 @@ Implementa INV-7: JWT tokens validated by Unified Gateway must pass
 user_id, tenant_id to downstream services.
 """
 
-import time
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any
@@ -163,7 +162,7 @@ class JWTAuthMiddleware(BaseHTTPMiddleware):
             logger.warning("jwt_auth_error", path=path, error=e.message)
             return self._create_error_response(e)
 
-        except Exception as e:
+        except Exception:
             logger.exception("jwt_auth_internal_error", path=path)
             return self._create_error_response(
                 JWTAuthError("Internal authentication error", status.HTTP_500_INTERNAL_SERVER_ERROR)

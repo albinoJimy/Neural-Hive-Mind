@@ -154,7 +154,7 @@ class LearningEventConsumer:
                     # Commit mesmo assim para não bloquear o tópico
                     try:
                         await self.consumer.commit()
-                    except:
+                    except Exception:
                         pass
 
         except Exception as e:
@@ -480,7 +480,7 @@ class LearningEventConsumer:
                 return
 
             # Buscar run anterior (baseline para rollback)
-            previous_runs = await self.insight_extractor.get_runs_by_period(
+            await self.insight_extractor.get_runs_by_period(
                 start_time=datetime.now(timezone.utc) - timedelta(days=7),
                 end_time=datetime.now(timezone.utc),
                 limit=10,

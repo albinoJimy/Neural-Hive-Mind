@@ -15,7 +15,6 @@ and message propagation through Kafka.
 
 import argparse
 import asyncio
-import json
 import logging
 import os
 import sys
@@ -73,18 +72,15 @@ CODE_FORGE_URL = os.getenv(
 
 # Import test utilities
 from tests.e2e.utils.temporal_helpers import (
-    TemporalTestHelper,
     validate_temporal_activities,
     validate_temporal_workflow,
 )
 from tests.e2e.utils.database_helpers import (
     MongoDBTestHelper,
-    PostgreSQLTicketsHelper,
     validate_mongodb_persistence,
     validate_postgresql_persistence,
 )
 from tests.e2e.utils.kafka_helpers import (
-    KafkaTestHelper,
     validate_kafka_messages,
 )
 

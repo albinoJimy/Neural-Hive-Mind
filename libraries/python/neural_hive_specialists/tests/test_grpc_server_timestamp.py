@@ -148,7 +148,7 @@ class TestBuildEvaluatePlanResponseTimestamp:
         Cria datetime específico e valida que seconds e nanos correspondem.
         """
         # Arrange
-        test_dt = datetime(2025, 1, 15, 10, 30, 45, 123456, tzinfo=UTC)
+        test_dt = datetime(2025, 1, 15, 10, 30, 45, 123456, tzinfo=timezone.utc)
 
         # Act
         timestamp = Timestamp()

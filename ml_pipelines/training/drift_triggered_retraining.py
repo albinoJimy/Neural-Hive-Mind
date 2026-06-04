@@ -31,7 +31,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 # Importar A/B testing (Passo 5.7)
 try:
     sys.path.insert(0, str(Path(__file__).parent))
-    from ab_testing import ABTestManager, ABTestConfig, start_ab_test
+    from ab_testing import ABTestManager, ABTestConfig
 
     AB_TESTING_AVAILABLE = True
 except ImportError:
@@ -135,7 +135,7 @@ class DriftTriggeredRetrainer:
                 f"--model-type {model_type} --promote-if-better"
             )
             if self.ab_testing_enabled:
-                logger.info(f"[DRY-RUN] Criaria teste A/B com 10% de tráfego inicial")
+                logger.info("[DRY-RUN] Criaria teste A/B com 10% de tráfego inicial")
             return True
 
         try:

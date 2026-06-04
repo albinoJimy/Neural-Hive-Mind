@@ -12,7 +12,6 @@ import pytest
 import requests
 import jwt
 from datetime import datetime, timedelta, timezone
-from typing import Optional
 import os
 
 SPECIALISTS = [

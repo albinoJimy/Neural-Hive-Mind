@@ -31,7 +31,9 @@ from neural_hive_observability.context import extract_context_from_headers, set_
 try:
     import fastavro
     from confluent_kafka.schema_registry import SchemaRegistryClient
-    from confluent_kafka.schema_registry.avro import AvroDeserializer
+    from confluent_kafka.schema_registry.avro import (  # noqa: F401 - deteção de feature
+        AvroDeserializer,
+    )
 
     AVRO_AVAILABLE = True
 except ImportError:
@@ -41,7 +43,7 @@ from neural_hive_integration.orchestration.flow_c_orchestrator import FlowCOrche
 
 # Snappy decompression support
 try:
-    import snappy
+    import snappy  # noqa: F401 - deteção de feature
 
     HAS_SNAPPY = True
 except ImportError:

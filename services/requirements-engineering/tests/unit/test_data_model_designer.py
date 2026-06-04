@@ -16,7 +16,11 @@ def mock_llm_client():
     """Fixture para mock LLM client."""
     mock_client = AsyncMock()
     mock_client.generate = AsyncMock(
-        return_value=Mock(choices=[Mock(message={"content": """```json
+        return_value=Mock(
+            choices=[
+                Mock(
+                    message={
+                        "content": """```json
 {
   "models": [
     {
@@ -47,7 +51,12 @@ def mock_llm_client():
     }
   ]
 }
-```""", "role": "assistant"})])
+```""",
+                        "role": "assistant",
+                    }
+                )
+            ]
+        )
     )
     return mock_client
 
@@ -230,7 +239,11 @@ async def test_design_from_requirements_handles_empty_fields():
     """Testa que modelos sem campos são processados corretamente."""
     mock_client = AsyncMock()
     mock_client.generate = AsyncMock(
-        return_value=Mock(choices=[Mock(message={"content": """```json
+        return_value=Mock(
+            choices=[
+                Mock(
+                    message={
+                        "content": """```json
 {
   "models": [
     {
@@ -241,7 +254,12 @@ async def test_design_from_requirements_handles_empty_fields():
   ],
   "relationships": []
 }
-```""", "role": "assistant"})])
+```""",
+                        "role": "assistant",
+                    }
+                )
+            ]
+        )
     )
 
     designer = DataModelDesigner(llm_client=mock_client)
@@ -266,7 +284,11 @@ async def test_design_from_requirements_creates_entity_relationships():
     """Testa que relacionamentos entre entidades são criados."""
     mock_client = AsyncMock()
     mock_client.generate = AsyncMock(
-        return_value=Mock(choices=[Mock(message={"content": """```json
+        return_value=Mock(
+            choices=[
+                Mock(
+                    message={
+                        "content": """```json
 {
   "models": [
     {"name": "Order", "description": "Order entity", "fields": []},
@@ -282,7 +304,12 @@ async def test_design_from_requirements_creates_entity_relationships():
     }
   ]
 }
-```""", "role": "assistant"})])
+```""",
+                        "role": "assistant",
+                    }
+                )
+            ]
+        )
     )
 
     designer = DataModelDesigner(llm_client=mock_client)
@@ -311,12 +338,21 @@ async def test_design_from_requirements_limits_requirements_for_context():
 
     mock_client = AsyncMock()
     mock_client.generate = AsyncMock(
-        return_value=Mock(choices=[Mock(message={"content": """```json
+        return_value=Mock(
+            choices=[
+                Mock(
+                    message={
+                        "content": """```json
 {
   "models": [{"name": "Test", "fields": [], "description": "Test model"}],
   "relationships": []
 }
-```""", "role": "assistant"})])
+```""",
+                        "role": "assistant",
+                    }
+                )
+            ]
+        )
     )
 
     designer = DataModelDesigner(llm_client=mock_client)

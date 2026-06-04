@@ -255,7 +255,9 @@ class AnalystServicer(analyst_agent_pb2_grpc.AnalystAgentServiceServicer):
                                     "direction": float(
                                         1
                                         if trend.get("direction") == "up"
-                                        else -1 if trend.get("direction") == "down" else 0
+                                        else -1
+                                        if trend.get("direction") == "down"
+                                        else 0
                                     ),
                                 }
                                 confidence = trend.get("confidence", 0.8)

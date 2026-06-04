@@ -223,7 +223,8 @@ variable "retention_days" {{
         code_blocks = []
 
         if "s3_bucket" in resources:
-            code_blocks.append("""
+            code_blocks.append(
+                """
 # S3 Bucket for artifacts and logs
 resource "aws_s3_bucket" "artifacts" {
   bucket = "${local.naming_prefix}-artifacts"
@@ -266,10 +267,12 @@ resource "aws_s3_bucket_lifecycle_configuration" "artifacts" {
     }
   }
 }
-""")
+"""
+            )
 
         if "dynamodb_table" in resources:
-            code_blocks.append("""
+            code_blocks.append(
+                """
 # DynamoDB Table for state locking
 resource "aws_dynamodb_table" "state_lock" {
   name           = "${local.naming_prefix}-lock"
@@ -295,10 +298,12 @@ resource "aws_dynamodb_table" "state_lock" {
     ignore_changes = [ttl]
   }
 }
-""")
+"""
+            )
 
         if "lambda_function" in resources:
-            code_blocks.append("""
+            code_blocks.append(
+                """
 # Lambda Function
 resource "aws_lambda_function" "main" {
   filename      = "${var.service_name}.zip"
@@ -349,10 +354,12 @@ resource "aws_cloudwatch_log_group" "lambda_logs" {
 
   tags = local.common_tags
 }
-""")
+"""
+            )
 
         if "vpc" in resources:
-            code_blocks.append("""
+            code_blocks.append(
+                """
 # VPC
 resource "aws_vpc" "main" {
   cidr_block           = "10.0.0.0/16"
@@ -468,10 +475,12 @@ resource "aws_route_table_association" "private" {
 data "aws_availability_zones" "available" {
   state = "available"
 }
-""")
+"""
+            )
 
         if "ecr_repository" in resources:
-            code_blocks.append("""
+            code_blocks.append(
+                """
 # ECR Repository
 resource "aws_ecr_repository" "main" {
   name                 = "${local.naming_prefix}-repo"
@@ -506,10 +515,12 @@ resource "aws_ecr_lifecycle_policy" "main" {
     ]
   })
 }
-""")
+"""
+            )
 
         if "ecs_cluster" in resources:
-            code_blocks.append("""
+            code_blocks.append(
+                """
 # ECS Cluster
 resource "aws_ecs_cluster" "main" {
   name = "${local.naming_prefix}-cluster"
@@ -614,7 +625,8 @@ resource "aws_cloudwatch_log_group" "main" {
 
   tags = local.common_tags
 }
-""")
+"""
+            )
 
         return "\n".join(code_blocks)
 
@@ -811,7 +823,8 @@ resource "kubernetes_service" "main" {{
         """Gera outputs Terraform."""
         outputs = []
 
-        outputs.append("""
+        outputs.append(
+            """
 output "service_name" {
   description = "Service name"
   value       = var.service_name
@@ -826,10 +839,12 @@ output "common_tags" {
   description = "Common tags applied to resources"
   value       = local.common_tags
 }
-""")
+"""
+        )
 
         if "s3_bucket" in resources:
-            outputs.append("""
+            outputs.append(
+                """
 output "s3_bucket_name" {
   description = "S3 bucket name for artifacts"
   value       = aws_s3_bucket.artifacts.id
@@ -839,10 +854,12 @@ output "s3_bucket_arn" {
   description = "S3 bucket ARN"
   value       = aws_s3_bucket.artifacts.arn
 }
-""")
+"""
+            )
 
         if "dynamodb_table" in resources:
-            outputs.append("""
+            outputs.append(
+                """
 output "dynamodb_table_name" {
   description = "DynamoDB table name"
   value       = aws_dynamodb_table.state_lock.name
@@ -852,10 +869,12 @@ output "dynamodb_table_arn" {
   description = "DynamoDB table ARN"
   value       = aws_dynamodb_table.state_lock.arn
 }
-""")
+"""
+            )
 
         if "lambda_function" in resources:
-            outputs.append("""
+            outputs.append(
+                """
 output "lambda_function_name" {
   description = "Lambda function name"
   value       = aws_lambda_function.main.function_name
@@ -870,10 +889,12 @@ output "lambda_iam_role_arn" {
   description = "Lambda IAM role ARN"
   value       = aws_iam_role.lambda_role.arn
 }
-""")
+"""
+            )
 
         if "vpc" in resources:
-            outputs.append("""
+            outputs.append(
+                """
 output "vpc_id" {
   description = "VPC ID"
   value       = aws_vpc.main.id
@@ -893,10 +914,12 @@ output "internet_gateway_id" {
   description = "Internet Gateway ID"
   value       = aws_internet_gateway.main.id
 }
-""")
+"""
+            )
 
         if "ecs_cluster" in resources:
-            outputs.append("""
+            outputs.append(
+                """
 output "ecs_cluster_id" {
   description = "ECS cluster ID"
   value       = aws_ecs_cluster.main.id
@@ -916,7 +939,8 @@ output "ecr_repository_url" {
   description = "ECR repository URL"
   value       = aws_ecr_repository.main.repository_url
 }
-""")
+"""
+            )
 
         return "\n".join(outputs)
 
@@ -942,7 +966,9 @@ output "ecr_repository_url" {
         chart_files = {}
 
         # Chart.yaml
-        chart_files["Chart.yaml"] = f"""apiVersion: v2
+        chart_files[
+            "Chart.yaml"
+        ] = f"""apiVersion: v2
 name: {service_name}
 description: {description}
 type: application
@@ -985,7 +1011,9 @@ icon: https://neuralhive.com/logo.png
             )
 
         # NOTES.txt
-        chart_files["templates/NOTES.txt"] = f"""Thank you for installing {service_name}!
+        chart_files[
+            "templates/NOTES.txt"
+        ] = f"""Thank you for installing {service_name}!
 
 Your release is named {{{{ .Release.Name }}}}.
 To learn more about the release, try:
@@ -998,7 +1026,9 @@ For more information on running and configuring {service_name}, see the document
 """
 
         # _helpers.tpl
-        chart_files["templates/_helpers.tpl"] = """{{/*
+        chart_files[
+            "templates/_helpers.tpl"
+        ] = """{{/*
 Expand the name of the chart.
 */}}
 {{- define "service.name" -}}
@@ -1405,7 +1435,9 @@ metadata:
         manifests = {}
 
         if "namespace" in resources:
-            manifests["00-namespace.yaml"] = f"""apiVersion: v1
+            manifests[
+                "00-namespace.yaml"
+            ] = f"""apiVersion: v1
 kind: Namespace
 metadata:
   name: {namespace}
@@ -1415,7 +1447,9 @@ metadata:
 """
 
         if "deployment" in resources:
-            manifests["10-deployment.yaml"] = f"""apiVersion: apps/v1
+            manifests[
+                "10-deployment.yaml"
+            ] = f"""apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {service_name}
@@ -1479,7 +1513,9 @@ spec:
 """
 
         if "service" in resources:
-            manifests["20-service.yaml"] = f"""apiVersion: v1
+            manifests[
+                "20-service.yaml"
+            ] = f"""apiVersion: v1
 kind: Service
 metadata:
   name: {service_name}
@@ -1498,7 +1534,9 @@ spec:
 """
 
         if "configmap" in resources:
-            manifests["30-configmap.yaml"] = f"""apiVersion: v1
+            manifests[
+                "30-configmap.yaml"
+            ] = f"""apiVersion: v1
 kind: ConfigMap
 metadata:
   name: {service_name}
@@ -1510,7 +1548,9 @@ data:
 """
 
         if "serviceaccount" in resources:
-            manifests["05-serviceaccount.yaml"] = f"""apiVersion: v1
+            manifests[
+                "05-serviceaccount.yaml"
+            ] = f"""apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: {service_name}

@@ -6,18 +6,13 @@ Testa INV-7: JWT tokens validated by Unified Gateway must pass user_id, tenant_i
 """
 
 import pytest
-from fastapi import HTTPException, Request
-from pydantic import ValidationError
+from fastapi import Request
 
 from src.middleware.jwt_auth import AuthContext, AuthMethod
 from src.models.context import (
-    ActorContext,
     ActorType,
     RequestContext,
     RichContext,
-    SecurityContext,
-    SessionContext,
-    TenantContext,
 )
 from src.services.context_builder import (
     build_request_context,
@@ -135,9 +130,7 @@ class TestContextBuilder:
 
     def test_build_tenant_context_with_id(self, context_builder):
         """Deve construir TenantContext com tenant_id do AuthContext (INV-7)."""
-        auth_context = AuthContext(
-            authenticated=True, user_id="user-123", tenant_id="tenant-456"
-        )
+        auth_context = AuthContext(authenticated=True, user_id="user-123", tenant_id="tenant-456")
         tenant = context_builder._build_tenant_context(auth_context)
         assert tenant is not None
         assert tenant.tenant_id == "tenant-456"
@@ -275,10 +268,9 @@ class TestContextBuilder:
         assert security.permissions == ["read", "write"]
 
     @pytest.mark.asyncio
-    async def test_build_request_context(
-        self, context_builder, mock_request, monkeypatch
-    ):
+    async def test_build_request_context(self, context_builder, mock_request, monkeypatch):
         """Deve construir RequestContext completo."""
+
         # Mock get_auth_context para retornar AuthContext
         async def mock_get_auth(_):
             return AuthContext(
@@ -289,9 +281,7 @@ class TestContextBuilder:
                 auth_method=AuthMethod.JWT,
             )
 
-        monkeypatch.setattr(
-            "src.services.context_builder.get_auth_context", mock_get_auth
-        )
+        monkeypatch.setattr("src.services.context_builder.get_auth_context", mock_get_auth)
 
         input_data = {"input": {"text": "Test input", "files": ["file1.pdf"]}}
 
@@ -310,10 +300,9 @@ class TestContextBuilder:
         assert ctx.metadata["client_ip"] == "192.168.1.100"
 
     @pytest.mark.asyncio
-    async def test_build_rich_context(
-        self, context_builder, mock_request, monkeypatch
-    ):
+    async def test_build_rich_context(self, context_builder, mock_request, monkeypatch):
         """Deve construir RichContext com todas as dimensões."""
+
         async def mock_get_auth(_):
             return AuthContext(
                 authenticated=True,
@@ -321,9 +310,7 @@ class TestContextBuilder:
                 tenant_id="tenant-456",
             )
 
-        monkeypatch.setattr(
-            "src.services.context_builder.get_auth_context", mock_get_auth
-        )
+        monkeypatch.setattr("src.services.context_builder.get_auth_context", mock_get_auth)
 
         rich_ctx = await context_builder.build_rich(mock_request)
 
@@ -340,12 +327,11 @@ class TestContextBuilder:
     @pytest.mark.asyncio
     async def test_build_unauthenticated(self, context_builder, mock_request, monkeypatch):
         """Deve construir contexto mesmo sem autenticação."""
+
         async def mock_get_auth(_):
             return AuthContext(authenticated=False)
 
-        monkeypatch.setattr(
-            "src.services.context_builder.get_auth_context", mock_get_auth
-        )
+        monkeypatch.setattr("src.services.context_builder.get_auth_context", mock_get_auth)
 
         ctx = await context_builder.build(mock_request)
 
@@ -385,6 +371,7 @@ class TestDependencyInjection:
     @pytest.mark.asyncio
     async def test_build_request_context_dependency(self, mock_request, monkeypatch):
         """build_request_context deve funcionar como dependency."""
+
         async def mock_get_auth(_):
             return AuthContext(
                 authenticated=True,
@@ -392,9 +379,7 @@ class TestDependencyInjection:
                 tenant_id="tenant-456",
             )
 
-        monkeypatch.setattr(
-            "src.services.context_builder.get_auth_context", mock_get_auth
-        )
+        monkeypatch.setattr("src.services.context_builder.get_auth_context", mock_get_auth)
 
         ctx = await build_request_context(mock_request)
 
@@ -405,12 +390,11 @@ class TestDependencyInjection:
     @pytest.mark.asyncio
     async def test_build_rich_context_dependency(self, mock_request, monkeypatch):
         """build_rich_context deve funcionar como dependency."""
+
         async def mock_get_auth(_):
             return AuthContext(authenticated=True, user_id="user-123")
 
-        monkeypatch.setattr(
-            "src.services.context_builder.get_auth_context", mock_get_auth
-        )
+        monkeypatch.setattr("src.services.context_builder.get_auth_context", mock_get_auth)
 
         rich_ctx = await build_rich_context(mock_request)
 
@@ -439,6 +423,7 @@ class TestInv7Compliance:
     @pytest.mark.asyncio
     async def test_inv7_full_context(self, context_builder, mock_request, monkeypatch):
         """INV-7: RequestContext completo deve ter user_id e tenant_id."""
+
         async def mock_get_auth(_):
             return AuthContext(
                 authenticated=True,
@@ -447,9 +432,7 @@ class TestInv7Compliance:
                 session_id="session-inv7",
             )
 
-        monkeypatch.setattr(
-            "src.services.context_builder.get_auth_context", mock_get_auth
-        )
+        monkeypatch.setattr("src.services.context_builder.get_auth_context", mock_get_auth)
 
         ctx = await context_builder.build(mock_request)
 

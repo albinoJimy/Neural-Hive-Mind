@@ -1,6 +1,5 @@
 """Testes para o Response Processor."""
 
-import json
 import pytest
 from unittest.mock import AsyncMock, Mock, patch
 

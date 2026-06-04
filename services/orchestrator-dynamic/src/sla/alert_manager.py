@@ -6,6 +6,7 @@ Responsável por publicar alertas proativos e eventos de violação no Kafka.
 
 import uuid
 from datetime import datetime, timezone
+
 UTC = timezone.utc
 
 UTC = timezone.utc  # type: ignore
@@ -250,7 +251,9 @@ class AlertManager:
                 "budget_remaining": violation.get("budget_remaining"),
                 "severity": violation.get("severity", "WARNING"),
                 "metadata": violation.get("metadata", {}),
-                "timestamp": violation.get("timestamp", datetime.now(timezone.utc).isoformat() + "Z"),
+                "timestamp": violation.get(
+                    "timestamp", datetime.now(timezone.utc).isoformat() + "Z"
+                ),
             }
 
             # Publicar no Kafka (tópico dedicado para violações formais)

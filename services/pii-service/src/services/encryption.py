@@ -247,9 +247,7 @@ class ReversibleMaskService:
 
             client = hvac.Client(url=settings.VAULT_ADDR, token=settings.VAULT_TOKEN)
 
-            response = client.secrets.kv.v2.read_secret_version(
-                path=settings.VAULT_SECRET_PATH
-            )
+            response = client.secrets.kv.v2.read_secret_version(path=settings.VAULT_SECRET_PATH)
 
             key_b64 = response["data"]["data"]["key"]
             import base64

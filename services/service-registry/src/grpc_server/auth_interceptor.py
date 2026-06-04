@@ -25,7 +25,7 @@ except ImportError:
 # Try to import JWT library for validation
 try:
     import jwt
-    from cryptography.hazmat.backends import default_backend
+    from cryptography.hazmat.backends import default_backend  # noqa: F401 - deteção de feature
     from cryptography.hazmat.primitives import serialization
 
     JWT_LIB_AVAILABLE = True

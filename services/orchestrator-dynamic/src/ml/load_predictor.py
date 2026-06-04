@@ -10,7 +10,8 @@ Não participa de treinamento/registro no MLflow; é um componente de fallback s
 """
 
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
+
 UTC = timezone.utc
 
 UTC = timezone.utc  # type: ignore, timedelta

@@ -49,9 +49,7 @@ def fix_long_string_concat(content: str) -> str:
 
 def fix_long_dict_definitions(content: str) -> str:
     """Divide definições de dicionários longos."""
-    # Dicts longos em uma linha
-    pattern = r"(\w+)\s*=\s*\{[^}]{100,}\}"
-    # Não implementar - muito arriscado
+    # Dicts longos em uma linha — não implementar, muito arriscado
     return content
 
 

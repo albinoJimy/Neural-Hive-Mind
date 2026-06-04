@@ -185,7 +185,7 @@ class PlotGenerator:
             y_values = [r.metrics[metric_y] for r in valid_runs]
 
             # Scatter plot
-            scatter = ax.scatter(
+            ax.scatter(
                 x_values,
                 y_values,
                 c=[i for i in range(len(valid_runs))],

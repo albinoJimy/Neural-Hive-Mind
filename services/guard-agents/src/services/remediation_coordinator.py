@@ -12,7 +12,7 @@ logger = structlog.get_logger()
 
 # Importa cliente Self-Healing quando disponível
 try:
-    from src.clients.self_healing_client import SelfHealingClient
+    from src.clients.self_healing_client import SelfHealingClient  # noqa: F401 - deteção de feature
 
     SH_CLIENT_AVAILABLE = True
 except ImportError:
@@ -167,7 +167,9 @@ class RemediationCoordinator:
 
     async def _start_remediation(self, incident: dict[str, Any], playbook: dict[str, Any]) -> str:
         """Inicia remediação e retorna ID"""
-        remediation_id = f"REM-{incident.get('incident_id')}-{int(datetime.now(timezone.utc).timestamp())}"
+        remediation_id = (
+            f"REM-{incident.get('incident_id')}-{int(datetime.now(timezone.utc).timestamp())}"
+        )
 
         self.active_remediations[remediation_id] = {
             "remediation_id": remediation_id,
@@ -940,7 +942,9 @@ class RemediationCoordinator:
                 },
             }
 
-        experiment_name = f"guard-chaos-{incident_id[:8]}-{int(datetime.now(timezone.utc).timestamp())}"
+        experiment_name = (
+            f"guard-chaos-{incident_id[:8]}-{int(datetime.now(timezone.utc).timestamp())}"
+        )
         details = {
             "chaos_type": chaos_type,
             "experiment_name": experiment_name,

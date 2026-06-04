@@ -16,10 +16,9 @@ Uso:
 import time
 import asyncio
 import numpy as np
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any
 from dataclasses import dataclass
 import sys
-import os
 
 sys.path.insert(0, "/home/jimy/NHM/Neural-Hive-Mind/libraries/python")
 
@@ -346,7 +345,7 @@ async def run_benchmarks(
     print("BENCHMARK: Business Specialist Performance Optimizations")
     print("=" * 80)
 
-    print(f"\nConfiguration:")
+    print("\nConfiguration:")
     print(f"  - Number of plans: {num_plans}")
     print(f"  - Tasks per plan: {tasks_per_plan}")
     print(f"  - Total tasks: {num_plans * tasks_per_plan}")

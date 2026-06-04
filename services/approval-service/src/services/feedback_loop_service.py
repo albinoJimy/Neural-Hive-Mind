@@ -5,7 +5,6 @@ Este serviço coleta dados sobre o resultado de workflows e deployments
 para gerar feedback contínuo para especialistas e modelos ML.
 """
 
-import asyncio
 from datetime import datetime, timezone, timedelta
 from enum import Enum
 from typing import Any
@@ -320,9 +319,7 @@ class FeedbackLoopService:
                     "labels": {
                         "success": metrics.error_rate < 0.05 if metrics.error_rate else True,
                         "quality": (
-                            "good"
-                            if (metrics.test_coverage or 0) > 0.8
-                            else "needs_improvement"
+                            "good" if (metrics.test_coverage or 0) > 0.8 else "needs_improvement"
                         ),
                     },
                 }

@@ -104,7 +104,9 @@ class ReferenceDataGenerator:
             action_features[f"action_{secondary_action}"] = 1.0
 
         # Palavras-chave
-        has_backup = 1.0 if primary_action in ["create", "update"] and random.random() < 0.3 else 0.0
+        has_backup = (
+            1.0 if primary_action in ["create", "update"] and random.random() < 0.3 else 0.0
+        )
         has_verification = 1.0 if random.random() < 0.4 else 0.0
         has_all = 1.0 if primary_action == "delete" and random.random() < 0.15 else 0.0
 

@@ -1,6 +1,5 @@
 """Testes unitários para Tracing Middleware."""
 
-import pytest
 
 from src.middleware.tracing import TracingMiddleware, get_trace_id, get_span_id
 

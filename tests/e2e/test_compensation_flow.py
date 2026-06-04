@@ -10,10 +10,8 @@ Valida que:
 
 import sys
 import os
-import asyncio
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
-from datetime import datetime
 from uuid import uuid4
 
 # Adicionar path do orchestrator-dynamic

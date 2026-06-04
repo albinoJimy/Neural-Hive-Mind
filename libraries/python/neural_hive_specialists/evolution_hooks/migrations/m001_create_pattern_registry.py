@@ -5,8 +5,6 @@ Esta migração cria a coleção e os índices necessários para o
 funcionamento do sistema Evolution Hooks.
 """
 
-from datetime import timedelta
-
 
 def upgrade(mongo_client):
     """

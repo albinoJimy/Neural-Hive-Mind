@@ -2,14 +2,12 @@
 
 import pytest
 from fastapi import Request
-from starlette.middleware.base import BaseHTTPMiddleware
 
 from src.middleware.jwt_auth import (
     AuthContext,
     AuthMethod,
     JWTAuthMiddleware,
     JWTAuthError,
-    get_auth_context,
 )
 
 

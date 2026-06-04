@@ -7,7 +7,6 @@ Testa scripts de utilidade e manutenção.
 
 import pytest
 from datetime import datetime, timedelta, timezone
-from unittest.mock import Mock, patch, MagicMock
 from uuid import uuid4
 
 

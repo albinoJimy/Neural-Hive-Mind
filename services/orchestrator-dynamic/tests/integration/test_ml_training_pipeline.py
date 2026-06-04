@@ -12,6 +12,7 @@ Testa o pipeline end-to-end de treinamento de modelos ML incluindo:
 """
 
 from datetime import datetime, timezone
+
 UTC = timezone.utc, timedelta
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 

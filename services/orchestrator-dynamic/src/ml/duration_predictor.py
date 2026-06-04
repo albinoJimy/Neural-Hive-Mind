@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from .model_promotion import ModelPromotionManager
 from datetime import timezone
+
 UTC = timezone.utc
 
 UTC = timezone.utc  # type: ignore
@@ -195,7 +196,9 @@ class DurationPredictor:
         from datetime import datetime, timedelta
 
         try:
-            cutoff_date = datetime.now(timezone.utc) - timedelta(days=self.config.ml_training_window_days)
+            cutoff_date = datetime.now(timezone.utc) - timedelta(
+                days=self.config.ml_training_window_days
+            )
 
             count = await self.mongodb_client.db["execution_tickets"].count_documents(
                 {
@@ -729,5 +732,5 @@ class DurationPredictor:
         try:
             metadata = await self.model_registry.get_model_metadata(self.model_name)
             return metadata.get("version")
-        except:
+        except Exception:
             return None

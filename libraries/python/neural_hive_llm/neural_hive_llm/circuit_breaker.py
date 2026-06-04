@@ -4,7 +4,7 @@ Implementa circuit breaker para proteção contra falhas cascata em chamadas
 a provedores LLM externos.
 """
 
-from typing import Final, Optional
+from typing import Final
 
 import structlog
 from pybreaker import CircuitBreakerError

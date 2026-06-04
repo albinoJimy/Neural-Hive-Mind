@@ -26,16 +26,11 @@ Uso:
 """
 
 import argparse
-import asyncio
 import json
 import os
 import sys
-import logging
 from datetime import datetime, timezone
-from pathlib import Path
 from typing import Dict, Any, Optional, List
-import tempfile
-import shutil
 
 import mlflow
 import mlflow.sklearn
@@ -129,9 +124,6 @@ class MLflowDeployer:
         import joblib
 
         model = joblib.load(model_path)
-
-        # Criar modelo URI no MLflow
-        model_uri = f"runs:/{run_id}/model"
 
         # Logar modelo no run (se já não estiver logado)
         with mlflow.start_run(run_id=run_id):

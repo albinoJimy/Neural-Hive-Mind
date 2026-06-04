@@ -11,10 +11,8 @@ Implementa a interface NLUService definida em nlu.proto:
 INV-1: NLU Result Compatibility
 """
 
-import asyncio
 import logging
 import time
-from datetime import datetime, timezone
 from typing import Any
 
 import grpc
@@ -24,11 +22,9 @@ from google.protobuf.timestamp_pb2 import Timestamp
 from src.proto import nlu_pb2, nlu_pb2_grpc
 
 from src.models.nlu import (
-    CalculateConfidenceResponse,
     Entity,
     EntityType,
     NLUResult,
-    ServingStatus,
     UnifiedDomain,
 )
 from src.services.nlu_pipeline import get_nlu_service
@@ -82,9 +78,7 @@ def nlu_result_to_proto(result: NLUResult) -> nlu_pb2.NLUResult:
         confidence=result.confidence,
         entities=[
             nlu_pb2.Entity(
-                type=_ENTITY_TYPE_TO_PROTO.get(
-                    e.type, nlu_pb2.EntityType.ENTITY_UNKNOWN
-                ),
+                type=_ENTITY_TYPE_TO_PROTO.get(e.type, nlu_pb2.EntityType.ENTITY_UNKNOWN),
                 value=e.value,
                 confidence=e.confidence,
                 start=e.start or 0,
@@ -208,7 +202,9 @@ class NLUServicer(nlu_pb2_grpc.NLUServiceServicer):
 
         # Filtrar por tipos se especificado
         if request.entity_types:
-            allowed_types = {_PROTO_TO_ENTITY_TYPE.get(t, EntityType.UNKNOWN) for t in request.entity_types}
+            allowed_types = {
+                _PROTO_TO_ENTITY_TYPE.get(t, EntityType.UNKNOWN) for t in request.entity_types
+            }
             entities = [e for e in entities if e.type in allowed_types]
 
         extracted_at = Timestamp()
@@ -219,9 +215,7 @@ class NLUServicer(nlu_pb2_grpc.NLUServiceServicer):
         return nlu_pb2.ExtractEntitiesResponse(
             entities=[
                 nlu_pb2.Entity(
-                    type=_ENTITY_TYPE_TO_PROTO.get(
-                        e.type, nlu_pb2.EntityType.ENTITY_UNKNOWN
-                    ),
+                    type=_ENTITY_TYPE_TO_PROTO.get(e.type, nlu_pb2.EntityType.ENTITY_UNKNOWN),
                     value=e.value,
                     confidence=e.confidence,
                     start=e.start or 0,
@@ -244,14 +238,10 @@ class NLUServicer(nlu_pb2_grpc.NLUServiceServicer):
         # Converter proto para modelo interno
         nlu_result = NLUResult(
             processed_text=request.nlu_result.processed_text,
-            domain=_PROTO_TO_DOMAIN.get(
-                request.nlu_result.domain, UnifiedDomain.TECHNICAL
-            ),
+            domain=_PROTO_TO_DOMAIN.get(request.nlu_result.domain, UnifiedDomain.TECHNICAL),
             classification=request.nlu_result.classification,
             confidence=request.nlu_result.confidence,
-            entities=[
-                entity_from_proto(e) for e in request.nlu_result.entities
-            ],
+            entities=[entity_from_proto(e) for e in request.nlu_result.entities],
             keywords=list(request.nlu_result.keywords),
             original_language=request.nlu_result.original_language,
             requires_manual_validation=request.nlu_result.requires_manual_validation,
@@ -277,16 +267,13 @@ class NLUServicer(nlu_pb2_grpc.NLUServiceServicer):
         """Detectar idioma do texto."""
         await self._ensure_initialized()
 
-        language, confidence, candidates = await self.nlu_service.detect_language(
-            text=request.text
-        )
+        language, confidence, candidates = await self.nlu_service.detect_language(text=request.text)
 
         return nlu_pb2.DetectLanguageResponse(
             language=language,
             confidence=confidence,
             candidates=[
-                nlu_pb2.LanguageCandidate(language=lang, conf=conf)
-                for lang, conf in candidates
+                nlu_pb2.LanguageCandidate(language=lang, conf=conf) for lang, conf in candidates
             ],
         )
 

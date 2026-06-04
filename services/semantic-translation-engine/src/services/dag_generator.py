@@ -288,9 +288,9 @@ class DAGGenerator:
             return identifiers
 
         # Extrair de campos comuns (entidade como dict)
-        for field in ["name", "value", "type", "canonical_type", "entity_type"]:
-            if entity.get(field):
-                normalized = str(entity[field]).lower().strip()
+        for field_name in ["name", "value", "type", "canonical_type", "entity_type"]:
+            if entity.get(field_name):
+                normalized = str(entity[field_name]).lower().strip()
                 # Remover caracteres especiais exceto underscore
                 normalized = "".join(c for c in normalized if c.isalnum() or c == "_")
                 if normalized:
@@ -1495,7 +1495,7 @@ class DAGGenerator:
         try:
             longest_path = nx.dag_longest_path(G, weight=lambda u, v, d: task_durations.get(v, 0))
             return sum(task_durations.get(task_id, 0) for task_id in longest_path)
-        except:
+        except Exception:
             # Fallback: sum all durations
             return sum(task_durations.values())
 

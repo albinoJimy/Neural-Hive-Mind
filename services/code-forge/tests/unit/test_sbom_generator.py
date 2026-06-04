@@ -48,14 +48,16 @@ class TestSBOMGeneration:
         # Criar diretório temporário com arquivo Python simples
         with tempfile.TemporaryDirectory() as tmpdir:
             test_file = Path(tmpdir) / "app.py"
-            test_file.write_text("""
+            test_file.write_text(
+                """
 from fastapi import FastAPI
 app = FastAPI()
 
 @app.get("/")
 def root():
     return {"message": "hello"}
-""")
+"""
+            )
 
             # Mock do subprocess para Syft
             sbom_content = {

@@ -5,13 +5,10 @@ Analyzes test results and log monitoring data to generate comprehensive report
 """
 
 import json
-import os
 import sys
 import argparse
-import statistics
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Any, List
 from collections import defaultdict
 import re
 
@@ -43,7 +40,7 @@ class E2EReportGenerator:
         print(f"  Found: {metrics_file}")
 
         if len(json_files) > 1:
-            print(f"  Note: Multiple metrics files found, using most recent")
+            print("  Note: Multiple metrics files found, using most recent")
 
         with open(metrics_file, "r") as f:
             self.test_data = json.load(f)
@@ -117,13 +114,10 @@ class E2EReportGenerator:
         # Determine verdict
         if success_rate >= 95 and typeerrors == 0 and timestamp_validation_rate == 100:
             verdict = "✅ VALIDATION PASSED - System is stable and ready for production"
-            verdict_status = "PASSED"
         elif success_rate >= 90 and typeerrors == 0:
             verdict = "⚠️ VALIDATION PASSED WITH WARNINGS - Review failures before production"
-            verdict_status = "PASSED_WITH_WARNINGS"
         else:
             verdict = "❌ VALIDATION FAILED - Critical issues detected, do not deploy"
-            verdict_status = "FAILED"
 
         section = f"""# E2E Validation Report - Final Results
 
@@ -261,10 +255,10 @@ Review test logs for specific timestamp validation errors.
         ]
 
         if all_latencies:
-            under_500 = sum(1 for l in all_latencies if l < 500)
-            under_1000 = sum(1 for l in all_latencies if 500 <= l < 1000)
-            under_2000 = sum(1 for l in all_latencies if 1000 <= l < 2000)
-            over_2000 = sum(1 for l in all_latencies if l >= 2000)
+            under_500 = sum(1 for lat in all_latencies if lat < 500)
+            under_1000 = sum(1 for lat in all_latencies if 500 <= lat < 1000)
+            under_2000 = sum(1 for lat in all_latencies if 1000 <= lat < 2000)
+            over_2000 = sum(1 for lat in all_latencies if lat >= 2000)
             total = len(all_latencies)
 
             section += f"""

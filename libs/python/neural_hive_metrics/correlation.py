@@ -7,7 +7,7 @@ para rastreamento de intenções, planos e contexto através dos componentes.
 
 import logging
 import threading
-from typing import Dict, Optional, Any, Callable, TypeVar, Union
+from typing import Dict, Optional, Any, Callable, TypeVar
 from functools import wraps
 from contextlib import contextmanager
 from dataclasses import dataclass, field

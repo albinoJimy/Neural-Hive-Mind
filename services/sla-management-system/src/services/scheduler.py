@@ -449,7 +449,9 @@ class ScheduleManager:
             UPDATE schedules SET status = $1, updated_at = $2
             WHERE schedule_id = $3
         """
-        await self.postgresql_client.execute(query, status.value, datetime.now(timezone.utc), schedule_id)
+        await self.postgresql_client.execute(
+            query, status.value, datetime.now(timezone.utc), schedule_id
+        )
 
     async def _update_schedule_last_run(self, schedule_id: str, last_run: datetime) -> None:
         """Atualiza última execução do schedule."""
@@ -458,7 +460,9 @@ class ScheduleManager:
             SET last_run_at = $1, updated_at = $2, total_runs = total_runs + 1
             WHERE schedule_id = $3
         """
-        await self.postgresql_client.execute(query, last_run, datetime.now(timezone.utc), schedule_id)
+        await self.postgresql_client.execute(
+            query, last_run, datetime.now(timezone.utc), schedule_id
+        )
 
     async def _update_next_run(self, schedule_id: str, next_run: datetime) -> None:
         """Atualiza próxima execução do schedule."""
@@ -466,7 +470,9 @@ class ScheduleManager:
             UPDATE schedules SET next_run_at = $1, updated_at = $2
             WHERE schedule_id = $3
         """
-        await self.postgresql_client.execute(query, next_run, datetime.now(timezone.utc), schedule_id)
+        await self.postgresql_client.execute(
+            query, next_run, datetime.now(timezone.utc), schedule_id
+        )
 
     async def _increment_failure_count(self, schedule_id: str) -> None:
         """Incrementa contador de falhas."""

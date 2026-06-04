@@ -291,7 +291,7 @@ class PostgreSQLValidator:
             for table in tables:
                 try:
                     result = await conn.fetchval(
-                        f"SELECT COUNT(*) FROM information_schema.tables WHERE table_name = $1",
+                        "SELECT COUNT(*) FROM information_schema.tables WHERE table_name = $1",
                         table,
                     )
                     if result > 0:
@@ -606,7 +606,7 @@ async def main():
                 print(
                     f"{Colors.YELLOW}Warning: Service '{args.service}' not found in any database mapping{Colors.NC}"
                 )
-                print(f"Available services:")
+                print("Available services:")
                 all_services = (
                     set(MONGODB_SERVICES.keys())
                     | set(POSTGRESQL_SERVICES.keys())

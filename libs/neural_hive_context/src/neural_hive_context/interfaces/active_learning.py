@@ -13,6 +13,7 @@ from enum import Enum
 
 class ActiveLearningPriority(str, Enum):
     """Prioridade para coleta de feedback."""
+
     CRITICAL = "critical"  # Caso muito valioso, coleta urgente
     HIGH = "high"  # Acima do threshold
     MEDIUM = "medium"  # Próximo ao threshold

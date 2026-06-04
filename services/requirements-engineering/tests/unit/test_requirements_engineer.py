@@ -37,7 +37,7 @@ def mock_llm_response():
   }
 ]
 """,
-        "role": "assistant"
+        "role": "assistant",
     }
     return mock
 
@@ -134,10 +134,13 @@ async def test_identify_dependencies(engineer):
     # Mock da resposta do LLM para análise de dependências
     mock_response = Mock()
     mock_response.choices = [Mock()]
-    mock_response.choices[0].message = {"content": """[
+    mock_response.choices[0].message = {
+        "content": """[
   {"id": "REQ-001", "dependencies": [], "conflicts": []},
   {"id": "REQ-002", "dependencies": ["REQ-001"], "conflicts": []}
-]""", "role": "assistant"}
+]""",
+        "role": "assistant",
+    }
     engineer._llm_client.generate = AsyncMock(return_value=mock_response)
 
     # Act

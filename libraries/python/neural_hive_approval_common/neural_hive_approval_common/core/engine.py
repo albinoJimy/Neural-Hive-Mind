@@ -56,9 +56,7 @@ class ApprovalDecisionEngine:
         thresholds: ApprovalThresholds = self.config.thresholds
         self.common_rules = common_rules or CommonRules(thresholds=thresholds)
         self.risk_assessor = risk_assessor or RiskAssessor()
-        self.threshold_evaluator = threshold_evaluator or ThresholdEvaluator(
-            thresholds=thresholds
-        )
+        self.threshold_evaluator = threshold_evaluator or ThresholdEvaluator(thresholds=thresholds)
         self.logger = logger.bind(component="approval_decision_engine")
 
     async def decide(

@@ -13,7 +13,7 @@ This module provides:
 import asyncio
 import logging
 import os
-from typing import Any, Dict, Generator, Optional
+from typing import Any, Dict, Generator
 
 import pytest
 

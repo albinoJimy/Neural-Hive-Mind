@@ -35,9 +35,7 @@ class Settings(BaseSettings):
     redis_token_ttl: int = int(os.getenv("REDIS_TOKEN_TTL", "3600"))  # 1 hora
 
     # Kafka (erasure commands to other services)
-    kafka_bootstrap_servers: str = os.getenv(
-        "KAFKA_BOOTSTRAP_SERVERS", "localhost:9092"
-    )
+    kafka_bootstrap_servers: str = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
     kafka_erasure_commands_topic: str = os.getenv(
         "KAFKA_ERASURE_COMMANDS_TOPIC", "gdpr.erasure.commands"
     )
@@ -47,28 +45,18 @@ class Settings(BaseSettings):
 
     # Security
     jwt_secret: str = os.getenv("JWT_SECRET", "change-me-in-production")
-    verification_token_salt: str = os.getenv(
-        "VERIFICATION_TOKEN_SALT", "nhm-erasure-salt-2024"
-    )
+    verification_token_salt: str = os.getenv("VERIFICATION_TOKEN_SALT", "nhm-erasure-salt-2024")
 
     # External Services URLs
-    approval_service_url: str = os.getenv(
-        "APPROVAL_SERVICE_URL", "http://localhost:8004"
-    )
-    consensus_engine_url: str = os.getenv(
-        "CONSENSUS_ENGINE_URL", "http://localhost:8002"
-    )
+    approval_service_url: str = os.getenv("APPROVAL_SERVICE_URL", "http://localhost:8004")
+    consensus_engine_url: str = os.getenv("CONSENSUS_ENGINE_URL", "http://localhost:8002")
     execution_ticket_service_url: str = os.getenv(
         "EXECUTION_TICKET_SERVICE_URL", "http://localhost:8009"
     )
-    memory_layer_api_url: str = os.getenv(
-        "MEMORY_LAYER_API_URL", "http://localhost:8012"
-    )
+    memory_layer_api_url: str = os.getenv("MEMORY_LAYER_API_URL", "http://localhost:8012")
 
     # OpenTelemetry
-    otel_endpoint: str = os.getenv(
-        "OTEL_EXPORTER_OTLP_ENDPOINT", "http://localhost:4317"
-    )
+    otel_endpoint: str = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://localhost:4317")
     enable_telemetry: bool = os.getenv("ENABLE_TELEMETRY", "true").lower() == "true"
 
     # Erasure Settings

@@ -144,7 +144,7 @@ class VaultClient:
 
         # Authenticate
         response = await self.client.post(
-            f"/v1/auth/kubernetes/login", json={"role": self.config.kubernetes_role, "jwt": jwt}
+            "/v1/auth/kubernetes/login", json={"role": self.config.kubernetes_role, "jwt": jwt}
         )
         response.raise_for_status()
         data = response.json()
@@ -172,7 +172,7 @@ class VaultClient:
 
         # Authenticate
         response = await self.client.post(
-            f"/v1/auth/jwt/login", json={"role": self.config.kubernetes_role, "jwt": jwt}
+            "/v1/auth/jwt/login", json={"role": self.config.kubernetes_role, "jwt": jwt}
         )
         response.raise_for_status()
         data = response.json()

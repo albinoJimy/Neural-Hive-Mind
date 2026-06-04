@@ -93,7 +93,7 @@ class AlertManagerClient:
             logger.debug("alert_client.disabled", alert_name=alert.alert_name)
             return False
 
-        with _start_span("alert.send") as span:
+        with _start_span("alert.send"):
             success_count = 0
 
             # Enviar para AlertManager

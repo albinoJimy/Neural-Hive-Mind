@@ -149,7 +149,9 @@ class FallbackStorage:
         # Calcular expiração
         expires_at = None
         if ex:
-            expires_at = datetime.now(timezone.utc).replace(microsecond=0)  # MongoDB precisa sem microsegundos
+            expires_at = datetime.now(timezone.utc).replace(
+                microsecond=0
+            )  # MongoDB precisa sem microsegundos
             expires_at = expires_at + timedelta(seconds=ex)
 
         # 1. Escrever no Redis
@@ -387,9 +389,7 @@ class FallbackStorage:
             collection = self.mongodb.db[self.FALLBACK_COLLECTION]
 
             # Buscar dados que ainda não expiraram
-            cursor = collection.find({
-                "expires_at": {"$gt": datetime.now(timezone.utc)}
-            })
+            cursor = collection.find({"expires_at": {"$gt": datetime.now(timezone.utc)}})
 
             restored = 0
             async for doc in cursor:
@@ -403,7 +403,9 @@ class FallbackStorage:
                         # Restaurar para Redis
                         ttl = None
                         if doc.get("expires_at"):
-                            ttl = int((doc["expires_at"] - datetime.now(timezone.utc)).total_seconds())
+                            ttl = int(
+                                (doc["expires_at"] - datetime.now(timezone.utc)).total_seconds()
+                            )
                             if ttl < 0:
                                 continue  # Expirado
 
@@ -455,11 +457,7 @@ class FallbackStorage:
                 document["expires_at"] = expires_at
 
             # Upsert
-            await collection.update_one(
-                {"key": key},
-                {"$set": document},
-                upsert=True
-            )
+            await collection.update_one({"key": key}, {"$set": document}, upsert=True)
 
             return True
 
@@ -488,7 +486,7 @@ class FallbackStorage:
                 # Aplicar range
                 if end == -1:
                     return items[start:]
-                return items[start:end + 1]
+                return items[start : end + 1]
 
             return []
 
@@ -526,7 +524,7 @@ class FallbackStorage:
                         "updated_at": datetime.now(timezone.utc),
                     }
                 },
-                upsert=True
+                upsert=True,
             )
 
             return len(items)
@@ -541,10 +539,7 @@ class FallbackStorage:
             collection = self.mongodb.db[self.FALLBACK_COLLECTION]
             expires_at = datetime.now(timezone.utc) + timedelta(seconds=seconds)
 
-            await collection.update_one(
-                {"key": key},
-                {"$set": {"expires_at": expires_at}}
-            )
+            await collection.update_one({"key": key}, {"$set": {"expires_at": expires_at}})
 
             return True
 
@@ -574,9 +569,7 @@ class FallbackStorage:
     def get_metrics(self) -> dict[str, Any]:
         """Retorna métricas do fallback"""
         total_reads = self._redis_hits + self._fallback_hits
-        fallback_rate = (
-            self._fallback_hits / total_reads if total_reads > 0 else 0.0
-        )
+        fallback_rate = self._fallback_hits / total_reads if total_reads > 0 else 0.0
 
         return {
             "redis_enabled": self._redis_enabled,
@@ -587,9 +580,7 @@ class FallbackStorage:
             "sync_failures": self._sync_failures,
             "total_reads": total_reads,
             "fallback_rate": fallback_rate,
-            "redis_hit_rate": (
-                self._redis_hits / total_reads if total_reads > 0 else 0.0
-            ),
+            "redis_hit_rate": (self._redis_hits / total_reads if total_reads > 0 else 0.0),
         }
 
     def reset_metrics(self):

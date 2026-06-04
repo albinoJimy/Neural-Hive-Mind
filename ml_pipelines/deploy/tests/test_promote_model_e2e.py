@@ -185,10 +185,13 @@ class TestModelPromotionE2E:
         # Criar version file
         version_file = models_dir / "model_version.json"
         with open(version_file, "w") as f:
-            json.dump({
-                "current_version": "v7",
-                "updated_at": "2024-03-01T10:00:00",
-            }, f)
+            json.dump(
+                {
+                    "current_version": "v7",
+                    "updated_at": "2024-03-01T10:00:00",
+                },
+                f,
+            )
 
         return model_path
 
@@ -386,6 +389,7 @@ class TestModelPromotionE2E:
         Testa que backups são listados em ordem decrescente de data.
         """
         import time
+
         models_dir = temp_dirs["models_dir"]
         backup_dir = temp_dirs["backup_dir"]
 
@@ -418,9 +422,7 @@ class TestModelPromotionE2E:
         dates = [b["created_at"] for b in backups]
         assert dates == sorted(dates, reverse=True)
 
-    def test_update_model_version(
-        self, temp_dirs: dict[str, Path]
-    ):
+    def test_update_model_version(self, temp_dirs: dict[str, Path]):
         """Testa atualização de versão do modelo."""
         models_dir = temp_dirs["models_dir"]
 
@@ -440,9 +442,7 @@ class TestModelPromotionE2E:
         assert info_v2["promotion_history"][0]["version"] == "v8"
         assert info_v2["promotion_history"][1]["version"] == "v9"
 
-    def test_validate_model_with_missing_file(
-        self, temp_dirs: dict[str, Path]
-    ):
+    def test_validate_model_with_missing_file(self, temp_dirs: dict[str, Path]):
         """Testa validação com arquivo inexistente."""
         with pytest.raises(ModelValidationError) as exc_info:
             validate_model(
@@ -451,9 +451,7 @@ class TestModelPromotionE2E:
 
         assert "não encontrado" in str(exc_info.value).lower()
 
-    def test_validate_model_with_corrupted_file(
-        self, temp_dirs: dict[str, Path]
-    ):
+    def test_validate_model_with_corrupted_file(self, temp_dirs: dict[str, Path]):
         """Testa validação com arquivo corrompido."""
         corrupted_path = temp_dirs["staging_dir"] / "corrupted.pkl"
 
@@ -465,9 +463,7 @@ class TestModelPromotionE2E:
 
         assert "erro ao carregar" in str(exc_info.value).lower()
 
-    def test_get_current_model_info_when_no_model(
-        self, temp_dirs: dict[str, Path]
-    ):
+    def test_get_current_model_info_when_no_model(self, temp_dirs: dict[str, Path]):
         """Testa get_current_model_info quando não há modelo."""
         models_dir = temp_dirs["models_dir"]
 
@@ -476,9 +472,7 @@ class TestModelPromotionE2E:
         assert "error" in info
         assert info["error"] == "Model file not found"
 
-    def test_backup_when_no_current_model(
-        self, temp_dirs: dict[str, Path]
-    ):
+    def test_backup_when_no_current_model(self, temp_dirs: dict[str, Path]):
         """Testa backup quando não há modelo atual."""
         models_dir = temp_dirs["models_dir"]
         backup_dir = temp_dirs["backup_dir"]
@@ -524,9 +518,7 @@ class TestModelPromotionE2E:
         )
         assert metrics.accuracy == 0.83
 
-    def test_model_metrics_validation(
-        self, temp_dirs: dict[str, Path]
-    ):
+    def test_model_metrics_validation(self, temp_dirs: dict[str, Path]):
         """Testa classe ModelMetrics."""
         # Métricas válidas
         metrics = ModelMetrics(

@@ -5,7 +5,6 @@ from pathlib import Path
 from structlog import get_logger
 
 from neural_hive_llm import LLMClient, LLMProvider, LLMResponse
-
 from src.generators.c4_diagram import C4DiagramGenerator
 from src.generators.mermaid_renderer import MermaidRenderer
 from src.models.architecture import Component
@@ -293,8 +292,12 @@ Responda apenas com o código Mermaid, sem markdown.
             if not settings.llm.provider or not settings.llm.api_key:
                 raise ConnectionError("LLM not configured: provider or api_key missing")
 
-            provider = LLMProvider.OPENAI if settings.llm.provider == "openai" else LLMProvider.ANTHROPIC
-            self._llm_client = LLMClient(provider=provider, api_key=settings.llm.api_key, model="gpt-4")
+            provider = (
+                LLMProvider.OPENAI if settings.llm.provider == "openai" else LLMProvider.ANTHROPIC
+            )
+            self._llm_client = LLMClient(
+                provider=provider, api_key=settings.llm.api_key, model="gpt-4"
+            )
             await self._llm_client.start()
             self._llm_started = True
         elif not self._llm_started:

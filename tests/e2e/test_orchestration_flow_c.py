@@ -20,15 +20,12 @@ import logging
 import os
 import time
 import uuid
-from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional
 
 import pytest
 
 from tests.e2e.utils.status_tracker import (
     FlowCStatusTracker,
     TicketStatusTracker,
-    TicketStatus,
 )
 from tests.e2e.utils.flow_c_validators import (
     validate_ticket_status_transition,
@@ -37,8 +34,6 @@ from tests.e2e.utils.flow_c_validators import (
     validate_telemetry_step_metrics,
     validate_sla_compliance,
     validate_result_structure,
-    validate_dependency_chain,
-    validate_trace_correlation,
 )
 
 logger = logging.getLogger(__name__)
@@ -220,8 +215,6 @@ async def test_c1_to_c6_status_transitions(
     # C6: Validar telemetria
     logger.info("C6: Validando telemetria")
     try:
-        from tests.e2e.utils.kafka_helpers import collect_avro_messages
-
         telemetry_messages = await kafka_test_helper.validate_topic_messages(
             topic="telemetry.orchestration",
             filter_fn=lambda msg: msg.get("plan_id") == plan_id,
@@ -320,7 +313,6 @@ async def test_worker_agent_ticket_processing(
         ], f"Ticket deve terminar com COMPLETED ou FAILED, não {final_status}"
 
         # Validar resultado publicado
-        from tests.e2e.utils.kafka_helpers import wait_for_avro_message
 
         result = await kafka_test_helper.validate_topic_messages(
             topic="execution.results",

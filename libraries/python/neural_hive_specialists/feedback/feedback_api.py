@@ -681,7 +681,6 @@ def _load_batch_model_for_update(specialist_type: str, config: Any) -> Any:
     """
     try:
         import mlflow
-        from mlflow.tracking import MlflowClient
 
         mlflow.set_tracking_uri(config.mlflow_tracking_uri)
         model_name = f"{specialist_type}_specialist"

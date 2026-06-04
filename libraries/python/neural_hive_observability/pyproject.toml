@@ -64,3 +64,15 @@ exclude = ["tests", "tests.*"]
 
 [tool.setuptools.package-data]
 "*" = ["*.yaml", "*.yml", "*.json"]
+
+# Perfil black para compatibilidade entre isort e black (ambos correm no CI)
+[tool.isort]
+profile = "black"
+line_length = 100
+
+# Alinhar com a config root (line-length=100). O CI corre `black --check .` com
+# cwd=esta lib, pelo que black usa ESTE pyproject; sem [tool.black] usaria 88 e
+# divergiria da formatação do repo. Ver #116.
+[tool.black]
+line-length = 100
+target-version = ["py312"]

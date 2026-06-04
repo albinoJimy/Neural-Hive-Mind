@@ -8,7 +8,6 @@ from neural_hive_llm.registry import (
     ModelCapabilities,
     ModelMetadata,
     ModelPricing,
-    ModelRegistry,
     TaskType,
     get_registry,
     reset_registry,
@@ -58,9 +57,7 @@ def test_register_model():
             supports_function_calling=False,
             benchmark_quality_score=0.8,
         ),
-        pricing=ModelPricing(
-            input_price_per_1k_usd=0.001, output_price_per_1k_usd=0.002
-        ),
+        pricing=ModelPricing(input_price_per_1k_usd=0.001, output_price_per_1k_usd=0.002),
         supported_tasks=[TaskType.TEXT_GENERATION],
     )
 

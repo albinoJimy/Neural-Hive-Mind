@@ -6,20 +6,19 @@ a partir das activities do Fluxo G.
 """
 
 import asyncio
-from datetime import timedelta
 from typing import Any
 
 import httpx
 import structlog
 from tenacity import retry, stop_after_attempt, wait_exponential
 
-from neural_hive_observability.context import inject_context_to_metadata
 
 logger = structlog.get_logger(__name__)
 
 
 class CodeForgeClientError(Exception):
     """Erro base do CodeForgeClient."""
+
     pass
 
 

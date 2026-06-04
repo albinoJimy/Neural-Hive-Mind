@@ -9,7 +9,6 @@ Valida fluxo completo:
 """
 
 import pytest
-from unittest.mock import Mock, AsyncMock, patch
 from datetime import datetime, timezone
 
 from neural_hive_context.models import (
@@ -27,7 +26,6 @@ from neural_hive_context.services.workflow_classifier import MultiSignalWorkflow
 from src.consumers.decision_consumer import (
     _get_workflow_type_from_plan,
     _select_workflow_class,
-    DecisionConsumer,
 )
 from src.workflows.orchestration_workflow import OrchestrationWorkflow
 from src.workflows.fluxo_g_workflow import FluxoGWorkflow
@@ -43,12 +41,12 @@ def minimal_context():
             current_time="2026-04-23T10:00:00Z",
             time_of_day="morning",
             day_of_week="Wednesday",
-            is_business_hours=True
+            is_business_hours=True,
         ),
         security=SecurityContext(),
         conversation=ConversationContext(),
         context_id="test-ctx-123",
-        created_at="2026-04-23T10:00:00Z"
+        created_at="2026-04-23T10:00:00Z",
     )
 
 
@@ -78,7 +76,7 @@ class TestContextLayerE2E:
         minimal_context.system.affected_services = [
             "worker-agents",
             "analyst-agents",
-            "optimizer-agents"
+            "optimizer-agents",
         ]
         classifier = MultiSignalWorkflowClassifier()
 
@@ -88,7 +86,10 @@ class TestContextLayerE2E:
         # Assert
         assert classification.workflow_type == WorkflowType.ORCHESTRATION
         # O reasoning deve mencionar análise/coordenação (orçestação)
-        assert "análise" in classification.reasoning.lower() or "coordenação" in classification.reasoning.lower()
+        assert (
+            "análise" in classification.reasoning.lower()
+            or "coordenação" in classification.reasoning.lower()
+        )
 
     def test_cognitive_plan_with_workflow_fields(self):
         """CognitivePlan deve conter campos de workflow."""
@@ -165,7 +166,7 @@ class TestContextLayerE2E:
                 "fallback_used": False,
                 "pheromone_strength": 0.9,
                 "bayesian_confidence": 0.85,
-                "voting_confidence": 0.85
+                "voting_confidence": 0.85,
             },
             "explainability_token": "token-abc",
             "reasoning_summary": "Approve",
@@ -257,7 +258,7 @@ class TestAvroSerialization:
                 "fallback_used": False,
                 "pheromone_strength": 0.9,
                 "bayesian_confidence": 0.85,
-                "voting_confidence": 0.85
+                "voting_confidence": 0.85,
             },
             "explainability_token": "token-abc",
             "reasoning_summary": "Test",

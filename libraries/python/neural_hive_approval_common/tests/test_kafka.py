@@ -22,9 +22,7 @@ class TestApprovalKafkaProducerSettings:
 
     def test_default_settings(self):
         """Test default settings."""
-        settings = ApprovalKafkaProducerSettings(
-            bootstrap_servers="localhost:9092"
-        )
+        settings = ApprovalKafkaProducerSettings(bootstrap_servers="localhost:9092")
 
         assert settings.bootstrap_servers == "localhost:9092"
         assert settings.approval_responses_topic == "plan_approvals_responses"
@@ -151,7 +149,9 @@ class TestApprovalKafkaProducer:
         header_dict = {k: v.decode() if isinstance(v, bytes) else v for k, v in headers}
 
         # Verify custom headers are included
-        assert header_dict["traceparent"] == "00-12345678901234567890123456789012-1234567890123456-01"
+        assert (
+            header_dict["traceparent"] == "00-12345678901234567890123456789012-1234567890123456-01"
+        )
         assert header_dict["correlation-id"] == "corr-123"
 
     @pytest.mark.asyncio()
@@ -190,6 +190,7 @@ class TestApprovalKafkaProducer:
     def test_to_kafka_dict_with_rejection(self):
         """Test Kafka dict for rejection."""
         from datetime import datetime
+
         response = ApprovalResponse(
             plan_id="plan-123",
             intent_id="intent-456",

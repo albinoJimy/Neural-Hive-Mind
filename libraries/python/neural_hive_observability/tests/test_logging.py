@@ -400,7 +400,9 @@ class TestInitLogging:
     def test_init_logging_sets_up_root_logger(self):
         """Testa que init_logging configura root logger."""
         config = ObservabilityConfig(
-            service_name="test-service", neural_hive_component="test-component", log_format="json"
+            service_name="test-service",
+            neural_hive_component="test-component",
+            log_format="json",
         )
 
         init_logging(config)
@@ -411,7 +413,9 @@ class TestInitLogging:
     def test_init_logging_with_debug_level(self):
         """Testa init_logging com nível DEBUG."""
         config = ObservabilityConfig(
-            service_name="test-service", neural_hive_component="test-component", log_level="DEBUG"
+            service_name="test-service",
+            neural_hive_component="test-component",
+            log_level="DEBUG",
         )
 
         init_logging(config)
@@ -500,7 +504,11 @@ class TestLogIntentFunctions:
         logger.logger.setLevel(logging.INFO)
 
         log_intent_completion(
-            logger, intent_id="intent-123", confidence=0.95, processing_duration=1.5, channel="api"
+            logger,
+            intent_id="intent-123",
+            confidence=0.95,
+            processing_duration=1.5,
+            channel="api",
         )
 
         assert len(log_capture.getvalue()) > 0
@@ -538,7 +546,10 @@ class TestLogPlanFunctions:
         logger.logger.setLevel(logging.INFO)
 
         log_plan_execution_start(
-            logger, plan_id="plan-456", intent_id="intent-123", plan_type="data_processing"
+            logger,
+            plan_id="plan-456",
+            intent_id="intent-123",
+            plan_type="data_processing",
         )
 
         assert len(log_capture.getvalue()) > 0

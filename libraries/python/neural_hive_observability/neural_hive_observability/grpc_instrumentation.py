@@ -11,9 +11,13 @@ from typing import Any, Optional
 
 import grpc
 from opentelemetry import trace
-from opentelemetry.baggage import get_all as get_all_baggage, set_baggage
+from opentelemetry.baggage import get_all as get_all_baggage
+from opentelemetry.baggage import set_baggage
 from opentelemetry.context import attach, detach
-from opentelemetry.instrumentation.grpc import GrpcInstrumentorClient, GrpcInstrumentorServer
+from opentelemetry.instrumentation.grpc import (
+    GrpcInstrumentorClient,
+    GrpcInstrumentorServer,
+)
 from opentelemetry.propagate import extract, inject
 from opentelemetry.trace import Status, StatusCode
 
@@ -162,7 +166,9 @@ class NeuralHiveGrpcServerInterceptor(grpc.ServerInterceptor):
         for header, attr in self._header_mapping().items():
             if header in metadata:
                 baggage_ctx = set_baggage(
-                    f"neural.hive.{attr.replace('_', '.')}", metadata[header], baggage_ctx
+                    f"neural.hive.{attr.replace('_', '.')}",
+                    metadata[header],
+                    baggage_ctx,
                 )
 
         return baggage_ctx
@@ -212,7 +218,9 @@ class NeuralHiveGrpcServerInterceptor(grpc.ServerInterceptor):
         }
 
 
-def init_grpc_instrumentation(config: ObservabilityConfig) -> NeuralHiveGrpcServerInterceptor:
+def init_grpc_instrumentation(
+    config: ObservabilityConfig,
+) -> NeuralHiveGrpcServerInterceptor:
     """
     Inicializa instrumentação gRPC para clientes e servidores.
 
@@ -265,7 +273,8 @@ def create_instrumented_grpc_server(
 
 
 def create_instrumented_async_grpc_server(
-    config: ObservabilityConfig, interceptors: Optional[list[grpc.aio.ServerInterceptor]] = None
+    config: ObservabilityConfig,
+    interceptors: Optional[list[grpc.aio.ServerInterceptor]] = None,
 ) -> grpc.aio.Server:
     """
     Cria servidor gRPC assíncrono com interceptors padrão Neural Hive.

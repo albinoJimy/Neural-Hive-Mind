@@ -165,7 +165,9 @@ class ReferenceDataGenerator:
                 action_features[f"action_{secondary_action}"] = 1.0
 
             # Palavras-chave
-            has_backup = 1.0 if primary_action in ["create", "update"] and np.random.random() < 0.3 else 0.0
+            has_backup = (
+                1.0 if primary_action in ["create", "update"] and np.random.random() < 0.3 else 0.0
+            )
             has_verification = 1.0 if np.random.random() < 0.4 else 0.0
             has_all = 1.0 if primary_action == "delete" and np.random.random() < 0.15 else 0.0
 
@@ -246,9 +248,7 @@ class ReferenceDataGenerator:
 
         return stats
 
-    def save_reference_data(
-        self, output_path: Path, output_format: str = "parquet"
-    ) -> dict:
+    def save_reference_data(self, output_path: Path, output_format: str = "parquet") -> dict:
         """
         Salva dados de referência.
 
@@ -316,9 +316,7 @@ class ReferenceDataGenerator:
 
 def main():
     """Função principal."""
-    parser = argparse.ArgumentParser(
-        description="Gerar reference data para drift detector"
-    )
+    parser = argparse.ArgumentParser(description="Gerar reference data para drift detector")
     parser.add_argument(
         "--model-path",
         type=Path,

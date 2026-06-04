@@ -5,7 +5,6 @@ Provides validation functions for MongoDB and PostgreSQL persistence.
 
 import logging
 from dataclasses import dataclass
-from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 import psycopg2
@@ -256,7 +255,7 @@ class PostgreSQLTestHelper:
         """Connect to PostgreSQL."""
         if self._conn is None:
             self._conn = psycopg2.connect(self.connection_uri)
-            logger.info(f"Connected to PostgreSQL")
+            logger.info("Connected to PostgreSQL")
 
     def close(self) -> None:
         """Close PostgreSQL connection."""

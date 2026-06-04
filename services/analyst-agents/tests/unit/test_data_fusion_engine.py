@@ -4,7 +4,7 @@ Testes unitários para DataFusionEngine.
 Testes simplificados que focam na lógica de fusão de dados.
 """
 
-from datetime import datetime, timezone
+from datetime import datetime
 from unittest.mock import Mock
 
 import pytest

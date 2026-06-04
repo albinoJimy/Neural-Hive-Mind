@@ -9,9 +9,7 @@ Valida:
 """
 
 import pytest
-import grpc
-import asyncio
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 

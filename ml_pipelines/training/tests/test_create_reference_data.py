@@ -7,7 +7,6 @@ FASE 0 - IA/ML Integration (TICKET 2.3)
 import os
 import pickle
 import tempfile
-from unittest.mock import patch
 
 import pytest
 
@@ -316,7 +315,7 @@ class TestRealBaselineFile:
 
     @pytest.mark.skipif(
         not os.path.exists("ml_models/approval_v7_reference.pkl"),
-        reason="Baseline file not created yet"
+        reason="Baseline file not created yet",
     )
     def test_real_baseline_file_exists(self):
         """Arquivo de baseline real deve existir."""
@@ -324,7 +323,7 @@ class TestRealBaselineFile:
 
     @pytest.mark.skipif(
         not os.path.exists("ml_models/approval_v7_reference.pkl"),
-        reason="Baseline file not created yet"
+        reason="Baseline file not created yet",
     )
     def test_real_baseline_can_be_loaded(self):
         """Arquivo de baseline real deve ser carregável."""
@@ -337,7 +336,7 @@ class TestRealBaselineFile:
 
     @pytest.mark.skipif(
         not os.path.exists("ml_models/approval_v7_reference.pkl"),
-        reason="Baseline file not created yet"
+        reason="Baseline file not created yet",
     )
     def test_real_baseline_has_required_features(self):
         """Baseline real deve ter todas as features requeridas."""

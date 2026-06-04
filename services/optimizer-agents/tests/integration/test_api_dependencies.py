@@ -12,12 +12,12 @@ mock_neural_hive.proto_stubs.service_registry_pb2 = MagicMock()
 mock_neural_hive.proto_stubs.service_registry_pb2_grpc = MagicMock()
 sys.modules["neural_hive_integration"] = mock_neural_hive
 sys.modules["neural_hive_integration.proto_stubs"] = mock_neural_hive.proto_stubs
-sys.modules["neural_hive_integration.proto_stubs.service_registry_pb2"] = (
-    mock_neural_hive.proto_stubs.service_registry_pb2
-)
-sys.modules["neural_hive_integration.proto_stubs.service_registry_pb2_grpc"] = (
-    mock_neural_hive.proto_stubs.service_registry_pb2_grpc
-)
+sys.modules[
+    "neural_hive_integration.proto_stubs.service_registry_pb2"
+] = mock_neural_hive.proto_stubs.service_registry_pb2
+sys.modules[
+    "neural_hive_integration.proto_stubs.service_registry_pb2_grpc"
+] = mock_neural_hive.proto_stubs.service_registry_pb2_grpc
 
 # Mock neural_hive_ml e submodules
 mock_neural_hive_ml = MagicMock()
@@ -27,9 +27,9 @@ mock_neural_hive_ml.predictive_models.model_registry = MagicMock()
 mock_neural_hive_ml.predictive_models.model_registry.ModelRegistry = MagicMock()
 sys.modules["neural_hive_ml"] = mock_neural_hive_ml
 sys.modules["neural_hive_ml.predictive_models"] = mock_neural_hive_ml.predictive_models
-sys.modules["neural_hive_ml.predictive_models.model_registry"] = (
-    mock_neural_hive_ml.predictive_models.model_registry
-)
+sys.modules[
+    "neural_hive_ml.predictive_models.model_registry"
+] = mock_neural_hive_ml.predictive_models.model_registry
 
 # Mock prophet
 mock_prophet = MagicMock()

@@ -138,7 +138,8 @@ class OTELPipelineHealthCheck(HealthCheck):
             async with aiohttp.ClientSession() as session:
                 try:
                     async with session.get(
-                        health_url, timeout=aiohttp.ClientTimeout(total=self.timeout_seconds)
+                        health_url,
+                        timeout=aiohttp.ClientTimeout(total=self.timeout_seconds),
                     ) as response:
                         if response.status == 200:
                             return True
@@ -149,7 +150,8 @@ class OTELPipelineHealthCheck(HealthCheck):
                 metrics_url = self._http_endpoint.replace(":4318", ":8888").rstrip("/") + "/metrics"
                 try:
                     async with session.get(
-                        metrics_url, timeout=aiohttp.ClientTimeout(total=self.timeout_seconds)
+                        metrics_url,
+                        timeout=aiohttp.ClientTimeout(total=self.timeout_seconds),
                     ) as response:
                         return response.status == 200
                 except aiohttp.ClientError:
@@ -203,7 +205,10 @@ class OTELPipelineHealthCheck(HealthCheck):
                 {
                     "resource": {
                         "attributes": [
-                            {"key": "service.name", "value": {"stringValue": self.service_name}},
+                            {
+                                "key": "service.name",
+                                "value": {"stringValue": self.service_name},
+                            },
                             {"key": "health.check", "value": {"stringValue": "true"}},
                         ]
                     },
@@ -271,7 +276,8 @@ class OTELCollectorMetricsHealthCheck(HealthCheck):
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.get(
-                    self.metrics_endpoint, timeout=aiohttp.ClientTimeout(total=self.timeout_seconds)
+                    self.metrics_endpoint,
+                    timeout=aiohttp.ClientTimeout(total=self.timeout_seconds),
                 ) as response:
                     if response.status != 200:
                         return self._create_result(
@@ -426,5 +432,7 @@ class JaegerHealthCheck(HealthCheck):
             )
         except Exception as e:
             return self._create_result(
-                HealthStatus.UNHEALTHY, f"Error checking Jaeger: {e!s}", start_time=start_time
+                HealthStatus.UNHEALTHY,
+                f"Error checking Jaeger: {e!s}",
+                start_time=start_time,
             )

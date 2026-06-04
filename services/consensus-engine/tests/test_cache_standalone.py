@@ -8,7 +8,6 @@ Estes testes não dependem do conftest.py complexo.
 import os
 import sys
 from pathlib import Path
-from datetime import datetime, timezone
 from enum import Enum
 from unittest.mock import AsyncMock, MagicMock
 
@@ -24,11 +23,13 @@ src_path = Path(__file__).parent.parent / "src"
 if str(src_path) not in sys.path:
     sys.path.insert(0, str(src_path))
 
+
 # Mocks necessários
 class UnifiedDomain(str, Enum):
     BUSINESS = "BUSINESS"
     TECHNICAL = "TECHNICAL"
     SECURITY = "SECURITY"
+
 
 mock_domain = MagicMock()
 mock_domain.UnifiedDomain = UnifiedDomain
@@ -175,8 +176,12 @@ class TestCacheAsideService:
         client = MagicMock(spec=RedisClient)
         client.is_enabled = MagicMock(return_value=True)
         client.build_key_plan_approval = MagicMock(return_value="cache:plan_approval:test")
-        client.build_key_consensus_decision = MagicMock(return_value="cache:consensus_decision:test")
-        client.build_key_specialist_status = MagicMock(return_value="cache:specialist_status:business")
+        client.build_key_consensus_decision = MagicMock(
+            return_value="cache:consensus_decision:test"
+        )
+        client.build_key_specialist_status = MagicMock(
+            return_value="cache:specialist_status:business"
+        )
         client.get = AsyncMock(return_value=None)
         client.set = AsyncMock(return_value=True)
         client.delete = AsyncMock(return_value=True)

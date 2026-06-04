@@ -15,8 +15,6 @@ import pytest
 import structlog
 from typing import Dict, List, Set
 from dataclasses import dataclass, field
-from datetime import datetime
-from collections import defaultdict
 import json
 
 try:

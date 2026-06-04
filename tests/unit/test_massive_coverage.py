@@ -5,7 +5,6 @@ GAP-04: Cobertura de Testes 16% → 70%
 Testes simples focados em aumentar contagem e cobertura.
 """
 
-import pytest
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 

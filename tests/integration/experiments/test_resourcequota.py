@@ -144,9 +144,7 @@ class TestExperimentsResourceQuota:
         assert "persistentvolumeclaims" in hard
         assert hard["persistentvolumeclaims"] == "5"
 
-    def test_resourcequota_can_be_created(
-        self, k8s_core_client, test_experiments_namespace
-    ):
+    def test_resourcequota_can_be_created(self, k8s_core_client, test_experiments_namespace):
         """
         Testa que a ResourceQuota pode ser criada no namespace.
 
@@ -211,9 +209,7 @@ class TestExperimentsResourceQuota:
                 hard={"pods": "2"},
             ),
         )
-        k8s_core_client.create_namespaced_resource_quota(
-            namespace=namespace_name, body=quota
-        )
+        k8s_core_client.create_namespaced_resource_quota(namespace=namespace_name, body=quota)
 
         # Criar 2 pods com sucesso
         for i in range(2):
@@ -249,9 +245,7 @@ class TestExperimentsResourceQuota:
         )
 
         with pytest.raises(ApiException) as exc_info:
-            k8s_core_client.create_namespaced_pod(
-                namespace=namespace_name, body=pod3
-            )
+            k8s_core_client.create_namespaced_pod(namespace=namespace_name, body=pod3)
 
         assert exc_info.value.status == 403
         assert "exceeded quota" in str(exc_info.value.body).lower()
@@ -266,9 +260,7 @@ class TestExperimentsResourceQuota:
             name="pod-limit-quota", namespace=namespace_name
         )
 
-    def test_resourcequota_tracks_usage(
-        self, k8s_core_client, test_experiments_namespace
-    ):
+    def test_resourcequota_tracks_usage(self, k8s_core_client, test_experiments_namespace):
         """
         Testa que a quota rastreia o uso de recursos.
 
@@ -291,9 +283,7 @@ class TestExperimentsResourceQuota:
                 },
             ),
         )
-        k8s_core_client.create_namespaced_resource_quota(
-            namespace=namespace_name, body=quota
-        )
+        k8s_core_client.create_namespaced_resource_quota(namespace=namespace_name, body=quota)
 
         # Criar pod com recursos específicos
         pod = client.V1Pod(
@@ -326,16 +316,12 @@ class TestExperimentsResourceQuota:
         assert int(quota_status.status.used["pods"]) >= 1
 
         # Cleanup
-        k8s_core_client.delete_namespaced_pod(
-            name="usage-pod", namespace=namespace_name
-        )
+        k8s_core_client.delete_namespaced_pod(name="usage-pod", namespace=namespace_name)
         k8s_core_client.delete_namespaced_resource_quota(
             name="usage-tracking-quota", namespace=namespace_name
         )
 
-    def test_resourcequota_scopes(
-        self, k8s_core_client, test_experiments_namespace
-    ):
+    def test_resourcequota_scopes(self, k8s_core_client, test_experiments_namespace):
         """
         Testa que os scopes da quota são aplicados corretamente.
 
@@ -355,9 +341,7 @@ class TestExperimentsResourceQuota:
                 scopes=["NotTerminating"],
             ),
         )
-        k8s_core_client.create_namespaced_resource_quota(
-            namespace=namespace_name, body=quota
-        )
+        k8s_core_client.create_namespaced_resource_quota(namespace=namespace_name, body=quota)
 
         # Pod terminável (com activeDeadlineSeconds) não conta para quota
         terminating_pod = client.V1Pod(
@@ -374,14 +358,10 @@ class TestExperimentsResourceQuota:
         )
 
         # Este pod deve ser criado mesmo sem quota disponível
-        k8s_core_client.create_namespaced_pod(
-            namespace=namespace_name, body=terminating_pod
-        )
+        k8s_core_client.create_namespaced_pod(namespace=namespace_name, body=terminating_pod)
 
         # Cleanup
-        k8s_core_client.delete_namespaced_pod(
-            name="terminating-pod", namespace=namespace_name
-        )
+        k8s_core_client.delete_namespaced_pod(name="terminating-pod", namespace=namespace_name)
         k8s_core_client.delete_namespaced_resource_quota(
             name="scope-quota", namespace=namespace_name
         )
@@ -394,9 +374,7 @@ class TestExperimentsResourceQuotaNegative:
     Testes negativos para o ResourceQuota de experimentos.
     """
 
-    def test_resourcequota_cpu_exceed_fails(
-        self, k8s_core_client, test_experiments_namespace
-    ):
+    def test_resourcequota_cpu_exceed_fails(self, k8s_core_client, test_experiments_namespace):
         """
         Testa que exceder quota de CPU falha.
 
@@ -415,9 +393,7 @@ class TestExperimentsResourceQuotaNegative:
                 hard={"limits.cpu": "1"},
             ),
         )
-        k8s_core_client.create_namespaced_resource_quota(
-            namespace=namespace_name, body=quota
-        )
+        k8s_core_client.create_namespaced_resource_quota(namespace=namespace_name, body=quota)
 
         # Tentar criar pod que excede quota
         pod = client.V1Pod(
@@ -436,13 +412,9 @@ class TestExperimentsResourceQuotaNegative:
         )
 
         with pytest.raises(ApiException) as exc_info:
-            k8s_core_client.create_namespaced_pod(
-                namespace=namespace_name, body=pod
-            )
+            k8s_core_client.create_namespaced_pod(namespace=namespace_name, body=pod)
 
         assert exc_info.value.status == 403
 
         # Cleanup
-        k8s_core_client.delete_namespaced_resource_quota(
-            name="cpu-quota", namespace=namespace_name
-        )
+        k8s_core_client.delete_namespaced_resource_quota(name="cpu-quota", namespace=namespace_name)

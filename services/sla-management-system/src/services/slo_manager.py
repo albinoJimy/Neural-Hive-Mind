@@ -15,6 +15,7 @@ from ..models.slo_definition import SLIQuery, SLODefinition
 
 if TYPE_CHECKING:
     from ..clients.kubernetes_client import KubernetesClient
+    from ..models.slo_definition import SLOType
 
 # Metricas para sincronizacao de CRDs
 sla_crd_sync_total = Counter("sla_crd_sync_total", "Total de sincronizacoes de CRDs", ["status"])
@@ -146,8 +147,6 @@ class SLOManager:
                     expr = rule.get("expr", "")
 
                     # Criar SLO
-                    from ..models.slo_definition import SLIQuery
-
                     slo = SLODefinition(
                         name=slo_name,
                         description=rule.get("annotations", {}).get("description", ""),

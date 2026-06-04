@@ -539,7 +539,9 @@ class TestHelpers:
         )
 
         # Dados insuficientes
-        invalid_data = [{"timestamp": datetime.now(timezone.utc), "ticket_count": 50} for _ in range(10)]
+        invalid_data = [
+            {"timestamp": datetime.now(timezone.utc), "ticket_count": 50} for _ in range(10)
+        ]
 
         result = predictor._validate_data_quality(invalid_data)
 

@@ -449,9 +449,9 @@ async def health_check(include_services: bool = False) -> dict[str, Any]:
 
             if result == 0:
                 status["components"]["queen_agent"] = "healthy"
-                status["queen_agent_connection"] = (
-                    f"{settings.queen_agent_host}:{settings.queen_agent_port}"
-                )
+                status[
+                    "queen_agent_connection"
+                ] = f"{settings.queen_agent_host}:{settings.queen_agent_port}"
             else:
                 status["components"]["queen_agent"] = "unreachable"
                 status["status"] = "degraded"

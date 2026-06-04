@@ -5,12 +5,9 @@ Mantém compatibilidade com a API existente do architect-agent enquanto usa
 a biblioteca centralizada neural_hive_llm internamente.
 """
 
-from typing import Optional
-
 import structlog
 
-from neural_hive_llm import LLMClient as NeuralHiveLLMClient
-from neural_hive_llm import LLMProvider, LLMResponse
+from neural_hive_llm import LLMClient as NeuralHiveLLMClient, LLMProvider, LLMResponse
 from src.config.settings import get_settings
 
 logger = structlog.get_logger()
@@ -34,7 +31,7 @@ class LLMClient:
         self.max_tokens = settings.llm.max_tokens
 
         # Criar cliente neural_hive_llm interno
-        self._client: Optional[NeuralHiveLLMClient] = None
+        self._client: NeuralHiveLLMClient | None = None
 
     async def generate(self, prompt: str, system_prompt: str | None = None) -> str:
         """Gera resposta do LLM.

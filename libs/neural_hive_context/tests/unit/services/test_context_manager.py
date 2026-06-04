@@ -3,13 +3,12 @@ Testes para ContextManagerService.
 """
 
 import pytest
-from unittest.mock import AsyncMock, Mock
+from unittest.mock import AsyncMock
 
 from neural_hive_context.services.context_manager import ContextManagerService
 from neural_hive_context.services.workflow_classifier import MultiSignalWorkflowClassifier
 from neural_hive_context.models import (
     RichContext,
-    SystemContext,
     WorkflowType,
 )
 
@@ -131,9 +130,7 @@ class TestContextManagerService:
         }
 
         # Enriquecer
-        enriched = await context_manager.enrich_cognitive_plan(
-            base_plan, context, classification
-        )
+        enriched = await context_manager.enrich_cognitive_plan(base_plan, context, classification)
 
         # Verificar campos adicionados
         assert "workflow_type" in enriched
@@ -179,12 +176,15 @@ class TestContextManagerService:
             intent_id="intent-temporal",
         )
 
-        assert context.temporal.time_of_day in [
-            "morning", "afternoon", "evening", "night"
-        ]
+        assert context.temporal.time_of_day in ["morning", "afternoon", "evening", "night"]
         assert context.temporal.day_of_week in [
-            "Monday", "Tuesday", "Wednesday", "Thursday",
-            "Friday", "Saturday", "Sunday"
+            "Monday",
+            "Tuesday",
+            "Wednesday",
+            "Thursday",
+            "Friday",
+            "Saturday",
+            "Sunday",
         ]
         assert isinstance(context.temporal.is_business_hours, bool)
 
@@ -237,9 +237,7 @@ class TestContextManagerService:
         )
 
         # Simular múltiplos serviços afetados
-        context.system.affected_services = [
-            "worker-agents", "analyst-agents", "optimizer-agents"
-        ]
+        context.system.affected_services = ["worker-agents", "analyst-agents", "optimizer-agents"]
 
         classification = await context_manager.classify_workflow(context)
 

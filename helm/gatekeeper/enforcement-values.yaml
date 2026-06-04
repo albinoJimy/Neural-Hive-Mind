@@ -24,8 +24,16 @@ gatekeeper:
   metricsBackends: ["prometheus"]
 
   validatingWebhookFailurePolicy: Fail
-  mutatingWebhookFailurePolicy: Fail
+  validatingWebhookTimeoutSeconds: 3
+  mutatingWebhookFailurePolicy: Ignore
+  mutatingWebhookTimeoutSeconds: 3
 
-  enableMutatingWebhook: false
+  # REMEDIAÇÃO P0: `enableMutatingWebhook` não existe no subchart (config
+  # morta). Desligar a mutação por completo via `disableMutation` (não há
+  # mutators no cluster) elimina o MutatingWebhookConfiguration catch-all "*".
+  disableMutation: true
 
-  auditInterval: 60
+  # Audit eficiente para não martelar o etcd em modo enforcement.
+  auditFromCache: true
+  auditMatchKindOnly: true
+  auditInterval: 300

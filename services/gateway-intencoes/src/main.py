@@ -37,6 +37,7 @@ from middleware.auth_middleware import (
 from middleware.rate_limiter import RateLimiter
 from models.intent_envelope import IntentEnvelope, IntentRequest
 from pipelines.asr_pipeline import ASRPipeline
+
 # T11: Usar NLU Service via gRPC em vez de implementação local
 from pipelines.nlu_pipeline_service import NLUPipeline
 
@@ -50,7 +51,9 @@ try:
 
     # HealthManager é alias para HealthChecker que sempre requer ObservabilityConfig
     try:
-        from neural_hive_observability.config import ObservabilityConfig
+        from neural_hive_observability.config import (  # noqa: F401 - deteção de feature
+            ObservabilityConfig,
+        )
         from neural_hive_observability.health import (
             CustomHealthCheck,
             HealthManager,
@@ -61,7 +64,6 @@ try:
         HEALTH_MANAGER_NEEDS_CONFIG = True
     except ImportError:
         # Fallback para versão antiga sem HealthManager exportado diretamente
-        from neural_hive_observability.config import ObservabilityConfig
         from neural_hive_observability.health import (
             HealthChecker as HealthManager,
             HealthStatus,
@@ -72,7 +74,7 @@ try:
         import asyncio
         import time as _time
 
-        from neural_hive_observability.health import HealthCheck, HealthCheckResult
+        from neural_hive_observability.health import HealthCheck
 
         class RedisHealthCheck(HealthCheck):
             def __init__(self, name="redis", connection_check=None):
@@ -128,7 +130,9 @@ try:
         record_too_large_counter,
     )
 
-    from neural_hive_observability.health_checks.otel import OTELPipelineHealthCheck
+    from neural_hive_observability.health_checks.otel import (  # noqa: F401 - import usado como deteção de feature (OTEL_HEALTH_CHECK_AVAILABLE)
+        OTELPipelineHealthCheck,
+    )
 
     OBSERVABILITY_AVAILABLE = True
     OTEL_HEALTH_CHECK_AVAILABLE = True
@@ -270,9 +274,13 @@ class LoopbackAwareTrustedHostMiddleware(BaseHTTPMiddleware):
         # Isso garante que health probes do Kubernetes funcionem
         # O kubelet usa IPs da rede pod para fazer probes
         if (
-            host.startswith("10.") or
-            (host.startswith("172.") and len(host.split(".")) == 4 and 16 <= int(host.split(".")[1]) <= 31) or
-            host.startswith("192.168.")
+            host.startswith("10.")
+            or (
+                host.startswith("172.")
+                and len(host.split(".")) == 4
+                and 16 <= int(host.split(".")[1]) <= 31
+            )
+            or host.startswith("192.168.")
         ):
             return await call_next(request)
 
@@ -402,7 +410,9 @@ app.add_middleware(
 
 # Middleware de hosts confiáveis - usa propriedade que retorna hosts seguros por ambiente
 # LoopbackAwareTrustedHostMiddleware permite IPs de loopback (127.x) e rede pod (10.x) para Kubernetes probes
-app.add_middleware(LoopbackAwareTrustedHostMiddleware, allowed_hosts=settings.allowed_hosts_property)
+app.add_middleware(
+    LoopbackAwareTrustedHostMiddleware, allowed_hosts=settings.allowed_hosts_property
+)
 
 # W3C Trace Context middleware para propagação de contexto distribuído
 if OBSERVABILITY_AVAILABLE:

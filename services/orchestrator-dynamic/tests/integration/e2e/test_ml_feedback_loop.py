@@ -245,7 +245,9 @@ def test_config():
     config.temporal_workflow_id_prefix = "workflow-"
     config.temporal_task_queue = "orchestrator-task-queue"
     config.ml_drift_check_enabled = True
-    config.drift_reference_dataset_path = "ml_pipelines/training/reference_data/approval_v7_reference.pkl"
+    config.drift_reference_dataset_path = (
+        "ml_pipelines/training/reference_data/approval_v7_reference.pkl"
+    )
     return config
 
 
@@ -362,6 +364,7 @@ class TestMLFeedbackLoopE2E:
             existing_production.unlink()
         # Copiar o modelo v7 como "v8 existente" para testar backup
         import shutil
+
         existing_production.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy(sample_production_model, existing_production)
 
@@ -435,7 +438,11 @@ class TestMLFeedbackLoopE2E:
 
         # Verificar que promoção foi rejeitada
         assert result.success is False
-        assert "Accuracy" in result.failure_reason or "F1" in result.failure_reason or "Drift" in result.failure_reason
+        assert (
+            "Accuracy" in result.failure_reason
+            or "F1" in result.failure_reason
+            or "Drift" in result.failure_reason
+        )
 
         # Verificar que modelo antigo ainda está em produção
         production_model_v7 = temp_ml_dir / "production" / "approval_model_v7.pkl"
@@ -653,9 +660,7 @@ class TestRetrainLoopE2E:
         # PASSO 4: Simular resultado do retrain (chamar o side_effect diretamente)
         call_args = drift_retrain_connector.trigger_retrain_if_needed.call_args
         drift_alert = call_args[0][0]  # Primeiro argumento é DriftAlert
-        retrain_response = await drift_retrain_connector.trigger_retrain_if_needed(
-            drift_alert
-        )
+        retrain_response = await drift_retrain_connector.trigger_retrain_if_needed(drift_alert)
 
         assert retrain_response["retrain_completed"] is True
         assert retrain_response["metrics_after"]["accuracy"] == 0.89

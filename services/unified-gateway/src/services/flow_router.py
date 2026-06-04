@@ -1,11 +1,10 @@
 """Flow Router para proxy de requests para gateways específicos."""
 
 import logging
-from enum import Enum
 from typing import Any
 
 import httpx
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 from src.config.settings import get_settings
 from src.models.classification import ClassificationDecision, FlowType
@@ -130,10 +129,6 @@ class FlowRouter:
             ValueError: Se FlowType não suportado
             RuntimeError: Se todos os gateways estiverem down
         """
-        import time
-
-        start_time = time.time()
-
         # Obter configuração do gateway para o flow type
         gateway_config = self.GATEWAY_CONFIGS.get(decision.flow_type)
         if gateway_config is None:
@@ -155,17 +150,13 @@ class FlowRouter:
                 body=request_body,
             )
 
-            processing_time_ms = int((time.time() - start_time) * 1000)
-
             return response["status_code"], response["headers"], response["body"]
 
         except httpx.TimeoutException:
-            processing_time_ms = int((time.time() - start_time) * 1000)
             logger.error(f"Timeout routing to {target_url}")
             raise
 
         except httpx.HTTPError as e:
-            processing_time_ms = int((time.time() - start_time) * 1000)
             logger.error(f"HTTP error routing to {target_url}: {e}")
             raise
 
@@ -204,7 +195,9 @@ class FlowRouter:
         except (httpx.HTTPError, ValueError) as e:
             # Tentar flow alternativo se disponível
             if decision.alternative and decision.alternative != decision.flow_type:
-                logger.info(f"Primary flow {decision.flow_type} failed, trying alternative {decision.alternative}")
+                logger.info(
+                    f"Primary flow {decision.flow_type} failed, trying alternative {decision.alternative}"
+                )
 
                 alternative_decision = ClassificationDecision(
                     flow_type=decision.alternative,
@@ -224,14 +217,14 @@ class FlowRouter:
                     )
 
                 except Exception as fallback_error:
-                    logger.error(f"Alternative flow {decision.alternative} also failed: {fallback_error}")
+                    logger.error(
+                        f"Alternative flow {decision.alternative} also failed: {fallback_error}"
+                    )
                     raise
 
             raise
 
-    def _build_target_url(
-        self, base_url: str, path: str, query: str | None = None
-    ) -> str:
+    def _build_target_url(self, base_url: str, path: str, query: str | None = None) -> str:
         """Constrói URL alvo."""
         # Remover trailing slash do base_url
         base = base_url.rstrip("/")
@@ -284,11 +277,7 @@ class FlowRouter:
             "keep-alive",
         }
 
-        return {
-            k: v
-            for k, v in headers.items()
-            if k.lower() not in filtered_out
-        }
+        return {k: v for k, v in headers.items() if k.lower() not in filtered_out}
 
     async def _is_gateway_healthy(self, flow_type: FlowType) -> bool:
         """Verifica saúde do gateway (cache simples)."""

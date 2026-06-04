@@ -53,7 +53,7 @@ async def test_flow_c_trace_propagation():
     """
 
     # Log configuração do teste
-    print(f"Configuração do teste:")
+    print("Configuração do teste:")
     print(f"  Gateway URL: {GATEWAY_URL}")
     print(f"  Jaeger URL: {JAEGER_QUERY_URL}")
     print()
@@ -167,7 +167,7 @@ async def test_flow_c_trace_propagation():
     assert (
         len(error_spans) == 0
     ), f"Spans com erro detectados: {[s['operationName'] for s in error_spans]}"
-    print(f"✅ Nenhum span com erro detectado")
+    print("✅ Nenhum span com erro detectado")
 
     # 8. Validar latências razoáveis (< 60s para cada span)
     for span in spans:
@@ -176,9 +176,9 @@ async def test_flow_c_trace_propagation():
         assert (
             duration_s < 60
         ), f"Span {span['operationName']} com latência excessiva: {duration_s:.2f}s"
-    print(f"✅ Latências validadas (todas < 60s)")
+    print("✅ Latências validadas (todas < 60s)")
 
-    print(f"\n🎉 Teste E2E de tracing concluído com sucesso!")
+    print("\n🎉 Teste E2E de tracing concluído com sucesso!")
     print(f"   Trace ID: {trace_id}")
     print(f"   Intent ID: {intent_id}")
     print(f"   Services: {len(found_services)}")

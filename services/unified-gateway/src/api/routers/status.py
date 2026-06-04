@@ -4,13 +4,12 @@ Implementa GET /api/v1/nhm/status/{request_id} conforme gap identificado na spec
 Permite aos clientes consultarem o status de requests processados.
 """
 
-import uuid
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Any
 
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 from src.middleware import get_auth_context_optional
 from src.services.redis_client import get_redis_client

@@ -52,7 +52,7 @@ async def lifespan(app: FastAPI):
 
     # Inicializar Kafka Consumer
     _kafka_consumer = CognitivePlanConsumer(
-        requirements_engineer=_requirements_engineer,
+        requirements_engineer=requirements_engineer,
         producer=_kafka_producer,
     )
     await _kafka_consumer.start()

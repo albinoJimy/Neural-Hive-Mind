@@ -24,12 +24,8 @@ class WorkflowSignal(BaseModel):
 
     name: str = Field(..., description="Nome do sinal")
     value: float = Field(..., ge=0.0, le=1.0, description="Valor normalizado do sinal")
-    weight: float = Field(
-        ..., ge=0.0, le=1.0, description="Peso do sinal no cálculo final"
-    )
-    contribution: float = Field(
-        ..., description="Contribuição ponderada (value * weight)"
-    )
+    weight: float = Field(..., ge=0.0, le=1.0, description="Peso do sinal no cálculo final")
+    contribution: float = Field(..., description="Contribuição ponderada (value * weight)")
     description: Optional[str] = Field(None, description="Descrição do sinal")
 
 
@@ -45,19 +41,13 @@ class WorkflowClassification(BaseModel):
         ..., description="Workflow classificado (ORCHESTRATION ou GENERATION)"
     )
     confidence: float = Field(
-        ...,
-        ge=0.0,
-        le=1.0,
-        description="Confiança da classificação (0.0 a 1.0)"
+        ..., ge=0.0, le=1.0, description="Confiança da classificação (0.0 a 1.0)"
     )
     reasoning: str = Field(..., description="Explicação em linguagem natural da decisão")
     signals: Dict[str, Any] = Field(
-        default_factory=dict,
-        description="Sinais extraídos e seus valores brutos"
+        default_factory=dict, description="Sinais extraídos e seus valores brutos"
     )
-    raw_score: float = Field(
-        ..., description="Score bruto calculado (antes da decisão binária)"
-    )
+    raw_score: float = Field(..., description="Score bruto calculado (antes da decisão binária)")
 
     model_config = ConfigDict(use_enum_values=True)
 

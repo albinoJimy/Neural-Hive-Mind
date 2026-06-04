@@ -100,21 +100,19 @@ class CognitivePlan(BaseModel):
     # Workflow classification fields (Context Layer)
     workflow_type: WorkflowType = Field(
         default=WorkflowType.ORCHESTRATION,
-        description="Tipo de workflow a executar (ORCHESTRATION ou GENERATION)"
+        description="Tipo de workflow a executar (ORCHESTRATION ou GENERATION)",
     )
     context_id: str | None = Field(
-        None,
-        description="ID do contexto de decisão para rastreabilidade"
+        None, description="ID do contexto de decisão para rastreabilidade"
     )
     workflow_confidence: float = Field(
         default=0.5,
         ge=0.0,
         le=1.0,
-        description="Confiança da classificação do workflow (0.0 a 1.0)"
+        description="Confiança da classificação do workflow (0.0 a 1.0)",
     )
     workflow_reasoning: str | None = Field(
-        None,
-        description="Explicação da decisão de classificação do workflow"
+        None, description="Explicação da decisão de classificação do workflow"
     )
 
     # DAG of tasks

@@ -10,7 +10,6 @@ Uso:
     pytest tests/integration/test_phase2_integration.py -v -k "test_http"
 """
 
-import asyncio
 import os
 import subprocess
 import json

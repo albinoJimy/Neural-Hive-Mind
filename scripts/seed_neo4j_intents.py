@@ -34,7 +34,6 @@ Uso:
 
 import argparse
 import sys
-import time
 import asyncio
 from typing import Dict, List, Any
 from pymongo import MongoClient

@@ -67,11 +67,13 @@ async def _status_event_generator(
     start_time = asyncio.get_event_loop().time()
 
     # Evento inicial
-    yield await _generate_sse(StreamEvent(
-        event="connected",
-        data={"request_id": request_id, "message": "Stream connected"},
-        retry=3000,  # Cliente deve reconectar após 3s
-    ))
+    yield await _generate_sse(
+        StreamEvent(
+            event="connected",
+            data={"request_id": request_id, "message": "Stream connected"},
+            retry=3000,  # Cliente deve reconectar após 3s
+        )
+    )
 
     last_status = None
     completed = False
@@ -80,10 +82,12 @@ async def _status_event_generator(
         # Verificar timeout
         elapsed = asyncio.get_event_loop().time() - start_time
         if elapsed > timeout_seconds:
-            yield await _generate_sse(StreamEvent(
-                event="timeout",
-                data={"request_id": request_id, "message": "Stream timeout"},
-            ))
+            yield await _generate_sse(
+                StreamEvent(
+                    event="timeout",
+                    data={"request_id": request_id, "message": "Stream timeout"},
+                )
+            )
             break
 
         try:
@@ -104,24 +108,30 @@ async def _status_event_generator(
                         # Determinar tipo de evento
                         status_value = status_data.get("status")
                         if status_value == "completed":
-                            yield await _generate_sse(StreamEvent(
-                                event="completed",
-                                data=status_data,
-                            ))
+                            yield await _generate_sse(
+                                StreamEvent(
+                                    event="completed",
+                                    data=status_data,
+                                )
+                            )
                             completed = True
                             break
                         elif status_value == "failed":
-                            yield await _generate_sse(StreamEvent(
-                                event="error",
-                                data=status_data,
-                            ))
+                            yield await _generate_sse(
+                                StreamEvent(
+                                    event="error",
+                                    data=status_data,
+                                )
+                            )
                             completed = True
                             break
                         elif status_value == "processing":
-                            yield await _generate_sse(StreamEvent(
-                                event="status",
-                                data=status_data,
-                            ))
+                            yield await _generate_sse(
+                                StreamEvent(
+                                    event="status",
+                                    data=status_data,
+                                )
+                            )
 
         except Exception as e:
             logger.warning(
@@ -132,19 +142,23 @@ async def _status_event_generator(
 
         # Se não completado, enviar keep-alive e continuar
         if not completed:
-            yield await _generate_sse(StreamEvent(
-                event="keep-alive",
-                data={"timestamp": datetime.utcnow().isoformat()},
-            ))
+            yield await _generate_sse(
+                StreamEvent(
+                    event="keep-alive",
+                    data={"timestamp": datetime.utcnow().isoformat()},
+                )
+            )
 
             # Aguardar antes da próxima verificação
             await asyncio.sleep(KEEP_ALIVE_INTERVAL_SECONDS)
 
     # Evento final
-    yield await _generate_sse(StreamEvent(
-        event="end",
-        data={"request_id": request_id, "message": "Stream ended"},
-    ))
+    yield await _generate_sse(
+        StreamEvent(
+            event="end",
+            data={"request_id": request_id, "message": "Stream ended"},
+        )
+    )
 
 
 @stream_router.get(

@@ -5,22 +5,13 @@ Unit tests para Intelligent Selector.
 import pytest
 
 from neural_hive_llm.registry import (
-    IntelligentSelector,
-    ModelCapabilities,
-    ModelMetadata,
-    ModelPricing,
-    ModelRegistry,
-    PerformanceTracker,
-    Priority,
     RequestMetric,
     SelectionContext,
     SelectionCriteria,
     SelectionWeights,
     SelectionResult,
     TaskType,
-    get_registry,
     get_selector,
-    get_tracker,
     reset_registry,
     reset_tracker,
 )
@@ -120,9 +111,7 @@ async def test_select_highest_quality_model():
         expected_output_tokens=500,
     )
 
-    result = await selector.select_model(
-        context, criteria=SelectionCriteria.HIGHEST_QUALITY
-    )
+    result = await selector.select_model(context, criteria=SelectionCriteria.HIGHEST_QUALITY)
 
     assert result is not None
     # GPT-4 Turbo (0.95) ou Claude 3 Opus (0.98) deve ser selecionado
@@ -160,9 +149,7 @@ async def test_select_with_custom_weights():
         expected_output_tokens=200,
     )
 
-    weights = SelectionWeights(
-        performance_weight=0.7, cost_weight=0.2, quality_weight=0.1
-    )
+    weights = SelectionWeights(performance_weight=0.7, cost_weight=0.2, quality_weight=0.1)
 
     result = await selector.select_model(
         context, criteria=SelectionCriteria.CUSTOM, weights=weights
@@ -417,15 +404,11 @@ async def test_selection_result_structure():
 @pytest.mark.asyncio
 async def test_custom_weights_validation():
     """Testa validação de pesos customizados."""
-    weights = SelectionWeights(
-        performance_weight=0.5, cost_weight=0.3, quality_weight=0.2
-    )
+    weights = SelectionWeights(performance_weight=0.5, cost_weight=0.3, quality_weight=0.2)
     weights.validate()
 
     # Soma incorreta deve falhar
-    invalid_weights = SelectionWeights(
-        performance_weight=0.5, cost_weight=0.3, quality_weight=0.3
-    )
+    invalid_weights = SelectionWeights(performance_weight=0.5, cost_weight=0.3, quality_weight=0.3)
 
     with pytest.raises(ValueError):
         invalid_weights.validate()
@@ -443,9 +426,7 @@ async def test_insufficient_stats_uses_registry():
     )
 
     # Sem stats suficientes, deve usar qualidade do registry
-    result = await selector.select_model(
-        context, criteria=SelectionCriteria.HIGHEST_QUALITY
-    )
+    result = await selector.select_model(context, criteria=SelectionCriteria.HIGHEST_QUALITY)
 
     assert result is not None
     # Deve selecionar um modelo com alta qualidade no registry

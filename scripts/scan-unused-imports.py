@@ -12,7 +12,7 @@ import re
 import sys
 from collections import defaultdict
 from pathlib import Path
-from typing import Dict, Iterable, List, Set, Tuple
+from typing import Dict, List, Set
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
 SERVICES_DIR = ROOT_DIR / "services"

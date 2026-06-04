@@ -20,7 +20,6 @@ from pathlib import Path
 from typing import Dict, List, Any, Tuple, Optional
 import structlog
 import pandas as pd
-import numpy as np
 from pymongo import MongoClient
 from pymongo.database import Database
 from pymongo.collection import Collection
@@ -755,14 +754,6 @@ class RealDataCollector:
         quality_issues = {}
 
         # Colunas de features (excluir metadados)
-        metadata_cols = [
-            "opinion_id",
-            "plan_id",
-            "specialist_type",
-            "created_at",
-            "human_rating",
-            "label",
-        ]
         feature_cols = [col for col in df.columns if col in self.expected_feature_names]
 
         # 1. Missing values

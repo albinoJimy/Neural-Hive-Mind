@@ -6,7 +6,6 @@ This script must be imported before any sklearn models are loaded to ensure
 compatibility between different sklearn versions.
 """
 
-import sys
 
 # Apply sklearn compatibility patch early
 try:

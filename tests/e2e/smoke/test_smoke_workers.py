@@ -66,7 +66,7 @@ class TestWorkerSmokeComplete:
 
         # Se não disponível, skip teste
         if not result["health"]["available"]:
-            pytest.skip(f"Worker Agents não disponível")
+            pytest.skip("Worker Agents não disponível")
 
         assert result["health"]["status_code"] == 200
         # Ready pode não existir em worker agents

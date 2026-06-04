@@ -9,6 +9,7 @@ import asyncio
 from contextlib import asynccontextmanager
 
 import structlog
+from confluent_kafka import KafkaException
 from confluent_kafka.admin import AdminClient
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -21,12 +22,12 @@ from src.api.routers import (
     dashboard,
     health,
 )
-from src.observability import configure_logging_with_pii_masking
 from src.clients.cognitive_ledger_client import CognitiveLedgerClient
 from src.clients.feature_store_client import FeatureStoreClient
 from src.clients.mongodb_client import MongoDBClient
 from src.config.settings import get_settings
 from src.consumers.approval_request_consumer import ApprovalRequestConsumer
+from src.observability import configure_logging_with_pii_masking
 from src.observability.metrics import NeuralHiveMetrics, register_metrics
 
 # Neural Hive Observability
@@ -64,11 +65,30 @@ async def validate_kafka_topics_exist(settings) -> None:
     """
     Valida que topicos Kafka configurados existem no cluster.
 
+    Faz fail-fast resiliente: tenta ligar ao Kafka com retry e backoff
+    exponencial antes de desistir. Isto evita que falhas transitorias do
+    Kafka (arranque do cluster, soluco de rede, rebalance) matem o startup
+    e gerem CrashLoopBackOff (centenas de restarts observados).
+
+    Comportamento de retry:
+        - Erro transitorio de conexao (KafkaException/Exception ao chamar
+          ``list_topics``): sempre retentavel ate esgotar as tentativas.
+        - Topicos em falta: retentavel se ``kafka_startup_retry_missing_topics``
+          for True (topicos podem estar a ser criados em paralelo no arranque
+          do cluster); caso contrario faz fail-fast imediato.
+
+    Os parametros de retry sao configuraveis via settings:
+        - ``kafka_startup_max_retries``
+        - ``kafka_startup_initial_backoff_seconds``
+        - ``kafka_startup_max_backoff_seconds``
+        - ``kafka_startup_retry_missing_topics``
+
     Args:
         settings: Settings object com configuracoes Kafka
 
     Raises:
-        RuntimeError: Se topicos nao existirem ou conexao falhar
+        RuntimeError: Se topicos nao existirem (com retry desativado) ou se
+            a conexao/validacao falhar apos esgotar todas as tentativas.
     """
     required_topics = [
         settings.kafka_approval_requests_topic,
@@ -95,28 +115,91 @@ async def validate_kafka_topics_exist(settings) -> None:
         if settings.kafka_sasl_password:
             admin_config["sasl.password"] = settings.kafka_sasl_password
 
-    try:
-        admin_client = AdminClient(admin_config)
-        cluster_metadata = admin_client.list_topics(timeout=10)
-        available_topics = set(cluster_metadata.topics.keys())
+    max_retries = settings.kafka_startup_max_retries
+    backoff = settings.kafka_startup_initial_backoff_seconds
+    max_backoff = settings.kafka_startup_max_backoff_seconds
+    retry_missing_topics = settings.kafka_startup_retry_missing_topics
 
-        missing_topics = set(required_topics) - available_topics
+    last_exc: BaseException | None = None
 
-        if missing_topics:
-            logger.error(
-                "STARTUP FAILED: Topicos Kafka nao encontrados",
-                missing_topics=sorted(list(missing_topics)),
-                available_topics=sorted(list(available_topics))[:20],
+    # Cria o AdminClient uma unica vez e reutiliza-o em todas as tentativas.
+    # O AdminClient do confluent_kafka reconecta automaticamente apos falhas de
+    # transporte, pelo que recria-lo a cada tentativa apenas abriria conexoes TCP
+    # redundantes (risco de esgotar file descriptors sob carga).
+    admin_client = AdminClient(admin_config)
+
+    for attempt in range(1, max_retries + 1):
+        try:
+            cluster_metadata = admin_client.list_topics(timeout=10)
+            available_topics = set(cluster_metadata.topics.keys())
+
+            missing_topics = set(required_topics) - available_topics
+
+            if not missing_topics:
+                logger.info(
+                    "Topicos Kafka validados",
+                    topics=required_topics,
+                    attempt=attempt,
+                )
+                return
+
+            # Topicos em falta: fail-fast ou retry consoante configuracao.
+            if not retry_missing_topics:
+                logger.error(
+                    "STARTUP FAILED: Topicos Kafka nao encontrados",
+                    missing_topics=sorted(missing_topics),
+                    available_topics=sorted(available_topics)[:20],
+                )
+                raise RuntimeError(f"Topicos Kafka nao encontrados: {sorted(missing_topics)}")
+
+            # Condicao retentavel: topicos podem estar a ser criados em paralelo.
+            last_exc = RuntimeError(f"Topicos Kafka nao encontrados: {sorted(missing_topics)}")
+            logger.warning(
+                "Topicos Kafka ainda em falta, vai retentar",
+                missing_topics=sorted(missing_topics),
+                attempt=attempt,
+                max_retries=max_retries,
+                backoff_seconds=backoff,
             )
-            raise RuntimeError(f"Topicos Kafka nao encontrados: {sorted(list(missing_topics))}")
 
-        logger.info("Topicos Kafka validados", topics=required_topics)
+        except RuntimeError:
+            # Fail-fast de topicos em falta (retry desativado): propagar.
+            raise
+        except KafkaException as e:
+            # Erro transitorio de conexao: sempre retentavel.
+            last_exc = e
+            logger.warning(
+                "Tentativa de conexao Kafka falhou",
+                attempt=attempt,
+                max_retries=max_retries,
+                backoff_seconds=backoff,
+                error=str(e),
+            )
+        except Exception as e:
+            # Qualquer outro erro inesperado ao contactar o Kafka: tratar como
+            # transitorio e retentavel (ex: timeouts, brokers down).
+            last_exc = e
+            logger.warning(
+                "Tentativa de conexao Kafka falhou",
+                attempt=attempt,
+                max_retries=max_retries,
+                backoff_seconds=backoff,
+                error=str(e),
+            )
 
-    except RuntimeError:
-        raise
-    except Exception as e:
-        logger.error("STARTUP FAILED: Nao foi possivel conectar ao Kafka", error=str(e))
-        raise RuntimeError(f"Falha na conexao com Kafka: {e}") from e
+        # Chegou aqui => condicao retentavel (topicos em falta ou erro de conexao).
+        if attempt < max_retries:
+            await asyncio.sleep(backoff)
+            backoff = min(backoff * 2, max_backoff)
+        else:
+            logger.error(
+                "STARTUP FAILED: Esgotadas as tentativas de conexao/validacao Kafka",
+                attempts=max_retries,
+                error=str(last_exc),
+            )
+            raise RuntimeError(
+                f"Falha na conexao/validacao Kafka apos {max_retries} tentativas: {last_exc}"
+            ) from last_exc
 
 
 @asynccontextmanager

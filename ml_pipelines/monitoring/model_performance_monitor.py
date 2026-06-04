@@ -11,18 +11,15 @@ Funcionalidades:
 
 import os
 import sys
-from typing import Dict, List, Optional, Tuple
-from datetime import datetime, timedelta
+from typing import List, Optional, Tuple
+from datetime import datetime
 import structlog
 from dataclasses import dataclass
-import pandas as pd
 
 # Add paths
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../libraries/python"))
 
-from neural_hive_specialists.config import SpecialistConfig
 from neural_hive_specialists.feedback.feedback_collector import FeedbackCollector
-from neural_hive_specialists.mlflow_client import MLflowClient
 import mlflow
 from mlflow.tracking import MlflowClient as TrackingClient
 

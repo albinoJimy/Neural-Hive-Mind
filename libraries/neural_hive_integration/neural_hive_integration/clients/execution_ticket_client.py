@@ -8,8 +8,7 @@ import structlog
 from typing import Dict, Any, List, Optional
 from tenacity import retry, stop_after_attempt, wait_exponential
 from opentelemetry import trace
-from pydantic import BaseModel, Field
-from datetime import datetime
+from pydantic import BaseModel
 
 logger = structlog.get_logger()
 tracer = trace.get_tracer(__name__)

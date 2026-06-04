@@ -195,7 +195,7 @@ class TestQueenSmokeComplete:
 
         # Se não disponível, skip teste
         if not result["health"]["available"]:
-            pytest.skip(f"Queen Agent não disponível")
+            pytest.skip("Queen Agent não disponível")
 
         assert result["health"]["status_code"] == 200
         assert result["ready"]["status_code"] in {200, 503}

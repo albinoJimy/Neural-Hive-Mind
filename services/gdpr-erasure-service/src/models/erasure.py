@@ -49,9 +49,7 @@ class ServiceErasureResult(BaseModel):
 
     service: str = Field(..., description="Nome do servico")
     data_type: DataType = Field(..., description="Tipo de dados")
-    status: Literal["success", "partial", "failed"] = Field(
-        ..., description="Status da exclusao"
-    )
+    status: Literal["success", "partial", "failed"] = Field(..., description="Status da exclusao")
     records_affected: int = Field(default=0, description="Quantidade de registros excluidos")
     error_message: Optional[str] = Field(None, description="Mensagem de erro se falhou")
     completed_at: Optional[datetime] = Field(None, description="Timestamp de conclusao")
@@ -65,9 +63,7 @@ class ErasureRequest(BaseModel):
     )
     user_id: str = Field(..., description="ID do usuario solicitante")
     email: EmailStr = Field(..., description="Email para verificacao")
-    scope: ErasureScope = Field(
-        default=ErasureScope.STANDARD, description="Escopo da exclusao"
-    )
+    scope: ErasureScope = Field(default=ErasureScope.STANDARD, description="Escopo da exclusao")
     data_types: list[DataType] = Field(
         default_factory=list, description="Tipos de dados especificos a excluir"
     )
@@ -89,9 +85,7 @@ class ErasureRequest(BaseModel):
     created_at: datetime = Field(
         default_factory=datetime.utcnow, description="Timestamp de criacao"
     )
-    expires_at: Optional[datetime] = Field(
-        None, description="Timestamp de expiracao do token"
-    )
+    expires_at: Optional[datetime] = Field(None, description="Timestamp de expiracao do token")
 
     model_config = ConfigDict(use_enum_values=True)
 
@@ -100,9 +94,7 @@ class ErasureRequestInput(BaseModel):
     """Input para criacao de solicitacao"""
 
     email: EmailStr = Field(..., description="Email para verificacao")
-    scope: ErasureScope = Field(
-        default=ErasureScope.STANDARD, description="Escopo da exclusao"
-    )
+    scope: ErasureScope = Field(default=ErasureScope.STANDARD, description="Escopo da exclusao")
     data_types: list[DataType] = Field(
         default_factory=list, description="Tipos de dados especificos (vazio = todos)"
     )
@@ -134,9 +126,7 @@ class ErasureStatusResponse(BaseModel):
 class ErasureCommand(BaseModel):
     """Comando de exclusao para services"""
 
-    command_id: str = Field(
-        default_factory=lambda: str(uuid.uuid4()), description="ID do comando"
-    )
+    command_id: str = Field(default_factory=lambda: str(uuid.uuid4()), description="ID do comando")
     request_id: str = Field(..., description="ID da solicitacao original")
     user_id: str = Field(..., description="ID do usuario")
     data_types: list[DataType] = Field(..., description="Tipos de dados a excluir")
@@ -160,9 +150,7 @@ class ErasureCommand(BaseModel):
 class ErasureReport(BaseModel):
     """Relatorio de conclusao de exclusao"""
 
-    report_id: str = Field(
-        default_factory=lambda: str(uuid.uuid4()), description="ID do relatorio"
-    )
+    report_id: str = Field(default_factory=lambda: str(uuid.uuid4()), description="ID do relatorio")
     command_id: str = Field(..., description="ID do comando original")
     request_id: str = Field(..., description="ID da solicitacao original")
     service: str = Field(..., description="Servico que executou")

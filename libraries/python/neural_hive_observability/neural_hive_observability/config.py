@@ -107,7 +107,11 @@ class ObservabilityConfig:
         # Campos que devem ser convertidos para inteiro
         int_fields = {"prometheus_port"}
         # Campos que devem ser convertidos para booleano
-        bool_fields = {"enable_health_checks", "otel_tls_enabled", "otel_tls_insecure_skip_verify"}
+        bool_fields = {
+            "enable_health_checks",
+            "otel_tls_enabled",
+            "otel_tls_insecure_skip_verify",
+        }
 
         for env_var, attr_name in env_mappings.items():
             env_value = os.getenv(env_var)

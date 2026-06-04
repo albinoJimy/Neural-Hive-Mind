@@ -208,9 +208,7 @@ class TestContextLayerE2E:
         }
 
         # Enriquecer
-        enriched = await context_manager.enrich_cognitive_plan(
-            base_plan, context, classification
-        )
+        enriched = await context_manager.enrich_cognitive_plan(base_plan, context, classification)
 
         # Verificar campos adicionados
         assert "workflow_type" in enriched

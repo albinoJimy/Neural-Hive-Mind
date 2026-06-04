@@ -3,10 +3,8 @@
 import logging
 import json
 from datetime import datetime, timezone
-from typing import Any
 
 from aiokafka import AIOKafkaProducer
-from pydantic import ValidationError
 
 from src.config.settings import get_settings
 from src.models.classification import FlowType
@@ -161,7 +159,9 @@ class ResponseProcessor:
         settings = get_settings()
 
         event = KafkaEvent(
-            event_type="request_completed" if status == ResponseStatus.SUCCESS else "request_failed",
+            event_type="request_completed"
+            if status == ResponseStatus.SUCCESS
+            else "request_failed",
             request_id=request_id,
             flow_type=flow_type.value,
             status=status,

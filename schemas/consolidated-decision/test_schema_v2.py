@@ -44,7 +44,7 @@ def test_minimal_record_v1_compat():
             "fallback_used": False,
             "pheromone_strength": 0.9,
             "bayesian_confidence": 0.85,
-            "voting_confidence": 0.85
+            "voting_confidence": 0.85,
         },
         "explainability_token": "token-abc",
         "reasoning_summary": "Approve based on analysis",
@@ -98,7 +98,7 @@ def test_full_record_v2_fields():
             "fallback_used": False,
             "pheromone_strength": 0.9,
             "bayesian_confidence": 0.85,
-            "voting_confidence": 0.85
+            "voting_confidence": 0.85,
         },
         "explainability_token": "token-abc",
         "reasoning_summary": "Approve based on analysis",
@@ -157,7 +157,7 @@ def test_workflow_type_enum_values():
                 "fallback_used": False,
                 "pheromone_strength": 0.9,
                 "bayesian_confidence": 0.85,
-                "voting_confidence": 0.85
+                "voting_confidence": 0.85,
             },
             "explainability_token": "token-abc",
             "reasoning_summary": "Test",

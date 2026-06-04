@@ -174,14 +174,17 @@ class FeatureAdapter:
         nlp_extractor = self._get_nlp_extractor()
         if nlp_extractor:
             professional_features = nlp_extractor.extract_features(text)
-            return self.to_legacy_format(professional_features, specialist_confidence)
+            return self.to_legacy_format(professional_features, specialist_confidence, text)
 
         # Fallback para extração manual se NLPFeatureExtractor não disponível
         logger.warning("Using manual feature extraction (NLPFeatureExtractor unavailable)")
         return self._extract_manual_features(text, specialist_confidence)
 
     def to_legacy_format(
-        self, professional_features: dict[str, Any], specialist_confidence: float = 0.5
+        self,
+        professional_features: dict[str, Any],
+        specialist_confidence: float = 0.5,
+        text: str = "",
     ) -> dict[str, float]:
         """
         Converte features profissionais para formato legado (30 features).
@@ -212,38 +215,52 @@ class FeatureAdapter:
             legacy[f"action_{action}"] = 1.0 if action_value > 0 else 0.0
 
         # 4. Palavras-chave (has_backup, has_verification, has_all)
-        # NLPFeatureExtractor tem has_url, has_path, etc. mas não has_backup
-        # Vamos derivar de análise de texto ou usar defaults
-        # Como NLPFeatureExtractor não tem esses campos exatos, usamos 0.0 como default
-        # (poderiam ser derivados de text se necessário)
-        legacy["has_backup"] = 0.0
-        legacy["has_verification"] = 0.0
-        legacy["has_all"] = 0.0
+        # NLPFeatureExtractor não fornece estes campos; derivamos do texto original
+        # via os mesmos patterns regex usados em _extract_manual_features.
+        legacy["has_backup"] = 1.0 if text and self.BACKUP_PATTERN.search(text) else 0.0
+        legacy["has_verification"] = 1.0 if text and self.VERIFICATION_PATTERN.search(text) else 0.0
+        legacy["has_all"] = 1.0 if text and self.ALL_PATTERN.search(text) else 0.0
 
         # 5. Métricas de texto (text_length_*)
         legacy["text_length_chars"] = professional_features.get("text_length_chars", 0)
         legacy["text_length_words"] = professional_features.get("text_length_words", 0)
 
-        # 6. Risco (risk_*) - Derivar de actions
-        # risk_high: delete action
-        legacy["risk_high"] = legacy.get("action_delete", 0.0)
-        # risk_medium: update action
-        legacy["risk_medium"] = legacy.get("action_update", 0.0)
-        # risk_low: create, read, deploy actions
-        legacy["risk_low"] = (
-            1.0
-            if any(
-                legacy.get(f"action_{action}", 0.0) > 0 for action in ["create", "read", "deploy"]
+        # 6. Risco (risk_*) - do texto se disponível (consistente com
+        # _extract_manual_features); caso contrário derivar das actions profissionais.
+        if text:
+            legacy["risk_high"] = (
+                1.0
+                if re.search(r"\b(delete|drop|destroy|remove|disable)\b", text, re.IGNORECASE)
+                else 0.0
             )
-            else 0.0
-        )
+            legacy["risk_medium"] = (
+                1.0 if re.search(r"\b(update|change|modify|alter)\b", text, re.IGNORECASE) else 0.0
+            )
+            legacy["risk_low"] = (
+                1.0
+                if re.search(r"\b(create|add|verify|check|test|backup)\b", text, re.IGNORECASE)
+                else 0.0
+            )
+        else:
+            legacy["risk_high"] = 1.0 if legacy.get("action_delete", 0.0) > 0 else 0.0
+            legacy["risk_medium"] = 1.0 if legacy.get("action_update", 0.0) > 0 else 0.0
+            legacy["risk_low"] = (
+                1.0
+                if any(
+                    legacy.get(f"action_{action}", 0.0) > 0
+                    for action in ["create", "read", "deploy"]
+                )
+                else 0.0
+            )
 
-        # 7. simple_risk_score - Calcular
-        dangerous_count = (
-            1
-            if legacy.get("action_delete", 0.0) > 0
-            else 0 + (1 if legacy.get("action_update", 0.0) > 0 else 0) * 0.5
-        )
+        # 7. simple_risk_score - contagem de keywords perigosas no texto;
+        # sem texto, derivar das actions (delete=1, update=0.5).
+        if text:
+            dangerous_count = sum(1 for kw in self.DANGEROUS_KEYWORDS if kw in text.lower())
+        else:
+            dangerous_count = (1 if legacy.get("action_delete", 0.0) > 0 else 0) + (
+                0.5 if legacy.get("action_update", 0.0) > 0 else 0
+            )
         legacy["simple_risk_score"] = min(1.0, dangerous_count * 0.3)
 
         # 8. Domínio primário (primary_domain_*) - Argmax de domain_*

@@ -10,18 +10,13 @@ Features: 40+ incluindo NLP (domínios, ações, risco, etc.)
 """
 
 import os
-import sys
-import json
 import pandas as pd
 import numpy as np
 from datetime import datetime
 from pymongo import MongoClient
-from sklearn.model_selection import train_test_split, cross_val_score
+from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
-from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import (
-    classification_report,
-    confusion_matrix,
     f1_score,
     precision_score,
     recall_score,
@@ -128,7 +123,7 @@ def prepare_dataframe(feedbacks):
     df = df[df["final_decision"] != ""]
 
     print(f"Dataframe shape: {df.shape}")
-    print(f"Distribuicao de classes:")
+    print("Distribuicao de classes:")
     print(df["final_decision"].value_counts())
 
     return df

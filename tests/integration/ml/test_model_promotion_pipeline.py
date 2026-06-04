@@ -16,12 +16,8 @@ Categorias de teste:
 import asyncio
 import datetime
 import uuid
-from typing import Dict, Any
-from unittest.mock import AsyncMock, MagicMock, patch
 
-import numpy as np
 import pytest
-import pytest_asyncio
 import sys
 import os
 
@@ -49,9 +45,7 @@ except ImportError:
     PromotionResult = None
 
 # Importa fixtures
-from .fixtures.ml_models import create_duration_predictor, create_divergent_model
 from .fixtures.test_data import (
-    generate_prediction_history,
     generate_shadow_comparisons,
     generate_validation_metrics,
 )

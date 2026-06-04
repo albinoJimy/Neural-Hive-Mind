@@ -10,7 +10,6 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Optional, List, Dict, Any, Union
 import pandas as pd
-import numpy as np
 
 logger = logging.getLogger(__name__)
 

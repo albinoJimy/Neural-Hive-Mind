@@ -6,7 +6,6 @@ from structlog import get_logger
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 from neural_hive_llm import LLMClient, LLMProvider, LLMResponse
-
 from src.models.tech_stack import TechChoice, TechStackRecommendation
 from src.recommenders.knowledge_base import TECH_KNOWLEDGE_BASE
 
@@ -70,8 +69,12 @@ Responda em JSON:
             if not settings.llm.provider or not settings.llm.api_key:
                 raise ConnectionError("LLM not configured: provider or api_key missing")
 
-            provider = LLMProvider.OPENAI if settings.llm.provider == "openai" else LLMProvider.ANTHROPIC
-            self._llm_client = LLMClient(provider=provider, api_key=settings.llm.api_key, model=self._model)
+            provider = (
+                LLMProvider.OPENAI if settings.llm.provider == "openai" else LLMProvider.ANTHROPIC
+            )
+            self._llm_client = LLMClient(
+                provider=provider, api_key=settings.llm.api_key, model=self._model
+            )
             await self._llm_client.start()
             self._llm_started = True
         elif not self._llm_started:

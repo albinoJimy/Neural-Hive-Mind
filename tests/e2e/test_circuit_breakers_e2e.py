@@ -15,7 +15,7 @@ import os
 import signal
 import subprocess
 import time
-from typing import Dict, Generator, Optional
+from typing import Generator, Optional
 
 import httpx
 import pytest
@@ -700,7 +700,6 @@ async def test_cache_serves_during_circuit_breaker_open(
     6. Metrica cache_hits_total incrementou
     7. Dados em cache correspondem aos dados originais
     """
-    import uuid
 
     # Pegar valor inicial de cache hits
     initial_cache_hits = await get_metric_value(

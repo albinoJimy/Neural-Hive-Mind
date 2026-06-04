@@ -30,7 +30,7 @@ def test_port(host, port, timeout=2):
         result = sock.connect_ex((host, port))
         sock.close()
         return result == 0
-    except Exception as e:
+    except Exception:
         return False
 
 

@@ -3,10 +3,11 @@
 from unittest.mock import AsyncMock, Mock
 
 import pytest
-from neural_hive_llm import LLMResponse, LLMProvider
 from src.generators.architecture_diagram_generator import ArchitectureDiagramGenerator
 from src.models.bounded_context import BoundedContext
 from src.models.diagrams import DiagramType
+
+from neural_hive_llm import LLMProvider, LLMResponse
 
 
 @pytest.fixture

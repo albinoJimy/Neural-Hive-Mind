@@ -41,13 +41,23 @@ service:
   grpcPort: 9021
 
 # Recursos do contentor
+# P1 OOMKilled (exit 137): o serviço carrega Presidio (Analyzer+Anonymizer) +
+# spaCy pt_core_news_sm com GRPC_MAX_WORKERS=10 a processar texto em paralelo.
+# Baseline do modelo ~400-600Mi; pico realista sob concorrência 1.2-1.8Gi.
+# Antes: limits.memory=1Gi (insuficiente -> OOM) e requests.memory=256Mi
+# (o baseline idle já ultrapassava 80% de 256Mi, prendendo o HPA no max).
 resources:
   requests:
     cpu: 100m
-    memory: 256Mi
+    # 512Mi: garante scheduling com memória real para o baseline spaCy/Presidio
+    # e recalibra o HPA (utilização de memória é calculada sobre requests, não
+    # sobre limits). Com requests=256Mi o idle reportava >80% permanentemente.
+    memory: 512Mi
   limits:
     cpu: 500m
-    memory: 1Gi
+    # 2Gi: cobre o pico realista (1.2-1.8Gi) com ~15-40% de headroom, evitando
+    # o OOMKilled sem desperdício. cpu mantém-se em 500m (não relacionado).
+    memory: 2Gi
 
 # Autoscaling
 autoscaling:
@@ -55,7 +65,11 @@ autoscaling:
   minReplicas: 2
   maxReplicas: 8
   targetCPU: 70
-  targetMemory: 80
+  # targetMemory=75 (antes 80): com requests=512Mi o gatilho passa a ~384Mi,
+  # acima do baseline idle do modelo mas abaixo do pico sob carga, tornando o
+  # scale-out/scale-down significativo. A redução de 80->75 dá margem extra
+  # para reduzir o flapping na fronteira do baseline fixo do spaCy/Presidio.
+  targetMemory: 75
 
 # Probes — apontam para o named port `http` (8021).
 livenessProbe:

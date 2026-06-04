@@ -12,7 +12,7 @@ import tempfile
 import uuid
 import datetime
 from typing import Dict, Any
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import MagicMock
 from dataclasses import dataclass
 
 import numpy as np

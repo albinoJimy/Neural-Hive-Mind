@@ -480,7 +480,9 @@ class TestPatchApplicationIntegration:
         test_file.write_text("original content\n")
 
         recommendation = sample_code_recommendation.copy()
-        recommendation["code_diff"] = """--- a/test.py
+        recommendation[
+            "code_diff"
+        ] = """--- a/test.py
 +++ b/test.py
 @@ -1,1 +1,1 @@
 -original content

@@ -223,7 +223,7 @@ class CutoverWorkflow:
             }
 
         # Finalizar shadow mode
-        finalize_result = await workflow.execute_activity(
+        await workflow.execute_activity(
             finalize_shadow_mode,
             args=[self._cutover_id],
             start_to_close_timeout=timedelta(seconds=30),

@@ -271,6 +271,7 @@ class ProcessingPhase(InitializationPhase):
 
     async def _execute_phase(self, context: ApplicationContext) -> bool:
         from pipelines.asr_pipeline import ASRPipeline
+
         # T11: NLU Service via gRPC
         from pipelines.nlu_pipeline_service import NLUPipeline
 

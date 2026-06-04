@@ -12,13 +12,10 @@ Valida o fluxo completo:
 
 import pytest
 import asyncio
-import subprocess
 import time
-import os
 import json
-from typing import Dict, Any
 from datetime import datetime, timezone
-from unittest.mock import MagicMock, AsyncMock, patch
+from unittest.mock import MagicMock, AsyncMock
 
 
 @pytest.fixture
@@ -39,7 +36,6 @@ def mock_mlflow_client():
 @pytest.fixture
 def mock_mongodb():
     """Mock do MongoDB."""
-    from motor.motor_asyncio import AsyncIOMotorClient
 
     db = MagicMock()
 
@@ -88,7 +84,7 @@ class TestMLPipelineE2E:
 
         assert len(versions) > 0
         assert versions[0].version >= 1
-        print(f"\n=== Modelo Registrado ===")
+        print("\n=== Modelo Registrado ===")
         print(f"Versao: {versions[0].version}")
         print(f"Stage: {versions[0].current_stage}")
 
@@ -110,7 +106,7 @@ class TestMLPipelineE2E:
         assert restart_result["model_loaded"] is True
         assert restart_result["model_version"] >= 1
 
-        print(f"\n=== Guard-Agents Restart ===")
+        print("\n=== Guard-Agents Restart ===")
         print(f"Modelo carregado: {restart_result['model_loaded']}")
         print(f"Versao: {restart_result['model_version']}")
 
@@ -145,7 +141,7 @@ class TestMLPipelineE2E:
         assert result["anomaly_detected"] is True
         assert result["anomaly_score"] > 0.5
 
-        print(f"\n=== Anomalia Detectada ===")
+        print("\n=== Anomalia Detectada ===")
         print(f"Event ID: {anomalous_event['id']}")
         print(f"Anomaly Score: {result['anomaly_score']}")
 
@@ -180,7 +176,7 @@ class TestMLPipelineE2E:
         metric_value = int(mock_prometheus_response["data"]["result"][0]["value"][1])
         assert metric_value > 0
 
-        print(f"\n=== Metricas Prometheus ===")
+        print("\n=== Metricas Prometheus ===")
         print(f"guard_agent_anomaly_detection_total: {metric_value}")
 
     @pytest.mark.e2e
@@ -216,7 +212,7 @@ class TestMLPipelineE2E:
         assert retraining_result["success"] is True
         assert retraining_result["new_version"] > 1
 
-        print(f"\n=== Drift-Triggered Retraining ===")
+        print("\n=== Drift-Triggered Retraining ===")
         print(f"Drift Score: {drift_event['drift_score']}")
         print(f"Threshold: {drift_threshold}")
         print(f"Nova Versao: {retraining_result['new_version']}")
@@ -247,9 +243,9 @@ class TestMLPipelineE2E:
         # Pipeline deve completar em menos de 100ms
         assert total_latency_ms < 100
 
-        print(f"\n=== Latencia do Pipeline ===")
+        print("\n=== Latencia do Pipeline ===")
         print(f"Total: {total_latency_ms:.2f}ms")
-        print(f"Threshold: 100ms")
+        print("Threshold: 100ms")
 
     @pytest.mark.e2e
     @pytest.mark.asyncio
@@ -271,7 +267,7 @@ class TestMLPipelineE2E:
             f"guard-agents={guard_agents_version}"
         )
 
-        print(f"\n=== Consistencia de Versao ===")
+        print("\n=== Consistencia de Versao ===")
         print(f"MLflow: v{mlflow_version}")
         print(f"guard-agents: v{guard_agents_version}")
 
@@ -296,7 +292,7 @@ class TestMLPipelineResilience:
         detected_by_heuristic = event["anomaly_score"] > heuristic_threshold
 
         assert detected_by_heuristic is True
-        print(f"\n=== Fallback para Heuristicas ===")
+        print("\n=== Fallback para Heuristicas ===")
         print(f"Modelo disponivel: {model_available}")
         print(f"Deteccao por heuristica: {detected_by_heuristic}")
 
@@ -325,8 +321,8 @@ class TestMLPipelineResilience:
         versions = mock_mlflow_client.get_latest_versions("anomaly-detector", stages=["Production"])
         assert len(versions) > 0
 
-        print(f"\n=== Recuperacao apos Outage ===")
-        print(f"MLflow recuperado: True")
+        print("\n=== Recuperacao apos Outage ===")
+        print("MLflow recuperado: True")
         print(f"Versoes disponiveis: {len(versions)}")
 
     @pytest.mark.e2e
@@ -350,7 +346,7 @@ class TestMLPipelineResilience:
         # Deve processar pelo menos 1000 eventos/s
         assert throughput > 1000
 
-        print(f"\n=== Teste de Carga ===")
+        print("\n=== Teste de Carga ===")
         print(f"Eventos processados: {processed}")
         print(f"Tempo total: {total_time:.2f}s")
         print(f"Throughput: {throughput:.0f} eventos/s")

@@ -7,10 +7,9 @@ para produzir predições finais com maior robustez.
 
 import time
 from datetime import datetime, timedelta, timezone
-from typing import Dict, Any, Optional, List, Tuple, Callable
+from typing import Dict, Any, Optional, List, Tuple
 import structlog
 import numpy as np
-from functools import lru_cache
 from prometheus_client import Counter, Histogram, Gauge
 
 from .config import OnlineLearningConfig

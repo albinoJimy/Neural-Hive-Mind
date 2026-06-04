@@ -173,7 +173,7 @@ async def startup_event():
         if state.repository:
             try:
                 await state.repository.close()
-            except:
+            except Exception:
                 pass
         raise
 

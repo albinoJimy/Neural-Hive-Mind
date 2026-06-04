@@ -28,13 +28,10 @@ Como activar localmente
 
 from __future__ import annotations
 
-import asyncio
 import importlib.util
 import os
-import statistics
 import sys
 from pathlib import Path
-from typing import Any
 
 import pytest
 
@@ -43,9 +40,7 @@ import pytest
 # não permite import direto).
 # ---------------------------------------------------------------------------
 _LOAD_TEST_SCRIPT = Path(__file__).resolve().parent / "unified-gateway-load-test.py"
-_spec = importlib.util.spec_from_file_location(
-    "unified_gateway_load_test", str(_LOAD_TEST_SCRIPT)
-)
+_spec = importlib.util.spec_from_file_location("unified_gateway_load_test", str(_LOAD_TEST_SCRIPT))
 if _spec is None or _spec.loader is None:  # pragma: no cover — defensive
     raise RuntimeError(f"Could not import {_LOAD_TEST_SCRIPT}")
 _load_test_module = importlib.util.module_from_spec(_spec)
@@ -113,15 +108,15 @@ def _assert_slos(results: UnifiedGatewayLoadTestResults, *, expected_min_rps: fl
     # gateway com downstream real e o threshold pode ser relaxado.
     overall = results.latency_stats.get("overall", {})
     p95 = float(overall.get("p95", float("inf")))
-    assert p95 <= SLO_P95_LATENCY_MS, (
-        f"P95 latência {p95:.2f}ms acima do SLO {SLO_P95_LATENCY_MS}ms"
-    )
+    assert (
+        p95 <= SLO_P95_LATENCY_MS
+    ), f"P95 latência {p95:.2f}ms acima do SLO {SLO_P95_LATENCY_MS}ms"
 
     # Taxa de erro = 1 - success_rate.
     error_rate = max(0.0, 1.0 - results.success_rate)
-    assert error_rate <= SLO_MAX_ERROR_RATE, (
-        f"Taxa de erro {error_rate:.3%} acima do SLO {SLO_MAX_ERROR_RATE:.0%}"
-    )
+    assert (
+        error_rate <= SLO_MAX_ERROR_RATE
+    ), f"Taxa de erro {error_rate:.3%} acima do SLO {SLO_MAX_ERROR_RATE:.0%}"
 
 
 async def _run_load_test(

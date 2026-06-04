@@ -27,7 +27,6 @@ except ImportError:
     sys.modules["temporalio.activity"] = temporalio.activity
 
 import pytest
-import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 

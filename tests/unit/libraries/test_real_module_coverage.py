@@ -4,10 +4,9 @@ Testes que importam módulos reais para cobertura.
 GAP-04: Cobertura de Testes 16% → 70%
 """
 
+from unittest.mock import MagicMock
+
 import pytest
-from datetime import datetime, timedelta
-from uuid import uuid4
-from unittest.mock import Mock, patch, MagicMock
 
 
 # =============================================================================
@@ -291,7 +290,7 @@ def test_audit_logger_init():
     try:
         from neural_hive_specialists.compliance.audit_logger import AuditLogger
 
-        logger = AuditLogger("test_service")
+        logger = AuditLogger(config=MagicMock(), specialist_type="test_service")
         assert logger is not None
     except ImportError:
         pytest.skip("AuditLogger not available")
@@ -302,7 +301,7 @@ def test_field_encryptor_init():
     try:
         from neural_hive_specialists.compliance.field_encryptor import FieldEncryptor
 
-        encryptor = FieldEncryptor(key=b"test_key_32_bytes___________!")
+        encryptor = FieldEncryptor(config=MagicMock())
         assert encryptor is not None
     except ImportError:
         pytest.skip("FieldEncryptor not available")
@@ -361,7 +360,7 @@ def test_semantic_analyzer_init():
     try:
         from neural_hive_specialists.semantic_pipeline.semantic_analyzer import SemanticAnalyzer
 
-        analyzer = SemanticAnalyzer()
+        analyzer = SemanticAnalyzer(config={})
         assert analyzer is not None
     except ImportError:
         pytest.skip("SemanticAnalyzer not available")
@@ -409,7 +408,7 @@ def test_circuit_breaker_init():
             MonitoredCircuitBreaker,
         )
 
-        cb = MonitoredCircuitBreaker("test_service", "test_circuit", failure_threshold=5)
+        cb = MonitoredCircuitBreaker(service_name="test_service", circuit_name="test_circuit")
         assert cb is not None
     except ImportError:
         pytest.skip("MonitoredCircuitBreaker not available")
@@ -475,7 +474,7 @@ def test_registry_init():
     try:
         from neural_hive_resilience.neural_hive_resilience.registry import ResilienceRegistry
 
-        registry = ResilienceRegistry()
+        registry = ResilienceRegistry(service_name="test_service")
         assert registry is not None
     except ImportError:
         pytest.skip("ResilienceRegistry not available")
@@ -486,7 +485,7 @@ def test_risk_calculator_init():
     try:
         from neural_hive_risk_scoring.calculator import RiskCalculator
 
-        calc = RiskCalculator()
+        calc = RiskCalculator(config=MagicMock())
         assert calc is not None
     except ImportError:
         pytest.skip("RiskCalculator not available")
@@ -519,7 +518,7 @@ def test_risk_alerts_init():
     try:
         from neural_hive_risk_scoring.alerts import RiskAlertManager
 
-        alerts = RiskAlertManager()
+        alerts = RiskAlertManager(threshold_monitor=MagicMock(), risk_history=MagicMock())
         assert alerts is not None
     except ImportError:
         pytest.skip("RiskAlertManager not available")
@@ -573,7 +572,7 @@ def test_drift_detector_init():
     try:
         from neural_hive_ml.drift_detector import DriftDetector
 
-        detector = DriftDetector()
+        detector = DriftDetector(mongo_client=MagicMock(), kafka_producer=MagicMock())
         assert detector is not None
     except ImportError:
         pytest.skip("DriftDetector not available")

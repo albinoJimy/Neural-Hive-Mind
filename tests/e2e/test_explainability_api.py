@@ -5,7 +5,6 @@ Testes de integração para a API de explicabilidade do Neural Hive-Mind.
 """
 
 import pytest
-import asyncio
 from datetime import datetime, timezone
 from httpx import AsyncClient
 from pymongo import MongoClient

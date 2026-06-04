@@ -96,12 +96,8 @@ class NotificationConfig:
 
         return cls(
             slack_webhook_url=env_vars.get("SLACK_WEBHOOK_URL"),
-            slack_default_channel=env_vars.get(
-                "SLACK_ALERTS_CHANNEL", "#ml-alerts"
-            ),
-            slack_critical_channel=env_vars.get(
-                "SLACK_CRITICAL_CHANNEL", "#ml-alerts-critical"
-            ),
+            slack_default_channel=env_vars.get("SLACK_ALERTS_CHANNEL", "#ml-alerts"),
+            slack_critical_channel=env_vars.get("SLACK_CRITICAL_CHANNEL", "#ml-alerts-critical"),
             slack_username=env_vars.get("SLACK_USERNAME", "NeuralHive ML"),
             slack_icon_emoji=env_vars.get("SLACK_ICON_EMOJI", ":robot_face:"),
             smtp_host=env_vars.get("SMTP_HOST"),
@@ -240,9 +236,7 @@ class NotificationTemplate:
         ]
 
         if retry_attempt is not None:
-            fields.append(
-                {"name": "Retry Attempt", "value": str(retry_attempt), "short": True}
-            )
+            fields.append({"name": "Retry Attempt", "value": str(retry_attempt), "short": True})
 
         return {
             "title": ":x: Retrain Failed",

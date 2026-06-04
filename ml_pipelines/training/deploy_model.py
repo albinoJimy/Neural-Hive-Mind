@@ -7,10 +7,8 @@ nos serviços ML Specialists.
 """
 
 import os
-import sys
 import json
 import pickle
-import uuid
 from datetime import datetime
 from pymongo import MongoClient
 
@@ -198,7 +196,7 @@ def main():
     model_path = export_model_for_deployment(model)
 
     # 3. Salvar configuração
-    config = save_deployment_config()
+    save_deployment_config()
 
     # 4. Validar modelo
     validate_model_with_test_data(model)
@@ -213,9 +211,9 @@ def main():
     print("2. Atualizar a versão do modelo nas configurações")
     print("3. Fazer restart dos pods dos specialists")
     print()
-    print(f"Arquivos gerados:")
+    print("Arquivos gerados:")
     print(f"  - Modelo: {model_path}")
-    print(f"  - Config: /tmp/deployment_config.json")
+    print("  - Config: /tmp/deployment_config.json")
 
 
 if __name__ == "__main__":

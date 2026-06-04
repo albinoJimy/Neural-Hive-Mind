@@ -31,11 +31,11 @@ resource "aws_security_group" "redis" {
   }
 
   ingress {
-    description     = "Redis from peered VPCs"
-    from_port       = var.port
-    to_port         = var.port
-    protocol        = "tcp"
-    cidr_blocks     = var.peered_vpc_cidrs
+    description = "Redis from peered VPCs"
+    from_port   = var.port
+    to_port     = var.port
+    protocol    = "tcp"
+    cidr_blocks = var.peered_vpc_cidrs
   }
 
   egress {
@@ -99,38 +99,35 @@ resource "aws_elasticache_replication_group" "primary" {
   replication_group_description = "Neural Hive-Mind Redis cluster - Primary"
   node_type                     = var.node_type
 
-  engine                = "redis"
-  engine_version        = var.engine_version
-  port                  = var.port
-  parameter_group_name  = aws_elasticache_parameter_group.this.name
-  subnet_group_name     = aws_elasticache_subnet_group.this.name
-  security_group_ids    = [aws_security_group.redis.id]
+  engine               = "redis"
+  engine_version       = var.engine_version
+  port                 = var.port
+  parameter_group_name = aws_elasticache_parameter_group.this.name
+  subnet_group_name    = aws_elasticache_subnet_group.this.name
+  security_group_ids   = [aws_security_group.redis.id]
 
   # Number of nodes
   num_cache_clusters         = var.num_cache_nodes
   automatic_failover_enabled = var.automatic_failover_enabled
   multi_az_enabled           = var.multi_az_enabled
 
-  # Replicas
-  replicas_per_node_group = var.replicas_per_node
-
   # Snapshots
-  snapshot_window               = var.snapshot_window
-  snapshot_retention_limit      = var.snapshot_retention_limit
-  automatic_backup_retention    = var.snapshot_retention_limit
+  snapshot_window            = var.snapshot_window
+  snapshot_retention_limit   = var.snapshot_retention_limit
+  automatic_backup_retention = var.snapshot_retention_limit
 
   # Maintenance
   maintenance_window = var.maintenance_window
-  apply_immediately = false
+  apply_immediately  = false
 
   # Authentication
-  auth_token            = var.auth_token != null ? var.auth_token : random_password.auth_token.result
+  auth_token                 = var.auth_token != null ? var.auth_token : random_password.auth_token.result
   transit_encryption_enabled = var.transit_encryption_enabled
-  at_rest_encryption_enabled   = var.at_rest_encryption_enabled
+  at_rest_encryption_enabled = var.at_rest_encryption_enabled
 
   # Cluster mode
-  cluster_mode_enabled   = var.cluster_mode_enabled
-  num_node_groups        = var.cluster_mode_enabled ? var.shard_count : null
+  cluster_mode_enabled    = var.cluster_mode_enabled
+  num_node_groups         = var.cluster_mode_enabled ? var.shard_count : null
   replicas_per_node_group = var.cluster_mode_enabled ? var.replicas_per_shard : var.replicas_per_node
 
   # Global Datastore (Multi-region)
@@ -162,7 +159,7 @@ resource "aws_elasticache_replication_group" "primary" {
 resource "aws_elasticache_global_replication_group" "this" {
   count = var.global_replication_enabled ? 1 : 0
 
-  global_replication_group_id = "${var.cluster_name}-global"
+  global_replication_group_id          = "${var.cluster_name}-global"
   global_replication_group_description = "Neural Hive-Mind Global Redis"
 
   primary_replication_group_id = aws_elasticache_replication_group.primary.id
@@ -171,8 +168,8 @@ resource "aws_elasticache_global_replication_group" "this" {
   cache_node_type = var.node_type
 
   # Engine
-  engine            = "redis"
-  engine_version    = var.engine_version
+  engine         = "redis"
+  engine_version = var.engine_version
 
   # Automatic failover
   automatic_failover_enabled = true

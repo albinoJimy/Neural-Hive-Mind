@@ -260,9 +260,7 @@ class PIIAuditLogger:
 
         # Criar TTL index
         try:
-            await self._collection.create_index(
-                ttl_index, expireAfterSeconds=ttl_seconds
-            )
+            await self._collection.create_index(ttl_index, expireAfterSeconds=ttl_seconds)
             logger.info("ttl_index_created", ttl_seconds=ttl_seconds)
         except Exception as e:
             logger.warning("ttl_index_creation_failed", error=str(e))

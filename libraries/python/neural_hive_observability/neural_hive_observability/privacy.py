@@ -46,9 +46,7 @@ def hash_pii(value: str, salt: str = "nhm_pii_salt") -> str:
     return hashlib.sha256(combined.encode()).hexdigest()[:16]
 
 
-def mask_pii_processor(
-    logger, method_name: str, event_dict: dict[str, Any]
-) -> dict[str, Any]:
+def mask_pii_processor(logger, method_name: str, event_dict: dict[str, Any]) -> dict[str, Any]:
     """
     Processor structlog que mascarar campos PII.
 
@@ -81,9 +79,7 @@ def mask_pii_processor(
     return event_dict
 
 
-def mask_pii_deep(
-    value: Any, pii_fields: set[str] = PII_FIELDS
-) -> Any:
+def mask_pii_deep(value: Any, pii_fields: set[str] = PII_FIELDS) -> Any:
     """
     Mascara PII em estruturas aninhadas (dicts, lists).
 

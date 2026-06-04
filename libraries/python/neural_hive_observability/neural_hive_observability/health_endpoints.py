@@ -7,6 +7,7 @@ compatíveis com Kubernetes probes, seguindo padrões consistentes entre serviç
 
 from collections.abc import Awaitable, Callable
 from datetime import datetime, timezone
+
 UTC = timezone.utc
 from typing import Optional
 

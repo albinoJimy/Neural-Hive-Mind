@@ -609,7 +609,7 @@ class OnlineDeploymentOrchestrator:
             # Restaurar modelo
             stable = self.rollback_manager.get_stable_version()
             if stable:
-                checkpoint = self.rollback_manager.load_checkpoint(stable)
+                self.rollback_manager.load_checkpoint(stable)
                 self.learner.load_checkpoint(stable.checkpoint_path)
 
             # Resetar rollout
@@ -685,8 +685,6 @@ async def main():
     parser.add_argument("--force", action="store_true", help="Ignorar cooldown")
 
     args = parser.parse_args()
-
-    config = OnlineLearningConfig()
 
     logger.info(
         "starting_deployment_orchestrator",

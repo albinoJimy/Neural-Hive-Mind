@@ -3,7 +3,7 @@ Modelos Pydantic para Intent Envelope baseados no schema JSON-LD
 """
 
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any
 

@@ -189,7 +189,7 @@ class DriftRetrainConnector:
         if not above_threshold:
             return RetrainDecision(
                 should_retrain=False,
-                reason=f"Drift warning dentro dos limites aceitáveis",
+                reason="Drift warning dentro dos limites aceitáveis",
                 priority="low",
                 estimated_duration_minutes=0,
             )
@@ -255,9 +255,7 @@ class DriftRetrainConnector:
 
         return True
 
-    async def trigger_retrain_if_needed(
-        self, alert: DriftAlert
-    ) -> Dict[str, Any]:
+    async def trigger_retrain_if_needed(self, alert: DriftAlert) -> Dict[str, Any]:
         """
         Trigger retrain se drift alert justificar.
 
@@ -421,9 +419,7 @@ class DriftRetrainConnector:
                 "reason": "Nenhum callback de retrain configurado",
             }
 
-    async def _run_callback(
-        self, alert: DriftAlert, decision: RetrainDecision
-    ) -> Dict[str, Any]:
+    async def _run_callback(self, alert: DriftAlert, decision: RetrainDecision) -> Dict[str, Any]:
         """
         Executa o callback de retrain.
 
@@ -439,9 +435,7 @@ class DriftRetrainConnector:
         else:
             # Run in executor
             loop = asyncio.get_event_loop()
-            return await loop.run_in_executor(
-                None, self.on_retrain_callback, alert, decision
-            )
+            return await loop.run_in_executor(None, self.on_retrain_callback, alert, decision)
 
     def get_retrain_history(self, model_name: Optional[str] = None) -> Dict[str, Any]:
         """

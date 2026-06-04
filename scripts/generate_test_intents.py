@@ -233,7 +233,7 @@ def main():
     if created:
         with open("scripts/test_intents_created.json", "w") as f:
             json.dump(created, f, indent=2)
-        print(f"Lista salva em: scripts/test_intents_created.json")
+        print("Lista salva em: scripts/test_intents_created.json")
         print()
         print("Use este arquivo para referência ao aprovar/rejeitar planos.")
         print()

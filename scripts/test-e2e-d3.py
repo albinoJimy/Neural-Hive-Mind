@@ -24,7 +24,6 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import aiohttp
-import requests
 from pymongo import MongoClient
 from kafka import KafkaConsumer
 
@@ -282,7 +281,7 @@ class D3E2ETest:
                         or value.get("trace_id") == self.trace_id
                     ):
                         messages.append(value)
-                except:
+                except Exception:
                     pass
 
             if messages:

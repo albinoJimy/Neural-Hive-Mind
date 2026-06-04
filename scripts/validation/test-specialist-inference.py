@@ -34,7 +34,6 @@ from pathlib import Path
 
 import grpc
 import structlog
-from google.protobuf.timestamp_pb2 import Timestamp
 
 # Adicionar path das libraries
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../libraries/python"))

@@ -20,6 +20,9 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone, timedelta
 from typing import Any, Optional
 
+# Alias para compatibilidade com usos de UTC (timezone-aware)
+UTC = timezone.utc
+
 import structlog
 
 from .backup_manifest import BackupManifest
@@ -152,9 +155,9 @@ class DisasterRecoveryManager:
 
                 # Feature Store
                 if self.config.backup_include_feature_store:
-                    futures[executor.submit(self._backup_feature_store, backup_dir, tenant_id)] = (
-                        "feature_store"
-                    )
+                    futures[
+                        executor.submit(self._backup_feature_store, backup_dir, tenant_id)
+                    ] = "feature_store"
 
                 # Métricas
                 if self.config.backup_include_metrics:
@@ -356,8 +359,7 @@ class DisasterRecoveryManager:
             # Obter informações do modelo atual
             mlflow_client = self.specialist.mlflow_client
 
-            # Obter run_id e model info
-            run_id = None
+            # Obter model info
             model_version = getattr(self.specialist, "current_model_version", "unknown")
 
             # Salvar metadata do modelo
@@ -808,7 +810,6 @@ class DisasterRecoveryManager:
         start_time = time.time()
 
         snapshot_id = f"snapshot-{datetime.now(timezone.utc).strftime('%Y%m%d-%H%M%S')}"
-        tenant_suffix = f"-{tenant_id}" if tenant_id else ""
 
         logger.info(
             "Iniciando backup incremental",
@@ -857,9 +858,9 @@ class DisasterRecoveryManager:
 
                 # Feature Store
                 if self.config.backup_include_feature_store:
-                    futures[executor.submit(self._backup_feature_store, backup_dir, tenant_id)] = (
-                        "feature_store"
-                    )
+                    futures[
+                        executor.submit(self._backup_feature_store, backup_dir, tenant_id)
+                    ] = "feature_store"
 
                 # Métricas
                 if self.config.backup_include_metrics:
@@ -1115,7 +1116,9 @@ class DisasterRecoveryManager:
             all_snapshots = self.storage_client.list_backups(prefix=snapshot_prefix)
 
             # Filtrar snapshots não expirados
-            cutoff_date = datetime.now(timezone.utc) - timedelta(days=self.config.backup_retention_days)
+            cutoff_date = datetime.now(timezone.utc) - timedelta(
+                days=self.config.backup_retention_days
+            )
             active_snapshots = []
 
             for snapshot_obj in all_snapshots:
@@ -2402,7 +2405,6 @@ class DisasterRecoveryManager:
 
             # Tentar conectar ao Redis
             try:
-                import redis
                 from redis.cluster import RedisCluster
 
                 # Parsear nodes do cluster
@@ -2414,7 +2416,7 @@ class DisasterRecoveryManager:
                     cluster_nodes.append({"host": host, "port": int(port)})
 
                 # Criar cliente Redis Cluster
-                redis_client = RedisCluster(
+                redis_client = RedisCluster(  # type: ignore[abstract]
                     startup_nodes=cluster_nodes,
                     password=self.config.redis_password,
                     ssl=self.config.redis_ssl_enabled,

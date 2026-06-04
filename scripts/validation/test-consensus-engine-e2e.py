@@ -18,13 +18,12 @@ Uso:
 """
 
 import sys
-import os
 import json
 import time
 import uuid
 import argparse
 from datetime import datetime, timezone
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List
 
 import structlog
 
@@ -416,7 +415,7 @@ def main():
     print("=" * 80)
     print(f"\nID: {report['test_run_id']}")
     print(f"Timestamp: {report['timestamp']}")
-    print(f"\nResumo:")
+    print("\nResumo:")
     print(f"  Total: {report['summary']['total']}")
     print(f"  ✅ Passou: {report['summary']['passed']}")
     print(f"  ❌ Falhou: {report['summary']['failed']}")

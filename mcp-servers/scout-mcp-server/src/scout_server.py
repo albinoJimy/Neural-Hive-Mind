@@ -8,17 +8,13 @@ Expõe ferramentas para:
 - Identificar tecnologias usadas
 """
 
-import asyncio
 import os
 from pathlib import Path
 from typing import Any, Optional
 from dataclasses import dataclass, field
 from collections import defaultdict
 
-import httpx
 from fastmcp import FastMCP
-from starlette.responses import JSONResponse
-from starlette.routing import Route
 
 # Criar servidor MCP
 mcp = FastMCP(name="Scout MCP Server")

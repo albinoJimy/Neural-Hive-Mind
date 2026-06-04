@@ -9,7 +9,7 @@ import json
 import time
 import sys
 from datetime import datetime, timezone
-from typing import Dict, Any, List
+from typing import Dict, Any
 
 # Configurações
 GATEWAY_URL = "http://10.97.189.184:8000"

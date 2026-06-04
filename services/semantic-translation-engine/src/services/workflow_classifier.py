@@ -158,7 +158,9 @@ class WorkflowClassifierService:
 
         return workflow_type, metadata
 
-    def _compile_patterns(self, keyword_groups: dict[str, list[str]]) -> list[tuple[str, re.Pattern]]:
+    def _compile_patterns(
+        self, keyword_groups: dict[str, list[str]]
+    ) -> list[tuple[str, re.Pattern]]:
         """Compila regex patterns para keyword groups."""
         patterns = []
         for group, keywords in keyword_groups.items():
@@ -219,8 +221,6 @@ class WorkflowClassifierService:
         Returns:
             Score 0-1, onde >0.5 indica GENERATION
         """
-        historical_context = intermediate_repr.get("historical_context", {})
-        similar_intents = historical_context.get("similar_intents", [])
 
         # Analisar tasks
         tasks = intermediate_repr.get("tasks", [])
@@ -268,14 +268,16 @@ class WorkflowClassifierService:
         else:
             return 0.5  # Neutro
 
-    def _explain_decision(
-        self, score: float, signals: dict[str, float]
-    ) -> str:
+    def _explain_decision(self, score: float, signals: dict[str, float]) -> str:
         """Gera explicação da decisão."""
         if score >= self.generation_threshold:
-            return f"Classificado como GENERATION (score {score:.2f} >= {self.generation_threshold})"
+            return (
+                f"Classificado como GENERATION (score {score:.2f} >= {self.generation_threshold})"
+            )
         else:
-            return f"Classificado como ORCHESTRATION (score {score:.2f} < {self.generation_threshold})"
+            return (
+                f"Classificado como ORCHESTRATION (score {score:.2f} < {self.generation_threshold})"
+            )
 
 
 # Singleton instance

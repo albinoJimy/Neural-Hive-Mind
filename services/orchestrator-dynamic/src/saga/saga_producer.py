@@ -2,10 +2,14 @@
 
 import json
 from datetime import datetime, timezone
+
 UTC = timezone.utc
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 UTC = timezone.utc  # type: ignore
+
+if TYPE_CHECKING:
+    from .saga_metrics import SagaMetrics
 
 from aiokafka import AIOKafkaProducer
 from aiokafka.errors import KafkaConnectionError

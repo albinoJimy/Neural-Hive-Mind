@@ -156,7 +156,9 @@ class TestReferenceData:
         assert df["specialist_confidence"].max() <= 1.0, "specialist_confidence max <= 1"
 
         # Domínios devem ser binários (0 ou 1)
-        domain_features = [f"domain_{d}" for d in ["security", "performance", "database", "devops", "testing"]]
+        domain_features = [
+            f"domain_{d}" for d in ["security", "performance", "database", "devops", "testing"]
+        ]
         for feature in domain_features:
             assert df[feature].isin([0.0, 1.0]).all(), f"{feature} deve ser binário (0 ou 1)"
 
@@ -177,22 +179,31 @@ class TestReferenceData:
         df = reference_data["data"]
 
         # Cada domínio primário deve ter pelo menos algumas amostras
-        primary_domain_features = [f"primary_domain_{d}" for d in ["security", "performance", "database", "devops", "testing"]]
+        primary_domain_features = [
+            f"primary_domain_{d}"
+            for d in ["security", "performance", "database", "devops", "testing"]
+        ]
 
         for feature in primary_domain_features:
             count = df[feature].sum()
-            assert count >= 5, f"Domínio primário '{feature}' deve ter pelo menos 5 amostras, encontrado {count}"
+            assert (
+                count >= 5
+            ), f"Domínio primário '{feature}' deve ter pelo menos 5 amostras, encontrado {count}"
 
     def test_action_distribution(self, reference_data):
         """Testa distribuição de ações (deve ter variedade)."""
         df = reference_data["data"]
 
         # Cada ação primária deve ter pelo menos algumas amostras
-        primary_action_features = [f"primary_action_{a}" for a in ["create", "update", "delete", "read", "deploy"]]
+        primary_action_features = [
+            f"primary_action_{a}" for a in ["create", "update", "delete", "read", "deploy"]
+        ]
 
         for feature in primary_action_features:
             count = df[feature].sum()
-            assert count >= 2, f"Ação primária '{feature}' deve ter pelo menos 2 amostras, encontrado {count}"
+            assert (
+                count >= 2
+            ), f"Ação primária '{feature}' deve ter pelo menos 2 amostras, encontrado {count}"
 
     def test_metadata_file_exists(self):
         """Testa se arquivo de metadados JSON existe."""
@@ -234,7 +245,9 @@ def test_reference_data_validation():
             all_passed = False
 
     if all_passed:
-        print(f"\n✅ Reference data válida: {metadata['training_samples']} amostras, {df.shape[1]} features")
+        print(
+            f"\n✅ Reference data válida: {metadata['training_samples']} amostras, {df.shape[1]} features"
+        )
 
     assert all_passed, "Reference data inválida"
 

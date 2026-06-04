@@ -2,8 +2,7 @@
 
 import pytest
 import numpy as np
-from unittest.mock import Mock, MagicMock
-from datetime import datetime
+from unittest.mock import Mock
 
 from ml_pipelines.online_learning.model_ensemble import ModelEnsemble
 from ml_pipelines.online_learning.config import OnlineLearningConfig

@@ -21,7 +21,6 @@ Requisitos:
 
 import argparse
 import asyncio
-import os
 import sys
 from pathlib import Path
 
@@ -35,7 +34,6 @@ import structlog
 from real_data_collector import (
     RealDataCollector,
     InsufficientDataError,
-    DataQualityError,
     FeatureExtractionError,
 )
 

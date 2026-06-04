@@ -16,9 +16,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 TWO_YEARS_SECONDS = 63072000  # 365 * 2 * 24 * 60 * 60
 
 
-async def create_plan_approvals_ttl_index(
-    client: AsyncIOMotorClient, db_name: str
-) -> None:
+async def create_plan_approvals_ttl_index(client: AsyncIOMotorClient, db_name: str) -> None:
     """
     Cria índice TTL na coleção plan_approvals.
 
@@ -43,9 +41,7 @@ async def create_plan_approvals_ttl_index(
     print("  ✓ Índice TTL criado em plan_approvals (2 anos)")
 
 
-async def create_specialist_feedback_ttl_index(
-    client: AsyncIOMotorClient, db_name: str
-) -> None:
+async def create_specialist_feedback_ttl_index(client: AsyncIOMotorClient, db_name: str) -> None:
     """
     Atualiza índice TTL na coleção specialist_feedback.
 

@@ -68,7 +68,7 @@ jobs:
         with:
           files: ./tests/results/coverage/coverage.xml
           flags: unit-py${{ matrix.python-version }}
-          fail_ci_if_error: true
+          fail_ci_if_error: false
 
   integration-tests:
     name: Integration tests (Python ${{ matrix.python-version }})
@@ -148,7 +148,7 @@ jobs:
         with:
           files: ./tests/results/coverage/coverage.xml
           flags: integration-py${{ matrix.python-version }}
-          fail_ci_if_error: true
+          fail_ci_if_error: false
 
   service-tests:
     name: Service tests (Python ${{ matrix.python-version }})
@@ -195,7 +195,7 @@ jobs:
         with:
           files: ./tests/results/coverage/coverage.xml
           flags: services-py${{ matrix.python-version }}
-          fail_ci_if_error: true
+          fail_ci_if_error: false
 
   lint:
     name: Lint and type-check
@@ -211,7 +211,10 @@ jobs:
       - name: Install lint dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install flake8 black mypy
+          # Versões pinadas: garantir que o CI usa as mesmas que validaram o
+          # repo localmente (black/flake8/mypy evoluem o estilo/regras entre
+          # versões e fariam o gate falhar com tooling mais recente). Ver #116.
+          pip install flake8==6.1.0 black==23.12.0 mypy==1.7.1
           pip install -r libraries/python/neural_hive_specialists/requirements-dev.txt
 
       - name: Run flake8

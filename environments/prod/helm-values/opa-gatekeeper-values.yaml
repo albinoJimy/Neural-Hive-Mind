@@ -1,174 +1,124 @@
 # OPA Gatekeeper Helm Values - Production Environment
+#
+# IMPORTANTE (remediação P0 2026-06-04):
+# Este ficheiro foi REESCRITO. A versão anterior usava chaves de TOPO
+# (replicaCount, webhook, mutatingAdmissionWebhook, validatingAdmissionWebhook,
+# autoEnforce, violationLog, backup, networkPolicy, alerting, etc.) que o
+# subchart oficial `gatekeeper` NÃO lê — era config 100% morta e foi a causa
+# do drift repo↔cluster (o repo "dizia" failurePolicy=Fail/auditInterval=300
+# mas o cluster corria Ignore/60 porque nada chegava ao subchart).
+#
+# Todas as chaves abaixo são as chaves OFICIAIS do subchart, aninhadas sob
+# `gatekeeper:`, e portanto efectivas via `helm upgrade -f <este ficheiro>`.
 
-# Production replica configuration for high availability
-replicaCount: 3
-auditReplicaCount: 2
+gatekeeper:
+  # Alta disponibilidade em produção: `replicas` controla o controller-manager.
+  # REMEDIAÇÃO P0: a chave `auditPodCount` NÃO existe no subchart oficial 3.22.0
+  # (era config morta — o audit corre sempre como 1 pod). Foi removida.
+  replicas: 3
 
-# Resource limits for production workload
-resources:
-  limits:
-    cpu: 1000m
-    memory: 1Gi
-  requests:
-    cpu: 500m
-    memory: 512Mi
+  # Controller-manager: mantém 512Mi. Validado ao vivo que o uso real é ~94Mi e
+  # que os 176 restarts eram liveness timeouts do mutating webhook (removido),
+  # não OOM. 512Mi cabe na ResourceQuota security-quota do namespace (2Gi).
+  controllerManager:
+    resources:
+      limits:
+        cpu: 1000m
+        memory: 512Mi
+      requests:
+        cpu: 500m
+        memory: 256Mi
 
-auditResources:
-  limits:
-    cpu: 500m
-    memory: 512Mi
-  requests:
-    cpu: 250m
-    memory: 256Mi
+  audit:
+    resources:
+      limits:
+        cpu: 500m
+        memory: 512Mi
+      requests:
+        cpu: 250m
+        memory: 256Mi
 
-# Image configuration
-image:
-  repository: openpolicyagent/gatekeeper
-  tag: ""  # Use chart's default
-  pullPolicy: Always
+  # ---------------------------------------------------------------------------
+  # AUDIT EFICIENTE — REMEDIAÇÃO P0
+  # ---------------------------------------------------------------------------
+  # auditFromCache=true: lê do informer cache em vez de martelar o apiserver.
+  # auditMatchKindOnly=true: só audita kinds com constraints associadas.
+  # auditInterval=300: reconcilia a intenção do repo (era 60 no cluster).
+  auditFromCache: true
+  auditMatchKindOnly: true
+  auditInterval: 300
+  constraintViolationsLimit: 50
 
-# Production constraint violation enforcement
-constraintViolationsLimit: 50
-auditInterval: 300  # 5 minutes
-auditMatchKindOnly: false
+  # IMPORTANTE (REMEDIAÇÃO P0): com auditFromCache=true o audit lê do informer
+  # cache, logo o SyncConfig TEM de observar todos os kinds cobertos pelas
+  # constraints (policies/constraints/), senão o audit perde violações. A antiga
+  # chave `sync.syncOnly` em values NÃO existe no subchart oficial 3.22.0 (era
+  # config morta) — o SyncConfig é um CRD separado (config.gatekeeper.sh/v1alpha1
+  # Config) aplicado via kubectl. Ver k8s/bootstrap/gatekeeper-sync-config.yaml,
+  # aplicado ANTES das policies pelo workflow.
 
-# Production enforcement mode - start in warn mode
-enforcementMode: warn
+  # Métricas e monitorização
+  enableMetrics: true
+  metricsBackends: ["prometheus"]
 
-# Auto-enforcement configuration for production (slower transition)
-autoEnforce:
-  enabled: true
-  afterDays: 7  # Transition to enforce mode after 7 days
-  excludeNamespaces:
-    - kube-system
-    - kube-public
-    - gatekeeper-system
-    - cosign-system
-
-# Violation logging for production
-violationLog:
-  enabled: true
-  level: info
-  retentionDays: 90  # Longer retention for compliance
-
-# Metrics and monitoring
-metrics:
-  enabled: true
-  port: 8888
-
-# Production webhook configuration
-webhook:
-  port: 8443
-  # Strict failure policy for production
-  failurePolicy: Fail
-  namespaceSelector:
-    matchExpressions:
-    - key: name
-      operator: NotIn
-      values:
+  # ---------------------------------------------------------------------------
+  # WEBHOOK DE VALIDAÇÃO — failurePolicy=Fail (intenção do repo, agora efectiva)
+  # ---------------------------------------------------------------------------
+  validatingWebhookFailurePolicy: Fail
+  validatingWebhookTimeoutSeconds: 3
+  validatingWebhookExemptNamespacesLabels:
+    kubernetes.io/metadata.name:
       - kube-system
       - kube-public
+      - kube-node-lease
       - gatekeeper-system
       - cosign-system
 
-# Production node selection and distribution
-nodeSelector:
-  kubernetes.io/os: linux
+  # ---------------------------------------------------------------------------
+  # WEBHOOK DE MUTAÇÃO — REMEDIAÇÃO P0
+  # ---------------------------------------------------------------------------
+  # No subchart a mutação é controlada por `disableMutation` (default false =
+  # LIGADA). Como NÃO existem mutators (Assign/AssignMetadata/...) no repo, o
+  # MutatingWebhookConfiguration corria com rules catch-all "*" a intercetar
+  # subjectaccessreviews/tokenreviews/leases/events e a esmagar o apiserver.
+  # Desligamos a mutação por completo (elimina o webhook).
+  disableMutation: true
+  mutatingWebhookFailurePolicy: Ignore
+  mutatingWebhookTimeoutSeconds: 3
+  # Defesa em profundidade caso a mutação seja reactivada: substitui o "*".
+  mutatingWebhookCustomRules:
+    - apiGroups: ["", "apps", "batch"]
+      apiVersions: ["v1"]
+      operations: ["CREATE", "UPDATE"]
+      resources:
+        - pods
+        - deployments
+        - statefulsets
+        - daemonsets
+        - replicasets
+        - jobs
+        - cronjobs
+      scope: Namespaced
+  mutatingWebhookExemptNamespacesLabels:
+    kubernetes.io/metadata.name:
+      - kube-system
+      - kube-public
+      - kube-node-lease
+      - gatekeeper-system
+      - cosign-system
 
-# Distribute pods across availability zones
-affinity:
-  podAntiAffinity:
-    preferredDuringSchedulingIgnoredDuringExecution:
-    - weight: 100
-      podAffinityTerm:
-        labelSelector:
-          matchLabels:
-            app: gatekeeper-controller-manager
-        topologyKey: topology.kubernetes.io/zone
+  # Namespaces de sistema isentos de enforcement
+  exemptNamespaces:
+    - kube-system
+    - kube-public
+    - kube-node-lease
+    - gatekeeper-system
+    - cosign-system
 
-tolerations: []
+  # Log level
+  logLevel: INFO
 
-# Security context
-securityContext:
-  allowPrivilegeEscalation: false
-  capabilities:
-    drop:
-    - ALL
-  readOnlyRootFilesystem: true
-  runAsGroup: 999
-  runAsNonRoot: true
-  runAsUser: 1000
-
-# Pod security context
-podSecurityContext:
-  fsGroup: 999
-  supplementalGroups:
-  - 999
-
-# Production exemptions (minimal)
-exemptNamespaces:
-  - kube-system
-  - kube-public
-  - gatekeeper-system
-  - cosign-system
-  - kube-node-lease
-
-# Production environment variables
-env:
-  - name: GATEKEEPER_AUDIT_INTERVAL
-    value: "300"
-  - name: LOG_LEVEL
-    value: "INFO"
-  - name: CONSTRAINT_VIOLATIONS_LIMIT
-    value: "50"
-
-# Enable validation of Gatekeeper resources with strict policy
-validatingAdmissionWebhook:
-  failurePolicy: Fail
-  namespaceSelector:
-    matchExpressions:
-    - key: admission.gatekeeper.sh/ignore
-      operator: DoesNotExist
-
-# Mutating admission webhook (enabled for production policies)
-mutatingAdmissionWebhook:
-  enabled: true
-
-# Enable OPA built-in functions
-enableOpaBuiltins: true
-
-# Production alerting configuration
-alerting:
-  enabled: true
-  webhookUrl: "ALERTING_WEBHOOK_PLACEHOLDER"
-  severityThreshold: "medium"
-
-# Pod disruption budget for high availability
-podDisruptionBudget:
-  enabled: true
-  minAvailable: 2
-
-# Network policy for additional security
-networkPolicy:
-  enabled: true
-  ingress:
-  - from:
-    - namespaceSelector:
-        matchLabels:
-          name: kube-system
-    ports:
-    - protocol: TCP
-      port: 8443  # Webhook port
-  - from:
-    - namespaceSelector:
-        matchLabels:
-          name: monitoring
-    ports:
-    - protocol: TCP
-      port: 8888  # Metrics port
-
-# Backup and recovery configuration
-backup:
-  enabled: true
-  schedule: "0 2 * * *"  # Daily at 2 AM
-  retentionDays: 30
+  # Pod Disruption Budget para alta disponibilidade
+  pdb:
+    controllerManager:
+      minAvailable: 2

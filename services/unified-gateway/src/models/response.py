@@ -30,11 +30,15 @@ class UnifiedResponse(BaseModel):
     error: str | None = Field(default=None, description="Mensagem de erro se status=error")
 
     # Metadados de rastreamento
-    gateway_used: str | None = Field(default=None, description="Gateway que processou (para debugging)")
+    gateway_used: str | None = Field(
+        default=None, description="Gateway que processou (para debugging)"
+    )
     trace_id: str | None = Field(default=None, description="Distributed trace ID")
 
     # Informações do fallback (se aplicável)
-    fallback_used: bool = Field(default=False, description="Se fallback para flow alternativo foi usado")
+    fallback_used: bool = Field(
+        default=False, description="Se fallback para flow alternativo foi usado"
+    )
     original_flow_type: str | None = Field(
         default=None, description="Flow type original antes do fallback"
     )

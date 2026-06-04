@@ -106,7 +106,9 @@ class PheromoneClient:
                 await self._save_pheromone_to_mongodb(signal)
                 mongo_ok = True
             except Exception as e:
-                logger.error("Erro ao salvar feromônio no MongoDB", signal_id=signal.signal_id, error=str(e))
+                logger.error(
+                    "Erro ao salvar feromônio no MongoDB", signal_id=signal.signal_id, error=str(e)
+                )
 
         logger.info(
             "Feromônio publicado",
@@ -291,15 +293,15 @@ class PheromoneClient:
             document["immutable"] = True
 
             await collection.update_one(
-                {"signal_id": signal.signal_id},
-                {"$set": document},
-                upsert=True
+                {"signal_id": signal.signal_id}, {"$set": document}, upsert=True
             )
 
             logger.debug("Feromônio salvo no MongoDB", signal_id=signal.signal_id)
 
         except Exception as e:
-            logger.error("Erro ao salvar feromônio no MongoDB", signal_id=signal.signal_id, error=str(e))
+            logger.error(
+                "Erro ao salvar feromônio no MongoDB", signal_id=signal.signal_id, error=str(e)
+            )
             raise
 
     async def _get_active_signal_ids_from_mongodb(self, list_key: str) -> list:
@@ -324,11 +326,13 @@ class PheromoneClient:
             collection = self._fallback_storage.mongodb.db[self._pheromone_collection]
 
             # Buscar sinais não expirados para este especialista/domínio
-            cursor = collection.find({
-                "specialist_type": specialist_type,
-                "domain": domain,
-                "expires_at": {"$gt": datetime.now(timezone.utc)},
-            })
+            cursor = collection.find(
+                {
+                    "specialist_type": specialist_type,
+                    "domain": domain,
+                    "expires_at": {"$gt": datetime.now(timezone.utc)},
+                }
+            )
 
             signal_ids = []
             async for doc in cursor:
@@ -344,7 +348,9 @@ class PheromoneClient:
             return signal_ids
 
         except Exception as e:
-            logger.error("Erro ao buscar signal_ids do MongoDB fallback", list_key=list_key, error=str(e))
+            logger.error(
+                "Erro ao buscar signal_ids do MongoDB fallback", list_key=list_key, error=str(e)
+            )
             return []
 
     async def _get_pheromone_signal_from_mongodb(self, signal_id: str) -> Optional[PheromoneSignal]:
@@ -371,7 +377,9 @@ class PheromoneClient:
             return None
 
         except Exception as e:
-            logger.error("Erro ao buscar sinal do MongoDB fallback", signal_id=signal_id, error=str(e))
+            logger.error(
+                "Erro ao buscar sinal do MongoDB fallback", signal_id=signal_id, error=str(e)
+            )
             return None
 
     def _log_redis_failure(self, operation: str, key: str, error: str):

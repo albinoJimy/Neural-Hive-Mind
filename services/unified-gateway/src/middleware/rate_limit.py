@@ -122,9 +122,7 @@ class RateLimiter:
         config = RATE_LIMIT_TIERS[tier]
         now = int(time.time())
         minute_window = now // 60
-        minute_key = self._make_key(
-            tenant_id, user_id, endpoint, "rate_limit", minute_window
-        )
+        minute_key = self._make_key(tenant_id, user_id, endpoint, "rate_limit", minute_window)
 
         redis = await self.get_redis()
 

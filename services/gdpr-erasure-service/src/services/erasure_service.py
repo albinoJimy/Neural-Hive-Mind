@@ -7,10 +7,8 @@ import secrets
 from datetime import datetime, timedelta, timezone
 
 import structlog
-from pymongo import UpdateOne
-from pymongo.errors import PyMongoError
 
-from src.config.settings import Settings, get_settings
+from src.config.settings import Settings
 from src.models.erasure import (
     DataType,
     ErasureCommand,
@@ -72,9 +70,7 @@ class ErasureService:
         salted = f"{raw}:{self.settings.verification_token_salt}"
         return hashlib.sha256(salted.encode()).hexdigest()
 
-    async def create_erasure_request(
-        self, user_id: str, input_data: dict
-    ) -> ErasureRequest:
+    async def create_erasure_request(self, user_id: str, input_data: dict) -> ErasureRequest:
         """
         Cria uma nova solicitacao de exclusao.
 
@@ -124,9 +120,7 @@ class ErasureService:
 
         # Criar token de verificacao
         token = self._generate_verification_token(user_id, input_data.get("email"))
-        expires_at = datetime.now(timezone.utc) + timedelta(
-            seconds=self.settings.redis_token_ttl
-        )
+        expires_at = datetime.now(timezone.utc) + timedelta(seconds=self.settings.redis_token_ttl)
 
         # Criar solicitacao
         request = ErasureRequest(
@@ -159,9 +153,7 @@ class ErasureService:
 
         return request
 
-    async def verify_erasure_request(
-        self, request_id: str, token: str
-    ) -> ErasureRequest:
+    async def verify_erasure_request(self, request_id: str, token: str) -> ErasureRequest:
         """
         Verifica uma solicitacao usando o token enviado por email.
 
@@ -235,9 +227,7 @@ class ErasureService:
         request = ErasureRequest(**request_doc)
 
         if request.status != ErasureStatus.VERIFIED:
-            raise ValueError(
-                f"Solicitacao deve estar verificada, status atual: {request.status}"
-            )
+            raise ValueError(f"Solicitacao deve estar verificada, status atual: {request.status}")
 
         # Atualizar status para PROCESSING
         await self.collection.update_one(
@@ -366,18 +356,14 @@ class ErasureService:
         expected_services = set(self._get_target_services(data_types))
 
         # Services que ja responderam
-        completed_services = {
-            r["service"] for r in request_doc.get("results", [])
-        }
+        completed_services = {r["service"] for r in request_doc.get("results", [])}
 
         if completed_services == expected_services:
             # Todos responderam
             final_status = ErasureStatus.COMPLETED
 
             # Verificar se houve falhas
-            has_failures = any(
-                r.get("status") == "failed" for r in request_doc.get("results", [])
-            )
+            has_failures = any(r.get("status") == "failed" for r in request_doc.get("results", []))
             if has_failures:
                 final_status = ErasureStatus.PARTIALLY_COMPLETED
 

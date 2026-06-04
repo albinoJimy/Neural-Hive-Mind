@@ -48,9 +48,7 @@ output "auth_token" {
 
 output "cluster_size" {
   description = "Número total de nós (primários + réplicas)"
-  value       = var.cluster_mode_enabled
-    ? var.shard_count * (1 + var.replicas_per_shard)
-    : var.num_cache_nodes * (1 + var.replicas_per_node)
+  value       = var.cluster_mode_enabled ? var.shard_count * (1 + var.replicas_per_shard) : var.num_cache_nodes * (1 + var.replicas_per_node)
 }
 
 output "engine_version" {

@@ -3,12 +3,10 @@ Testes unitários para FlowCOrchestrator.
 """
 
 import pytest
-import asyncio
 from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from neural_hive_integration.orchestration.flow_c_orchestrator import FlowCOrchestrator
-from neural_hive_integration.models.flow_c_context import FlowCResult
 from neural_hive_integration.clients.service_registry_client import AgentInfo
 
 

@@ -27,7 +27,9 @@ class TestContextManagerValidation:
         assert "config não pode ser None" in str(exc_info.value)
         assert "init_observability()" in str(exc_info.value)
 
-    def test_context_manager_raises_type_error_when_config_is_not_observability_config(self):
+    def test_context_manager_raises_type_error_when_config_is_not_observability_config(
+        self,
+    ):
         """Teste 2: Verificar que config de tipo errado lança TypeError."""
         mock_object = Mock()
         mock_object.__class__.__name__ = "MockConfig"
@@ -154,7 +156,8 @@ class TestContextManagerIntegration:
 
         # Inicializar observabilidade
         init_observability(
-            service_name="integration-test-service", prometheus_port=0  # Não iniciar servidor HTTP
+            service_name="integration-test-service",
+            prometheus_port=0,  # Não iniciar servidor HTTP
         )
 
         # Obter config (sempre disponível após init)
@@ -175,7 +178,8 @@ class TestContextManagerIntegration:
     def test_context_manager_logging_on_successful_initialization(self, caplog):
         """Teste 12: Verificar logs de debug na inicialização bem-sucedida."""
         config = ObservabilityConfig(
-            service_name="logging-test-service", neural_hive_component="logging-test-component"
+            service_name="logging-test-service",
+            neural_hive_component="logging-test-component",
         )
 
         with caplog.at_level(logging.DEBUG, logger="neural_hive_observability.context"):

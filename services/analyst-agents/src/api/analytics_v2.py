@@ -450,8 +450,9 @@ async def get_dashboard_stream(
             # Enviar erro via SSE e terminar loop
             error_data = {"error": str(e), "timestamp": datetime.now(timezone.utc).isoformat()}
             yield f"event: error\ndata: {json.dumps(error_data)}\n\n"
-            # Break para evitar memory leak - cliente desconectou ou erro grave
-            break
+            # Terminar o gerador para evitar memory leak - cliente desconectou ou erro grave
+            # (este except está fora do while, logo usa-se return e não break)
+            return
 
         finally:
             # Cleanup do generator

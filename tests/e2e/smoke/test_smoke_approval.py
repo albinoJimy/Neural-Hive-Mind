@@ -86,7 +86,7 @@ class TestApprovalSmokeComplete:
 
         # Se não disponível, skip teste
         if not result["health"]["available"]:
-            pytest.skip(f"Approval Service não disponível")
+            pytest.skip("Approval Service não disponível")
 
         assert result["health"]["status_code"] == 200
         assert result["ready"]["status_code"] in {200, 503}

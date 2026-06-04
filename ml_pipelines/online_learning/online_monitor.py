@@ -7,12 +7,11 @@ estabilidade de predições, uso de memória e alertas proativos.
 
 import os
 import psutil
-import time
 from datetime import datetime, timedelta, timezone
 from typing import Dict, Any, Optional, List, Tuple
 import structlog
 import numpy as np
-from prometheus_client import Counter, Histogram, Gauge, Info
+from prometheus_client import Counter, Gauge
 from pymongo import MongoClient, DESCENDING
 
 from .config import OnlineLearningConfig
@@ -311,7 +310,7 @@ class OnlinePerformanceMonitor:
         if len(self._loss_history) < 10:
             return 0.0
 
-        recent_losses = [l[1] for l in self._loss_history[-100:]]
+        recent_losses = [item[1] for item in self._loss_history[-100:]]
 
         # Calcular tendência linear
         x = np.arange(len(recent_losses))

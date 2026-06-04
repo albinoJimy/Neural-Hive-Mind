@@ -213,7 +213,7 @@ class KubernetesClient:
                                 "metadata": {
                                     "annotations": {
                                         "kubectl.kubernetes.io/restartedAt": datetime.datetime.now(
-                                            timezone.utc
+                                            datetime.timezone.utc
                                         ).isoformat()
                                     }
                                 }

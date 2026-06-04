@@ -5,7 +5,6 @@ Integra com deploy-service via API REST para deploy em Kubernetes.
 """
 
 import asyncio
-from datetime import timedelta
 from typing import Any
 
 import httpx
@@ -111,9 +110,7 @@ async def deploy_software(
                 status_code=response.status_code,
                 response_text=response.text,
             )
-            raise RuntimeError(
-                f"Falha ao iniciar deploy: HTTP {response.status_code}"
-            )
+            raise RuntimeError(f"Falha ao iniciar deploy: HTTP {response.status_code}")
 
         result = response.json()
         deployment_id = result.get("deployment_id")
@@ -278,9 +275,7 @@ async def verify_deployment(
     # Verificar réplicas
     if available_replicas < min_replicas:
         verified = False
-        reasons.append(
-            f"Apenas {available_replicas} réplicas disponíveis (mínimo: {min_replicas})"
-        )
+        reasons.append(f"Apenas {available_replicas} réplicas disponíveis (mínimo: {min_replicas})")
 
     # Verificar health checks
     if require_healthy:

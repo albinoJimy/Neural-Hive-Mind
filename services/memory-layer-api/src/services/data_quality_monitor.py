@@ -174,7 +174,9 @@ class DataQualityMonitor:
         if not sample:
             return 0.0
 
-        threshold = datetime.now(timezone.utc) - timedelta(hours=self.settings.freshness_threshold_hours)
+        threshold = datetime.now(timezone.utc) - timedelta(
+            hours=self.settings.freshness_threshold_hours
+        )
         fresh_records = 0
 
         for doc in sample:

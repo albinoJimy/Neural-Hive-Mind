@@ -178,7 +178,9 @@ class KafkaSyncProducer:
             "data_type": str(event.get("data_type", "unknown")),
             "operation": str(event.get("operation", "INSERT")),
             "collection": str(event.get("collection", "")),
-            "timestamp": int(event.get("timestamp", int(datetime.now(timezone.utc).timestamp() * 1000))),
+            "timestamp": int(
+                event.get("timestamp", int(datetime.now(timezone.utc).timestamp() * 1000))
+            ),
             "data": str(event.get("data", "{}")),
             "metadata": event.get("metadata") if event.get("metadata") else None,
         }

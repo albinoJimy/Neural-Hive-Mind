@@ -4,13 +4,10 @@ Testes de integração para Cache-aside pattern com MongoDB.
 Gap P1: Cache-aside pattern para reduzir latência e carga no MongoDB.
 """
 
-import json
-from datetime import datetime, timezone
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from pymongo.errors import DuplicateKeyError
-from src.clients.redis_client import CacheEntry
 from src.clients.mongodb_client import MongoDBClient
 from src.services.cache_service import CacheAsideService
 from src.models.consolidated_decision import (
@@ -169,7 +166,9 @@ class TestMongoDBClientCacheAside:
         mock_redis_client.get_plan_approval.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_save_decision_invalidates_cache(self, mongodb_client, mock_redis_client, sample_decision):
+    async def test_save_decision_invalidates_cache(
+        self, mongodb_client, mock_redis_client, sample_decision
+    ):
         """Testa que salvar decisão invalida caches relacionados"""
         mongodb_client.set_cache_service(mock_redis_client)
         mongodb_client.consensus_collection.insert_one = AsyncMock(return_value=True)
@@ -292,7 +291,6 @@ class TestCacheInvalidationWorkflow:
         assert result1 == old_data
 
         # Escrita: invalida cache
-        from src.models.consolidated_decision import ConsolidatedDecision, DecisionType
 
         decision = MagicMock()
         decision.decision_id = "decision-123"

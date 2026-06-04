@@ -2,7 +2,6 @@
 
 import logging
 from enum import Enum
-from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -67,8 +66,26 @@ class IntentClassifier:
     }
 
     # Refinamento por palavras-chave (overrides quando NLU tem baixa confiança)
-    FLOW_AF_KEYWORDS = ["consultar", "buscar", "analisar", "listar", "mostrar", "dashboard", "relatório", "dados"]
-    FLOW_G_KEYWORDS = ["gerar", "criar", "build", "desenvolver", "código", "implementar", "app", "sistema"]
+    FLOW_AF_KEYWORDS = [
+        "consultar",
+        "buscar",
+        "analisar",
+        "listar",
+        "mostrar",
+        "dashboard",
+        "relatório",
+        "dados",
+    ]
+    FLOW_G_KEYWORDS = [
+        "gerar",
+        "criar",
+        "build",
+        "desenvolver",
+        "código",
+        "implementar",
+        "app",
+        "sistema",
+    ]
     FLOW_H_KEYWORDS = ["migrar", "migration", "legado", "legacy", "atualizar", "modernizar"]
 
     def __init__(self, nlu_client=None):

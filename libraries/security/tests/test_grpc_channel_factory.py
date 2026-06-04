@@ -11,7 +11,6 @@ Cobertura:
 
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
-import grpc
 
 from neural_hive_security import SPIFFEConfig
 from neural_hive_security.grpc_channel_factory import (

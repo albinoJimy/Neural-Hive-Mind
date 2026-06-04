@@ -6,10 +6,8 @@ Testa logging, métricas e tracing.
 """
 
 import pytest
-import asyncio
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
-from unittest.mock import Mock, patch
 import json
 
 

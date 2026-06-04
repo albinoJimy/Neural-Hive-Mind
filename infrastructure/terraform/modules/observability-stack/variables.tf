@@ -267,9 +267,9 @@ variable "jaeger_sampling_strategies" {
       param = number
     })
     per_service_strategies = list(object({
-      service   = string
-      type      = string
-      param     = number
+      service = string
+      type    = string
+      param   = number
     }))
   })
   default = {
@@ -465,15 +465,15 @@ variable "loki_resources" {
 variable "high_availability" {
   description = "Configurações para alta disponibilidade"
   type = object({
-    enabled           = bool
-    prometheus_replicas = number
-    grafana_replicas   = number
+    enabled               = bool
+    prometheus_replicas   = number
+    grafana_replicas      = number
     alertmanager_replicas = number
   })
   default = {
-    enabled           = true
-    prometheus_replicas = 2
-    grafana_replicas   = 2
+    enabled               = true
+    prometheus_replicas   = 2
+    grafana_replicas      = 2
     alertmanager_replicas = 3
   }
 }
@@ -498,23 +498,23 @@ variable "security_config" {
     enable_rbac           = bool
     enable_network_policy = bool
     enable_pod_security   = bool
-    tls_enabled          = bool
+    tls_enabled           = bool
   })
   default = {
     enable_rbac           = true
     enable_network_policy = true
     enable_pod_security   = true
-    tls_enabled          = true
+    tls_enabled           = true
   }
 }
 
 variable "backup_config" {
   description = "Configurações de backup"
   type = object({
-    enabled           = bool
-    storage_class     = string
-    retention_days    = number
-    backup_location   = string
+    enabled         = bool
+    storage_class   = string
+    retention_days  = number
+    backup_location = string
   })
   default = {
     enabled         = true
@@ -528,16 +528,16 @@ variable "backup_config" {
 variable "validation_config" {
   description = "Configuração para validação da stack"
   type = object({
-    health_check_interval = string
-    slo_validation_enabled = bool
+    health_check_interval     = string
+    slo_validation_enabled    = bool
     correlation_tests_enabled = bool
-    dashboard_tests_enabled = bool
+    dashboard_tests_enabled   = bool
   })
   default = {
-    health_check_interval = "30s"
-    slo_validation_enabled = true
+    health_check_interval     = "30s"
+    slo_validation_enabled    = true
     correlation_tests_enabled = true
-    dashboard_tests_enabled = true
+    dashboard_tests_enabled   = true
   }
 }
 

@@ -27,9 +27,8 @@ import os
 import uuid
 import pytest
 import structlog
-from typing import Dict, Any, Optional, List
+from typing import Dict, Optional, List
 from dataclasses import dataclass
-from datetime import datetime
 import json
 
 try:

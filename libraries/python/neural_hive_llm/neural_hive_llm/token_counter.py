@@ -9,7 +9,7 @@ from enum import Enum
 from typing import Final, Optional
 
 import structlog
-from prometheus_client import Counter, Gauge
+from prometheus_client import Counter
 
 logger = structlog.get_logger()
 

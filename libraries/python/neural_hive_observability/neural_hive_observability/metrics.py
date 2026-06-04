@@ -69,7 +69,9 @@ class NeuralHiveMetrics:
         """Inicializa métricas de serviço."""
         # Info sobre o serviço
         self.service_info = Info(
-            "neural_hive_service", "Informações do serviço Neural Hive-Mind", registry=self.registry
+            "neural_hive_service",
+            "Informações do serviço Neural Hive-Mind",
+            registry=self.registry,
         )
         self.service_info.info(
             {

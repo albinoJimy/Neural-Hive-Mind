@@ -443,7 +443,7 @@ class PerformanceReportGenerator:
             String com relatorio em formato markdown
         """
         sections = [
-            f"# Relatorio de Teste de Carga - Fluxo C",
+            "# Relatorio de Teste de Carga - Fluxo C",
             f"**Teste:** {self.results.test_name}",
             f'**Data:** {self.results.test_date.strftime("%Y-%m-%d %H:%M:%S")}',
             "",

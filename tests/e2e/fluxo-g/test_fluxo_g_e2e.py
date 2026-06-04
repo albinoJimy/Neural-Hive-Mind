@@ -160,6 +160,7 @@ class TestFluxoGPerformance:
         """
         Testa se o sistema suporta requisições concorrentes.
         """
+
         async def single_request():
             response = await http_client.get("http://localhost:8018/api/metrics")
             return response.status_code

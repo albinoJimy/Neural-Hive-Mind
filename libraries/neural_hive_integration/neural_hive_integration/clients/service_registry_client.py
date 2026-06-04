@@ -15,7 +15,7 @@ from typing import List, Dict, Any, Optional, Tuple
 from tenacity import retry, stop_after_attempt, wait_exponential
 from opentelemetry import trace
 from pydantic import BaseModel
-from prometheus_client import Counter, Histogram, Gauge
+from prometheus_client import Counter, Histogram
 
 # Redis para cache (opcional)
 try:
