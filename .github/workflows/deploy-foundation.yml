@@ -128,14 +128,120 @@ jobs:
       - name: Deploy OPA Gatekeeper
         if: github.event.inputs.dry_run != 'true'
         run: |
+          # REMEDIAÇÃO P0: passar explicitamente os values do ambiente dev.
+          # Sem `--values`, só os defaults do wrapper eram usados e as
+          # correcções por ambiente nunca chegavam ao cluster (drift).
+          # NÃO usar --reuse-values: reintroduziria os valores antigos
+          # (catch-all "*", auditInterval=60) e anularia a remediação.
+          # --atomic --cleanup-on-fail: rollback automático se o upgrade falhar
+          # a meio (ex.: OOM do controller durante o rollout), evitando deixar o
+          # release num estado inconsistente.
           helm upgrade --install opa-gatekeeper ./helm-charts/opa-gatekeeper \
             --namespace gatekeeper-system \
             --create-namespace \
+            --values environments/dev/helm-values/opa-gatekeeper-values.yaml \
+            --atomic --cleanup-on-fail --timeout 5m \
             --wait
 
       - name: Apply Bootstrap Manifests
         if: github.event.inputs.dry_run != 'true'
         run: |
+          # Inclui k8s/bootstrap/gatekeeper-sync-config.yaml (SyncConfig CRD) que
+          # popula o informer cache do audit (auditFromCache=true). Aplicado
+          # ANTES das policies.
+          kubectl apply -f k8s/bootstrap/
+
+      - name: Apply OPA Policies
+        if: github.event.inputs.dry_run != 'true'
+        run: |
+          kubectl apply -f policies/constraint-templates/
+          sleep 15
+          kubectl apply -f policies/constraints/
+
+      - name: Run Validation Scripts
+        if: github.event.inputs.dry_run != 'true'
+        run: |
+          ./scripts/validation/validate-cluster-health.sh || echo "Cluster health validation failed"
+
+  deploy-prod:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: determine-environment
+    # REMEDIAÇÃO P0: deploy de produção via CI/CD com os values CORRECTOS de
+    # prod (failurePolicy=Fail, auditInterval=300, PDB minAvailable=2). Sem este
+    # job, os values de produção nunca chegavam ao cluster. Só corre por
+    # workflow_dispatch com environment=prod (nunca em push para main).
+    if: needs.determine-environment.outputs.deploy_prod == 'true'
+    environment:
+      name: production
+      url: https://neural-hive-mind.com
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: ${{ env.HELM_VERSION }}
+
+      - name: Terraform Apply
+        working-directory: infrastructure/terraform
+        run: |
+          terraform init
+          terraform plan -var-file=../../environments/prod/terraform.tfvars -out=tfplan
+          if [ "${{ github.event.inputs.dry_run }}" != "true" ]; then
+            terraform apply -auto-approve -var-file=../../environments/prod/terraform.tfvars
+          else
+            echo "Dry run mode - skipping apply"
+          fi
+
+      - name: Update kubeconfig
+        if: github.event.inputs.dry_run != 'true'
+        run: |
+          aws eks update-kubeconfig --name neural-hive-prod --region ${{ env.AWS_REGION }}
+
+      - name: Deploy Istio
+        if: github.event.inputs.dry_run != 'true'
+        run: |
+          helm upgrade --install istio-base ./helm-charts/istio-base \
+            --namespace istio-system \
+            --create-namespace \
+            --values environments/prod/helm-values/istio-values.yaml \
+            --atomic --cleanup-on-fail --timeout 5m \
+            --wait
+
+      - name: Deploy OPA Gatekeeper
+        if: github.event.inputs.dry_run != 'true'
+        run: |
+          # REMEDIAÇÃO P0: usa os values de PRODUÇÃO (failurePolicy=Fail,
+          # auditInterval=300, pdb.controllerManager.minAvailable=2). NÃO usar
+          # --reuse-values: reintroduziria os valores antigos (catch-all "*",
+          # auditInterval=60) e anularia a remediação.
+          helm upgrade --install opa-gatekeeper ./helm-charts/opa-gatekeeper \
+            --namespace gatekeeper-system \
+            --create-namespace \
+            --values environments/prod/helm-values/opa-gatekeeper-values.yaml \
+            --atomic --cleanup-on-fail --timeout 5m \
+            --wait
+
+      - name: Apply Bootstrap Manifests
+        if: github.event.inputs.dry_run != 'true'
+        run: |
+          # Inclui o SyncConfig CRD (gatekeeper-sync-config.yaml) — obrigatório
+          # para o audit ler do informer cache. Aplicado ANTES das policies.
           kubectl apply -f k8s/bootstrap/
 
       - name: Apply OPA Policies
@@ -153,7 +259,7 @@ jobs:
   notify-deployment:
     name: Notify Deployment Status
     runs-on: ubuntu-latest
-    needs: [determine-environment, deploy-dev]
+    needs: [determine-environment, deploy-dev, deploy-prod]
     if: always()
 
     steps:
@@ -163,10 +269,11 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "- **Environment**: ${{ needs.determine-environment.outputs.environment }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Development**: ${{ needs.deploy-dev.result || 'skipped' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Production**: ${{ needs.deploy-prod.result || 'skipped' }}" >> $GITHUB_STEP_SUMMARY
 
       - name: Check overall deployment status
         run: |
-          if [[ "${{ needs.deploy-dev.result }}" == "failure" ]]; then
+          if [[ "${{ needs.deploy-dev.result }}" == "failure" || "${{ needs.deploy-prod.result }}" == "failure" ]]; then
             echo "Deployment failed"
             exit 1
           fi

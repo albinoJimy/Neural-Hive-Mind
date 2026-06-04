@@ -1,0 +1,83 @@
+# OPA Gatekeeper — SyncConfig (REMEDIAÇÃO P0 2026-06-04)
+#
+# CONTEXTO:
+# O subchart oficial `gatekeeper` (3.22.0) NÃO aceita a chave `sync.syncOnly`
+# em values do Helm — essa configuração era config morta nos ficheiros de
+# values (helm/gatekeeper/values.yaml, environments/prod/helm-values/...).
+# O SyncConfig é um CRD separado (config.gatekeeper.sh/v1alpha1, kind Config)
+# que TEM de ser aplicado via kubectl.
+#
+# PORQUÊ É CRÍTICO:
+# Com `auditFromCache: true`, o processo de audit lê do informer cache em vez
+# de martelar o kube-apiserver/etcd. Mas o cache só é populado para os kinds
+# listados aqui em `spec.sync.syncOnly`. Sem este Config, o cache fica vazio e
+# o audit perde TODAS as violações em pods/deployments/etc — anulando o
+# objectivo da remediação P0.
+#
+# COMO É APLICADO:
+# O step "Apply Bootstrap Manifests" do workflow .github/workflows/
+# deploy-foundation.yml faz `kubectl apply -f k8s/bootstrap/` ANTES do step
+# "Apply OPA Policies". O nome deste ficheiro garante ordenação alfabética
+# adequada dentro da pasta.
+#
+# KINDS SINCRONIZADOS:
+# Cobrem todos os kinds referenciados em policies/constraints/ + os recursos
+# base que o audit precisa de observar (Namespace/Pod/Service/ConfigMap/Secret
+# + workloads apps + NetworkPolicy + CRDs Istio/Redis/neural-hive).
+apiVersion: config.gatekeeper.sh/v1alpha1
+kind: Config
+metadata:
+  name: config
+  namespace: gatekeeper-system
+spec:
+  sync:
+    syncOnly:
+      # Core API group ("")
+      - group: ""
+        version: v1
+        kind: Namespace
+      - group: ""
+        version: v1
+        kind: Pod
+      - group: ""
+        version: v1
+        kind: Service
+      - group: ""
+        version: v1
+        kind: ConfigMap
+      - group: ""
+        version: v1
+        kind: Secret
+      # apps API group — workloads cobertos pelas constraints
+      - group: "apps"
+        version: v1
+        kind: Deployment
+      - group: "apps"
+        version: v1
+        kind: StatefulSet
+      - group: "apps"
+        version: v1
+        kind: DaemonSet
+      # networking — NetworkPolicy (constraint network-policies-required)
+      - group: "networking.k8s.io"
+        version: v1
+        kind: NetworkPolicy
+      # Istio — PeerAuthentication (constraint enforce-mtls-strict)
+      - group: "security.istio.io"
+        version: v1beta1
+        kind: PeerAuthentication
+      # Redis operator — RedisCluster (constraint redis-security-validation)
+      - group: "redis.redis.opstreelabs.in"
+        version: v1beta2
+        kind: RedisCluster
+      # catalog.neural-hive.io — DataAsset/ApiAsset
+      # (constraint data-governance-validation). NOTA: o grupo/versão REAL dos
+      # CRDs em k8s/bootstrap/data-governance-crds.yaml é
+      # `catalog.neural-hive.io/v1alpha1` — sincronizamos esse para o cache do
+      # audit ser populado com os recursos que existem de facto no cluster.
+      - group: "catalog.neural-hive.io"
+        version: v1alpha1
+        kind: DataAsset
+      - group: "catalog.neural-hive.io"
+        version: v1alpha1
+        kind: ApiAsset

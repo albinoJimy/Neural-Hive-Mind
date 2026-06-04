@@ -6,10 +6,13 @@ Gerencia todas as configuracoes usando Pydantic Settings com suporte a variaveis
 
 from typing import Optional
 
+import structlog
 from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings
 
 from neural_hive_security.cors import CORSConfig
+
+logger = structlog.get_logger()
 
 
 class Settings(BaseSettings):
@@ -58,6 +61,31 @@ class Settings(BaseSettings):
     kafka_sasl_mechanism: Optional[str] = Field(None, description="Mecanismo SASL")
     kafka_sasl_username: Optional[str] = Field(None, description="Usuario SASL")
     kafka_sasl_password: Optional[str] = Field(None, description="Senha SASL")
+
+    # Kafka Startup Resilience (retry com backoff exponencial na validacao de topicos)
+    kafka_startup_max_retries: int = Field(
+        default=10,
+        description="Numero maximo de tentativas de conexao ao Kafka no startup",
+    )
+    kafka_startup_initial_backoff_seconds: float = Field(
+        default=1.0,
+        description="Backoff inicial (s) entre tentativas de conexao Kafka no startup",
+    )
+    kafka_startup_max_backoff_seconds: float = Field(
+        default=30.0,
+        description="Backoff maximo (s) entre tentativas de conexao Kafka no startup",
+    )
+    kafka_startup_retry_missing_topics: bool = Field(
+        default=True,
+        description=(
+            "Se True, faz retry quando topicos estao em falta (apropriado apenas "
+            "durante o bootstrap inicial do cluster, onde os topicos sao criados em "
+            "paralelo). ATENCAO: em producao, manter True atrasa a deteccao de "
+            "misconfiguracoes deterministicas (nome de topico/namespace errado) ate "
+            "esgotar todas as tentativas (~max_retries * max_backoff segundos). Em "
+            "producao, preferir False (fail-fast) salvo durante bootstrap explicito."
+        ),
+    )
 
     # Schema Registry
     schema_registry_url: Optional[str] = Field(None, description="URL do Schema Registry")
@@ -231,6 +259,29 @@ class Settings(BaseSettings):
                 "Use HTTPS em producao/staging para garantir seguranca de dados em transito."
             )
 
+        return self
+
+    @model_validator(mode="after")
+    def warn_kafka_retry_missing_topics_in_production(self) -> "Settings":
+        """
+        Emite aviso proeminente quando o retry de topicos em falta esta ativo em producao.
+
+        Em producao, ``kafka_startup_retry_missing_topics=True`` atrasa a deteccao de
+        misconfiguracoes deterministicas (nome de topico ou namespace errado) ate
+        esgotar todas as tentativas (~max_retries * max_backoff segundos), em vez de
+        falhar de imediato. Mantemos o default True para suportar bootstrap do cluster,
+        mas alertamos os operadores do risco de falha tardia.
+        """
+        is_prod = self.environment.lower() in ("production", "prod")
+        if is_prod and self.kafka_startup_retry_missing_topics:
+            logger.warning(
+                "kafka_startup_retry_missing_topics=True em producao: deteccao de "
+                "topicos mal configurados sera atrasada ate esgotar as tentativas. "
+                "Considere False para fail-fast salvo durante bootstrap do cluster.",
+                environment=self.environment,
+                max_retries=self.kafka_startup_max_retries,
+                max_backoff_seconds=self.kafka_startup_max_backoff_seconds,
+            )
         return self
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8", "case_sensitive": False}

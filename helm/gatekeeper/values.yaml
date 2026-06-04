@@ -1,12 +1,16 @@
 gatekeeper:
+  # `replicas` controla o controller-manager. REMEDIAÇÃO P0: a chave
+  # `auditPodCount` NÃO existe no subchart oficial 3.22.0 (era config morta) —
+  # o audit corre sempre como 1 pod. Foi removida.
   replicas: 2
-  auditPodCount: 1
 
+  # Mantém 512Mi: uso real ~94Mi; os 176 restarts eram liveness do webhook
+  # (removido), não OOM. Cabe na security-quota (2Gi) do namespace.
   controllerManager:
     resources:
       limits:
         cpu: 1000m
-        memory: 1Gi
+        memory: 512Mi
       requests:
         cpu: 100m
         memory: 256Mi
@@ -24,17 +28,48 @@ gatekeeper:
   metricsBackends: ["prometheus"]
 
   validatingWebhookFailurePolicy: Ignore
+  validatingWebhookTimeoutSeconds: 3
   mutatingWebhookFailurePolicy: Ignore
+  mutatingWebhookTimeoutSeconds: 3
 
-  enableMutatingWebhook: false
+  # REMEDIAÇÃO P0: a chave `enableMutatingWebhook` NÃO existe no subchart
+  # oficial 3.22.0 (era config morta). A mutação é controlada por
+  # `disableMutation` (default false = LIGADA). Como não há mutators no
+  # cluster, desligamos o webhook de mutação por completo, eliminando o
+  # MutatingWebhookConfiguration catch-all "*" que sufocava o apiserver.
+  disableMutation: true
 
-  auditInterval: 60
+  # Defesa em profundidade caso a mutação venha a ser reactivada: substitui
+  # o catch-all "*" por workloads reais em scope Namespaced.
+  mutatingWebhookCustomRules:
+    - apiGroups: ["", "apps", "batch"]
+      apiVersions: ["v1"]
+      operations: ["CREATE", "UPDATE"]
+      resources:
+        - pods
+        - deployments
+        - statefulsets
+        - daemonsets
+        - replicasets
+        - jobs
+        - cronjobs
+      scope: Namespaced
+  mutatingWebhookExemptNamespacesLabels:
+    kubernetes.io/metadata.name:
+      - kube-system
+      - kube-public
+      - kube-node-lease
+      - gatekeeper-system
 
-  sync:
-    syncOnly:
-      - group: ""
-        version: v1
-        kind: Namespace
-      - group: ""
-        version: v1
-        kind: Pod
+  # Audit eficiente: ler do informer cache, só auditar kinds com constraints,
+  # e subir o intervalo de 60 -> 300 para não martelar o etcd.
+  auditFromCache: true
+  auditMatchKindOnly: true
+  auditInterval: 300
+
+  # IMPORTANTE (REMEDIAÇÃO P0): com auditFromCache=true o audit lê do informer
+  # cache, logo o SyncConfig TEM de observar TODOS os kinds cobertos pelas
+  # constraints. A antiga chave `sync.syncOnly` em values NÃO existe no subchart
+  # oficial 3.22.0 (era config morta) — o SyncConfig é um CRD separado
+  # (config.gatekeeper.sh/v1alpha1 Config) aplicado via kubectl. Ver o manifesto
+  # k8s/bootstrap/gatekeeper-sync-config.yaml, aplicado ANTES das policies.
