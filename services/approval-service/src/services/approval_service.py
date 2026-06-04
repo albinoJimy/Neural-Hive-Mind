@@ -686,7 +686,11 @@ class ApprovalService:
 
         # Emite metricas
         duration = (datetime.now(timezone.utc) - start_time).total_seconds()
-        time_to_decision = (decision.approved_at - approval.requested_at).total_seconds()
+        # requested_at vindo do MongoDB e tz-naive; normaliza para UTC antes de subtrair
+        requested_at = approval.requested_at
+        if requested_at.tzinfo is None:
+            requested_at = requested_at.replace(tzinfo=timezone.utc)
+        time_to_decision = (decision.approved_at - requested_at).total_seconds()
 
         self.metrics.increment_approvals_total("approved", approval.risk_band)
         self.metrics.observe_processing_duration(duration, "approved")
@@ -771,7 +775,11 @@ class ApprovalService:
 
         # Emite metricas
         duration = (datetime.now(timezone.utc) - start_time).total_seconds()
-        time_to_decision = (decision.approved_at - approval.requested_at).total_seconds()
+        # requested_at vindo do MongoDB e tz-naive; normaliza para UTC antes de subtrair
+        requested_at = approval.requested_at
+        if requested_at.tzinfo is None:
+            requested_at = requested_at.replace(tzinfo=timezone.utc)
+        time_to_decision = (decision.approved_at - requested_at).total_seconds()
 
         self.metrics.increment_approvals_total("rejected", approval.risk_band)
         self.metrics.observe_processing_duration(duration, "rejected")
