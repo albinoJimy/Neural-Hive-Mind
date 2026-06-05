@@ -26,6 +26,15 @@ class Settings(BaseSettings):
     kafka_plans_topic: str = Field(default="plans.ready", description="Tópico de planos cognitivos")
     kafka_auto_offset_reset: str = Field(default="earliest", description="Auto offset reset")
     kafka_enable_auto_commit: bool = Field(default=False, description="Auto commit offsets")
+    kafka_max_poll_interval_ms: int = Field(
+        default=1800000,
+        description=(
+            "Intervalo máximo entre polls antes de o broker expulsar o consumer. "
+            "Default do confluent-kafka (5min) é insuficiente: processar uma mensagem "
+            "invoca 5 especialistas via gRPC + consolidação, podendo exceder 5min com "
+            "especialistas lentos → consumer expulso/preso até restart. 30min dá margem."
+        ),
+    )
     kafka_security_protocol: str = Field(default="PLAINTEXT", description="Security protocol")
     kafka_sasl_mechanism: Optional[str] = Field(default=None, description="SASL mechanism")
     kafka_sasl_username: Optional[str] = Field(default=None, description="SASL username")

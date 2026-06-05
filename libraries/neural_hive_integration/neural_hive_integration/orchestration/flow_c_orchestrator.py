@@ -884,6 +884,16 @@ class FlowCOrchestrator:
         sla_deadline = int(context.sla_deadline.timestamp() * 1000)
         current_timestamp = int(datetime.now(timezone.utc).timestamp() * 1000)
 
+        # Pré-gerar ticket_ids e mapear task_id->ticket_id. As dependências no
+        # cognitive_plan são task_ids (ex.: "task_5"), mas o dependency_coordinator
+        # do worker resolve dependências via get_ticket(ticket_id). Sem esta
+        # tradução, get_ticket("task_5") dá 404 → o coordinator nunca vê o estado
+        # da dependência e espera o timeout completo (~10min) em vez de prosseguir.
+        def _task_key(t: dict) -> str:
+            return t.get("task_id", t.get("id", f"task_{t.get('type', 'unknown')}"))
+
+        task_to_ticket_id = {_task_key(t): str(uuid4()) for t in tasks}
+
         for task in tasks:
             # Mapeamento de task_type do cognitive_plan para TaskType do ExecutionTicket
             task_type = task.get("type", task.get("task_type", "code_generation"))
@@ -903,21 +913,25 @@ class FlowCOrchestrator:
             priority_mapping = {"high": "HIGH", "low": "LOW", "medium": "NORMAL"}
             normalized_priority = priority_mapping.get(str(context.priority).lower(), "NORMAL")
 
+            task_key = _task_key(task)
             ticket_data = {
                 # Campos obrigatórios do schema Avro execution-ticket.avsc
-                "ticket_id": str(uuid4()),
+                "ticket_id": task_to_ticket_id[task_key],
                 "plan_id": context.plan_id,
                 "intent_id": intent_id,
                 "decision_id": context.decision_id or f"approval-{context.plan_id[:8]}",
                 "correlation_id": correlation_id,
                 "trace_id": task.get("trace_id"),
                 "span_id": task.get("span_id"),
-                "task_id": task.get(
-                    "task_id", task.get("id", f"task_{task.get('type', 'unknown')}")
-                ),
+                "task_id": task_key,
                 "task_type": normalized_task_type,
                 "description": task.get("description", ""),
-                "dependencies": task.get("dependencies", []),
+                # Traduzir dependências de task_id para ticket_id (ver map acima)
+                "dependencies": [
+                    task_to_ticket_id[dep]
+                    for dep in task.get("dependencies", [])
+                    if dep in task_to_ticket_id
+                ],
                 "status": "PENDING",
                 "priority": normalized_priority,
                 "risk_band": risk_band,

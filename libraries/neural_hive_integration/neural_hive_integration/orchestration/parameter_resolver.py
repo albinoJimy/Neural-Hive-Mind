@@ -87,13 +87,18 @@ def _normalize_entities(raw: Any) -> list[str]:
 def _resolve_query_parameters(parameters: dict[str, Any], domain: str | None) -> dict[str, Any]:
     """Completa parâmetros de uma task `query` com o contrato técnico do executor.
 
-    Idempotente: se `collection` já está presente (caminho template), não altera nada.
-    Caso contrário, deriva `query_type`/`collection`/`filter`/`limit`/`database` a
-    partir do domínio e das entities (best-effort).
+    - Caminho template (já tem `collection`): preserva collection/filter/limit, mas
+      garante `query_type` e `database` (o template não os fornece, pelo que a query
+      iria ao DB default `neural_hive_workers`, vazio, em vez de `neural_hive`).
+    - Caminho heurístico (sem `collection`): deriva collection/filter/limit/database
+      a partir do domínio e das entities (best-effort).
     """
-    # Caminho template já produziu contrato técnico — não tocar.
+    # Caminho template: já tem collection; apenas garantir query_type+database.
     if parameters.get("collection"):
-        return parameters
+        resolved = dict(parameters)
+        resolved.setdefault("query_type", "mongodb")
+        resolved.setdefault("database", DEFAULT_QUERY_DATABASE)
+        return resolved
 
     domain_key = (domain or "").strip().lower()
     collection = DOMAIN_COLLECTION_MAP.get(domain_key, FALLBACK_COLLECTION)
