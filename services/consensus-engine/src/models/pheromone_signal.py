@@ -33,7 +33,12 @@ class PheromoneSignal(BaseModel):
     decision_id: Optional[str] = Field(default=None, description="ID da decisão")
 
     # Metadados
-    created_at: datetime = Field(default_factory=datetime.utcnow, description="Data de criação")
+    # NOTA: usar datetime.now(timezone.utc) (aware), nunca datetime.utcnow() (naive),
+    # senão calculate_current_strength() rebenta com "can't subtract offset-naive
+    # and offset-aware datetimes" ao subtrair de datetime.now(timezone.utc).
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc), description="Data de criação"
+    )
     expires_at: datetime = Field(..., description="Expiração do feromônio")
     decay_rate: float = Field(default=0.1, description="Taxa de decay por hora", ge=0.0, le=1.0)
 
@@ -56,6 +61,19 @@ class PheromoneSignal(BaseModel):
         """Garante que domain seja sempre UnifiedDomain"""
         if isinstance(v, str):
             return DomainMapper.normalize(v, "intent_envelope")
+        return v
+
+    @field_validator("created_at", "expires_at", mode="before")
+    @classmethod
+    def ensure_timezone_aware(cls, v):
+        """Garante datetimes tz-aware (UTC).
+
+        Feromônios antigos persistidos no Redis/Mongo podem ter sido criados
+        com datetime.utcnow() (naive); ao reconstruir o modelo, coagimos para
+        UTC-aware para evitar TypeError em subtrações com datetimes aware.
+        """
+        if isinstance(v, datetime) and v.tzinfo is None:
+            return v.replace(tzinfo=timezone.utc)
         return v
 
     def get_redis_key(self) -> str:
