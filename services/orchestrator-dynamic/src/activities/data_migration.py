@@ -20,6 +20,7 @@ UTC = timezone.utc
 from typing import Any, Optional
 
 import structlog
+from temporalio import activity
 
 logger = structlog.get_logger(__name__)
 
@@ -29,6 +30,7 @@ logger = structlog.get_logger(__name__)
 # =============================================================================
 
 
+@activity.defn
 async def analyze_legacy_schema(
     legacy_connection_id: str,
     schema: str = "public",
@@ -170,6 +172,7 @@ async def analyze_legacy_schema(
 # =============================================================================
 
 
+@activity.defn
 async def generate_schema_mapping(
     schema_analysis: dict[str, Any],
     target_service: str,
@@ -258,6 +261,7 @@ async def generate_schema_mapping(
 # =============================================================================
 
 
+@activity.defn
 async def approve_mapping(
     schema_mapping: dict[str, Any],
     auto_approve: bool = True,
@@ -316,6 +320,7 @@ async def approve_mapping(
 # =============================================================================
 
 
+@activity.defn
 async def create_snapshot(
     job_id: str,
     table_mappings: list[dict[str, Any]],
@@ -374,6 +379,7 @@ async def create_snapshot(
 # =============================================================================
 
 
+@activity.defn
 async def run_batch_migration(
     job_id: str,
     schema_mapping: dict[str, Any],
@@ -443,6 +449,7 @@ async def run_batch_migration(
 # =============================================================================
 
 
+@activity.defn
 async def start_cdc(
     job_id: str,
     schema_mapping: dict[str, Any],
@@ -500,6 +507,7 @@ async def start_cdc(
 # =============================================================================
 
 
+@activity.defn
 async def validate_data(
     job_id: str,
     schema_mapping: dict[str, Any],
@@ -573,6 +581,7 @@ async def validate_data(
 # =============================================================================
 
 
+@activity.defn
 async def cleanup_snapshot(snapshot_id: str) -> dict[str, Any]:
     """
     Limpa snapshot após migração bem-sucedida.
@@ -613,6 +622,7 @@ async def cleanup_snapshot(snapshot_id: str) -> dict[str, Any]:
 # =============================================================================
 
 
+@activity.defn
 async def execute_rollback(
     job_id: str,
     snapshot_id: Optional[str],
