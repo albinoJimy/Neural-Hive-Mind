@@ -96,6 +96,44 @@ class TestIdempotencia:
         result = resolve_ticket_parameters("QUERY", params, domain="security")
         assert result["query_type"] == "neo4j"
 
+
+class TestNormalizacaoFilterLimit:
+    """Filter/limit do caminho template chegam serializados como string (Avro)."""
+
+    def test_filter_string_serializada_vira_dict(self):
+        # Caso real do smoke: pymongo exige dict, recebia string → "filter must be
+        # an instance of dict".
+        params = {
+            "collection": "otimizar",
+            "filter": "{'subject': 'otimizar', 'entities': {'$in': ['a', 'b']}}",
+            "limit": "100",
+        }
+        result = resolve_ticket_parameters("QUERY", params, domain="technical")
+        assert isinstance(result["filter"], dict)
+        assert result["filter"]["subject"] == "otimizar"
+        assert result["filter"]["entities"] == {"$in": ["a", "b"]}
+
+    def test_limit_string_vira_int(self):
+        params = {"collection": "x", "filter": {}, "limit": "100"}
+        result = resolve_ticket_parameters("QUERY", params, domain="technical")
+        assert result["limit"] == 100
+        assert isinstance(result["limit"], int)
+
+    def test_filter_string_invalida_vira_dict_vazio(self):
+        params = {"collection": "x", "filter": "nao-e-json"}
+        result = resolve_ticket_parameters("QUERY", params, domain="technical")
+        assert result["filter"] == {}
+
+    def test_limit_invalido_usa_default(self):
+        params = {"collection": "x", "limit": "abc"}
+        result = resolve_ticket_parameters("QUERY", params, domain="technical")
+        assert result["limit"] == 10  # DEFAULT_QUERY_LIMIT
+
+    def test_heuristico_filter_string_vira_dict(self):
+        params = {"objective": "q", "filter": "{'a': 1}"}
+        result = resolve_ticket_parameters("QUERY", params, domain="security")
+        assert result["filter"] == {"a": 1}
+
     def test_database_explicito_preservado(self):
         params = {"objective": "q", "database": "custom_db"}
         result = resolve_ticket_parameters("QUERY", params, domain="security")

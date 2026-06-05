@@ -84,20 +84,56 @@ def _normalize_entities(raw: Any) -> list[str]:
     return result
 
 
+def _normalize_filter(raw: Any) -> dict[str, Any]:
+    """Normaliza o campo `filter` de uma query para um dict.
+
+    O caminho template pode gerar o `filter` como string serializada (efeito do
+    schema Avro `map<string,string>`, ex.: "{'subject': 'x', 'entities': {...}}").
+    O query_executor passa-o diretamente ao pymongo, que exige um dict — uma string
+    levanta "filter must be an instance of dict". Devolve sempre um dict (vazio se
+    não for desserializável), garantindo uma query válida.
+    """
+    if not raw:
+        return {}
+    if isinstance(raw, dict):
+        return raw
+    if isinstance(raw, str):
+        try:
+            parsed = json.loads(raw.replace("'", '"'))
+            return parsed if isinstance(parsed, dict) else {}
+        except (json.JSONDecodeError, ValueError):
+            return {}
+    return {}
+
+
+def _normalize_limit(raw: Any, default: int) -> int:
+    """Normaliza o `limit` para int (o template pode entregá-lo como string)."""
+    try:
+        return int(raw)
+    except (TypeError, ValueError):
+        return default
+
+
 def _resolve_query_parameters(parameters: dict[str, Any], domain: str | None) -> dict[str, Any]:
     """Completa parâmetros de uma task `query` com o contrato técnico do executor.
 
-    - Caminho template (já tem `collection`): preserva collection/filter/limit, mas
-      garante `query_type` e `database` (o template não os fornece, pelo que a query
-      iria ao DB default `neural_hive_workers`, vazio, em vez de `neural_hive`).
+    - Caminho template (já tem `collection`): preserva collection, mas garante
+      `query_type`/`database` e normaliza `filter` (string→dict) e `limit`
+      (string→int) — o schema Avro `map<string,string>` serializa-os como strings,
+      que o pymongo rejeita.
     - Caminho heurístico (sem `collection`): deriva collection/filter/limit/database
       a partir do domínio e das entities (best-effort).
     """
-    # Caminho template: já tem collection; apenas garantir query_type+database.
+    # Caminho template: já tem collection; garantir query_type+database e
+    # normalizar filter/limit (que chegam serializados como string).
     if parameters.get("collection"):
         resolved = dict(parameters)
         resolved.setdefault("query_type", "mongodb")
         resolved.setdefault("database", DEFAULT_QUERY_DATABASE)
+        if "filter" in resolved:
+            resolved["filter"] = _normalize_filter(resolved.get("filter"))
+        if "limit" in resolved:
+            resolved["limit"] = _normalize_limit(resolved.get("limit"), DEFAULT_QUERY_LIMIT)
         return resolved
 
     domain_key = (domain or "").strip().lower()
@@ -111,8 +147,8 @@ def _resolve_query_parameters(parameters: dict[str, Any], domain: str | None) ->
     # Filtro best-effort: vazio devolve o contexto mais recente da collection do
     # domínio (garante execução com sucesso). As entities resolvidas ficam
     # registadas para rastreabilidade/observabilidade.
-    resolved.setdefault("filter", {})
-    resolved.setdefault("limit", DEFAULT_QUERY_LIMIT)
+    resolved["filter"] = _normalize_filter(parameters.get("filter"))
+    resolved["limit"] = _normalize_limit(parameters.get("limit"), DEFAULT_QUERY_LIMIT)
     resolved["resolved_from_entities"] = entities
 
     logger.info(
