@@ -72,13 +72,16 @@ config:
     # 1. External Secrets (recomendado): Defina existingSecret abaixo
     # 2. Manual: Configure password aqui (NAO recomendado para producao)
     password: ""
-    # Nome do secret existente que contem a chave 'redis-password'
-    # Se definido, o chart NAO criara o Secret (usa o existente)
-    existingSecret: ""  # Ex: "service-registry-secret" criado por ExternalSecret
-    # Nome da chave dentro do existingSecret (default: "redis-password")
-    # Util quando o secret externo usa convencao diferente. Ex: o secret
-    # `redis-password` partilhado em neural-hive expoe a chave `password`.
-    existingSecretKey: ""  # Default = "redis-password" se vazio
+    # Por defeito, reutiliza o secret partilhado `redis-password` (chave
+    # `password`) do namespace neural-hive — a fonte canonica da password do
+    # Redis Cluster, ja usada pelos restantes servicos. Evita que o chart crie
+    # um `service-registry-secret` com password vazia quando o deploy nao passa
+    # values de ambiente (causava CrashLoop "Authentication required").
+    # Se definido, o chart NAO cria o Secret proprio (usa o existente).
+    existingSecret: "redis-password"
+    # Nome da chave dentro do existingSecret. O secret partilhado
+    # `redis-password` expoe a password na chave `password`.
+    existingSecretKey: "password"
   otel:
     exporterEndpoint: http://otel-collector:4317
 

@@ -67,6 +67,10 @@ config:
     clusterNodes:
       - neural-hive-cache.redis-cluster.svc.cluster.local:6379
     password: ""
+    # Local nao depende do secret partilhado: cria o seu proprio Secret
+    # (sobrepoe o default do values.yaml que aponta para `redis-password`).
+    existingSecret: ""
+    existingSecretKey: ""
 
   # OpenTelemetry configuration
   otel:
