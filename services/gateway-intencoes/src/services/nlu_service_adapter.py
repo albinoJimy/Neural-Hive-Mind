@@ -136,11 +136,11 @@ class NLUServiceAdapter:
                 "TECHNICAL": UnifiedDomain.TECHNICAL,
                 "INFRASTRUCTURE": UnifiedDomain.INFRASTRUCTURE,
                 "SECURITY": UnifiedDomain.SECURITY,
-                "DOMAIN_UNKNOWN": UnifiedDomain.UNKNOWN,
+                "DOMAIN_UNKNOWN": UnifiedDomain.TECHNICAL,
             }
-            return domain_mapping.get(domain_str.upper(), UnifiedDomain.UNKNOWN)
+            return domain_mapping.get(domain_str.upper(), UnifiedDomain.TECHNICAL)
         except (KeyError, ValueError):
-            return UnifiedDomain.UNKNOWN
+            return UnifiedDomain.TECHNICAL
 
     def _fallback_classify(self, text: str, language: str) -> NLUResult:
         """Classificação por keywords quando NLU Service está down (INV-12)."""
@@ -154,7 +154,7 @@ class NLUServiceAdapter:
         elif any(kw in text_lower for kw in ["migrar", "legado", "migration"]):
             domain = UnifiedDomain.INFRASTRUCTURE
         else:
-            domain = UnifiedDomain.UNKNOWN
+            domain = UnifiedDomain.TECHNICAL
 
         return NLUResult(
             processed_text=text,

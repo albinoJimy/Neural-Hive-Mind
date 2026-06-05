@@ -110,7 +110,7 @@ class NLUServiceClient:
             # Chamar NLU Service - retorna ParseResponse com campo `result` (NLUResult)
             response = await asyncio.wait_for(
                 self._stub.Parse(request),
-                timeout=settings.NLU_SERVICE_TIMEOUT or 10.0,
+                timeout=settings.nlu_service_timeout or 10.0,
             )
 
             result = response.result
