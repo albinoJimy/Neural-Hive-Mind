@@ -57,7 +57,7 @@ class ValidateExecutor(BaseTaskExecutor):
         self.logger = logger.bind(executor="ValidateExecutor")
 
         try:
-            from clients.sonarqube_client import SonarQubeClient
+            from src.clients.sonarqube_client import SonarQubeClient
 
             self.sonarqube_client = (
                 SonarQubeClient.from_env(config)
@@ -67,7 +67,7 @@ class ValidateExecutor(BaseTaskExecutor):
         except Exception:
             self.sonarqube_client = None
         try:
-            from clients.snyk_client import SnykClient
+            from src.clients.snyk_client import SnykClient
 
             self.snyk_client = (
                 SnykClient.from_env(config) if getattr(config, "snyk_enabled", False) else None
@@ -75,7 +75,7 @@ class ValidateExecutor(BaseTaskExecutor):
         except Exception:
             self.snyk_client = None
         try:
-            from clients.checkov_client import CheckovClient
+            from src.clients.checkov_client import CheckovClient
 
             self.checkov_client = (
                 CheckovClient(config) if getattr(config, "checkov_enabled", False) else None
@@ -379,7 +379,7 @@ class ValidateExecutor(BaseTaskExecutor):
         Returns:
             Resultado da validacao
         """
-        from clients.opa_client import (
+        from src.clients.opa_client import (
             OPAAPIError,
             OPATimeoutError,
             OPAValidationError,

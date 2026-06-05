@@ -108,7 +108,7 @@ class ExecuteExecutor(BaseTaskExecutor):
         self, ticket_id: str, parameters: dict[str, Any], span
     ) -> dict[str, Any]:
         """Executa via Kubernetes Jobs."""
-        from clients.k8s_jobs_client import K8sJobRequest, K8sJobStatus, K8sResourceRequirements
+        from src.clients.k8s_jobs_client import K8sJobRequest, K8sJobStatus, K8sResourceRequirements
 
         self.log_execution(ticket_id, "k8s_execution_starting", runtime="k8s")
 
@@ -196,7 +196,7 @@ class ExecuteExecutor(BaseTaskExecutor):
         self, ticket_id: str, parameters: dict[str, Any], span
     ) -> dict[str, Any]:
         """Executa via Docker container."""
-        from clients.docker_runtime_client import (
+        from src.clients.docker_runtime_client import (
             DockerExecutionRequest,
             DockerNetworkMode,
             ResourceLimits,
@@ -280,7 +280,7 @@ class ExecuteExecutor(BaseTaskExecutor):
         self, ticket_id: str, parameters: dict[str, Any], span
     ) -> dict[str, Any]:
         """Executa via AWS Lambda."""
-        from clients.lambda_runtime_client import LambdaInvocationRequest, LambdaPayload
+        from src.clients.lambda_runtime_client import LambdaInvocationRequest, LambdaPayload
 
         self.log_execution(ticket_id, "lambda_execution_starting", runtime="lambda")
 
@@ -350,7 +350,7 @@ class ExecuteExecutor(BaseTaskExecutor):
         self, ticket_id: str, parameters: dict[str, Any], span
     ) -> dict[str, Any]:
         """Executa localmente via subprocess."""
-        from clients.local_runtime_client import LocalExecutionRequest
+        from src.clients.local_runtime_client import LocalExecutionRequest
 
         self.log_execution(ticket_id, "local_execution_starting", runtime="local")
 
