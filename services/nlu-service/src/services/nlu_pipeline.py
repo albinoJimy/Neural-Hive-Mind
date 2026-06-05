@@ -579,8 +579,8 @@ class NLUPipelineService:
             if span:
                 span.set_attribute("nlu.cache_hit", False)
 
-            # Detectar idioma
-            detected_lang = await self._detect_language(text, language)
+            # Detectar idioma (_detect_language devolve tuplo (lang, confiança))
+            detected_lang, _lang_confidence = await self._detect_language(text, language)
             nlp_model = self._get_model_for_language(detected_lang)
 
             # Normalizar e processar
