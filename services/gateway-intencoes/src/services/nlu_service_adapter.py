@@ -72,10 +72,10 @@ class NLUServiceAdapter:
             # Converter domain string para UnifiedDomain
             domain = self._convert_domain(nlu_response.domain)
 
-            # Converter entidades
+            # Converter entidades (entity.type é enum proto EntityType → int)
             entities = [
                 Entity(
-                    type=entity.type,
+                    type=self._entity_type_name(entity.type),
                     value=entity.value,
                     confidence=entity.confidence,
                     start=entity.start if entity.start > 0 else None,
@@ -127,6 +127,20 @@ class NLUServiceAdapter:
                 logger.warning("Falling back to keyword-only classification")
                 return self._fallback_classify(text, language)
             raise
+
+    def _entity_type_name(self, type_value) -> str:
+        """Converte o enum proto EntityType (int) para o seu nome string.
+
+        O campo `type` do proto Entity é um enum `EntityType`, representado em
+        Python como int. O modelo Pydantic `Entity` espera uma string. Aceita
+        também string por robustez.
+        """
+        if isinstance(type_value, int):
+            try:
+                return nlu_pb2.EntityType.Name(type_value)
+            except ValueError:
+                return "ENTITY_UNKNOWN"
+        return str(type_value)
 
     def _convert_domain(self, domain_value) -> UnifiedDomain:
         """Converte domain do NLU Service para UnifiedDomain.
