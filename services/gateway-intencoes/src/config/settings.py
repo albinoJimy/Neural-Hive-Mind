@@ -498,7 +498,7 @@ class Settings(BaseSettings):
                         # Configurar environment para VaultClient
                         import os
 
-                        from src.clients.vault_client import VaultClient
+                        from clients.vault_client import VaultClient
 
                         if self.vault_addr:
                             os.environ["VAULT_ADDR"] = self.vault_addr
