@@ -53,10 +53,11 @@ class TransformExecutor(BaseTaskExecutor):
         ticket_id = ticket.get("ticket_id")
         parameters = ticket.get("parameters", {})
 
-        # input_data é obrigatório para transformações JSON
-        transform_type = parameters.get("transform_type", "json")
-        if transform_type == "json":
-            self.validate_required_parameters(ticket_id, parameters, required=["input_data"])
+        # input_data NÃO é obrigatório: numa pipeline multi-task ele é fornecido por
+        # data flow (output da task anterior). Quando ausente (task raiz ou sem
+        # dependências com output), a transformação faz no-op gracioso em vez de
+        # falhar o plano inteiro.
+        _ = (ticket_id, parameters)
 
     def __init__(
         self,
@@ -191,7 +192,13 @@ class TransformExecutor(BaseTaskExecutor):
         try:
             input_data = parameters.get("input_data")
             if not input_data:
-                raise ValueError("Missing 'input_data' parameter for JSON transform")
+                # Sem input (data flow não forneceu): no-op gracioso para não
+                # abortar o plano multi-task. A task fica COMPLETED sem transformar.
+                self.log_execution(ticket_id, "json_transform_noop_no_input")
+                return self._success_result(
+                    {"transformed_data": None, "noop": True},
+                    "JSON transform no-op: sem input_data (nenhuma dependência forneceu output)",
+                )
 
             operations = parameters.get("operations", [])
             if not operations:

@@ -161,6 +161,40 @@ def _resolve_query_parameters(parameters: dict[str, Any], domain: str | None) ->
     return resolved
 
 
+def _deserialize_avro_value(value: Any) -> Any:
+    """Reverte a serialização do schema Avro `map<string,string>`.
+
+    O CognitivePlan transporta os `parameters` num map<string,string> Avro, que
+    força TODOS os valores a string — inclusive estruturas (listas/dicts) e None.
+    Os executores recebem então `operations="[]"` (string), `input_data="None"`
+    (string), etc., e rebentam (ex.: `for op in "[]"` itera caracteres →
+    `'str' object has no attribute 'get'`).
+
+    Esta função desserializa de forma conservadora apenas valores claramente
+    estruturados/literais; strings normais (collection, policy_path, ...) e números
+    ficam intactos para não alterar parâmetros técnicos legítimos.
+    """
+    if not isinstance(value, str):
+        return value
+    stripped = value.strip()
+    if stripped in ("None", "null"):
+        return None
+    if stripped in ("true", "false"):
+        return stripped == "true"
+    # Apenas estruturas JSON-like (lista/dict) são desserializadas.
+    if stripped[:1] in ("[", "{"):
+        try:
+            return json.loads(stripped.replace("'", '"'))
+        except (json.JSONDecodeError, ValueError):
+            return value
+    return value
+
+
+def _deserialize_parameters(parameters: dict[str, Any]) -> dict[str, Any]:
+    """Aplica a desserialização Avro a todos os valores dos parâmetros."""
+    return {k: _deserialize_avro_value(v) for k, v in parameters.items()}
+
+
 def resolve_ticket_parameters(
     task_type: str,
     parameters: dict[str, Any] | None,
@@ -181,13 +215,15 @@ def resolve_ticket_parameters(
         Parâmetros completados com o contrato técnico. Idempotente para parâmetros
         já técnicos e para task_types sem resolução específica.
     """
-    params = dict(parameters or {})
+    # Desserializar primeiro (reverte o map<string,string> Avro) para TODOS os
+    # task_types — sem isto, executores como TRANSFORM/VALIDATE rebentam ao tratar
+    # operations/input_data serializados como string.
+    params = _deserialize_parameters(dict(parameters or {}))
     normalized = (task_type or "").strip().upper()
 
     if normalized == "QUERY":
         return _resolve_query_parameters(params, domain)
 
-    # Outros task_types (TRANSFORM/VALIDATE/EXECUTE/...) ainda não têm resolução
-    # semântica dedicada; o caminho template já fornece os seus parâmetros técnicos
-    # (input_data, policy_path) e os executores aplicam defaults seguros.
+    # Outros task_types (TRANSFORM/VALIDATE/EXECUTE/...) recebem os parâmetros já
+    # desserializados; os executores aplicam defaults seguros sobre eles.
     return params

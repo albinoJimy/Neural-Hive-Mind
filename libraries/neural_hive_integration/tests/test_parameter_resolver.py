@@ -141,13 +141,45 @@ class TestNormalizacaoFilterLimit:
 
 
 class TestOutrosTaskTypes:
-    """Task types sem resolução dedicada passam intactos."""
+    """Task types sem resolução dedicada: parâmetros desserializados, resto intacto."""
 
     @pytest.mark.parametrize("task_type", ["TRANSFORM", "VALIDATE", "EXECUTE", "BUILD", "DEPLOY"])
     def test_passa_intacto(self, task_type):
         params = {"policy_path": "/x", "input_data": {"a": 1}}
         result = resolve_ticket_parameters(task_type, params, domain="security")
         assert result == params
+
+
+class TestDeserializacaoAvro:
+    """Avro map<string,string> serializa estruturas como string; têm de ser revertidas."""
+
+    def test_operations_string_vira_lista(self):
+        # Caso real do smoke: TRANSFORM rebentava com 'str' object has no attribute
+        # 'get' ao iterar a string "[]" caractere a caractere.
+        params = {"transform_type": "json", "operations": "[]", "input_data": "None"}
+        result = resolve_ticket_parameters("TRANSFORM", params, domain="technical")
+        assert result["operations"] == []
+        assert result["input_data"] is None
+
+    def test_operations_com_conteudo_vira_lista_de_dicts(self):
+        params = {"operations": "[{'type': 'map', 'field': 'x'}]"}
+        result = resolve_ticket_parameters("TRANSFORM", params, domain="technical")
+        assert result["operations"] == [{"type": "map", "field": "x"}]
+
+    def test_string_none_vira_none(self):
+        result = resolve_ticket_parameters("VALIDATE", {"input_data": "None"}, domain="t")
+        assert result["input_data"] is None
+
+    def test_strings_normais_e_numeros_intactos(self):
+        params = {"policy_path": "/etc/policy", "subject": "Otimizar", "threshold": "5"}
+        result = resolve_ticket_parameters("VALIDATE", params, domain="t")
+        assert result["policy_path"] == "/etc/policy"
+        assert result["subject"] == "Otimizar"
+        assert result["threshold"] == "5"  # número-string não é convertido (conservador)
+
+    def test_bool_string_vira_bool(self):
+        result = resolve_ticket_parameters("EXECUTE", {"dry_run": "true"}, domain="t")
+        assert result["dry_run"] is True
 
     def test_task_type_lowercase_normalizado(self):
         # O dispatcher normaliza para upper; "query" deve ser tratado como QUERY.

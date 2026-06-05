@@ -22,6 +22,9 @@ class StatusUpdateRequest(BaseModel):
     status: TicketStatus
     error_message: Optional[str] = None
     actual_duration_ms: Optional[int] = None
+    # Output da execução, persistido em metadata["result"] para data flow:
+    # a task seguinte (dependente) lê o output das suas dependências como input.
+    result_data: Optional[dict[str, Any]] = None
 
 
 class CompensationTicketRequest(BaseModel):
@@ -176,9 +179,13 @@ async def update_ticket_status(ticket_id: str, request: StatusUpdateRequest):
     if not ticket_orm:
         raise HTTPException(status_code=404, detail="Ticket not found")
 
-    # Atualizar status
+    # Atualizar status (persiste result_data em metadata["result"] para data flow)
     updated_orm = await postgres_client.update_ticket_status(
-        ticket_id, request.status, request.error_message
+        ticket_id,
+        request.status,
+        request.error_message,
+        actual_duration_ms=request.actual_duration_ms,
+        result_data=request.result_data,
     )
 
     if not updated_orm:

@@ -38,10 +38,11 @@ class ValidateExecutor(BaseTaskExecutor):
         ticket_id = ticket.get("ticket_id")
         parameters = ticket.get("parameters", {})
 
-        # policy_path é obrigatório para validações OPA
-        validation_type = parameters.get("validation_type", "opa")
-        if validation_type == "opa":
-            self.validate_required_parameters(ticket_id, parameters, required=["policy_path"])
+        # policy_path NÃO é obrigatório: o execute aplica um default seguro
+        # ("policy/allow") e só corre OPA quando opa_enabled. Numa pipeline
+        # multi-task genérica sem policy explícita, a validação degrada
+        # graciosamente em vez de abortar o plano.
+        _ = (ticket_id, parameters)
 
     def __init__(
         self, config, vault_client=None, code_forge_client=None, metrics=None, opa_client=None
