@@ -75,8 +75,14 @@ class ExecutionTicketClient:
         status: str,
         error_message: str | None = None,
         actual_duration_ms: int | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        """Atualizar status do ticket"""
+        """Atualizar status do ticket.
+
+        `metadata` é usado pelos passos F2 do two-phase commit (dedup/mark/clear)
+        para rastreamento (processing_started_at, dedup_method). Antes a sua ausência
+        na assinatura causava TypeError, quebrando o fallback MongoDB silenciosamente.
+        """
         api_status = "error"
         try:
             payload = {
@@ -84,6 +90,8 @@ class ExecutionTicketClient:
                 "error_message": error_message,
                 "actual_duration_ms": actual_duration_ms,
             }
+            if metadata is not None:
+                payload["metadata"] = metadata
 
             response = await self.client.patch(f"/api/v1/tickets/{ticket_id}/status", json=payload)
             response.raise_for_status()
