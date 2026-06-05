@@ -2,7 +2,7 @@ import asyncio
 import random
 from typing import Any
 
-from clients.argocd_client import (
+from src.clients.argocd_client import (
     ApplicationCreateRequest,
     ApplicationDestination,
     ApplicationMetadata,
@@ -13,7 +13,7 @@ from clients.argocd_client import (
     ArgoCDTimeoutError,
     SyncPolicy,
 )
-from clients.flux_client import (
+from src.clients.flux_client import (
     FluxAPIError,
     FluxClient,
     FluxTimeoutError,

@@ -70,7 +70,7 @@ class TestExecutor(BaseTaskExecutor):
         # Fallback: tentar criar clients a partir do config se nao fornecidos
         if self.github_actions_client is None and getattr(config, "github_actions_enabled", False):
             try:
-                from clients.github_actions_client import GitHubActionsClient
+                from src.clients.github_actions_client import GitHubActionsClient
 
                 self.github_actions_client = GitHubActionsClient.from_env(config)
             except Exception:
@@ -386,7 +386,7 @@ class TestExecutor(BaseTaskExecutor):
         Returns:
             Resultado da execucao
         """
-        from clients.github_actions_client import GitHubActionsAPIError, GitHubActionsTimeoutError
+        from src.clients.github_actions_client import GitHubActionsAPIError, GitHubActionsTimeoutError
 
         self.log_execution(
             ticket_id,
@@ -571,7 +571,7 @@ class TestExecutor(BaseTaskExecutor):
         Returns:
             Resultado da execucao
         """
-        from clients.gitlab_ci_client import GitLabCIAPIError, GitLabCITimeoutError
+        from src.clients.gitlab_ci_client import GitLabCIAPIError, GitLabCITimeoutError
 
         self.log_execution(
             ticket_id,
@@ -780,7 +780,7 @@ class TestExecutor(BaseTaskExecutor):
         Returns:
             Resultado da execucao
         """
-        from clients.jenkins_client import JenkinsAPIError, JenkinsTimeoutError
+        from src.clients.jenkins_client import JenkinsAPIError, JenkinsTimeoutError
 
         self.log_execution(ticket_id, "test_jenkins_started", job_name=parameters.get("job_name"))
 
