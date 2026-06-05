@@ -29,6 +29,7 @@ from neural_hive_integration.clients.worker_agent_client import WorkerAgentClien
 from neural_hive_integration.clients.sla_management_client import SLAManagementClient
 from neural_hive_integration.models.flow_c_context import FlowCContext, FlowCStep, FlowCResult
 from neural_hive_integration.telemetry.flow_c_telemetry import FlowCTelemetryPublisher
+from neural_hive_integration.orchestration.parameter_resolver import resolve_ticket_parameters
 from neural_hive_resilience.circuit_breaker import MonitoredCircuitBreaker, CircuitBreakerError
 from aiokafka import AIOKafkaProducer
 import os
@@ -930,7 +931,16 @@ class FlowCOrchestrator:
                     "consistency": "EVENTUAL",
                     "durability": "PERSISTENT",
                 },
-                "parameters": task.get("parameters", {}),
+                # Tradução semântica→técnica dos parâmetros (ver parameter_resolver):
+                # o caminho heurístico do STE gera params semânticos (objective/entities)
+                # que os executores não conseguem processar. Resolvemos para o contrato
+                # técnico antes de despachar o ticket. Idempotente para o caminho template.
+                "parameters": resolve_ticket_parameters(
+                    normalized_task_type,
+                    task.get("parameters", {}),
+                    domain=(task.get("metadata", {}) or {}).get("domain")
+                    or cognitive_plan.get("original_domain"),
+                ),
                 "required_capabilities": task.get(
                     "required_capabilities",
                     task.get("capabilities", ["python", "read", "write", "compute", "code"]),
