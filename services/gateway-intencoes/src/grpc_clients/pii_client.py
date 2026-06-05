@@ -13,7 +13,7 @@ import grpc
 from config.settings import get_settings
 
 # Importar stubs gerados
-from src.proto import pii_pb2, pii_pb2_grpc
+from proto import pii_pb2, pii_pb2_grpc
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
