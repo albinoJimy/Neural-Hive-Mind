@@ -4,7 +4,8 @@ import asyncio
 import logging
 from typing import Optional
 
-from sqlalchemy import func, select, update
+from sqlalchemy import cast, func, select, update
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -154,14 +155,33 @@ class PostgresClient:
             return list(result.scalars().all())
 
     async def update_ticket_status(
-        self, ticket_id: str, status: TicketStatus, error_message: Optional[str] = None
+        self,
+        ticket_id: str,
+        status: TicketStatus,
+        error_message: Optional[str] = None,
+        actual_duration_ms: Optional[int] = None,
+        result_data: Optional[dict] = None,
     ) -> Optional[TicketORM]:
-        """Atualiza status do ticket."""
+        """Atualiza status do ticket.
+
+        Quando `result_data` é fornecido (output da execução), persiste-o em
+        `metadata["result"]` via merge JSONB (preserva o restante metadata), para
+        que as tasks dependentes possam ler o output como input (data flow).
+        """
+        values: dict = {"status": status.value, "error_message": error_message}
+        if actual_duration_ms is not None:
+            values["actual_duration_ms"] = actual_duration_ms
+        if result_data is not None:
+            # Merge JSONB: metadata || {"result": result_data} (preserva chaves existentes).
+            values["ticket_metadata"] = TicketORM.ticket_metadata.op("||")(
+                cast({"result": result_data}, JSONB)
+            )
+
         async with self._session_maker() as session:
             stmt = (
                 update(TicketORM)
                 .where(TicketORM.ticket_id == ticket_id)
-                .values(status=status.value, error_message=error_message)
+                .values(**values)
                 .returning(TicketORM)
             )
             result = await session.execute(stmt)

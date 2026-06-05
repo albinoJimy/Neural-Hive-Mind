@@ -352,6 +352,60 @@ class ExecutionEngine:
             if hasattr(self.metrics, "active_tasks"):
                 self.metrics.active_tasks.set(len(self.active_tasks))
 
+    async def _inject_dependency_outputs(self, ticket: dict[str, Any]) -> None:
+        """Injeta os outputs das dependências como input da task atual (data flow).
+
+        Cada dependência já COMPLETED tem o seu output persistido em
+        metadata["result"] (via update_ticket_status result_data). Recolhe-os e:
+        - regista todos em parameters["dependency_outputs"] (mapa ticket_id→output);
+        - se a task não tiver `input_data` próprio, usa o output da última
+          dependência como input_data (encadeamento simples A→B→C).
+
+        Best-effort: falhas a obter um output não abortam a execução (a task
+        degrada para o seu comportamento sem input).
+        """
+        dependencies = ticket.get("dependencies") or []
+        if not dependencies:
+            return
+
+        parameters = ticket.setdefault("parameters", {})
+        dependency_outputs: dict[str, Any] = {}
+        last_output = None
+        for dep_id in dependencies:
+            try:
+                dep_ticket = await self.ticket_client.get_ticket(dep_id)
+                dep_meta = dep_ticket.get("metadata") or {}
+                dep_result = dep_meta.get("result")
+                if dep_result is not None:
+                    dependency_outputs[dep_id] = dep_result
+                    # O output efetivo do executor está em result["output"] (contrato
+                    # normalizado); cai para o result completo se ausente.
+                    last_output = (
+                        dep_result.get("output")
+                        if isinstance(dep_result, dict) and "output" in dep_result
+                        else dep_result
+                    )
+            except Exception as e:
+                self.logger.warning(
+                    "dependency_output_fetch_failed",
+                    ticket_id=ticket.get("ticket_id"),
+                    dependency_id=dep_id,
+                    error=str(e),
+                )
+
+        if dependency_outputs:
+            parameters["dependency_outputs"] = dependency_outputs
+            # Encadeamento simples: alimenta input_data com o output da dependência
+            # quando a task não traz um input_data próprio (placeholder do template).
+            current_input = parameters.get("input_data")
+            if current_input in (None, "None", "", {}, []) and last_output is not None:
+                parameters["input_data"] = last_output
+            self.logger.info(
+                "dependency_outputs_injected",
+                ticket_id=ticket.get("ticket_id"),
+                dependencies_count=len(dependency_outputs),
+            )
+
     async def _execute_ticket(self, ticket: dict[str, Any]):
         """Executar ticket com coordenação de dependências e retry logic"""
         ticket_id = ticket.get("ticket_id")
@@ -414,6 +468,10 @@ class ExecutionEngine:
                                 ).observe(duration_ms / 1000)
                         return
 
+                    # Data flow: injetar os outputs das dependências como input
+                    # da task atual (a task seguinte consome o resultado da anterior).
+                    await self._inject_dependency_outputs(ticket)
+
                     # Executar tarefa com retry
                     try:
                         result = await self._execute_task_with_retry(ticket)
@@ -421,9 +479,14 @@ class ExecutionEngine:
 
                         # Verificar se a execução foi bem-sucedida
                         if result.get("success"):
-                            # Sucesso - marcar como COMPLETED
+                            # Sucesso - marcar como COMPLETED, persistindo o output
+                            # (result_data) para data flow: as tasks dependentes leem-no
+                            # como input das suas dependências.
                             await self.ticket_client.update_ticket_status(
-                                ticket_id, "COMPLETED", actual_duration_ms=duration_ms
+                                ticket_id,
+                                "COMPLETED",
+                                actual_duration_ms=duration_ms,
+                                result_data=result,
                             )
 
                             await self.result_producer.publish_result(
