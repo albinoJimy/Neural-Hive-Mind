@@ -15,6 +15,7 @@ import hashlib
 import json
 import logging
 import re
+import unicodedata
 from contextlib import nullcontext
 from pathlib import Path
 from typing import Any
@@ -80,9 +81,13 @@ class NLUPipelineService:
                     if model_name != self.settings.nlu_language_model:
                         model = self._load_model(model_name)
                         self.nlp_models[lang_code] = model
-                        logger.info(f"Modelo {model_name} carregado para idioma {lang_code}")
+                        logger.info(
+                            f"Modelo {model_name} carregado para idioma {lang_code}"
+                        )
                 except OSError:
-                    logger.warning(f"Modelo {model_name} não encontrado para idioma {lang_code}")
+                    logger.warning(
+                        f"Modelo {model_name} não encontrado para idioma {lang_code}"
+                    )
 
             # Carregar regras de classificação
             await self._load_classification_rules()
@@ -96,7 +101,9 @@ class NLUPipelineService:
                 await self._warmup_cache()
 
             self._ready = True
-            logger.info(f"NLU Pipeline Service inicializado com {len(self.nlp_models)} modelos")
+            logger.info(
+                f"NLU Pipeline Service inicializado com {len(self.nlp_models)} modelos"
+            )
 
         except Exception as e:
             logger.exception(f"Erro inicializando NLU Pipeline: {e}")
@@ -194,7 +201,14 @@ class NLUPipelineService:
                             "métrica",
                             "kpi",
                         ],
-                        "sales": ["venda", "vendas", "sales", "selling", "conversão", "conversion"],
+                        "sales": [
+                            "venda",
+                            "vendas",
+                            "sales",
+                            "selling",
+                            "conversão",
+                            "conversion",
+                        ],
                         "customer": [
                             "cliente",
                             "clientes",
@@ -203,7 +217,13 @@ class NLUPipelineService:
                             "prospect",
                             "lead",
                         ],
-                        "marketing": ["marketing", "campanha", "campaign", "anúncio", "ad"],
+                        "marketing": [
+                            "marketing",
+                            "campanha",
+                            "campaign",
+                            "anúncio",
+                            "ad",
+                        ],
                     },
                 },
                 "TECHNICAL": {
@@ -305,9 +325,21 @@ class NLUPipelineService:
                     ],
                     "subcategories": {
                         "deployment": ["deploy", "deployment", "release", "rollout"],
-                        "containers": ["docker", "kubernetes", "k8s", "container", "pod"],
+                        "containers": [
+                            "docker",
+                            "kubernetes",
+                            "k8s",
+                            "container",
+                            "pod",
+                        ],
                         "servers": ["servidor", "server", "host", "vm", "node"],
-                        "automation": ["ci/cd", "pipeline", "terraform", "ansible", "automation"],
+                        "automation": [
+                            "ci/cd",
+                            "pipeline",
+                            "terraform",
+                            "ansible",
+                            "automation",
+                        ],
                     },
                 },
                 "SECURITY": {
@@ -410,9 +442,25 @@ class NLUPipelineService:
                     if "patterns" in domain_config:
                         default_domain["patterns"].extend(domain_config["patterns"])
                     if "subcategories" in domain_config:
-                        default_domain["subcategories"].update(domain_config["subcategories"])
+                        default_domain["subcategories"].update(
+                            domain_config["subcategories"]
+                        )
                 else:
                     self.classification_rules["domains"][domain_name] = domain_config
+
+    @staticmethod
+    def _strip_accents(text: str) -> str:
+        """Normaliza texto removendo diacríticos (acentos).
+
+        Garante que o matching de keywords é robusto a texto escrito sem acentos
+        (ex.: 'seguranca' casa com 'segurança'). Sem isto, intents sem acentos
+        caem no fallback TECHNICAL/0.2.
+        """
+        return "".join(
+            c
+            for c in unicodedata.normalize("NFKD", text.lower())
+            if not unicodedata.combining(c)
+        )
 
     def _prepare_optimized_structures(self):
         """Pré-compilar patterns e criar keyword sets."""
@@ -423,14 +471,14 @@ class NLUPipelineService:
             patterns = domain_config.get("patterns", [])
             self.compiled_patterns[domain_name] = [re.compile(p) for p in patterns]
 
-            # Converter keywords para set
+            # Converter keywords para set (normalizadas sem acentos para matching robusto)
             keywords = domain_config.get("keywords", [])
-            self.keyword_sets[domain_name] = set(keywords)
+            self.keyword_sets[domain_name] = {self._strip_accents(k) for k in keywords}
 
-            # Converter subcategories
+            # Converter subcategories (também normalizadas)
             subcategories = domain_config.get("subcategories", {})
             self.subcategory_keyword_sets[domain_name] = {
-                subcat_name: set(subcat_keywords)
+                subcat_name: {self._strip_accents(k) for k in subcat_keywords}
                 for subcat_name, subcat_keywords in subcategories.items()
             }
 
@@ -488,7 +536,9 @@ class NLUPipelineService:
             except Exception as e:
                 logger.warning(f"Erro no warmup para query '{query}': {e}")
 
-        await asyncio.gather(*[warmup_query(q) for q in warmup_queries], return_exceptions=True)
+        await asyncio.gather(
+            *[warmup_query(q) for q in warmup_queries], return_exceptions=True
+        )
         logger.info("Cache warming concluído")
 
     def is_ready(self) -> bool:
@@ -502,7 +552,9 @@ class NLUPipelineService:
         if not self.is_ready():
             raise RuntimeError("NLU Pipeline não inicializado")
 
-        span_context = tracer.start_as_current_span("nlu.parse") if tracer else nullcontext()
+        span_context = (
+            tracer.start_as_current_span("nlu.parse") if tracer else nullcontext()
+        )
 
         with span_context as span:
             if span:
@@ -598,10 +650,14 @@ class NLUPipelineService:
         doc = nlp_model(text)
         return self._extract_entities(doc)
 
-    async def calculate_confidence(self, nlu_result: NLUResult) -> CalculateConfidenceResponse:
+    async def calculate_confidence(
+        self, nlu_result: NLUResult
+    ) -> CalculateConfidenceResponse:
         """Calcular métricas de confiança detalhadas."""
         confidence = nlu_result.confidence
-        adaptive_threshold = nlu_result.adaptive_threshold or self.settings.nlu_confidence_threshold
+        adaptive_threshold = (
+            nlu_result.adaptive_threshold or self.settings.nlu_confidence_threshold
+        )
 
         # Confidence status
         if confidence >= 0.75:
@@ -627,7 +683,9 @@ class NLUPipelineService:
             factor_scores=factor_scores,
         )
 
-    async def detect_language(self, text: str) -> tuple[str, float, list[tuple[str, float]]]:
+    async def detect_language(
+        self, text: str
+    ) -> tuple[str, float, list[tuple[str, float]]]:
         """Detectar idioma do texto."""
         return await self._detect_language(text, None, return_candidates=True)
 
@@ -655,7 +713,9 @@ class NLUPipelineService:
 
         return True
 
-    def _get_cache_key(self, text: str, language: str, context: dict[str, Any] | None) -> str:
+    def _get_cache_key(
+        self, text: str, language: str, context: dict[str, Any] | None
+    ) -> str:
         """Gerar chave de cache."""
         normalized = self._normalize_text(text)
         context_key = json.dumps(context, sort_keys=True) if context else ""
@@ -668,9 +728,15 @@ class NLUPipelineService:
             return None
 
         try:
-            cached_data = await asyncio.wait_for(self.redis_client.get(cache_key), timeout=0.005)
+            cached_data = await asyncio.wait_for(
+                self.redis_client.get(cache_key), timeout=0.005
+            )
             if cached_data:
-                data = json.loads(cached_data) if isinstance(cached_data, str) else cached_data
+                data = (
+                    json.loads(cached_data)
+                    if isinstance(cached_data, str)
+                    else cached_data
+                )
                 return NLUResult(**data)
         except (TimeoutError, asyncio.TimeoutError):
             logger.debug(f"Cache lookup timeout: {cache_key[:20]}...")
@@ -713,7 +779,10 @@ class NLUPipelineService:
             logger.warning(f"Erro salvando no cache: {e}")
 
     async def _detect_language(
-        self, text: str, provided_language: str | None = None, return_candidates: bool = False
+        self,
+        text: str,
+        provided_language: str | None = None,
+        return_candidates: bool = False,
     ) -> tuple[str, float] | tuple[str, float, list[tuple[str, float]]]:
         """Detectar idioma do texto."""
         # Se idioma fornecido claramente
@@ -729,7 +798,11 @@ class NLUPipelineService:
                 detected = doc.lang_
                 if detected in self.supported_models:
                     if return_candidates:
-                        return detected, 0.8, [(detected, 0.8), ("pt", 0.1), ("en", 0.1)]
+                        return (
+                            detected,
+                            0.8,
+                            [(detected, 0.8), ("pt", 0.1), ("en", 0.1)],
+                        )
                     return detected, 0.8
         except Exception as e:
             logger.warning(f"Erro na detecção de idioma: {e}")
@@ -790,11 +863,17 @@ class NLUPipelineService:
         return mapping.get(spacy_label, EntityType.UNKNOWN)
 
     def _classify_domain(
-        self, text: str, entities: list[Entity], language: str, context: dict[str, Any] | None
+        self,
+        text: str,
+        entities: list[Entity],
+        language: str,
+        context: dict[str, Any] | None,
     ) -> tuple[UnifiedDomain, str, float]:
         """Classificar domínio usando regras configuráveis."""
         text_lower = text.lower()
-        text_words = set(text_lower.split())
+        # text_words normalizado (sem acentos) para keyword/subcategory matching robusto;
+        # text_lower (com acentos) é mantido para os patterns regex.
+        text_words = set(self._strip_accents(text_lower).split())
         domains_config = self.classification_rules.get("domains", {})
 
         domain_scores = {}
@@ -812,7 +891,9 @@ class NLUPipelineService:
 
             # Pattern matching
             compiled = self.compiled_patterns.get(domain_name, [])
-            pattern_matches = sum(1 for pattern in compiled if pattern.search(text_lower))
+            pattern_matches = sum(
+                1 for pattern in compiled if pattern.search(text_lower)
+            )
             score += pattern_matches * 3
 
             # Subcategory matching
@@ -842,15 +923,17 @@ class NLUPipelineService:
             confidence = min(0.95, (max_score / 3.0) * 0.85 + 0.15)
 
             # Aplicar boosts
-            text_length_config = self.classification_rules.get("confidence_boosters", {}).get(
-                "text_length_boost", {}
-            )
+            text_length_config = self.classification_rules.get(
+                "confidence_boosters", {}
+            ).get("text_length_boost", {})
             if len(text) > text_length_config.get("threshold", 50):
-                confidence = min(0.95, confidence + text_length_config.get("boost", 0.05))
+                confidence = min(
+                    0.95, confidence + text_length_config.get("boost", 0.05)
+                )
 
-            entity_config = self.classification_rules.get("confidence_boosters", {}).get(
-                "entity_presence_boost", {}
-            )
+            entity_config = self.classification_rules.get(
+                "confidence_boosters", {}
+            ).get("entity_presence_boost", {})
             if len(entities) >= entity_config.get("threshold", 2):
                 confidence = min(0.95, confidence + entity_config.get("boost", 0.05))
 
@@ -875,7 +958,11 @@ class NLUPipelineService:
         return best_domain, classification, confidence
 
     def _calculate_adaptive_threshold(
-        self, text: str, context: dict[str, Any] | None, confidence: float, entities: list[Entity]
+        self,
+        text: str,
+        context: dict[str, Any] | None,
+        confidence: float,
+        entities: list[Entity],
     ) -> float:
         """Calcular threshold adaptativo."""
         threshold = self.settings.nlu_confidence_threshold
@@ -896,7 +983,9 @@ class NLUPipelineService:
 
         # Ajuste por contexto
         if context:
-            context_fields = sum(1 for v in context.values() if v is not None and v != "")
+            context_fields = sum(
+                1 for v in context.values() if v is not None and v != ""
+            )
             if context_fields >= 3:
                 adjustments.append(-0.05)
 
