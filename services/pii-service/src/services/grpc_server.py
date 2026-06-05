@@ -6,6 +6,7 @@ import structlog
 from google.protobuf.timestamp_pb2 import Timestamp
 
 from src.config.settings import get_settings
+from src.models.pii import MaskStrategy
 from src.proto import pii_pb2, pii_pb2_grpc
 from src.services.pii_service import get_pii_service
 
@@ -116,14 +117,16 @@ class PIIGrpcServicer(pii_pb2_grpc.PIIServiceServicer):
             tenant_id = request.context.get("tenant_id")
             user_id = request.context.get("user_id")
 
-            # Mapear estratégia
+            # Mapear estratégia do enum proto para o enum de domínio MaskStrategy.
+            # pii_service.mask() espera o enum (usa strategy.value); passar a string
+            # crua levantava "'str' object has no attribute 'value'".
             strategy_map = {
-                pii_pb2.MASK_FULL: "MASK_FULL",
-                pii_pb2.MASK_PARTIAL: "MASK_PARTIAL",
-                pii_pb2.MASK_REDACT: "MASK_REDACT",
-                pii_pb2.MASK_HASH: "MASK_HASH",
+                pii_pb2.MASK_FULL: MaskStrategy.MASK_FULL,
+                pii_pb2.MASK_PARTIAL: MaskStrategy.MASK_PARTIAL,
+                pii_pb2.MASK_REDACT: MaskStrategy.MASK_REDACT,
+                pii_pb2.MASK_HASH: MaskStrategy.MASK_HASH,
             }
-            strategy = strategy_map.get(request.strategy, "MASK_PARTIAL")
+            strategy = strategy_map.get(request.strategy, MaskStrategy.MASK_PARTIAL)
 
             # Tipos para mascarar
             types_to_mask = [t.name for t in request.types] if request.types else None
