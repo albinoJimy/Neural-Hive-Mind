@@ -10,6 +10,7 @@ from typing import Any
 from grpc_clients.nlu_client import NLUServiceClient
 from grpc_clients.pii_client import PIIServiceClient
 from neural_hive_domain import UnifiedDomain
+from proto import nlu_pb2
 
 from models.intent_envelope import Entity, NLUResult
 
@@ -111,7 +112,7 @@ class NLUServiceAdapter:
             return NLUResult(
                 processed_text=processed_text,
                 domain=domain,
-                classification=nlu_response.domain,  # Usar domain como classification
+                classification=domain.value,  # Usar domain (string) como classification
                 confidence=nlu_response.confidence,
                 entities=entities,
                 keywords=keywords,
@@ -127,9 +128,20 @@ class NLUServiceAdapter:
                 return self._fallback_classify(text, language)
             raise
 
-    def _convert_domain(self, domain_str: str) -> UnifiedDomain:
-        """Converte string do NLU Service para UnifiedDomain."""
+    def _convert_domain(self, domain_value) -> UnifiedDomain:
+        """Converte domain do NLU Service para UnifiedDomain.
+
+        O campo `domain` do proto NLUResult é um enum `UnifiedDomain`, que o
+        protobuf representa em Python como `int` (ex.: SECURITY=4). Aceita também
+        string por robustez. Converte o enum para o seu nome antes de mapear.
+        """
         try:
+            # Enum proto chega como int; converter para o nome (ex.: 4 → "SECURITY").
+            if isinstance(domain_value, int):
+                domain_str = nlu_pb2.UnifiedDomain.Name(domain_value)
+            else:
+                domain_str = str(domain_value)
+
             # Mapeamento NLU Service → UnifiedDomain
             domain_mapping = {
                 "BUSINESS": UnifiedDomain.BUSINESS,
