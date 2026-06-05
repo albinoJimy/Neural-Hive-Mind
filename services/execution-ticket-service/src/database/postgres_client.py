@@ -1,6 +1,7 @@
 """Cliente PostgreSQL para persistência de tickets usando SQLAlchemy async."""
 
 import asyncio
+import json
 import logging
 from typing import Optional
 
@@ -172,9 +173,12 @@ class PostgresClient:
         if actual_duration_ms is not None:
             values["actual_duration_ms"] = actual_duration_ms
         if result_data is not None:
-            # Merge JSONB: metadata || {"result": result_data} (preserva chaves existentes).
+            # Merge JSONB: metadata || {"result": result_data} (preserva chaves
+            # existentes). Serializa via json.dumps + CAST(... AS JSONB) para o
+            # Postgres parsear como OBJETO JSONB; passar o dict diretamente ao cast
+            # serializa-o como string aninhada (result chega à task seguinte como str).
             values["ticket_metadata"] = TicketORM.ticket_metadata.op("||")(
-                cast({"result": result_data}, JSONB)
+                cast(json.dumps({"result": result_data}), JSONB)
             )
 
         async with self._session_maker() as session:

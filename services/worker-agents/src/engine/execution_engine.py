@@ -1,4 +1,5 @@
 import asyncio
+import json
 import uuid
 from datetime import datetime, timezone
 
@@ -376,6 +377,12 @@ class ExecutionEngine:
                 dep_ticket = await self.ticket_client.get_ticket(dep_id)
                 dep_meta = dep_ticket.get("metadata") or {}
                 dep_result = dep_meta.get("result")
+                # Defensivo: se o result foi persistido como string JSON, desserializar.
+                if isinstance(dep_result, str):
+                    try:
+                        dep_result = json.loads(dep_result)
+                    except (ValueError, TypeError):
+                        pass
                 if dep_result is not None:
                     dependency_outputs[dep_id] = dep_result
                     # O output efetivo do executor está em result["output"] (contrato
