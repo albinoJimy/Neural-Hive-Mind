@@ -78,12 +78,18 @@ class TestNormalizacaoEntities:
 
 
 class TestIdempotencia:
-    """Caminho template (params já técnicos) não deve ser alterado."""
+    """Caminho template: collection/filter/limit preservados; query_type/database garantidos."""
 
-    def test_query_com_collection_nao_e_alterada(self):
+    def test_query_com_collection_preserva_e_garante_db(self):
         params = {"collection": "ldap", "filter": {"x": 1}, "limit": 100}
         result = resolve_ticket_parameters("QUERY", params, domain="SECURITY")
-        assert result == params
+        # collection/filter/limit do template são preservados
+        assert result["collection"] == "ldap"
+        assert result["filter"] == {"x": 1}
+        assert result["limit"] == 100
+        # query_type e database são garantidos (template não os fornece)
+        assert result["query_type"] == "mongodb"
+        assert result["database"] == "neural_hive"
 
     def test_query_type_existente_preservado(self):
         params = {"query_type": "neo4j", "cypher_query": "MATCH (n) RETURN n", "collection": "x"}

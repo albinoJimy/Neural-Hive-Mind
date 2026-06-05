@@ -46,6 +46,9 @@ class PlanConsumer:
             "group.id": self.config.kafka_consumer_group_id,
             "auto.offset.reset": self.config.kafka_auto_offset_reset,
             "enable.auto.commit": self.config.kafka_enable_auto_commit,
+            # Evita expulsão do consumer durante processamento longo (5 especialistas
+            # gRPC + consolidação). Default do confluent-kafka (5min) era insuficiente.
+            "max.poll.interval.ms": self.config.kafka_max_poll_interval_ms,
         }
 
         # Configuração de segurança SASL (se não for PLAINTEXT)
