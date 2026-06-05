@@ -11,6 +11,7 @@ import structlog
 from pymongo.errors import PyMongoError
 from temporalio import activity
 
+from neural_hive_integration.orchestration.parameter_resolver import resolve_ticket_parameters
 from neural_hive_resilience.circuit_breaker import CircuitBreakerError
 
 logger = structlog.get_logger()
@@ -240,7 +241,15 @@ async def generate_execution_tickets(
                     "consistency": consistency,
                     "durability": "PERSISTENT",
                 },
-                "parameters": task.get("parameters", {}),
+                # Tradução semântica→técnica dos parâmetros antes do despacho
+                # (ver neural_hive_integration.orchestration.parameter_resolver).
+                # Idempotente para parâmetros já técnicos (caminho template do STE).
+                "parameters": resolve_ticket_parameters(
+                    task.get("task_type", "EXECUTE"),
+                    task.get("parameters", {}),
+                    domain=(task.get("metadata", {}) or {}).get("domain")
+                    or cognitive_plan.get("original_domain"),
+                ),
                 "required_capabilities": task.get("required_capabilities", []),
                 "security_level": cognitive_plan.get("security_level", "INTERNAL"),
                 "created_at": int(datetime.now().timestamp() * 1000),

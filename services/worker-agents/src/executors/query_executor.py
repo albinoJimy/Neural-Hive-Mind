@@ -200,7 +200,10 @@ class QueryExecutor(BaseTaskExecutor):
             skip = parameters.get("skip", 0)
 
             # Obter coleção - acessar via client para evitar issues com Motor 3.x
-            db_name = self.mongodb_client.config.mongodb_database
+            # Permite override do database via parâmetro (a camada de tradução da
+            # orquestração aponta queries semânticas para `neural_hive`, onde residem
+            # as collections de contexto); fallback para o database configurado.
+            db_name = parameters.get("database") or self.mongodb_client.config.mongodb_database
             db = self.mongodb_client.client[db_name]
             collection = db[collection_name]
 
