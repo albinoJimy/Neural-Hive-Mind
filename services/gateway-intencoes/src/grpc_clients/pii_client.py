@@ -97,7 +97,7 @@ class PIIServiceClient:
         try:
             response = await asyncio.wait_for(
                 self._stub.Detect(request),
-                timeout=settings.PII_SERVICE_TIMEOUT or 10.0,
+                timeout=settings.pii_service_timeout or 10.0,
             )
 
             # Converter para lista de dicts
@@ -153,7 +153,7 @@ class PIIServiceClient:
         try:
             response = await asyncio.wait_for(
                 self._stub.Mask(request),
-                timeout=settings.PII_SERVICE_TIMEOUT or 10.0,
+                timeout=settings.pii_service_timeout or 10.0,
             )
 
             logger.debug(f"PII masking applied with strategy: {strategy}")
