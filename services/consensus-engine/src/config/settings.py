@@ -108,6 +108,11 @@ class Settings(BaseSettings):
         default="queen-agent.neural-hive.svc.cluster.local", description="Host do Queen Agent gRPC"
     )
     queen_agent_grpc_port: int = Field(default=50053, description="Porta do Queen Agent gRPC", gt=0)
+    # Timeout do check secundário get_system_status (mais tolerante que a chamada principal,
+    # pois é métrica de saúde não-bloqueante e o Queen Agent pode estar sob carga)
+    queen_agent_status_timeout_ms: int = Field(
+        default=30000, description="Timeout (ms) do get_system_status do Queen Agent", gt=0
+    )
 
     # gRPC Client (Analyst Agent)
     analyst_agent_grpc_host: str = Field(

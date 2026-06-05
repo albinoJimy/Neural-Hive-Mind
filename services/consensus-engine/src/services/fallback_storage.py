@@ -394,7 +394,16 @@ class FallbackStorage:
             restored = 0
             async for doc in cursor:
                 key = doc["key"]
-                value = doc["value"]
+                value = doc.get("value")
+                if value is None:
+                    # Docs de lista (type="list") usam o campo "items" e não têm "value";
+                    # são saltados nesta sincronização simples key/value.
+                    logger.debug(
+                        "Sync: doc sem campo 'value' ignorado",
+                        key=key,
+                        doc_type=doc.get("type"),
+                    )
+                    continue
 
                 # Verificar se já existe no Redis
                 try:
