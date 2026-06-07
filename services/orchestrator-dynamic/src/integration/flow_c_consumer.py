@@ -16,6 +16,7 @@ import time
 
 import structlog
 from aiokafka import AIOKafkaConsumer, AIOKafkaProducer
+from aiokafka.errors import CommitFailedError
 from prometheus_client import Counter
 
 from neural_hive_observability import (
@@ -518,6 +519,11 @@ class FlowCApprovalResponseConsumer:
         self.consumer: AIOKafkaConsumer = None
         self.orchestrator: FlowCOrchestrator = None
         self.running = False
+        # [P0-consumer] Timeout por mensagem: impede que uma mensagem "venenosa"
+        # (ex.: resume_flow_c_after_approval preso em retries de dependência —
+        # OPA/Temporal indisponível) bloqueie indefinidamente o poll loop e
+        # congele o consumo dos restantes planos aprovados. Configurável via env.
+        self.process_timeout_s = float(os.getenv("APPROVAL_RESPONSE_PROCESS_TIMEOUT_S", "180"))
         self.logger = logger.bind(service="approval_response_consumer")
 
     async def start(self):
@@ -535,8 +541,14 @@ class FlowCApprovalResponseConsumer:
             "group_id": self.group_id,
             "auto_offset_reset": "earliest",
             "enable_auto_commit": False,
-            "max_poll_interval_ms": 3600000,  # 1 hora
-            "session_timeout_ms": 30000,
+            # [P0-consumer] Alinhar com FlowCConsumer (6h) para acomodar
+            # execuções longas e evitar rebalance/expulsão do grupo que
+            # deixava o consumer em STATE=Empty.
+            "max_poll_interval_ms": 21600000,  # 6 horas em milissegundos
+            "session_timeout_ms": 30000,  # 30 segundos
+            # [P0-consumer] Heartbeat explícito para manter membership do grupo
+            # estável entre polls.
+            "heartbeat_interval_ms": 3000,  # 3 segundos
             # Não usar value_deserializer - receber bytes crus para
             # evitar erro de codec snappy (mensagens do Approval Service)
             # Importante: não definir compression_type para permitir detectar automaticamente
@@ -582,8 +594,10 @@ class FlowCApprovalResponseConsumer:
         self.logger.info("approval_response_consumer_loop_starting")
         while self.running:
             try:
-                # Fetch messages
-                data = await self.consumer.getmany(timeout_ms=1000, max_records=10)
+                # [P0-consumer] max_records=1: processar uma mensagem de cada vez
+                # reduz a janela de reprocessamento em caso de rebalance e mantém
+                # o commit alinhado com cada mensagem processada.
+                data = await self.consumer.getmany(timeout_ms=1000, max_records=1)
 
                 if data:
                     self.logger.debug(
@@ -600,15 +614,54 @@ class FlowCApprovalResponseConsumer:
                             key=message.key.decode("utf-8") if message.key else None,
                             value_preview=str(message.value)[:200] if message.value else None,
                         )
-                        await self._process_approval_response(message)
+                        # [P0-consumer] Timeout por mensagem: se o processamento
+                        # bloquear além do limite (poison message), registamos e
+                        # avançamos o offset (skip) para não congelar todo o
+                        # consumo. O plano saltado fica logado para reprocessamento.
+                        try:
+                            await asyncio.wait_for(
+                                self._process_approval_response(message),
+                                timeout=self.process_timeout_s,
+                            )
+                        except asyncio.TimeoutError:
+                            self.logger.warning(
+                                "approval_response_processing_timeout",
+                                topic=tp.topic,
+                                partition=tp.partition,
+                                offset=message.offset,
+                                key=message.key.decode("utf-8") if message.key else None,
+                                timeout_s=self.process_timeout_s,
+                                note="poison message saltada para desbloquear o consumo; requer reprocessamento manual",
+                            )
 
                         # Commit offset after successful processing
-                        await self.consumer.commit()
+                        # [P0-consumer] Tratar CommitFailedError explicitamente:
+                        # ocorre tipicamente quando há rebalance entre o poll e o
+                        # commit. Não é fatal — registamos e continuamos. Aceitamos
+                        # semântica at-least-once (a mensagem pode ser reprocessada
+                        # após rebalance), pelo que o processamento deve ser idempotente.
+                        try:
+                            await self.consumer.commit()
+                        except CommitFailedError as commit_error:
+                            self.logger.warning(
+                                "approval_response_commit_failed",
+                                error=str(commit_error),
+                                topic=tp.topic,
+                                partition=tp.partition,
+                                offset=message.offset,
+                                note="rebalance provável; mensagem pode ser reprocessada (at-least-once)",
+                            )
 
+            except asyncio.CancelledError:
+                # [P0-consumer] Propagar cancelamento (shutdown gracioso) sem
+                # registar como erro nem reentrar no loop.
+                self.logger.info("approval_response_consumer_loop_cancelled")
+                raise
             except Exception as e:
-                self.logger.error(
-                    "approval_response_consumption_error", error=str(e), exc_info=True
-                )
+                # [P0-consumer] Qualquer outra exceção não deve matar o loop: é
+                # registada e o loop continua. A supervisão em main.py
+                # (_spawn_supervised) é a salvaguarda final caso o loop saia.
+                self.logger.exception("approval_response_consumption_error", error=str(e))
                 await asyncio.sleep(5)
 
     async def _process_approval_response(self, message):
