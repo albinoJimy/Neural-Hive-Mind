@@ -4,6 +4,7 @@ MongoDB Client para Approval Service
 Fornece interface async para MongoDB para persistencia de aprovacoes.
 """
 
+from datetime import datetime
 from typing import Any, Optional
 
 import structlog
@@ -14,6 +15,33 @@ from src.config.settings import Settings
 from neural_hive_approval_common import ApprovalDecision, ApprovalRequest, ApprovalStats
 
 logger = structlog.get_logger()
+
+
+def _coerce_to_datetime(value: Any) -> Any:
+    """
+    Garante que valores de data sejam datetime (BSON) e nao string ISO.
+
+    Documentos legados ou mensagens deserializadas via json.loads podem trazer
+    timestamps como string ISO 8601. O MongoDB grava essas strings tal-e-qual,
+    o que quebra agregacoes que usam operadores aritmeticos ($subtract) sobre datas.
+
+    Args:
+        value: Valor potencialmente datetime, string ISO ou None.
+
+    Returns:
+        datetime quando a conversao for possivel; caso contrario, o valor original.
+    """
+    if value is None or isinstance(value, datetime):
+        return value
+    if isinstance(value, str):
+        try:
+            # Suporta sufixo 'Z' (UTC) que fromisoformat nao aceita ate Python < 3.11
+            normalized = value.replace("Z", "+00:00")
+            return datetime.fromisoformat(normalized)
+        except ValueError:
+            # Mantem o valor original se nao for um ISO valido (pipeline e defensiva)
+            return value
+    return value
 
 
 class MongoDBClient:
@@ -97,9 +125,9 @@ class MongoDBClient:
             "status": (
                 approval.status.value if hasattr(approval.status, "value") else approval.status
             ),
-            "requested_at": approval.requested_at,
+            "requested_at": _coerce_to_datetime(approval.requested_at),
             "approved_by": approval.approved_by,
-            "approved_at": approval.approved_at,
+            "approved_at": _coerce_to_datetime(approval.approved_at),
             "rejection_reason": approval.rejection_reason,
             "comments": approval.comments,
             "cognitive_plan": approval.cognitive_plan,
@@ -186,7 +214,7 @@ class MongoDBClient:
         update_data = {
             "status": decision.decision,
             "approved_by": decision.approved_by,
-            "approved_at": decision.approved_at,
+            "approved_at": _coerce_to_datetime(decision.approved_at),
             "comments": decision.comments,
         }
 
@@ -227,8 +255,16 @@ class MongoDBClient:
                     "avg_approval_time": [
                         {"$match": {"status": "approved", "approved_at": {"$ne": None}}},
                         {
+                            # Defensivo: docs legados podem ter datas como string ISO.
+                            # $toDate converte string/datetime para Date; null e ignorado
+                            # pelo $avg, evitando o TypeMismatch do $subtract sobre strings.
                             "$project": {
-                                "approval_time": {"$subtract": ["$approved_at", "$requested_at"]}
+                                "approval_time": {
+                                    "$subtract": [
+                                        {"$toDate": "$approved_at"},
+                                        {"$toDate": "$requested_at"},
+                                    ]
+                                }
                             }
                         },
                         {"$group": {"_id": None, "avg": {"$avg": "$approval_time"}}},
