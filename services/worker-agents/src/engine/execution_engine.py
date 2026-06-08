@@ -392,6 +392,14 @@ class ExecutionEngine:
                         if isinstance(dep_result, dict) and "output" in dep_result
                         else dep_result
                     )
+                    # Defensivo: se o output veio como string JSON (serialização
+                    # aninhada), desserializar para que a TRANSFORM receba dict/list
+                    # e não uma string (que partiria aggregate/filter).
+                    if isinstance(last_output, str):
+                        try:
+                            last_output = json.loads(last_output)
+                        except (ValueError, TypeError):
+                            pass
             except Exception as e:
                 self.logger.warning(
                     "dependency_output_fetch_failed",
@@ -697,6 +705,48 @@ class ExecutionEngine:
                 if self.metrics and hasattr(self.metrics, "active_tasks"):
                     self.metrics.active_tasks.set(len(self.active_tasks))
 
+    def _normalize_executor_result(
+        self, result: Any, ticket_id: str | None, task_type: str | None
+    ) -> dict[str, Any]:
+        """Garante que o resultado do executor cumpre o contrato {"success": bool}.
+
+        Os executores devem devolver sempre um dict com a chave `success`. Quando
+        tal não acontece (dict sem `success` ou valor não-dict), esta função
+        normaliza o resultado para um dict de falha explícito, evitando a falha
+        silenciosa em `_execute_ticket` (que marca FAILED com a mensagem genérica
+        "Task execution failed without exception" sempre que `success` é falsy).
+
+        Args:
+            result: Valor devolvido pelo executor.
+            ticket_id: ID do ticket (para log).
+            task_type: Tipo da tarefa (para log).
+
+        Returns:
+            Dict com a chave `success` garantida.
+        """
+        if isinstance(result, dict) and "success" in result:
+            return result
+
+        self.logger.warning(
+            "executor_result_missing_success",
+            ticket_id=ticket_id,
+            task_type=task_type,
+            result_type=type(result).__name__,
+        )
+
+        if isinstance(result, dict):
+            # Preserva o conteúdo devolvido, apenas garante a chave `success`.
+            normalized = dict(result)
+            normalized["success"] = False
+            normalized.setdefault("error", "Executor result missing required 'success' field")
+            return normalized
+
+        return {
+            "success": False,
+            "output": result,
+            "error": "Executor returned a non-dict result without 'success' field",
+        }
+
     async def _execute_task_with_retry(self, ticket: dict[str, Any]) -> dict[str, Any]:
         """Executar tarefa com retry logic"""
         task_type = ticket.get("task_type")
@@ -724,7 +774,14 @@ class ExecutionEngine:
                 )
 
                 # Executar com timeout
-                return await asyncio.wait_for(executor.execute(ticket), timeout=timeout_seconds)
+                exec_result = await asyncio.wait_for(
+                    executor.execute(ticket), timeout=timeout_seconds
+                )
+                # Contrato: o executor deve devolver sempre {"success": bool, ...}.
+                # Defensivo: se um executor devolver um dict sem a chave `success`
+                # (ou um valor não-dict), normalizar para evitar a falha silenciosa
+                # "Task execution failed without exception" em _execute_ticket.
+                return self._normalize_executor_result(exec_result, ticket_id, task_type)
 
             except TimeoutError:
                 last_error = f"Timeout after {timeout_seconds}s"

@@ -1,6 +1,7 @@
 """API endpoints para operações de tickets."""
 
 import asyncio
+import json
 from datetime import datetime, timezone
 from typing import Any, Optional
 from uuid import uuid4
@@ -14,6 +15,39 @@ from ..database import get_mongodb_client, get_postgres_client
 from ..models import ExecutionTicket, JWTToken, TicketStatus, generate_token
 
 router = APIRouter(prefix="/api/v1/tickets")
+
+
+def _deserialize_result(metadata: Optional[dict[str, Any]]) -> Optional[Any]:
+    """Extrai e desserializa o output da execução de metadata["result"].
+
+    O contrato Avro define `metadata` como `map<string>`, pelo que o modelo
+    Pydantic (`ExecutionTicket.metadata: dict[str, str]`) força os valores a
+    string ao serializar. Esta função recupera o `result` como OBJETO JSON,
+    desserializando-o quando foi persistido/serializado como string JSON.
+
+    Args:
+        metadata: Dicionário de metadados do ticket (pode ser None).
+
+    Returns:
+        O result como objeto (dict/list) quando disponível; None caso ausente.
+    """
+    if not isinstance(metadata, dict):
+        return None
+
+    result = metadata.get("result")
+    if result is None:
+        return None
+
+    # Defensivo: se foi serializado como string JSON (via dict[str, str] do
+    # modelo Avro), desserializar de volta para objeto.
+    if isinstance(result, str):
+        try:
+            return json.loads(result)
+        except (ValueError, TypeError):
+            # Mantém a string original se não for JSON válido.
+            return result
+
+    return result
 
 
 class StatusUpdateRequest(BaseModel):
@@ -46,6 +80,53 @@ async def get_ticket(ticket_id: str):
         raise HTTPException(status_code=404, detail="Ticket not found")
 
     return ticket_orm.to_pydantic()
+
+
+class TicketResultResponse(BaseModel):
+    """Resposta com o output da execução do ticket como OBJETO JSON.
+
+    Endpoint dedicado para data flow/consumidores externos: ao contrário de
+    `metadata["result"]` (forçado a string pelo modelo Avro `dict[str, str]`),
+    este devolve `result` como objeto JSON (não string nem null quando presente).
+    """
+
+    ticket_id: str
+    status: str
+    result: Optional[Any] = None
+
+
+@router.get("/{ticket_id}/result", response_model=TicketResultResponse)
+async def get_ticket_result(ticket_id: str):
+    """Retorna o output da execução do ticket como OBJETO JSON.
+
+    Lê o metadata JSONB diretamente do ORM (preservando o objeto) e desserializa
+    `result` quando este foi persistido/serializado como string JSON.
+
+    Args:
+        ticket_id: ID do ticket.
+
+    Returns:
+        TicketResultResponse com `result` como objeto (ou None se ausente).
+
+    Raises:
+        404: Se o ticket não for encontrado.
+    """
+    postgres_client = await get_postgres_client()
+    ticket_orm = await postgres_client.get_ticket_by_id(ticket_id)
+
+    if not ticket_orm:
+        raise HTTPException(status_code=404, detail="Ticket not found")
+
+    # Ler o metadata JSONB cru do ORM (objeto), não a versão serializada do
+    # modelo Avro (que stringifica os valores).
+    metadata = getattr(ticket_orm, "ticket_metadata", None)
+    result = _deserialize_result(metadata)
+
+    return TicketResultResponse(
+        ticket_id=ticket_id,
+        status=getattr(ticket_orm, "status", None) or "UNKNOWN",
+        result=result,
+    )
 
 
 @router.post("/", response_model=ExecutionTicket, status_code=201)

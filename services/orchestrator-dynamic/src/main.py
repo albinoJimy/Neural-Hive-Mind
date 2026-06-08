@@ -8,6 +8,7 @@ já contém FIX 2a, 2b, 2c, 3 nativamente em flow_c_orchestrator.py.
 
 import asyncio
 import os
+from collections.abc import Callable, Coroutine
 from contextlib import asynccontextmanager, suppress
 from typing import Any
 
@@ -185,9 +186,121 @@ class AppState:
         self.audit_logger: ModelAuditLogger | None = None
         # Feature Flags Service
         self.feature_flag_service: Any | None = None
+        # [P0-consumer] Flag de shutdown: impede recriação de tasks supervisionadas
+        # durante o encerramento gracioso da aplicação.
+        self.is_shutting_down: bool = False
+        # [P0-consumer] Mapa de tasks supervisionadas (nome -> task) usado para
+        # refletir o estado vivo dos consumers no /ready e para recriação.
+        self.supervised_tasks: dict[str, asyncio.Task] = {}
 
 
 app_state = AppState()
+
+
+def _register_supervised_task(name: str, task: "asyncio.Task") -> None:
+    """
+    [P0-consumer] Regista a task viva tanto no mapa ``supervised_tasks`` como
+    no atributo homónimo de ``app_state`` (quando existir).
+
+    O nome de cada task supervisionada coincide com o nome do atributo em
+    ``AppState`` (ex.: ``approval_response_task``). Manter ambos sincronizados
+    garante que o ``/ready`` e o ``shutdown`` — que leem o atributo fixo —
+    observam SEMPRE a task viva, inclusive após uma recriação pelo supervisor.
+
+    Args:
+        name: Identificador da task (igual ao nome do atributo em AppState).
+        task: Task asyncio a registar como a referência viva.
+    """
+    app_state.supervised_tasks[name] = task
+    # Reflete a task viva no atributo fixo lido por /ready e shutdown.
+    if hasattr(app_state, name):
+        setattr(app_state, name, task)
+
+
+def _spawn_supervised(
+    name: str,
+    coro_factory: Callable[[], Coroutine[Any, Any, Any]],
+) -> "asyncio.Task":
+    """
+    [P0-consumer] Cria uma task asyncio supervisionada.
+
+    Regista um ``add_done_callback`` que, se a task terminar por exceção
+    (e não por cancelamento ou durante shutdown), loga o erro com structlog
+    e RECRIA a task automaticamente. Evita que consumers Kafka morram
+    silenciosamente deixando planos aprovados presos.
+
+    Args:
+        name: Identificador da task (usado em logs e no /ready). Coincide com
+            o nome do atributo correspondente em ``AppState``.
+        coro_factory: Callable sem argumentos que devolve a coroutine a executar.
+            Tem de ser uma factory (não a coroutine direta) para permitir
+            recriação após falha.
+
+    Returns:
+        A task asyncio criada e registada em ``app_state.supervised_tasks`` e
+        no atributo homónimo de ``app_state``.
+    """
+
+    def _on_done(task: asyncio.Task) -> None:
+        # Cancelamento (shutdown) é esperado: não recriar.
+        if task.cancelled():
+            logger.info("supervised_task_cancelled", task_name=name)
+            return
+
+        exc = task.exception()
+        if exc is None:
+            # Terminou normalmente (ex.: loop saiu por running=False no shutdown).
+            logger.info("supervised_task_finished", task_name=name)
+            return
+
+        # Terminou por exceção não tratada.
+        logger.error(
+            "supervised_task_crashed",
+            task_name=name,
+            error=str(exc),
+            exc_info=exc,
+        )
+
+        # Não recriar durante shutdown.
+        if app_state.is_shutting_down:
+            logger.info("supervised_task_not_recreated_shutdown", task_name=name)
+            return
+
+        # Recriar a task para restaurar o consumer.
+        logger.warning("supervised_task_recreating", task_name=name)
+        new_task = asyncio.create_task(coro_factory(), name=name)
+        new_task.add_done_callback(_on_done)
+        # Atualiza mapa E atributo fixo para a task recriada (live state).
+        _register_supervised_task(name, new_task)
+
+    task = asyncio.create_task(coro_factory(), name=name)
+    task.add_done_callback(_on_done)
+    _register_supervised_task(name, task)
+    return task
+
+
+def _is_consumer_task_alive(consumer: Any, task: "asyncio.Task | None") -> bool:
+    """
+    [P0-consumer] Verifica se um consumer está saudável para o /ready.
+
+    Considera saudável apenas quando o objeto consumer reporta ``running=True``
+    E a sua task de fundo existe e NÃO terminou. Assim, se a task morrer
+    silenciosamente (ex.: exceção não tratada antes da supervisão recriar),
+    o readiness reflete o estado real e o K8s pode reiniciar o pod.
+
+    Args:
+        consumer: Instância do consumer (deve ter atributo ``running``).
+        task: Task asyncio que executa o loop ``consume()``.
+
+    Returns:
+        True se o consumer estiver vivo e a processar; False caso contrário.
+    """
+    if consumer is None or task is None:
+        return False
+    if not getattr(consumer, "running", False):
+        return False
+    # task.done() é True se terminou normalmente, por exceção ou cancelamento.
+    return not task.done()
 
 
 @asynccontextmanager
@@ -825,8 +938,10 @@ async def lifespan(app: FastAPI):
                     opa_port=getattr(config, "opa_port", None),
                 )
 
-                # Iniciar Temporal Worker em background
-                app_state.worker_task = asyncio.create_task(app_state.temporal_worker.start())
+                # Iniciar Temporal Worker em background (supervisionado)
+                app_state.worker_task = _spawn_supervised(
+                    "worker_task", lambda: app_state.temporal_worker.start()
+                )
                 logger.info("Temporal Worker iniciado em background")
             except Exception as temporal_init_error:
                 init_metrics.record_component_initialization_status(
@@ -843,14 +958,17 @@ async def lifespan(app: FastAPI):
         else:
             logger.warning("Temporal Worker não inicializado - Temporal client não disponível")
 
-        # Iniciar Kafka Consumer em background
-        app_state.consumer_task = asyncio.create_task(app_state.kafka_consumer.start())
+        # Iniciar Kafka Consumer em background (supervisionado)
+        app_state.consumer_task = _spawn_supervised(
+            "consumer_task", lambda: app_state.kafka_consumer.start()
+        )
         logger.info("Kafka Consumer iniciado em background")
 
-        # GAP-02: Iniciar Execution Result Consumer em background
+        # GAP-02: Iniciar Execution Result Consumer em background (supervisionado)
         if app_state.execution_result_consumer:
-            app_state.execution_result_task = asyncio.create_task(
-                app_state.execution_result_consumer.start()
+            app_state.execution_result_task = _spawn_supervised(
+                "execution_result_task",
+                lambda: app_state.execution_result_consumer.start(),
             )
             logger.info("Execution Result Consumer iniciado em background")
 
@@ -859,8 +977,10 @@ async def lifespan(app: FastAPI):
         app_state.flow_c_consumer = FlowCConsumer(config=config)
         await app_state.flow_c_consumer.start()
 
-        # Iniciar Flow C Consumer em background
-        app_state.flow_c_task = asyncio.create_task(app_state.flow_c_consumer.consume())
+        # Iniciar Flow C Consumer em background (supervisionado)
+        app_state.flow_c_task = _spawn_supervised(
+            "flow_c_task", lambda: app_state.flow_c_consumer.consume()
+        )
         logger.info("Flow C Consumer iniciado em background")
 
         # Inicializar Approval Response Consumer
@@ -868,9 +988,12 @@ async def lifespan(app: FastAPI):
         app_state.approval_response_consumer = FlowCApprovalResponseConsumer(config=config)
         await app_state.approval_response_consumer.start()
 
-        # Iniciar Approval Response Consumer em background
-        app_state.approval_response_task = asyncio.create_task(
-            app_state.approval_response_consumer.consume()
+        # Iniciar Approval Response Consumer em background (supervisionado)
+        # [P0-consumer] CAUSA RAIZ: esta task morria silenciosamente e nada a
+        # recriava, deixando planos aprovados presos. Agora é supervisionada.
+        app_state.approval_response_task = _spawn_supervised(
+            "approval_response_task",
+            lambda: app_state.approval_response_consumer.consume(),
         )
         logger.info("Approval Response Consumer iniciado em background")
 
@@ -880,8 +1003,10 @@ async def lifespan(app: FastAPI):
             app_state.sla_alert_consumer = SLAAlertConsumer()
             await app_state.sla_alert_consumer.start()
 
-            # Iniciar SLA Alerts Consumer em background
-            app_state.sla_alert_task = asyncio.create_task(app_state.sla_alert_consumer.consume())
+            # Iniciar SLA Alerts Consumer em background (supervisionado)
+            app_state.sla_alert_task = _spawn_supervised(
+                "sla_alert_task", lambda: app_state.sla_alert_consumer.consume()
+            )
             logger.info("SLA Alerts Consumer iniciado em background")
 
         # Inicializar Drift Detector se ML habilitado
@@ -970,6 +1095,9 @@ async def lifespan(app: FastAPI):
 
     # Shutdown
     logger.info("Encerrando Orchestrator Dynamic")
+    # [P0-consumer] Sinaliza shutdown ANTES de cancelar tasks para que o
+    # supervisor não tente recriá-las.
+    app_state.is_shutting_down = True
 
     try:
         # Parar Flow C Consumer
@@ -1899,7 +2027,11 @@ async def readiness_check():
     Readiness check - verifica se serviço está pronto para receber requisições.
     Valida conexões com Kafka e MongoDB. Temporal é opcional.
     """
-    checks = {"kafka_consumer": False, "flow_c_consumer": False}
+    checks = {
+        "kafka_consumer": False,
+        "flow_c_consumer": False,
+        "approval_response_consumer": False,
+    }
 
     try:
         # Verificar Kafka Consumer (obrigatório)
@@ -1909,6 +2041,14 @@ async def readiness_check():
         # Verificar Flow C Consumer (obrigatório)
         if app_state.flow_c_consumer and app_state.flow_c_consumer.running:
             checks["flow_c_consumer"] = True
+
+        # [P0-consumer] Verificar Approval Response Consumer (obrigatório):
+        # o consumer tem de estar a correr E a sua task de fundo tem de estar
+        # viva (não terminada). Se a task morreu silenciosamente, o /ready
+        # reporta not_ready para que o K8s reinicie o pod.
+        checks["approval_response_consumer"] = _is_consumer_task_alive(
+            app_state.approval_response_consumer, app_state.approval_response_task
+        )
 
         # Temporal é opcional - incluir no status se disponível
         if app_state.temporal_client:
@@ -1920,7 +2060,11 @@ async def readiness_check():
             checks["worker"] = "disabled"
 
         # Ready se componentes obrigatórios estão OK
-        required_checks = [checks["kafka_consumer"], checks["flow_c_consumer"]]
+        required_checks = [
+            checks["kafka_consumer"],
+            checks["flow_c_consumer"],
+            checks["approval_response_consumer"],
+        ]
         all_ready = all(v is True for v in required_checks)
 
         return JSONResponse(

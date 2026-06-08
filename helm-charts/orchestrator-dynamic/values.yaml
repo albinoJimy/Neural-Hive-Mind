@@ -428,7 +428,9 @@ config:
   # OPA Policy Engine
   opa:
     enabled: true
-    host: opa.neural-hive-orchestration.svc.cluster.local
+    # Namespace correto: o serviço OPA vive em neural-hive (o namespace
+    # neural-hive-orchestration foi removido na consolidação de namespaces).
+    host: opa.neural-hive.svc.cluster.local
     port: 8181
     timeoutSeconds: 2
     retryAttempts: 3
