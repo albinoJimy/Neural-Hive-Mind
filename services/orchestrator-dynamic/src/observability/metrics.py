@@ -144,7 +144,10 @@ class OrchestratorMetrics:
         self.mongodb_fallback_total = Counter(
             "orchestration_mongodb_fallback_total",
             "Total de usos de fallback MongoDB para tickets",
-            ["source", "status"],  # source: temporal_validation_error, status: success, not_found
+            [
+                "source",
+                "status",
+            ],  # source: temporal_validation_error, status: success, not_found
         )
 
         # Métricas de SLA
@@ -236,7 +239,9 @@ class OrchestratorMetrics:
 
         # Métricas de Retry e Compensação
         self.retries_total = Counter(
-            "orchestration_retries_total", "Total de retries", ["task_type", "retry_attempt"]
+            "orchestration_retries_total",
+            "Total de retries",
+            ["task_type", "retry_attempt"],
         )
 
         self.compensations_triggered_total = Counter(
@@ -308,10 +313,14 @@ class OrchestratorMetrics:
             "Total de mensagens produzidas em execution.tickets",
         )
 
-        self.kafka_consumer_lag = Gauge("orchestration_kafka_consumer_lag", "Lag do consumer Kafka")
+        self.kafka_consumer_lag = Gauge(
+            "orchestration_kafka_consumer_lag", "Lag do consumer Kafka"
+        )
 
         self.kafka_errors_total = Counter(
-            "orchestration_kafka_errors_total", "Total de erros Kafka", ["operation", "error_type"]
+            "orchestration_kafka_errors_total",
+            "Total de erros Kafka",
+            ["operation", "error_type"],
         )
 
         # Métricas de distribuição de partitions Kafka
@@ -427,7 +436,9 @@ class OrchestratorMetrics:
 
         # Métricas de Validação
         self.plan_validations_total = Counter(
-            "orchestration_plan_validations_total", "Total de validações de planos", ["result"]
+            "orchestration_plan_validations_total",
+            "Total de validações de planos",
+            ["result"],
         )
 
         self.dag_optimizations_total = Counter(
@@ -436,11 +447,14 @@ class OrchestratorMetrics:
 
         # Métricas de Recursos
         self.resource_allocations_total = Counter(
-            "orchestration_resource_allocations_total", "Total de alocações de recursos", ["status"]
+            "orchestration_resource_allocations_total",
+            "Total de alocações de recursos",
+            ["status"],
         )
 
         self.burst_capacity_activations_total = Counter(
-            "orchestration_burst_capacity_activations_total", "Total de ativações de burst capacity"
+            "orchestration_burst_capacity_activations_total",
+            "Total de ativações de burst capacity",
         )
 
         # Métricas de correlation_id
@@ -499,7 +513,8 @@ class OrchestratorMetrics:
         )
 
         self.scheduler_cache_hits_total = Counter(
-            "orchestration_scheduler_cache_hits_total", "Total de cache hits em descobertas"
+            "orchestration_scheduler_cache_hits_total",
+            "Total de cache hits em descobertas",
         )
 
         self.scheduler_rejections_total = Counter(
@@ -522,7 +537,9 @@ class OrchestratorMetrics:
         )
 
         self.preemption_failures_total = Counter(
-            "orchestration_preemption_failures_total", "Total de falhas de preempção", ["reason"]
+            "orchestration_preemption_failures_total",
+            "Total de falhas de preempção",
+            ["reason"],
         )
 
         self.preemption_duration_seconds = Histogram(
@@ -592,7 +609,11 @@ class OrchestratorMetrics:
         self.opa_policy_rejections_total = Counter(
             "orchestration_opa_policy_rejections_total",
             "Total de rejeições por políticas OPA",
-            ["policy_name", "rule", "severity"],  # severity: critical, high, medium, low
+            [
+                "policy_name",
+                "rule",
+                "severity",
+            ],  # severity: critical, high, medium, low
         )
 
         self.opa_policy_warnings_total = Counter(
@@ -604,13 +625,19 @@ class OrchestratorMetrics:
         self.opa_violations_by_policy = Counter(
             "orchestration_opa_violations_by_policy_total",
             "Total de violações OPA por política",
-            ["policy_name", "rule", "severity"],  # severity: critical, high, medium, low
+            [
+                "policy_name",
+                "rule",
+                "severity",
+            ],  # severity: critical, high, medium, low
         )
 
         self.opa_evaluation_errors_total = Counter(
             "orchestration_opa_evaluation_errors_total",
             "Total de erros na avaliação OPA",
-            ["error_type"],  # error_type: connection, timeout, policy_not_found, evaluation_error
+            [
+                "error_type"
+            ],  # error_type: connection, timeout, policy_not_found, evaluation_error
         )
 
         self.opa_cache_hits_total = Counter(
@@ -644,7 +671,8 @@ class OrchestratorMetrics:
         )
 
         self.opa_cache_hit_ratio = Gauge(
-            "orchestration_opa_cache_hit_ratio", "Razão de cache hits OPA (hits / (hits + misses))"
+            "orchestration_opa_cache_hit_ratio",
+            "Razão de cache hits OPA (hits / (hits + misses))",
         )
 
         self.opa_circuit_breaker_transitions_total = Counter(
@@ -769,7 +797,9 @@ class OrchestratorMetrics:
         )
 
         self.ml_model_load_errors_total = Counter(
-            "orchestration_ml_model_load_errors_total", "Erros ao carregar modelos", ["model_name"]
+            "orchestration_ml_model_load_errors_total",
+            "Erros ao carregar modelos",
+            ["model_name"],
         )
 
         self.ml_training_duration_seconds = Histogram(
@@ -786,7 +816,8 @@ class OrchestratorMetrics:
         )
 
         self.ml_feature_extraction_errors_total = Counter(
-            "orchestration_ml_feature_extraction_errors_total", "Erros ao extrair features para ML"
+            "orchestration_ml_feature_extraction_errors_total",
+            "Erros ao extrair features para ML",
         )
 
         # ML Model Training Status Metrics
@@ -904,7 +935,9 @@ class OrchestratorMetrics:
         )
 
         self.ml_rollout_traffic_pct = Gauge(
-            "neural_hive_rollout_traffic_pct", "Current rollout traffic percentage", ["model_name"]
+            "neural_hive_rollout_traffic_pct",
+            "Current rollout traffic percentage",
+            ["model_name"],
         )
 
         self.ml_rollout_checkpoint_total = Counter(
@@ -979,7 +1012,11 @@ class OrchestratorMetrics:
             buckets=[0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
         )
 
-        logger.info("Métricas Prometheus inicializadas", service=service_name, component=component)
+        logger.info(
+            "Métricas Prometheus inicializadas",
+            service=service_name,
+            component=component,
+        )
 
     # Métodos helper para registrar métricas
 
@@ -988,12 +1025,14 @@ class OrchestratorMetrics:
         self.workflows_started_total.labels(status=status, risk_band=risk_band).inc()
         self.workflows_active.inc()
 
-    def record_workflow_completed(self, status: str, risk_band: str, duration_seconds: float):
+    def record_workflow_completed(
+        self, status: str, risk_band: str, duration_seconds: float
+    ):
         """Registra conclusão de workflow."""
         self.workflows_completed_total.labels(status=status, risk_band=risk_band).inc()
-        self.workflow_duration_seconds.labels(status=status, risk_band=risk_band).observe(
-            duration_seconds
-        )
+        self.workflow_duration_seconds.labels(
+            status=status, risk_band=risk_band
+        ).observe(duration_seconds)
         self.workflows_active.dec()
 
     def record_ticket_generated(self, task_type: str, risk_band: str, priority: str):
@@ -1016,7 +1055,9 @@ class OrchestratorMetrics:
 
     def update_sla_remaining(self, workflow_id: str, risk_band: str, seconds: float):
         """Atualiza gauge de SLA restante."""
-        self.sla_remaining_seconds.labels(workflow_id=workflow_id, risk_band=risk_band).set(seconds)
+        self.sla_remaining_seconds.labels(
+            workflow_id=workflow_id, risk_band=risk_band
+        ).set(seconds)
 
     def record_deadline_approaching(self):
         """Registra deadline próximo."""
@@ -1030,7 +1071,9 @@ class OrchestratorMetrics:
         """Registra compensação acionada."""
         self.compensations_triggered_total.labels(reason=reason).inc()
 
-    def record_compensation_duration(self, reason: str, status: str, duration_seconds: float):
+    def record_compensation_duration(
+        self, reason: str, status: str, duration_seconds: float
+    ):
         """
         Registra duração de compensação executada.
 
@@ -1061,7 +1104,9 @@ class OrchestratorMetrics:
             tenant_id: ID do tenant
             reason: Razão da falha (expired, invalid_signature, invalid_issuer, invalid_audience, missing_claims)
         """
-        self.jwt_validation_failures_total.labels(tenant_id=tenant_id, reason=reason).inc()
+        self.jwt_validation_failures_total.labels(
+            tenant_id=tenant_id, reason=reason
+        ).inc()
 
     def record_mtls_handshake_failure(self, service: str, reason: str):
         """
@@ -1089,7 +1134,9 @@ class OrchestratorMetrics:
         """Registra erro Kafka."""
         self.kafka_errors_total.labels(operation=operation, error_type=error_type).inc()
 
-    def record_kafka_partition_message(self, topic: str, partition: int, message_size_bytes: int):
+    def record_kafka_partition_message(
+        self, topic: str, partition: int, message_size_bytes: int
+    ):
         """Registra mensagem publicada em partition específica."""
         partition_str = str(partition)
         self.kafka_partition_messages_total.labels(
@@ -1127,10 +1174,12 @@ class OrchestratorMetrics:
     ):
         """Registra métricas de publicação de incidentes para autocura."""
         status = "success" if success else "failed"
-        self.incident_publish_total.labels(incident_type=incident_type, status=status).inc()
-        self.incident_publish_duration_seconds.labels(incident_type=incident_type).observe(
-            duration_seconds
-        )
+        self.incident_publish_total.labels(
+            incident_type=incident_type, status=status
+        ).inc()
+        self.incident_publish_duration_seconds.labels(
+            incident_type=incident_type
+        ).observe(duration_seconds)
 
         if not success:
             self.incident_publish_errors.labels(
@@ -1172,7 +1221,11 @@ class OrchestratorMetrics:
         self.idempotency_cache_hits_total.labels(component=component).inc()
 
     def record_scheduler_allocation(
-        self, status: str, fallback: bool, duration_seconds: float, has_predictions: bool = False
+        self,
+        status: str,
+        fallback: bool,
+        duration_seconds: float,
+        has_predictions: bool = False,
     ):
         """Registra alocação do scheduler."""
         self.scheduler_allocations_total.labels(
@@ -1188,11 +1241,13 @@ class OrchestratorMetrics:
         """Registra falha de discovery."""
         self.scheduler_discovery_failures_total.labels(error_type=error_type).inc()
 
-    def record_priority_score(self, risk_band: str, score: float, boosted: bool = False):
+    def record_priority_score(
+        self, risk_band: str, score: float, boosted: bool = False
+    ):
         """Registra score de prioridade."""
-        self.scheduler_priority_score.labels(risk_band=risk_band, boosted=str(boosted)).observe(
-            score
-        )
+        self.scheduler_priority_score.labels(
+            risk_band=risk_band, boosted=str(boosted)
+        ).observe(score)
 
     def record_cache_hit(self):
         """Registra cache hit."""
@@ -1233,7 +1288,9 @@ class OrchestratorMetrics:
             success: Se a preempção foi bem-sucedida
             reason: Razão do sucesso/falha
         """
-        self.preemption_attempts_total.labels(success=str(success).lower(), reason=reason).inc()
+        self.preemption_attempts_total.labels(
+            success=str(success).lower(), reason=reason
+        ).inc()
 
     def record_preemption_failure(self, reason: str):
         """
@@ -1294,7 +1351,9 @@ class OrchestratorMetrics:
             risk_band: Banda de risco do ticket
             priority: Prioridade do ticket
         """
-        self.anti_affinity_enforced_total.labels(risk_band=risk_band, priority=priority).inc()
+        self.anti_affinity_enforced_total.labels(
+            risk_band=risk_band, priority=priority
+        ).inc()
 
     def record_affinity_score(self, affinity_type: str, score: float):
         """
@@ -1304,7 +1363,9 @@ class OrchestratorMetrics:
             affinity_type: Tipo de affinity (plan, intent, composite)
             score: Score calculado (0.0-1.0)
         """
-        self.affinity_score_distribution.labels(affinity_type=affinity_type).observe(score)
+        self.affinity_score_distribution.labels(affinity_type=affinity_type).observe(
+            score
+        )
 
     def record_affinity_cache_operation(self, operation: str, status: str):
         """
@@ -1314,7 +1375,9 @@ class OrchestratorMetrics:
             operation: Tipo de operação (get_plan, get_intent, get_critical, record, cleanup)
             status: Status da operação (success, failure)
         """
-        self.affinity_cache_operations_total.labels(operation=operation, status=status).inc()
+        self.affinity_cache_operations_total.labels(
+            operation=operation, status=status
+        ).inc()
 
     def record_ticket_rejected(self, rejection_reason: str):
         """
@@ -1326,7 +1389,9 @@ class OrchestratorMetrics:
         self.scheduler_rejections_total.labels(reason=rejection_reason).inc()
         self.tickets_published_total.labels(status="rejected").inc()
 
-    def record_priority_adjustment(self, workflow_id: str, old_priority: int, new_priority: int):
+    def record_priority_adjustment(
+        self, workflow_id: str, old_priority: int, new_priority: int
+    ):
         """
         Registra ajuste de prioridade de workflow.
 
@@ -1342,7 +1407,9 @@ class OrchestratorMetrics:
             new_priority=new_priority,
         )
 
-    def record_resource_reallocation(self, workflow_id: str, cpu_millicores: int, memory_mb: int):
+    def record_resource_reallocation(
+        self, workflow_id: str, cpu_millicores: int, memory_mb: int
+    ):
         """
         Registra realocação de recursos de workflow.
 
@@ -1379,7 +1446,9 @@ class OrchestratorMetrics:
         except Exception as exc:
             logger.debug("mongodb_pool_metrics_failed", error=str(exc))
 
-    def record_opa_validation(self, policy_name: str, result: str, duration_seconds: float):
+    def record_opa_validation(
+        self, policy_name: str, result: str, duration_seconds: float
+    ):
         """Registra validação OPA."""
         self.opa_validations_total.labels(policy_name=policy_name, result=result).inc()
         self.opa_validation_duration_seconds.labels(policy_name=policy_name).observe(
@@ -1392,7 +1461,9 @@ class OrchestratorMetrics:
             policy_name=policy_name, rule=rule, severity=severity
         ).inc()
 
-    def record_opa_violation_by_policy(self, policy_name: str, rule: str, severity: str):
+    def record_opa_violation_by_policy(
+        self, policy_name: str, rule: str, severity: str
+    ):
         """
         Registra violação OPA por política.
 
@@ -1405,7 +1476,9 @@ class OrchestratorMetrics:
             policy_name=policy_name, rule=rule, severity=severity
         ).inc()
 
-    def record_security_violation(self, tenant_id: str, violation_type: str, severity: str):
+    def record_security_violation(
+        self, tenant_id: str, violation_type: str, severity: str
+    ):
         """Registrar violação de segurança."""
         self.security_violations_total.labels(
             tenant_id=tenant_id, violation_type=violation_type, severity=severity
@@ -1413,9 +1486,13 @@ class OrchestratorMetrics:
 
     def record_authentication_failure(self, tenant_id: str, reason: str):
         """Registrar falha de autenticação."""
-        self.security_authentication_failures_total.labels(tenant_id=tenant_id, reason=reason).inc()
+        self.security_authentication_failures_total.labels(
+            tenant_id=tenant_id, reason=reason
+        ).inc()
 
-    def record_authorization_denial(self, tenant_id: str, user_id: str, capability: str):
+    def record_authorization_denial(
+        self, tenant_id: str, user_id: str, capability: str
+    ):
         """Registrar negação de autorização."""
         self.security_authorization_denials_total.labels(
             tenant_id=tenant_id, user_id=user_id, capability=capability
@@ -1442,7 +1519,9 @@ class OrchestratorMetrics:
     def record_ml_prediction(self, model_type: str, status: str, duration: float):
         """Registra predição ML."""
         self.ml_predictions_total.labels(model_type=model_type, status=status).inc()
-        self.ml_prediction_duration_seconds.labels(model_type=model_type).observe(duration)
+        self.ml_prediction_duration_seconds.labels(model_type=model_type).observe(
+            duration
+        )
 
     def record_ml_anomaly(self, anomaly_type: str):
         """Registra anomalia detectada."""
@@ -1450,19 +1529,21 @@ class OrchestratorMetrics:
 
     def record_ml_training(self, model_type: str, duration: float, metrics: dict):
         """Registra treinamento de modelo ML."""
-        self.ml_training_duration_seconds.labels(model_type=model_type).observe(duration)
+        self.ml_training_duration_seconds.labels(model_type=model_type).observe(
+            duration
+        )
 
         # Atualiza gauges de acurácia
         model_name = f"{model_type}-predictor"
         if model_type == "duration":
             if "mae_percentage" in metrics:
-                self.ml_model_accuracy.labels(model_name=model_name, metric_type="mae_pct").set(
-                    metrics["mae_percentage"]
-                )
+                self.ml_model_accuracy.labels(
+                    model_name=model_name, metric_type="mae_pct"
+                ).set(metrics["mae_percentage"])
             if "r2" in metrics:
-                self.ml_model_accuracy.labels(model_name=model_name, metric_type="r2").set(
-                    metrics["r2"]
-                )
+                self.ml_model_accuracy.labels(
+                    model_name=model_name, metric_type="r2"
+                ).set(metrics["r2"])
             if "train_samples" in metrics:
                 self.ml_model_accuracy.labels(
                     model_name=model_name, metric_type="train_samples"
@@ -1473,17 +1554,17 @@ class OrchestratorMetrics:
                 ).set(metrics["test_samples"])
         elif model_type == "anomaly":
             if "precision" in metrics:
-                self.ml_model_accuracy.labels(model_name=model_name, metric_type="precision").set(
-                    metrics["precision"]
-                )
+                self.ml_model_accuracy.labels(
+                    model_name=model_name, metric_type="precision"
+                ).set(metrics["precision"])
             if "recall" in metrics:
-                self.ml_model_accuracy.labels(model_name=model_name, metric_type="recall").set(
-                    metrics["recall"]
-                )
+                self.ml_model_accuracy.labels(
+                    model_name=model_name, metric_type="recall"
+                ).set(metrics["recall"])
             if "f1_score" in metrics:
-                self.ml_model_accuracy.labels(model_name=model_name, metric_type="f1").set(
-                    metrics["f1_score"]
-                )
+                self.ml_model_accuracy.labels(
+                    model_name=model_name, metric_type="f1"
+                ).set(metrics["f1_score"])
             if "train_samples" in metrics:
                 self.ml_model_accuracy.labels(
                     model_name=model_name, metric_type="train_samples"
@@ -1544,9 +1625,9 @@ class OrchestratorMetrics:
         error_ms = actual_ms - predicted_ms
         accuracy = max(0.0, 1 - abs(error_ms) / actual_ms) if actual_ms > 0 else 0.0
 
-        self.ml_model_accuracy.labels(model_name=model_type, metric_type="prediction_accuracy").set(
-            accuracy
-        )
+        self.ml_model_accuracy.labels(
+            model_name=model_type, metric_type="prediction_accuracy"
+        ).set(accuracy)
 
     def record_ml_error(self, error_type: str):
         """Registra erro ML."""
@@ -1558,7 +1639,11 @@ class OrchestratorMetrics:
             self.ml_predictions_total.labels(model_type="unknown", status="error").inc()
 
     def record_ml_model_training_status(
-        self, model_name: str, is_trained: bool, has_estimators: bool = False, failed: bool = False
+        self,
+        model_name: str,
+        is_trained: bool,
+        has_estimators: bool = False,
+        failed: bool = False,
     ):
         """
         Registra status de treinamento do modelo.
@@ -1584,7 +1669,10 @@ class OrchestratorMetrics:
             status_value = 0
 
         self.ml_model_init_training_status.labels(
-            service=self.service_name, component="ml", layer="intelligence", model_name=model_name
+            service=self.service_name,
+            component="ml",
+            layer="intelligence",
+            model_name=model_name,
         ).set(status_value)
 
     def record_ml_model_quality(
@@ -1606,15 +1694,19 @@ class OrchestratorMetrics:
             mae_percentage: MAE como percentual da média
         """
         if mae is not None:
-            self.ml_model_quality_metrics.labels(model_name=model_name, metric_type="mae").set(mae)
+            self.ml_model_quality_metrics.labels(
+                model_name=model_name, metric_type="mae"
+            ).set(mae)
 
         if rmse is not None:
-            self.ml_model_quality_metrics.labels(model_name=model_name, metric_type="rmse").set(
-                rmse
-            )
+            self.ml_model_quality_metrics.labels(
+                model_name=model_name, metric_type="rmse"
+            ).set(rmse)
 
         if r2 is not None:
-            self.ml_model_quality_metrics.labels(model_name=model_name, metric_type="r2").set(r2)
+            self.ml_model_quality_metrics.labels(
+                model_name=model_name, metric_type="r2"
+            ).set(r2)
 
         if mae_percentage is not None:
             self.ml_model_quality_metrics.labels(
@@ -1652,7 +1744,9 @@ class OrchestratorMetrics:
             status: Status (ok, warning, critical)
         """
         status_value = {"ok": 0, "warning": 1, "critical": 2}.get(status, 0)
-        self.ml_drift_status.labels(model_name=model_name, drift_type=drift_type).set(status_value)
+        self.ml_drift_status.labels(model_name=model_name, drift_type=drift_type).set(
+            status_value
+        )
 
     def record_drift_detected(
         self,
@@ -1688,7 +1782,9 @@ class OrchestratorMetrics:
         """
         self.ml_training_jobs_total.labels(status=status, trigger=trigger).inc()
 
-    def record_training_samples(self, model_name: str, samples: int, data_source: str = "mongodb"):
+    def record_training_samples(
+        self, model_name: str, samples: int, data_source: str = "mongodb"
+    ):
         """
         Registra número de amostras usadas no treinamento.
 
@@ -1697,11 +1793,13 @@ class OrchestratorMetrics:
             samples: Número de amostras
             data_source: Fonte dos dados
         """
-        self.ml_training_samples_used.labels(model_name=model_name, data_source=data_source).set(
-            samples
-        )
+        self.ml_training_samples_used.labels(
+            model_name=model_name, data_source=data_source
+        ).set(samples)
 
-    def record_model_promotion(self, model_name: str, from_stage: str, to_stage: str, result: str):
+    def record_model_promotion(
+        self, model_name: str, from_stage: str, to_stage: str, result: str
+    ):
         """
         Registra promoção de modelo.
 
@@ -1712,7 +1810,10 @@ class OrchestratorMetrics:
             result: Resultado (success, rejected)
         """
         self.ml_model_promotion_total.labels(
-            model_name=model_name, from_stage=from_stage, to_stage=to_stage, result=result
+            model_name=model_name,
+            from_stage=from_stage,
+            to_stage=to_stage,
+            result=result,
         ).inc()
 
     def record_model_cache_hit(self, model_name: str):
@@ -1750,11 +1851,13 @@ class OrchestratorMetrics:
             ratio = self._opa_cache_hits / total
             self.opa_cache_hit_ratio.set(ratio)
 
-    def record_opa_policy_decision_duration(self, policy_path: str, duration_seconds: float):
+    def record_opa_policy_decision_duration(
+        self, policy_path: str, duration_seconds: float
+    ):
         """Registra duração de decisão OPA por policy_path."""
-        self.opa_policy_decision_duration_seconds.labels(policy_path=policy_path).observe(
-            duration_seconds
-        )
+        self.opa_policy_decision_duration_seconds.labels(
+            policy_path=policy_path
+        ).observe(duration_seconds)
 
     def record_opa_violation_rate(self, policy_name: str, rule: str):
         """Registra violação para cálculo de taxa."""
@@ -1782,13 +1885,17 @@ class OrchestratorMetrics:
         self.opa_circuit_breaker_state.labels(circuit_name="opa_client").set(
             state_map.get(state.lower(), -1)
         )
-        logger.info("opa_circuit_breaker_state_changed", state=state, failure_count=failure_count)
+        logger.info(
+            "opa_circuit_breaker_state_changed",
+            state=state,
+            failure_count=failure_count,
+        )
 
     def update_budget_remaining(self, service_name: str, slo_id: str, percent: float):
         """Atualiza gauge de budget restante."""
-        self.sla_budget_remaining_percent.labels(service_name=service_name, slo_id=slo_id).set(
-            percent
-        )
+        self.sla_budget_remaining_percent.labels(
+            service_name=service_name, slo_id=slo_id
+        ).set(percent)
 
     def update_budget_status(self, service_name: str, slo_id: str, status: str):
         """Atualiza gauge de status do budget."""
@@ -1799,13 +1906,15 @@ class OrchestratorMetrics:
 
     def update_burn_rate(self, service_name: str, window_hours: int, rate: float):
         """Atualiza gauge de burn rate."""
-        self.sla_burn_rate.labels(service_name=service_name, window_hours=str(window_hours)).set(
-            rate
-        )
+        self.sla_burn_rate.labels(
+            service_name=service_name, window_hours=str(window_hours)
+        ).set(rate)
 
     def record_sla_alert_sent(self, alert_type: str, severity: str):
         """Registra alerta SLA enviado."""
-        self.sla_alerts_sent_total.labels(alert_type=alert_type, severity=severity).inc()
+        self.sla_alerts_sent_total.labels(
+            alert_type=alert_type, severity=severity
+        ).inc()
 
     def record_sla_violation_published(self, violation_type: str):
         """Registra violação SLA publicada."""
@@ -1821,23 +1930,33 @@ class OrchestratorMetrics:
 
     def record_sla_check_duration(self, check_type: str, duration_seconds: float):
         """Registra duração de verificação SLA."""
-        self.sla_check_duration_seconds.labels(check_type=check_type).observe(duration_seconds)
+        self.sla_check_duration_seconds.labels(check_type=check_type).observe(
+            duration_seconds
+        )
 
     def record_sla_notification_sent(self, channel: str, severity: str):
         """Registra notificação SLA enviada."""
-        self.sla_notification_sent_total.labels(channel=channel, severity=severity).inc()
+        self.sla_notification_sent_total.labels(
+            channel=channel, severity=severity
+        ).inc()
 
     def record_sla_notification_failed(self, channel: str, error_type: str):
         """Registra falha no envio de notificação SLA."""
-        self.sla_notification_failed_total.labels(channel=channel, error_type=error_type).inc()
+        self.sla_notification_failed_total.labels(
+            channel=channel, error_type=error_type
+        ).inc()
 
     def record_sla_notification_duration(self, channel: str, duration_seconds: float):
         """Registra duração do envio de notificação SLA."""
-        self.sla_notification_duration_seconds.labels(channel=channel).observe(duration_seconds)
+        self.sla_notification_duration_seconds.labels(channel=channel).observe(
+            duration_seconds
+        )
 
     # ML Scheduling Optimization Helper Methods
 
-    def record_ml_optimization(self, optimization_type: str, source: str, duration_seconds: float):
+    def record_ml_optimization(
+        self, optimization_type: str, source: str, duration_seconds: float
+    ):
         """
         Registra aplicação de otimização ML.
 
@@ -1862,7 +1981,9 @@ class OrchestratorMetrics:
         error_ms = abs(predicted_ms - actual_ms)
         self.scheduler_queue_prediction_error_ms.observe(error_ms)
 
-    def record_allocation_quality(self, quality_score: float, used_ml_optimization: bool):
+    def record_allocation_quality(
+        self, quality_score: float, used_ml_optimization: bool
+    ):
         """
         Registra score de qualidade da alocação.
 
@@ -1891,7 +2012,9 @@ class OrchestratorMetrics:
             predicted_ms: Queue time previsto em ms
             source: Origem da predição (local, remote)
         """
-        self.scheduler_predicted_queue_time_ms.labels(source=source).observe(predicted_ms)
+        self.scheduler_predicted_queue_time_ms.labels(source=source).observe(
+            predicted_ms
+        )
 
     def record_predicted_worker_load(self, predicted_pct: float, source: str = "local"):
         """
@@ -1901,7 +2024,9 @@ class OrchestratorMetrics:
             predicted_pct: Load previsto como percentual (0-1)
             source: Origem da predição (local, remote)
         """
-        self.scheduler_predicted_worker_load_pct.labels(source=source).observe(predicted_pct)
+        self.scheduler_predicted_worker_load_pct.labels(source=source).observe(
+            predicted_pct
+        )
 
     def record_prediction(
         self,
@@ -1923,7 +2048,9 @@ class OrchestratorMetrics:
         """
         self.ml_predictions_total.labels(model_type=model_type, status="success").inc()
         if latency > 0:
-            self.ml_prediction_duration_seconds.labels(model_type=model_type).observe(latency)
+            self.ml_prediction_duration_seconds.labels(model_type=model_type).observe(
+                latency
+            )
 
     def record_anomaly_detection(self, anomaly_type: str, severity: str, score: float):
         """
@@ -1956,10 +2083,16 @@ class OrchestratorMetrics:
                 horizon_minutes=str(horizon_minutes)
             ).observe(latency)
         if mape is not None:
-            self.load_forecast_mape.labels(horizon_minutes=str(horizon_minutes)).set(mape)
+            self.load_forecast_mape.labels(horizon_minutes=str(horizon_minutes)).set(
+                mape
+            )
 
     async def record_bottleneck_prediction(
-        self, bottleneck_type: str, severity: str, timestamp: str, predicted_load: float = 0.0
+        self,
+        bottleneck_type: str,
+        severity: str,
+        timestamp: str,
+        predicted_load: float = 0.0,
     ):
         """
         Registra predição de bottleneck (INFRA-011).
@@ -1979,7 +2112,9 @@ class OrchestratorMetrics:
     async def record_forecast_cache_hit(self, hit: bool):
         """Registra cache hit/miss de forecast (stub para compatibilidade)."""
         if hit:
-            self.ml_prediction_cache_hits_total.labels(model_name="load-predictor").inc()
+            self.ml_prediction_cache_hits_total.labels(
+                model_name="load-predictor"
+            ).inc()
 
     # Shadow Mode Helper Methods
 
@@ -2025,7 +2160,9 @@ class OrchestratorMetrics:
             model_name: Nome do modelo
             error_type: Tipo do erro (prediction_error, comparison_error, timeout)
         """
-        self.ml_shadow_comparison_errors.labels(model_name=model_name, error_type=error_type).inc()
+        self.ml_shadow_comparison_errors.labels(
+            model_name=model_name, error_type=error_type
+        ).inc()
 
     def set_shadow_circuit_breaker_state(self, model_name: str, state: str):
         """
@@ -2057,7 +2194,9 @@ class OrchestratorMetrics:
             agreement_type: Tipo de agreement (overall, duration, anomaly, confidence)
         """
         self.ml_shadow_agreement_rate.labels(
-            model_name=model_name, model_version=model_version, agreement_type=agreement_type
+            model_name=model_name,
+            model_version=model_version,
+            agreement_type=agreement_type,
         ).set(agreement_rate)
 
     # Gradual Rollout Helper Methods
@@ -2097,7 +2236,11 @@ class OrchestratorMetrics:
     # Model Comparison Helper Methods
 
     def record_model_comparison(
-        self, model_name: str, recommendation: str, duration_seconds: float, confidence_score: float
+        self,
+        model_name: str,
+        recommendation: str,
+        duration_seconds: float,
+        confidence_score: float,
     ):
         """
         Registra métricas de comparação de modelos.
@@ -2113,15 +2256,19 @@ class OrchestratorMetrics:
                 model_name=model_name, recommendation=recommendation
             ).inc()
 
-            self.ml_model_comparison_duration_seconds.labels(model_name=model_name).observe(
-                duration_seconds
-            )
+            self.ml_model_comparison_duration_seconds.labels(
+                model_name=model_name
+            ).observe(duration_seconds)
 
-            self.ml_model_comparison_confidence.labels(model_name=model_name).set(confidence_score)
+            self.ml_model_comparison_confidence.labels(model_name=model_name).set(
+                confidence_score
+            )
         except Exception as e:
             logger.warning("record_model_comparison_failed", error=str(e))
 
-    def update_model_comparison_confidence(self, model_name: str, confidence_score: float):
+    def update_model_comparison_confidence(
+        self, model_name: str, confidence_score: float
+    ):
         """
         Atualiza gauge de confidence da comparação.
 
@@ -2130,7 +2277,9 @@ class OrchestratorMetrics:
             confidence_score: Score de confiança (0-1)
         """
         try:
-            self.ml_model_comparison_confidence.labels(model_name=model_name).set(confidence_score)
+            self.ml_model_comparison_confidence.labels(model_name=model_name).set(
+                confidence_score
+            )
         except Exception as e:
             logger.warning("update_model_comparison_confidence_failed", error=str(e))
 
@@ -2153,7 +2302,9 @@ class OrchestratorMetrics:
 
     # MongoDB Persistence Helper Methods
 
-    def record_mongodb_persistence_error(self, collection: str, operation: str, error_type: str):
+    def record_mongodb_persistence_error(
+        self, collection: str, operation: str, error_type: str
+    ):
         """
         Registra erro de persistência MongoDB.
 
@@ -2203,7 +2354,9 @@ class OrchestratorMetrics:
             status: Status da validação (validated, missing, error)
             count: Número de índices (validados ou faltantes)
         """
-        self.mongodb_index_validation.labels(collection=collection, status=status).inc(count)
+        self.mongodb_index_validation.labels(collection=collection, status=status).inc(
+            count
+        )
 
     def record_mongodb_persistence_fail_open(self, collection: str):
         """
@@ -2215,7 +2368,9 @@ class OrchestratorMetrics:
             collection: Nome da coleção onde ocorreu o erro
         """
         self.mongodb_persistence_fail_open.labels(collection=collection).inc()
-        logger.warning("mongodb_persistence_fail_open_metric_recorded", collection=collection)
+        logger.warning(
+            "mongodb_persistence_fail_open_metric_recorded", collection=collection
+        )
 
     def record_mongodb_fallback(self, source: str, status: str, tickets_count: int = 0):
         """
@@ -2280,7 +2435,9 @@ class OrchestratorMetrics:
             error_type=error_type,
         ).inc()
 
-    def record_authorization_audit_query_duration(self, query_type: str, duration_seconds: float):
+    def record_authorization_audit_query_duration(
+        self, query_type: str, duration_seconds: float
+    ):
         """
         Registra duração de query de auditoria.
 
@@ -2324,7 +2481,9 @@ class OrchestratorMetrics:
             status=status,
         ).observe(duration_seconds)
 
-    def record_circuit_breaker_initialization_error(self, circuit_name: str, error_type: str):
+    def record_circuit_breaker_initialization_error(
+        self, circuit_name: str, error_type: str
+    ):
         """
         Registra erro na inicialização de circuit breaker.
 
@@ -2402,7 +2561,10 @@ class OrchestratorMetrics:
         status_map = {"untrained": 0, "trained": 1, "failed": 2}
 
         self.ml_model_init_training_status.labels(
-            service=self.service_name, component=component, layer=layer, model_name=model_name
+            service=self.service_name,
+            component=component,
+            layer=layer,
+            model_name=model_name,
         ).set(status_map.get(status, 0))
 
     def record_temporal_activity_registration_error(
@@ -2448,7 +2610,10 @@ class OrchestratorMetrics:
         status_map = {"not_initialized": 0, "initialized": 1, "failed": 2}
 
         self.circuit_breaker_initialization_status.labels(
-            service=self.service_name, component=component, layer=layer, circuit_name=circuit_name
+            service=self.service_name,
+            component=component,
+            layer=layer,
+            circuit_name=circuit_name,
         ).set(status_map.get(status, 0))
 
 
