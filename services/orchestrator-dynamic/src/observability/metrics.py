@@ -115,6 +115,18 @@ class OrchestratorMetrics:
             ["status", "task_type"],
         )
 
+        # Métricas do ExecutionResultConsumer (fecho do loop de execução / C6)
+        self.execution_results_processed_total = Counter(
+            "orchestration_execution_results_processed_total",
+            "Total de resultados de execução processados pelo ExecutionResultConsumer",
+            ["status"],
+        )
+
+        self.workflow_signals_sent_total = Counter(
+            "orchestration_workflow_signals_sent_total",
+            "Total de signals ticket_completed enviados aos workflows Temporal",
+        )
+
         self.ticket_generation_duration_seconds = Histogram(
             "orchestration_ticket_generation_duration_seconds",
             "Tempo de geração de tickets",
