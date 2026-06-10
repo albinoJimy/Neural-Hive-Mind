@@ -253,10 +253,13 @@ class ExecutionResultConsumer:
             # circuit breaker) — é obrigatório await, senão `handle` é uma
             # coroutine e handle.signal(...) falha com AttributeError.
             handle = await self.temporal_client.get_workflow_handle(workflow_id)
+            # WorkflowHandle.signal() do Temporal SDK nao aceita kwargs arbitrarios;
+            # os argumentos do handler (ticket_completed(self, ticket_id, result))
+            # sao passados posicionalmente via args=[...]. Com kwargs dava
+            # "WorkflowHandle.signal() got an unexpected keyword argument 'ticket_id'".
             await handle.signal(
                 "ticket_completed",  # Nome do signal definido no workflow
-                ticket_id=ticket_id,
-                result=result,
+                args=[ticket_id, result],
             )
             logger.info(
                 "workflow_signal_sent",
