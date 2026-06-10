@@ -8,18 +8,23 @@ import time
 import redis.asyncio as redis
 import structlog
 
-from neural_hive_resilience.circuit_breaker import CircuitBreakerError, MonitoredCircuitBreaker
+from neural_hive_resilience.circuit_breaker import (
+    CircuitBreakerError,
+    MonitoredCircuitBreaker,
+)
 from src.config.settings import OrchestratorSettings
 
 logger = structlog.get_logger(__name__)
 
 
-_redis_client_instance: redis.Redis | None = None
+_redis_client_instance: redis.RedisCluster | None = None
 _circuit_breaker: MonitoredCircuitBreaker | None = None
 _circuit_breaker_enabled: bool = True
 
 
-async def get_redis_client(config: OrchestratorSettings | None = None) -> redis.Redis | None:
+async def get_redis_client(
+    config: OrchestratorSettings | None = None,
+) -> redis.RedisCluster | None:
     """
     Retorna instância singleton do cliente Redis.
 
@@ -52,7 +57,9 @@ async def get_redis_client(config: OrchestratorSettings | None = None) -> redis.
             circuit_name="redis_client",
             fail_max=getattr(config, "REDIS_CIRCUIT_BREAKER_FAIL_MAX", 5),
             timeout_duration=getattr(config, "REDIS_CIRCUIT_BREAKER_TIMEOUT", 60),
-            recovery_timeout=getattr(config, "REDIS_CIRCUIT_BREAKER_RECOVERY_TIMEOUT", 60),
+            recovery_timeout=getattr(
+                config, "REDIS_CIRCUIT_BREAKER_RECOVERY_TIMEOUT", 60
+            ),
         )
         logger.info(
             "Redis circuit breaker inicializado",
@@ -75,13 +82,19 @@ async def get_redis_client(config: OrchestratorSettings | None = None) -> redis.
             logger.warning("redis_cluster_nodes_empty")
             return None
 
-        # Usar primeiro node para conexão standalone
+        # Usar primeiro node como seed. O Redis corre em modo CLUSTER, por isso
+        # é obrigatório um cliente cluster-aware (RedisCluster): um cliente
+        # standalone (redis.Redis) recebe MOVED em chaves cujo slot pertence a
+        # outro shard e falha as operações cross-slot — ex.: o mapeamento
+        # ticket->workflow (workflow:by:ticket:*) que o ExecutionResultConsumer
+        # lê e o fallback do Flow C grava. RedisCluster descobre a topologia a
+        # partir do seed e segue os redirects automaticamente.
         first_node = nodes[0].strip()
         host, port = first_node.split(":")
 
-        # Criar cliente Redis
+        # Criar cliente Redis Cluster
         async def _create_and_ping():
-            client = redis.Redis(
+            client = redis.RedisCluster(
                 host=host,
                 port=int(port),
                 password=config.redis_password,
@@ -112,7 +125,9 @@ async def get_redis_client(config: OrchestratorSettings | None = None) -> redis.
     except CircuitBreakerError:
         logger.warning(
             "redis_client_circuit_breaker_open",
-            recovery_timeout=_circuit_breaker.recovery_timeout if _circuit_breaker else 0,
+            recovery_timeout=_circuit_breaker.recovery_timeout
+            if _circuit_breaker
+            else 0,
         )
         _redis_client_instance = None
         return None
@@ -211,7 +226,9 @@ class CacheMetrics:
             self.recent_latencies.append(latency_ms)
             # Manter apenas as últimas N amostras
             if len(self.recent_latencies) > self._max_latency_samples:
-                self.recent_latencies = self.recent_latencies[-self._max_latency_samples :]
+                self.recent_latencies = self.recent_latencies[
+                    -self._max_latency_samples :
+                ]
 
     @property
     def hit_ratio(self) -> float:
