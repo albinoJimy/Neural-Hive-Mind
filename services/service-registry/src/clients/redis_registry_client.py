@@ -71,7 +71,13 @@ class RedisRegistryClient:
                     decode_responses=True,
                     socket_timeout=self.timeout,
                     socket_connect_timeout=self.timeout,
-                    require_full_coverage=True,
+                    # require_full_coverage=False: tolerar cobertura parcial de
+                    # slots (failover/reshard/stress). Com True, o cliente lança
+                    # erro quando nem todos os 16384 slots estão cobertos, fazendo
+                    # falhar store/heartbeat/list_agents — as chaves de agente
+                    # (TTL 300s) expiram sem renovação e a descoberta passa a
+                    # devolver 0 workers (workers_count=0 no Flow C).
+                    require_full_coverage=False,
                 )
             else:
                 # Single instance mode
