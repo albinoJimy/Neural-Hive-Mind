@@ -190,6 +190,7 @@ class FlowCConsumer:
         input_topic: str | None = None,
         incident_topic: str | None = None,
         group_id: str | None = None,
+        redis_client=None,
     ):
         """
         Initialize FlowCConsumer.
@@ -200,7 +201,10 @@ class FlowCConsumer:
             input_topic: Override para tópico de entrada
             incident_topic: Override para tópico de incidentes
             group_id: Override para consumer group ID
+            redis_client: Cliente Redis partilhado, injetado no FlowCOrchestrator
+                para persistir o mapeamento ticket->workflow no fallback (C6).
         """
+        self.redis_client = redis_client
         # Usar config fornecido ou fallback para defaults
         if config:
             self.kafka_servers = kafka_bootstrap_servers or config.kafka_bootstrap_servers
@@ -312,6 +316,9 @@ class FlowCConsumer:
 
         # Initialize orchestrator
         self.orchestrator = FlowCOrchestrator()
+        # Injetar Redis partilhado para o fallback persistir o mapeamento
+        # ticket->workflow (necessário ao ExecutionResultConsumer em C6).
+        self.orchestrator.redis_client = self.redis_client
         await self.orchestrator.initialize()
 
         self.running = True
@@ -488,6 +495,7 @@ class FlowCApprovalResponseConsumer:
         kafka_bootstrap_servers: str | None = None,
         approval_responses_topic: str | None = None,
         group_id: str | None = None,
+        redis_client=None,
     ):
         """
         Initialize FlowCApprovalResponseConsumer.
@@ -497,7 +505,10 @@ class FlowCApprovalResponseConsumer:
             kafka_bootstrap_servers: Override for bootstrap servers
             approval_responses_topic: Override for approval responses topic
             group_id: Override for consumer group ID
+            redis_client: Cliente Redis partilhado, injetado no FlowCOrchestrator
+                para persistir o mapeamento ticket->workflow no fallback (C6).
         """
+        self.redis_client = redis_client
         if config:
             self.kafka_servers = kafka_bootstrap_servers or config.kafka_bootstrap_servers
             self.approval_responses_topic = approval_responses_topic or os.getenv(
@@ -572,6 +583,9 @@ class FlowCApprovalResponseConsumer:
 
         # Initialize orchestrator
         self.orchestrator = FlowCOrchestrator()
+        # Injetar Redis partilhado para o fallback persistir o mapeamento
+        # ticket->workflow (necessário ao ExecutionResultConsumer em C6).
+        self.orchestrator.redis_client = self.redis_client
         await self.orchestrator.initialize()
 
         self.running = True

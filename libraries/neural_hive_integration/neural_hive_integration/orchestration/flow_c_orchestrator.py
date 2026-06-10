@@ -127,6 +127,12 @@ execution_duration = Histogram(
 class FlowCOrchestrator:
     """Orchestrator for complete Flow C integration (C1-C6)."""
 
+    # Prefixo da chave de cache ticket_id -> workflow_id no Redis. Tem de
+    # coincidir com ExecutionResultConsumer.WORKFLOW_CACHE_PREFIX, caso
+    # contrário o consumer não recupera o workflow_id e o sinal de conclusão
+    # nunca é enviado ao workflow Temporal (workflow_id_not_found_for_result).
+    WORKFLOW_CACHE_PREFIX = "workflow:by:ticket:"
+
     def __init__(self):
         self.orchestrator_client = OrchestratorClient()
         self.service_registry = ServiceRegistryClient()
@@ -134,6 +140,10 @@ class FlowCOrchestrator:
         self.sla_client = SLAManagementClient()
         self.telemetry = FlowCTelemetryPublisher()
         self.logger = logger.bind(service="flow_c_orchestrator")
+        # Cliente Redis injetado pelo consumer (ver flow_c_consumer.py). Usado
+        # para persistir o mapeamento ticket->workflow no caminho de fallback
+        # (_extract_tickets_from_plan), que de outro modo não o gravaria.
+        self.redis_client = None
         self.approval_producer: AIOKafkaProducer = None
         self.kafka_bootstrap_servers = os.getenv(
             "KAFKA_BOOTSTRAP_SERVERS",
@@ -811,7 +821,7 @@ class FlowCOrchestrator:
                 duration_seconds=round(duration, 2),
             )
             # Fallback para extração do cognitive_plan
-            tickets = await self._extract_tickets_from_plan(cognitive_plan, context)
+            tickets = await self._extract_tickets_from_plan(cognitive_plan, context, workflow_id)
 
         except Exception as e:
             # Outros erros (HTTP 500, timeout, etc.)
@@ -830,7 +840,7 @@ class FlowCOrchestrator:
                 error_type=type(e).__name__,
             )
             # Fallback para extração do cognitive_plan
-            tickets = await self._extract_tickets_from_plan(cognitive_plan, context)
+            tickets = await self._extract_tickets_from_plan(cognitive_plan, context, workflow_id)
 
         # Validar schema dos tickets (se obtidos com sucesso)
         if tickets:
@@ -846,10 +856,53 @@ class FlowCOrchestrator:
 
         return tickets
 
+    async def _cache_workflow_mapping(self, ticket_id: str, workflow_id: str) -> None:
+        """
+        Persiste o mapeamento ticket_id -> workflow_id no Redis.
+
+        No caminho de fallback (_extract_tickets_from_plan) os tickets são
+        criados fora da activity Temporal, que normalmente grava este
+        mapeamento. Sem ele, o ExecutionResultConsumer recebe os resultados
+        dos workers mas não consegue recuperar o workflow_id
+        (workflow_id_not_found_for_result), pelo que o sinal de conclusão
+        nunca chega ao workflow e este nunca fecha (Fluxo C6 bloqueado).
+
+        Fail-open: erros de cache são registados mas não interrompem o fluxo.
+
+        Args:
+            ticket_id: ID do ticket de execução
+            workflow_id: ID do workflow Temporal
+        """
+        if not self.redis_client or not workflow_id:
+            self.logger.warning(
+                "redis_unavailable_for_workflow_mapping_fallback",
+                ticket_id=ticket_id,
+                workflow_id=workflow_id,
+                has_redis=bool(self.redis_client),
+            )
+            return
+
+        try:
+            cache_key = f"{self.WORKFLOW_CACHE_PREFIX}{ticket_id}"
+            await self.redis_client.setex(cache_key, 86400, workflow_id)  # 24h TTL
+            self.logger.debug(
+                "workflow_mapping_cached_fallback",
+                ticket_id=ticket_id,
+                workflow_id=workflow_id,
+            )
+        except Exception as e:
+            self.logger.warning(
+                "workflow_mapping_cache_error_fallback",
+                ticket_id=ticket_id,
+                workflow_id=workflow_id,
+                error=str(e),
+            )
+
     async def _extract_tickets_from_plan(
         self,
         cognitive_plan: Dict[str, Any],
         context: FlowCContext,
+        workflow_id: str = "",
     ) -> List[Dict[str, Any]]:
         """
         Extrai tickets do cognitive_plan como fallback.
@@ -857,6 +910,9 @@ class FlowCOrchestrator:
         Args:
             cognitive_plan: Plano cognitivo contendo tasks
             context: Contexto do Flow C
+            workflow_id: ID do workflow Temporal associado. Quando presente, o
+                mapeamento ticket->workflow é persistido no Redis para que o
+                ExecutionResultConsumer consiga sinalizar a conclusão (C6).
 
         Returns:
             Lista de tickets criados via ticket_client
@@ -989,6 +1045,10 @@ class FlowCOrchestrator:
                     ticket_dict["payload"] = {}
                 ticket_dict["payload"]["ticket_id"] = ticket.ticket_id
                 tickets.append(ticket_dict)
+
+                # Persistir mapeamento ticket->workflow para o
+                # ExecutionResultConsumer poder sinalizar a conclusão (C6).
+                await self._cache_workflow_mapping(ticket.ticket_id, workflow_id)
 
             except Exception as e:
                 self.logger.error(

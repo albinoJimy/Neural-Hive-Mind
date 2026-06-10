@@ -647,3 +647,72 @@ async def test_extract_tickets_from_plan(orchestrator):
 
     assert len(tickets) == 2
     assert orchestrator.ticket_client.create_ticket.call_count == 2
+
+
+def _make_fallback_context():
+    """Contexto mínimo para _extract_tickets_from_plan."""
+    context = MagicMock()
+    context.plan_id = "plan-c6"
+    context.priority = 5
+    context.decision_id = "decision-c6"
+    context.sla_deadline = datetime.now(timezone.utc) + timedelta(hours=4)
+    return context
+
+
+@pytest.mark.asyncio
+async def test_extract_tickets_caches_workflow_mapping(orchestrator):
+    """
+    No fallback, o mapeamento ticket->workflow tem de ser persistido no Redis
+    para o ExecutionResultConsumer poder sinalizar a conclusão do workflow (C6).
+    """
+    mock_ticket = MagicMock()
+    mock_ticket.ticket_id = "ticket-c6-001"
+    mock_ticket.model_dump.return_value = {"ticket_id": "ticket-c6-001", "task_type": "QUERY"}
+    orchestrator.ticket_client.create_ticket = AsyncMock(return_value=mock_ticket)
+
+    mock_redis = MagicMock()
+    mock_redis.setex = AsyncMock()
+    orchestrator.redis_client = mock_redis
+
+    cognitive_plan = {"tasks": [{"type": "query", "description": "Consultar dados"}]}
+
+    await orchestrator._extract_tickets_from_plan(
+        cognitive_plan, _make_fallback_context(), workflow_id="orch-flow-c-wf-123"
+    )
+
+    mock_redis.setex.assert_awaited_once_with(
+        "workflow:by:ticket:ticket-c6-001", 86400, "orch-flow-c-wf-123"
+    )
+
+
+@pytest.mark.asyncio
+async def test_extract_tickets_skips_cache_without_workflow_id(orchestrator):
+    """Sem workflow_id (ou sem Redis) o fallback não tenta gravar mapeamento."""
+    mock_ticket = MagicMock()
+    mock_ticket.ticket_id = "ticket-c6-002"
+    mock_ticket.model_dump.return_value = {"ticket_id": "ticket-c6-002", "task_type": "QUERY"}
+    orchestrator.ticket_client.create_ticket = AsyncMock(return_value=mock_ticket)
+
+    mock_redis = MagicMock()
+    mock_redis.setex = AsyncMock()
+    orchestrator.redis_client = mock_redis
+
+    cognitive_plan = {"tasks": [{"type": "query", "description": "Consultar dados"}]}
+
+    # workflow_id vazio (default) -> não grava
+    await orchestrator._extract_tickets_from_plan(cognitive_plan, _make_fallback_context())
+
+    mock_redis.setex.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_cache_workflow_mapping_fail_open(orchestrator):
+    """Erro no Redis durante o cache não deve propagar (fail-open)."""
+    mock_redis = MagicMock()
+    mock_redis.setex = AsyncMock(side_effect=RuntimeError("redis down"))
+    orchestrator.redis_client = mock_redis
+
+    # Não deve levantar exceção
+    await orchestrator._cache_workflow_mapping("ticket-x", "wf-x")
+
+    mock_redis.setex.assert_awaited_once()
