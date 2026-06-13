@@ -89,6 +89,57 @@ class Priority(__StrEnum):
     CRITICAL = "CRITICAL"
 
 
+def normalize_priority(v) -> Priority:
+    """
+    Normaliza um valor de prioridade para o enum nomeado `Priority`.
+
+    Suporta tanto o formato legado (int 1-10) quanto o novo (string enum).
+    Mapeamento canónico de valores inteiros legados:
+        1-2: LOW
+        3-5: NORMAL
+        6-8: HIGH
+        9-10: CRITICAL
+
+    Valores inteiros fora de 1-10 são limitados (clamp) aos limites:
+        <= 0 trata-se como 1 (LOW); >= 11 trata-se como 10 (CRITICAL).
+
+    Strings nomeadas (case-insensitive) fazem passthrough para o enum.
+
+    Args:
+        v: Valor que pode ser int, str ou Priority.
+
+    Returns:
+        Priority correspondente.
+
+    Raises:
+        ValueError: se a string não corresponder a uma prioridade nomeada válida.
+    """
+    if isinstance(v, bool):
+        # bool é subclasse de int; evitar interpretação acidental.
+        # ValueError (não TypeError) por consistência com o contrato documentado.
+        raise ValueError(f"Invalid priority value: {v}")  # noqa: TRY004
+    if isinstance(v, int):
+        # Formato legado - mapear para enum string (com clamp para 1-10)
+        if v <= 2:
+            return Priority.LOW
+        if v <= 5:
+            return Priority.NORMAL
+        if v <= 8:
+            return Priority.HIGH
+        return Priority.CRITICAL
+    # Se já é string ou Priority enum, validar
+    if isinstance(v, str):
+        try:
+            return Priority(v)
+        except ValueError:
+            # Tentar mapear string lowercase
+            v_upper = v.upper()
+            if v_upper in ["LOW", "NORMAL", "HIGH", "CRITICAL"]:
+                return Priority(v_upper)
+            raise ValueError(f"Invalid priority value: {v}") from None
+    return v
+
+
 class RiskBand(__StrEnum):
     """Banda de risco."""
 
@@ -167,8 +218,12 @@ class ExecutionTicket(BaseModel):
     task_id: str = Field(..., description="ID da tarefa no DAG")
     task_type: TaskType = Field(..., description="Tipo da tarefa")
     description: str = Field(..., description="Descrição da tarefa")
-    dependencies: list[str] = Field(default_factory=list, description="Ticket IDs dependentes")
-    status: TicketStatus = Field(default=TicketStatus.PENDING, description="Status do ticket")
+    dependencies: list[str] = Field(
+        default_factory=list, description="Ticket IDs dependentes"
+    )
+    status: TicketStatus = Field(
+        default=TicketStatus.PENDING, description="Status do ticket"
+    )
     priority: Priority = Field(..., description="Prioridade de execução")
     risk_band: RiskBand = Field(..., description="Banda de risco")
     sla: SLA = Field(..., description="Definições de SLA")
@@ -182,16 +237,24 @@ class ExecutionTicket(BaseModel):
     )
     security_level: SecurityLevel = Field(..., description="Nível de segurança")
     created_at: int = Field(..., description="Timestamp de criação (millis)")
-    started_at: int | None = Field(default=None, description="Timestamp de início (millis)")
-    completed_at: int | None = Field(default=None, description="Timestamp de conclusão (millis)")
-    estimated_duration_ms: int | None = Field(default=None, description="Duração estimada")
+    started_at: int | None = Field(
+        default=None, description="Timestamp de início (millis)"
+    )
+    completed_at: int | None = Field(
+        default=None, description="Timestamp de conclusão (millis)"
+    )
+    estimated_duration_ms: int | None = Field(
+        default=None, description="Duração estimada"
+    )
     actual_duration_ms: int | None = Field(default=None, description="Duração real")
     retry_count: int = Field(default=0, description="Contador de tentativas")
     error_message: str | None = Field(default=None, description="Mensagem de erro")
     compensation_ticket_id: str | None = Field(
         default=None, description="ID do ticket de compensação"
     )
-    metadata: dict[str, str] = Field(default_factory=dict, description="Metadados adicionais")
+    metadata: dict[str, str] = Field(
+        default_factory=dict, description="Metadados adicionais"
+    )
     predictions: dict[str, Any] | None = Field(
         default=None, description="Predições ML (duração, recursos, anomalias)"
     )
@@ -208,33 +271,10 @@ class ExecutionTicket(BaseModel):
         """
         Valida e normaliza o campo priority.
 
-        Suporta tanto formato legado (int 1-10) quanto novo (string enum).
-        Mapeamento de valores inteiros legados:
-            1-2: LOW
-            3-5: NORMAL
-            6-8: HIGH
-            9-10: CRITICAL
+        Delega ao helper module-level `normalize_priority` (DRY) que suporta
+        tanto formato legado (int 1-10) quanto novo (string enum).
         """
-        if isinstance(v, int):
-            # Formato legado - mapear para enum string
-            if v <= 2:
-                return Priority.LOW
-            if v <= 5:
-                return Priority.NORMAL
-            if v <= 8:
-                return Priority.HIGH
-            return Priority.CRITICAL
-        # Se já é string ou Priority enum, validar
-        if isinstance(v, str):
-            try:
-                return Priority(v)
-            except ValueError:
-                # Tentar mapear string lowercase
-                v_upper = v.upper()
-                if v_upper in ["LOW", "NORMAL", "HIGH", "CRITICAL"]:
-                    return Priority(v_upper)
-                raise ValueError(f"Invalid priority value: {v}")
-        return v
+        return normalize_priority(v)
 
     @field_validator("metadata", mode="before")
     @classmethod
@@ -276,7 +316,11 @@ class ExecutionTicket(BaseModel):
     @classmethod
     def validate_completed_at(cls, v, info):
         """Valida que completed_at > started_at."""
-        if v is not None and "started_at" in info.data and info.data["started_at"] is not None:
+        if (
+            v is not None
+            and "started_at" in info.data
+            and info.data["started_at"] is not None
+        ):
             if v <= info.data["started_at"]:
                 raise ValueError("completed_at deve ser maior que started_at")
         return v

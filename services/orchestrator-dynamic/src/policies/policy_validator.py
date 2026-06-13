@@ -2,15 +2,22 @@
 Interface de alto nível para validação de políticas OPA.
 """
 
+import copy
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
 
 import structlog
 
+from src.models.execution_ticket import normalize_priority
 from src.observability.metrics import get_metrics
 
-from .opa_client import OPAClient, OPAConnectionError, OPAEvaluationError, OPAPolicyNotFoundError
+from .opa_client import (
+    OPAClient,
+    OPAConnectionError,
+    OPAEvaluationError,
+    OPAPolicyNotFoundError,
+)
 
 logger = structlog.get_logger(__name__)
 
@@ -90,8 +97,14 @@ class PolicyValidator:
                 "current_time": int(datetime.now().timestamp() * 1000),
             }
 
+            # Normalizar priority numérica legada (ex.: 5) para forma nomeada
+            # (ex.: "NORMAL") ANTES de enviar ao OPA. O contrato Rego em
+            # sla_enforcement.rego (priority_mismatch_risk_band) compara contra
+            # priorities NOMEADAS, pelo que o valor cru numérico geraria violação.
+            normalized_plan = self._normalize_resource_priority(plan)
+
             # Construir input OPA
-            opa_input = self._build_opa_input(plan, context)
+            opa_input = self._build_opa_input(normalized_plan, context)
 
             # Adicionar parâmetros de políticas
             opa_input["input"]["parameters"] = {
@@ -176,7 +189,8 @@ class PolicyValidator:
                             severity="critical",
                         )
                     ],
-                    evaluation_duration_ms=(datetime.now() - start_time).total_seconds() * 1000,
+                    evaluation_duration_ms=(datetime.now() - start_time).total_seconds()
+                    * 1000,
                 )
 
             # Se fail-open, retornar resultado válido
@@ -190,7 +204,8 @@ class PolicyValidator:
                         message=f"Erro na avaliação de políticas (fail-open): {e!s}",
                     )
                 ],
-                evaluation_duration_ms=(datetime.now() - start_time).total_seconds() * 1000,
+                evaluation_duration_ms=(datetime.now() - start_time).total_seconds()
+                * 1000,
             )
 
     async def validate_execution_ticket(self, ticket: dict) -> ValidationResult:
@@ -262,7 +277,9 @@ class PolicyValidator:
 
             # NOVO: Adicionar security constraints se habilitado
             if self.config.opa_security_enabled:
-                evaluations.append((self.config.opa_policy_security_constraints, opa_input))
+                evaluations.append(
+                    (self.config.opa_policy_security_constraints, opa_input)
+                )
 
             results = await self.opa_client.batch_evaluate(evaluations)
 
@@ -271,13 +288,15 @@ class PolicyValidator:
 
             # Extrair feature flags do resultado da terceira política
             if len(results) > 2 and "result" in results[2]:
-                validation_result.policy_decisions["feature_flags"] = results[2]["result"]
+                validation_result.policy_decisions["feature_flags"] = results[2][
+                    "result"
+                ]
 
             # NOVO: Extrair security context se disponível
             if len(results) > 3 and "result" in results[3]:
-                validation_result.policy_decisions["security_context"] = results[3]["result"].get(
-                    "security_context", {}
-                )
+                validation_result.policy_decisions["security_context"] = results[3][
+                    "result"
+                ].get("security_context", {})
 
             # Calcular duração
             duration_ms = (datetime.now() - start_time).total_seconds() * 1000
@@ -331,7 +350,9 @@ class PolicyValidator:
                             context["tenant_id"], violation.rule
                         )
                     elif violation.rule == "tenant_rate_limit_exceeded":
-                        self.metrics.record_rate_limit_exceeded(context["tenant_id"], "tenant")
+                        self.metrics.record_rate_limit_exceeded(
+                            context["tenant_id"], "tenant"
+                        )
 
             # Registrar warnings
             for warning in validation_result.warnings:
@@ -349,7 +370,9 @@ class PolicyValidator:
             return validation_result
 
         except Exception as e:
-            logger.error("Erro ao validar ticket de execução", error=str(e), exc_info=True)
+            logger.error(
+                "Erro ao validar ticket de execução", error=str(e), exc_info=True
+            )
 
             # Registrar erro OPA
             if isinstance(e, OPAConnectionError):
@@ -376,7 +399,8 @@ class PolicyValidator:
                             severity="critical",
                         )
                     ],
-                    evaluation_duration_ms=(datetime.now() - start_time).total_seconds() * 1000,
+                    evaluation_duration_ms=(datetime.now() - start_time).total_seconds()
+                    * 1000,
                 )
 
             # Se fail-open, retornar resultado válido com feature flags default
@@ -398,7 +422,8 @@ class PolicyValidator:
                         "enable_auto_scaling": False,
                     }
                 },
-                evaluation_duration_ms=(datetime.now() - start_time).total_seconds() * 1000,
+                evaluation_duration_ms=(datetime.now() - start_time).total_seconds()
+                * 1000,
             )
 
     async def validate_resource_allocation(
@@ -473,7 +498,9 @@ class PolicyValidator:
                 policy_result = result.get("result", {})
                 has_violations = len(policy_result.get("violations", [])) > 0
                 result_status = "denied" if has_violations else "allowed"
-                self.metrics.record_opa_validation(policy_path, result_status, duration_ms / 1000.0)
+                self.metrics.record_opa_validation(
+                    policy_path, result_status, duration_ms / 1000.0
+                )
 
             # Registrar violações
             for violation in validation_result.violations:
@@ -496,7 +523,9 @@ class PolicyValidator:
             return validation_result
 
         except Exception as e:
-            logger.error("Erro ao validar alocação de recursos", error=str(e), exc_info=True)
+            logger.error(
+                "Erro ao validar alocação de recursos", error=str(e), exc_info=True
+            )
 
             # Registrar erro OPA
             if isinstance(e, OPAConnectionError):
@@ -522,7 +551,8 @@ class PolicyValidator:
                             severity="critical",
                         )
                     ],
-                    evaluation_duration_ms=(datetime.now() - start_time).total_seconds() * 1000,
+                    evaluation_duration_ms=(datetime.now() - start_time).total_seconds()
+                    * 1000,
                 )
 
             return ValidationResult(
@@ -534,7 +564,8 @@ class PolicyValidator:
                         message=f"Erro na avaliação de políticas (fail-open): {e!s}",
                     )
                 ],
-                evaluation_duration_ms=(datetime.now() - start_time).total_seconds() * 1000,
+                evaluation_duration_ms=(datetime.now() - start_time).total_seconds()
+                * 1000,
             )
 
     async def _get_request_count(self, tenant_id: str) -> int:
@@ -559,7 +590,8 @@ class PolicyValidator:
                     self.redis_client = await get_redis_client(self.config)
                 except Exception as redis_err:
                     logger.warning(
-                        "redis_client_initialization_failed_for_requests", error=str(redis_err)
+                        "redis_client_initialization_failed_for_requests",
+                        error=str(redis_err),
                     )
                     self.redis_client = None
 
@@ -574,8 +606,54 @@ class PolicyValidator:
             return int(value)
 
         except Exception as e:
-            logger.warning("Erro ao obter request count", tenant_id=tenant_id, error=str(e))
+            logger.warning(
+                "Erro ao obter request count", tenant_id=tenant_id, error=str(e)
+            )
             return 0
+
+    def _normalize_resource_priority(self, data: dict) -> dict:
+        """
+        Normalizar o campo `priority` de um recurso para a forma nomeada do OPA.
+
+        O OPA (sla_enforcement.rego) avalia `input.resource.priority` no topo do
+        recurso e espera prioridades NOMEADAS (LOW/NORMAL/HIGH/CRITICAL). Planos
+        legados podem carregar `priority` em formato numérico (1-10), que geraria
+        falso-positivo de violação `priority_mismatch_risk_band`.
+
+        Esta função usa o helper canónico `normalize_priority` (DRY, partilhado com
+        o field_validator de `Priority`) para converter o valor numa cópia rasa,
+        sem mutar o dict original recebido.
+
+        Tratamento:
+            - priority já nomeada (string): passthrough/uppercase
+            - priority numérica (int 1-10): mapeada; fora de 1-10 sofre clamp
+            - priority ausente ou não normalizável: mantida tal como está
+
+        Args:
+            data: Dados do recurso (plano).
+
+        Returns:
+            Cópia rasa de `data` com `priority` normalizada (quando aplicável).
+        """
+        if not isinstance(data, dict) or "priority" not in data:
+            return data
+
+        try:
+            normalized_value = normalize_priority(data["priority"])
+        except (ValueError, TypeError):
+            # Valor não normalizável: não falhar a validação aqui — deixar o
+            # OPA decidir sobre o valor original.
+            return data
+
+        # Cópia rasa: só o campo priority é substituído, não mutamos o original.
+        normalized = copy.copy(data)
+        # normalize_priority devolve um enum Priority (StrEnum) -> usar o valor str.
+        normalized["priority"] = (
+            normalized_value.value
+            if hasattr(normalized_value, "value")
+            else str(normalized_value)
+        )
+        return normalized
 
     def _build_opa_input(self, data: dict, context: dict) -> dict:
         """
@@ -644,7 +722,9 @@ class PolicyValidator:
 
         # Priorizar violações críticas
         all_violations.sort(
-            key=lambda v: {"critical": 0, "high": 1, "medium": 2, "low": 3}.get(v.severity, 4)
+            key=lambda v: {"critical": 0, "high": 1, "medium": 2, "low": 3}.get(
+                v.severity, 4
+            )
         )
 
         return ValidationResult(
