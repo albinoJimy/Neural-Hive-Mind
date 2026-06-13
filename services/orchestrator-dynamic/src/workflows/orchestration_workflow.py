@@ -3,6 +3,7 @@ Workflow Temporal principal para orquestração de execução (Fluxo C).
 Implementa as etapas C1-C6 conforme documento-06.
 """
 
+import asyncio
 import contextlib
 from datetime import timedelta
 from typing import Any
@@ -87,6 +88,10 @@ class OrchestrationWorkflow:
     def __init__(self):
         self._status = "initializing"
         self._tickets_generated = []
+        # Resultados de execução por ticket_id, preenchidos pelo signal
+        # ticket_completed. Usado para aguardar a conclusão real dos tickets
+        # antes de consolidar (evita consolidação prematura com status PENDING).
+        self._ticket_results: dict[str, dict[str, Any]] = {}
         self._rejected_tickets = []
         self._workflow_result = {}
         self._sla_warnings = []
@@ -345,6 +350,56 @@ class OrchestrationWorkflow:
                         f"Falha na verificação proativa de SLA (pós C4): {e}"
                     )
 
+                # === Aguardar conclusão dos tickets (entre C4 e C5) ===
+                # Os tickets são executados de forma assíncrona pelos Worker Agents,
+                # que reportam via Kafka -> ExecutionResultConsumer -> signal
+                # ticket_completed. Esperar pelos signals (até timeout SLA) garante
+                # que a consolidação reflita o estado real, em vez de consolidar
+                # prematuramente com todos os tickets PENDING (status "PARTIAL").
+                self._status = "monitoring_execution"
+                published_ids = {
+                    pt.get("ticket_id")
+                    for pt in published_tickets
+                    if pt.get("ticket_id")
+                }
+                # Timeout determinístico derivado da duração estimada dos tickets
+                # (dados in-workflow), com piso de 60s e teto de 1h.
+                total_estimated_ms = sum(
+                    pt.get("ticket", {}).get("estimated_duration_ms", 0) or 0
+                    for pt in published_tickets
+                )
+                wait_seconds = max(
+                    60.0, min(3600.0, total_estimated_ms / 1000.0 * 3 + 30)
+                )
+                if published_ids:
+                    try:
+                        await workflow.wait_condition(
+                            lambda: published_ids.issubset(self._ticket_results.keys()),
+                            timeout=timedelta(seconds=wait_seconds),
+                        )
+                        workflow.logger.info(
+                            f"Todos os {len(published_ids)} tickets concluídos antes da consolidação"
+                        )
+                    except asyncio.TimeoutError:
+                        workflow.logger.warning(
+                            f"Timeout ({wait_seconds}s) a aguardar conclusão de tickets: "
+                            f"{len(self._ticket_results)}/{len(published_ids)} reportados — "
+                            f"consolidação parcial"
+                        )
+
+                # Propagar o status real reportado pelos signals para os tickets
+                # publicados, que a consolidação usa para contar successful/failed.
+                # Só estados TERMINAIS são propagados: um status intermédio (ex.:
+                # "RUNNING") na consolidação seria tratado como integrity_error e
+                # poderia acionar compensação Saga em falso.
+                _terminal_statuses = {"COMPLETED", "FAILED", "COMPENSATED"}
+                for pt in published_tickets:
+                    tid = pt.get("ticket_id")
+                    if tid in self._ticket_results:
+                        result_status = self._ticket_results[tid].get("status")
+                        if result_status in _terminal_statuses:
+                            pt.setdefault("ticket", {})["status"] = result_status
+
                 # === C5: Consolidar Resultado ===
                 self._status = "consolidating_results"
                 workflow.logger.info("C5: Consolidando resultados")
@@ -552,6 +607,11 @@ class OrchestrationWorkflow:
             result: Resultado da execução do ticket
         """
         workflow.logger.info(f"Ticket {ticket_id} concluído: result={result}")
+
+        # Registar o resultado para que o wait_condition em run() (entre C4 e C5)
+        # detete a conclusão real do ticket. Sem isto, a consolidação ocorria
+        # imediatamente após a publicação, com todos os tickets ainda PENDING.
+        self._ticket_results[ticket_id] = result
 
         # Publicar evento para otimização (não-bloqueante)
         try:
