@@ -30,14 +30,18 @@ class StubTicketClient:
         self.status_calls = []
 
     async def update_ticket_status(
-        self, ticket_id, status, error_message=None, actual_duration_ms=None
+        self, ticket_id, status, error_message=None, actual_duration_ms=None, **kwargs
     ):
+        # **kwargs espelha a assinatura real (result_data, metadata, ...) que o
+        # ExecutionEngine passa; sem isto o stub desatualizado rejeitava chamadas
+        # legítimas com TypeError.
         self.status_calls.append(
             {
                 "ticket_id": ticket_id,
                 "status": status,
                 "error_message": error_message,
                 "actual_duration_ms": actual_duration_ms,
+                **kwargs,
             }
         )
 
@@ -49,8 +53,10 @@ class StubResultProducer:
         self.published = []
 
     async def publish_result(
-        self, ticket_id, status, result, error_message=None, actual_duration_ms=None
+        self, ticket_id, status, result, error_message=None, actual_duration_ms=None, **kwargs
     ):
+        # **kwargs espelha a assinatura real (plan_id, workflow_id, correlation_id)
+        # introduzida em GAP-02 e propagada pelo I4.
         self.published.append(
             {
                 "ticket_id": ticket_id,
@@ -58,6 +64,7 @@ class StubResultProducer:
                 "result": result,
                 "error_message": error_message,
                 "actual_duration_ms": actual_duration_ms,
+                **kwargs,
             }
         )
 

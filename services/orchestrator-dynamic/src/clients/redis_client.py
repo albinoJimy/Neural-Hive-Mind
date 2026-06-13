@@ -57,9 +57,7 @@ async def get_redis_client(
             circuit_name="redis_client",
             fail_max=getattr(config, "REDIS_CIRCUIT_BREAKER_FAIL_MAX", 5),
             timeout_duration=getattr(config, "REDIS_CIRCUIT_BREAKER_TIMEOUT", 60),
-            recovery_timeout=getattr(
-                config, "REDIS_CIRCUIT_BREAKER_RECOVERY_TIMEOUT", 60
-            ),
+            recovery_timeout=getattr(config, "REDIS_CIRCUIT_BREAKER_RECOVERY_TIMEOUT", 60),
         )
         logger.info(
             "Redis circuit breaker inicializado",
@@ -102,6 +100,11 @@ async def get_redis_client(
                 decode_responses=True,
                 socket_timeout=5,
                 socket_connect_timeout=2,
+                # I2: tolerar cobertura parcial de slots no cluster. Sem isto, um
+                # cluster com slots não totalmente cobertos rejeita lookups
+                # (workflow:by:ticket:*) com RedisClusterException. Alinhado com o
+                # service-registry (redis_registry_client.py).
+                require_full_coverage=False,
             )
             await client.ping()
             return client
@@ -125,9 +128,7 @@ async def get_redis_client(
     except CircuitBreakerError:
         logger.warning(
             "redis_client_circuit_breaker_open",
-            recovery_timeout=_circuit_breaker.recovery_timeout
-            if _circuit_breaker
-            else 0,
+            recovery_timeout=_circuit_breaker.recovery_timeout if _circuit_breaker else 0,
         )
         _redis_client_instance = None
         return None
@@ -226,9 +227,7 @@ class CacheMetrics:
             self.recent_latencies.append(latency_ms)
             # Manter apenas as últimas N amostras
             if len(self.recent_latencies) > self._max_latency_samples:
-                self.recent_latencies = self.recent_latencies[
-                    -self._max_latency_samples :
-                ]
+                self.recent_latencies = self.recent_latencies[-self._max_latency_samples :]
 
     @property
     def hit_ratio(self) -> float:
