@@ -99,8 +99,11 @@ estimated_duration_unrealistic := violation {
     estimated_ms := ticket.estimated_duration_ms
     timeout_ms := ticket.sla.timeout_ms
 
-    # Muito curto (<1s) ou maior que timeout
-    condition := estimated_ms < 1000
+    # Quase-zero (<100ms). Piso baixado de 1000ms -> 100ms: o STE gera
+    # durações de 300-900ms POR DESIGN (decomposition_templates.py), pelo que
+    # o piso de 1000ms causava 100% de falsos positivos. 100ms continua a
+    # apanhar estimativas absurdas (quase-zero).
+    condition := estimated_ms < 100
     condition
 
     violation := {
@@ -108,8 +111,8 @@ estimated_duration_unrealistic := violation {
         "rule": "estimated_duration_unrealistic",
         "severity": "low",
         "field": "estimated_duration_ms",
-        "msg": sprintf("Estimated_duration de %vms é muito curto (mínimo 1000ms)", [estimated_ms]),
-        "expected": ">=1000",
+        "msg": sprintf("Estimated_duration de %vms é muito curto (mínimo 100ms)", [estimated_ms]),
+        "expected": ">=100",
         "actual": estimated_ms
     }
 }

@@ -235,8 +235,15 @@ class PolicyValidator:
                 ),
             }
 
+            # Normalizar priority numérica legada (ex.: 5) para forma nomeada
+            # (ex.: "NORMAL") ANTES de enviar ao OPA. Mesmo padrão de
+            # validate_cognitive_plan: o contrato Rego em sla_enforcement.rego
+            # (priority_mismatch_risk_band) compara contra priorities NOMEADAS,
+            # pelo que o valor cru numérico geraria falso-positivo de violação.
+            normalized_ticket = self._normalize_resource_priority(ticket)
+
             # Construir input OPA
-            opa_input = self._build_opa_input(ticket, context)
+            opa_input = self._build_opa_input(normalized_ticket, context)
 
             # Adicionar parâmetros de políticas
             opa_input["input"]["parameters"] = {
@@ -471,7 +478,9 @@ class PolicyValidator:
             }
 
             # Construir input OPA com o ticket como recurso (compatível com resource_limits.rego)
-            opa_input = self._build_opa_input(ticket, context)
+            # Normalizar priority (consistência com os outros validadores)
+            normalized_ticket = self._normalize_resource_priority(ticket)
+            opa_input = self._build_opa_input(normalized_ticket, context)
 
             # Adicionar parâmetros
             opa_input["input"]["parameters"] = {

@@ -440,13 +440,23 @@ config:
     # Policy Parameters
     policies:
       maxConcurrentTickets: 100
+      # Conjunto canónico REAL de capabilities de TASK (deve coincidir com o
+      # default de opa_allowed_capabilities em orchestrator settings.py, que
+      # por sua vez deriva de worker-agents settings + STE
+      # decomposition_templates). O vocabulário CI/CD antigo bloqueava 100%
+      # dos planos (read/analyze/... nunca passavam pelo OPA).
       allowedCapabilities:
-        - code_generation
-        - deployment
-        - testing
-        - validation
-        - analysis
-        - optimization
+        - read
+        - write
+        - compute
+        - analyze
+        - transform
+        - test
+        - code
+        - security
+        - scan
+        - compliance
+        - deploy
       resourceLimits:
         maxCpu: "4000m"
         maxMemory: "8Gi"
