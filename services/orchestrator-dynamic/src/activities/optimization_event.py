@@ -24,6 +24,7 @@ async def get_optimization_producer() -> OptimizationProducer:
     return _producer
 
 
+@activity.defn
 async def publish_ticket_completed_event(
     ticket: dict[str, Any], workflow_id: str
 ) -> dict[str, Any]:
