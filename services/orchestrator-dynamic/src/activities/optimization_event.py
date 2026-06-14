@@ -3,6 +3,8 @@
 import logging
 from typing import Any
 
+from temporalio import activity
+
 from src.config.settings import get_settings
 from src.producers.optimization_producer import OptimizationProducer
 
@@ -101,6 +103,7 @@ async def publish_ticket_completed_event(
         }
 
 
+@activity.defn
 async def publish_workflow_optimization_events(
     tickets: list[dict[str, Any]], workflow_id: str
 ) -> dict[str, Any]:
