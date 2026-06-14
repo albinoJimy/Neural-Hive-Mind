@@ -168,7 +168,7 @@ class WorkerAgentSettings(BaseSettings):
     flux_timeout_seconds: int = 600
 
     # OPA Validation
-    opa_url: str = "http://opa.neural-hive-governance:8181"
+    opa_url: str = "http://opa.neural-hive.svc.cluster.local:8181"
     opa_enabled: bool = True
     opa_token: str | None = None
     opa_timeout_seconds: int = 30

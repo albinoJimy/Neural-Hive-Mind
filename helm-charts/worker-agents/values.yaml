@@ -126,7 +126,7 @@ config:
     timeoutSeconds: 600
 
   opa:
-    url: http://opa.neural-hive-governance.svc.cluster.local:8181
+    url: http://opa.neural-hive.svc.cluster.local:8181
     enabled: true
     token: ""
     tokenSecretName: opa-token
@@ -202,7 +202,7 @@ config:
   validation:
     opa:
       enabled: true
-      url: http://opa.neural-hive-governance.svc.cluster.local:8181
+      url: http://opa.neural-hive.svc.cluster.local:8181
     trivy:
       enabled: true
       timeout: 300
