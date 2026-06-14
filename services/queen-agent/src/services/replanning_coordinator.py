@@ -160,21 +160,16 @@ class ReplanningCoordinator:
         """Obter estatísticas de replanejamento do Redis"""
         try:
             # Buscar todas as chaves de cooldown ativas usando SCAN
+            # TR-1: scan_iter é o caminho cluster-safe. O método scan(cursor=...)
+            # standalone retorna (int, list) mas em RedisCluster retorna
+            # (dict[node, int], list) — o loop manual quebra silenciosamente
+            # (retorna zeros após TypeError apanhado pelo try/except). scan_iter
+            # é stateless e faz fan-out implícito a todos os masters.
             cooldown_pattern = "replanning:cooldown:*"
             cooldown_keys = []
 
-            # Usar SCAN para iterar sobre as chaves
-            cursor = 0
-            while True:
-                cursor, keys = await self.redis_client.client.scan(
-                    cursor=cursor, match=cooldown_pattern, count=100
-                )
-                cooldown_keys.extend(
-                    [k.decode("utf-8") if isinstance(k, bytes) else k for k in keys]
-                )
-
-                if cursor == 0:
-                    break
+            async for key in self.redis_client.client.scan_iter(match=cooldown_pattern, count=100):
+                cooldown_keys.append(key if isinstance(key, str) else key.decode("utf-8"))
 
             # Extrair plan_ids das chaves de cooldown
             cooldown_plans = []

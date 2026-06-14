@@ -2,7 +2,7 @@ import json
 from typing import Any
 
 import structlog
-from redis.asyncio import Redis
+from redis.asyncio.cluster import ClusterNode, RedisCluster
 
 from src.config import Settings
 
@@ -10,40 +10,73 @@ logger = structlog.get_logger()
 
 
 class RedisClient:
-    """Cliente Redis assíncrono para cache e coordenação"""
+    """Cliente Redis Cluster assíncrono para cache e coordenação.
+
+    Usa `redis.asyncio.cluster.RedisCluster` para suportar os 16384 slots
+    distribuídos pelos master nodes do cluster. Trata automaticamente os
+    redirects `MOVED` e `ASK` no transporte — uma chave hasheada para um
+    slot não-local é re-encaminhada sem expor erro `CLUSTERDOWN` ao caller.
+
+    Background TR-1 (spec 2026-05-22-pipeline-flow-recovery): a versão
+    anterior usava `Redis(host=nodes[0])`, conectando-se apenas ao primeiro
+    nó da lista. Operações cujo hash slot caísse fora desse nó recebiam
+    `CLUSTERDOWN Hash slot not served`, bloqueando leader election e
+    cache de contexto estratégico.
+    """
 
     def __init__(self, settings: Settings):
         self.settings = settings
-        self.client: Redis | None = None
+        self.client: RedisCluster | None = None
 
     async def initialize(self) -> None:
-        """Conectar ao Redis Cluster"""
+        """Conectar ao Redis Cluster usando todos os nodes como bootstrap."""
         try:
-            # Parsear nodes do cluster
-            nodes = self.settings.REDIS_CLUSTER_NODES.split(",")
+            startup_nodes = [
+                ClusterNode(
+                    host=entry.split(":")[0],
+                    port=int(entry.split(":")[1]) if ":" in entry else 6379,
+                )
+                for entry in self.settings.REDIS_CLUSTER_NODES.split(",")
+                if entry.strip()
+            ]
 
-            # Criar cliente Redis
-            self.client = Redis(
-                host=nodes[0].split(":")[0],
-                port=int(nodes[0].split(":")[1]) if ":" in nodes[0] else 6379,
-                password=self.settings.REDIS_PASSWORD if self.settings.REDIS_PASSWORD else None,
+            password = self.settings.REDIS_PASSWORD or None
+
+            self.client = RedisCluster(
+                startup_nodes=startup_nodes,
+                password=password,
                 ssl=self.settings.REDIS_SSL_ENABLED,
                 decode_responses=True,
+                # Tolerar slots em re-shard / nó offline parcial — caso
+                # contrário um único nó indisponível bloqueia o cliente.
+                require_full_coverage=False,
+                # reinitialize_steps controla quantos MOVED até recarregar
+                # a topology. Mantém-se explícito (apesar de ser o default
+                # da lib em redis-py 7.x) para tornar o trade-off visível
+                # e estável face a alterações de default upstream.
+                reinitialize_steps=5,
             )
 
-            # Testar conexão
             await self.client.ping()
-            logger.info("redis_initialized")
+            logger.info(
+                "redis_cluster_initialized",
+                node_count=len(startup_nodes),
+            )
 
         except Exception as e:
-            logger.exception("redis_initialization_failed", error=str(e))
+            logger.exception("redis_cluster_initialization_failed", error=str(e))
             raise
 
     async def close(self) -> None:
-        """Fechar conexão Redis"""
+        """Fechar conexão Redis Cluster.
+
+        TR-1: `RedisCluster.close()` está deprecated desde redis-py 5.0
+        (delega para `aclose()` mas emite DeprecationWarning). Usar
+        `aclose()` directamente para compatibilidade futura.
+        """
         if self.client:
-            await self.client.close()
-            logger.info("redis_closed")
+            await self.client.aclose()
+            logger.info("redis_cluster_closed")
 
     async def cache_strategic_context(
         self, key: str, data: dict[str, Any], ttl_seconds: int

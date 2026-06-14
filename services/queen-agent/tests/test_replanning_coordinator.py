@@ -32,23 +32,38 @@ def replanning_coordinator(mock_clients, mock_settings):
     )
 
 
+# TR-1: o `get_replanning_stats` migrou de `scan(cursor=...)` (incompatível
+# com RedisCluster — retorna dict[node, int] como cursor) para `scan_iter`,
+# que é stateless e faz fan-out implícito. Os mocks abaixo expõem
+# `scan_iter` como async generator, alinhando o contrato do teste com a
+# nova interface real.
+
+
+def _scan_iter_mock(items):
+    """Devolve um callable que produz um async generator a cada chamada."""
+
+    async def _gen(*_args, **_kwargs):
+        for item in items:
+            yield item
+
+    return _gen
+
+
 @pytest.mark.asyncio()
 async def test_get_replanning_stats_with_active_cooldowns(replanning_coordinator, mock_clients):
     """Testa obtenção de estatísticas com cooldowns ativos"""
-    # Mock do Redis SCAN para retornar chaves de cooldown
     mock_redis = AsyncMock()
-
-    # Primeira iteração do SCAN retorna algumas chaves
-    mock_redis.scan.side_effect = [
-        (5, [b"replanning:cooldown:plan-1", b"replanning:cooldown:plan-2"]),
-        (0, [b"replanning:cooldown:plan-3"]),  # cursor 0 indica fim
-    ]
-
+    mock_redis.scan_iter = _scan_iter_mock(
+        [
+            b"replanning:cooldown:plan-1",
+            b"replanning:cooldown:plan-2",
+            b"replanning:cooldown:plan-3",
+        ]
+    )
     mock_clients["redis"].client = mock_redis
 
     stats = await replanning_coordinator.get_replanning_stats()
 
-    # Verificar estatísticas
     assert stats["total_replannings"] == 3
     assert stats["active_replannings"] == 3
     assert len(stats["cooldown_plans"]) == 3
@@ -61,7 +76,7 @@ async def test_get_replanning_stats_with_active_cooldowns(replanning_coordinator
 async def test_get_replanning_stats_no_cooldowns(replanning_coordinator, mock_clients):
     """Testa obtenção de estatísticas sem cooldowns"""
     mock_redis = AsyncMock()
-    mock_redis.scan.return_value = (0, [])  # Sem chaves
+    mock_redis.scan_iter = _scan_iter_mock([])
     mock_clients["redis"].client = mock_redis
 
     stats = await replanning_coordinator.get_replanning_stats()
@@ -73,10 +88,11 @@ async def test_get_replanning_stats_no_cooldowns(replanning_coordinator, mock_cl
 
 @pytest.mark.asyncio()
 async def test_get_replanning_stats_handles_string_keys(replanning_coordinator, mock_clients):
-    """Testa tratamento de chaves como strings (não bytes)"""
+    """Com decode_responses=True o cluster client devolve str directamente."""
     mock_redis = AsyncMock()
-    # Algumas implementações do Redis retornam strings em vez de bytes
-    mock_redis.scan.return_value = (0, ["replanning:cooldown:plan-1", "replanning:cooldown:plan-2"])
+    mock_redis.scan_iter = _scan_iter_mock(
+        ["replanning:cooldown:plan-1", "replanning:cooldown:plan-2"]
+    )
     mock_clients["redis"].client = mock_redis
 
     stats = await replanning_coordinator.get_replanning_stats()
@@ -88,9 +104,15 @@ async def test_get_replanning_stats_handles_string_keys(replanning_coordinator, 
 
 @pytest.mark.asyncio()
 async def test_get_replanning_stats_handles_exception(replanning_coordinator, mock_clients):
-    """Testa tratamento de exceção"""
+    """Testa tratamento de exceção do scan_iter"""
+
+    async def _broken(*_args, **_kwargs):
+        msg = "Redis connection error"
+        raise RuntimeError(msg)
+        yield  # pragma: no cover — necessário para tornar a função um generator
+
     mock_redis = AsyncMock()
-    mock_redis.scan.side_effect = Exception("Redis connection error")
+    mock_redis.scan_iter = _broken
     mock_clients["redis"].client = mock_redis
 
     stats = await replanning_coordinator.get_replanning_stats()

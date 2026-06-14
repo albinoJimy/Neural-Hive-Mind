@@ -234,9 +234,12 @@ class LeaderElection:
             True se renovou com sucesso, False se perdeu liderança
         """
         try:
-            # Verificar se ainda somos o dono do lock
-            current_owner_bytes = await self.redis_client.client.get(self.LEADER_LOCK_KEY)
-            current_owner = current_owner_bytes.decode() if current_owner_bytes else None
+            # Verificar se ainda somos o dono do lock.
+            # TR-1: o RedisClient inicializa com decode_responses=True, pelo
+            # que .get() retorna str (não bytes). Chamar .decode() crashava
+            # em runtime com AttributeError assim que o cliente cluster
+            # passasse a estar operacional.
+            current_owner = await self.redis_client.client.get(self.LEADER_LOCK_KEY)
 
             if current_owner != self.node_id:
                 # Perdemos a liderança
@@ -292,8 +295,8 @@ class LeaderElection:
             ID do líder ou None se não houver líder
         """
         try:
-            leader_id = await self.redis_client.client.get(self.LEADER_LOCK_KEY)
-            return leader_id.decode() if leader_id else None
+            # TR-1: decode_responses=True → .get() retorna str directamente.
+            return await self.redis_client.client.get(self.LEADER_LOCK_KEY)
         except Exception as e:
             logger.exception("get_current_leader_failed", error=str(e))
             return None
@@ -306,8 +309,9 @@ class LeaderElection:
             Dicionário com metadados do líder ou dict vazio se não houver líder
         """
         try:
+            # TR-1: decode_responses=True → hgetall retorna dict[str, str].
             meta = await self.redis_client.client.hgetall(self.LEADER_META_KEY)
-            return {k.decode(): v.decode() for k, v in meta.items()} if meta else {}
+            return dict(meta) if meta else {}
         except Exception as e:
             logger.exception("get_leader_metadata_failed", error=str(e))
             return {}
@@ -320,8 +324,9 @@ class LeaderElection:
             Dicionário com heartbeat ou dict vazio se não houver
         """
         try:
+            # TR-1: decode_responses=True → hgetall retorna dict[str, str].
             heartbeat = await self.redis_client.client.hgetall(self.LEADER_HEARTBEAT_KEY)
-            return {k.decode(): v.decode() for k, v in heartbeat.items()} if heartbeat else {}
+            return dict(heartbeat) if heartbeat else {}
         except Exception as e:
             logger.exception("get_leader_heartbeat_failed", error=str(e))
             return {}

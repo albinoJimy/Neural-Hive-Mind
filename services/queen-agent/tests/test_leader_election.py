@@ -93,7 +93,8 @@ class TestAcquireLeadership:
     async def test_acquire_leadership_already_exists(self, leader_election, mock_redis):
         """Testa falha quando já existe líder"""
         mock_redis.client.set.return_value = False
-        mock_redis.client.get.return_value = b"other-node"
+        # TR-1: decode_responses=True → get retorna str.
+        mock_redis.client.get.return_value = "other-node"
 
         acquired = await leader_election._acquire_leadership()
 
@@ -119,7 +120,9 @@ class TestRenewLeadership:
     async def test_renew_leadership_success(self, leader_election, mock_redis):
         """Testa renovação bem-sucedida"""
         leader_election.state.role = NodeRole.LEADER
-        mock_redis.client.get.return_value = b"test-node-1"
+        # TR-1: RedisClient inicializa com decode_responses=True →
+        # client.get retorna str (não bytes).
+        mock_redis.client.get.return_value = "test-node-1"
 
         renewed = await leader_election._renew_leadership()
 
@@ -130,7 +133,7 @@ class TestRenewLeadership:
     async def test_renew_leadership_lost(self, leader_election, mock_redis):
         """Testa detecção de perda de liderança"""
         leader_election.state.role = NodeRole.LEADER
-        mock_redis.client.get.return_value = b"other-node"
+        mock_redis.client.get.return_value = "other-node"
 
         renewed = await leader_election._renew_leadership()
 
@@ -166,7 +169,8 @@ class TestGetCurrentLeader:
     @pytest.mark.asyncio()
     async def test_get_current_leader_exists(self, leader_election, mock_redis):
         """Testa quando existe líder"""
-        mock_redis.client.get.return_value = b"test-leader"
+        # TR-1: decode_responses=True → get retorna str directamente.
+        mock_redis.client.get.return_value = "test-leader"
 
         leader = await leader_election._get_current_leader()
 
@@ -187,9 +191,10 @@ class TestHeartbeat:
     @pytest.mark.asyncio()
     async def test_get_leader_heartbeat(self, leader_election, mock_redis):
         """Testa obtenção de heartbeat do líder"""
+        # TR-1: decode_responses=True → hgetall retorna dict[str, str].
         mock_redis.client.hgetall.return_value = {
-            b"node_id": b"test-leader",
-            b"timestamp": b"2024-01-01T00:00:00",
+            "node_id": "test-leader",
+            "timestamp": "2024-01-01T00:00:00",
         }
 
         heartbeat = await leader_election.get_leader_heartbeat()
@@ -213,11 +218,12 @@ class TestGetLeaderMetadata:
     @pytest.mark.asyncio()
     async def test_get_leader_metadata_exists(self, leader_election, mock_redis):
         """Testa quando existem metadados"""
+        # TR-1: decode_responses=True → hgetall retorna dict[str, str].
         mock_redis.client.hgetall.return_value = {
-            b"node_id": b"test-leader",
-            b"term": b"5",
-            b"acquired_at": b"2024-01-01T00:00:00",
-            b"ttl": b"10",
+            "node_id": "test-leader",
+            "term": "5",
+            "acquired_at": "2024-01-01T00:00:00",
+            "ttl": "10",
         }
 
         metadata = await leader_election.get_leader_metadata()
@@ -285,8 +291,8 @@ class TestElectionCallbacks:
         leader_election.state.role = NodeRole.LEADER
         leader_election.on_become_follower = callback
 
-        # Simular perda de liderança
-        mock_redis.client.get.return_value = b"other-node"
+        # Simular perda de liderança (TR-1: decode_responses=True → str).
+        mock_redis.client.get.return_value = "other-node"
         await leader_election._renew_leadership()
 
         # Callback é chamado em _renew_leadership
@@ -344,7 +350,8 @@ class TestElectionLoop:
     @pytest.mark.asyncio()
     async def test_election_loop_remains_follower(self, leader_election, mock_redis):
         """Testa loop que permanece follower"""
-        mock_redis.client.get.return_value = b"other-leader"  # Outro nó é líder
+        # TR-1: decode_responses=True → get retorna str.
+        mock_redis.client.get.return_value = "other-leader"  # Outro nó é líder
 
         current_leader = await leader_election._get_current_leader()
 
