@@ -722,19 +722,24 @@ class TransformExecutor(BaseTaskExecutor):
             doc["_id"] = str(doc["_id"])
         return doc
 
-    def _success_result(
-        self, output_data: Any, metadata: dict[str, Any] | None = None
-    ) -> dict[str, Any]:
-        """Retorna resultado de sucesso padronizado."""
+    def _success_result(self, output_data: Any, message: str | None = None) -> dict[str, Any]:
+        """Retorna resultado de sucesso padronizado.
+
+        ``message`` é uma mensagem de log opcional (legível) que descreve o
+        resultado; é acrescentada à lista de logs. Não confundir com metadata:
+        os call-sites passam sempre uma string descritiva.
+        """
         base_metadata = {"executor": "TransformExecutor", "success": True}
-        if metadata:
-            base_metadata.update(metadata)
+
+        logs = ["Transform completed successfully"]
+        if message:
+            logs.insert(0, message)
 
         return {
             "success": True,
             "output": output_data,
             "metadata": base_metadata,
-            "logs": ["Transform completed successfully"],
+            "logs": logs,
         }
 
     def _error_result(self, message: str, transform_type: str) -> dict[str, Any]:
