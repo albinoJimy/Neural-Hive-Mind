@@ -40,6 +40,10 @@ class MongoDBClient:
             socketTimeoutMS=30000,  # Timeout de socket aumentado
             retryWrites=True,
             w="majority",
+            # Devolve datetimes timezone-aware (UTC) em vez de naive. Evita
+            # "can't compare offset-naive and offset-aware datetimes" ao comparar
+            # campos como expires_at (lidos do BSON) com datetime.now(timezone.utc).
+            tz_aware=True,
         )
 
         self.db = self.client[self.config.mongodb_database]

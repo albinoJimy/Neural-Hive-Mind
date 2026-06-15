@@ -167,7 +167,7 @@ def main():
     parser.add_argument(
         "--model-name",
         type=str,
-        default="EvolutionSpecialistModel",
+        default="evolution-evaluator",
         help="Nome do modelo registrado no MLflow",
     )
 

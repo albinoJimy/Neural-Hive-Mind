@@ -1,6 +1,7 @@
 import asyncio
 import json
 import os
+import re
 import time
 from typing import Any, Optional
 
@@ -283,6 +284,22 @@ class PlanConsumer:
                                 plan_id=cognitive_plan.get("plan_id", "unknown"),
                                 error_type=type(process_error).__name__,
                             )
+                            # FIX-CP-001/BUG-2: sem este sleep, o offset não-commitado
+                            # faz o próximo poll devolver a MESMA mensagem imediatamente,
+                            # criando um tight-loop (CPU 100%, lag estagnado) enquanto a
+                            # mensagem está em backoff. Dormir o tempo de backoff restante
+                            # (ou o base backoff) evita o reprocessamento em busy-loop.
+                            backoff_sleep = self._extract_backoff_seconds(process_error)
+                            if backoff_sleep is None:
+                                backoff_sleep = self.config.consumer_base_backoff_seconds
+                            backoff_sleep = min(
+                                backoff_sleep, self.config.consumer_max_backoff_seconds
+                            )
+                            ConsensusMetrics.increment_backoff_event("business_error")
+                            ConsensusMetrics.observe_backoff_duration(
+                                backoff_sleep, "business_error"
+                            )
+                            await asyncio.sleep(backoff_sleep)
 
             except asyncio.CancelledError:
                 logger.info("Consumer cancelado via asyncio")
@@ -322,6 +339,23 @@ class PlanConsumer:
             was_running=self.running,
             circuit_breaker_open=self.circuit_breaker_open,
         )
+
+    def _extract_backoff_seconds(self, error: Exception) -> Optional[float]:
+        """Extrai o tempo de backoff restante (s) da exceção "Backoff em andamento".
+
+        Devolve None se a exceção não for de backoff. Usado para dormir o tempo
+        certo e evitar o tight-loop de reprocessamento (FIX-CP-001/BUG-2).
+        """
+        msg = str(error)
+        if "Backoff em andamento" not in msg:
+            return None
+        match = re.search(r"([0-9]+\.?[0-9]*)s", msg)
+        if match:
+            try:
+                return float(match.group(1))
+            except ValueError:
+                return None
+        return None
 
     def _is_systemic_error(self, error: Exception) -> bool:
         """

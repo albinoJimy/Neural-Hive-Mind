@@ -20,6 +20,27 @@ from neural_hive_domain import DomainMapper, UnifiedDomain
 logger = structlog.get_logger()
 
 
+def _to_aware_datetime(value) -> Optional[datetime]:
+    """Normaliza um valor para datetime timezone-aware (UTC).
+
+    Aceita datetime (naive ou aware) ou string ISO 8601 (como gravado por
+    model_dump(mode="json")). Devolve None se o valor for vazio/inválido.
+    Evita comparações que misturam str/datetime ou naive/aware.
+    """
+    if value is None or value == "":
+        return None
+    if isinstance(value, str):
+        try:
+            value = datetime.fromisoformat(value)
+        except ValueError:
+            return None
+    if isinstance(value, datetime):
+        if value.tzinfo is None:
+            return value.replace(tzinfo=timezone.utc)
+        return value.astimezone(timezone.utc)
+    return None
+
+
 class PheromoneClient:
     """
     Cliente Redis para gerenciar feromônios digitais COM FALLBACK MONGODB.
@@ -288,7 +309,14 @@ class PheromoneClient:
         try:
             collection = self._fallback_storage.mongodb.db[self._pheromone_collection]
 
-            document = signal.model_dump(mode="json")
+            # mode="python" mantém datetime nativo (gravado como BSON Date),
+            # evitando que expires_at/created_at sejam strings ISO na leitura.
+            document = signal.model_dump(mode="python")
+            # Enums (PheromoneType, UnifiedDomain) são str-subclasses; garantir
+            # valor primitivo para serialização BSON consistente.
+            for _f in ("pheromone_type", "domain", "specialist_type"):
+                if hasattr(document.get(_f), "value"):
+                    document[_f] = document[_f].value
             document["_id"] = signal.signal_id
             document["immutable"] = True
 
@@ -367,9 +395,14 @@ class PheromoneClient:
 
             doc = await collection.find_one({"signal_id": signal_id})
             if doc:
-                # Verificar expiração
-                if doc.get("expires_at"):
-                    if doc["expires_at"] < datetime.now(timezone.utc):
+                # Normaliza expires_at para datetime timezone-aware. Documentos
+                # podem ter sido gravados como string ISO (model_dump mode="json")
+                # ou como datetime naive — comparar diretamente lançaria TypeError
+                # ("'<' not supported between str and datetime" / naive vs aware).
+                expires_at = _to_aware_datetime(doc.get("expires_at"))
+                if expires_at is not None:
+                    doc["expires_at"] = expires_at
+                    if expires_at < datetime.now(timezone.utc):
                         return None
 
                 return PheromoneSignal(**doc)
