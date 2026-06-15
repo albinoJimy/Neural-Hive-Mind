@@ -51,6 +51,13 @@ class OTELPipelineHealthCheck(HealthCheck):
         # Parse endpoint to determine protocol
         self._is_grpc = ":4317" in otel_endpoint or "grpc" in otel_endpoint.lower()
         self._http_endpoint = self._derive_http_endpoint(otel_endpoint)
+        # Endpoint da extensão health_check do Collector (porta default 13133).
+        # É o único endpoint que responde 200 de forma fiável e barata; OTLP
+        # HTTP (4318) NÃO expõe /health (devolve 404), o que tornava o check lento/instável.
+        self._health_endpoint = self._derive_health_endpoint(otel_endpoint)
+        # Timeout por-request mais curto que o global para que os fallbacks
+        # sequenciais nunca excedam o orçamento total do check.
+        self._request_timeout = max(1.0, timeout_seconds / 3.0)
 
     def _derive_http_endpoint(self, endpoint: str) -> str:
         """Derive HTTP endpoint from OTEL endpoint."""
@@ -62,6 +69,14 @@ class OTELPipelineHealthCheck(HealthCheck):
         else:
             # Assume HTTP endpoint
             return endpoint
+
+    def _derive_health_endpoint(self, endpoint: str) -> str:
+        """Deriva o endpoint da extensão health_check do Collector (porta 13133)."""
+        if ":4317" in endpoint:
+            return endpoint.replace(":4317", ":13133")
+        elif ":4318" in endpoint:
+            return endpoint.replace(":4318", ":13133")
+        return ""
 
     async def check(self) -> HealthCheckResult:
         """
@@ -130,33 +145,31 @@ class OTELPipelineHealthCheck(HealthCheck):
             )
 
     async def _check_collector_health(self) -> bool:
-        """Check if OTEL Collector is healthy via HTTP endpoint."""
+        """Check if OTEL Collector is healthy via HTTP endpoint.
+
+        Ordem de tentativa (do mais fiável/barato para fallback):
+        1. Extensão health_check do Collector (porta 13133) — responde 200.
+        2. Endpoint de métricas (porta 8888) — responde 200 se o Collector está vivo.
+        3. /health do OTLP HTTP (4318) — mantido por compat (devolve 404 na maioria das versões).
+        """
+        request_timeout = aiohttp.ClientTimeout(total=self._request_timeout)
+
+        # Candidatos por ordem de preferência (ignorando vazios)
+        candidates = []
+        if self._health_endpoint:
+            candidates.append(f"{self._health_endpoint.rstrip('/')}/")
+        candidates.append(self._http_endpoint.replace(":4318", ":8888").rstrip("/") + "/metrics")
+        candidates.append(f"{self._http_endpoint.rstrip('/')}/health")
+
         try:
-            # Try health endpoint first
-            health_url = f"{self._http_endpoint.rstrip('/')}/health"
-
             async with aiohttp.ClientSession() as session:
-                try:
-                    async with session.get(
-                        health_url,
-                        timeout=aiohttp.ClientTimeout(total=self.timeout_seconds),
-                    ) as response:
-                        if response.status == 200:
-                            return True
-                except aiohttp.ClientError:
-                    pass
-
-                # Try metrics endpoint as fallback
-                metrics_url = self._http_endpoint.replace(":4318", ":8888").rstrip("/") + "/metrics"
-                try:
-                    async with session.get(
-                        metrics_url,
-                        timeout=aiohttp.ClientTimeout(total=self.timeout_seconds),
-                    ) as response:
-                        return response.status == 200
-                except aiohttp.ClientError:
-                    pass
-
+                for url in candidates:
+                    try:
+                        async with session.get(url, timeout=request_timeout) as response:
+                            if response.status == 200:
+                                return True
+                    except (aiohttp.ClientError, asyncio.TimeoutError):
+                        continue
             return False
 
         except Exception as e:
@@ -181,7 +194,7 @@ class OTELPipelineHealthCheck(HealthCheck):
                     traces_url,
                     json=trace_payload,
                     headers={"Content-Type": "application/json"},
-                    timeout=aiohttp.ClientTimeout(total=self.timeout_seconds),
+                    timeout=aiohttp.ClientTimeout(total=self._request_timeout),
                 ) as response:
                     # 200 or 202 indicates success
                     return response.status in (200, 202)
