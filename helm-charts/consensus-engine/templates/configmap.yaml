@@ -14,6 +14,13 @@ data:
   KAFKA_CONSUMER_GROUP_ID: {{ .Values.config.kafka.consumerGroupId | quote }}
   KAFKA_PLANS_TOPIC_CONSUME: {{ .Values.config.kafka.plansTopicConsume | quote }}
   KAFKA_CONSENSUS_TOPIC_PRODUCE: {{ .Values.config.kafka.consensusTopicProduce | quote }}
+  # Concorrência de processamento de planos por réplica (feature-flag de throughput).
+  # Default=1 mantém o comportamento série atual (anti-regressão). Ver settings.py.
+  {{- if .Values.config.consumer }}
+  {{- if .Values.config.consumer.maxConcurrentPlans }}
+  CONSENSUS_MAX_CONCURRENT_PLANS: {{ .Values.config.consumer.maxConcurrentPlans | quote }}
+  {{- end }}
+  {{- end }}
   KAFKA_SECURITY_PROTOCOL: {{ .Values.config.kafka.securityProtocol | quote }}
   KAFKA_SASL_MECHANISM: {{ .Values.config.kafka.saslMechanism | quote }}
   SCHEMA_REGISTRY_URL: {{ .Values.config.kafka.schemaRegistryUrl | quote }}

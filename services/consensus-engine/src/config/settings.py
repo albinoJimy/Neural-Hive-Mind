@@ -298,6 +298,24 @@ class Settings(BaseSettings):
         "Controla tradeoff entre responsividade e frequência de polling.",
         gt=0.0,
     )
+    # Concorrência de processamento de planos (feature-flag de throughput).
+    # DEFAULT=1 reproduz o comportamento SÉRIE atual byte-a-byte: cada plano é
+    # processado de forma bloqueante (await) antes do próximo poll. Com valor >1,
+    # o consumer despacha até N planos concorrentemente governados por um
+    # asyncio.Semaphore, commitando apenas o maior offset CONTÍGUO já concluído
+    # por partição (offset tracking), nunca o offset de uma mensagem ainda em
+    # curso → preserva a correção do commit em rebalances e idempotência.
+    # ATENÇÃO: concorrência aumenta uso de CPU/memória (N consolidações em
+    # simultâneo); validar limits (memory 768Mi no chart) antes de elevar.
+    consensus_max_concurrent_plans: int = Field(
+        default=1,
+        description="Número máximo de planos processados concorrentemente por réplica. "
+        "Default=1 mantém o processamento série atual (anti-regressão). "
+        "Valores >1 ativam bounded concurrency via semaphore com commit de offset "
+        "contíguo por partição.",
+        ge=1,
+        le=64,
+    )
     # Dead Letter Queue (DLQ) - Gap P0-1 Implementado
     # Configurações para envio de mensagens com falha para DLQ após exceder retries
     consumer_enable_dlq: bool = Field(

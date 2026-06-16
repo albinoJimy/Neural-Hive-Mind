@@ -1,4 +1,9 @@
-replicaCount: 1
+# Camada 1 (config, menor risco): aumentar réplicas no mesmo consumer group dá
+# concorrência de consumo NATURAL — cada réplica fica dona de partições distintas
+# do tópico plans.ready (6 partições), sem tocar na lógica de offset. Subido de
+# 1→2 de forma conservadora. Pode subir até 6 (nº de partições) se o lag persistir
+# e houver capacidade de memória (consensus: req 512Mi / limit 2Gi por réplica).
+replicaCount: 2
 
 image:
   tag: latest
@@ -23,6 +28,12 @@ config:
     consensusTopicProduce: "plans.consensus"
     securityProtocol: "PLAINTEXT"
     schemaRegistryUrl: "http://schema-registry.kafka.svc.cluster.local:8081/apis/ccompat/v6"
+
+  # Camada 2 (código, feature-flag): concorrência intra-réplica. Default=1 mantém o
+  # comportamento série atual (anti-regressão). Ativar (>1) SÓ após validar memória/CPU
+  # e observar lag — preferir primeiro a Camada 1 (replicaCount acima).
+  consumer:
+    maxConcurrentPlans: 1
 
   specialists:
     business: "specialist-business.neural-hive.svc.cluster.local:50051"

@@ -1373,6 +1373,27 @@ class FlowCOrchestrator:
                     )
                     continue
 
+                # Atribuição HTTP directa ao worker é best-effort e DEPRECATED.
+                # O caminho canónico de execução é o workflow Temporal (C2), que
+                # publica os tickets no tópico Kafka `execution.tickets` consumido
+                # pelo `execution-ticket-service`. Os workers descobertos via
+                # Service Registry normalmente não publicam a chave `endpoint` no
+                # seu metadata, pelo que `worker.endpoint` vem vazio. Sem este
+                # guard, `WorkerAgentClient.assign_task` levanta sempre
+                # ValueError("Worker endpoint not configured"), encapsulado em
+                # RetryError pela tenacity, gerando logs `failed_to_assign_ticket`
+                # enganadores para TODOS os tickets apesar do pipeline estar
+                # saudável. Quando o endpoint está ausente, saltamos o despacho
+                # HTTP em nível debug sem poluir os logs de erro.
+                if not worker.endpoint:
+                    self.logger.debug(
+                        "step_c4_skip_http_dispatch_no_endpoint",
+                        ticket_id=ticket["ticket_id"],
+                        worker_id=worker.agent_id,
+                        reason="worker_endpoint_not_configured_deprecated_http_path",
+                    )
+                    continue
+
                 # Criar cliente para o worker específico
                 worker_client = WorkerAgentClient(base_url=worker.endpoint)
 

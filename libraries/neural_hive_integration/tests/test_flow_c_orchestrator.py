@@ -213,6 +213,39 @@ async def test_execute_c4_assign_tickets_no_workers(orchestrator):
 
 
 @pytest.mark.asyncio
+async def test_execute_c4_skips_http_dispatch_when_endpoint_empty(orchestrator):
+    """Testa que C4 salta o despacho HTTP (DEPRECATED) quando o worker não publica endpoint.
+
+    Cenário REAL de produção: os workers descobertos via Service Registry vêm com
+    `endpoint` vazio porque não publicam essa chave no metadata. Sem o guard, o
+    caminho HTTP/gRPC directo levantaria sempre ValueError -> RetryError, gerando
+    logs `failed_to_assign_ticket` enganadores. O guard deve saltar esse despacho
+    sem invocar `WorkerAgentClient.assign_task`, devolvendo zero assignments,
+    enquanto o caminho canónico (Temporal -> Kafka -> execution-ticket-service)
+    permanece responsável pela execução real.
+    """
+    tickets = [{"ticket_id": "ticket-001"}, {"ticket_id": "ticket-002"}]
+    workers = [
+        AgentInfo(
+            agent_id="worker-1",
+            agent_type="worker",
+            capabilities=["python", "fastapi"],
+            endpoint="",  # Workers reais não publicam endpoint
+            metadata={"version": "1.0.0"},
+        ),
+    ]
+
+    with patch(
+        "neural_hive_integration.orchestration.flow_c_orchestrator.WorkerAgentClient"
+    ) as mock_worker_client_class:
+        assignments = await orchestrator._execute_c4_assign_tickets(tickets, workers, MagicMock())
+
+    # O despacho HTTP é saltado: nenhum cliente é criado e nenhum assignment é gerado.
+    mock_worker_client_class.assert_not_called()
+    assert assignments == []
+
+
+@pytest.mark.asyncio
 async def test_execute_c5_monitor_execution_timeout(orchestrator):
     """Testa C5 com timeout baseado em SLA."""
     mock_ticket = MagicMock()
