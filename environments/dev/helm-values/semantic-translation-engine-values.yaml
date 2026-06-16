@@ -27,11 +27,13 @@ config:
     url: "http://schema-registry.kafka.svc.cluster.local:8081/apis/ccompat/v6"
 
   neo4j:
-    uri: "bolt://neo4j-bolt.neo4j-cluster.svc.cluster.local:7687"
+    uri: "bolt://neo4j.neo4j-cluster.svc.cluster.local:7687"
     queryTimeoutMs: 100
 
   mongodb:
-    uri: "mongodb://mongodb.mongodb-cluster.svc.cluster.local:27017"
+    # URI autenticada: o startup do STE faz createIndexes (DDL), que exige auth no MongoDB.
+    # Alinhado com o padrão dos especialistas (root/local_dev_password, authSource=admin).
+    uri: "mongodb://root:local_dev_password@mongodb.mongodb-cluster.svc.cluster.local:27017/neural_hive_dev?authSource=admin"
     database: "neural_hive_dev"
 
   redis:

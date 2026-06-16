@@ -163,7 +163,7 @@ config:
 
   # Neo4j (Semântico)
   neo4j:
-    uri: "bolt://neo4j-bolt.neo4j-cluster.svc.cluster.local:7687"
+    uri: "bolt://neo4j.neo4j-cluster.svc.cluster.local:7687"
     user: "neo4j"
     database: "neo4j"
     queryTimeout: 50

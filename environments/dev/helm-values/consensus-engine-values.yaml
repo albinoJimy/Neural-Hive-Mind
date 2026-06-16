@@ -25,12 +25,14 @@ config:
     schemaRegistryUrl: "http://schema-registry.kafka.svc.cluster.local:8081/apis/ccompat/v6"
 
   specialists:
-    business: "specialist-business.specialist-business.svc.cluster.local:50051"
-    technical: "specialist-technical.specialist-technical.svc.cluster.local:50051"
-    behavior: "specialist-behavior.specialist-behavior.svc.cluster.local:50051"
-    evolution: "specialist-evolution.specialist-evolution.svc.cluster.local:50051"
-    architecture: "specialist-architecture.specialist-architecture.svc.cluster.local:50051"
-    grpcTimeoutMs: 5000
+    business: "specialist-business.neural-hive.svc.cluster.local:50051"
+    technical: "specialist-technical.neural-hive.svc.cluster.local:50051"
+    behavior: "specialist-behavior.neural-hive.svc.cluster.local:50051"
+    evolution: "specialist-evolution.neural-hive.svc.cluster.local:50051"
+    architecture: "specialist-architecture.neural-hive.svc.cluster.local:50051"
+    # Especialistas demoram ~9-27s (inferência ML); 5s causa timeout e bloqueia o consenso.
+    # Alinhado com o chart default (120000) e o configmap vivo validado em 2026-06-16.
+    grpcTimeoutMs: 120000
     grpcMaxRetries: 3
 
   mongodb:

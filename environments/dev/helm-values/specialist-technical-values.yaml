@@ -47,7 +47,7 @@ config:
     database: "neural_hive_dev"
 
   neo4j:
-    uri: "bolt://neo4j-bolt.neo4j-cluster.svc.cluster.local:7687"
+    uri: "bolt://neo4j.neo4j-cluster.svc.cluster.local:7687"
 
   redis:
     clusterNodes: "neural-hive-cache.redis-cluster.svc.cluster.local:6379"
