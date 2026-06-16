@@ -316,6 +316,19 @@ class Settings(BaseSettings):
         ge=1,
         le=64,
     )
+    # Readiness: nº mínimo de especialistas SERVING para o /ready passar.
+    # O consenso precisa de >=3 pareceres para consenso real e tem fallback
+    # determinístico abaixo disso, por isso exigir TODOS os 5 SERVING tornava o
+    # readiness frágil (flaps transitórios "no healthy upstream" do Istio = 503).
+    # Default=3 (quórum) alinha com o mínimo de pareceres do consenso.
+    readiness_min_specialists_serving: int = Field(
+        default=3,
+        description="Número mínimo de especialistas SERVING para o readiness (/ready) "
+        "passar. Quórum alinhado com o mínimo de pareceres para consenso real. "
+        "0 desativa o gate (especialistas deixam de ser críticos para readiness).",
+        ge=0,
+        le=5,
+    )
     # Dead Letter Queue (DLQ) - Gap P0-1 Implementado
     # Configurações para envio de mensagens com falha para DLQ após exceder retries
     consumer_enable_dlq: bool = Field(

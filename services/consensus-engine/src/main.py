@@ -335,13 +335,18 @@ async def readiness():
             await state.mongodb_client.client.admin.command("ping")
             checks["mongodb"] = True
 
-        # Verificar especialistas
+        # Verificar especialistas (quórum, não todos): o consenso precisa de
+        # >=N pareceres para consenso real e tem fallback abaixo disso. Exigir
+        # TODOS os especialistas SERVING tornava o readiness frágil a flaps
+        # transitórios do Istio ("no healthy upstream"). Usa quórum configurável.
         if state.specialists_client:
             health_results = await state.specialists_client.health_check_all()
-            all_healthy = all(
-                result.get("status") != "NOT_SERVING" for result in health_results.values()
+            serving_count = sum(
+                1 for result in health_results.values() if result.get("status") == "SERVING"
             )
-            checks["specialists"] = all_healthy
+            min_required = settings.readiness_min_specialists_serving
+            checks["specialists"] = serving_count >= min_required
+            checks["specialists_serving"] = serving_count
 
         # Verificar Redis
         if state.redis_client:
@@ -393,8 +398,10 @@ async def readiness():
                 logger.warning("otel_pipeline_health_check_error", error=str(e))
                 checks["otel_pipeline"] = False
 
-        # OTEL pipeline and analyst_agent are not critical for readiness
-        non_critical_checks = {"otel_pipeline", "analyst_agent"}
+        # OTEL pipeline and analyst_agent are not critical for readiness.
+        # specialists_serving é um contador de observabilidade (não um booleano de
+        # check) — excluído da avaliação all() abaixo.
+        non_critical_checks = {"otel_pipeline", "analyst_agent", "specialists_serving"}
         critical_checks = {
             k: v for k, v in checks.items() if k not in non_critical_checks and v is not None
         }
