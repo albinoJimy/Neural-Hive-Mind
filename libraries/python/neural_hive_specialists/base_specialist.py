@@ -52,7 +52,22 @@ logger = structlog.get_logger()
 SERVICE_REGISTRY_HOST = os.getenv(
     "SERVICE_REGISTRY_HOST", "service-registry.neural-hive.svc.cluster.local"
 )
-SERVICE_REGISTRY_PORT = int(os.getenv("SERVICE_REGISTRY_PORT", "50051"))
+
+
+def _parse_port(value: str, default: int = 50051) -> int:
+    """Extrai a porta tolerando o formato service-link do K8s.
+
+    O Kubernetes injeta automaticamente env vars no estilo Docker para cada Service
+    (ex.: SERVICE_REGISTRY_PORT=tcp://10.98.9.69:50051), que colidem com a env var
+    de porta da aplicação. Aceita tanto '50051' como 'tcp://IP:50051'.
+    """
+    if not value:
+        return default
+    token = value.rsplit(":", 1)[-1]  # parte após o último ':' (porta), se houver
+    return int(token) if token.isdigit() else default
+
+
+SERVICE_REGISTRY_PORT = _parse_port(os.getenv("SERVICE_REGISTRY_PORT", "50051"))
 SERVICE_REGISTRY_ENABLED = os.getenv("SERVICE_REGISTRY_ENABLED", "true").lower() == "true"
 
 
