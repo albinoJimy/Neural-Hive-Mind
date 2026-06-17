@@ -218,10 +218,14 @@ jobs:
           echo "Verifying base image availability..."
           docker pull ${NLP_BASE}:latest || echo "Warning: Could not pull base image"
 
+          # --no-cache: a base empacota libs first-party (neural_hive_specialists) que
+          # mudam frequentemente. O buildcache estava a servir base_specialist.py STALE
+          # (sem o import de timezone do 496ff373) -> NameError no EvaluatePlan dos
+          # especialistas. Forcar rebuild limpo garante a lib atual na imagem.
           docker buildx build \
+            --no-cache \
             --build-arg REGISTRY=${{ env.GHCR_REGISTRY }}/${OWNER_LOWER} \
             --build-arg VERSION=${VERSION} \
-            --cache-from=type=registry,ref=${IMAGE}:buildcache \
             --cache-to=type=registry,ref=${IMAGE}:buildcache,mode=max \
             --push \
             -t ${IMAGE}:${VERSION} \
