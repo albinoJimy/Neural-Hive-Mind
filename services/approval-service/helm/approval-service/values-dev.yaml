@@ -22,8 +22,3 @@ env:
   LOG_LEVEL: DEBUG
   ENABLE_ML_PREDICTION: "false"
   ENABLE_ACTIVE_LEARNING: "false"
-  # Alinhar a DB do approval-service em dev com STE/consensus (neural_hive_dev).
-  # Sem isto herda o default 'neural_hive' (settings.py), fragmentando os dados:
-  # opinioes/aprovacoes ficavam em 'neural_hive' e decisoes/ledger em 'neural_hive_dev'.
-  # A DB efetiva vem de MONGODB_DATABASE (mongodb_client usa client[mongodb_database]).
-  MONGODB_DATABASE: neural_hive_dev
