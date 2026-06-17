@@ -9,7 +9,7 @@ import os
 from typing import Optional
 
 import structlog
-from confluent_kafka import Producer
+from confluent_kafka import KafkaException, Producer
 from confluent_kafka.schema_registry import SchemaRegistryClient
 from confluent_kafka.schema_registry.avro import AvroSerializer
 from confluent_kafka.serialization import MessageField, SerializationContext
@@ -57,8 +57,8 @@ class ApprovalResponseProducer:
         pod_uid = os.environ.get("POD_UID", "0")
         return f"approval-response-producer-{hostname}-{pod_uid}"
 
-    async def initialize(self):
-        """Inicializa producer Kafka com suporte a transacoes"""
+    def _build_producer(self) -> Producer:
+        """Constroi um Producer Kafka transacional a partir das settings"""
         producer_config = {
             "bootstrap.servers": self.settings.kafka_bootstrap_servers,
             "enable.idempotence": self.settings.kafka_enable_idempotence,
@@ -78,7 +78,27 @@ class ApprovalResponseProducer:
                 }
             )
 
-        self.producer = Producer(producer_config)
+        return Producer(producer_config)
+
+    def _reinitialize_producer(self):
+        """
+        Recria o producer transacional e re-inicializa as transacoes.
+
+        Necessario quando o broker invalida o producer id (ex.: restart de
+        brokers, expiracao da transactional.id) — o erro INVALID_PRODUCER_ID_MAPPING
+        ("requires epoch bump") torna o producer existente inutilizavel e a unica
+        recuperacao fiavel e criar um novo producer + init_transactions().
+        """
+        logger.warning(
+            "Re-inicializando approval response producer",
+            transactional_id=self._transactional_id,
+        )
+        self.producer = self._build_producer()
+        self.producer.init_transactions()
+
+    async def initialize(self):
+        """Inicializa producer Kafka com suporte a transacoes"""
+        self.producer = self._build_producer()
 
         # Inicializa Schema Registry client (opcional para dev)
         if self.settings.schema_registry_url and self.settings.schema_registry_url.strip():
@@ -116,6 +136,28 @@ class ApprovalResponseProducer:
             topic=self.settings.kafka_approval_responses_topic,
         )
 
+    @staticmethod
+    def _is_recoverable_producer_error(exc: Exception) -> bool:
+        """
+        Indica se o erro do producer e recuperavel via re-inicializacao.
+
+        Cobre o caso em que o broker invalidou o producer id/epoch
+        (INVALID_PRODUCER_ID_MAPPING, *FENCED*, INVALID_PRODUCER_EPOCH) — o
+        producer fica inutilizavel e tem de ser recriado.
+        """
+        if not isinstance(exc, KafkaException):
+            return False
+        err = exc.args[0] if exc.args else None
+        markers = (
+            "INVALID_PRODUCER_ID_MAPPING",
+            "INVALID_PRODUCER_EPOCH",
+            "FENCED",
+            "requires epoch bump",
+        )
+        # str(KafkaError) inclui o nome/descricao do codigo
+        text = str(err) if err is not None else str(exc)
+        return any(m in text for m in markers)
+
     async def send_approval_response(
         self,
         response: ApprovalResponse,
@@ -124,7 +166,11 @@ class ApprovalResponseProducer:
         span_id: Optional[str] = None,
     ):
         """
-        Envia decisao de aprovacao para Kafka
+        Envia decisao de aprovacao para Kafka.
+
+        Resiliente a invalidacao do producer id pelo broker: ao detetar
+        INVALID_PRODUCER_ID_MAPPING / producer fenced, recria o producer e
+        tenta novamente uma vez (init_transactions obtem um novo producer id).
 
         Args:
             response: ApprovalResponse com a decisao
@@ -132,6 +178,25 @@ class ApprovalResponseProducer:
             trace_id: OpenTelemetry trace ID
             span_id: OpenTelemetry span ID
         """
+        try:
+            self._produce_in_transaction(response, correlation_id)
+        except Exception as e:
+            if self._is_recoverable_producer_error(e):
+                logger.warning(
+                    "Producer id invalido detetado - re-inicializando e re-tentando",
+                    plan_id=response.plan_id,
+                    error=str(e),
+                )
+                self._reinitialize_producer()
+                # Segunda (e ultima) tentativa apos re-init
+                self._produce_in_transaction(response, correlation_id)
+            else:
+                raise
+
+    def _produce_in_transaction(
+        self, response: ApprovalResponse, correlation_id: Optional[str] = None
+    ):
+        """Publica o approval response dentro de uma transacao Kafka (exactly-once)"""
         topic = self.settings.kafka_approval_responses_topic
 
         try:
@@ -210,8 +275,16 @@ class ApprovalResponseProducer:
                 "Erro ao publicar approval response", plan_id=response.plan_id, error=str(e)
             )
 
-            # Aborta transacao em caso de erro
-            self.producer.abort_transaction()
+            # Aborta transacao em caso de erro (best-effort: um producer fenced
+            # pode rejeitar o abort, mas sera recriado pelo retry da chamadora)
+            try:
+                self.producer.abort_transaction()
+            except Exception as abort_err:
+                logger.warning(
+                    "Falha ao abortar transacao (producer sera recriado)",
+                    plan_id=response.plan_id,
+                    error=str(abort_err),
+                )
             raise
 
     def _delivery_callback(self, err, msg):
