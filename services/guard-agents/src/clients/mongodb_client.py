@@ -88,7 +88,7 @@ class MongoDBClient:
         Returns:
             True se sucesso, False se falha
         """
-        if not self.postmortems_collection:
+        if self.postmortems_collection is None:
             logger.warning("mongodb.postmortems_collection_not_initialized")
             return False
 
@@ -114,7 +114,7 @@ class MongoDBClient:
         Returns:
             Documento de post-mortem ou None se nao encontrado
         """
-        if not self.postmortems_collection:
+        if self.postmortems_collection is None:
             return None
 
         try:

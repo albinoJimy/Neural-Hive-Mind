@@ -76,7 +76,7 @@ class MongoDBClient:
         Returns:
             Lista de decisões (dicionários)
         """
-        if not self.consensus_collection:
+        if self.consensus_collection is None:
             await self.connect()
 
         cursor = self.consensus_collection.find().sort("created_at", -1).skip(skip).limit(limit)
@@ -102,7 +102,7 @@ class MongoDBClient:
         Returns:
             Decisão ou None
         """
-        if not self.consensus_collection:
+        if self.consensus_collection is None:
             await self.connect()
 
         doc = await self.consensus_collection.find_one({"decision_id": decision_id})
@@ -127,7 +127,7 @@ class MongoDBClient:
         Returns:
             Lista de decisões
         """
-        if not self.consensus_collection:
+        if self.consensus_collection is None:
             await self.connect()
 
         cursor = (
@@ -158,7 +158,7 @@ class MongoDBClient:
         Returns:
             Número de decisões
         """
-        if not self.consensus_collection:
+        if self.consensus_collection is None:
             await self.connect()
 
         count = await self.consensus_collection.count_documents({})
@@ -173,7 +173,7 @@ class MongoDBClient:
         Returns:
             Dicionário com estatísticas
         """
-        if not self.consensus_collection:
+        if self.consensus_collection is None:
             await self.connect()
 
         pipeline = [

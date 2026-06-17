@@ -285,7 +285,7 @@ class AuditLogger:
         Returns:
             Lista de documentos de audit
         """
-        if not self.enabled or not self._collection:
+        if not self.enabled or self._collection is None:
             return []
 
         try:
@@ -327,7 +327,7 @@ class AuditLogger:
         Returns:
             Estatísticas de auditoria
         """
-        if not self.enabled or not self._collection:
+        if not self.enabled or self._collection is None:
             return {}
 
         try:
@@ -371,7 +371,7 @@ class AuditLogger:
             severity: Nível de severidade
             correlation_id: ID de correlação
         """
-        if not self.enabled or not self._collection:
+        if not self.enabled or self._collection is None:
             return
 
         try:

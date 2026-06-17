@@ -5,7 +5,7 @@ import structlog
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
 from prometheus_client import make_asgi_app
-from redis.asyncio import Redis
+from redis.asyncio.cluster import RedisCluster
 from src.clients import (
     AnalystAgentGrpcClient,
     MongoDBClient,
@@ -129,17 +129,28 @@ async def startup_event():
 
         logger.info("MongoDB client inicializado")
 
-        # Redis
+        # Redis cliente ciente do cluster.
+        # CAUSA-RAIZ: o cliente standalone anterior ligava-se apenas ao 1º nó do
+        # REDIS_CLUSTER_NODES; o ping() ao seed funcionava mas falhava com MOVED em chaves cujo
+        # slot pertence a outro nó, forçando fallback serial p/ MongoDB (~4 min/decisão).
+        # RedisCluster faz discovery via CLUSTER SLOTS a partir do nó seed (ClusterIP
+        # neural-hive-cache) e depois fala directamente com os IPs dos pods, seguindo os
+        # redirects MOVED. require_full_coverage=False evita falha de bootstrap caso a
+        # cobertura de slots esteja parcial. API async idêntica à do cliente standalone,
+        # por isso FallbackStorage/FallbackRedisWrapper continuam compatíveis.
         redis_nodes = settings.redis_cluster_nodes.split(",")
-        state.redis_client = Redis(
-            host=redis_nodes[0].split(":")[0],
-            port=int(redis_nodes[0].split(":")[1]) if ":" in redis_nodes[0] else 6379,
+        seed_host = redis_nodes[0].split(":")[0]
+        seed_port = int(redis_nodes[0].split(":")[1]) if ":" in redis_nodes[0] else 6379
+        state.redis_client = RedisCluster(
+            host=seed_host,
+            port=seed_port,
             password=settings.redis_password,
             ssl=settings.redis_ssl_enabled,
             decode_responses=True,
+            require_full_coverage=False,
         )
         await state.redis_client.ping()
-        logger.info("Redis client inicializado")
+        logger.info("Redis cluster client inicializado", seed_host=seed_host, seed_port=seed_port)
 
         # Gap P0-3: Fallback Storage para Redis com persistência MongoDB
         state.fallback_storage = FallbackStorage(

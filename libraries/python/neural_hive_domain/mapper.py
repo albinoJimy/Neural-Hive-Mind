@@ -204,7 +204,12 @@ class DomainMapper:
         simple_normalized = normalized.replace("-", "_").replace("_", "")
         for key, value in cls._domain_mappings.items():
             if key.replace("_", "") == simple_normalized:
-                logger.warning(
+                # Fallback deterministico por normalizacao de hifen/underscore.
+                # E um caminho esperado/benigno (ex.: 'security-analysis' ->
+                # 'security_analysis'), nao uma anomalia. Mantem-se a nivel debug
+                # para evitar ruido continuo no log; o WARNING fica reservado
+                # apenas para o ValueError de dominio realmente nao mapeado.
+                logger.debug(
                     "ontology_domain_fallback_mapping",
                     original=ontology_domain,
                     mapped_to=value.value,

@@ -228,7 +228,7 @@ class PIIAuditLogger:
 
     async def _create_indexes(self):
         """Cria índices otimizados para collection de audit log."""
-        if not self._collection:
+        if self._collection is None:
             return
 
         settings = get_settings()

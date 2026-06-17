@@ -44,6 +44,49 @@ class ApprovalResponse(BaseModel):
         }
 
 
+class ApprovalDecisionResponse(BaseModel):
+    """Response HTTP da decisao de aprovacao/rejeicao (exclusivo do approval-service).
+
+    Espelha os campos de UnifiedApprovalDecision (neural_hive_approval_common)
+    e adiciona um campo 'status' top-level coerente com 'decision'
+    ('approved'/'rejected'). Resolve clientes que esperam '.status' na resposta
+    de POST /api/v1/approvals/{plan_id}/approve sem alterar o modelo partilhado
+    nem o contrato Kafka (INV-3/INV-4 preservados).
+    """
+
+    plan_id: str = Field(..., description="ID do plano")
+    decision: str = Field(..., description="Decisao (approved/rejected)")
+    status: str = Field(..., description="Status coerente com a decisao (approved/rejected)")
+    approved_by: str = Field(..., description="ID do usuario que decidiu")
+    approved_at: datetime = Field(..., description="Timestamp da decisao")
+    rejection_reason: Optional[str] = Field(None, description="Motivo da rejeicao")
+    comments: Optional[str] = Field(None, description="Comentarios adicionais")
+    ml_confidence: Optional[float] = Field(None, description="Confianca do modelo ML na decisao")
+    ml_model_version: Optional[str] = Field(
+        None, description="Versao do modelo ML usado (se aplicavel)"
+    )
+    auto_approved: bool = Field(default=False, description="Se foi aprovacao automatica via ML")
+
+    @classmethod
+    def from_decision(cls, decision: Any) -> "ApprovalDecisionResponse":
+        """Constroi a resposta a partir de um UnifiedApprovalDecision.
+
+        Define 'status' a partir de 'decision', preservando os restantes campos.
+        """
+        return cls(
+            plan_id=decision.plan_id,
+            decision=decision.decision,
+            status=decision.decision,
+            approved_by=decision.approved_by,
+            approved_at=decision.approved_at,
+            rejection_reason=decision.rejection_reason,
+            comments=decision.comments,
+            ml_confidence=decision.ml_confidence,
+            ml_model_version=decision.ml_model_version,
+            auto_approved=decision.auto_approved,
+        )
+
+
 # NOTE: Os seguintes modelos são importados de neural_hive_approval_common:
 # - ApprovalRequest (UnifiedApprovalRequest)
 # - ApprovalDecision (UnifiedApprovalDecision)

@@ -2,7 +2,7 @@ import json
 from typing import Any
 
 import structlog
-from redis.asyncio import Redis
+from redis.asyncio.cluster import RedisCluster
 
 from src.config import Settings
 
@@ -14,26 +14,36 @@ class RedisClient:
 
     def __init__(self, settings: Settings):
         self.settings = settings
-        self.client: Redis | None = None
+        self.client: RedisCluster | None = None
 
     async def initialize(self) -> None:
         """Conectar ao Redis Cluster"""
         try:
-            # Parsear nodes do cluster
+            # Redis cliente ciente do cluster.
+            # CAUSA-RAIZ: o cliente standalone anterior ligava-se apenas ao 1º nó do
+            # REDIS_CLUSTER_NODES; o ping() ao seed funcionava mas falhava com MOVED em
+            # chaves cujo slot pertence a outro nó do cluster.
+            # RedisCluster faz discovery via CLUSTER SLOTS a partir do nó seed e depois
+            # fala directamente com os IPs dos pods, seguindo os redirects MOVED.
+            # require_full_coverage=False evita falha de bootstrap caso a cobertura de
+            # slots esteja parcial. API async idêntica à do cliente standalone.
             nodes = self.settings.REDIS_CLUSTER_NODES.split(",")
+            seed_host = nodes[0].split(":")[0]
+            seed_port = int(nodes[0].split(":")[1]) if ":" in nodes[0] else 6379
 
-            # Criar cliente Redis
-            self.client = Redis(
-                host=nodes[0].split(":")[0],
-                port=int(nodes[0].split(":")[1]) if ":" in nodes[0] else 6379,
+            # Criar cliente Redis Cluster
+            self.client = RedisCluster(
+                host=seed_host,
+                port=seed_port,
                 password=self.settings.REDIS_PASSWORD if self.settings.REDIS_PASSWORD else None,
                 ssl=self.settings.REDIS_SSL_ENABLED,
                 decode_responses=True,
+                require_full_coverage=False,
             )
 
             # Testar conexão
             await self.client.ping()
-            logger.info("redis_initialized")
+            logger.info("redis_initialized", seed_host=seed_host, seed_port=seed_port)
 
         except Exception as e:
             logger.exception("redis_initialization_failed", error=str(e))
