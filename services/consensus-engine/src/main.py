@@ -148,6 +148,10 @@ async def startup_event():
             ssl=settings.redis_ssl_enabled,
             decode_responses=True,
             require_full_coverage=False,
+            # Falhar rápido p/ fallback MongoDB se uma conexão do pool ficar stale
+            # (nó Redis com IP antigo). Sem isto o consenso degrada para minutos.
+            socket_timeout=settings.redis_socket_timeout,
+            socket_connect_timeout=settings.redis_socket_connect_timeout,
         )
         await state.redis_client.ping()
         logger.info("Redis cluster client inicializado", seed_host=seed_host, seed_port=seed_port)
