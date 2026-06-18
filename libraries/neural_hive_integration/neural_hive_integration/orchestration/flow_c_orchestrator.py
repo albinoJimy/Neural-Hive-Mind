@@ -375,6 +375,42 @@ class FlowCOrchestrator:
             decision_id=context.decision_id,
         )
 
+        # Idempotência por plano: após aprovação, o mesmo plano pode disparar Flow C
+        # por dois caminhos independentes (decisão de consenso republicada como
+        # "approved" no tópico de consenso + resposta de aprovação consumida pelo
+        # FlowCApprovalResponseConsumer). Cada caminho gerava o conjunto completo de
+        # tickets, duplicando a execução (16=2×8 observado em E2E). Se o plano já tem
+        # tickets, NÃO regerar — eliminando o segundo conjunto qualquer que seja o gatilho.
+        try:
+            existing_ticket_count = await self.ticket_client.count_tickets_by_plan(context.plan_id)
+        except Exception as e:
+            self.logger.warning(
+                "idempotency_check_failed_proceeding",
+                plan_id=context.plan_id,
+                error=str(e),
+            )
+            existing_ticket_count = 0
+        if existing_ticket_count > 0:
+            end_time = datetime.now(timezone.utc)
+            self.logger.warning(
+                "flow_c_tickets_already_generated_skipping",
+                plan_id=context.plan_id,
+                decision_id=context.decision_id,
+                existing_ticket_count=existing_ticket_count,
+                note="Plano já tem execution tickets - execução duplicada evitada (idempotência por plan_id)",
+            )
+            return FlowCResult(
+                success=True,
+                steps=[],
+                total_duration_ms=int((end_time - start_time).total_seconds() * 1000),
+                tickets_generated=0,
+                tickets_completed=0,
+                tickets_failed=0,
+                telemetry_published=False,
+                sla_compliant=True,
+                sla_remaining_seconds=14400,
+            )
+
         try:
             # P3-001: Helper function para calcular SLA restante
             def calculate_sla_remaining() -> float:
