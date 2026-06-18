@@ -65,12 +65,14 @@ class ComplianceFallback:
 
             confidence = op.get("confidence_score", 1.0)
 
-            # Degradação reflecte a fonte da PREDIÇÃO (model_source) e o sinal
-            # (confidence), NÃO o método de explicação: um modelo ML real com
-            # explicação heurística (SHAP indisponível) não é uma decisão degradada.
-            is_degraded = (
-                model_source in ["heuristics", "semantic_pipeline", "unknown"] or confidence < 0.1
-            )
+            # Degradação reflecte APENAS a fonte da PREDIÇÃO (model_source): o
+            # specialist caiu em heurística/fallback em vez de usar o modelo ML.
+            # NÃO se conta o método de explicação (SHAP indisponível != degradação)
+            # nem um confidence baixo: com modelos calibrados (predict_proba via
+            # ProbabilisticModelWrapper), um confidence baixo é um SINAL REAL do
+            # modelo (ex.: prevê fortemente "não-aprovar"), não uma degradação.
+            # Quando o modelo falha mesmo, model_source já reflecte o fallback.
+            is_degraded = model_source in ["heuristics", "semantic_pipeline", "unknown"]
 
             if is_degraded:
                 degraded_specialists.append(specialist_type)
