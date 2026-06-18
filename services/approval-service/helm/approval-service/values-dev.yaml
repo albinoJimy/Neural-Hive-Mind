@@ -22,3 +22,13 @@ env:
   LOG_LEVEL: DEBUG
   ENABLE_ML_PREDICTION: "false"
   ENABLE_ACTIVE_LEARNING: "false"
+  # NAO sobrescrever MONGODB_DATABASE em dev: o approval-service tem de usar o default
+  # 'neural_hive' (settings.py:98), que e onde a coleccao plan_approvals (e specialist_opinions)
+  # e escrita pelo orchestrator/kafka consumer no startup. Apontar para 'neural_hive_dev'
+  # quebra o pipeline E2E: a lookup de aprovacoes devolve HTTP 404, o consumer de
+  # approval-responses nao encontra o plano pendente, o orchestrator nunca recebe o sinal
+  # de aprovacao e o pipeline produz 0 tickets (C3->C6 partido).
+  # Validado em runtime e documentado em proj_e2e_critical_test_fixes_2026-06-17.md (linha 30):
+  # "approval dava 404->tickets=0. O drift e arquitectura real (opinions+plan_approvals em
+  # neural_hive; ledger+decisions em neural_hive_dev)". O revert 6fddd01d restaurou este default
+  # por motivo tecnico (nao foi um revert sem causa) e NAO deve ser re-aplicado.

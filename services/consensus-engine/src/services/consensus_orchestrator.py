@@ -36,13 +36,21 @@ class ConsensusOrchestrator:
         self.hierarchical = HierarchicalWeightCalculator(config)
 
     async def process_consensus(
-        self, cognitive_plan: dict[str, Any], specialist_opinions: list[dict[str, Any]]
+        self,
+        cognitive_plan: dict[str, Any],
+        specialist_opinions: list[dict[str, Any]],
+        trace_id: str | None = None,
+        span_id: str | None = None,
     ) -> ConsolidatedDecision:
         """Processa consenso completo
 
         Args:
             cognitive_plan: Plano cognitivo do Cognitive Orchestrator
             specialist_opinions: Lista de pareceres dos especialistas
+            trace_id: trace_id W3C extraído dos headers Kafka (P3-trace).
+                Tem prioridade sobre o valor presente no cognitive_plan.
+            span_id: span_id W3C extraído dos headers Kafka (P3-trace).
+                Tem prioridade sobre o valor presente no cognitive_plan.
 
         Returns:
             ConsolidatedDecision pronta para persistência e publicação
@@ -160,12 +168,35 @@ class ConsensusOrchestrator:
                 span_id=cognitive_plan.get("span_id"),
             )
 
+        # Resolver trace context com priorização (P3-trace):
+        # 1) valor extraído dos headers Kafka, 2) valor presente no cognitive_plan,
+        # 3) fallback UUID para nunca persistir null (igual ao correlation_id).
+        resolved_trace_id = trace_id or cognitive_plan.get("trace_id")
+        resolved_span_id = span_id or cognitive_plan.get("span_id")
+        if not resolved_trace_id:
+            resolved_trace_id = uuid.uuid4().hex
+            logger.warning(
+                "P3-trace: trace_id ausente (headers Kafka e cognitive_plan) - UUID gerado",
+                plan_id=cognitive_plan["plan_id"],
+                intent_id=cognitive_plan["intent_id"],
+                generated_trace_id=resolved_trace_id,
+                upstream_source="semantic-translation-engine",
+            )
+        if not resolved_span_id:
+            resolved_span_id = uuid.uuid4().hex[:16]
+            logger.warning(
+                "P3-trace: span_id ausente (headers Kafka e cognitive_plan) - UUID gerado",
+                plan_id=cognitive_plan["plan_id"],
+                intent_id=cognitive_plan["intent_id"],
+                generated_span_id=resolved_span_id,
+            )
+
         decision = ConsolidatedDecision(
             plan_id=cognitive_plan["plan_id"],
             intent_id=cognitive_plan["intent_id"],
             correlation_id=correlation_id,
-            trace_id=cognitive_plan.get("trace_id"),
-            span_id=cognitive_plan.get("span_id"),
+            trace_id=resolved_trace_id,
+            span_id=resolved_span_id,
             final_decision=final_decision,
             consensus_method=consensus_method,
             aggregated_confidence=aggregated_confidence,

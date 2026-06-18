@@ -54,6 +54,10 @@ class Settings(BaseSettings):
     kafka_plans_topic: str = Field(
         default="plans.ready", description="Plans output topic (matches Helm chart)"
     )
+    kafka_approved_plans_topic: str = Field(
+        default="plans.approved",
+        description="Tópico dedicado para planos aprovados prontos para execução",
+    )
     kafka_approval_topic: str = Field(
         default="cognitive-plans-approval-requests",
         description="Topic for plans requiring approval",

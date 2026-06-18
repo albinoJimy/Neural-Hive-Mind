@@ -15,6 +15,7 @@ from src.observability.metrics import ConsensusMetrics
 from src.services.consensus_orchestrator import ConsensusOrchestrator
 
 from neural_hive_observability.context import extract_context_from_headers, set_baggage
+from neural_hive_observability.tracing import get_current_span_id, get_current_trace_id
 
 logger = structlog.get_logger()
 
@@ -1037,6 +1038,21 @@ class PlanConsumer:
             }
             extract_context_from_headers(headers_dict)
 
+            # Extrair trace_id/span_id do contexto OTEL atual (já anexado pelo
+            # extract_context_from_headers acima) para propagar até à decisão de
+            # consenso. Envolvido em try/except para nunca ser fatal (P3-trace).
+            trace_id_extracted: str | None = None
+            span_id_extracted: str | None = None
+            try:
+                trace_id_extracted = get_current_trace_id()
+                span_id_extracted = get_current_span_id()
+            except Exception as exc:  # tracing nunca deve bloquear consumo
+                logger.exception(
+                    "Falha ao extrair trace context do contexto OTEL",
+                    error=str(exc),
+                    error_type=type(exc).__name__,
+                )
+
             # Set baggage for correlation
             plan_id = cognitive_plan.get("plan_id")
             if plan_id:
@@ -1048,14 +1064,25 @@ class PlanConsumer:
                 partition=msg.partition(),
                 offset=msg.offset(),
                 plan_id=plan_id,
+                trace_id_extracted=trace_id_extracted,
+                span_id_extracted=span_id_extracted,
             )
 
             # 1. Invocar especialistas via gRPC
             specialist_opinions = await self._invoke_specialists(cognitive_plan)
 
-            # 2. Processar consenso
+            # 2. Processar consenso (propagar trace context extraído dos headers Kafka)
+            logger.info(
+                "Propagando trace context para o orchestrator de consenso",
+                plan_id=plan_id,
+                trace_id_passed_to_orchestrator=trace_id_extracted,
+                span_id_passed_to_orchestrator=span_id_extracted,
+            )
             decision = await self.orchestrator.process_consensus(
-                cognitive_plan, specialist_opinions
+                cognitive_plan,
+                specialist_opinions,
+                trace_id=trace_id_extracted,
+                span_id=span_id_extracted,
             )
 
             # 3. Persistir no ledger (MongoDB)

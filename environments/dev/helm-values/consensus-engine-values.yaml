@@ -36,11 +36,15 @@ config:
     maxConcurrentPlans: 1
 
   specialists:
-    business: "specialist-business.neural-hive.svc.cluster.local:50051"
-    technical: "specialist-technical.neural-hive.svc.cluster.local:50051"
-    behavior: "specialist-behavior.neural-hive.svc.cluster.local:50051"
-    evolution: "specialist-evolution.neural-hive.svc.cluster.local:50051"
-    architecture: "specialist-architecture.neural-hive.svc.cluster.local:50051"
+    # As chaves DEVEM ter o sufixo *Endpoint para corresponderem ao template do
+    # configmap (helm-charts/consensus-engine/templates/configmap.yaml:29-33). Sem o
+    # sufixo, o Helm resolve as variáveis SPECIALIST_*_ENDPOINT como string vazia e o
+    # consensus-engine fica sem endpoints gRPC para os especialistas.
+    businessEndpoint: "specialist-business.neural-hive.svc.cluster.local:50051"
+    technicalEndpoint: "specialist-technical.neural-hive.svc.cluster.local:50051"
+    behaviorEndpoint: "specialist-behavior.neural-hive.svc.cluster.local:50051"
+    evolutionEndpoint: "specialist-evolution.neural-hive.svc.cluster.local:50051"
+    architectureEndpoint: "specialist-architecture.neural-hive.svc.cluster.local:50051"
     # Especialistas demoram ~9-27s (inferência ML); 5s causa timeout e bloqueia o consenso.
     # Alinhado com o chart default (120000) e o configmap vivo validado em 2026-06-16.
     grpcTimeoutMs: 120000
@@ -57,7 +61,10 @@ config:
     pheromoneTtl: 3600
     pheromoneDecayRate: 0.1
 
-  otel:
+  # A chave DEVE ser openTelemetry para corresponder ao template do configmap
+  # (helm-charts/consensus-engine/templates/configmap.yaml:87-88). Com `otel:` o Helm
+  # resolve OTEL_EXPORTER_OTLP_ENDPOINT como string vazia, desligando o tracing em dev.
+  openTelemetry:
     endpoint: "http://opentelemetry-collector.observability.svc.cluster.local:4317"
     samplingRate: 1.0
 
@@ -76,6 +83,23 @@ config:
     enablePheromones: true
     enableFallback: true
     enableParallelInvocation: true
+
+  # Consenso Hierárquico (GAPS-03) — ativado explicitamente em dev.
+  # Garante consensus_method_hierarchical=true e weighted_by_seniority=true,
+  # com pesos diferenciados por senioridade (architecture=expert tem mais peso).
+  hierarchical:
+    enable: true
+    defaultSeniorityLevel: "mid_level"
+    specialistSeniority:
+      business: "senior"
+      technical: "senior"
+      behavior: "mid_level"
+      evolution: "mid_level"
+      architecture: "expert"
+    domainSpecialistWeights:
+      business_BUSINESS: 0.25
+      technical_TECHNICAL: 0.25
+      architecture_ARCHITECTURE: 0.30
 
 serviceMonitor:
   enabled: true

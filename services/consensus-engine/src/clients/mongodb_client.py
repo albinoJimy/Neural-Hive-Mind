@@ -62,6 +62,11 @@ class MongoDBClient:
         try:
             # Índices para decisões consolidadas
             await self.consensus_collection.create_index("decision_id", unique=True)
+            # plan_id NÃO é único: um plano pode legitimamente ter mais do que uma
+            # decisão histórica (reavaliações). A eliminação do duplo processamento é
+            # feita na origem — o STE deixou de republicar o plano aprovado em
+            # plans.ready (passou a plans.approved). Um índice único aqui falharia em
+            # colecções com duplicados existentes e saltaria os índices seguintes.
             await self.consensus_collection.create_index("plan_id")
             await self.consensus_collection.create_index("intent_id")
             await self.consensus_collection.create_index("created_at")
@@ -69,6 +74,9 @@ class MongoDBClient:
             await self.consensus_collection.create_index(
                 [("final_decision", 1), ("created_at", -1)]
             )
+            # P3-trace: índices para correlação distribuída por trace context
+            await self.consensus_collection.create_index("trace_id")
+            await self.consensus_collection.create_index("span_id")
 
             # Índices para explicabilidade
             await self.explainability_collection.create_index("token", unique=True)
@@ -77,7 +85,9 @@ class MongoDBClient:
             logger.info("Índices MongoDB criados/verificados com sucesso")
         except Exception as e:
             # Índices podem já existir, especialmente em ambiente multi-worker
-            logger.warning("Aviso ao criar índices MongoDB (podem já existir)", error=str(e))
+            logger.warning(
+                "Aviso ao criar índices MongoDB (podem já existir)", error=str(e)
+            )
 
     async def save_consensus_decision(self, decision: ConsolidatedDecision):
         """
@@ -94,16 +104,22 @@ class MongoDBClient:
         try:
             await self.consensus_collection.insert_one(document)
             logger.info(
-                "Decisão consolidada salva", decision_id=decision.decision_id, hash=decision.hash
+                "Decisão consolidada salva",
+                decision_id=decision.decision_id,
+                hash=decision.hash,
             )
 
             # Invalidar caches relacionados (cache-aside pattern)
             if self.cache_service and self.config.enable_cache:
-                await self.cache_service.invalidate_consensus_decision(decision.decision_id)
+                await self.cache_service.invalidate_consensus_decision(
+                    decision.decision_id
+                )
                 await self.cache_service.invalidate_plan_approval(decision.plan_id)
 
         except DuplicateKeyError:
-            logger.warning("Decisão já existe no ledger", decision_id=decision.decision_id)
+            logger.warning(
+                "Decisão já existe no ledger", decision_id=decision.decision_id
+            )
             raise
 
     async def get_decision(self, decision_id: str) -> Optional[dict]:

@@ -103,3 +103,22 @@ data:
   ENABLE_FALLBACK: {{ .Values.config.features.enableFallback | quote }}
   ENABLE_PARALLEL_INVOCATION: {{ .Values.config.features.enableParallelInvocation | quote }}
   ENABLE_TRACING: {{ .Values.config.features.enableTracing | default "true" | quote }}
+
+  # Consenso Hierárquico (GAPS-03)
+  # Quando definido, torna o flag explícito independentemente do default do código.
+  # specialist_seniority e domain_specialist_weights são lidos como JSON pelo
+  # Pydantic Settings (campos dict), por isso usamos toJson.
+  {{- if .Values.config.hierarchical }}
+  {{- if hasKey .Values.config.hierarchical "enable" }}
+  ENABLE_HIERARCHICAL_CONSENSUS: {{ .Values.config.hierarchical.enable | quote }}
+  {{- end }}
+  {{- if .Values.config.hierarchical.specialistSeniority }}
+  SPECIALIST_SENIORITY: {{ .Values.config.hierarchical.specialistSeniority | toJson | quote }}
+  {{- end }}
+  {{- if .Values.config.hierarchical.defaultSeniorityLevel }}
+  DEFAULT_SENIORITY_LEVEL: {{ .Values.config.hierarchical.defaultSeniorityLevel | quote }}
+  {{- end }}
+  {{- if .Values.config.hierarchical.domainSpecialistWeights }}
+  DOMAIN_SPECIALIST_WEIGHTS: {{ .Values.config.hierarchical.domainSpecialistWeights | toJson | quote }}
+  {{- end }}
+  {{- end }}

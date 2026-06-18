@@ -88,7 +88,6 @@ class ApprovalSaga:
         self.plan_producer = plan_producer
         self.dlq_producer = dlq_producer
         self.metrics = metrics
-        self._logger = logging.getLogger(__name__)
 
     async def execute(
         self,
@@ -151,8 +150,13 @@ class ApprovalSaga:
             raise RuntimeError(f"Falha ao iniciar saga para plan_id={plan_id}")
 
         # Passo 2: Tentar publicar no Kafka com retry
+        # Publica em tópico dedicado de planos aprovados (plans.approved) para
+        # evitar reprocessamento pelo consensus-engine, que consome plans.ready.
         try:
-            await self._publish_with_retry(cognitive_plan, plan_id, intent_id)
+            approved_topic = self.plan_producer.settings.kafka_approved_plans_topic
+            await self._publish_with_retry(
+                cognitive_plan, plan_id, intent_id, topic_override=approved_topic
+            )
 
             # Passo 3a: Sucesso - atualizar saga_state='completed'
             completion_success = await self._update_completion_status_with_retry(
@@ -227,7 +231,11 @@ class ApprovalSaga:
         before_sleep=before_sleep_log(logging.getLogger(__name__), logging.WARNING),
     )
     async def _publish_with_retry(
-        self, cognitive_plan: CognitivePlan, plan_id: str, intent_id: str
+        self,
+        cognitive_plan: CognitivePlan,
+        plan_id: str,
+        intent_id: str,
+        topic_override: str | None = None,
     ) -> None:
         """
         Publica plano no Kafka com retry para falhas transientes.
@@ -236,12 +244,23 @@ class ApprovalSaga:
             cognitive_plan: Plano a ser publicado
             plan_id: ID do plano
             intent_id: ID do intent
+            topic_override: Tópico de destino opcional (ex: plans.approved)
         """
-        logger.info("Tentando publicar plano aprovado", plan_id=plan_id, intent_id=intent_id)
+        logger.info(
+            "Tentando publicar plano aprovado",
+            plan_id=plan_id,
+            intent_id=intent_id,
+            topic=topic_override,
+        )
 
-        await self.plan_producer.send_plan(cognitive_plan)
+        await self.plan_producer.send_plan(cognitive_plan, topic_override=topic_override)
 
-        logger.info("Plano publicado com sucesso", plan_id=plan_id, intent_id=intent_id)
+        logger.info(
+            "Plano publicado com sucesso",
+            plan_id=plan_id,
+            intent_id=intent_id,
+            topic=topic_override,
+        )
 
     async def _update_completion_status_with_retry(
         self,

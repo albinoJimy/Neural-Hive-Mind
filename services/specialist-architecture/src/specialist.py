@@ -57,6 +57,61 @@ class ArchitectureSpecialist(BaseSpecialist):
             logger.warning("ML model not available, using heuristics", error=str(e))
             return None
 
+    def _log_low_confidence_diagnostic(
+        self, cognitive_plan: dict[str, Any], confidence_score: float
+    ) -> None:
+        """
+        Emite diagnóstico estruturado quando a confiança fica muito baixa.
+
+        Objetivo: confirmar o schema mismatch entre o modelo ML treinado e as
+        features extraídas em runtime (architecture-cal-0.025-confidence). Lê
+        apenas metadados do modelo já carregado (read-only) e nunca afeta o
+        resultado da avaliação. Encapsulado em try/except defensivo.
+
+        Args:
+            cognitive_plan: Plano cognitivo avaliado
+            confidence_score: Score de confiança calculado
+        """
+        # Threshold de diagnóstico alinhado com a evidência de runtime (~0.025)
+        if confidence_score >= 0.3:
+            return
+
+        try:
+            # Schema esperado pelo PRÓPRIO modelo carregado (fonte de verdade)
+            expected_names, expected_n = self._get_expected_model_features()
+            model_loaded = self.model is not None
+
+            gap_severity = "UNKNOWN"
+            if expected_names is not None:
+                # Quando o schema esperado é determinável, o modelo já está
+                # carregado (``_get_expected_model_features`` lê ``self.model``).
+                # O caso grave é exactamente esse: modelo carregado mas a
+                # produzir confiança muito baixa (cenário 0.025), que assinala
+                # desalinhamento treino/runtime — logo 'CRITICAL'. 'PARTIAL'
+                # fica reservado ao caso (improvável aqui) sem modelo carregado.
+                gap_severity = "CRITICAL" if model_loaded else "PARTIAL"
+
+            logger.warning(
+                "diagnostic_low_confidence",
+                plan_id=cognitive_plan.get("plan_id"),
+                confidence_score=confidence_score,
+                model_loaded=model_loaded,
+                model_feature_schema=sorted(expected_names) if expected_names else None,
+                model_feature_count=expected_n,
+                feature_alignment_gap_severity=gap_severity,
+                hint=(
+                    "Confiança muito baixa: possível desalinhamento entre features "
+                    "de treino do modelo ML e features extraídas em runtime."
+                ),
+            )
+        except Exception as e:
+            # Diagnóstico nunca pode interromper a avaliação de produção
+            logger.debug(
+                "diagnostic_low_confidence_failed",
+                plan_id=cognitive_plan.get("plan_id"),
+                error=str(e),
+            )
+
     def _evaluate_plan_internal(
         self, cognitive_plan: dict[str, Any], context: dict[str, Any]
     ) -> dict[str, Any]:
@@ -178,6 +233,13 @@ class ArchitectureSpecialist(BaseSpecialist):
             risk_score=risk_score,
             recommendation=recommendation,
         )
+
+        # DIAGNÓSTICO (não-funcional): quando a confiança fica muito baixa,
+        # registar o schema de features esperado pelo modelo ML versus o
+        # contexto disponível em runtime para confirmar o desalinhamento
+        # treino/runtime descrito em architecture-cal-0.025-confidence.
+        # Não altera modelo nem lógica de produção; apenas observabilidade.
+        self._log_low_confidence_diagnostic(cognitive_plan, confidence_score)
 
         return {
             "confidence_score": confidence_score,
