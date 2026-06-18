@@ -132,6 +132,11 @@ jobs:
             "test-generation"
             "unified-gateway"
             "worker-agents"
+            "specialist-business"
+            "specialist-technical"
+            "specialist-behavior"
+            "specialist-evolution"
+            "specialist-architecture"
           )
 
           # Mapeamento de dependencias: servicos que usam cada library
