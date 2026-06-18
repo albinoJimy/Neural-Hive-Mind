@@ -7,6 +7,7 @@ from typing import Optional
 
 from sqlalchemy import cast, func, select, update
 from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -122,11 +123,40 @@ class PostgresClient:
             return False
 
     async def create_ticket(self, ticket: ExecutionTicket) -> TicketORM:
-        """Cria novo ticket."""
+        """Cria novo ticket de forma idempotente por (plan_id, task_id).
+
+        Se já existir um ticket para o mesmo (plan_id, task_id) — situação que
+        ocorre quando o workflow Temporal e o fallback do orchestrator geram ambos
+        o conjunto de tickets do plano — a violação da constraint única é absorvida
+        e o ticket existente é devolvido, evitando duplicação (16=2x8).
+        """
         async with self._session_maker() as session:
             orm_ticket = TicketORM.from_pydantic(ticket)
             session.add(orm_ticket)
-            await session.commit()
+            try:
+                await session.commit()
+            except IntegrityError:
+                await session.rollback()
+                existing = await session.execute(
+                    select(TicketORM).where(
+                        TicketORM.plan_id == ticket.plan_id,
+                        TicketORM.task_id == ticket.task_id,
+                    )
+                )
+                existing_ticket = existing.scalar_one_or_none()
+                if existing_ticket is not None:
+                    logger.warning(
+                        "Ticket duplicado ignorado (idempotência plan_id+task_id)",
+                        extra={
+                            "plan_id": ticket.plan_id,
+                            "task_id": ticket.task_id,
+                            "existing_ticket_id": existing_ticket.ticket_id,
+                            "rejected_ticket_id": ticket.ticket_id,
+                        },
+                    )
+                    return existing_ticket
+                # Conflito por outra constraint (ex.: ticket_id) — repropagar.
+                raise
             await session.refresh(orm_ticket)
             logger.info("Ticket created", extra={"ticket_id": ticket.ticket_id})
             return orm_ticket

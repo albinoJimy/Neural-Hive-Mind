@@ -12,7 +12,17 @@ Imports:
 
 from datetime import datetime
 
-from sqlalchemy import TIMESTAMP, BigInteger, CheckConstraint, Column, Index, Integer, String, Text
+from sqlalchemy import (
+    TIMESTAMP,
+    BigInteger,
+    CheckConstraint,
+    Column,
+    Index,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import declarative_base
 
@@ -51,6 +61,10 @@ class TicketORM(Base):
             "completed_at IS NULL OR completed_at >= started_at", name="chk_completed_after_started"
         ),
         Index("idx_ticket_id", "ticket_id", unique=True),
+        # Idempotência: um plano só pode ter UM ticket por task_id. Impede a geração
+        # duplicada quando o workflow Temporal e o fallback do orchestrator criam
+        # ambos o conjunto de tickets para o mesmo plano (16=2x8 observado em E2E).
+        UniqueConstraint("plan_id", "task_id", name="uq_execution_tickets_plan_task"),
         Index("idx_plan_id", "plan_id"),
         Index("idx_intent_id", "intent_id"),
         Index("idx_status", "status"),

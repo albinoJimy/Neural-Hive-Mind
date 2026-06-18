@@ -379,7 +379,7 @@ class FlowCOrchestrator:
         # por dois caminhos independentes (decisão de consenso republicada como
         # "approved" no tópico de consenso + resposta de aprovação consumida pelo
         # FlowCApprovalResponseConsumer). Cada caminho gerava o conjunto completo de
-        # tickets, duplicando a execução (16=2×8 observado em E2E). Se o plano já tem
+        # tickets, duplicando a execução (16=2x8 observado em E2E). Se o plano já tem
         # tickets, NÃO regerar — eliminando o segundo conjunto qualquer que seja o gatilho.
         try:
             existing_ticket_count = await self.ticket_client.count_tickets_by_plan(context.plan_id)
@@ -958,6 +958,37 @@ class FlowCOrchestrator:
             plan_id=context.plan_id,
             reason="workflow query failed or returned empty",
         )
+
+        # Idempotência: o fallback dispara cedo (o polling do query Temporal desiste
+        # rapidamente), mas a actividade Temporal generate_execution_tickets ainda
+        # pode estar a persistir os tickets de forma ASSÍNCRONA. Criar aqui geraria
+        # um segundo conjunto (16=2x8 observado em E2E). Antes de criar, aguardar
+        # brevemente que os tickets do workflow apareçam na execution-ticket-service
+        # e, se aparecerem, devolvê-los em vez de recriar. A constraint única
+        # (plan_id, task_id) na execution-ticket-service é o backstop atómico.
+        for _attempt in range(8):  # ~12s, cobre o ~8s da actividade Temporal
+            try:
+                existing_count = await self.ticket_client.count_tickets_by_plan(context.plan_id)
+            except Exception:
+                existing_count = 0
+            if existing_count > 0:
+                try:
+                    existing = await self.ticket_client.list_tickets_by_plan(context.plan_id)
+                    self.logger.warning(
+                        "fallback_using_workflow_tickets_skipping_creation",
+                        plan_id=context.plan_id,
+                        existing_count=existing_count,
+                        workflow_id=workflow_id,
+                    )
+                    return [t.model_dump() for t in existing]
+                except Exception as e:
+                    self.logger.warning(
+                        "fallback_fetch_existing_failed_will_create",
+                        plan_id=context.plan_id,
+                        error=str(e),
+                    )
+                break
+            await asyncio.sleep(1.5)
 
         tickets = []
         tasks = cognitive_plan.get("tasks", [])
