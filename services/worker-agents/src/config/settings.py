@@ -85,6 +85,21 @@ class WorkerAgentSettings(BaseSettings):
     max_concurrent_tasks: int = 5
     task_timeout_multiplier: float = 1.5
 
+    # Contrato de evidência (Caminho Real First-Class)
+    # Quando True, um resultado sem evidência de trabalho real (simulated/noop/
+    # evidência ausente) faz o ticket FALHAR em vez de COMPLETED (enforcement).
+    # Quando False (default), mantém COMPLETED mas marca o resultado e incrementa
+    # a métrica simulated_total (modo observação).
+    # Default False para NÃO quebrar o E2E enquanto os caminhos reais (Tasks 4/5/8)
+    # ainda não entregam; o objetivo é True por ambiente assim que o real path existir.
+    strict_real_path: bool = Field(
+        default=False,
+        description=(
+            "Enforcement do contrato de evidência: True falha tickets sem "
+            "evidência de trabalho real; False mantém COMPLETED em modo observação."
+        ),
+    )
+
     # Backpressure Control
     max_concurrent_tickets: int = Field(
         default=10,
