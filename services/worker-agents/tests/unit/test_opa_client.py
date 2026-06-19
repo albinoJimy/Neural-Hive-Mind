@@ -107,6 +107,50 @@ class TestEvaluatePolicy:
             mock_post.assert_called_once()
 
     @pytest.mark.asyncio()
+    async def test_evaluate_policy_undefined_path_degrades_gracefully(
+        self, opa_client, policy_request
+    ):
+        """Política não carregada (sem 'result') deve degradar graciosamente (allow).
+
+        O OPA devolve {decision_id} SEM 'result' quando o path da política não
+        está definido. Isto NÃO é uma negação: deve resultar em allow=True com
+        policy_undefined, em vez de fail-closed (allow=False).
+        """
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        # Resposta típica do OPA para um path undefined: sem a chave "result".
+        mock_response.json.return_value = {"decision_id": "abc-123"}
+        mock_response.raise_for_status = MagicMock()
+
+        with patch.object(opa_client.client, "post", new_callable=AsyncMock) as mock_post:
+            mock_post.return_value = mock_response
+
+            result = await opa_client.evaluate_policy(policy_request)
+
+            assert result.allow is True
+            assert len(result.violations) == 0
+            assert result.metadata.get("policy_undefined") is True
+
+    @pytest.mark.asyncio()
+    async def test_evaluate_policy_present_but_denies_is_fail_closed(
+        self, opa_client, policy_request
+    ):
+        """Política presente que nega (allow=false) mantém fail-closed."""
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        # 'result' presente com allow=false -> negação real, não undefined.
+        mock_response.json.return_value = {"result": {"allow": False, "violations": []}}
+        mock_response.raise_for_status = MagicMock()
+
+        with patch.object(opa_client.client, "post", new_callable=AsyncMock) as mock_post:
+            mock_post.return_value = mock_response
+
+            result = await opa_client.evaluate_policy(policy_request)
+
+            assert result.allow is False
+            assert result.metadata.get("policy_undefined") is None
+
+    @pytest.mark.asyncio()
     async def test_evaluate_policy_success_boolean_result(self, opa_client, policy_request):
         """Deve tratar resultado booleano corretamente."""
         mock_response = MagicMock()
