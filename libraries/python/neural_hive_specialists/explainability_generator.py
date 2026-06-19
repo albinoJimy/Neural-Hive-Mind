@@ -384,13 +384,16 @@ class ExplainabilityGenerator:
             return []
 
         try:
-            # Extrair features estruturadas
+            # Extrair features estruturadas e alinhar ao schema do modelo
+            # (feature_names_in_), consistente com _predict_with_model.
             features_result = self._feature_extractor.extract_features(cognitive_plan)
             aggregated_features = features_result["aggregated_features"]
-            feature_names = sorted(aggregated_features.keys())
+            feature_names, aligned_features = self._align_features_to_model(
+                model, aggregated_features
+            )
 
             # Usar SHAPExplainer
-            shap_result = self.shap_explainer.explain(model, aggregated_features, feature_names)
+            shap_result = self.shap_explainer.explain(model, aligned_features, feature_names)
 
             if "error" in shap_result:
                 error_type = shap_result.get("error", "unknown")
@@ -421,13 +424,16 @@ class ExplainabilityGenerator:
             return []
 
         try:
-            # Extrair features estruturadas
+            # Extrair features estruturadas e alinhar ao schema do modelo
+            # (feature_names_in_), consistente com _predict_with_model.
             features_result = self._feature_extractor.extract_features(cognitive_plan)
             aggregated_features = features_result["aggregated_features"]
-            feature_names = sorted(aggregated_features.keys())
+            feature_names, aligned_features = self._align_features_to_model(
+                model, aggregated_features
+            )
 
             # Usar LIMEExplainer
-            lime_result = self.lime_explainer.explain(model, aggregated_features, feature_names)
+            lime_result = self.lime_explainer.explain(model, aligned_features, feature_names)
 
             if "error" in lime_result:
                 error_type = lime_result.get("error", "unknown")
@@ -553,6 +559,31 @@ class ExplainabilityGenerator:
         """Extrai nomes de features do plano."""
         input_features = self._extract_input_features(cognitive_plan)
         return sorted(input_features.keys())
+
+    def _align_features_to_model(
+        self, model: Any, aggregated_features: dict[str, Any]
+    ) -> tuple[list[str], dict[str, Any]]:
+        """Alinha as features extraídas ao schema do modelo (feature_names_in_).
+
+        O FeatureExtractor produz mais features (ex.: 32) do que o modelo foi
+        treinado (ex.: 26). Sem alinhar, o SHAP/LIME explicaria features na ordem
+        errada (sorted alfabético), atribuindo importâncias a colunas que o modelo
+        não usou. Replica o alinhamento determinista de ``_predict_with_model``:
+        usa ``feature_names_in_`` na ordem do modelo, preenche ausentes a 0.0 e
+        descarta extras. Sem nomes no modelo, cai numa ordenação determinista.
+
+        Returns:
+            Tuplo ``(feature_names, aligned_features)`` pronto para o explainer.
+        """
+        expected_names = getattr(model, "feature_names_in_", None)
+        if expected_names is not None and len(expected_names) > 0:
+            names = [str(n) for n in expected_names]
+            aligned = {name: float(aggregated_features.get(name, 0.0)) for name in names}
+            return names, aligned
+
+        # Sem nomes esperados: ordenação determinista das features fornecidas.
+        names = sorted(aggregated_features.keys())
+        return names, aggregated_features
 
     def _build_reasoning_links(
         self,
