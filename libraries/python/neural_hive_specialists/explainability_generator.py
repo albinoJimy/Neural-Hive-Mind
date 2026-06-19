@@ -110,6 +110,11 @@ class ExplainabilityGenerator:
             # Gerar token único
             explainability_token = str(uuid.uuid4())
 
+            # Desembrulhar PyFuncModel para o estimador sklearn nativo. Sem isto, o
+            # método é sempre 'heuristic' (PyFuncModel não casa os tipos conhecidos) e
+            # o SHAP/TreeExplainer não recebe o RandomForestClassifier subjacente.
+            model = self._unwrap_model(model)
+
             # Determinar método de explicabilidade
             method = self._determine_method(model)
             fallback_reason = None
@@ -491,6 +496,47 @@ class ExplainabilityGenerator:
             return "heuristic"
 
         return type(model).__name__
+
+    def _unwrap_model(self, model: Any) -> Any:
+        """Desembrulha um MLflow PyFuncModel para o estimador nativo (sklearn).
+
+        Os specialists carregam modelos via ``mlflow.pyfunc.load_model``, que devolve
+        um ``PyFuncModel`` genérico (``type(model).__name__ == 'PyFuncModel'``). Sem
+        desembrulhar, ``_determine_method`` não reconhece o tipo real e cai em
+        heurística, e o ``SHAPExplainer`` não recebe o estimador tree-based que o
+        ``TreeExplainer`` precisa.
+
+        Suporta duas estruturas:
+        - custom PythonModel: ``_model_impl.python_model.sklearn_model``
+          (ex.: ``ProbabilisticModelWrapper`` -> ``RandomForestClassifier``)
+        - sklearn flavor direto: ``_model_impl.sklearn_model``
+
+        Devolve o modelo original se não for um wrapper MLflow reconhecível.
+        """
+        if model is None:
+            return None
+
+        impl = getattr(model, "_model_impl", None)
+        if impl is None:
+            return model
+
+        # Custom PythonModel (ProbabilisticModelWrapper) embrulhado pelo MLflow
+        python_model = getattr(impl, "python_model", None)
+        if python_model is not None:
+            native = getattr(python_model, "sklearn_model", None)
+            if native is not None:
+                return native
+            if hasattr(python_model, "predict"):
+                return python_model
+
+        # sklearn flavor direto
+        native = getattr(impl, "sklearn_model", None)
+        if native is not None:
+            return native
+        if hasattr(impl, "predict"):
+            return impl
+
+        return model
 
     def _extract_input_features(self, cognitive_plan: dict[str, Any]) -> dict[str, float]:
         """Extrai features estruturadas do plano para persistência."""
