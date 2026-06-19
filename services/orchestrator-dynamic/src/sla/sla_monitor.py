@@ -72,7 +72,11 @@ class SLAMonitor:
         try:
             sla = ticket.get("sla", {})
             deadline_ms = sla.get("deadline")
+            timeout_ms = sla.get("timeout_ms")
             created_at_ms = ticket.get("created_at")
+            started_at_ms = ticket.get("started_at")
+            completed_at_ms = ticket.get("completed_at")
+            status = (ticket.get("status") or "").upper()
 
             if not deadline_ms or not created_at_ms:
                 logger.warning(
@@ -88,24 +92,47 @@ class SLAMonitor:
                     "sla_deadline": None,
                 }
 
-            # Calcular tempo total e tempo consumido
+            terminal_statuses = {"COMPLETED", "FAILED", "COMPENSATED", "CANCELLED"}
+            is_terminal = status in terminal_statuses
             now_ms = datetime.now().timestamp() * 1000
-            total_time_ms = deadline_ms - created_at_ms
-            elapsed_time_ms = now_ms - created_at_ms
-            remaining_ms = deadline_ms - now_ms
+
+            if started_at_ms:
+                # RUNNING-clock: o orçamento de SLA conta a partir do início real
+                # da execução (started_at), NÃO da criação. Tickets que esperaram
+                # por dependências/fila não desperdiçam orçamento — evita falsos
+                # breaches em cadeias de dependência. Orçamento = timeout_ms
+                # explícito; senão derivado do deadline absoluto legado.
+                budget_ms = timeout_ms if timeout_ms else (deadline_ms - created_at_ms)
+                # "Agora" efetivo: tickets terminais medem-se até à conclusão real
+                # (completed_at), evitando alertas em tickets que já terminaram no prazo.
+                ref_now_ms = completed_at_ms if (is_terminal and completed_at_ms) else now_ms
+                total_time_ms = budget_ms
+                elapsed_time_ms = ref_now_ms - started_at_ms
+                remaining_ms = (started_at_ms + budget_ms) - ref_now_ms
+            else:
+                # Legado: relógio desde created_at até ao deadline absoluto
+                # (usado quando o ticket ainda não reporta started_at).
+                total_time_ms = deadline_ms - created_at_ms
+                elapsed_time_ms = now_ms - created_at_ms
+                remaining_ms = deadline_ms - now_ms
 
             # Calcular percentual consumido
             percent_consumed = elapsed_time_ms / total_time_ms if total_time_ms > 0 else 0
             percent_consumed = max(0, min(1, percent_consumed))  # Clamp entre 0 e 1
 
-            # Verificar se deadline está próximo (threshold padrão 80%)
-            deadline_approaching = percent_consumed >= self.config.sla_deadline_warning_threshold
+            # Verificar se deadline está próximo (threshold padrão 80%). Tickets em
+            # estado terminal já concluíram — nunca geram alerta de deadline.
+            deadline_approaching = (
+                not is_terminal
+                and percent_consumed >= self.config.sla_deadline_warning_threshold
+            )
 
             result = {
                 "deadline_approaching": deadline_approaching,
                 "remaining_seconds": remaining_ms / 1000,
                 "percent_consumed": percent_consumed,
                 "sla_deadline": deadline_ms,
+                "sla_clock_started": bool(started_at_ms),
             }
 
             if deadline_approaching:

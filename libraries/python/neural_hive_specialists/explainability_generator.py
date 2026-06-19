@@ -110,6 +110,11 @@ class ExplainabilityGenerator:
             # Gerar token único
             explainability_token = str(uuid.uuid4())
 
+            # Desembrulhar PyFuncModel para o estimador sklearn nativo. Sem isto, o
+            # método é sempre 'heuristic' (PyFuncModel não casa os tipos conhecidos) e
+            # o SHAP/TreeExplainer não recebe o RandomForestClassifier subjacente.
+            model = self._unwrap_model(model)
+
             # Determinar método de explicabilidade
             method = self._determine_method(model)
             fallback_reason = None
@@ -379,13 +384,16 @@ class ExplainabilityGenerator:
             return []
 
         try:
-            # Extrair features estruturadas
+            # Extrair features estruturadas e alinhar ao schema do modelo
+            # (feature_names_in_), consistente com _predict_with_model.
             features_result = self._feature_extractor.extract_features(cognitive_plan)
             aggregated_features = features_result["aggregated_features"]
-            feature_names = sorted(aggregated_features.keys())
+            feature_names, aligned_features = self._align_features_to_model(
+                model, aggregated_features
+            )
 
             # Usar SHAPExplainer
-            shap_result = self.shap_explainer.explain(model, aggregated_features, feature_names)
+            shap_result = self.shap_explainer.explain(model, aligned_features, feature_names)
 
             if "error" in shap_result:
                 error_type = shap_result.get("error", "unknown")
@@ -416,13 +424,16 @@ class ExplainabilityGenerator:
             return []
 
         try:
-            # Extrair features estruturadas
+            # Extrair features estruturadas e alinhar ao schema do modelo
+            # (feature_names_in_), consistente com _predict_with_model.
             features_result = self._feature_extractor.extract_features(cognitive_plan)
             aggregated_features = features_result["aggregated_features"]
-            feature_names = sorted(aggregated_features.keys())
+            feature_names, aligned_features = self._align_features_to_model(
+                model, aggregated_features
+            )
 
             # Usar LIMEExplainer
-            lime_result = self.lime_explainer.explain(model, aggregated_features, feature_names)
+            lime_result = self.lime_explainer.explain(model, aligned_features, feature_names)
 
             if "error" in lime_result:
                 error_type = lime_result.get("error", "unknown")
@@ -492,6 +503,47 @@ class ExplainabilityGenerator:
 
         return type(model).__name__
 
+    def _unwrap_model(self, model: Any) -> Any:
+        """Desembrulha um MLflow PyFuncModel para o estimador nativo (sklearn).
+
+        Os specialists carregam modelos via ``mlflow.pyfunc.load_model``, que devolve
+        um ``PyFuncModel`` genérico (``type(model).__name__ == 'PyFuncModel'``). Sem
+        desembrulhar, ``_determine_method`` não reconhece o tipo real e cai em
+        heurística, e o ``SHAPExplainer`` não recebe o estimador tree-based que o
+        ``TreeExplainer`` precisa.
+
+        Suporta duas estruturas:
+        - custom PythonModel: ``_model_impl.python_model.sklearn_model``
+          (ex.: ``ProbabilisticModelWrapper`` -> ``RandomForestClassifier``)
+        - sklearn flavor direto: ``_model_impl.sklearn_model``
+
+        Devolve o modelo original se não for um wrapper MLflow reconhecível.
+        """
+        if model is None:
+            return None
+
+        impl = getattr(model, "_model_impl", None)
+        if impl is None:
+            return model
+
+        # Custom PythonModel (ProbabilisticModelWrapper) embrulhado pelo MLflow
+        python_model = getattr(impl, "python_model", None)
+        if python_model is not None:
+            native = getattr(python_model, "sklearn_model", None)
+            if native is not None:
+                return native
+            if hasattr(python_model, "predict"):
+                return python_model
+
+        # sklearn flavor direto
+        native = getattr(impl, "sklearn_model", None)
+        if native is not None:
+            return native
+        if hasattr(impl, "predict"):
+            return impl
+
+        return model
+
     def _extract_input_features(self, cognitive_plan: dict[str, Any]) -> dict[str, float]:
         """Extrai features estruturadas do plano para persistência."""
         if self._feature_extractor:
@@ -507,6 +559,31 @@ class ExplainabilityGenerator:
         """Extrai nomes de features do plano."""
         input_features = self._extract_input_features(cognitive_plan)
         return sorted(input_features.keys())
+
+    def _align_features_to_model(
+        self, model: Any, aggregated_features: dict[str, Any]
+    ) -> tuple[list[str], dict[str, Any]]:
+        """Alinha as features extraídas ao schema do modelo (feature_names_in_).
+
+        O FeatureExtractor produz mais features (ex.: 32) do que o modelo foi
+        treinado (ex.: 26). Sem alinhar, o SHAP/LIME explicaria features na ordem
+        errada (sorted alfabético), atribuindo importâncias a colunas que o modelo
+        não usou. Replica o alinhamento determinista de ``_predict_with_model``:
+        usa ``feature_names_in_`` na ordem do modelo, preenche ausentes a 0.0 e
+        descarta extras. Sem nomes no modelo, cai numa ordenação determinista.
+
+        Returns:
+            Tuplo ``(feature_names, aligned_features)`` pronto para o explainer.
+        """
+        expected_names = getattr(model, "feature_names_in_", None)
+        if expected_names is not None and len(expected_names) > 0:
+            names = [str(n) for n in expected_names]
+            aligned = {name: float(aggregated_features.get(name, 0.0)) for name in names}
+            return names, aligned
+
+        # Sem nomes esperados: ordenação determinista das features fornecidas.
+        names = sorted(aggregated_features.keys())
+        return names, aggregated_features
 
     def _build_reasoning_links(
         self,

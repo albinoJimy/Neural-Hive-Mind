@@ -192,6 +192,129 @@ class TestMethodDetermination:
 
 
 @pytest.mark.unit()
+class TestUnwrapModel:
+    """Testes de desembrulhamento de MLflow PyFuncModel para o estimador nativo.
+
+    Causa-raiz (análise SHAP 2026-06-19): os specialists carregam modelos via
+    mlflow.pyfunc.load_model, que devolve um PyFuncModel genérico. Sem desembrulhar,
+    o método de explicabilidade é sempre 'heuristic'. A cadeia real em produção é:
+    PyFuncModel -> _model_impl.python_model (ProbabilisticModelWrapper)
+    -> sklearn_model (RandomForestClassifier).
+    """
+
+    @pytest.fixture()
+    def generator(self, mock_config):
+        with patch("neural_hive_specialists.explainability_generator.MongoClient"):
+            return ExplainabilityGenerator(mock_config)
+
+    def _make_random_forest(self):
+        rf = Mock()
+        rf.__class__.__name__ = "RandomForestClassifier"
+        rf.predict = Mock(return_value=[0])
+        return rf
+
+    def test_unwrap_none_returns_none(self, generator):
+        assert generator._unwrap_model(None) is None
+
+    def test_unwrap_plain_model_returns_itself(self, generator):
+        """Modelo sem _model_impl (sklearn direto) é devolvido tal como está."""
+        rf = self._make_random_forest()
+        # Mock() expõe _model_impl como auto-Mock; simular ausência explicitamente
+        rf._model_impl = None
+        assert generator._unwrap_model(rf) is rf
+
+    def test_unwrap_custom_python_model_via_sklearn_model(self, generator):
+        """PyFuncModel -> python_model (wrapper) -> sklearn_model (RandomForest)."""
+        rf = self._make_random_forest()
+
+        python_model = Mock()
+        python_model.sklearn_model = rf
+
+        pyfunc = Mock()
+        pyfunc._model_impl = Mock()
+        pyfunc._model_impl.python_model = python_model
+
+        unwrapped = generator._unwrap_model(pyfunc)
+        assert unwrapped is rf
+        # E o método passa a ser SHAP (antes era heuristic com o PyFuncModel)
+        assert generator._determine_method(unwrapped) == "shap"
+
+    def test_unwrap_sklearn_flavor_direct(self, generator):
+        """PyFuncModel sklearn flavor: _model_impl.sklearn_model direto."""
+        rf = self._make_random_forest()
+
+        pyfunc = Mock()
+        pyfunc._model_impl = Mock(spec=["sklearn_model"])
+        pyfunc._model_impl.sklearn_model = rf
+
+        assert generator._unwrap_model(pyfunc) is rf
+
+    def test_pyfuncmodel_without_unwrap_would_be_heuristic(self, generator):
+        """Regressão: sem desembrulhar, o tipo PyFuncModel cai em heuristic."""
+        pyfunc = Mock()
+        pyfunc.__class__.__name__ = "PyFuncModel"
+        # Sem predict reconhecível como tree/linear
+        assert generator._determine_method(pyfunc) == "heuristic"
+
+
+@pytest.mark.unit()
+class TestFeatureAlignment:
+    """Testes do alinhamento de features ao schema do modelo (32 vs 26).
+
+    O FeatureExtractor produz mais features do que o modelo foi treinado; sem
+    alinhar a feature_names_in_, o SHAP explicava features na ordem errada.
+    """
+
+    @pytest.fixture()
+    def generator(self, mock_config):
+        with patch("neural_hive_specialists.explainability_generator.MongoClient"):
+            return ExplainabilityGenerator(mock_config)
+
+    def test_align_to_feature_names_in(self, generator):
+        """Usa feature_names_in_ do modelo, na ordem do modelo."""
+        model = Mock()
+        model.feature_names_in_ = ["num_tasks", "risk_score", "complexity_score"]
+
+        # FeatureExtractor produz MAIS features (extras) e numa ordem diferente
+        aggregated = {
+            "risk_score": 0.7,
+            "zzz_extra_feature": 0.9,  # extra: deve ser descartada
+            "num_tasks": 5.0,
+            "complexity_score": 0.3,
+        }
+
+        names, aligned = generator._align_features_to_model(model, aggregated)
+
+        # Ordem e conjunto exatos do modelo (26->aqui 3), sem a extra
+        assert names == ["num_tasks", "risk_score", "complexity_score"]
+        assert set(aligned.keys()) == {"num_tasks", "risk_score", "complexity_score"}
+        assert "zzz_extra_feature" not in aligned
+        assert aligned["num_tasks"] == 5.0
+        assert aligned["risk_score"] == 0.7
+
+    def test_align_fills_missing_with_zero(self, generator):
+        """Features esperadas pelo modelo mas ausentes são preenchidas com 0.0."""
+        model = Mock()
+        model.feature_names_in_ = ["a", "b", "missing_feature"]
+        aggregated = {"a": 1.0, "b": 2.0}
+
+        names, aligned = generator._align_features_to_model(model, aggregated)
+
+        assert names == ["a", "b", "missing_feature"]
+        assert aligned["missing_feature"] == 0.0
+
+    def test_align_without_feature_names_falls_back_to_sorted(self, generator):
+        """Sem feature_names_in_, usa ordenação determinista (sorted)."""
+        model = Mock(spec=[])  # sem feature_names_in_
+        aggregated = {"c": 3.0, "a": 1.0, "b": 2.0}
+
+        names, aligned = generator._align_features_to_model(model, aggregated)
+
+        assert names == ["a", "b", "c"]
+        assert aligned == aggregated
+
+
+@pytest.mark.unit()
 class TestPersistenceAndRetrieval:
     """Testes de persistência e recuperação de explicações."""
 

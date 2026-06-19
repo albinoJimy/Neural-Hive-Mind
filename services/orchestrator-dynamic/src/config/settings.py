@@ -807,7 +807,24 @@ class OrchestratorSettings(BaseSettings):
         default=100, description="Máximo de tickets concorrentes permitidos"
     )
     opa_allowed_capabilities: list = Field(
-        default_factory=lambda: ["code_generation", "deployment", "testing", "validation"],
+        # Conjunto canónico REAL de capabilities de TASK. Fonte-de-verdade:
+        # worker-agents/src/config/settings.py (capabilities declaradas pelos workers,
+        # "must match STE required_capabilities") e o STE decomposition_templates.py.
+        # O vocabulário CI/CD antigo (code_generation/deployment/testing/validation)
+        # NÃO correspondia às capabilities reais e bloqueava 100% dos planos.
+        default_factory=lambda: [
+            "read",
+            "write",
+            "compute",
+            "analyze",
+            "transform",
+            "test",
+            "code",
+            "security",
+            "scan",
+            "compliance",
+            "deploy",
+        ],
         description="Capabilities permitidas",
     )
     opa_resource_limits: dict = Field(

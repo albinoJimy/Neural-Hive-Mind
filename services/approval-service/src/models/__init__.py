@@ -17,6 +17,7 @@ from neural_hive_approval_common import (
 
 # Local imports for API-specific models unique to approval-service
 from src.models.approval import (
+    ApprovalDecisionResponse,
     ApprovalResponse,
     RepublishRequestBody,
 )
@@ -43,6 +44,7 @@ __all__ = [
     "RevertResponse",
     # Local API-specific models
     "ApprovalResponse",
+    "ApprovalDecisionResponse",
     "RepublishRequestBody",
     # Continuous feedback models (EPIC 3.3)
     "ContinuousFeedbackRequest",

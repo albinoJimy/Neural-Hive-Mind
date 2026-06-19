@@ -20,6 +20,9 @@ data:
 
   security_constraints.rego: |
 {{ .Files.Get "policies/rego/orchestrator/security_constraints.rego" | indent 4 }}
+
+  security_validation.rego: |
+{{ .Files.Get "policies/rego/orchestrator/security_validation.rego" | indent 4 }}
 ---
 apiVersion: v1
 kind: ConfigMap

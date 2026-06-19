@@ -5,7 +5,7 @@ import structlog
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
 from prometheus_client import make_asgi_app
-from redis.asyncio import Redis
+from redis.asyncio.cluster import RedisCluster
 from src.clients import (
     AnalystAgentGrpcClient,
     MongoDBClient,
@@ -129,17 +129,32 @@ async def startup_event():
 
         logger.info("MongoDB client inicializado")
 
-        # Redis
+        # Redis cliente ciente do cluster.
+        # CAUSA-RAIZ: o cliente standalone anterior ligava-se apenas ao 1º nó do
+        # REDIS_CLUSTER_NODES; o ping() ao seed funcionava mas falhava com MOVED em chaves cujo
+        # slot pertence a outro nó, forçando fallback serial p/ MongoDB (~4 min/decisão).
+        # RedisCluster faz discovery via CLUSTER SLOTS a partir do nó seed (ClusterIP
+        # neural-hive-cache) e depois fala directamente com os IPs dos pods, seguindo os
+        # redirects MOVED. require_full_coverage=False evita falha de bootstrap caso a
+        # cobertura de slots esteja parcial. API async idêntica à do cliente standalone,
+        # por isso FallbackStorage/FallbackRedisWrapper continuam compatíveis.
         redis_nodes = settings.redis_cluster_nodes.split(",")
-        state.redis_client = Redis(
-            host=redis_nodes[0].split(":")[0],
-            port=int(redis_nodes[0].split(":")[1]) if ":" in redis_nodes[0] else 6379,
+        seed_host = redis_nodes[0].split(":")[0]
+        seed_port = int(redis_nodes[0].split(":")[1]) if ":" in redis_nodes[0] else 6379
+        state.redis_client = RedisCluster(
+            host=seed_host,
+            port=seed_port,
             password=settings.redis_password,
             ssl=settings.redis_ssl_enabled,
             decode_responses=True,
+            require_full_coverage=False,
+            # Falhar rápido p/ fallback MongoDB se uma conexão do pool ficar stale
+            # (nó Redis com IP antigo). Sem isto o consenso degrada para minutos.
+            socket_timeout=settings.redis_socket_timeout,
+            socket_connect_timeout=settings.redis_socket_connect_timeout,
         )
         await state.redis_client.ping()
-        logger.info("Redis client inicializado")
+        logger.info("Redis cluster client inicializado", seed_host=seed_host, seed_port=seed_port)
 
         # Gap P0-3: Fallback Storage para Redis com persistência MongoDB
         state.fallback_storage = FallbackStorage(
@@ -335,13 +350,18 @@ async def readiness():
             await state.mongodb_client.client.admin.command("ping")
             checks["mongodb"] = True
 
-        # Verificar especialistas
+        # Verificar especialistas (quórum, não todos): o consenso precisa de
+        # >=N pareceres para consenso real e tem fallback abaixo disso. Exigir
+        # TODOS os especialistas SERVING tornava o readiness frágil a flaps
+        # transitórios do Istio ("no healthy upstream"). Usa quórum configurável.
         if state.specialists_client:
             health_results = await state.specialists_client.health_check_all()
-            all_healthy = all(
-                result.get("status") != "NOT_SERVING" for result in health_results.values()
+            serving_count = sum(
+                1 for result in health_results.values() if result.get("status") == "SERVING"
             )
-            checks["specialists"] = all_healthy
+            min_required = settings.readiness_min_specialists_serving
+            checks["specialists"] = serving_count >= min_required
+            checks["specialists_serving"] = serving_count
 
         # Verificar Redis
         if state.redis_client:
@@ -393,8 +413,10 @@ async def readiness():
                 logger.warning("otel_pipeline_health_check_error", error=str(e))
                 checks["otel_pipeline"] = False
 
-        # OTEL pipeline and analyst_agent are not critical for readiness
-        non_critical_checks = {"otel_pipeline", "analyst_agent"}
+        # OTEL pipeline and analyst_agent are not critical for readiness.
+        # specialists_serving é um contador de observabilidade (não um booleano de
+        # check) — excluído da avaliação all() abaixo.
+        non_critical_checks = {"otel_pipeline", "analyst_agent", "specialists_serving"}
         critical_checks = {
             k: v for k, v in checks.items() if k not in non_critical_checks and v is not None
         }

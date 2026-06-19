@@ -54,6 +54,10 @@ class Settings(BaseSettings):
     kafka_plans_topic: str = Field(
         default="plans.ready", description="Plans output topic (matches Helm chart)"
     )
+    kafka_approved_plans_topic: str = Field(
+        default="plans.approved",
+        description="Tópico dedicado para planos aprovados prontos para execução",
+    )
     kafka_approval_topic: str = Field(
         default="cognitive-plans-approval-requests",
         description="Topic for plans requiring approval",
@@ -105,7 +109,7 @@ class Settings(BaseSettings):
 
     # Neo4j configuration
     neo4j_uri: str = Field(
-        default="bolt://neo4j-bolt.neo4j-cluster.svc.cluster.local:7687", description="Neo4j URI"
+        default="bolt://neo4j.neo4j-cluster.svc.cluster.local:7687", description="Neo4j URI"
     )
     neo4j_user: str = Field(default="neo4j", description="Neo4j user")
     neo4j_password: str = Field(..., description="Neo4j password")

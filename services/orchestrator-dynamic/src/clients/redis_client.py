@@ -8,18 +8,23 @@ import time
 import redis.asyncio as redis
 import structlog
 
-from neural_hive_resilience.circuit_breaker import CircuitBreakerError, MonitoredCircuitBreaker
+from neural_hive_resilience.circuit_breaker import (
+    CircuitBreakerError,
+    MonitoredCircuitBreaker,
+)
 from src.config.settings import OrchestratorSettings
 
 logger = structlog.get_logger(__name__)
 
 
-_redis_client_instance: redis.Redis | None = None
+_redis_client_instance: redis.RedisCluster | None = None
 _circuit_breaker: MonitoredCircuitBreaker | None = None
 _circuit_breaker_enabled: bool = True
 
 
-async def get_redis_client(config: OrchestratorSettings | None = None) -> redis.Redis | None:
+async def get_redis_client(
+    config: OrchestratorSettings | None = None,
+) -> redis.RedisCluster | None:
     """
     Retorna instância singleton do cliente Redis.
 
@@ -75,13 +80,19 @@ async def get_redis_client(config: OrchestratorSettings | None = None) -> redis.
             logger.warning("redis_cluster_nodes_empty")
             return None
 
-        # Usar primeiro node para conexão standalone
+        # Usar primeiro node como seed. O Redis corre em modo CLUSTER, por isso
+        # é obrigatório um cliente cluster-aware (RedisCluster): um cliente
+        # standalone (redis.Redis) recebe MOVED em chaves cujo slot pertence a
+        # outro shard e falha as operações cross-slot — ex.: o mapeamento
+        # ticket->workflow (workflow:by:ticket:*) que o ExecutionResultConsumer
+        # lê e o fallback do Flow C grava. RedisCluster descobre a topologia a
+        # partir do seed e segue os redirects automaticamente.
         first_node = nodes[0].strip()
         host, port = first_node.split(":")
 
-        # Criar cliente Redis
+        # Criar cliente Redis Cluster
         async def _create_and_ping():
-            client = redis.Redis(
+            client = redis.RedisCluster(
                 host=host,
                 port=int(port),
                 password=config.redis_password,
@@ -89,6 +100,11 @@ async def get_redis_client(config: OrchestratorSettings | None = None) -> redis.
                 decode_responses=True,
                 socket_timeout=5,
                 socket_connect_timeout=2,
+                # I2: tolerar cobertura parcial de slots no cluster. Sem isto, um
+                # cluster com slots não totalmente cobertos rejeita lookups
+                # (workflow:by:ticket:*) com RedisClusterException. Alinhado com o
+                # service-registry (redis_registry_client.py).
+                require_full_coverage=False,
             )
             await client.ping()
             return client

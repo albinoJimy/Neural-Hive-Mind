@@ -48,14 +48,18 @@ class ExecutionResultConsumer:
             "execution_result_consumer_initializing",
             topic=self.TOPIC,
             group_id=getattr(
-                self.config, "execution_result_consumer_group", "orchestrator-execution-results"
+                self.config,
+                "execution_result_consumer_group",
+                "orchestrator-execution-results",
             ),
         )
 
         consumer_config = {
             "bootstrap_servers": self.config.kafka_bootstrap_servers,
             "group_id": getattr(
-                self.config, "execution_result_consumer_group", "orchestrator-execution-results"
+                self.config,
+                "execution_result_consumer_group",
+                "orchestrator-execution-results",
             ),
             "auto_offset_reset": "latest",
             "enable_auto_commit": False,
@@ -79,7 +83,9 @@ class ExecutionResultConsumer:
     async def start(self):
         """Loop de consumo de mensagens."""
         if not self.consumer:
-            raise RuntimeError("Consumer não foi inicializado. Chame initialize() primeiro.")
+            raise RuntimeError(
+                "Consumer não foi inicializado. Chame initialize() primeiro."
+            )
 
         logger.info("execution_result_consumer_starting", topic=self.TOPIC)
         self.running = True
@@ -104,7 +110,9 @@ class ExecutionResultConsumer:
                     await self.consumer.commit()
 
         except Exception as e:
-            logger.error("execution_result_consumer_loop_error", error=str(e), exc_info=True)
+            logger.error(
+                "execution_result_consumer_loop_error", error=str(e), exc_info=True
+            )
             raise
         finally:
             await self.stop()
@@ -128,7 +136,9 @@ class ExecutionResultConsumer:
             status = result_data.get("status")
 
             if not ticket_id:
-                logger.warning("execution_result_missing_ticket_id", message_offset=message.offset)
+                logger.warning(
+                    "execution_result_missing_ticket_id", message_offset=message.offset
+                )
                 await self.consumer.commit()
                 return
 
@@ -165,12 +175,16 @@ class ExecutionResultConsumer:
 
             # Métricas
             if self.metrics:
-                self.metrics.execution_results_processed_total.labels(status=status).inc()
+                self.metrics.execution_results_processed_total.labels(
+                    status=status
+                ).inc()
 
         except Exception as e:
             logger.error(
                 "execution_result_process_exception",
-                ticket_id=result_data.get("ticket_id") if "result_data" in locals() else "unknown",
+                ticket_id=result_data.get("ticket_id")
+                if "result_data" in locals()
+                else "unknown",
                 error=str(e),
                 exc_info=True,
             )
@@ -179,7 +193,9 @@ class ExecutionResultConsumer:
                 await self.consumer.commit()
             raise
 
-    async def _get_workflow_for_ticket(self, ticket_id: str, plan_id: str) -> str | None:
+    async def _get_workflow_for_ticket(
+        self, ticket_id: str, plan_id: str
+    ) -> str | None:
         """
         Recupera workflow_id do cache Redis.
 
@@ -192,7 +208,9 @@ class ExecutionResultConsumer:
         """
         if not self.redis_client:
             logger.warning(
-                "redis_client_unavailable_for_workflow_lookup", ticket_id=ticket_id, plan_id=plan_id
+                "redis_client_unavailable_for_workflow_lookup",
+                ticket_id=ticket_id,
+                plan_id=plan_id,
             )
             return None
 
@@ -202,18 +220,26 @@ class ExecutionResultConsumer:
 
             if workflow_id:
                 logger.debug(
-                    "workflow_id_found_in_cache", ticket_id=ticket_id, workflow_id=workflow_id
+                    "workflow_id_found_in_cache",
+                    ticket_id=ticket_id,
+                    workflow_id=workflow_id,
                 )
                 return workflow_id
 
-            logger.debug("workflow_id_not_in_cache", ticket_id=ticket_id, plan_id=plan_id)
+            logger.debug(
+                "workflow_id_not_in_cache", ticket_id=ticket_id, plan_id=plan_id
+            )
             return None
 
         except Exception as e:
-            logger.exception("workflow_cache_lookup_error", ticket_id=ticket_id, error=str(e))
+            logger.exception(
+                "workflow_cache_lookup_error", ticket_id=ticket_id, error=str(e)
+            )
             return None
 
-    async def _send_workflow_signal(self, workflow_id: str, ticket_id: str, result: dict[str, Any]):
+    async def _send_workflow_signal(
+        self, workflow_id: str, ticket_id: str, result: dict[str, Any]
+    ):
         """
         Envia signal ticket_completed para workflow Temporal.
 
@@ -223,11 +249,17 @@ class ExecutionResultConsumer:
             result: Resultado da execução
         """
         try:
-            handle = self.temporal_client.get_workflow_handle(workflow_id)
+            # TemporalClientWrapper.get_workflow_handle é async (protegido por
+            # circuit breaker) — é obrigatório await, senão `handle` é uma
+            # coroutine e handle.signal(...) falha com AttributeError.
+            handle = await self.temporal_client.get_workflow_handle(workflow_id)
+            # WorkflowHandle.signal() do Temporal SDK nao aceita kwargs arbitrarios;
+            # os argumentos do handler (ticket_completed(self, ticket_id, result))
+            # sao passados posicionalmente via args=[...]. Com kwargs dava
+            # "WorkflowHandle.signal() got an unexpected keyword argument 'ticket_id'".
             await handle.signal(
                 "ticket_completed",  # Nome do signal definido no workflow
-                ticket_id=ticket_id,
-                result=result,
+                args=[ticket_id, result],
             )
             logger.info(
                 "workflow_signal_sent",
@@ -268,7 +300,9 @@ class ExecutionResultConsumer:
                     "execution_result_deserialization_failed",
                     error=str(e),
                     raw_bytes_preview=(
-                        raw_value[:100].hex() if len(raw_value) >= 100 else raw_value.hex()
+                        raw_value[:100].hex()
+                        if len(raw_value) >= 100
+                        else raw_value.hex()
                     ),
                 )
                 raise ValueError(f"Failed to deserialize execution result: {e}") from e

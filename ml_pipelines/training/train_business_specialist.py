@@ -166,7 +166,7 @@ def main():
     parser.add_argument(
         "--model-name",
         type=str,
-        default="BusinessSpecialistModel",
+        default="business-evaluator",
         help="Nome do modelo registrado no MLflow",
     )
 

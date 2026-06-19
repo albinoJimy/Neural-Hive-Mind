@@ -186,6 +186,29 @@ class OPAClient:
                 response.raise_for_status()
 
                 data = response.json()
+
+                # O OPA só inclui "result" quando o path da política está definido.
+                # Se a política não está carregada, a resposta é {decision_id} SEM
+                # "result" (path undefined). Isto NÃO é uma negação de política:
+                # degradar graciosamente (allow) em vez de fail-closed, consistente
+                # com a postura de não abortar o plano por ausência de política
+                # configurada. O fail-closed mantém-se para OPA indisponível
+                # (exceções no executor) e para políticas presentes que negam.
+                if "result" not in data:
+                    self.logger.warning(
+                        "opa_policy_undefined",
+                        policy_path=policy_path,
+                        message="Política OPA não carregada; validação degradada graciosamente",
+                    )
+                    span.set_attribute("opa.allow", True)
+                    span.set_attribute("opa.policy_undefined", True)
+                    return PolicyEvaluationResponse(
+                        allow=True,
+                        violations=[],
+                        decision=request.decision,
+                        metadata={"policy_path": policy_path, "policy_undefined": True},
+                    )
+
                 result = data.get("result", {})
 
                 # Tratar diferentes tipos de resultado OPA

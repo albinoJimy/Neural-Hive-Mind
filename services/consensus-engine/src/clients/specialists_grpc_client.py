@@ -563,26 +563,27 @@ class SpecialistsGrpcClient:
         """
         from grpc_health.v1 import health_pb2, health_pb2_grpc
 
-        health_results = {}
-
         # Timeout por health check (aumentado para acomodar operações bloqueantes)
         timeout_per_check = 3.0
 
-        for specialist_type, stub in self.stubs.items():
+        # Converter status gRPC para formato interno
+        status_map = {
+            health_pb2.HealthCheckResponse.SERVING: "SERVING",
+            health_pb2.HealthCheckResponse.NOT_SERVING: "NOT_SERVING",
+            health_pb2.HealthCheckResponse.UNKNOWN: "UNKNOWN",
+            health_pb2.HealthCheckResponse.SERVICE_UNKNOWN: "SERVICE_UNKNOWN",
+        }
+
+        async def _check_one(specialist_type: str) -> tuple[str, dict[str, Any]]:
+            """Health check de um único especialista (executado em paralelo)."""
             try:
                 # Criar channel de health separado se necessário
                 channel = self.channels.get(specialist_type)
                 if not channel:
-                    health_results[specialist_type] = {
-                        "status": "NOT_SERVING",
-                        "error": "no_channel",
-                    }
-                    continue
+                    return specialist_type, {"status": "NOT_SERVING", "error": "no_channel"}
 
                 # Usar grpc.health.v1 padrão
                 health_stub = health_pb2_grpc.HealthStub(channel)
-
-                # Fazer request de health check
                 request = health_pb2.HealthCheckRequest(service="")
 
                 response = await asyncio.wait_for(
@@ -590,23 +591,13 @@ class SpecialistsGrpcClient:
                     timeout=timeout_per_check + 1.0,  # Buffer adicional
                 )
 
-                # Converter status gRPC para formato interno
-                status_map = {
-                    health_pb2.HealthCheckResponse.SERVING: "SERVING",
-                    health_pb2.HealthCheckResponse.NOT_SERVING: "NOT_SERVING",
-                    health_pb2.HealthCheckResponse.UNKNOWN: "UNKNOWN",
-                    health_pb2.HealthCheckResponse.SERVICE_UNKNOWN: "SERVICE_UNKNOWN",
-                }
-
-                health_results[specialist_type] = {
-                    "status": status_map.get(response.status, "UNKNOWN"),
-                }
-
+                result = {"status": status_map.get(response.status, "UNKNOWN")}
                 logger.debug(
                     "Specialist health check OK",
                     specialist_type=specialist_type,
-                    status=health_results[specialist_type]["status"],
+                    status=result["status"],
                 )
+                return specialist_type, result
 
             except asyncio.TimeoutError:
                 logger.warning(
@@ -614,7 +605,7 @@ class SpecialistsGrpcClient:
                     specialist_type=specialist_type,
                     timeout=timeout_per_check,
                 )
-                health_results[specialist_type] = {"status": "NOT_SERVING", "error": "timeout"}
+                return specialist_type, {"status": "NOT_SERVING", "error": "timeout"}
             except grpc.RpcError as e:
                 logger.warning(
                     "Specialist health check gRPC error",
@@ -624,29 +615,22 @@ class SpecialistsGrpcClient:
                 )
                 # DEADLINE_EXCEEDED é tratado como NOT_SERVING (não falha crítica)
                 if e.code() == grpc.StatusCode.DEADLINE_EXCEEDED:
-                    health_results[specialist_type] = {
-                        "status": "NOT_SERVING",
-                        "error": "deadline_exceeded",
-                    }
+                    return specialist_type, {"status": "NOT_SERVING", "error": "deadline_exceeded"}
                 elif e.code() == grpc.StatusCode.UNAVAILABLE:
-                    health_results[specialist_type] = {
-                        "status": "NOT_SERVING",
-                        "error": "unavailable",
-                    }
-                else:
-                    health_results[specialist_type] = {
-                        "status": "NOT_SERVING",
-                        "error": f"{e.code().name}",
-                    }
+                    return specialist_type, {"status": "NOT_SERVING", "error": "unavailable"}
+                return specialist_type, {"status": "NOT_SERVING", "error": f"{e.code().name}"}
             except Exception as e:
                 logger.error(
                     "Specialist health check failed",
                     specialist_type=specialist_type,
                     error=str(e),
                 )
-                health_results[specialist_type] = {"status": "NOT_SERVING", "error": str(e)}
+                return specialist_type, {"status": "NOT_SERVING", "error": str(e)}
 
-        return health_results
+        # Executar todos os health checks EM PARALELO para não somar os timeouts
+        # (sequencial: 5 × ~4s = ~20s -> excedia o readiness probe). Paralelo: ~4s.
+        results = await asyncio.gather(*[_check_one(st) for st in self.stubs])
+        return dict(results)
 
     async def close(self):
         """Fechar todos os canais gRPC e SPIFFE managers"""

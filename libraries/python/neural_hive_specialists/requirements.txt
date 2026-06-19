@@ -55,6 +55,12 @@ clickhouse-driver>=0.2.6  # Opcional - apenas se usar ClickHouse
 # Statistical Analysis for A/B Testing
 scipy==1.14.1  # Para chi-square test, t-test, Mann-Whitney U
 
+# Explicabilidade de modelos (SHAP) — usado em explainability/shap_explainer.py.
+# Sem esta dependência, a extração de feature importances falha com ImportError e
+# os pareceres caem em explicação heurística (feature_importances vazias).
+# Compatível com numpy 1.26.4 / scikit-learn 1.5.2 da base image.
+shap>=0.44.0,<0.47.0
+
 # JWT Authentication
 PyJWT>=2.8.0
 cryptography>=41.0.0  # Para suporte a algoritmos RS256 (futuro)

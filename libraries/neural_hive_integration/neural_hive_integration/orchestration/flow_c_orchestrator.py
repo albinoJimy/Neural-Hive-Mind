@@ -127,6 +127,12 @@ execution_duration = Histogram(
 class FlowCOrchestrator:
     """Orchestrator for complete Flow C integration (C1-C6)."""
 
+    # Prefixo da chave de cache ticket_id -> workflow_id no Redis. Tem de
+    # coincidir com ExecutionResultConsumer.WORKFLOW_CACHE_PREFIX, caso
+    # contrário o consumer não recupera o workflow_id e o sinal de conclusão
+    # nunca é enviado ao workflow Temporal (workflow_id_not_found_for_result).
+    WORKFLOW_CACHE_PREFIX = "workflow:by:ticket:"
+
     def __init__(self):
         self.orchestrator_client = OrchestratorClient()
         self.service_registry = ServiceRegistryClient()
@@ -134,6 +140,10 @@ class FlowCOrchestrator:
         self.sla_client = SLAManagementClient()
         self.telemetry = FlowCTelemetryPublisher()
         self.logger = logger.bind(service="flow_c_orchestrator")
+        # Cliente Redis injetado pelo consumer (ver flow_c_consumer.py). Usado
+        # para persistir o mapeamento ticket->workflow no caminho de fallback
+        # (_extract_tickets_from_plan), que de outro modo não o gravaria.
+        self.redis_client = None
         self.approval_producer: AIOKafkaProducer = None
         self.kafka_bootstrap_servers = os.getenv(
             "KAFKA_BOOTSTRAP_SERVERS",
@@ -364,6 +374,42 @@ class FlowCOrchestrator:
             plan_id=context.plan_id,
             decision_id=context.decision_id,
         )
+
+        # Idempotência por plano: após aprovação, o mesmo plano pode disparar Flow C
+        # por dois caminhos independentes (decisão de consenso republicada como
+        # "approved" no tópico de consenso + resposta de aprovação consumida pelo
+        # FlowCApprovalResponseConsumer). Cada caminho gerava o conjunto completo de
+        # tickets, duplicando a execução (16=2x8 observado em E2E). Se o plano já tem
+        # tickets, NÃO regerar — eliminando o segundo conjunto qualquer que seja o gatilho.
+        try:
+            existing_ticket_count = await self.ticket_client.count_tickets_by_plan(context.plan_id)
+        except Exception as e:
+            self.logger.warning(
+                "idempotency_check_failed_proceeding",
+                plan_id=context.plan_id,
+                error=str(e),
+            )
+            existing_ticket_count = 0
+        if existing_ticket_count > 0:
+            end_time = datetime.now(timezone.utc)
+            self.logger.warning(
+                "flow_c_tickets_already_generated_skipping",
+                plan_id=context.plan_id,
+                decision_id=context.decision_id,
+                existing_ticket_count=existing_ticket_count,
+                note="Plano já tem execution tickets - execução duplicada evitada (idempotência por plan_id)",
+            )
+            return FlowCResult(
+                success=True,
+                steps=[],
+                total_duration_ms=int((end_time - start_time).total_seconds() * 1000),
+                tickets_generated=0,
+                tickets_completed=0,
+                tickets_failed=0,
+                telemetry_published=False,
+                sla_compliant=True,
+                sla_remaining_seconds=14400,
+            )
 
         try:
             # P3-001: Helper function para calcular SLA restante
@@ -811,7 +857,7 @@ class FlowCOrchestrator:
                 duration_seconds=round(duration, 2),
             )
             # Fallback para extração do cognitive_plan
-            tickets = await self._extract_tickets_from_plan(cognitive_plan, context)
+            tickets = await self._extract_tickets_from_plan(cognitive_plan, context, workflow_id)
 
         except Exception as e:
             # Outros erros (HTTP 500, timeout, etc.)
@@ -830,7 +876,7 @@ class FlowCOrchestrator:
                 error_type=type(e).__name__,
             )
             # Fallback para extração do cognitive_plan
-            tickets = await self._extract_tickets_from_plan(cognitive_plan, context)
+            tickets = await self._extract_tickets_from_plan(cognitive_plan, context, workflow_id)
 
         # Validar schema dos tickets (se obtidos com sucesso)
         if tickets:
@@ -846,10 +892,53 @@ class FlowCOrchestrator:
 
         return tickets
 
+    async def _cache_workflow_mapping(self, ticket_id: str, workflow_id: str) -> None:
+        """
+        Persiste o mapeamento ticket_id -> workflow_id no Redis.
+
+        No caminho de fallback (_extract_tickets_from_plan) os tickets são
+        criados fora da activity Temporal, que normalmente grava este
+        mapeamento. Sem ele, o ExecutionResultConsumer recebe os resultados
+        dos workers mas não consegue recuperar o workflow_id
+        (workflow_id_not_found_for_result), pelo que o sinal de conclusão
+        nunca chega ao workflow e este nunca fecha (Fluxo C6 bloqueado).
+
+        Fail-open: erros de cache são registados mas não interrompem o fluxo.
+
+        Args:
+            ticket_id: ID do ticket de execução
+            workflow_id: ID do workflow Temporal
+        """
+        if not self.redis_client or not workflow_id:
+            self.logger.warning(
+                "redis_unavailable_for_workflow_mapping_fallback",
+                ticket_id=ticket_id,
+                workflow_id=workflow_id,
+                has_redis=bool(self.redis_client),
+            )
+            return
+
+        try:
+            cache_key = f"{self.WORKFLOW_CACHE_PREFIX}{ticket_id}"
+            await self.redis_client.setex(cache_key, 86400, workflow_id)  # 24h TTL
+            self.logger.debug(
+                "workflow_mapping_cached_fallback",
+                ticket_id=ticket_id,
+                workflow_id=workflow_id,
+            )
+        except Exception as e:
+            self.logger.warning(
+                "workflow_mapping_cache_error_fallback",
+                ticket_id=ticket_id,
+                workflow_id=workflow_id,
+                error=str(e),
+            )
+
     async def _extract_tickets_from_plan(
         self,
         cognitive_plan: Dict[str, Any],
         context: FlowCContext,
+        workflow_id: str = "",
     ) -> List[Dict[str, Any]]:
         """
         Extrai tickets do cognitive_plan como fallback.
@@ -857,6 +946,9 @@ class FlowCOrchestrator:
         Args:
             cognitive_plan: Plano cognitivo contendo tasks
             context: Contexto do Flow C
+            workflow_id: ID do workflow Temporal associado. Quando presente, o
+                mapeamento ticket->workflow é persistido no Redis para que o
+                ExecutionResultConsumer consiga sinalizar a conclusão (C6).
 
         Returns:
             Lista de tickets criados via ticket_client
@@ -866,6 +958,37 @@ class FlowCOrchestrator:
             plan_id=context.plan_id,
             reason="workflow query failed or returned empty",
         )
+
+        # Idempotência: o fallback dispara cedo (o polling do query Temporal desiste
+        # rapidamente), mas a actividade Temporal generate_execution_tickets ainda
+        # pode estar a persistir os tickets de forma ASSÍNCRONA. Criar aqui geraria
+        # um segundo conjunto (16=2x8 observado em E2E). Antes de criar, aguardar
+        # brevemente que os tickets do workflow apareçam na execution-ticket-service
+        # e, se aparecerem, devolvê-los em vez de recriar. A constraint única
+        # (plan_id, task_id) na execution-ticket-service é o backstop atómico.
+        for _attempt in range(8):  # ~12s, cobre o ~8s da actividade Temporal
+            try:
+                existing_count = await self.ticket_client.count_tickets_by_plan(context.plan_id)
+            except Exception:
+                existing_count = 0
+            if existing_count > 0:
+                try:
+                    existing = await self.ticket_client.list_tickets_by_plan(context.plan_id)
+                    self.logger.warning(
+                        "fallback_using_workflow_tickets_skipping_creation",
+                        plan_id=context.plan_id,
+                        existing_count=existing_count,
+                        workflow_id=workflow_id,
+                    )
+                    return [t.model_dump() for t in existing]
+                except Exception as e:
+                    self.logger.warning(
+                        "fallback_fetch_existing_failed_will_create",
+                        plan_id=context.plan_id,
+                        error=str(e),
+                    )
+                break
+            await asyncio.sleep(1.5)
 
         tickets = []
         tasks = cognitive_plan.get("tasks", [])
@@ -989,6 +1112,10 @@ class FlowCOrchestrator:
                     ticket_dict["payload"] = {}
                 ticket_dict["payload"]["ticket_id"] = ticket.ticket_id
                 tickets.append(ticket_dict)
+
+                # Persistir mapeamento ticket->workflow para o
+                # ExecutionResultConsumer poder sinalizar a conclusão (C6).
+                await self._cache_workflow_mapping(ticket.ticket_id, workflow_id)
 
             except Exception as e:
                 self.logger.error(
@@ -1310,6 +1437,27 @@ class FlowCOrchestrator:
                     self.logger.error(
                         "no_worker_selected",
                         ticket_id=ticket["ticket_id"],
+                    )
+                    continue
+
+                # Atribuição HTTP directa ao worker é best-effort e DEPRECATED.
+                # O caminho canónico de execução é o workflow Temporal (C2), que
+                # publica os tickets no tópico Kafka `execution.tickets` consumido
+                # pelo `execution-ticket-service`. Os workers descobertos via
+                # Service Registry normalmente não publicam a chave `endpoint` no
+                # seu metadata, pelo que `worker.endpoint` vem vazio. Sem este
+                # guard, `WorkerAgentClient.assign_task` levanta sempre
+                # ValueError("Worker endpoint not configured"), encapsulado em
+                # RetryError pela tenacity, gerando logs `failed_to_assign_ticket`
+                # enganadores para TODOS os tickets apesar do pipeline estar
+                # saudável. Quando o endpoint está ausente, saltamos o despacho
+                # HTTP em nível debug sem poluir os logs de erro.
+                if not worker.endpoint:
+                    self.logger.debug(
+                        "step_c4_skip_http_dispatch_no_endpoint",
+                        ticket_id=ticket["ticket_id"],
+                        worker_id=worker.agent_id,
+                        reason="worker_endpoint_not_configured_deprecated_http_path",
                     )
                     continue
 

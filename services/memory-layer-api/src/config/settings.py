@@ -51,7 +51,7 @@ class Settings(BaseSettings):
 
     # Neo4j (Semântico)
     neo4j_uri: str = Field(
-        default="bolt://neo4j-bolt.neo4j-cluster.svc.cluster.local:7687",
+        default="bolt://neo4j.neo4j-cluster.svc.cluster.local:7687",
         description="Neo4j connection URI",
     )
     neo4j_user: str = Field(default="neo4j", description="Neo4j username")

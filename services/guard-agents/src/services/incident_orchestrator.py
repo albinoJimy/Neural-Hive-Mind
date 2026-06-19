@@ -632,7 +632,7 @@ class IncidentOrchestrator:
         # Persistir incidente crítico no MongoDB
         if self.mongodb and hasattr(self.mongodb, "critical_incidents_collection"):
             try:
-                if self.mongodb.critical_incidents_collection:
+                if self.mongodb.critical_incidents_collection is not None:
                     await self.mongodb.critical_incidents_collection.insert_one(critical_incident)
                     logger.info(
                         "incident_orchestrator.critical_incident_persisted",

@@ -3,6 +3,7 @@ Activities Temporal para geração de Execution Tickets (Etapa C2).
 """
 
 import json
+import os
 import uuid
 from datetime import datetime
 from typing import Any
@@ -350,10 +351,17 @@ async def _get_available_workers() -> list[dict[str, Any]]:
         return []
 
     try:
-        # Buscar agentes do tipo WORKER com status HEALTHY
+        # Buscar agentes do tipo WORKER com status HEALTHY.
+        # Namespace via POD_NAMESPACE (injetado pelo K8s), igual ao ResourceAllocator
+        # e ao namespace com que os workers se registam. OrchestratorSettings não tem
+        # campo 'namespace' (só temporal_namespace), pelo que _config.namespace
+        # levantava AttributeError -> discovery vazia -> fallback partido.
+        worker_namespace = os.environ.get(
+            "POD_NAMESPACE", os.environ.get("NEURAL_HIVE_NAMESPACE", "neural-hive")
+        )
         workers = await _registry_client.discover_agents(
             capabilities=[],  # Sem filtro de capabilities específicas
-            filters={"status": "HEALTHY", "namespace": _config.namespace if _config else "default"},
+            filters={"status": "HEALTHY", "namespace": worker_namespace},
             max_results=50,  # Buscar até 50 workers
         )
 
@@ -661,12 +669,21 @@ async def allocate_resources(ticket: dict[str, Any]) -> dict[str, Any]:
         # ============================================================================
         # F2: Fallback Round-Robin Real (substitui stub antigo)
         # ============================================================================
-        # Quando Intelligent Scheduler não está disponível, busca workers do
-        # Service Registry e faz alocação round-robin simples em vez de stub.
+        # Quando o Intelligent Scheduler não está disponível, OU foi desativado por
+        # feature flag (use_intelligent_scheduler=False), busca workers do Service
+        # Registry e faz alocação round-robin simples em vez de stub. Sem o caso
+        # "desativado por flag", desligar o scheduler resultaria em falha dura
+        # (kill-switch) em vez de degradação graciosa para round-robin.
         # ============================================================================
-        if not _intelligent_scheduler or (_config and _config.scheduler_fallback_stub_enabled):
+        if (
+            not _intelligent_scheduler
+            or not use_intelligent_scheduler
+            or (_config and _config.scheduler_fallback_stub_enabled)
+        ):
             if not _intelligent_scheduler:
                 fallback_reason = "scheduler_unavailable"
+            elif not use_intelligent_scheduler:
+                fallback_reason = "scheduler_disabled_by_flag"
             else:
                 fallback_reason = (
                     fallback_reason if "fallback_reason" in locals() else "scheduler_failed"

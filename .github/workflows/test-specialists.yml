@@ -124,6 +124,11 @@ jobs:
 
       - name: Comentar PR com cobertura
         if: github.event_name == 'pull_request'
+        # Passo cosmético (comentário de cobertura no PR). Não deve fazer falhar o job:
+        # a action precisa de `permissions: pull-requests: write` e do ficheiro binário
+        # `.coverage` (não o coverage.xml), pelo que falha em contextos sem essas condições.
+        # A saúde do job é determinada pela suite de testes, não pelo posting do comentário.
+        continue-on-error: true
         uses: py-cov-action/python-coverage-comment-action@v3
         with:
           GITHUB_TOKEN: ${{ github.token }}

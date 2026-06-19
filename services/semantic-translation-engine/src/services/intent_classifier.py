@@ -227,6 +227,11 @@ class IntentClassifier:
         self.min_confidence = self.config.get("intent_classification_min_confidence", 0.3)
         self._model = None
         self._pattern_embeddings_cache: dict[str, np.ndarray] = {}
+        # Disponibilidade do reforço semântico (sentence_transformers/sklearn).
+        # None = ainda não verificado; True/False após primeira tentativa de import.
+        # Quando indisponível, a classificação degrada graciosamente para padrões
+        # linguísticos (keywords/verbos), que não dependem de embeddings.
+        self._semantic_available: bool | None = None
 
         logger.info(
             "IntentClassifier initialized",
@@ -236,7 +241,13 @@ class IntentClassifier:
 
     @property
     def model(self):
-        """Lazy loading do modelo de embeddings."""
+        """
+        Lazy loading do modelo de embeddings.
+
+        Pode levantar ImportError se ``sentence_transformers`` não estiver
+        instalado. O chamador (``_score_by_semantics``) trata esse caso e
+        degrada graciosamente para classificação por padrões linguísticos.
+        """
         if self._model is None:
             from sentence_transformers import SentenceTransformer
 
@@ -271,17 +282,35 @@ class IntentClassifier:
 
         if best_pattern_score < 0.5:
             semantic_scores = self._score_by_semantics(intent_text)
-            # Combinar scores
-            combined_scores = {}
-            for intent_type in IntentType:
-                if intent_type == IntentType.GENERIC:
-                    continue
-                pattern_score = pattern_scores.get(intent_type, 0)
-                semantic_score = semantic_scores.get(intent_type, 0)
-                # Peso maior para semântico se padrões fracos
-                combined_scores[intent_type] = pattern_score * 0.4 + semantic_score * 0.6
+            if self._semantic_available is False:
+                # Reforço semântico indisponível: usar os scores de padrões sem
+                # penalização do peso 0.4, para não empurrar matches válidos de
+                # keyword/verbo abaixo de min_confidence (degradação graciosa).
+                #
+                # NOTA DE CALIBRAÇÃO: o termo de padrões tem máximo teórico ~1.0
+                # (keyword_score*0.7 + verb_score*0.3). Quando o reforço semântico
+                # está disponível, a fórmula combinada é pattern*0.4 + semantic*0.6,
+                # cujo termo de padrões satura em ~0.4. Esta divergência é
+                # intencional: sem semântico, não se deve penalizar matches válidos
+                # de padrões (caso contrário tudo caía em GENERIC). Em runtime, o
+                # pacote nunca está instalado, logo este é o caminho efetivo. Se o
+                # reforço semântico for reativado no futuro, recalibrar min_confidence.
+                # Cópia defensiva: combined_scores não deve partilhar referência
+                # com o dict retornado por _score_by_patterns.
+                combined_scores = dict(pattern_scores)
+            else:
+                # Combinar scores (peso maior para semântico quando padrões fracos)
+                combined_scores = {}
+                for intent_type in IntentType:
+                    if intent_type == IntentType.GENERIC:
+                        continue
+                    pattern_score = pattern_scores.get(intent_type, 0)
+                    semantic_score = semantic_scores.get(intent_type, 0)
+                    combined_scores[intent_type] = pattern_score * 0.4 + semantic_score * 0.6
         else:
-            combined_scores = pattern_scores
+            # Padrões já conclusivos: usar cópia defensiva para não partilhar
+            # referência com o dict retornado por _score_by_patterns.
+            combined_scores = dict(pattern_scores)
 
         # Passo 3: Selecionar melhor classificação
         if not combined_scores or max(combined_scores.values()) < self.min_confidence:
@@ -335,12 +364,45 @@ class IntentClassifier:
 
         return scores
 
-    def _score_by_semantics(self, intent_text: str) -> dict[IntentType, float]:
-        """Calcula score por similaridade semântica."""
-        scores = {}
+    def _empty_semantic_scores(self) -> dict[IntentType, float]:
+        """Scores semânticos zerados (reforço semântico indisponível)."""
+        return {
+            intent_type: 0.0
+            for intent_type in self.INTENT_PATTERNS
+            if intent_type != IntentType.GENERIC
+        }
 
-        # Obter embedding da intent
-        intent_embedding = self.model.encode([intent_text], convert_to_numpy=True)[0]
+    def _score_by_semantics(self, intent_text: str) -> dict[IntentType, float]:
+        """
+        Calcula score por similaridade semântica (reforço opcional).
+
+        O reforço semântico depende de ``sentence_transformers`` (+torch) e
+        ``sklearn``, que podem não estar instalados no runtime do STE. Quando
+        indisponíveis, este método degrada graciosamente devolvendo scores
+        zerados — a classificação continua a funcionar via padrões linguísticos
+        (keywords/verbos), que alimentam os templates de decomposição ricos.
+        """
+        # Se já sabemos que o reforço semântico está indisponível, evitar
+        # nova tentativa de import e logs repetidos por request.
+        if self._semantic_available is False:
+            return self._empty_semantic_scores()
+
+        try:
+            # Obter embedding da intent (pode levantar ImportError via self.model)
+            intent_embedding = self.model.encode([intent_text], convert_to_numpy=True)[0]
+            from sklearn.metrics.pairwise import cosine_similarity
+        except ImportError as exc:
+            # Logar uma única vez em nível info (não warning ruidoso por request).
+            if self._semantic_available is None:
+                logger.info(
+                    "Reforço semântico indisponível, usando classificação por padrões",
+                    reason=str(exc),
+                )
+            self._semantic_available = False
+            return self._empty_semantic_scores()
+
+        self._semantic_available = True
+        scores = {}
 
         for intent_type, config in self.INTENT_PATTERNS.items():
             # Obter embeddings dos keywords (cached)
@@ -354,8 +416,6 @@ class IntentClassifier:
             keyword_embeddings = self._pattern_embeddings_cache[cache_key]
 
             # Calcular similaridade máxima
-            from sklearn.metrics.pairwise import cosine_similarity
-
             similarities = cosine_similarity([intent_embedding], keyword_embeddings)[0]
             max_similarity = float(np.max(similarities))
 

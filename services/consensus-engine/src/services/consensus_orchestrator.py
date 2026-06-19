@@ -1,3 +1,4 @@
+import asyncio
 import uuid
 from datetime import datetime, timezone
 from typing import Any
@@ -36,13 +37,21 @@ class ConsensusOrchestrator:
         self.hierarchical = HierarchicalWeightCalculator(config)
 
     async def process_consensus(
-        self, cognitive_plan: dict[str, Any], specialist_opinions: list[dict[str, Any]]
+        self,
+        cognitive_plan: dict[str, Any],
+        specialist_opinions: list[dict[str, Any]],
+        trace_id: str | None = None,
+        span_id: str | None = None,
     ) -> ConsolidatedDecision:
         """Processa consenso completo
 
         Args:
             cognitive_plan: Plano cognitivo do Cognitive Orchestrator
             specialist_opinions: Lista de pareceres dos especialistas
+            trace_id: trace_id W3C extraído dos headers Kafka (P3-trace).
+                Tem prioridade sobre o valor presente no cognitive_plan.
+            span_id: span_id W3C extraído dos headers Kafka (P3-trace).
+                Tem prioridade sobre o valor presente no cognitive_plan.
 
         Returns:
             ConsolidatedDecision pronta para persistência e publicação
@@ -160,12 +169,35 @@ class ConsensusOrchestrator:
                 span_id=cognitive_plan.get("span_id"),
             )
 
+        # Resolver trace context com priorização (P3-trace):
+        # 1) valor extraído dos headers Kafka, 2) valor presente no cognitive_plan,
+        # 3) fallback UUID para nunca persistir null (igual ao correlation_id).
+        resolved_trace_id = trace_id or cognitive_plan.get("trace_id")
+        resolved_span_id = span_id or cognitive_plan.get("span_id")
+        if not resolved_trace_id:
+            resolved_trace_id = uuid.uuid4().hex
+            logger.warning(
+                "P3-trace: trace_id ausente (headers Kafka e cognitive_plan) - UUID gerado",
+                plan_id=cognitive_plan["plan_id"],
+                intent_id=cognitive_plan["intent_id"],
+                generated_trace_id=resolved_trace_id,
+                upstream_source="semantic-translation-engine",
+            )
+        if not resolved_span_id:
+            resolved_span_id = uuid.uuid4().hex[:16]
+            logger.warning(
+                "P3-trace: span_id ausente (headers Kafka e cognitive_plan) - UUID gerado",
+                plan_id=cognitive_plan["plan_id"],
+                intent_id=cognitive_plan["intent_id"],
+                generated_span_id=resolved_span_id,
+            )
+
         decision = ConsolidatedDecision(
             plan_id=cognitive_plan["plan_id"],
             intent_id=cognitive_plan["intent_id"],
             correlation_id=correlation_id,
-            trace_id=cognitive_plan.get("trace_id"),
-            span_id=cognitive_plan.get("span_id"),
+            trace_id=resolved_trace_id,
+            span_id=resolved_span_id,
             final_decision=final_decision,
             consensus_method=consensus_method,
             aggregated_confidence=aggregated_confidence,
@@ -217,8 +249,10 @@ class ConsensusOrchestrator:
         # Calcular hash de integridade
         decision.hash = decision.calculate_hash()
 
-        # 10. Publicar feromônios
-        await self._publish_pheromones(decision, cognitive_plan, specialist_opinions)
+        # 10. Publicar feromônios (best-effort, NÃO crítico).
+        # Isolado por timeout/except para nunca bloquear nem falhar o retorno/persistência
+        # da decisão se o backend (Redis/Mongo) estiver lento.
+        await self._publish_pheromones_best_effort(decision, cognitive_plan, specialist_opinions)
 
         logger.info(
             "Consenso processado",
@@ -250,16 +284,29 @@ class ConsensusOrchestrator:
             )
             domain = UnifiedDomain.BUSINESS
 
+        # 1. Obter pesos base de feromônio EM PARALELO.
+        # Antes era um loop sequencial: com o cliente Redis degradado cada chamada
+        # pendurava ~80s, somando minutos para 5 especialistas. asyncio.gather torna
+        # o custo igual ao da chamada mais lenta, não à soma.
+        # Ver proj_consensus_redis_client_degradation_2026-06-18.
+        async def _fetch_pheromone_weight(specialist_type: str) -> float:
+            if self.config.enable_pheromones and self.pheromone_client:
+                return await self.pheromone_client.calculate_dynamic_weight(
+                    specialist_type, domain, base_weight=0.2
+                )
+            return 0.2
+
+        specialist_types = [op["specialist_type"] for op in specialist_opinions]
+        pheromone_weights = await asyncio.gather(
+            *(_fetch_pheromone_weight(st) for st in specialist_types)
+        )
+        pheromone_weight_by_type = dict(zip(specialist_types, pheromone_weights, strict=True))
+
         for opinion in specialist_opinions:
             specialist_type = opinion["specialist_type"]
 
-            # 1. Obter peso base de feromônio
-            if self.config.enable_pheromones and self.pheromone_client:
-                pheromone_weight = await self.pheromone_client.calculate_dynamic_weight(
-                    specialist_type, domain, base_weight=0.2
-                )
-            else:
-                pheromone_weight = 0.2
+            # 1. Peso base de feromônio (já resolvido em paralelo acima)
+            pheromone_weight = pheromone_weight_by_type[specialist_type]
 
             # 2. Aplicar peso hierárquico se habilitado (GAPS-03-05)
             if self.config.enable_hierarchical_consensus:
@@ -317,13 +364,16 @@ class ConsensusOrchestrator:
             )
             normalized_domain = UnifiedDomain.BUSINESS
 
-        strengths = []
-        for opinion in specialist_opinions:
-            specialist_type = opinion["specialist_type"]
-            pheromones = await self.pheromone_client.get_aggregated_pheromone(
-                specialist_type, normalized_domain
+        # Agregação em paralelo (era loop sequencial — ver nota em _calculate_dynamic_weights)
+        pheromones_list = await asyncio.gather(
+            *(
+                self.pheromone_client.get_aggregated_pheromone(
+                    opinion["specialist_type"], normalized_domain
+                )
+                for opinion in specialist_opinions
             )
-            strengths.append(pheromones["net_strength"])
+        )
+        strengths = [p["net_strength"] for p in pheromones_list]
 
         return sum(strengths) / len(strengths) if strengths else 0.0
 
@@ -459,6 +509,39 @@ class ConsensusOrchestrator:
         # Remover entradas com zero
         return {k: v for k, v in distribution.items() if v > 0}
 
+    async def _publish_pheromones_best_effort(
+        self,
+        decision: ConsolidatedDecision,
+        cognitive_plan: dict[str, Any],
+        specialist_opinions: list[dict[str, Any]],
+    ):
+        """Publica feromônios com timeout e isolamento de erros.
+
+        A publicação é um efeito colateral pós-decisão (best-effort): nunca deve
+        bloquear nem propagar exceção para o caminho de persistência da decisão.
+        Ver proj_consensus_redis_client_degradation_2026-06-18.
+        """
+        publish_timeout = getattr(self.config, "pheromone_publish_timeout", 5.0)
+        try:
+            await asyncio.wait_for(
+                self._publish_pheromones(decision, cognitive_plan, specialist_opinions),
+                timeout=publish_timeout,
+            )
+        except asyncio.TimeoutError:
+            logger.warning(
+                "Publicação de feromônios excedeu timeout - decisão prossegue (best-effort)",
+                decision_id=decision.decision_id,
+                plan_id=decision.plan_id,
+                timeout_s=publish_timeout,
+            )
+        except Exception as exc:
+            logger.warning(
+                "Falha ao publicar feromônios - decisão prossegue (best-effort)",
+                decision_id=decision.decision_id,
+                plan_id=decision.plan_id,
+                error=str(exc),
+            )
+
     async def _publish_pheromones(
         self,
         decision: ConsolidatedDecision,
@@ -496,19 +579,21 @@ class ConsensusOrchestrator:
             pheromone_type = PheromoneType.WARNING
             strength = 0.5
 
-        # Publicar feromônio para cada especialista
-        for opinion in specialist_opinions:
-            specialist_type = opinion["specialist_type"]
-
-            await self.pheromone_client.publish_pheromone(
-                specialist_type=specialist_type,
-                domain=domain,
-                pheromone_type=pheromone_type,
-                strength=strength,
-                plan_id=decision.plan_id,
-                intent_id=decision.intent_id,
-                decision_id=decision.decision_id,
+        # Publicar feromônio para cada especialista EM PARALELO (era sequencial)
+        await asyncio.gather(
+            *(
+                self.pheromone_client.publish_pheromone(
+                    specialist_type=opinion["specialist_type"],
+                    domain=domain,
+                    pheromone_type=pheromone_type,
+                    strength=strength,
+                    plan_id=decision.plan_id,
+                    intent_id=decision.intent_id,
+                    decision_id=decision.decision_id,
+                )
+                for opinion in specialist_opinions
             )
+        )
 
         logger.debug(
             "Feromônios publicados",

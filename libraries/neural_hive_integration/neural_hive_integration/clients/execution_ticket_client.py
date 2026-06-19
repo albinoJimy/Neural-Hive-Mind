@@ -258,8 +258,39 @@ class ExecutionTicketClient:
         )
         response.raise_for_status()
 
-        tickets = [ExecutionTicket(**t) for t in response.json()]
+        # O endpoint devolve {"tickets": [...], "total", "offset", "limit"}.
+        # Suportar também uma lista crua por robustez a versões antigas da API.
+        payload = response.json()
+        items = payload.get("tickets", []) if isinstance(payload, dict) else payload
+        tickets = [ExecutionTicket(**t) for t in items]
         return tickets
+
+    @tracer.start_as_current_span("execution_ticket.count_by_plan")
+    async def count_tickets_by_plan(self, plan_id: str) -> int:
+        """
+        Conta tickets de um plano SEM parsear os modelos completos.
+
+        Usado para verificações de idempotência (ex.: evitar regerar tickets
+        quando o plano já foi executado), sendo robusto a divergências de schema
+        entre a API e o modelo ExecutionTicket.
+
+        Args:
+            plan_id: Identificador do plano
+
+        Returns:
+            Número de tickets existentes para o plano (0 se nenhum).
+        """
+        response = await self.client.get(
+            f"{self.base_url}/api/v1/tickets/",
+            params={"plan_id": plan_id, "limit": 1},
+        )
+        response.raise_for_status()
+        payload = response.json()
+        if isinstance(payload, dict):
+            if "total" in payload:
+                return int(payload["total"])
+            return len(payload.get("tickets", []))
+        return len(payload)
 
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10))
     @tracer.start_as_current_span("execution_ticket.generate_token")

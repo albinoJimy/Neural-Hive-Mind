@@ -112,10 +112,19 @@ config:
     failOpen: true
     policies:
       maxConcurrentTickets: 50
+      # Conjunto canónico REAL de capabilities de TASK (ver values.yaml).
       allowedCapabilities:
-        - code_generation
-        - testing
-        - validation
+        - read
+        - write
+        - compute
+        - analyze
+        - transform
+        - test
+        - code
+        - security
+        - scan
+        - compliance
+        - deploy
       resourceLimits:
         maxCpu: "2000m"
         maxMemory: "4Gi"

@@ -7,7 +7,11 @@ replicaCount: 2
 autoscaling:
   enabled: false  # Desabilitado por padrão para manter comportamento atual
   minReplicas: 2
-  maxReplicas: 10
+  # Limitado ao nº de partições do tópico plans.ready (6). Como todas as réplicas
+  # partilham o mesmo consumer group, réplicas acima do nº de partições ficariam
+  # ociosas (sem partições para possuir) — sem ganho de throughput. Se o nº de
+  # partições aumentar (Kafka só permite aumentar), alinhar este valor.
+  maxReplicas: 6
   targetCPUUtilizationPercentage: 70
   targetMemoryUtilizationPercentage: 80
 
@@ -63,6 +67,16 @@ config:
     securityProtocol: "PLAINTEXT"
     saslMechanism: ""
     schemaRegistryUrl: "https://schema-registry.kafka.svc.cluster.local:8081/apis/ccompat/v6"
+
+  # Configuração do consumer de planos.
+  # maxConcurrentPlans: nº de planos processados concorrentemente por réplica.
+  #   Default=1 => comportamento SÉRIE atual (anti-regressão). Ver settings.py
+  #   (consensus_max_concurrent_plans). Aumentar SÓ após validar memória/CPU
+  #   (limits memory 768Mi) e observar lag — concorrência N corre N consolidações
+  #   em simultâneo. Camada 1 (escalar replicaCount até nº de partições de
+  #   plans.ready) é o lever preferencial e de menor risco para reduzir lag.
+  consumer:
+    maxConcurrentPlans: 1
 
   specialists:
     businessEndpoint: "specialist-business.neural-hive.svc.cluster.local:50051"

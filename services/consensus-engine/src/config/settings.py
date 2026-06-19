@@ -163,9 +163,24 @@ class Settings(BaseSettings):
     redis_cluster_nodes: str = Field(..., description="Redis cluster nodes")
     redis_password: Optional[str] = Field(default=None, description="Redis password")
     redis_ssl_enabled: bool = Field(default=False, description="Redis SSL enabled")
+    # Timeouts curtos para falhar rápido p/ fallback MongoDB quando uma conexão do
+    # pool fica stale (ex.: nó Redis muda de IP após restart). Sem isto, cada operação
+    # pendura no socket default (~dezenas de s) antes do fallback, degradando o consenso
+    # para minutos. Ver proj_consensus_redis_client_degradation_2026-06-18.
+    redis_socket_timeout: float = Field(
+        default=2.0, description="Timeout (s) de operações Redis antes do fallback", gt=0
+    )
+    redis_socket_connect_timeout: float = Field(
+        default=2.0, description="Timeout (s) de conexão Redis", gt=0
+    )
     pheromone_ttl: int = Field(default=3600, description="TTL de feromônios em segundos", gt=0)
     pheromone_decay_rate: float = Field(
         default=0.1, description="Taxa de decay de feromônios por hora", ge=0.0, le=1.0
+    )
+    # A publicação de feromônios é um efeito colateral pós-decisão (best-effort). Limita-se
+    # o seu tempo para que NUNCA bloqueie a persistência da ConsolidatedDecision.
+    pheromone_publish_timeout: float = Field(
+        default=5.0, description="Timeout (s) da publicação de feromônios pós-decisão", gt=0
     )
 
     # Observabilidade
@@ -297,6 +312,37 @@ class Settings(BaseSettings):
         description="Timeout do poll do consumer Kafka (segundos). "
         "Controla tradeoff entre responsividade e frequência de polling.",
         gt=0.0,
+    )
+    # Concorrência de processamento de planos (feature-flag de throughput).
+    # DEFAULT=1 reproduz o comportamento SÉRIE atual byte-a-byte: cada plano é
+    # processado de forma bloqueante (await) antes do próximo poll. Com valor >1,
+    # o consumer despacha até N planos concorrentemente governados por um
+    # asyncio.Semaphore, commitando apenas o maior offset CONTÍGUO já concluído
+    # por partição (offset tracking), nunca o offset de uma mensagem ainda em
+    # curso → preserva a correção do commit em rebalances e idempotência.
+    # ATENÇÃO: concorrência aumenta uso de CPU/memória (N consolidações em
+    # simultâneo); validar limits (memory 768Mi no chart) antes de elevar.
+    consensus_max_concurrent_plans: int = Field(
+        default=1,
+        description="Número máximo de planos processados concorrentemente por réplica. "
+        "Default=1 mantém o processamento série atual (anti-regressão). "
+        "Valores >1 ativam bounded concurrency via semaphore com commit de offset "
+        "contíguo por partição.",
+        ge=1,
+        le=64,
+    )
+    # Readiness: nº mínimo de especialistas SERVING para o /ready passar.
+    # O consenso precisa de >=3 pareceres para consenso real e tem fallback
+    # determinístico abaixo disso, por isso exigir TODOS os 5 SERVING tornava o
+    # readiness frágil (flaps transitórios "no healthy upstream" do Istio = 503).
+    # Default=3 (quórum) alinha com o mínimo de pareceres do consenso.
+    readiness_min_specialists_serving: int = Field(
+        default=3,
+        description="Número mínimo de especialistas SERVING para o readiness (/ready) "
+        "passar. Quórum alinhado com o mínimo de pareceres para consenso real. "
+        "0 desativa o gate (especialistas deixam de ser críticos para readiness).",
+        ge=0,
+        le=5,
     )
     # Dead Letter Queue (DLQ) - Gap P0-1 Implementado
     # Configurações para envio de mensagens com falha para DLQ após exceder retries

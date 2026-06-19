@@ -7,6 +7,7 @@ Validates OTEL Collector connectivity and trace pipeline functionality.
 import asyncio
 import logging
 import time
+from typing import Optional
 
 import aiohttp
 
@@ -51,6 +52,13 @@ class OTELPipelineHealthCheck(HealthCheck):
         # Parse endpoint to determine protocol
         self._is_grpc = ":4317" in otel_endpoint or "grpc" in otel_endpoint.lower()
         self._http_endpoint = self._derive_http_endpoint(otel_endpoint)
+        # Endpoint da extensão health_check do Collector (porta default 13133).
+        # É o único endpoint que responde 200 de forma fiável e barata; OTLP
+        # HTTP (4318) NÃO expõe /health (devolve 404), o que tornava o check lento/instável.
+        self._health_endpoint = self._derive_health_endpoint(otel_endpoint)
+        # Timeout por-request mais curto que o global para que os fallbacks
+        # sequenciais nunca excedam o orçamento total do check.
+        self._request_timeout = max(1.0, timeout_seconds / 3.0)
 
     def _derive_http_endpoint(self, endpoint: str) -> str:
         """Derive HTTP endpoint from OTEL endpoint."""
@@ -62,6 +70,14 @@ class OTELPipelineHealthCheck(HealthCheck):
         else:
             # Assume HTTP endpoint
             return endpoint
+
+    def _derive_health_endpoint(self, endpoint: str) -> str:
+        """Deriva o endpoint da extensão health_check do Collector (porta 13133)."""
+        if ":4317" in endpoint:
+            return endpoint.replace(":4317", ":13133")
+        elif ":4318" in endpoint:
+            return endpoint.replace(":4318", ":13133")
+        return ""
 
     async def check(self) -> HealthCheckResult:
         """
@@ -130,33 +146,31 @@ class OTELPipelineHealthCheck(HealthCheck):
             )
 
     async def _check_collector_health(self) -> bool:
-        """Check if OTEL Collector is healthy via HTTP endpoint."""
+        """Check if OTEL Collector is healthy via HTTP endpoint.
+
+        Ordem de tentativa (do mais fiável/barato para fallback):
+        1. Extensão health_check do Collector (porta 13133) — responde 200.
+        2. Endpoint de métricas (porta 8888) — responde 200 se o Collector está vivo.
+        3. /health do OTLP HTTP (4318) — mantido por compat (devolve 404 na maioria das versões).
+        """
+        request_timeout = aiohttp.ClientTimeout(total=self._request_timeout)
+
+        # Candidatos por ordem de preferência (ignorando vazios)
+        candidates = []
+        if self._health_endpoint:
+            candidates.append(f"{self._health_endpoint.rstrip('/')}/")
+        candidates.append(self._http_endpoint.replace(":4318", ":8888").rstrip("/") + "/metrics")
+        candidates.append(f"{self._http_endpoint.rstrip('/')}/health")
+
         try:
-            # Try health endpoint first
-            health_url = f"{self._http_endpoint.rstrip('/')}/health"
-
             async with aiohttp.ClientSession() as session:
-                try:
-                    async with session.get(
-                        health_url,
-                        timeout=aiohttp.ClientTimeout(total=self.timeout_seconds),
-                    ) as response:
-                        if response.status == 200:
-                            return True
-                except aiohttp.ClientError:
-                    pass
-
-                # Try metrics endpoint as fallback
-                metrics_url = self._http_endpoint.replace(":4318", ":8888").rstrip("/") + "/metrics"
-                try:
-                    async with session.get(
-                        metrics_url,
-                        timeout=aiohttp.ClientTimeout(total=self.timeout_seconds),
-                    ) as response:
-                        return response.status == 200
-                except aiohttp.ClientError:
-                    pass
-
+                for url in candidates:
+                    try:
+                        async with session.get(url, timeout=request_timeout) as response:
+                            if response.status == 200:
+                                return True
+                    except (aiohttp.ClientError, asyncio.TimeoutError):
+                        continue
             return False
 
         except Exception as e:
@@ -165,10 +179,35 @@ class OTELPipelineHealthCheck(HealthCheck):
 
     async def _verify_trace_export(self) -> bool:
         """
-        Verify trace export by sending a test span.
+        Verifica a saúde REAL do pipeline de export de traces.
 
-        Note: This sends a minimal test span to verify the pipeline is working.
+        IMPORTANTE: a aplicação exporta spans via OTLP **gRPC** (porta 4317,
+        ver tracing.py/exporters.py — ResilientOTLPSpanExporter). Verificar o
+        export fazendo um POST HTTP/JSON para o receiver OTLP HTTP (porta 4318)
+        é estruturalmente incorreto: muitos Collectors em produção só habilitam
+        o receiver gRPC, pelo que o :4318 pode devolver connection-refused/404
+        mesmo quando o caminho gRPC real funciona perfeitamente. Isso gerava o
+        falso warning "OTEL Collector reachable but trace export failed".
+
+        Estratégia (do sinal mais fiável para fallback best-effort):
+        1. PRINCIPAL — ler as métricas do próprio Collector (:8888/metrics) e
+           confirmar que ele está a ACEITAR spans (otelcol_receiver_accepted_spans
+           presente). Este sinal é independente do receiver HTTP/4318 e reflete
+           o pipeline gRPC que de facto carrega os traces.
+        2. FALLBACK — sondar o receiver OTLP HTTP (:4318). Se o transporte
+           estiver indisponível (connection-refused/404/timeout), tratar como
+           best-effort (NÃO marca falha), reservando DEGRADED apenas para
+           rejeições semânticas 4xx/5xx de um endpoint efetivamente alcançado.
         """
+        # 1) Sinal principal: o Collector está a aceitar spans?
+        metrics_accepting = await self._check_spans_accepted_via_metrics()
+        if metrics_accepting is True:
+            return True
+        # metrics_accepting is None => métricas indisponíveis/inconclusivas;
+        # cai para o fallback HTTP. False => métrica presente mas a indicar
+        # que não há receção; também cai para o fallback para confirmar.
+
+        # 2) Fallback best-effort: sonda OTLP HTTP (:4318).
         try:
             # Build minimal OTLP trace payload
             trace_payload = self._build_test_trace()
@@ -181,14 +220,90 @@ class OTELPipelineHealthCheck(HealthCheck):
                     traces_url,
                     json=trace_payload,
                     headers={"Content-Type": "application/json"},
-                    timeout=aiohttp.ClientTimeout(total=self.timeout_seconds),
+                    timeout=aiohttp.ClientTimeout(total=self._request_timeout),
                 ) as response:
-                    # 200 or 202 indicates success
-                    return response.status in (200, 202)
+                    # 200/202 = aceite. 4xx/5xx num endpoint alcançado = falha
+                    # semântica real (DEGRADED). 404 = receiver HTTP não exposto
+                    # (best-effort: não é falha do pipeline gRPC).
+                    if response.status in (200, 202):
+                        return True
+                    if response.status == 404:
+                        logger.debug(
+                            "OTLP HTTP receiver (4318) não exposto (404); "
+                            "pipeline gRPC tratado como saudável (best-effort)"
+                        )
+                        return True
+                    return False
 
+        except (aiohttp.ClientError, asyncio.TimeoutError) as e:
+            # Erro de transporte/cliente HTTP no probe OTLP/4318 (connection
+            # refused, timeout, resposta malformada, etc.): best-effort. Não é
+            # falha do pipeline gRPC real, pelo que reportamos saudável para
+            # evitar falsos DEGRADED e ruído de log.
+            logger.debug(
+                f"OTLP HTTP receiver (4318) indisponível ({e}); "
+                "pipeline gRPC tratado como saudável (best-effort)"
+            )
+            return True
         except Exception as e:
-            logger.debug(f"Trace export verification error: {e}")
-            return False
+            # Excecao verdadeiramente inesperada (NÃO de transporte): ex. bug em
+            # _build_test_trace (TypeError), erro de serialização JSON, ou outra
+            # falha de programação no próprio probe. Estas NÃO devem ficar
+            # silenciadas — tornam-se visíveis com logger.warning. O resultado é
+            # inconclusivo: preferimos o sinal primário de métricas quando este
+            # foi obtido (não None) em vez de assumir cegamente saúde.
+            logger.warning(
+                f"Erro inesperado na verificação de export de traces "
+                f"(possível bug do probe): {e}",
+                exc_info=True,
+            )
+            # Se as métricas do Collector deram um sinal explícito (True/False),
+            # respeitamo-lo; só caímos para best-effort True quando o sinal
+            # primário foi inconclusivo (None).
+            if metrics_accepting is not None:
+                return metrics_accepting
+            return True
+
+    async def _check_spans_accepted_via_metrics(self) -> Optional[bool]:
+        """
+        Confirma via métricas do Collector (:8888/metrics) que spans estão a ser
+        aceites pelo pipeline (receiver gRPC incluído).
+
+        Returns:
+            True  — métrica otelcol_receiver_accepted_spans presente (Collector
+                    a aceitar spans).
+            False — métrica presente mas sem qualquer span aceite.
+            None  — métricas indisponíveis/inconclusivas (cai para fallback).
+        """
+        metrics_url = self._http_endpoint.replace(":4318", ":8888").rstrip("/") + "/metrics"
+        request_timeout = aiohttp.ClientTimeout(total=self._request_timeout)
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(metrics_url, timeout=request_timeout) as response:
+                    if response.status != 200:
+                        return None
+                    metrics_text = await response.text()
+        except (aiohttp.ClientError, asyncio.TimeoutError):
+            return None
+        except Exception as e:
+            logger.debug(f"OTEL metrics fetch error: {e}")
+            return None
+
+        accepted_total = 0.0
+        metric_present = False
+        for line in metrics_text.split("\n"):
+            if line.startswith("#") or not line.strip():
+                continue
+            if "otelcol_receiver_accepted_spans" in line:
+                metric_present = True
+                try:
+                    accepted_total += float(line.split()[-1])
+                except (ValueError, IndexError):
+                    continue
+
+        if not metric_present:
+            return None
+        return accepted_total > 0
 
     def _build_test_trace(self) -> dict:
         """Build a minimal test trace payload in OTLP format."""

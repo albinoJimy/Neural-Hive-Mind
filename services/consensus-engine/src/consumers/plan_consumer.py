@@ -1,6 +1,7 @@
 import asyncio
 import json
 import os
+import re
 import time
 from typing import Any, Optional
 
@@ -14,6 +15,7 @@ from src.observability.metrics import ConsensusMetrics
 from src.services.consensus_orchestrator import ConsensusOrchestrator
 
 from neural_hive_observability.context import extract_context_from_headers, set_baggage
+from neural_hive_observability.tracing import get_current_span_id, get_current_trace_id
 
 logger = structlog.get_logger()
 
@@ -38,6 +40,30 @@ class PlanConsumer:
         # Tracking de falhas por mensagem (para retry com backoff)
         self._message_failures: dict[str, int] = {}
         self._message_last_failure: dict[str, float] = {}
+
+        # Concorrência bounded de processamento de planos (feature-flag).
+        # Default (consensus_max_concurrent_plans=1) => modo SÉRIE inalterado.
+        # Estado abaixo só é exercido quando o modo concorrente está ativo (>1).
+        self._max_concurrent_plans: int = max(
+            1, int(getattr(config, "consensus_max_concurrent_plans", 1))
+        )
+        self._concurrent_enabled: bool = self._max_concurrent_plans > 1
+        # Semaphore que limita o nº de planos em processamento simultâneo.
+        self._plan_semaphore: Optional[asyncio.Semaphore] = None
+        # Tasks em curso (supervisionadas) no modo concorrente.
+        self._inflight_tasks: set[asyncio.Task] = set()
+        # Offset tracking por partição para commit de prefixo CONTÍGUO:
+        #   _partition_next_commit[(topic, partition)] = próximo offset a commitar
+        #     (= maior offset contíguo concluído + 1)
+        #   _partition_completed[(topic, partition)] = set de offsets concluídos
+        #     ainda à frente de buracos (não contíguos)
+        self._partition_next_commit: dict[tuple[str, int], int] = {}
+        self._partition_completed: dict[tuple[str, int], set[int]] = {}
+        # Partições atualmente atribuídas (modo concorrente). Mantido pelos callbacks
+        # de rebalance para impedir commits de partições já revogadas.
+        self._assigned_partitions: set[tuple[str, int]] = set()
+        # Protege a estrutura de offset tracking contra updates concorrentes.
+        self._offset_lock: Optional[asyncio.Lock] = None
 
     async def initialize(self):
         """Inicializa consumer Kafka com confluent-kafka"""
@@ -68,7 +94,18 @@ class PlanConsumer:
             )
 
         self.consumer = Consumer(consumer_config)
-        self.consumer.subscribe([self.config.kafka_plans_topic])
+        # No modo concorrente, registamos callbacks de rebalance para drenar tasks
+        # em curso e limpar o tracking de offset das partições revogadas, evitando
+        # commits para partições já não atribuídas e reprocessamento após reassignment.
+        # No modo série (default), subscribe simples — comportamento inalterado.
+        if self._concurrent_enabled:
+            self.consumer.subscribe(
+                [self.config.kafka_plans_topic],
+                on_assign=self._on_partitions_assigned,
+                on_revoke=self._on_partitions_revoked,
+            )
+        else:
+            self.consumer.subscribe([self.config.kafka_plans_topic])
 
         # Configurar Schema Registry para deserialização Avro
         schema_registry_url = os.getenv("SCHEMA_REGISTRY_URL")
@@ -156,7 +193,17 @@ class PlanConsumer:
         ConsensusMetrics.set_circuit_breaker_state(False)
         ConsensusMetrics.set_consecutive_errors(0)
 
-        logger.info("Plan consumer iniciado")
+        # Inicializar primitivos de concorrência (só usados se modo concorrente ativo).
+        # Criados aqui (dentro do event loop em execução) para ficarem ligados ao loop correto.
+        if self._concurrent_enabled and self._plan_semaphore is None:
+            self._plan_semaphore = asyncio.Semaphore(self._max_concurrent_plans)
+            self._offset_lock = asyncio.Lock()
+
+        logger.info(
+            "Plan consumer iniciado",
+            concurrency_mode="concurrent" if self._concurrent_enabled else "serial",
+            max_concurrent_plans=self._max_concurrent_plans,
+        )
 
         while self.running:
             try:
@@ -210,7 +257,24 @@ class PlanConsumer:
                 # Deserializar mensagem
                 cognitive_plan = await self._deserialize_value(msg)
 
-                if cognitive_plan:
+                if cognitive_plan and self._concurrent_enabled:
+                    # MODO CONCORRENTE (feature-flag consensus_max_concurrent_plans > 1):
+                    # despachar como task supervisionada governada por semaphore.
+                    # O commit de offset é feito por prefixo CONTÍGUO por partição
+                    # (ver _process_plan_concurrent / _mark_offset_completed), NUNCA
+                    # commitando o offset de uma mensagem ainda em curso.
+                    # `await acquire` aplica backpressure: o poll só avança quando há
+                    # capacidade, evitando acumular tasks ilimitadas em memória.
+                    await self._plan_semaphore.acquire()
+                    self._register_inflight_offset(msg)
+                    task = asyncio.ensure_future(self._process_plan_concurrent(msg, cognitive_plan))
+                    self._inflight_tasks.add(task)
+                    task.add_done_callback(self._inflight_tasks.discard)
+                    # No modo concorrente, erros individuais são tratados dentro da
+                    # task; consecutive_errors continua a refletir erros de poll/loop.
+                    consecutive_errors = 0
+                    ConsensusMetrics.set_consecutive_errors(0)
+                elif cognitive_plan:
                     # Processar com isolamento de erro por mensagem e suporte DLQ
                     start_time = time.time()
                     try:
@@ -283,6 +347,22 @@ class PlanConsumer:
                                 plan_id=cognitive_plan.get("plan_id", "unknown"),
                                 error_type=type(process_error).__name__,
                             )
+                            # FIX-CP-001/BUG-2: sem este sleep, o offset não-commitado
+                            # faz o próximo poll devolver a MESMA mensagem imediatamente,
+                            # criando um tight-loop (CPU 100%, lag estagnado) enquanto a
+                            # mensagem está em backoff. Dormir o tempo de backoff restante
+                            # (ou o base backoff) evita o reprocessamento em busy-loop.
+                            backoff_sleep = self._extract_backoff_seconds(process_error)
+                            if backoff_sleep is None:
+                                backoff_sleep = self.config.consumer_base_backoff_seconds
+                            backoff_sleep = min(
+                                backoff_sleep, self.config.consumer_max_backoff_seconds
+                            )
+                            ConsensusMetrics.increment_backoff_event("business_error")
+                            ConsensusMetrics.observe_backoff_duration(
+                                backoff_sleep, "business_error"
+                            )
+                            await asyncio.sleep(backoff_sleep)
 
             except asyncio.CancelledError:
                 logger.info("Consumer cancelado via asyncio")
@@ -316,12 +396,211 @@ class PlanConsumer:
                 ConsensusMetrics.observe_backoff_duration(backoff, "loop_error")
                 await asyncio.sleep(backoff)
 
+        # Drenar tasks em curso (modo concorrente) antes de finalizar para garantir
+        # que offsets concluídos sejam commitados e nenhuma consolidação fique a meio.
+        if self._concurrent_enabled and self._inflight_tasks:
+            logger.info(
+                "Aguardando conclusão de planos em curso antes de finalizar",
+                inflight=len(self._inflight_tasks),
+            )
+            await asyncio.gather(*list(self._inflight_tasks), return_exceptions=True)
+            await self._commit_contiguous_offsets()
+
         logger.info(
             "Consumer loop finalizado",
             consecutive_errors=consecutive_errors,
             was_running=self.running,
             circuit_breaker_open=self.circuit_breaker_open,
         )
+
+    def _on_partitions_assigned(self, consumer, partitions) -> None:
+        """Callback de atribuição de partições (modo concorrente).
+
+        Executado sincronamente dentro de poll(). Apenas regista as partições
+        atualmente atribuídas para que _commit_offset possa rejeitar commits de
+        partições não-possuídas. Não inicializa tracking de offset aqui — isso é
+        feito por mensagem em _register_inflight_offset com o offset real recebido.
+        """
+        self._assigned_partitions = {(tp.topic, tp.partition) for tp in partitions}
+        logger.info(
+            "Partições atribuídas (modo concorrente)",
+            partitions=[f"{tp.topic}:{tp.partition}" for tp in partitions],
+        )
+
+    def _on_partitions_revoked(self, consumer, partitions) -> None:
+        """Callback de revogação de partições (modo concorrente).
+
+        Executado sincronamente dentro de poll(). Limpa o tracking de offset das
+        partições revogadas para evitar estado obsoleto e commits para partições
+        já não atribuídas após reassignment. Tasks em curso para estas partições,
+        ao concluírem, encontrarão a partição fora de `_assigned_partitions` e o
+        commit será ignorado (ver _commit_offset), pelo que a mensagem será
+        reprocessada pelo novo dono — semântica at-least-once preservada.
+
+        PRÉ-CONDIÇÃO (documentada): ative-se o modo concorrente apenas com o nº de
+        réplicas estável; rebalances frequentes durante carga podem causar
+        reprocessamento de planos em curso (idempotência por decision_id/dedup por
+        message_key mitiga efeitos colaterais).
+        """
+        revoked = {(tp.topic, tp.partition) for tp in partitions}
+        for key in revoked:
+            self._partition_next_commit.pop(key, None)
+            self._partition_completed.pop(key, None)
+            if hasattr(self, "_assigned_partitions"):
+                self._assigned_partitions.discard(key)
+        logger.warning(
+            "Partições revogadas (modo concorrente) - tracking de offset limpo",
+            partitions=[f"{tp.topic}:{tp.partition}" for tp in partitions],
+            inflight=len(self._inflight_tasks),
+        )
+
+    def _register_inflight_offset(self, msg) -> None:
+        """Regista o offset de uma mensagem despachada para processamento concorrente.
+
+        Inicializa o ponteiro de commit da partição (na primeira mensagem vista)
+        com o offset atual, de modo a que apenas offsets >= a este ponteiro sejam
+        considerados para commit contíguo. Não commita nada — apenas tracking.
+        """
+        key = (msg.topic(), msg.partition())
+        if key not in self._partition_next_commit:
+            self._partition_next_commit[key] = msg.offset()
+            self._partition_completed.setdefault(key, set())
+
+    async def _process_plan_concurrent(self, msg, cognitive_plan) -> None:
+        """Processa um plano no modo concorrente, com a mesma semântica de retry/DLQ.
+
+        Diferenças face ao caminho série:
+        - O commit por-mensagem de _process_message é SUPRIMIDO; o offset só é
+          commitado via prefixo contíguo por partição quando esta e todas as
+          mensagens anteriores da partição concluírem com sucesso.
+        - Em caso de falha, o offset NÃO é marcado concluído (mantém-se o gap),
+          pelo que o commit contíguo nunca ultrapassa uma mensagem ainda não OK.
+        """
+        start_time = time.time()
+        try:
+            await self._process_message_with_retry(msg, cognitive_plan)
+            duration = time.time() - start_time
+            ConsensusMetrics.observe_processing_duration(duration, "success")
+            ConsensusMetrics.increment_message_processed("success")
+            # Marcar offset como concluído e tentar avançar o prefixo contíguo.
+            await self._mark_offset_completed(msg)
+        except Exception as process_error:
+            duration = time.time() - start_time
+            ConsensusMetrics.observe_processing_duration(duration, "failed")
+            ConsensusMetrics.increment_message_processed("failed", type(process_error).__name__)
+            # NÃO marcar offset concluído: o prefixo contíguo fica retido neste
+            # offset, garantindo que a mensagem falhada (e as posteriores) não têm
+            # o offset commitado → permite retry/análise, idêntico ao modo série.
+            logger.error(
+                "Erro processando plano (modo concorrente) - offset retido",
+                error=str(process_error),
+                error_type=type(process_error).__name__,
+                topic=msg.topic(),
+                partition=msg.partition(),
+                offset=msg.offset(),
+                plan_id=cognitive_plan.get("plan_id", "unknown"),
+            )
+        finally:
+            if self._plan_semaphore is not None:
+                self._plan_semaphore.release()
+
+    async def _mark_offset_completed(self, msg) -> None:
+        """Marca um offset como concluído e commita o maior prefixo contíguo da partição.
+
+        Mantém, por partição, `_partition_next_commit` (próximo offset esperado) e
+        um conjunto de offsets concluídos à frente. Quando o próximo offset esperado
+        está concluído, avança o ponteiro consumindo offsets contíguos e commita
+        UMA vez o offset mais alto contíguo (confluent-kafka commita offset+1).
+        """
+        key = (msg.topic(), msg.partition())
+        async with self._offset_lock:
+            completed = self._partition_completed.setdefault(key, set())
+            completed.add(msg.offset())
+            # Garantir ponteiro inicializado (defensivo).
+            if key not in self._partition_next_commit:
+                self._partition_next_commit[key] = msg.offset()
+
+            next_offset = self._partition_next_commit[key]
+            highest_contiguous: Optional[int] = None
+            while next_offset in completed:
+                completed.discard(next_offset)
+                highest_contiguous = next_offset
+                next_offset += 1
+            self._partition_next_commit[key] = next_offset
+
+            if highest_contiguous is not None:
+                await self._commit_offset(msg.topic(), msg.partition(), highest_contiguous)
+
+    async def _commit_offset(self, topic: str, partition: int, offset: int) -> None:
+        """Commita explicitamente offset+1 para (topic, partition) via TopicPartition."""
+        if self.config.kafka_enable_auto_commit:
+            return
+        # Não commitar partições já revogadas: o novo dono é responsável por elas;
+        # commitar aqui poderia sobrepor o progresso do novo consumer. A mensagem
+        # será reprocessada pelo novo dono (at-least-once + idempotência por
+        # decision_id), o que é seguro.
+        if self._concurrent_enabled and (topic, partition) not in self._assigned_partitions:
+            logger.warning(
+                "Commit ignorado - partição já revogada (modo concorrente)",
+                topic=topic,
+                partition=partition,
+                offset=offset,
+            )
+            return
+        try:
+            from confluent_kafka import TopicPartition
+
+            tp = TopicPartition(topic, partition, offset + 1)
+            await asyncio.get_event_loop().run_in_executor(
+                None, lambda: self.consumer.commit(offsets=[tp])
+            )
+            ConsensusMetrics.increment_offset_commit("success")
+            logger.debug(
+                "Offset contíguo commitado",
+                topic=topic,
+                partition=partition,
+                committed_offset=offset,
+            )
+        except Exception as commit_err:
+            ConsensusMetrics.increment_offset_commit("failed")
+            logger.error(
+                "Falha ao commitar offset contíguo",
+                topic=topic,
+                partition=partition,
+                offset=offset,
+                error=str(commit_err),
+            )
+
+    async def _commit_contiguous_offsets(self) -> None:
+        """Commita o prefixo contíguo atual de todas as partições (usado no drain)."""
+        for (topic, partition), next_offset in list(self._partition_next_commit.items()):
+            completed = self._partition_completed.get((topic, partition), set())
+            highest_contiguous: Optional[int] = None
+            cursor = next_offset
+            while cursor in completed:
+                completed.discard(cursor)
+                highest_contiguous = cursor
+                cursor += 1
+            self._partition_next_commit[(topic, partition)] = cursor
+            if highest_contiguous is not None:
+                await self._commit_offset(topic, partition, highest_contiguous)
+
+    def _extract_backoff_seconds(self, error: Exception) -> Optional[float]:
+        """Extrai o tempo de backoff restante (s) da exceção "Backoff em andamento".
+
+        Devolve None se a exceção não for de backoff. Usado para dormir o tempo
+        certo e evitar o tight-loop de reprocessamento (FIX-CP-001/BUG-2).
+        """
+        msg = str(error)
+        if "Backoff em andamento" not in msg:
+            return None
+        match = re.search(r"([0-9]+\.?[0-9]*)s", msg)
+        if match:
+            try:
+                return float(match.group(1))
+            except ValueError:
+                return None
+        return None
 
     def _is_systemic_error(self, error: Exception) -> bool:
         """
@@ -738,6 +1017,11 @@ class PlanConsumer:
     async def stop(self):
         """Para consumer gracefully"""
         self.running = False
+        # Drenar planos em curso (modo concorrente) e commitar offsets contíguos
+        # antes de fechar o consumer, evitando reprocessamento desnecessário.
+        if self._concurrent_enabled and self._inflight_tasks:
+            await asyncio.gather(*list(self._inflight_tasks), return_exceptions=True)
+            await self._commit_contiguous_offsets()
         if self.consumer:
             await asyncio.get_event_loop().run_in_executor(None, self.consumer.close)
         if self.dlq_producer:
@@ -754,6 +1038,21 @@ class PlanConsumer:
             }
             extract_context_from_headers(headers_dict)
 
+            # Extrair trace_id/span_id do contexto OTEL atual (já anexado pelo
+            # extract_context_from_headers acima) para propagar até à decisão de
+            # consenso. Envolvido em try/except para nunca ser fatal (P3-trace).
+            trace_id_extracted: str | None = None
+            span_id_extracted: str | None = None
+            try:
+                trace_id_extracted = get_current_trace_id()
+                span_id_extracted = get_current_span_id()
+            except Exception as exc:  # tracing nunca deve bloquear consumo
+                logger.exception(
+                    "Falha ao extrair trace context do contexto OTEL",
+                    error=str(exc),
+                    error_type=type(exc).__name__,
+                )
+
             # Set baggage for correlation
             plan_id = cognitive_plan.get("plan_id")
             if plan_id:
@@ -765,14 +1064,25 @@ class PlanConsumer:
                 partition=msg.partition(),
                 offset=msg.offset(),
                 plan_id=plan_id,
+                trace_id_extracted=trace_id_extracted,
+                span_id_extracted=span_id_extracted,
             )
 
             # 1. Invocar especialistas via gRPC
             specialist_opinions = await self._invoke_specialists(cognitive_plan)
 
-            # 2. Processar consenso
+            # 2. Processar consenso (propagar trace context extraído dos headers Kafka)
+            logger.info(
+                "Propagando trace context para o orchestrator de consenso",
+                plan_id=plan_id,
+                trace_id_passed_to_orchestrator=trace_id_extracted,
+                span_id_passed_to_orchestrator=span_id_extracted,
+            )
             decision = await self.orchestrator.process_consensus(
-                cognitive_plan, specialist_opinions
+                cognitive_plan,
+                specialist_opinions,
+                trace_id=trace_id_extracted,
+                span_id=span_id_extracted,
             )
 
             # 3. Persistir no ledger (MongoDB)
@@ -804,7 +1114,11 @@ class PlanConsumer:
                 )
 
             # 5. Commit manual do offset
-            if not self.config.kafka_enable_auto_commit:
+            # No modo concorrente o commit é diferido para o prefixo CONTÍGUO por
+            # partição (_mark_offset_completed), pelo que NÃO se commita por-msg aqui:
+            # commitar o offset desta mensagem poderia ultrapassar mensagens anteriores
+            # da mesma partição ainda em curso → gap/perda em rebalance.
+            if not self.config.kafka_enable_auto_commit and not self._concurrent_enabled:
                 try:
                     await asyncio.get_event_loop().run_in_executor(
                         None, lambda: self.consumer.commit(msg)
@@ -925,12 +1239,19 @@ class PlanConsumer:
                     self._message_failures.pop(message_key, None)
                     self._message_last_failure.pop(message_key, None)
 
-                    # Commitar offset para remover mensagem do tópico principal
+                    # Commitar offset para remover mensagem do tópico principal.
+                    # No modo concorrente, a mensagem foi resolvida (DLQ) e não retorna:
+                    # marca-se o offset como concluído para o prefixo contíguo avançar,
+                    # em vez de commitar diretamente este offset (que poderia ultrapassar
+                    # mensagens anteriores da partição ainda em curso).
                     if not self.config.kafka_enable_auto_commit:
-                        await asyncio.get_event_loop().run_in_executor(
-                            None, lambda: self.consumer.commit(msg)
-                        )
-                        ConsensusMetrics.increment_offset_commit("success")
+                        if self._concurrent_enabled:
+                            await self._mark_offset_completed(msg)
+                        else:
+                            await asyncio.get_event_loop().run_in_executor(
+                                None, lambda: self.consumer.commit(msg)
+                            )
+                            ConsensusMetrics.increment_offset_commit("success")
                 else:
                     # DLQ falhou - manter tracking para retry
                     logger.error(

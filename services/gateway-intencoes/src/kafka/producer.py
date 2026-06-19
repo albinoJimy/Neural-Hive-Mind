@@ -32,6 +32,20 @@ try:
 except ImportError:
     inject_context_to_headers = None
 try:
+    from neural_hive_observability.tracing import (
+        get_current_span_id,
+        get_current_trace_id,
+    )
+except ImportError:
+
+    def get_current_trace_id():
+        return None
+
+    def get_current_span_id():
+        return None
+
+
+try:
     from neural_hive_observability.kafka_instrumentation import (
         instrument_kafka_producer,
     )
@@ -432,10 +446,19 @@ class KafkaIntentProducer:
                     size_limit_bytes=4194304,
                 )
 
+            # Trace context (W3C) para propagar a cadeia de rastreamento até ao STE,
+            # que extrai estes headers (trace-id/span-id) para o CognitivePlan. Sem
+            # isto, o plano fica com trace_id=null e a cadeia gateway->STE->consenso
+            # quebra. Ver _extract_trace_context no intent_consumer do STE.
+            current_trace_id = get_current_trace_id()
+            current_span_id = get_current_span_id()
+
             # Headers para metadados e auditoria
             headers = {
                 "intent-id": intent_envelope.id.encode("utf-8"),
                 "correlation-id": (intent_envelope.correlation_id or "").encode("utf-8"),
+                "trace-id": (current_trace_id or "").encode("utf-8"),
+                "span-id": (current_span_id or "").encode("utf-8"),
                 "idempotency-key": idempotency_key.encode("utf-8"),
                 "schema-version": b"1.0.0",
                 "content-type": content_type.encode("utf-8"),

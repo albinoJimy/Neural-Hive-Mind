@@ -52,7 +52,22 @@ logger = structlog.get_logger()
 SERVICE_REGISTRY_HOST = os.getenv(
     "SERVICE_REGISTRY_HOST", "service-registry.neural-hive.svc.cluster.local"
 )
-SERVICE_REGISTRY_PORT = int(os.getenv("SERVICE_REGISTRY_PORT", "50051"))
+
+
+def _parse_port(value: str, default: int = 50051) -> int:
+    """Extrai a porta tolerando o formato service-link do K8s.
+
+    O Kubernetes injeta automaticamente env vars no estilo Docker para cada Service
+    (ex.: SERVICE_REGISTRY_PORT=tcp://10.98.9.69:50051), que colidem com a env var
+    de porta da aplicação. Aceita tanto '50051' como 'tcp://IP:50051'.
+    """
+    if not value:
+        return default
+    token = value.rsplit(":", 1)[-1]  # parte após o último ':' (porta), se houver
+    return int(token) if token.isdigit() else default
+
+
+SERVICE_REGISTRY_PORT = _parse_port(os.getenv("SERVICE_REGISTRY_PORT", "50051"))
 SERVICE_REGISTRY_ENABLED = os.getenv("SERVICE_REGISTRY_ENABLED", "true").lower() == "true"
 
 
@@ -731,41 +746,89 @@ class BaseSpecialist(ABC):
                 import numpy as np
                 import pandas as pd
 
-                # Importar definições centralizadas de features
-                try:
-                    import sys
+                # =====================================================================
+                # Alinhamento determinista ao schema do PRÓPRIO modelo carregado.
+                #
+                # A fonte de verdade é o artefacto (assinatura MLflow / sklearn),
+                # NÃO as definições centralizadas — isto evita o desalinhamento
+                # histórico em que o pipeline gera 32 features, feature_definitions
+                # declara 26 e o modelo em Production espera 10. Construímos o
+                # DataFrame exactamente com as colunas que o modelo espera,
+                # preenchendo a 0.0 as ausentes e descartando as extra.
+                # =====================================================================
+                expected_names, expected_n = self._get_expected_model_features()
 
-                    sys.path.insert(0, "/app/ml_pipelines")
-                    from feature_store.feature_definitions import get_feature_names
+                if expected_names:
+                    # Caminho preferido: temos os nomes esperados pelo modelo.
+                    feature_dict = {name: 0.0 for name in expected_names}
 
-                    feature_names = get_feature_names()
-                except Exception as e:
-                    logger.warning(
-                        "Could not load feature names, using default order",
-                        error=str(e),
-                    )
-                    feature_names = None
-
-                # Construir DataFrame com ordem estável de colunas
-                if feature_names:
-                    # Criar dicionário com valores padrão
-                    feature_dict = {name: 0.0 for name in feature_names}
-
-                    # Preencher com features extraídas (feature_vector é um dict)
                     if isinstance(feature_vector, dict):
-                        for key, value in feature_vector.items():
-                            if key in feature_dict:
-                                feature_dict[key] = value
+                        present = set(feature_vector.keys())
+                        for name in expected_names:
+                            if name in feature_vector:
+                                feature_dict[name] = feature_vector[name]
+                        missing = [n for n in expected_names if n not in present]
+                        extra = [k for k in present if k not in feature_dict]
+                        if missing or extra:
+                            logger.warning(
+                                "Feature schema gap relative to model signature",
+                                specialist_type=self.specialist_type,
+                                plan_id=cognitive_plan.get("plan_id"),
+                                expected_count=len(expected_names),
+                                provided_count=len(present),
+                                missing_features=sorted(missing),
+                                extra_features=sorted(extra),
+                            )
                     else:
-                        # Se feature_vector for array, usar ordem das features
+                        # feature_vector é array — usar a ordem dos nomes esperados.
                         for i, value in enumerate(feature_vector):
-                            if i < len(feature_names):
-                                feature_dict[feature_names[i]] = value
+                            if i < len(expected_names):
+                                feature_dict[expected_names[i]] = value
 
-                    feature_df = pd.DataFrame([feature_dict])
+                    feature_df = pd.DataFrame([feature_dict], columns=expected_names)
+                elif expected_n is not None:
+                    # Sem nomes, mas sabemos a contagem esperada (n_features_in_).
+                    # Ordenar deterministicamente as features fornecidas.
+                    if isinstance(feature_vector, dict):
+                        ordered_keys = sorted(feature_vector.keys())
+                        values = [feature_vector[k] for k in ordered_keys]
+                    else:
+                        values = list(feature_vector)
+
+                    if len(values) != expected_n:
+                        logger.warning(
+                            "Feature count mismatch vs model (no names available)",
+                            specialist_type=self.specialist_type,
+                            plan_id=cognitive_plan.get("plan_id"),
+                            expected_count=expected_n,
+                            provided_count=len(values),
+                        )
+                        # Sem nomes não é seguro adivinhar o alinhamento -> cair
+                        # no fallback semântico existente em vez de prever errado.
+                        return None, None
+
+                    feature_df = pd.DataFrame([values])
                 else:
-                    # Fallback: usar feature_vector diretamente
-                    feature_df = pd.DataFrame([feature_vector])
+                    # Não foi possível determinar o schema do modelo. Não enviar
+                    # features cruas (causaria ValueError de n_features no sklearn).
+                    logger.warning(
+                        "Could not determine model feature schema; skipping ML inference",
+                        specialist_type=self.specialist_type,
+                        plan_id=cognitive_plan.get("plan_id"),
+                    )
+                    return None, None
+
+                # Validação final: a contagem de colunas tem de bater certo com o
+                # que o modelo espera antes de chamar predict.
+                if expected_n is not None and feature_df.shape[1] != expected_n:
+                    logger.warning(
+                        "Aligned feature count still mismatches model; skipping ML inference",
+                        specialist_type=self.specialist_type,
+                        plan_id=cognitive_plan.get("plan_id"),
+                        expected_count=expected_n,
+                        aligned_count=feature_df.shape[1],
+                    )
+                    return None, None
 
                 # =====================================================================
                 # Usar ensemble (batch + online) se online learning estiver disponível
@@ -874,6 +937,15 @@ class BaseSpecialist(ABC):
                     prediction, prediction_method = future.result(timeout=timeout_seconds)
                     inference_duration = time.time() - inference_start
 
+                    # Schema incompatível detectado em _run_inference: sem predição
+                    # ML válida -> devolver None para accionar o fallback semântico.
+                    if prediction is None:
+                        self.metrics.model_inference_total.labels(
+                            specialist_type=self.specialist_type, status="error"
+                        ).inc()
+                        self.metrics.increment_model_error()
+                        return None
+
                     # Registrar métrica de duração de inferência
                     model_version = self._get_model_version()
                     self.metrics.model_inference_duration.labels(
@@ -954,6 +1026,72 @@ class BaseSpecialist(ABC):
             )
             return metadata.get("version", "unknown")
         return "unknown"
+
+    def _get_expected_model_features(self) -> tuple[Optional[list[str]], Optional[int]]:
+        """
+        Determina o schema de features esperado pelo PRÓPRIO modelo carregado.
+
+        A fonte de verdade é o artefacto em si (não as definições centralizadas),
+        para evitar o desalinhamento entre o pipeline de extracção e o modelo
+        treinado. A resolução segue uma cascata determinista:
+
+        1. Assinatura MLflow (pyfunc input schema) -> nomes ordenados.
+        2. ``feature_names_in_`` do estimador sklearn subjacente -> nomes ordenados.
+        3. ``n_features_in_`` do estimador sklearn -> apenas a contagem esperada.
+
+        Returns:
+            Tuplo ``(feature_names, n_features)``. Qualquer elemento pode ser
+            ``None`` se não for determinável a partir do modelo.
+        """
+        feature_names: Optional[list[str]] = None
+        n_features: Optional[int] = None
+
+        model = self.model
+
+        # 1. Assinatura MLflow (pyfunc) - normalmente o caminho preferido
+        try:
+            metadata = getattr(model, "metadata", None)
+            if metadata is not None:
+                input_schema = metadata.get_input_schema()
+                if input_schema is not None:
+                    names = input_schema.input_names()
+                    if names:
+                        feature_names = list(names)
+                        n_features = len(feature_names)
+        except Exception as e:
+            logger.debug(
+                "Could not read MLflow input schema",
+                error=str(e),
+                specialist_type=self.specialist_type,
+            )
+
+        # 2./3. Estimador sklearn subjacente (desembrulha pyfunc se necessário)
+        try:
+            sklearn_model = None
+            if hasattr(model, "_model_impl"):
+                sklearn_model = getattr(model._model_impl, "sklearn_model", None)
+            if sklearn_model is None and hasattr(model, "n_features_in_"):
+                sklearn_model = model
+
+            if sklearn_model is not None:
+                if feature_names is None:
+                    names_in = getattr(sklearn_model, "feature_names_in_", None)
+                    if names_in is not None and len(names_in) > 0:
+                        feature_names = list(names_in)
+                        n_features = len(feature_names)
+
+                if n_features is None:
+                    n_in = getattr(sklearn_model, "n_features_in_", None)
+                    if isinstance(n_in, int) and n_in > 0:
+                        n_features = n_in
+        except Exception as e:
+            logger.debug(
+                "Could not read sklearn feature schema",
+                error=str(e),
+                specialist_type=self.specialist_type,
+            )
+
+        return feature_names, n_features
 
     def _parse_model_prediction(self, prediction: Any, features: dict[str, Any]) -> dict[str, Any]:
         """

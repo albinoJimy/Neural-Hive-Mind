@@ -25,34 +25,38 @@ TRAINING_DIR = Path(__file__).parent
 
 # Configurações dos especialistas
 SPECIALIST_CONFIGS: List[Dict[str, str]] = [
+    # NOTA (FIX-CP-001/BUG-1): model_name DEVE coincidir com o que os serviços
+    # procuram no MLflow (services/specialist-*/src/config.py: "<tipo>-evaluator").
+    # Nomes PascalCase antigos não eram encontrados em models:/<nome>/Production,
+    # forçando o fallback heurístico em todos os especialistas.
     {
         "name": "Business",
         "script": "train_business_specialist.py",
-        "model_name": "BusinessSpecialistModel",
+        "model_name": "business-evaluator",
         "experiment": "business_specialist",
     },
     {
         "name": "Technical",
         "script": "train_technical_specialist.py",
-        "model_name": "TechnicalSpecialistModel",
+        "model_name": "technical-evaluator",
         "experiment": "technical_specialist",
     },
     {
         "name": "Architecture",
         "script": "train_architecture_specialist.py",
-        "model_name": "ArchitectureSpecialistModel",
+        "model_name": "architecture-evaluator",
         "experiment": "architecture_specialist",
     },
     {
         "name": "Behavior",
         "script": "train_behavior_specialist.py",
-        "model_name": "BehaviorSpecialistModel",
+        "model_name": "behavior-evaluator",
         "experiment": "behavior_specialist",
     },
     {
         "name": "Evolution",
         "script": "train_evolution_specialist.py",
-        "model_name": "EvolutionSpecialistModel",
+        "model_name": "evolution-evaluator",
         "experiment": "evolution_specialist",
     },
 ]
@@ -64,6 +68,7 @@ def train_specialist(
     n_samples: int = 1000,
     n_estimators: int = 100,
     max_depth: int = 5,
+    model_name: str | None = None,
 ) -> bool:
     """
     Executa script de treino de um especialista.
@@ -98,7 +103,12 @@ def train_specialist(
     if mlflow_enabled:
         cmd.append("--mlflow-enabled")
 
-    logger.info("training_specialist", script=script_name)
+    # Passar o nome de registo MLflow correto (FIX-CP-001/BUG-1), em vez de
+    # depender do default PascalCase do script individual.
+    if model_name:
+        cmd += ["--model-name", model_name]
+
+    logger.info("training_specialist", script=script_name, model_name=model_name)
 
     try:
         result = subprocess.run(
@@ -179,7 +189,12 @@ def main():
     for config in to_train:
         print(f"\n--- Treinando {config['name']} Specialist ---")
         success = train_specialist(
-            config["script"], args.mlflow_enabled, args.n_samples, args.n_estimators, args.max_depth
+            config["script"],
+            args.mlflow_enabled,
+            args.n_samples,
+            args.n_estimators,
+            args.max_depth,
+            model_name=config["model_name"],
         )
         results[config["name"]] = success
 

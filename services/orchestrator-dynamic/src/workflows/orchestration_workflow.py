@@ -3,6 +3,8 @@ Workflow Temporal principal para orquestração de execução (Fluxo C).
 Implementa as etapas C1-C6 conforme documento-06.
 """
 
+import asyncio
+import contextlib
 from datetime import timedelta
 from typing import Any
 
@@ -44,6 +46,36 @@ with workflow.unsafe.imports_passed_through():
     from src.config.settings import get_settings
 
 
+def _safe_set_baggage(key: str, value: Any) -> None:
+    """Define baggage OTEL de forma REPLAY-SAFE.
+
+    set_baggage não emite comandos Temporal (só manipula contexto OTEL), mas no
+    sandbox/REPLAY o tracing pode estar inactivo. Nunca deixar uma falha de
+    baggage quebrar o workflow.
+    """
+    if value is None:
+        return
+    # Tracing inactivo no sandbox/REPLAY — ignorar silenciosamente.
+    with contextlib.suppress(Exception):
+        set_baggage(key, value)
+
+
+def _safe_span_event(span: Any, name: str, attributes: dict | None = None) -> None:
+    """Emite um span event de forma REPLAY-SAFE.
+
+    Quando o tracer é None (REPLAY/QUERY no sandbox), span é None — não fazer nada.
+    """
+    if span is None:
+        return
+    try:
+        if attributes is not None:
+            span.add_event(name, attributes)
+        else:
+            span.add_event(name)
+    except Exception:
+        pass
+
+
 @workflow.defn
 class OrchestrationWorkflow:
     """
@@ -56,11 +88,19 @@ class OrchestrationWorkflow:
     def __init__(self):
         self._status = "initializing"
         self._tickets_generated = []
+        # Resultados de execução por ticket_id, preenchidos pelo signal
+        # ticket_completed. Usado para aguardar a conclusão real dos tickets
+        # antes de consolidar (evita consolidação prematura com status PENDING).
+        self._ticket_results: dict[str, dict[str, Any]] = {}
         self._rejected_tickets = []
         self._workflow_result = {}
         self._sla_warnings = []
         self._saga_id = None
         self._compensation_order = []
+        # Atribuído em run() a partir de workflow.info().workflow_id; inicializado
+        # aqui por robustez para o signal handler ticket_completed nunca crashar
+        # com AttributeError caso seja invocado antes de run() o atribuir.
+        self._workflow_id = None
 
     @workflow.run
     async def run(self, input_data: dict[str, Any]) -> dict[str, Any]:
@@ -79,28 +119,41 @@ class OrchestrationWorkflow:
         cognitive_plan = input_data["cognitive_plan"]
 
         workflow_id = workflow.info().workflow_id
+        # FIX-2 (C1): expor o workflow_id no estado para que o signal handler
+        # ticket_completed o possa propagar ao evento de otimização. run() só
+        # tinha a variável local, deixando self._workflow_id por atribuir.
+        self._workflow_id = workflow_id
         plan_id = cognitive_plan.get("plan_id")
         intent_id = cognitive_plan.get("intent_id")
 
-        if plan_id:
-            set_baggage("plan_id", plan_id)
-        if intent_id:
-            set_baggage("intent_id", intent_id)
+        # set_baggage não emite comandos Temporal (apenas contexto OTEL), mas no
+        # sandbox/REPLAY pode receber/produzir None — proteger para não crashar.
+        _safe_set_baggage("plan_id", plan_id)
+        _safe_set_baggage("intent_id", intent_id)
 
+        # FIX-1 (BLOQUEADOR): get_tracer() devolve None durante REPLAY/QUERY no
+        # sandbox Temporal. Usar nullcontext quando tracer é None para nunca
+        # crashar com AttributeError ('NoneType'.start_as_current_span). Spans
+        # OTEL não emitem comandos Temporal, logo o guard não quebra determinismo.
         tracer = get_tracer()
         workflow.logger.info(
             f"Iniciando workflow de orquestração: workflow_id={workflow_id}, plan_id={plan_id}, intent_id={intent_id}"
         )
 
-        with tracer.start_as_current_span(
-            "orchestration_workflow.run",
-            attributes={
-                "neural.hive.workflow.id": workflow_id,
-                "neural.hive.plan.id": plan_id,
-                "neural.hive.intent.id": intent_id,
-                "neural.hive.workflow.type": "orchestration",
-            },
-        ) as span:
+        span_cm = (
+            tracer.start_as_current_span(
+                "orchestration_workflow.run",
+                attributes={
+                    "neural.hive.workflow.id": workflow_id,
+                    "neural.hive.plan.id": plan_id,
+                    "neural.hive.intent.id": intent_id,
+                    "neural.hive.workflow.type": "orchestration",
+                },
+            )
+            if tracer
+            else contextlib.nullcontext()
+        )
+        with span_cm as span:
             try:
                 # === C1: Validar Plano Cognitivo ===
                 self._status = "validating_plan"
@@ -135,7 +188,7 @@ class OrchestrationWorkflow:
                 )
 
                 workflow.logger.info("Plano cognitivo validado com sucesso")
-                span.add_event("plan_validated")
+                _safe_span_event(span, "plan_validated")
 
                 # === C2: Quebrar Plano em Tickets ===
                 self._status = "generating_tickets"
@@ -152,7 +205,7 @@ class OrchestrationWorkflow:
 
                 self._tickets_generated = tickets
                 workflow.logger.info(f"Gerados {len(tickets)} execution tickets")
-                span.add_event("tickets_generated", {"count": len(tickets)})
+                _safe_span_event(span, "tickets_generated", {"count": len(tickets)})
 
                 # === Verificação Proativa de SLA (pós C2) ===
                 get_settings()
@@ -163,7 +216,8 @@ class OrchestrationWorkflow:
                         args=[workflow_id, tickets, "post_ticket_generation"],
                         start_to_close_timeout=timedelta(seconds=5),
                         retry_policy=RetryPolicy(
-                            maximum_attempts=2, non_retryable_error_types=["SLAMonitorUnavailable"]
+                            maximum_attempts=2,
+                            non_retryable_error_types=["SLAMonitorUnavailable"],
                         ),
                     )
 
@@ -189,7 +243,8 @@ class OrchestrationWorkflow:
 
                         workflow_metrics = get_metrics()
                         workflow_metrics.record_temporal_activity_registration_error(
-                            activity_name=activity_name, workflow_name="OrchestrationWorkflow"
+                            activity_name=activity_name,
+                            workflow_name="OrchestrationWorkflow",
                         )
 
                     workflow.logger.warning(
@@ -213,7 +268,7 @@ class OrchestrationWorkflow:
                     allocated_tickets.append(allocated_ticket)
 
                 workflow.logger.info("Recursos alocados para todos os tickets")
-                span.add_event("resources_allocated")
+                _safe_span_event(span, "resources_allocated")
 
                 # === C4: Executar Tarefas (publicar tickets) ===
                 self._status = "publishing_tickets"
@@ -244,9 +299,13 @@ class OrchestrationWorkflow:
                 workflow.logger.info(
                     f"Publicados {len(published_tickets)} tickets no Kafka, {len(rejected_tickets)} rejeitados"
                 )
-                span.add_event(
+                _safe_span_event(
+                    span,
                     "tickets_published",
-                    {"count": len(published_tickets), "rejected_count": len(rejected_tickets)},
+                    {
+                        "count": len(published_tickets),
+                        "rejected_count": len(rejected_tickets),
+                    },
                 )
 
                 # Armazenar rejected_tickets para incluir no resultado final
@@ -260,7 +319,8 @@ class OrchestrationWorkflow:
                         args=[workflow_id, published_tickets, "post_ticket_publishing"],
                         start_to_close_timeout=timedelta(seconds=5),
                         retry_policy=RetryPolicy(
-                            maximum_attempts=2, non_retryable_error_types=["SLAMonitorUnavailable"]
+                            maximum_attempts=2,
+                            non_retryable_error_types=["SLAMonitorUnavailable"],
                         ),
                     )
 
@@ -286,7 +346,59 @@ class OrchestrationWorkflow:
                             }
                         )
                 except Exception as e:
-                    workflow.logger.warning(f"Falha na verificação proativa de SLA (pós C4): {e}")
+                    workflow.logger.warning(
+                        f"Falha na verificação proativa de SLA (pós C4): {e}"
+                    )
+
+                # === Aguardar conclusão dos tickets (entre C4 e C5) ===
+                # Os tickets são executados de forma assíncrona pelos Worker Agents,
+                # que reportam via Kafka -> ExecutionResultConsumer -> signal
+                # ticket_completed. Esperar pelos signals (até timeout SLA) garante
+                # que a consolidação reflita o estado real, em vez de consolidar
+                # prematuramente com todos os tickets PENDING (status "PARTIAL").
+                self._status = "monitoring_execution"
+                published_ids = {
+                    pt.get("ticket_id")
+                    for pt in published_tickets
+                    if pt.get("ticket_id")
+                }
+                # Timeout determinístico derivado da duração estimada dos tickets
+                # (dados in-workflow), com piso de 60s e teto de 1h.
+                total_estimated_ms = sum(
+                    pt.get("ticket", {}).get("estimated_duration_ms", 0) or 0
+                    for pt in published_tickets
+                )
+                wait_seconds = max(
+                    60.0, min(3600.0, total_estimated_ms / 1000.0 * 3 + 30)
+                )
+                if published_ids:
+                    try:
+                        await workflow.wait_condition(
+                            lambda: published_ids.issubset(self._ticket_results.keys()),
+                            timeout=timedelta(seconds=wait_seconds),
+                        )
+                        workflow.logger.info(
+                            f"Todos os {len(published_ids)} tickets concluídos antes da consolidação"
+                        )
+                    except asyncio.TimeoutError:
+                        workflow.logger.warning(
+                            f"Timeout ({wait_seconds}s) a aguardar conclusão de tickets: "
+                            f"{len(self._ticket_results)}/{len(published_ids)} reportados — "
+                            f"consolidação parcial"
+                        )
+
+                # Propagar o status real reportado pelos signals para os tickets
+                # publicados, que a consolidação usa para contar successful/failed.
+                # Só estados TERMINAIS são propagados: um status intermédio (ex.:
+                # "RUNNING") na consolidação seria tratado como integrity_error e
+                # poderia acionar compensação Saga em falso.
+                _terminal_statuses = {"COMPLETED", "FAILED", "COMPENSATED"}
+                for pt in published_tickets:
+                    tid = pt.get("ticket_id")
+                    if tid in self._ticket_results:
+                        result_status = self._ticket_results[tid].get("status")
+                        if result_status in _terminal_statuses:
+                            pt.setdefault("ticket", {})["status"] = result_status
 
                 # === C5: Consolidar Resultado ===
                 self._status = "consolidating_results"
@@ -345,14 +457,21 @@ class OrchestrationWorkflow:
                             # Executar compensacao para cada ticket
                             for ticket_to_compensate in tickets_to_compensate:
                                 try:
-                                    compensation_ticket_id = await workflow.execute_activity(
-                                        compensate_ticket,
-                                        args=[ticket_to_compensate, "workflow_inconsistent"],
-                                        start_to_close_timeout=timedelta(seconds=30),
-                                        retry_policy=RetryPolicy(
-                                            maximum_attempts=3,
-                                            initial_interval=timedelta(seconds=2),
-                                        ),
+                                    compensation_ticket_id = (
+                                        await workflow.execute_activity(
+                                            compensate_ticket,
+                                            args=[
+                                                ticket_to_compensate,
+                                                "workflow_inconsistent",
+                                            ],
+                                            start_to_close_timeout=timedelta(
+                                                seconds=30
+                                            ),
+                                            retry_policy=RetryPolicy(
+                                                maximum_attempts=3,
+                                                initial_interval=timedelta(seconds=2),
+                                            ),
+                                        )
                                     )
 
                                     # Atualizar ticket original com referencia
@@ -396,7 +515,11 @@ class OrchestrationWorkflow:
                         # Adicionar resultados de compensacao ao workflow_result
                         workflow_result["compensation_results"] = compensation_results
                         workflow_result["compensation_triggered"] = len(
-                            [c for c in compensation_results if c["status"] == "triggered"]
+                            [
+                                c
+                                for c in compensation_results
+                                if c["status"] == "triggered"
+                            ]
                         )
 
                     # Ainda acionar self-healing para analise
@@ -413,7 +536,7 @@ class OrchestrationWorkflow:
                         retry_policy=RetryPolicy(maximum_attempts=3),
                     )
 
-                span.add_event("results_consolidated")
+                _safe_span_event(span, "results_consolidated")
 
                 # === C6: Publicar Telemetria ===
                 self._status = "publishing_telemetry"
@@ -431,7 +554,9 @@ class OrchestrationWorkflow:
                         ),
                     )
                 except Exception as e:
-                    workflow.logger.warning(f"Falha ao publicar telemetria, usando buffer: {e}")
+                    workflow.logger.warning(
+                        f"Falha ao publicar telemetria, usando buffer: {e}"
+                    )
                     await workflow.execute_activity(
                         buffer_telemetry,
                         args=[workflow_result],
@@ -439,7 +564,7 @@ class OrchestrationWorkflow:
                         retry_policy=RetryPolicy(maximum_attempts=3),
                     )
 
-                span.add_event("telemetry_published")
+                _safe_span_event(span, "telemetry_published")
 
                 # Workflow concluído com sucesso
                 self._status = "completed"
@@ -457,9 +582,16 @@ class OrchestrationWorkflow:
 
             except Exception as e:
                 self._status = "failed"
-                span.record_exception(e)
-                span.set_status(trace.Status(trace.StatusCode.ERROR, str(e)))
-                workflow.logger.error(f"Erro no workflow de orquestração: {e}", exc_info=True)
+                # REPLAY-SAFE: span pode ser None quando tracer é None (sandbox).
+                if span is not None:
+                    try:
+                        span.record_exception(e)
+                        span.set_status(trace.Status(trace.StatusCode.ERROR, str(e)))
+                    except Exception:
+                        pass
+                workflow.logger.error(
+                    f"Erro no workflow de orquestração: {e}", exc_info=True
+                )
                 raise
 
     @workflow.signal
@@ -475,6 +607,11 @@ class OrchestrationWorkflow:
             result: Resultado da execução do ticket
         """
         workflow.logger.info(f"Ticket {ticket_id} concluído: result={result}")
+
+        # Registar o resultado para que o wait_condition em run() (entre C4 e C5)
+        # detete a conclusão real do ticket. Sem isto, a consolidação ocorria
+        # imediatamente após a publicação, com todos os tickets ainda PENDING.
+        self._ticket_results[ticket_id] = result
 
         # Publicar evento para otimização (não-bloqueante)
         try:
@@ -539,7 +676,9 @@ class OrchestrationWorkflow:
         """
         # Identificar steps completados vs pendentes
         completed_steps = [
-            ticket for ticket in self._tickets_generated if ticket.get("status") == "COMPLETED"
+            ticket
+            for ticket in self._tickets_generated
+            if ticket.get("status") == "COMPLETED"
         ]
         pending_steps = [
             ticket

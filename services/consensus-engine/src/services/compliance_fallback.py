@@ -30,10 +30,16 @@ class ComplianceFallback:
         """
         Detecta specialists usando fallbacks heurísticos ao invés de modelos ML.
 
-        Um specialist é considerado degradado quando:
-        1. metadata['model_source'] != 'ml_model' (indica fallback)
-        2. explainability['method'] in ['heuristic', 'rule_based']
-        3. confidence_score < 0.1 (indica heurística não calibrada)
+        Um specialist é considerado degradado quando a PREDIÇÃO não vem do modelo ML:
+        1. metadata['model_source'] in ['heuristics', 'semantic_pipeline', 'unknown']
+           (a predição caiu em fallback, não usou o modelo ML)
+        2. confidence_score < 0.1 (sinal nulo / heurística não calibrada)
+
+        NOTA: o método de explicabilidade (explainability['method']) NÃO entra neste
+        critério. Um specialist que usa o modelo ML para a predição mas produz uma
+        explicação heurística (ex.: SHAP indisponível) NÃO está degradado na decisão —
+        a qualidade da decisão depende da fonte da predição, não da explicação. Quando
+        o modelo falha mesmo, model_source já reflecte o fallback (critério 1).
 
         Args:
             opinions: Lista de pareceres dos especialistas
@@ -59,11 +65,14 @@ class ComplianceFallback:
 
             confidence = op.get("confidence_score", 1.0)
 
-            is_degraded = (
-                model_source in ["heuristics", "semantic_pipeline", "unknown"]
-                or explain_method in ["heuristic", "rule_based", "unknown"]
-                or confidence < 0.1
-            )
+            # Degradação reflecte APENAS a fonte da PREDIÇÃO (model_source): o
+            # specialist caiu em heurística/fallback em vez de usar o modelo ML.
+            # NÃO se conta o método de explicação (SHAP indisponível != degradação)
+            # nem um confidence baixo: com modelos calibrados (predict_proba via
+            # ProbabilisticModelWrapper), um confidence baixo é um SINAL REAL do
+            # modelo (ex.: prevê fortemente "não-aprovar"), não uma degradação.
+            # Quando o modelo falha mesmo, model_source já reflecte o fallback.
+            is_degraded = model_source in ["heuristics", "semantic_pipeline", "unknown"]
 
             if is_degraded:
                 degraded_specialists.append(specialist_type)

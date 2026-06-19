@@ -37,4 +37,11 @@ config:
   spiffe:
     enabled: false
 
+# Password do Redis cluster (requirepass em redis-cluster-config = nhm_redis_2026).
+# Sem esta entrada, o template secret.yaml usa o default '<sealed-secret-ref>' do
+# values.yaml base (placeholder literal) — o orchestrator falha a auth no Redis,
+# o mapeamento ticket->workflow nao e gravado/lido e o Fluxo C6 nao fecha.
+secrets:
+  redisPassword: "nhm_redis_2026"
+
 environment: dev

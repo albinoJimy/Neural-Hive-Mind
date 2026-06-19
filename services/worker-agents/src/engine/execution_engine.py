@@ -421,6 +421,29 @@ class ExecutionEngine:
                 dependencies_count=len(dependency_outputs),
             )
 
+    @staticmethod
+    def _result_correlation_kwargs(ticket: dict[str, Any]) -> dict[str, Any]:
+        """I4: Extrai plan_id/workflow_id/correlation_id do ticket para propagar
+        ao ExecutionResultConsumer do orchestrator.
+
+        Sem estes campos no resultado, o consumer depende sempre do lookup Redis
+        (workflow:by:ticket:*). O ticket gerado pelo orchestrator traz plan_id e
+        correlation_id no topo e workflow_id em metadata.workflow_id. Só inclui
+        chaves cujo valor exista (não inventa nada).
+        """
+        metadata = ticket.get("metadata") or {}
+        kwargs: dict[str, Any] = {}
+        plan_id = ticket.get("plan_id")
+        workflow_id = ticket.get("workflow_id") or metadata.get("workflow_id")
+        correlation_id = ticket.get("correlation_id") or ticket.get("correlationId")
+        if plan_id:
+            kwargs["plan_id"] = plan_id
+        if workflow_id:
+            kwargs["workflow_id"] = workflow_id
+        if correlation_id:
+            kwargs["correlation_id"] = correlation_id
+        return kwargs
+
     async def _execute_ticket(self, ticket: dict[str, Any]):
         """Executar ticket com coordenação de dependências e retry logic"""
         ticket_id = ticket.get("ticket_id")
@@ -469,7 +492,11 @@ class ExecutionEngine:
                         )
                         # Publicar resultado
                         await self.result_producer.publish_result(
-                            ticket_id, "FAILED", {"success": False}, error_message=str(dep_error)
+                            ticket_id,
+                            "FAILED",
+                            {"success": False},
+                            error_message=str(dep_error),
+                            **self._result_correlation_kwargs(ticket),
                         )
                         duration_ms = int((datetime.now() - start_time).total_seconds() * 1000)
                         if self.metrics:
@@ -505,7 +532,11 @@ class ExecutionEngine:
                             )
 
                             await self.result_producer.publish_result(
-                                ticket_id, "COMPLETED", result, actual_duration_ms=duration_ms
+                                ticket_id,
+                                "COMPLETED",
+                                result,
+                                actual_duration_ms=duration_ms,
+                                **self._result_correlation_kwargs(ticket),
                             )
 
                             self.logger.info(
@@ -551,6 +582,7 @@ class ExecutionEngine:
                                 result,
                                 error_message=error_msg,
                                 actual_duration_ms=duration_ms,
+                                **self._result_correlation_kwargs(ticket),
                             )
 
                             self.logger.warning(
@@ -593,6 +625,7 @@ class ExecutionEngine:
                             {"success": False},
                             error_message=str(exec_error),
                             actual_duration_ms=duration_ms,
+                            **self._result_correlation_kwargs(ticket),
                         )
 
                         self.logger.exception(
@@ -647,6 +680,7 @@ class ExecutionEngine:
                         {"success": False},
                         error_message="Execution timeout",
                         actual_duration_ms=duration_ms,
+                        **self._result_correlation_kwargs(ticket),
                     )
                 except Exception as pub_exc:
                     self.logger.exception(
@@ -683,6 +717,7 @@ class ExecutionEngine:
                         {"success": False},
                         error_message=str(e),
                         actual_duration_ms=duration_ms,
+                        **self._result_correlation_kwargs(ticket),
                     )
                 except Exception as pub_exc:
                     self.logger.exception(

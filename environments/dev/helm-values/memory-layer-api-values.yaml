@@ -41,7 +41,7 @@ config:
 
   # Neo4j
   neo4j:
-    uri: "bolt://neo4j-bolt.neo4j-cluster.svc.cluster.local:7687"
+    uri: "bolt://neo4j.neo4j-cluster.svc.cluster.local:7687"
     user: "neo4j"
     database: "neo4j"
     queryTimeout: 50
@@ -85,11 +85,13 @@ config:
 secrets:
   # Redis
   redis:
-    password: ""
+    # Cluster neural-hive-cache exige auth; password alinhada com o configmap dos restantes serviços.
+    password: "nhm_redis_2026"
 
   # MongoDB
   mongodb:
-    uri: "mongodb://mongodb.mongodb-cluster.svc.cluster.local:27017"
+    # URI autenticada: o startup faz createIndexes (DDL), que exige auth no MongoDB.
+    uri: "mongodb://root:local_dev_password@mongodb.mongodb-cluster.svc.cluster.local:27017/neural_hive_dev?authSource=admin"
 
   # Neo4j
   neo4j:

@@ -360,6 +360,10 @@ class TemporalWorkerManager:
             set_fluxo_g_dependencies,
             update_knowledge_graph,
         )
+        from src.activities.optimization_event import (
+            publish_ticket_completed_event,
+            publish_workflow_optimization_events,
+        )
         from src.activities.plan_validation import (
             audit_validation,
             optimize_dag,
@@ -471,6 +475,9 @@ class TemporalWorkerManager:
                 publish_telemetry,
                 buffer_telemetry,
                 check_workflow_sla_proactive,
+                # Optimization events (C5 pós-consolidação + por-ticket via signal)
+                publish_workflow_optimization_events,
+                publish_ticket_completed_event,
                 # Fluxo G activities
                 generate_requirements,
                 generate_documentation,

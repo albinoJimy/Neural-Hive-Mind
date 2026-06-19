@@ -4,3 +4,8 @@
 # Service-specific dependencies
 PyJWT[crypto]==2.10.1
 requests>=2.31.0
+# Necessario para neural_hive_specialists.feedback (FeedbackCollector usa pybreaker).
+# Sem esta dependencia o import falha em runtime e o FeedbackCollector fica desativado
+# (has_collector=false), impedindo a recolha de feedback de active-learning nas aprovacoes.
+# Pin alinhado com os restantes servicos (gateway/STE/orchestrator). Exige rebuild da imagem.
+pybreaker==1.0.2

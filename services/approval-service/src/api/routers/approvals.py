@@ -11,7 +11,6 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
 
 from neural_hive_approval_common import (
-    ApprovalDecision,
     ApprovalRequest,
     ApproveRequestBody,
     RejectRequestBody,
@@ -19,6 +18,7 @@ from neural_hive_approval_common import (
     RiskBand,
 )
 from src.models import (
+    ApprovalDecisionResponse,
     ApprovalResponse,
     ApprovalStats,
     RepublishRequestBody,
@@ -299,7 +299,7 @@ async def get_approval(
         )
 
 
-@router.post("/{plan_id}/approve", response_model=ApprovalDecision)
+@router.post("/{plan_id}/approve", response_model=ApprovalDecisionResponse)
 async def approve_plan(
     plan_id: str,
     body: Optional[ApproveRequestBody] = None,
@@ -337,7 +337,7 @@ async def approve_plan(
         decision = await service.approve_plan(
             plan_id=plan_id, user_id=user.get("user_id"), comments=comments
         )
-        return decision
+        return ApprovalDecisionResponse.from_decision(decision)
 
     except ValueError as e:
         error_msg = str(e)
@@ -355,7 +355,7 @@ async def approve_plan(
         )
 
 
-@router.post("/{plan_id}/reject", response_model=ApprovalDecision)
+@router.post("/{plan_id}/reject", response_model=ApprovalDecisionResponse)
 async def reject_plan(
     plan_id: str,
     body: RejectRequestBody,
@@ -389,7 +389,7 @@ async def reject_plan(
         decision = await service.reject_plan(
             plan_id=plan_id, user_id=user.get("user_id"), reason=body.reason, comments=body.comments
         )
-        return decision
+        return ApprovalDecisionResponse.from_decision(decision)
 
     except ValueError as e:
         error_msg = str(e)

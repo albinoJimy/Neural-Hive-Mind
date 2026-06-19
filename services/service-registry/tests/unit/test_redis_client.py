@@ -304,6 +304,14 @@ class TestRedisRegistryClientFiltering:
         assert redis_client._matches_filters(sample_agent, {"version": "1.0.0"}) is True
         assert redis_client._matches_filters(sample_agent, {"version": "2.0.0"}) is False
 
+    def test_matches_filters_status_case_insensitive(self, redis_client, sample_agent):
+        """Filtro de status deve ser case-insensitive (cliente envia 'healthy' minúsculo)."""
+        # sample_agent tem status HEALTHY
+        assert redis_client._matches_filters(sample_agent, {"status": "healthy"}) is True
+        assert redis_client._matches_filters(sample_agent, {"status": "HEALTHY"}) is True
+        assert redis_client._matches_filters(sample_agent, {"status": "Healthy"}) is True
+        assert redis_client._matches_filters(sample_agent, {"status": "unhealthy"}) is False
+
     def test_matches_filters_status_healthy_accepts_degraded(self, redis_client):
         """Testa que filtro HEALTHY aceita DEGRADED."""
         degraded_agent = AgentInfo(

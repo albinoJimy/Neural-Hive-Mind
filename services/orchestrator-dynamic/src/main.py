@@ -974,7 +974,9 @@ async def lifespan(app: FastAPI):
 
         # Inicializar Flow C Consumer com config injetada
         logger.info("Inicializando Flow C Consumer")
-        app_state.flow_c_consumer = FlowCConsumer(config=config)
+        app_state.flow_c_consumer = FlowCConsumer(
+            config=config, redis_client=app_state.redis_client
+        )
         await app_state.flow_c_consumer.start()
 
         # Iniciar Flow C Consumer em background (supervisionado)
@@ -985,7 +987,9 @@ async def lifespan(app: FastAPI):
 
         # Inicializar Approval Response Consumer
         logger.info("Inicializando Approval Response Consumer")
-        app_state.approval_response_consumer = FlowCApprovalResponseConsumer(config=config)
+        app_state.approval_response_consumer = FlowCApprovalResponseConsumer(
+            config=config, redis_client=app_state.redis_client
+        )
         await app_state.approval_response_consumer.start()
 
         # Iniciar Approval Response Consumer em background (supervisionado)

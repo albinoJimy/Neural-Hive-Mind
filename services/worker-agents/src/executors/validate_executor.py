@@ -107,7 +107,22 @@ class ValidateExecutor(BaseTaskExecutor):
 
         validation_type = parameters.get("validation_type", "policy")
         policy_path = parameters.get("policy_path", "policy/allow")
-        input_data = parameters.get("input_data", {})
+        # O STE deixa input_data=None no template (a popular pelo executor). O
+        # .get(..., {}) NÃO cobre o caso chave-presente-com-None, logo coergir
+        # explicitamente: input_data=None crashava PolicyEvaluationRequest
+        # (Pydantic: dict requerido) -> fallback conservador -> task FAILED.
+        input_data = parameters.get("input_data") or {}
+        # Quando vazio, popular com o contexto de segurança do ticket para a
+        # política neural_hive.security.validation ter dados reais a avaliar.
+        if not input_data:
+            input_data = {
+                "target": parameters.get("target"),
+                "subject": parameters.get("subject"),
+                "entities": parameters.get("entities", []),
+                "security_level": ticket.get("security_level") or parameters.get("security_level"),
+                "is_destructive": bool(ticket.get("is_destructive", False)),
+                "risk_band": ticket.get("risk_band"),
+            }
         working_dir = parameters.get("working_dir", ".")
         task_metric_recorded = False
 

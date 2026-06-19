@@ -71,7 +71,13 @@ class RedisRegistryClient:
                     decode_responses=True,
                     socket_timeout=self.timeout,
                     socket_connect_timeout=self.timeout,
-                    require_full_coverage=True,
+                    # require_full_coverage=False: tolerar cobertura parcial de
+                    # slots (failover/reshard/stress). Com True, o cliente lança
+                    # erro quando nem todos os 16384 slots estão cobertos, fazendo
+                    # falhar store/heartbeat/list_agents — as chaves de agente
+                    # (TTL 300s) expiram sem renovação e a descoberta passa a
+                    # devolver 0 workers (workers_count=0 no Flow C).
+                    require_full_coverage=False,
                 )
             else:
                 # Single instance mode
@@ -303,14 +309,19 @@ class RedisRegistryClient:
                 return False
             if key == "version" and agent.version != value:
                 return False
-            # Filtro de status: aceita HEALTHY ou DEGRADED como fallback
+            # Filtro de status: aceita HEALTHY ou DEGRADED como fallback.
+            # Comparação case-insensitive: os clientes (ex.: orchestrator)
+            # enviam "healthy" minúsculo, mas AgentStatus.value é "HEALTHY".
+            # Sem normalizar, o filtro eliminava TODOS os agentes saudáveis e
+            # a descoberta devolvia 0 workers (workers_count=0 no Flow C).
             if key == "status":
+                status_value = value.upper()
                 # Se filtro é "HEALTHY", aceita tanto HEALTHY quanto DEGRADED
-                if value == "HEALTHY":
+                if status_value == "HEALTHY":
                     if agent.status not in (AgentStatus.HEALTHY, AgentStatus.DEGRADED):
                         return False
                 # Para outros valores de status, faz comparação exata
-                elif agent.status.value != value:
+                elif agent.status.value != status_value:
                     return False
             # Filtro de security_level: verifica no metadata do agente
             if key == "security_level":
