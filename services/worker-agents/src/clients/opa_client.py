@@ -111,6 +111,7 @@ class OPAClient:
         retry_attempts: int = 3,
         retry_backoff_base: int = 2,
         retry_backoff_max: int = 10,
+        required_policy_prefixes: list[str] | None = None,
     ):
         """
         Inicializa cliente OPA.
@@ -123,6 +124,11 @@ class OPAClient:
             retry_attempts: Numero de tentativas em caso de falha
             retry_backoff_base: Base para exponential backoff em segundos
             retry_backoff_max: Maximo de backoff em segundos
+            required_policy_prefixes: Prefixos de policy_path EXIGIDOS. Quando o OPA
+                devolve um path undefined (sem "result") para um destes prefixos, o
+                cliente aplica fail-CLOSED (allow=False + violação
+                policy_required_but_undefined) em vez de fail-open. Domínios fora
+                desta lista mantêm o fail-open marcado (degradação graciosa).
         """
         self.base_url = base_url.rstrip("/")
         self.token = token
@@ -131,8 +137,24 @@ class OPAClient:
         self.retry_attempts = retry_attempts
         self.retry_backoff_base = retry_backoff_base
         self.retry_backoff_max = retry_backoff_max
+        self.required_policy_prefixes = [p.strip("/") for p in (required_policy_prefixes or [])]
         self.client = httpx.AsyncClient(timeout=httpx.Timeout(timeout), verify=verify_ssl)
         self.logger = logger.bind(service="opa_client")
+
+    def _is_required_policy(self, policy_path: str) -> bool:
+        """Indica se o policy_path casa com um prefixo de política exigida.
+
+        Args:
+            policy_path: Caminho normalizado da política (sem barra inicial).
+
+        Returns:
+            True se a política é exigida (fail-closed em caso de undefined).
+        """
+        normalized = policy_path.strip("/")
+        return any(
+            normalized == prefix or normalized.startswith(f"{prefix}/")
+            for prefix in self.required_policy_prefixes
+        )
 
     def _get_headers(self) -> dict[str, str]:
         """Retorna headers para requisicoes."""
@@ -195,18 +217,58 @@ class OPAClient:
                 # configurada. O fail-closed mantém-se para OPA indisponível
                 # (exceções no executor) e para políticas presentes que negam.
                 if "result" not in data:
+                    # Política exigida ausente -> fail-CLOSED (não aprovar sem
+                    # validação real). Domínio não exigido -> fail-open marcado.
+                    if self._is_required_policy(policy_path):
+                        self.logger.warning(
+                            "opa_required_policy_undefined",
+                            policy_path=policy_path,
+                            message=(
+                                "Política OPA EXIGIDA não carregada; fail-closed "
+                                "(validação reprovada por ausência de política)"
+                            ),
+                        )
+                        span.set_attribute("opa.allow", False)
+                        span.set_attribute("opa.policy_undefined", True)
+                        span.set_attribute("opa.policy_required", True)
+                        return PolicyEvaluationResponse(
+                            allow=False,
+                            violations=[
+                                Violation(
+                                    rule_id="policy_required_but_undefined",
+                                    message=(
+                                        f"Política exigida '{policy_path}' não está "
+                                        "carregada no OPA; validação reprovada (fail-closed)."
+                                    ),
+                                    severity=ViolationSeverity.HIGH,
+                                )
+                            ],
+                            decision=request.decision,
+                            metadata={
+                                "policy_path": policy_path,
+                                "policy_undefined": True,
+                                "policy_required": True,
+                            },
+                        )
+
                     self.logger.warning(
                         "opa_policy_undefined",
                         policy_path=policy_path,
                         message="Política OPA não carregada; validação degradada graciosamente",
+                        degraded=True,
                     )
                     span.set_attribute("opa.allow", True)
                     span.set_attribute("opa.policy_undefined", True)
+                    span.set_attribute("opa.degraded", True)
                     return PolicyEvaluationResponse(
                         allow=True,
                         violations=[],
                         decision=request.decision,
-                        metadata={"policy_path": policy_path, "policy_undefined": True},
+                        metadata={
+                            "policy_path": policy_path,
+                            "policy_undefined": True,
+                            "degraded": True,
+                        },
                     )
 
                 result = data.get("result", {})

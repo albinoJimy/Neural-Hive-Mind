@@ -193,6 +193,24 @@ class WorkerAgentSettings(BaseSettings):
     opa_retry_backoff_max_seconds: int = 60
     opa_poll_interval_seconds: int = 5
     opa_poll_timeout_seconds: int = 300
+    # Prefixos de políticas EXIGIDAS por domínio. Quando o OPA devolve um path
+    # undefined (sem "result") para um policy_path que casa com um destes
+    # prefixos, o cliente aplica fail-CLOSED (allow=False + violação
+    # policy_required_but_undefined) em vez de degradar graciosamente. Domínios
+    # fora desta lista mantêm o fail-open marcado (degradação graciosa).
+    opa_required_policy_prefixes: list[str] = Field(
+        default_factory=lambda: [
+            "neural_hive/security",
+            "neural_hive/architecture",
+            "neural_hive/quality",
+            "neural_hive/performance",
+            "neural_hive/operational",
+        ],
+        description=(
+            "Prefixos de policy_path cuja ausência (policy_undefined) deve "
+            "resultar em fail-closed em vez de fail-open."
+        ),
+    )
 
     # SAST / Security
     trivy_enabled: bool = True

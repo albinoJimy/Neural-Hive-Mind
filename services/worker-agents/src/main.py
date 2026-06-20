@@ -373,6 +373,7 @@ async def startup():
                     retry_attempts=getattr(config, "opa_retry_attempts", 3),
                     retry_backoff_base=getattr(config, "opa_retry_backoff_base_seconds", 2),
                     retry_backoff_max=getattr(config, "opa_retry_backoff_max_seconds", 60),
+                    required_policy_prefixes=getattr(config, "opa_required_policy_prefixes", None),
                 )
                 app_state["opa_client"] = opa_client
                 logger.info("opa_client_initialized", url=config.opa_url)

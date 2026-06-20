@@ -201,10 +201,12 @@ class ValidateExecutor(BaseTaskExecutor):
                     ).inc(len(critical))
                 return result
             except subprocess.TimeoutExpired:
+                # SAST timeout NÃO é sucesso: o scan não concluiu, logo não há
+                # evidência de validação. Fail-closed (FAILED, simulated=False).
                 self.log_execution(
                     ticket_id,
                     "validation_sast_timeout",
-                    level="warning",
+                    level="error",
                     timeout_seconds=self.trivy_timeout_seconds,
                 )
                 if self.metrics and hasattr(self.metrics, "validate_tasks_executed_total"):
@@ -212,26 +214,45 @@ class ValidateExecutor(BaseTaskExecutor):
                         status="timeout", tool="trivy"
                     ).inc()
                     task_metric_recorded = True
+                if self.metrics and hasattr(self.metrics, "validate_tools_executed_total"):
+                    self.metrics.validate_tools_executed_total.labels(
+                        tool="trivy", status="timeout"
+                    ).inc()
                 return {
-                    "success": True,
+                    "success": False,
                     "output": {
-                        "validation_passed": True,
-                        "violations": [],
+                        "validation_passed": False,
+                        "violations": [
+                            {
+                                "rule_id": "sast_timeout",
+                                "message": (
+                                    f"SAST (trivy) excedeu o timeout de "
+                                    f"{self.trivy_timeout_seconds}s; validação não concluída."
+                                ),
+                                "severity": "HIGH",
+                            }
+                        ],
                         "validation_type": "sast",
                         "rules_checked": 0,
                     },
                     "metadata": {
                         "executor": "ValidateExecutor",
-                        "simulated": True,
+                        "simulated": False,
                         "duration_seconds": self.trivy_timeout_seconds,
+                        "failure_reason": "sast_timeout",
                     },
-                    "logs": ["SAST validation timed out", "Fallback to simulated validation"],
+                    "logs": [
+                        "SAST validation started",
+                        f"SAST validation timed out after {self.trivy_timeout_seconds}s",
+                        "Validation FAILED (SAST não concluído)",
+                    ],
                 }
             except Exception as exc:
+                # SAST error NÃO é sucesso: ferramenta falhou, sem evidência de
+                # validação. Fail-closed (FAILED, simulated=False).
                 self.log_execution(
                     ticket_id, "validation_sast_error", level="error", error=str(exc)
                 )
-                # fallback para simulação
                 if self.metrics and hasattr(self.metrics, "validate_tasks_executed_total"):
                     self.metrics.validate_tasks_executed_total.labels(
                         status="error", tool="trivy"
@@ -241,6 +262,32 @@ class ValidateExecutor(BaseTaskExecutor):
                     self.metrics.validate_tools_executed_total.labels(
                         tool="trivy", status="error"
                     ).inc()
+                return {
+                    "success": False,
+                    "output": {
+                        "validation_passed": False,
+                        "violations": [
+                            {
+                                "rule_id": "sast_error",
+                                "message": f"SAST (trivy) falhou: {exc}",
+                                "severity": "HIGH",
+                            }
+                        ],
+                        "validation_type": "sast",
+                        "rules_checked": 0,
+                    },
+                    "metadata": {
+                        "executor": "ValidateExecutor",
+                        "simulated": False,
+                        "failure_reason": "sast_error",
+                        "error": str(exc),
+                    },
+                    "logs": [
+                        "SAST validation started",
+                        f"SAST validation error: {exc}",
+                        "Validation FAILED (SAST error)",
+                    ],
+                }
 
         if validation_type == "sonarqube" and self.sonarqube_client:
             analysis = await self.sonarqube_client.trigger_analysis(
@@ -327,52 +374,54 @@ class ValidateExecutor(BaseTaskExecutor):
                 "logs": report.logs or [],
             }
 
-        # Fallback simulado enquanto integrações externas não disponíveis
-        delay = random.uniform(1, 2)
-        await asyncio.sleep(delay)
-
-        result = {
-            "success": True,
-            "output": {
-                "validation_passed": True,
-                "violations": [],
-                "validation_type": validation_type,
-                "rules_checked": random.randint(10, 20),
-            },
-            "metadata": {
-                "executor": "ValidateExecutor",
-                "simulated": True,
-                "duration_seconds": delay,
-            },
-            "logs": [
-                "Validation started",
-                f"Running {validation_type} validation",
-                f"Simulated validation for {delay:.2f}s",
-                "All validations passed",
-            ],
-        }
-
+        # Sem caminho de validação real disponível (validation_type desconhecido,
+        # ferramenta não configurada/habilitada, ou OPA desabilitado). NÃO simular
+        # sucesso: fail-closed (FAILED, simulated=False) com razão clara. Caminhos
+        # reais (OPA/trivy/sonarqube/snyk/checkov) são tratados acima e permanecem
+        # intactos.
         self.log_execution(
-            ticket_id, "validation_completed", duration_seconds=delay, validation_passed=True
+            ticket_id,
+            "validation_no_real_path",
+            level="error",
+            validation_type=validation_type,
         )
 
-        tool_label = (
-            validation_type
-            if validation_type in ["opa", "trivy", "sonarqube", "snyk", "checkov"]
-            else "simulation"
-        )
         if (
             not task_metric_recorded
             and self.metrics
             and hasattr(self.metrics, "validate_tasks_executed_total")
         ):
-            self.metrics.validate_tasks_executed_total.labels(
-                status="success", tool=tool_label
-            ).inc()
-        if self.metrics and hasattr(self.metrics, "validate_duration_seconds"):
-            self.metrics.validate_duration_seconds.labels(tool=tool_label).observe(delay)
+            self.metrics.validate_tasks_executed_total.labels(status="failed", tool="none").inc()
 
-        return result
+        return {
+            "success": False,
+            "output": {
+                "validation_passed": False,
+                "violations": [
+                    {
+                        "rule_id": "no_validation_path_available",
+                        "message": (
+                            f"Nenhum caminho de validação real disponível para "
+                            f"validation_type='{validation_type}' (ferramenta não "
+                            "configurada/habilitada). Validação reprovada (fail-closed)."
+                        ),
+                        "severity": "HIGH",
+                    }
+                ],
+                "validation_type": validation_type,
+                "rules_checked": 0,
+            },
+            "metadata": {
+                "executor": "ValidateExecutor",
+                "simulated": False,
+                "failure_reason": "no_validation_path_available",
+            },
+            "logs": [
+                "Validation started",
+                f"No real validation path available for {validation_type}",
+                "Validation FAILED (no validation tool configured)",
+            ],
+        }
 
     async def _execute_opa_with_client(
         self,
@@ -521,7 +570,7 @@ class ValidateExecutor(BaseTaskExecutor):
             if span:
                 span.set_attribute("opa.error", "timeout")
 
-            # Fallback para simulacao
+            # OPA indisponível: fail-closed conservador (FAILED, sem aprovar sem validação real)
             return await self._execute_opa_fallback(ticket_id, policy_path, "timeout")
 
         except OPAAPIError as exc:
@@ -547,7 +596,7 @@ class ValidateExecutor(BaseTaskExecutor):
                 if exc.status_code:
                     span.set_attribute("opa.status_code", exc.status_code)
 
-            # Fallback para simulacao
+            # OPA indisponível: fail-closed conservador (FAILED, sem aprovar sem validação real)
             return await self._execute_opa_fallback(ticket_id, policy_path, "api_error")
 
         except OPAValidationError as exc:
@@ -596,7 +645,7 @@ class ValidateExecutor(BaseTaskExecutor):
                 if hasattr(self.metrics, "opa_api_calls_total"):
                     self.metrics.opa_api_calls_total.labels(method="evaluate", status="error").inc()
 
-            # Fallback para simulacao
+            # OPA indisponível: fail-closed conservador (FAILED, sem aprovar sem validação real)
             return await self._execute_opa_fallback(ticket_id, policy_path, "unexpected_error")
 
     async def _execute_opa_legacy(
@@ -726,6 +775,13 @@ class ValidateExecutor(BaseTaskExecutor):
         delay = random.uniform(0.5, 1)
         await asyncio.sleep(delay)
 
+        # Marca a indisponibilidade do caminho real (OPA) — fail-closed honesto:
+        # NÃO é simulação (simulated=False), é uma degradação real instrumentada.
+        if self.metrics and hasattr(self.metrics, "real_path_unavailable_total"):
+            self.metrics.real_path_unavailable_total.labels(
+                executor="ValidateExecutor", task_type="VALIDATE"
+            ).inc()
+
         # Retorna falha conservadora - nao aprovar sem validacao real
         return {
             "success": False,
@@ -744,10 +800,12 @@ class ValidateExecutor(BaseTaskExecutor):
             },
             "metadata": {
                 "executor": "ValidateExecutor",
-                "simulated": True,
+                # OPA indisponível = caminho real ausente, NÃO simulação de sucesso.
+                "simulated": False,
+                "degraded": True,
                 "duration_seconds": delay,
                 "fallback_reason": reason,
-                "client_type": "fallback",
+                "client_type": "opa_unavailable",
                 "conservative_failure": True,
             },
             "logs": [
