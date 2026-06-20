@@ -116,6 +116,7 @@ class ContainerBuilder:
         cache_repo: Optional[str] = None,
         enable_metrics: bool = False,
         cleanup_pods: bool = True,  # Por padrão, limpa pods após build
+        docker_config_secret: str = "",
     ):
         """
         Inicializa o ContainerBuilder.
@@ -127,6 +128,8 @@ class ContainerBuilder:
             cache_repo: Repositório de cache (ex: ghcr.io/user/cache)
             enable_metrics: Habilita coleta de métricas de performance
             cleanup_pods: Se True, remove pods do Kaniko após build (útil para debug quando False)
+            docker_config_secret: Nome do Secret (dockerconfigjson) montado em
+                /kaniko/.docker para push autenticado. Vazio = sem credenciais.
         """
         self.builder_type = builder_type
         self.timeout_seconds = timeout_seconds
@@ -134,6 +137,7 @@ class ContainerBuilder:
         self.cache_repo = cache_repo
         self.enable_metrics = enable_metrics
         self.cleanup_pods = cleanup_pods
+        self.docker_config_secret = docker_config_secret
 
         # Lazy import do coletor de métricas
         self._metrics_collector = None
@@ -279,6 +283,15 @@ class ContainerBuilder:
             }
         ]
 
+        # Credenciais de registry para push autenticado (ex.: GHCR).
+        if self.docker_config_secret:
+            mounts.append(
+                {
+                    "name": "docker-config",
+                    "mountPath": "/kaniko/.docker",
+                }
+            )
+
         if needs_qemu:
             mounts.append(
                 {
@@ -311,6 +324,20 @@ class ContainerBuilder:
                 "emptyDir": {},
             },
         ]
+
+        # Secret dockerconfigjson para push autenticado no registry (ex.: GHCR).
+        if self.docker_config_secret:
+            volumes.append(
+                {
+                    "name": "docker-config",
+                    "secret": {
+                        "secretName": self.docker_config_secret,
+                        "items": [
+                            {"key": ".dockerconfigjson", "path": "config.json"},
+                        ],
+                    },
+                }
+            )
 
         if needs_qemu:
             volumes.append(
@@ -888,6 +915,8 @@ class ContainerBuilder:
                 kaniko_args.append("--digest-file=/workspace/digest.txt")
             else:
                 kaniko_args.append(f"--destination={image_tag}")
+                # Capturar o digest também no push real (verificável por skopeo).
+                kaniko_args.append("--digest-file=/workspace/digest.txt")
 
             # Adicionar cache se habilitado
             if enable_cache:
@@ -1051,9 +1080,9 @@ class ContainerBuilder:
                     # Parse digest dos logs
                     digest = self._parse_kaniko_digest(logs) if logs else None
 
-                    # Se não encontrou digest nos logs e no_push=True,
-                    # tentar ler do arquivo digest-file
-                    if not digest and no_push and logs:
+                    # Se não encontrou digest nos logs, tentar ler do digest-file
+                    # (gerado tanto em no_push como em push real via --digest-file).
+                    if not digest and logs:
                         try:
                             # Executar comando no pod para ler o digest file
                             from kubernetes.stream import stream
@@ -1121,14 +1150,6 @@ class ContainerBuilder:
                         error_msg = logs[-500:] if len(logs) > 500 else logs
                     except Exception:
                         logs = ""
-                        error_msg = "Kaniko pod failed"
-
-                elif phase == "Failed":
-                    # Obter logs de erro
-                    try:
-                        logs = k8s.read_namespaced_pod_log(name=pod_name, namespace=namespace)
-                        error_msg = logs[-500:] if len(logs) > 500 else logs
-                    except Exception:
                         error_msg = "Kaniko pod failed"
 
                     logger.error(

@@ -290,12 +290,22 @@ async def get_pipeline(
     if pipeline_engine:
         active_context = pipeline_engine.get_pipeline_context(pipeline_id)
         if active_context:
+            from src.services.pipeline_engine import container_image_to_artifact
+
+            artifacts = [a.model_dump() for a in active_context.generated_artifacts]
+            # Expor a imagem buildada (digest+uri) para o consumidor (worker)
+            # satisfazer o gate de evidência (Task 1).
+            image_artifact = container_image_to_artifact(
+                active_context.metadata.get("container_image")
+            )
+            if image_artifact:
+                artifacts.append(image_artifact)
             return {
                 "pipeline_id": pipeline_id,
                 "status": "running",
                 "stage": "BUILDING",
                 "duration_ms": active_context.calculate_duration(),
-                "artifacts": [a.model_dump() for a in active_context.generated_artifacts],
+                "artifacts": artifacts,
                 "stages": [
                     {"name": s.stage_name, "status": s.status.lower(), "duration_ms": s.duration_ms}
                     for s in active_context.pipeline_stages

@@ -208,6 +208,8 @@ async def main():
         settings.AUTO_APPROVAL_THRESHOLD,
         settings.MIN_QUALITY_SCORE,
         metrics,
+        oci_registry_url=settings.OCI_REGISTRY_URL,
+        docker_config_secret=settings.KANIKO_DOCKER_CONFIG_SECRET,
     )
 
     # 5.5. Inicializar webhook handler

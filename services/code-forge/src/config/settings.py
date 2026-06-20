@@ -124,6 +124,10 @@ class Settings(BaseSettings):
     ARTIFACTS_S3_REGION: str = Field(default="us-east-1", description="Região AWS S3")
     ARTIFACTS_S3_ENDPOINT: str = Field(default="", description="Endpoint S3 customizado")
     OCI_REGISTRY_URL: str = Field(default="", description="URL do OCI Registry")
+    KANIKO_DOCKER_CONFIG_SECRET: str = Field(
+        default="ghcr-secret",
+        description="Nome do Secret (dockerconfigjson) montado no Kaniko para push autenticado",
+    )
 
     # Pipeline Configuration
     MAX_CONCURRENT_PIPELINES: int = Field(default=3, description="Máximo de pipelines concorrentes")

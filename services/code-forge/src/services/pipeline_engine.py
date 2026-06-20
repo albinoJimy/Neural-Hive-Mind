@@ -23,6 +23,41 @@ if TYPE_CHECKING:
 logger = structlog.get_logger()
 
 
+def build_image_reference(registry: str, artifact_name: str, version: str) -> str:
+    """Compõe a referência da imagem ``{registry}/{artifact}:{version}``.
+
+    Quando ``registry`` está vazio mantém o comportamento legado ``{artifact}:{version}``
+    (build local sem push verificável). Remove ``/`` final do registry.
+    """
+    reg = (registry or "").rstrip("/")
+    if reg:
+        return f"{reg}/{artifact_name}:{version}"
+    return f"{artifact_name}:{version}"
+
+
+def container_image_to_artifact(meta: Optional[dict]) -> Optional[dict]:
+    """Converte ``context.metadata['container_image']`` num artifact com digest+uri.
+
+    Devolve ``None`` se não houver digest verificável. As chaves expostas
+    (``digest``/``uri``/``registry_reference``) são as lidas pelo worker
+    (BuildExecutor) para satisfazer o gate de evidência (Task 1).
+    """
+    if not meta:
+        return None
+    digest = meta.get("digest")
+    if not digest:
+        return None
+    tag = meta.get("tag")
+    return {
+        "type": "image",
+        "digest": digest,
+        "uri": tag,
+        "registry_reference": tag,
+        "tag": tag,
+        "size_bytes": meta.get("size_bytes"),
+    }
+
+
 class PipelineEngine:
     """
     Orquestrador principal que coordena execução dos pipelines.
@@ -57,6 +92,8 @@ class PipelineEngine:
         metrics: Optional["CodeForgeMetrics"] = None,
         build_timeout: int = 3600,
         enable_container_build: bool = True,
+        oci_registry_url: str = "",
+        docker_config_secret: str = "ghcr-secret",
     ):
         self.template_selector = template_selector
         self.code_composer = code_composer
@@ -71,10 +108,14 @@ class PipelineEngine:
         self.mongodb_client = mongodb_client
 
         # Novos serviços para builds de container reais
+        self.oci_registry_url = oci_registry_url
         self.dockerfile_generator = DockerfileGenerator()
+        # Kaniko quando há registry configurado (push real autenticado via secret);
+        # Docker local apenas quando não há registry (degradação marcada).
         self.container_builder = ContainerBuilder(
-            builder_type=BuilderType.DOCKER,
+            builder_type=BuilderType.KANIKO if oci_registry_url else BuilderType.DOCKER,
             timeout_seconds=build_timeout,
+            docker_config_secret=docker_config_secret if oci_registry_url else "",
         )
         self.enable_container_build = enable_container_build
 
@@ -391,7 +432,19 @@ class PipelineEngine:
                 "service_name", f"service-{context.ticket.ticket_id[:8]}"
             )
             version = context.ticket.parameters.get("version", "latest")
-            image_tag = f"{artifact_name}:{version}"
+            # Referência completa com registry para push verificável.
+            image_tag = build_image_reference(self.oci_registry_url, artifact_name, version)
+
+            if not self.oci_registry_url:
+                # §5.4: degradação — sem registry o build não é verificável por
+                # skopeo (imagem não pushada). Marcar e medir via log.
+                logger.warning(
+                    "container_build_degraded",
+                    degraded=True,
+                    reason="oci_registry_url_unset",
+                    pipeline_id=context.pipeline_id,
+                    image_tag=image_tag,
+                )
 
             logger.info(
                 "building_container_image",
@@ -488,7 +541,7 @@ class PipelineEngine:
         baseado na linguagem e nos artefatos gerados.
         """
         # Obter código gerado dos artefatos (se disponível)
-        generated_code = self._extract_generated_code(context)
+        generated_code = await self._extract_generated_code(context)
 
         if language == CodeLanguage.PYTHON:
             # Criar requirements.txt

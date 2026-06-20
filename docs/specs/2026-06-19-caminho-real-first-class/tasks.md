@@ -39,13 +39,15 @@
   - [x] 3.3 `sentence-transformers`+`torch` opcional (comentados); fallback marcado via `degradation_total` + log `degraded=true`
   - [x] 3.4 Validado em plano real (decomposition local com spaCy real); cluster já tem spaСy — E2E A→C6 completo fica pendente do rollout da nova imagem (CI no push)
 
-- [ ] 4. Code Forge — build real verificável
-  - **DoR:** `ghcr-secret` confirmado em `docker-build`; `OCI_REGISTRY_URL` alvo definido; code-forge deploy localizado (0/0).
+- [ ] 4. Code Forge — build real verificável (código ✅; infra+skopeo E2E pendente)
+  - **DoR:** `ghcr-secret` confirmado em `docker-build` (existe, 134d) ✅; `OCI_REGISTRY_URL=ghcr.io/albinojimy/neural-hive-mind`; code-forge deploy localizado (0/0).
   - **DoD:** build produz `{registry}/{artifact}:{version}` com digest confirmável por `skopeo inspect`; sem code-forge → ticket FAILED (nunca `stub://`).
-  - [ ] 4.1 Testes: build → digest real; sem forge → FAILED
-  - [ ] 4.2 Escalar code-forge ≥1; montar `ghcr-secret` no pod Kaniko
-  - [ ] 4.3 `OCI_REGISTRY_URL` + `--destination` com registry; devolver digest+URI
-  - [ ] 4.4 Remover fallback `stub://artifact`; validar com `skopeo inspect`
+  - **ACHADO/FIX (auditoria):** corrigidos 2 bugs CRÍTICOS pré-existentes no caminho de build do code-forge: (a) `pipeline_engine._prepare_build_workspace` chamava `_extract_generated_code` **sem `await`** (coroutine nunca executada → workspace sempre com código default); (b) `container_builder` tinha `elif phase == "Failed"` **duplicado** → pod falhado nunca retornava (bloqueava até timeout de horas). Sem estes fixes o build real nunca convergiria.
+  - **EVIDÊNCIA (código):** `grep stub:// services/worker-agents/src` → 0 ocorrências (stub REMOVIDO, não marcado). BuildExecutor produz `output.artifact`={registry}/{nome}:{version} + `output.digest`=sha256: que satisfazem `_evidence_build` da Task 1. Sem forge / forge a falhar / pipeline sem digest → `success=False` + `real_path_unavailable_total`. 13 testes novos verdes + 3 testes de contrato obsoletos (stub) atualizados ao contrato real.
+  - [x] 4.1 Testes: build → digest real; sem forge → FAILED (5 worker + 8 code-forge)
+  - [x] 4.2 (código) montar `ghcr-secret` no pod Kaniko (`/kaniko/.docker`, `KANIKO_DOCKER_CONFIG_SECRET`); escalar code-forge ≥1 → INFRA (Fase D)
+  - [x] 4.3 `OCI_REGISTRY_URL` (helm) + `--destination` com registry (`build_image_reference`); devolver digest+URI ao worker
+  - [x] 4.4 Remover fallback `stub://artifact` ✅; validar com `skopeo inspect` → E2E pendente (nova imagem code-forge + build real na Fase D)
 
 - [ ] 5. Fluxo G — wiring da geração de código
   - **DoR:** as 10 activities G6-G13 localizadas e confirmadas implementadas (não stubs); porta real do code-forge (8080) confirmada.
