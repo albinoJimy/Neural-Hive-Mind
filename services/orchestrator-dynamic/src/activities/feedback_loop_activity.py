@@ -65,14 +65,19 @@ async def collect_post_deployment_metrics(
             "peak_memory_mb": 512.0,
         },
         "health_status": "healthy",
+        # caminho-real-first-class §5.4: métricas ainda NÃO vêm de Prometheus/
+        # Grafana/Datadog — marcar como simuladas para não emitir verde-falso.
+        "simulated": True,
     }
 
-    logger.info(
+    logger.warning(
         "post_deployment_metrics_collected",
         deployment_id=deployment_id,
         response_time_ms=metrics["performance"]["response_time_ms"],
         error_rate=metrics["performance"]["error_rate"],
         health_status=metrics["health_status"],
+        degraded=True,
+        reason="metrics_simulated_not_from_observability_backend",
     )
 
     return metrics
@@ -307,17 +312,21 @@ async def record_feedback_for_ml(
     if user_feedback:
         training_example["user_feedback"] = user_feedback
 
-    # Em produção, isso seria salvo no MongoDB/Data Lake
-    # para posterior uso em retreinamento
-
-    logger.info(
+    # caminho-real-first-class §5.4: a persistência real do training_example
+    # (MongoDB/Data Lake para retreinamento) é entregue na Task 12 (pipeline de
+    # dados reais). Aqui o exemplo é construído mas NÃO persistido — marcar como
+    # simulado para não reportar verde-falso (`ml_feedback_recorded`).
+    logger.warning(
         "feedback_recorded_for_ml",
         plan_id=plan_id,
         success_label=training_example["labels"]["success"],
+        degraded=True,
+        reason="training_example_not_persisted_pending_task12",
     )
 
     return {
-        "status": "recorded",
+        "status": "simulated",
+        "simulated": True,
         "training_example": training_example,
     }
 

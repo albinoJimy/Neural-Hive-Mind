@@ -13,8 +13,22 @@ from temporalio import activity
 
 logger = structlog.get_logger(__name__)
 
-# Cliente HTTP reutilizado de code_generation_activity
-from .code_generation_activity import _http_client
+# Cliente HTTP reutilizado de code_generation_activity.
+# Importamos o módulo (não o símbolo) para ler _http_client dinamicamente
+# após a injeção feita pelo worker.
+from . import code_generation_activity
+
+
+def _get_http_client() -> httpx.AsyncClient | None:
+    """Lê o cliente HTTP injetado dinamicamente (pode ser None)."""
+    client = code_generation_activity._http_client
+    if client is None:
+        logger.warning(
+            "http_client_not_injected_using_ephemeral",
+            degraded=True,
+            reason="set_code_generation_dependencies_not_called",
+        )
+    return client
 
 
 @activity.defn
@@ -95,7 +109,7 @@ async def deploy_software(
 
     try:
         # Usar cliente HTTP
-        client = _http_client or httpx.AsyncClient(timeout=1200.0)
+        client = _get_http_client() or httpx.AsyncClient(timeout=1200.0)
 
         # Chamar deploy-service API para iniciar deploy
         response = await client.post(
@@ -347,7 +361,7 @@ async def rollback_deployment(
         raise RuntimeError("Rollback não está habilitado para este deployment")
 
     try:
-        client = _http_client or httpx.AsyncClient(timeout=300.0)
+        client = _get_http_client() or httpx.AsyncClient(timeout=300.0)
 
         response = await client.post(
             f"http://deploy-service:8010/api/v1/deployments/{deployment_id}/rollback",

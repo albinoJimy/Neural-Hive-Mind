@@ -352,6 +352,26 @@ class TemporalWorkerManager:
             start_cdc,
             validate_data,
         )
+        from src.activities.build_package_activity import (
+            build_package,
+            validate_build_quality,
+        )
+        from src.activities.code_generation_activity import (
+            generate_code,
+            set_code_generation_dependencies,
+        )
+        from src.activities.deploy_activity import (
+            deploy_software,
+            rollback_deployment,
+            verify_deployment,
+        )
+        from src.activities.feedback_loop_activity import (
+            analyze_deployment_quality,
+            check_feedback_thresholds,
+            collect_post_deployment_metrics,
+            generate_specialist_feedback,
+            record_feedback_for_ml,
+        )
         from src.activities.fluxo_g_integration import (
             generate_documentation,
             generate_requirements,
@@ -395,7 +415,16 @@ class TemporalWorkerManager:
                 limits=httpx.Limits(max_keepalive_connections=20, max_connections=100),
             )
             set_fluxo_g_dependencies(http_client=fluxo_g_http_client)
-            logger.info("HTTP client injetado para Fluxo G activities")
+            # Injetar HTTP client + MongoDB nas activities de geração de código
+            # (build_package e deploy reutilizam o mesmo _http_client).
+            set_code_generation_dependencies(
+                http_client=fluxo_g_http_client,
+                mongodb_client=self.mongodb_client,
+            )
+            logger.info(
+                "HTTP client injetado para Fluxo G activities",
+                code_generation_mongodb_enabled=self.mongodb_client is not None,
+            )
         except Exception as e:
             logger.warning("Falha ao criar HTTP client para Fluxo G", error=str(e))
 
@@ -478,12 +507,24 @@ class TemporalWorkerManager:
                 # Optimization events (C5 pós-consolidação + por-ticket via signal)
                 publish_workflow_optimization_events,
                 publish_ticket_completed_event,
-                # Fluxo G activities
+                # Fluxo G activities (G1-G5)
                 generate_requirements,
                 generate_documentation,
                 update_knowledge_graph,
                 request_approval,
                 query_knowledge_graph,
+                # Fluxo G activities (G6-G13: geração → build → deploy → feedback)
+                generate_code,
+                build_package,
+                validate_build_quality,
+                deploy_software,
+                verify_deployment,
+                rollback_deployment,
+                collect_post_deployment_metrics,
+                analyze_deployment_quality,
+                generate_specialist_feedback,
+                record_feedback_for_ml,
+                check_feedback_thresholds,
                 # Data Migration activities
                 analyze_legacy_schema,
                 generate_schema_mapping,
@@ -516,7 +557,7 @@ class TemporalWorkerManager:
         logger.info(
             "Fluxo G workflow e atividades registradas no Worker",
             workflow="FluxoGWorkflow",
-            activities_count=5,
+            activities_count=16,
         )
 
     async def start(self):
