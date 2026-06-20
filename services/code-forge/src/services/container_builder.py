@@ -10,6 +10,7 @@ Suporta:
 """
 
 import asyncio
+import re
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Optional
@@ -17,6 +18,35 @@ from typing import Optional
 import structlog
 
 logger = structlog.get_logger()
+
+# Recursos dos containers do pod Kaniko. A constraint Gatekeeper
+# `container-must-have-limits` exige limits em todos os containers; valores
+# modestos para caber no cluster (over-commit) sem matar o build.
+_KANIKO_RESOURCES = {
+    "requests": {"cpu": "200m", "memory": "512Mi"},
+    "limits": {"cpu": "1500m", "memory": "2Gi"},
+}
+_INIT_RESOURCES = {
+    "requests": {"cpu": "50m", "memory": "64Mi"},
+    "limits": {"cpu": "200m", "memory": "256Mi"},
+}
+
+
+def _sanitize_label_value(value: str) -> str:
+    """Sanitiza uma string para valor de label K8s válido.
+
+    Valores de label têm de ser <=63 chars, começar/terminar com alfanumérico
+    e conter apenas ``[a-zA-Z0-9._-]``. Usado para o label ``build`` derivado
+    da image tag (ex.: ``ghcr.io/org/svc:v1``).
+
+    Args:
+        value: Valor bruto (image tag).
+
+    Returns:
+        Valor de label válido.
+    """
+    cleaned = re.sub(r"[^a-zA-Z0-9._-]", "-", value)[:63]
+    return cleaned.strip("-._") or "build"
 
 
 class BuilderType(str, Enum):
@@ -205,6 +235,7 @@ class ContainerBuilder:
                 {
                     "name": "qemu-setup",
                     "image": "alpine:latest",
+                    "resources": _INIT_RESOURCES,
                     "command": ["/bin/sh", "-c"],
                     "args": [
                         f"apk add --no-cache {qemu_packages} && "
@@ -225,6 +256,7 @@ class ContainerBuilder:
             {
                 "name": "setup",
                 "image": "busybox:latest",
+                "resources": _INIT_RESOURCES,
                 "command": ["/bin/sh", "-c"],
                 "args": [
                     # Copiar Dockerfile do ConfigMap para o workspace
@@ -1027,9 +1059,12 @@ class ContainerBuilder:
                 "metadata": {
                     "name": pod_name,
                     "namespace": namespace,
+                    # Gatekeeper (must-have-app-label-all) exige app + app.kubernetes.io/name;
+                    # o valor de label é sanitizado (lowercase, só [a-z0-9.-], <=63 chars).
                     "labels": {
                         "app": "kaniko",
-                        "build": image_tag.replace(":", "-").replace("/", "-"),
+                        "app.kubernetes.io/name": "kaniko",
+                        "build": _sanitize_label_value(image_tag),
                     },
                 },
                 "spec": {
@@ -1042,6 +1077,9 @@ class ContainerBuilder:
                             "name": "kaniko",
                             "image": "gcr.io/kaniko-project/executor:latest",
                             "args": kaniko_args,
+                            # Gatekeeper (container-must-have-limits) exige limits em todos
+                            # os containers do pod Kaniko.
+                            "resources": _KANIKO_RESOURCES,
                             "volumeMounts": self._build_container_volume_mounts(
                                 needs_qemu=needs_qemu
                             ),
