@@ -17,21 +17,27 @@
   - [x] 1.3 Gate de evidência por task_type (`_has_real_evidence`+`_enforce_evidence_gate`, execution_engine.py) — query/transform/validate/build(+digest)/deploy/execute/generate_code
   - [x] 1.4 Testes verdes (34 com regressão; pipeline dev→auditoria qualidade→auditoria completude→remediação: C1 Redis GET, C2 CSV transform, build-digest, helper extraído)
 
-- [ ] 2. Reativar specialists ML em produção (stage + embeddings)
+- [x] 2. Reativar specialists ML em produção (stage + embeddings) ✅
   - **DoR:** modelos `<domain>-evaluator` localizados no MLflow (stage atual); base image confirma `sentence-transformers`.
   - **DoD:** opinions com `model_source=ml_model` e `method=shap`; 0 features de embedding a zero; specialists não caem em heurística com a config de prod.
-  - [ ] 2.1 Testes: specialist usa `-evaluator` real com a config de stage correta
-  - [ ] 2.2 Alinhar `modelStage` Staging↔Production (`specialist-*/config.py`, helm values)
-  - [ ] 2.3 Garantir `sentence-transformers==3.3.1` (eliminar 3 features a zero)
-  - [ ] 2.4 Validar via E2E
+  - **DECISÃO (stage):** Opção A — promover `<domain>-evaluator` Staging→Production no MLflow (semântica correta) via script versionado idempotente, em vez de apontar helm para Staging (smell). Ação de estado EXECUTADA pelo orquestrador.
+  - **EVIDÊNCIA REAL:** registry confirma 5 evaluators em Production (technical/architecture/behavior v13, business/evolution v14), 5 mocks `<domain>` arquivados. `mlflow.pyfunc.load_model('models:/business-evaluator/Production')` → `RandomForestClassifier` (caminho `ml_model`, antes dava NotFound→heurística). Embeddings no pod não-zero (`mean_norm=3.62`, `sentence-transformers 3.3.1` presente — comentário `values.yaml:68` "removido" está desatualizado: base image reconstruída com libs ML na sessão SHAP).
+  - **ACHADO/FIX:** `ontology_mapper` testava truthiness do objeto (`if self.embeddings_generator:`) em vez de `.model is not None` → degradação silenciosa de embeddings; corrigido com `_embeddings_available()` + `feature_degraded` + métrica `degradation_total{component,reason}` (§5.4).
+  - [x] 2.1 Testes: specialist resolve `-evaluator` real por stage; stage sem modelo → fallback marcado (`test_model_stage_resolution.py`, 3 testes)
+  - [x] 2.2 Stage alinhado via promoção MLflow (script `scripts/mlflow/promote_specialists.py`, executado `--apply`); helm prod (`Production`) passa a resolver os modelos reais
+  - [x] 2.3 `sentence-transformers==3.3.1` confirmado na base image; fix da degradação silenciosa de embeddings + 6 testes (`test_embeddings_degradation.py`)
+  - [x] 2.4 Validado no cluster: resolução Production→RandomForest; regressão 284 passed/0 failed; embeddings não-zero
 
-- [ ] 3. Reativar NER/embeddings reais no STE (dependências)
+- [x] 3. Reativar NER/embeddings reais no STE (dependências) ✅
   - **DoR:** Dockerfile do STE e requirements localizados; modelos spaCy alvo identificados (`pt_core_news_sm`).
   - **DoD:** `nlp_processor.is_ready()==True`; entidades limpas (sem artigos/vírgulas) e `subject` correto (não `entities[0]`), verificado num plano real.
-  - [ ] 3.1 Testes: is_ready true; NER extrai entidades nomeadas limpas
-  - [ ] 3.2 `spacy==3.7.0` em requirements-base + download pós-instalação
-  - [ ] 3.3 `sentence-transformers`+`torch` (opcional, fallback marcado)
-  - [ ] 3.4 Verificar via E2E
+  - **EVIDÊNCIA REAL:** pipeline real (spaCy real + decomposition + classifier) sobre `"Migrar a infraestrutura SAP para a cloud AWS"` → `is_ready()=True`; 4 entidades NER **sem nenhuma suja** (`Migrar`, `SAP`, `AWS`, `cloud AWS` — sem artigos/pontuação); `subject='infraestrutura SAP'` LIMPO (≠ `entities[0]`=`'Migrar'` cru); plano real com 6 TaskNodes com subject/target limpos nas descrições. Pod do cluster `semantic-translation-engine-*` já tem `spacy 3.7.5` (transitivo dos tarballs dos modelos) → NER real já disponível em runtime; o fix comportamental (cleaning+subject+instrumentação) entra com o rebuild via CI no push.
+  - **ACHADO/FIX (auditoria):** (a) `clean_entity_value` apagava siglas ALL-CAPS (`OS`/`AS`/`A`/`DB`) por comparar `.lower()` → corrigido com `tokens[0].islower()`; (b) `decomposition_templates.py:745` `subject = entities[0]` cru → primeira entidade LIMPA não-vazia; (c) degradação instrumentada com `degradation_total{component,reason}` (§5.4) em `nlp_processor` (not_initialized/initialize_failed), `intent_classifier` (embeddings_unavailable) e fallback posicional do decomposition (positional_subject_fallback); (d) `_entity_text` coage dict→str defensivamente.
+  - **DECISÃO (deps):** `spacy==3.7.0` em `requirements.txt` (torna explícita a dep antes implícita; alinha com modelos 3.7.x do Dockerfile). `sentence-transformers`/`torch` deixados OPCIONAIS (comentados) — DoD não exige embeddings ativos, só que a ausência seja MARCADA; evita ~2GB de torch como hard dep.
+  - [x] 3.1 Testes: is_ready true; NER extrai entidades nomeadas limpas (18 testes em `test_ste_real_path_task3.py`)
+  - [x] 3.2 `spacy==3.7.0` em requirements + modelos baixados (Dockerfile já baixa `pt_core_news_sm-3.7.0`/`en_core_web_sm-3.7.1`)
+  - [x] 3.3 `sentence-transformers`+`torch` opcional (comentados); fallback marcado via `degradation_total` + log `degraded=true`
+  - [x] 3.4 Validado em plano real (decomposition local com spaCy real); cluster já tem spaСy — E2E A→C6 completo fica pendente do rollout da nova imagem (CI no push)
 
 - [ ] 4. Code Forge — build real verificável
   - **DoR:** `ghcr-secret` confirmado em `docker-build`; `OCI_REGISTRY_URL` alvo definido; code-forge deploy localizado (0/0).

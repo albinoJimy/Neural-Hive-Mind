@@ -2,3 +2,15 @@
 -r ../../requirements-base.txt
 
 # Service-specific dependencies (a serem adicionadas manualmente)
+
+# NER real (caminho-real-first-class): spaCy alinhado com os modelos
+# pt_core_news_sm-3.7.0 / en_core_web_sm-3.7.1 baixados no Dockerfile.
+spacy==3.7.0
+
+# Opcional — reforço semântico de classificação de intents (embeddings).
+# NÃO é hard dep: torch é ~2GB e a DoD não exige embeddings ativos, apenas
+# que a ausência seja marcada via degradation_total{component=intent_classifier,
+# reason=embeddings_unavailable}. Descomentar para reativar o reforço semântico.
+# sentence-transformers==2.7.0
+# torch==2.2.2
+# scikit-learn==1.4.2

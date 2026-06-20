@@ -6,6 +6,7 @@ Utiliza spaCy para processamento de linguagem natural com suporte bilíngue
 """
 
 import hashlib
+import re
 import time
 from collections import Counter
 from typing import TYPE_CHECKING, Optional
@@ -16,6 +17,7 @@ if TYPE_CHECKING:
     from src.clients.redis_client import RedisClient
 
 from src.observability.metrics import (
+    degradation_total,
     nlp_cache_hits_total,
     nlp_cache_misses_total,
     nlp_entities_extracted,
@@ -26,6 +28,56 @@ from src.observability.metrics import (
 )
 
 logger = structlog.get_logger()
+
+# Artigos/determinantes iniciais a remover do valor de entidades (pt + en).
+_LEADING_DETERMINERS = {
+    "o",
+    "a",
+    "os",
+    "as",
+    "um",
+    "uma",
+    "uns",
+    "umas",
+    "the",
+    "an",
+}
+
+# Pontuação a remover das pontas do valor de entidades.
+_EDGE_PUNCTUATION = " ,.;:"
+
+
+def clean_entity_value(value: str) -> str:
+    """Limpa o valor de uma entidade para uso como subject/target/coleção.
+
+    Remove artigos/determinantes iniciais (pt: o, a, os, as, um, uma, uns,
+    umas; en: the, a, an), retira pontuação nas pontas (``, . ; :``) e
+    colapsa espaços internos.
+
+    Args:
+        value: Valor bruto da entidade (ex.: "a infraestrutura,").
+
+    Returns:
+        Valor limpo (ex.: "infraestrutura"). String vazia se, após limpeza,
+        só restar um artigo/determinante ou nada.
+    """
+    if not value:
+        return ""
+
+    # Colapsar espaços e remover pontuação nas pontas.
+    cleaned = re.sub(r"\s+", " ", value).strip(_EDGE_PUNCTUATION).strip()
+    if not cleaned:
+        return ""
+
+    # Remover artigo/determinante inicial (uma vez). Só remove quando o token
+    # está em minúsculas (artigo real em texto corrido); preserva siglas
+    # ALL-CAPS/TitleCase como "OS", "AS", "A", "DB" que coincidem com artigos.
+    tokens = cleaned.split(" ")
+    if tokens and tokens[0].islower() and tokens[0] in _LEADING_DETERMINERS:
+        tokens = tokens[1:]
+
+    return " ".join(tokens).strip(_EDGE_PUNCTUATION).strip()
+
 
 # Mapeamento de verbos para objectives canônicos
 VERB_MAPPINGS = {
@@ -212,7 +264,11 @@ class NLPProcessor:
             )
 
         except Exception as e:
-            logger.exception("Falha ao inicializar NLP Processor", error=str(e))
+            # Marcar a degradação antes de propagar: o caller (main.py) cai em
+            # fallback heurístico, logo a indisponibilidade do NER real tem de
+            # ser observável (caminho-real-first-class §5.4).
+            degradation_total.labels(component="nlp_processor", reason="initialize_failed").inc()
+            logger.exception("Falha ao inicializar NLP Processor", error=str(e), degraded=True)
             raise
 
     def is_ready(self) -> bool:
@@ -386,7 +442,10 @@ class NLPProcessor:
         start_time = time.perf_counter()
 
         if not self._initialized:
-            logger.warning("NLP não inicializado, usando fallback")
+            degradation_total.labels(component="nlp_processor", reason="not_initialized").inc()
+            logger.warning(
+                "NLP não inicializado, usando fallback", operation="keywords", degraded=True
+            )
             return self._extract_keywords_fallback(text, max_keywords)
 
         try:
@@ -528,7 +587,10 @@ class NLPProcessor:
         start_time = time.perf_counter()
 
         if not self._initialized:
-            logger.warning("NLP não inicializado, usando fallback")
+            degradation_total.labels(component="nlp_processor", reason="not_initialized").inc()
+            logger.warning(
+                "NLP não inicializado, usando fallback", operation="objectives", degraded=True
+            )
             return self._extract_objectives_fallback(text)
 
         try:
@@ -653,7 +715,12 @@ class NLPProcessor:
         start_time = time.perf_counter()
 
         if not self._initialized:
-            logger.warning("NLP não inicializado, retornando lista vazia")
+            degradation_total.labels(component="nlp_processor", reason="not_initialized").inc()
+            logger.warning(
+                "NLP não inicializado, retornando lista vazia",
+                operation="entities",
+                degraded=True,
+            )
             return []
 
         try:
@@ -664,9 +731,9 @@ class NLPProcessor:
             entities = []
             seen_values = set()
 
-            # Extrair Named Entities do spaCy
+            # Extrair Named Entities do spaCy (limpas: sem artigos/pontuação nas pontas)
             for ent in doc.ents:
-                value = ent.text.strip()
+                value = clean_entity_value(ent.text)
                 if value and value.lower() not in seen_values:
                     seen_values.add(value.lower())
                     entities.append(
@@ -679,10 +746,12 @@ class NLPProcessor:
                         }
                     )
 
-            # Extrair noun chunks como potenciais recursos
+            # Extrair noun chunks como potenciais recursos (limpos: noun_chunks
+            # trazem artigos iniciais — "a infraestrutura" → "infraestrutura").
             for chunk in doc.noun_chunks:
-                value = chunk.text.strip()
-                # Filtrar chunks muito curtos ou já extraídos
+                value = clean_entity_value(chunk.text)
+                # Filtrar chunks que ficam vazios/só-stopword após limpeza,
+                # muito curtos ou já extraídos.
                 if len(value) > 2 and value.lower() not in seen_values and not chunk.root.is_stop:
                     seen_values.add(value.lower())
                     entities.append(

@@ -12,9 +12,28 @@ from typing import Any
 
 import structlog
 from src.models.cognitive_plan import TaskNode
+from src.observability.metrics import degradation_total
 from src.services.intent_classifier import IntentClassification, IntentType
+from src.services.nlp_processor import clean_entity_value
 
 logger = structlog.get_logger(__name__)
+
+
+def _entity_text(entity: Any) -> str:
+    """Normaliza uma entidade (str ou dict ``{"value": ...}``) para texto limpo.
+
+    Os callers passam tipicamente ``list[str]``, mas o NER avançado devolve
+    ``list[dict]``; esta coerção evita ``TypeError`` se um dict escapar.
+
+    Args:
+        entity: Entidade bruta (str ou dict com chave ``value``).
+
+    Returns:
+        Valor da entidade já limpo via :func:`clean_entity_value`.
+    """
+    if isinstance(entity, dict):
+        entity = entity.get("value", "")
+    return clean_entity_value(str(entity))
 
 
 @dataclass
@@ -583,9 +602,11 @@ class DecompositionTemplates:
             if key in subject_lower:
                 return collection
 
-        # Fallback: usar primeira entidade ou nome derivado
-        if entities:
-            return entities[0].lower().replace(" ", "_")
+        # Fallback: usar primeira entidade LIMPA não-vazia ou nome derivado
+        for entity in entities:
+            cleaned = _entity_text(entity)
+            if cleaned:
+                return cleaned.lower().replace(" ", "_")
 
         # Último fallback: coleção genérica
         return "default"
@@ -734,18 +755,30 @@ class DecompositionTemplates:
                     subject = intent_text[subject_start:to_idx].strip()
                     target = intent_text[to_idx + len(to_marker) :].strip()
 
-                    # Limpar pontuação final
-                    target = target.rstrip(".,;:")
+                    # Limpar artigos iniciais e pontuação nas pontas.
+                    subject = clean_entity_value(subject)
+                    target = clean_entity_value(target)
 
                     if subject and target:
                         return subject, target
 
-        # Fallback: usar primeira entidade como subject, resto como target
-        if entities:
-            subject = entities[0]
-            target = entities[1] if len(entities) > 1 else intent_text[:50]
+        # Fallback: primeira entidade LIMPA e não-vazia como subject, resto como target.
+        cleaned_entities = [cleaned for e in entities if (cleaned := _entity_text(e))]
+        if cleaned_entities:
+            subject = cleaned_entities[0]
+            target = cleaned_entities[1] if len(cleaned_entities) > 1 else intent_text[:50]
         else:
-            # Extrair substantivos principais do texto
+            # Heurística-de-lacuna: sem entidades nem padrão de migração, deriva
+            # subject/target de substantivos posicionais. Marcar a degradação para
+            # não ficar verde-falso silencioso (caminho-real-first-class §5.4).
+            degradation_total.labels(
+                component="decomposition_templates", reason="positional_subject_fallback"
+            ).inc()
+            logger.warning(
+                "Subject/target derivados por posição (sem entidades NER)",
+                intent_preview=intent_text[:50],
+                degraded=True,
+            )
             words = intent_text.split()
             subject = " ".join(words[:3]) if len(words) >= 3 else intent_text
             target = " ".join(words[3:6]) if len(words) >= 6 else subject

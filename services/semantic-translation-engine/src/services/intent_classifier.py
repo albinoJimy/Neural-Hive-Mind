@@ -11,6 +11,7 @@ from typing import Any
 
 import numpy as np
 import structlog
+from src.observability.metrics import degradation_total
 
 logger = structlog.get_logger(__name__)
 
@@ -392,11 +393,17 @@ class IntentClassifier:
             intent_embedding = self.model.encode([intent_text], convert_to_numpy=True)[0]
             from sklearn.metrics.pairwise import cosine_similarity
         except ImportError as exc:
-            # Logar uma única vez em nível info (não warning ruidoso por request).
+            # Marcar a degradação uma única vez por instância (caminho-real-first-class):
+            # embeddings ausentes. O guard `is None` garante que a métrica e o log só
+            # disparam na primeira deteção; chamadas seguintes saem cedo na linha 388.
             if self._semantic_available is None:
+                degradation_total.labels(
+                    component="intent_classifier", reason="embeddings_unavailable"
+                ).inc()
                 logger.info(
                     "Reforço semântico indisponível, usando classificação por padrões",
                     reason=str(exc),
+                    degraded=True,
                 )
             self._semantic_available = False
             return self._empty_semantic_scores()
