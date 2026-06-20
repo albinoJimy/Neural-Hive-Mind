@@ -559,11 +559,25 @@ class DecompositionTemplates:
             )
 
         elif task_template.task_type == "transform":
-            # Para transform, input_data será preenchido durante execução
-            # ou pode ter origem em tasks QUERY anteriores
-            base_params.update(
-                {"input_data": None, "operations": []}  # Será populado pelo executor
-            )
+            if task_template.dependencies:
+                # Data-flow semântico (Task 7): a transform tem upstream (tipicamente
+                # uma QUERY). Gera um input_ref genérico que o worker resolve contra
+                # os outputs das dependências (documents→results→output) e uma
+                # operação REAL e schema-agnóstica (count) que deriva output
+                # não-trivial de qualquer lista de documentos sem conhecer o schema.
+                base_params.update(
+                    {
+                        "transform_type": "json",
+                        "input_ref": "${dep.output.documents}",
+                        "operations": [{"type": "count"}],
+                    }
+                )
+            else:
+                # Transform standalone (sem upstream): sem input disponível. O worker
+                # faz no-op gracioso marcado em vez de simular trabalho.
+                base_params.update(
+                    {"input_data": None, "operations": []}  # no-op honesto no executor
+                )
 
         elif task_template.task_type == "validate":
             # Mapear para política OPA apropriada
