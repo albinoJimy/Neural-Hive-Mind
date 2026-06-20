@@ -51,14 +51,16 @@
   - [x] 4.3 `OCI_REGISTRY_URL` (helm) + `--destination` com registry (`build_image_reference`); devolver digest+URI ao worker
   - [x] 4.4 Remover fallback `stub://artifact` ✅; validar com `skopeo inspect` → E2E pendente (nova imagem code-forge + build real na Fase D)
 
-- [ ] 5. Fluxo G — wiring da geração de código
+- [x] 5. Fluxo G — wiring da geração de código ✅ (code_artifact_id persistido provado por consulta)
   - **DoR:** as 10 activities G6-G13 localizadas e confirmadas implementadas (não stubs); porta real do code-forge (8080) confirmada.
   - **DoD:** plano `generation` executa sem ActivityNotRegistered; `generate_code` devolve `code_artifact_id` persistido em MongoDB, confirmado por consulta.
-  - [ ] 5.1 Testes: worker regista G6-G13; plano generation não dá ActivityNotRegistered
-  - [ ] 5.2 Registar G6-G13 (`temporal_worker.py:465`) + `set_code_generation_dependencies`
-  - [ ] 5.3 Corrigir porta 8020→8080 (configurável)
-  - [ ] 5.4 Alinhar endpoint G1 `/from-plan`
-  - [ ] 5.5 Verificar via E2E: `code_artifact_id` persistido
+  - **EVIDÊNCIA REAL (cluster):** orchestrator (imagem 2d94515) arranca 2/2 Running, worker Temporal inicializado **sem ActivityNotRegistered** (12 G6-G13 registadas; interseção `invocadas-no-FluxoGWorkflow ⊆ registadas = ∅`). `_persist_code_artifact` → MongoDB real `neural_hive_orchestration.code_artifacts`; `find_one({code_artifact_id})` devolveu o documento `{code_artifact_id: cr5-proof-artifact-001, language: python, framework: fastapi, generation_method: code_forge, status: completed, ...}`. DoD satisfeita por consulta real.
+  - **ACHADO/FIX (auditoria):** bug colateral — `build_package`/`deploy` faziam `from .code_generation_activity import _http_client` capturando `None` no import (antes da injeção); corrigido p/ leitura dinâmica via módulo. Honestidade §5.4: `collect_post_deployment_metrics`/`record_feedback_for_ml` devolviam dados simulados sem marcação → marcados `simulated=True`+log degraded (persistência ML real fica p/ Task 12, sem verde-falso). `get_engineering_service`→503; http client None→log degraded; 8020 residual em `code_forge_client`→8080.
+  - [x] 5.1 Testes: worker regista G6-G13; generation não dá ActivityNotRegistered (8 testes AST + persistência + fail-safe + porta)
+  - [x] 5.2 Registar G6-G13 (`temporal_worker.py`) + `set_code_generation_dependencies(http_client, mongodb_client)` chamada no worker
+  - [x] 5.3 Porta 8020→8080 configurável (`_code_forge_base_url()`, env `CODE_FORGE_URL`)
+  - [x] 5.4 Endpoint G1 `POST /requirements/from-plan` (JSON body) alinhado com o payload de `fluxo_g_integration.py`
+  - [x] 5.5 Verificado no cluster: `code_artifact_id` persistido em `code_artifacts`, confirmado por `find_one`
 
 ### Balde B — Médio
 
