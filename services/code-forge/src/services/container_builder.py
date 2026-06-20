@@ -1260,15 +1260,15 @@ class ContainerBuilder:
         """
         Extrai o digest SHA256 dos logs do Kaniko.
 
-        Formato esperado nos logs:
-        Built image with digest sha256:abc123...
+        Cobre os dois formatos emitidos pelo Kaniko:
+        - ``Built image with digest sha256:abc123...`` (build local)
+        - ``Pushed <ref>@sha256:abc123...`` (push real para registry)
         """
-        for line in logs.splitlines():
-            if "digest sha256:" in line.lower():
-                parts = line.split("sha256:")
-                if len(parts) > 1:
-                    digest_hash = parts[1].split()[0][:64]
-                    return f"sha256:{digest_hash}"
+        # Procurar a primeira ocorrência de sha256:<hex> (digest válido), seja no
+        # formato "digest sha256:..." ou "Pushed <ref>@sha256:...". Trunca a 64.
+        match = re.search(r"sha256:([0-9a-f]+)", logs)
+        if match:
+            return f"sha256:{match.group(1)[:64]}"
         return None
 
     async def push_to_registry(
