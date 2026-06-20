@@ -64,14 +64,16 @@
 
 ### Balde B — Médio
 
-- [ ] 6. Validação real por domínio (OPA)
+- [x] 6. Validação real por domínio (OPA) ✅ (4 políticas avaliam no cluster, provado por query)
   - **DoR:** `security_validation.rego` como template; contrato de `input_data` por domínio definido; ConfigMap do OPA localizada.
   - **DoD:** as 4 políticas avaliam input e devolvem allow/violations (decisão com `result`); validate de architecture/quality/perf/operational deixa de ser `policy_undefined`; SAST timeout → FAILED.
-  - [ ] 6.1 Testes: 4 políticas avaliam input; timeout SAST → FAILED
-  - [ ] 6.2 Criar 4 `.rego` + montar na ConfigMap do OPA
-  - [ ] 6.3 `policy_undefined` fail-open só para domínios sem política exigida
-  - [ ] 6.4 Validate fail-closed (remover fallback simulado genérico)
-  - [ ] 6.5 Verificar testes/E2E
+  - **EVIDÊNCIA REAL (cluster):** ConfigMap `opa-policies` atualizado (6→10 `.rego`) + OPA reiniciado. Query ao OPA (`/v1/data/neural_hive/<domain>`) com input `{is_destructive:true, security_level:internal, risk_band:critical}` → architecture/compliance `allow=False violations=1`, quality/standards `allow=True violations=0`, performance/limits `allow=False violations=1`, operational/procedures `allow=False violations=2` — **todas devolvem `result`, nenhuma `policy_undefined`**.
+  - **ACHADO/FIX (auditoria):** (a) BUG CRÍTICO de deploy — `.Files.Get` resolve relativo ao chart, não à raiz; as 4 `.rego` foram copiadas para `helm-charts/orchestrator-dynamic/policies/rego/orchestrator/` (senão o ConfigMap renderia vazio); (b) `_execute_opa_fallback` emitia `simulated=True` p/ OPA-down (falha real, não simulação) → `simulated=False`+`degraded`+`real_path_unavailable_total`; (c) guards `is_number()` nas regras condicionais (null não dispara falso-negativo).
+  - [x] 6.1 Testes: 4 políticas avaliam input (9 worker + 20 OPA, 20/20 PASS); timeout SAST → FAILED
+  - [x] 6.2 Criar 4 `.rego` + montar na ConfigMap (raiz + cópia no chart) — aplicado no cluster
+  - [x] 6.3 `policy_undefined` fail-open só p/ domínios sem política exigida (`opa_required_policy_prefixes`; exigido→fail-closed)
+  - [x] 6.4 Validate fail-closed: SAST timeout/error→FAILED, fallback simulado genérico REMOVIDO (sem `success=True` simulado)
+  - [x] 6.5 Verificado no cluster: OPA avalia as 4 políticas (query devolve allow/violations, não policy_undefined)
 
 - [ ] 7. Transform real (data-flow semântico do STE)
   - **DoR:** confirmado que `_inject_dependency_outputs` injeta `dependency_outputs`; formato dos outputs de query/transform conhecido.
