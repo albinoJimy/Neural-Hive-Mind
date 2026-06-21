@@ -122,9 +122,16 @@
   - [ ] 11.2 Ligar `argocd_enabled=True`; deploy_executor usa caminho declarativo
   - [ ] 11.3 Verificar App Synced/Healthy
 
-- [ ] 12. Pipeline de dados reais (sair do sintético)
-  - **DoR:** `RealDataCollector` localizado; volume de feedback em MongoDB avaliado.
+- [ ] 12. Pipeline de dados reais (sair do sintético) — DIAGNÓSTICO root-cause (2026-06-21)
+  - **DoR:** `RealDataCollector` localizado (`ml_pipelines/training/real_data_collector.py`); volume de feedback em MongoDB avaliado.
   - **DoD:** modelos re-treinados com ≥1000 amostras reais/specialist; métricas de qualidade (f1) melhoram vs sintético, registado no MLflow.
+  - **DIAGNÓSTICO (root-cause da escassez de dados, partilhado com a Task 9):**
+    1. **Duração não chega ao Mongo:** o worker COMPUTA e reporta `actual_duration_ms` (`worker-agents/clients/kafka_result_producer.py:97`, `execution_ticket_client.py:95`) → vai para Kafka `execution.results` + execution-ticket-service (**PostgreSQL**). MAS o `ExecutionResultConsumer` (orchestrator) só envia **signal Temporal** (`ticket_completed`) — **não persiste `actual_duration_ms`/`completed_at` no MongoDB `execution_tickets`** (criado com `None` em `ticket_generation.py:260`). O `DurationPredictor` lê MongoDB → vê `None`. Resultado: 3/1247 tickets com duração. **Há DOIS stores divergentes (Postgres no ticket-service; Mongo no orchestrator) e a duração só vai ao Postgres.**
+    2. **ClickHouse vazio:** todas as tabelas de séries temporais (`worker_utilization`, `hourly_ticket_volume`, `daily_worker_stats`, `queue_snapshots`, `telemetry_metrics`) têm 0 linhas → o ETL telemetria→ClickHouse não está a popular → Prophet (load) e o caminho ClickHouse do RF sem dados.
+  - **FIX FUNDACIONAL (bounded, a fazer):** persistir `actual_duration_ms`+`completed_at` no MongoDB `execution_tickets` quando o resultado do worker é processado (no consumer ou na consolidação) — OU re-apontar o `DurationPredictor`/training para o store canónico (Postgres/ClickHouse). + reativar o ETL telemetria→ClickHouse. Depois acumular amostras e re-treinar (RealDataCollector). **O DoD (≥1000 amostras) exige acumulação ao longo do tempo após o fix — não é instantâneo.**
+  - [ ] 12.1 Ativar `RealDataCollector` (opinions/feedback Mongo; intentions.audit Kafka)
+  - [ ] 12.2 Acumular ≥1000 amostras/specialist; re-treinar com dados reais
+  - [ ] 12.3 Feature store real ou serving mínimo de features
   - [ ] 12.1 Ativar `RealDataCollector` (opinions/feedback Mongo; intentions.audit Kafka)
   - [ ] 12.2 Acumular ≥1000 amostras/specialist; re-treinar com dados reais
   - [ ] 12.3 Feature store real ou serving mínimo de features
