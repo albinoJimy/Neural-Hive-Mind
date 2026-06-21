@@ -14,7 +14,10 @@ Princípios:
 """
 
 import json
+from datetime import timezone
 from unittest.mock import AsyncMock, MagicMock, patch
+
+UTC = timezone.utc
 
 import pytest
 from src.consumers.execution_result_consumer import ExecutionResultConsumer
@@ -125,14 +128,24 @@ class TestDurationPersistence:
         with patch.object(consumer, "consumer", mock_consumer):
             await consumer._process_result(message)
 
-        # Persistência no Mongo com campos corretos
+        # Persistência no Mongo com campos corretos.
+        # completed_at/started_at são datetime (BSON Date), NÃO epoch ms: os três
+        # filtros de treino/stats comparam `completed_at >= cutoff_date:datetime`
+        # e em BSON um Int64 nunca é >= um Date — persistir epoch ms deixaria o
+        # treino a ver 0 amostras (bug verificado empiricamente na auditoria da
+        # Task 9 da spec caminho-real-first-class).
+        from datetime import datetime
+
         mock_mongodb_client.update_ticket_status.assert_called_once()
         call = mock_mongodb_client.update_ticket_status.call_args
         assert call.args[0] == "ticket-123"
         assert call.args[1] == "COMPLETED"
         assert call.kwargs["actual_duration_ms"] == 1234
-        assert call.kwargs["completed_at"] == timestamp_ms
-        assert call.kwargs["started_at"] == timestamp_ms - 1234
+        expected_completed = datetime.fromtimestamp(timestamp_ms / 1000.0, tz=UTC)
+        expected_started = datetime.fromtimestamp((timestamp_ms - 1234) / 1000.0, tz=UTC)
+        assert call.kwargs["completed_at"] == expected_completed
+        assert isinstance(call.kwargs["completed_at"], datetime)
+        assert call.kwargs["started_at"] == expected_started
 
         # Signal Temporal continua a ser enviado
         mock_temporal_client.get_workflow_handle.assert_awaited_once_with("workflow-789")

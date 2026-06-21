@@ -135,6 +135,38 @@ class DurationPredictor:
             n_jobs=-1,
         )
 
+    @staticmethod
+    def _filter_duration_outliers(
+        X: np.ndarray, y: np.ndarray, iqr_multiplier: float
+    ) -> tuple[np.ndarray, np.ndarray, int]:
+        """
+        Remove amostras cuja duração (y) cai fora de [Q1 - k*IQR, Q3 + k*IQR].
+
+        Durações anómalas (timeouts/medições erradas, e.g. 300s sobre uma mediana
+        de ~3s) destroem o R² do regressor — em dados reais observou-se R²=-37
+        com outliers vs R²≈0.6 sem eles. Filtragem IQR é robusta e padrão.
+
+        Salvaguardas: não filtra se iqr_multiplier<=0, se houver <4 amostras, se o
+        IQR for nulo, ou se a filtragem removesse demasiadas amostras (mantém pelo
+        menos metade e nunca menos de 10).
+
+        Returns:
+            Tuple (X_filtrado, y_filtrado, n_removidos).
+        """
+        if iqr_multiplier <= 0 or len(y) < 4:
+            return X, y, 0
+        q1, q3 = np.percentile(y, [25, 75])
+        iqr = q3 - q1
+        if iqr <= 0:
+            return X, y, 0
+        low = q1 - iqr_multiplier * iqr
+        high = q3 + iqr_multiplier * iqr
+        mask = (y >= low) & (y <= high)
+        kept = int(mask.sum())
+        if kept < max(10, len(y) // 2):
+            return X, y, 0
+        return X[mask], y[mask], int((~mask).sum())
+
     async def _load_model(self) -> RandomForestRegressor | None:
         """
         Carrega modelo do ModelRegistry.
@@ -617,6 +649,15 @@ class DurationPredictor:
             X = np.array(X_list)
             y = np.array(y_list)
 
+            # Filtra outliers de duração (anomalias destroem o R²) antes do split
+            X, y, n_outliers = self._filter_duration_outliers(
+                X, y, self.config.ml_duration_outlier_iqr_multiplier
+            )
+            if n_outliers:
+                self.logger.info(
+                    "duration_outliers_filtered", removed=n_outliers, remaining=int(len(y))
+                )
+
             # Split train/test
             X_train, X_test, y_train, y_test = train_test_split(
                 X, y, test_size=0.2, random_state=42
@@ -668,9 +709,19 @@ class DurationPredictor:
             latest_version = await self._get_latest_version()
             metrics["version"] = latest_version
 
-            if mae_pct < self.config.ml_duration_error_threshold * 100:
+            # Promove se MAE% < threshold OU R² >= r2_threshold. O critério R²
+            # evita que durações reais (variância natural alta, MAE% ~50% mesmo
+            # com R²~0.6) fiquem presas para sempre na heurística por um gate de
+            # MAE% irrealista — mantendo o caminho ML real utilizável.
+            r2_ok = r2 >= self.config.ml_duration_r2_threshold
+            if mae_pct < self.config.ml_duration_error_threshold * 100 or r2_ok:
                 self.model = model
-                self.logger.info("model_updated_in_memory", mae_pct=mae_pct)
+                self.logger.info(
+                    "model_updated_in_memory",
+                    mae_pct=mae_pct,
+                    r2=r2,
+                    promoted_by="r2" if r2_ok else "mae",
+                )
                 promoted = True
 
                 # Promove modelo se passar critérios

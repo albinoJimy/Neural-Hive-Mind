@@ -10,10 +10,13 @@ Fluxo:
 
 import contextlib
 import json
+from datetime import datetime, timezone
 from typing import Any
 
 import structlog
 from aiokafka import AIOKafkaConsumer
+
+UTC = timezone.utc
 
 logger = structlog.get_logger(__name__)
 
@@ -308,12 +311,19 @@ class ExecutionResultConsumer:
             return
 
         duration_ms = int(duration_ms)
-        # Cast explícito para int (epoch ms) — garante BSON Int64 e não Double,
-        # para queries de range (completed_at >= cutoff) baterem com tickets Int64.
-        completed_at = result_data.get("timestamp")
-        if isinstance(completed_at, int | float):
-            completed_at = int(completed_at)
-            started_at = completed_at - duration_ms
+        # O `timestamp` do worker vem em epoch ms. Persistimos completed_at/
+        # started_at como datetime (BSON Date), NÃO epoch ms: os três filtros de
+        # treino/stats (_check_training_data_availability, train_model,
+        # compute_historical_stats) comparam `completed_at >= cutoff_date` onde
+        # cutoff_date é datetime. Em BSON um Int64 nunca é >= um Date, pelo que
+        # persistir epoch ms deixaria o treino a ver 0 amostras.
+        completed_ms = result_data.get("timestamp")
+        if isinstance(completed_ms, int | float):
+            completed_ms = int(completed_ms)
+            completed_at: datetime | None = datetime.fromtimestamp(completed_ms / 1000.0, tz=UTC)
+            started_at: datetime | None = datetime.fromtimestamp(
+                (completed_ms - duration_ms) / 1000.0, tz=UTC
+            )
         else:
             completed_at = None
             started_at = None
