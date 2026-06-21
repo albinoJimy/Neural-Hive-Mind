@@ -609,6 +609,14 @@ class NLUPipelineService:
             else:
                 confidence_status = "low"
 
+            # Domínio fora-de-vocabulário (UNKNOWN) força sempre validação humana,
+            # independentemente do threshold — não se deixa um plano avançar com
+            # domínio adivinhado.
+            classification_method = self._classification_method(domain)
+            requires_manual_validation = (
+                confidence < adaptive_threshold or domain == UnifiedDomain.UNKNOWN
+            )
+
             # Criar resultado (INV-1: domain, entities, confidence, keywords)
             result = NLUResult(
                 processed_text=normalized_text,
@@ -618,9 +626,10 @@ class NLUPipelineService:
                 entities=entities,
                 keywords=keywords,
                 original_language=detected_lang,
-                requires_manual_validation=confidence < adaptive_threshold,
+                requires_manual_validation=requires_manual_validation,
                 confidence_status=confidence_status,
                 adaptive_threshold=adaptive_threshold,
+                metadata={"classification_method": classification_method},
             )
 
             # Salvar no cache
@@ -941,11 +950,16 @@ class NLUPipelineService:
             try:
                 best_domain = UnifiedDomain[best_domain_name]
             except KeyError:
-                best_domain = UnifiedDomain.TECHNICAL
+                # Nome de domínio inválido nas regras → UNKNOWN (não default cego)
+                best_domain = UnifiedDomain.UNKNOWN
 
         else:
-            best_domain = UnifiedDomain.TECHNICAL
-            confidence = 0.2
+            # Nenhuma regra bateu (max_score==0): domínio fora-de-vocabulário.
+            # Antes devolvia TECHNICAL com confidence 0.2 — um default cego que
+            # mascarava a incerteza. Agora marca UNKNOWN para acionar validação
+            # humana a jusante (honestidade: marcar+falhar, não adivinhar).
+            best_domain = UnifiedDomain.UNKNOWN
+            confidence = 0.0
 
         # Determinar classificação (subcategoria)
         classification = "general"
@@ -956,6 +970,20 @@ class NLUPipelineService:
                 classification = best_subcat[0]
 
         return best_domain, classification, confidence
+
+    @staticmethod
+    def _classification_method(domain: UnifiedDomain) -> str:
+        """
+        Método de classificação efetivamente usado, para reporte honesto.
+
+        Hoje a classificação é por regras (keywords/patterns) — não há modelo ML
+        de domínio treinado (o corpus real é degenerado/circular; ver Task 10 da
+        spec caminho-real-first-class). Este valor é explícito para que os
+        consumidores saibam a proveniência: `keyword_rules` quando uma regra bate,
+        `no_match` quando nada bate (domínio UNKNOWN). Quando existir um modelo ML
+        registado, passará a `ml_model`.
+        """
+        return "no_match" if domain == UnifiedDomain.UNKNOWN else "keyword_rules"
 
     def _calculate_adaptive_threshold(
         self,

@@ -10,6 +10,7 @@ Suporta:
 """
 
 import asyncio
+import re
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Optional
@@ -17,6 +18,35 @@ from typing import Optional
 import structlog
 
 logger = structlog.get_logger()
+
+# Recursos dos containers do pod Kaniko. A constraint Gatekeeper
+# `container-must-have-limits` exige limits em todos os containers; valores
+# modestos para caber no cluster (over-commit) sem matar o build.
+_KANIKO_RESOURCES = {
+    "requests": {"cpu": "200m", "memory": "512Mi"},
+    "limits": {"cpu": "1500m", "memory": "2Gi"},
+}
+_INIT_RESOURCES = {
+    "requests": {"cpu": "50m", "memory": "64Mi"},
+    "limits": {"cpu": "200m", "memory": "256Mi"},
+}
+
+
+def _sanitize_label_value(value: str) -> str:
+    """Sanitiza uma string para valor de label K8s válido.
+
+    Valores de label têm de ser <=63 chars, começar/terminar com alfanumérico
+    e conter apenas ``[a-zA-Z0-9._-]``. Usado para o label ``build`` derivado
+    da image tag (ex.: ``ghcr.io/org/svc:v1``).
+
+    Args:
+        value: Valor bruto (image tag).
+
+    Returns:
+        Valor de label válido.
+    """
+    cleaned = re.sub(r"[^a-zA-Z0-9._-]", "-", value)[:63]
+    return cleaned.strip("-._") or "build"
 
 
 class BuilderType(str, Enum):
@@ -116,6 +146,7 @@ class ContainerBuilder:
         cache_repo: Optional[str] = None,
         enable_metrics: bool = False,
         cleanup_pods: bool = True,  # Por padrão, limpa pods após build
+        docker_config_secret: str = "",
     ):
         """
         Inicializa o ContainerBuilder.
@@ -127,6 +158,8 @@ class ContainerBuilder:
             cache_repo: Repositório de cache (ex: ghcr.io/user/cache)
             enable_metrics: Habilita coleta de métricas de performance
             cleanup_pods: Se True, remove pods do Kaniko após build (útil para debug quando False)
+            docker_config_secret: Nome do Secret (dockerconfigjson) montado em
+                /kaniko/.docker para push autenticado. Vazio = sem credenciais.
         """
         self.builder_type = builder_type
         self.timeout_seconds = timeout_seconds
@@ -134,6 +167,7 @@ class ContainerBuilder:
         self.cache_repo = cache_repo
         self.enable_metrics = enable_metrics
         self.cleanup_pods = cleanup_pods
+        self.docker_config_secret = docker_config_secret
 
         # Lazy import do coletor de métricas
         self._metrics_collector = None
@@ -201,6 +235,7 @@ class ContainerBuilder:
                 {
                     "name": "qemu-setup",
                     "image": "alpine:latest",
+                    "resources": _INIT_RESOURCES,
                     "command": ["/bin/sh", "-c"],
                     "args": [
                         f"apk add --no-cache {qemu_packages} && "
@@ -221,6 +256,7 @@ class ContainerBuilder:
             {
                 "name": "setup",
                 "image": "busybox:latest",
+                "resources": _INIT_RESOURCES,
                 "command": ["/bin/sh", "-c"],
                 "args": [
                     # Copiar Dockerfile do ConfigMap para o workspace
@@ -279,6 +315,15 @@ class ContainerBuilder:
             }
         ]
 
+        # Credenciais de registry para push autenticado (ex.: GHCR).
+        if self.docker_config_secret:
+            mounts.append(
+                {
+                    "name": "docker-config",
+                    "mountPath": "/kaniko/.docker",
+                }
+            )
+
         if needs_qemu:
             mounts.append(
                 {
@@ -311,6 +356,20 @@ class ContainerBuilder:
                 "emptyDir": {},
             },
         ]
+
+        # Secret dockerconfigjson para push autenticado no registry (ex.: GHCR).
+        if self.docker_config_secret:
+            volumes.append(
+                {
+                    "name": "docker-config",
+                    "secret": {
+                        "secretName": self.docker_config_secret,
+                        "items": [
+                            {"key": ".dockerconfigjson", "path": "config.json"},
+                        ],
+                    },
+                }
+            )
 
         if needs_qemu:
             volumes.append(
@@ -888,6 +947,8 @@ class ContainerBuilder:
                 kaniko_args.append("--digest-file=/workspace/digest.txt")
             else:
                 kaniko_args.append(f"--destination={image_tag}")
+                # Capturar o digest também no push real (verificável por skopeo).
+                kaniko_args.append("--digest-file=/workspace/digest.txt")
 
             # Adicionar cache se habilitado
             if enable_cache:
@@ -998,9 +1059,12 @@ class ContainerBuilder:
                 "metadata": {
                     "name": pod_name,
                     "namespace": namespace,
+                    # Gatekeeper (must-have-app-label-all) exige app + app.kubernetes.io/name;
+                    # o valor de label é sanitizado (lowercase, só [a-z0-9.-], <=63 chars).
                     "labels": {
                         "app": "kaniko",
-                        "build": image_tag.replace(":", "-").replace("/", "-"),
+                        "app.kubernetes.io/name": "kaniko",
+                        "build": _sanitize_label_value(image_tag),
                     },
                 },
                 "spec": {
@@ -1013,6 +1077,9 @@ class ContainerBuilder:
                             "name": "kaniko",
                             "image": "gcr.io/kaniko-project/executor:latest",
                             "args": kaniko_args,
+                            # Gatekeeper (container-must-have-limits) exige limits em todos
+                            # os containers do pod Kaniko.
+                            "resources": _KANIKO_RESOURCES,
                             "volumeMounts": self._build_container_volume_mounts(
                                 needs_qemu=needs_qemu
                             ),
@@ -1051,9 +1118,9 @@ class ContainerBuilder:
                     # Parse digest dos logs
                     digest = self._parse_kaniko_digest(logs) if logs else None
 
-                    # Se não encontrou digest nos logs e no_push=True,
-                    # tentar ler do arquivo digest-file
-                    if not digest and no_push and logs:
+                    # Se não encontrou digest nos logs, tentar ler do digest-file
+                    # (gerado tanto em no_push como em push real via --digest-file).
+                    if not digest and logs:
                         try:
                             # Executar comando no pod para ler o digest file
                             from kubernetes.stream import stream
@@ -1121,14 +1188,6 @@ class ContainerBuilder:
                         error_msg = logs[-500:] if len(logs) > 500 else logs
                     except Exception:
                         logs = ""
-                        error_msg = "Kaniko pod failed"
-
-                elif phase == "Failed":
-                    # Obter logs de erro
-                    try:
-                        logs = k8s.read_namespaced_pod_log(name=pod_name, namespace=namespace)
-                        error_msg = logs[-500:] if len(logs) > 500 else logs
-                    except Exception:
                         error_msg = "Kaniko pod failed"
 
                     logger.error(
@@ -1201,15 +1260,15 @@ class ContainerBuilder:
         """
         Extrai o digest SHA256 dos logs do Kaniko.
 
-        Formato esperado nos logs:
-        Built image with digest sha256:abc123...
+        Cobre os dois formatos emitidos pelo Kaniko:
+        - ``Built image with digest sha256:abc123...`` (build local)
+        - ``Pushed <ref>@sha256:abc123...`` (push real para registry)
         """
-        for line in logs.splitlines():
-            if "digest sha256:" in line.lower():
-                parts = line.split("sha256:")
-                if len(parts) > 1:
-                    digest_hash = parts[1].split()[0][:64]
-                    return f"sha256:{digest_hash}"
+        # Procurar a primeira ocorrência de sha256:<hex> (digest válido), seja no
+        # formato "digest sha256:..." ou "Pushed <ref>@sha256:...". Trunca a 64.
+        match = re.search(r"sha256:([0-9a-f]+)", logs)
+        if match:
+            return f"sha256:{match.group(1)[:64]}"
         return None
 
     async def push_to_registry(

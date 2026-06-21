@@ -132,6 +132,14 @@ config:
   MIN_QUALITY_SCORE: 0.5
   MIN_TEST_COVERAGE: 0.8
 
+  # OCI Registry (caminho-real-first-class Task 4): build Kaniko faz push real
+  # para este registry; o digest resultante é verificável por `skopeo inspect`.
+  # Vazio => build local sem push (degradação marcada).
+  OCI_REGISTRY_URL: ghcr.io/albinojimy/neural-hive-mind
+  # Secret dockerconfigjson montado no pod Kaniko (/kaniko/.docker) para autenticar
+  # o push no GHCR. Tem de existir no namespace docker-build.
+  KANIKO_DOCKER_CONFIG_SECRET: ghcr-secret
+
   # Observability
   OTEL_EXPORTER_ENDPOINT: http://otel-collector:4317
   LOG_LEVEL: INFO

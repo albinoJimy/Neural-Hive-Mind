@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime, timezone
 
 UTC = timezone.utc  # type: ignore
-from typing import Any
+from typing import Any, ClassVar
 
 import structlog
 
@@ -444,6 +444,264 @@ class ExecutionEngine:
             kwargs["correlation_id"] = correlation_id
         return kwargs
 
+    # Mapa executor->label usado na métrica simulated_total (alinhado com o
+    # nome lógico do executor por task_type, em minúsculas).
+    _EXECUTOR_LABEL_BY_TASK_TYPE: ClassVar[dict[str, str]] = {
+        "QUERY": "query",
+        "TRANSFORM": "transform",
+        "VALIDATE": "validate",
+        "BUILD": "build",
+        "DEPLOY": "deploy",
+        "EXECUTE": "execute",
+        "GENERATE_CODE": "generate_code",
+        "TEST": "test",
+        "COMPENSATE": "compensate",
+    }
+
+    # --- Validadores de evidência por task_type (contrato technical-spec) ------
+    # Cada validador recebe o ``output`` (dict) e devolve ``(ok, reason)``. A regra
+    # transversal (simulated/noop) é aplicada antes, no dispatcher.
+
+    @staticmethod
+    def _evidence_query(output: dict[str, Any]) -> tuple[bool, str | None]:
+        # Aceita TODAS as formas reais do query_executor:
+        #   - Coleções/listas (MongoDB, Neo4j, Kafka, Redis SCAN/KEYS): count + lista
+        #     em documents/results/messages/keys.
+        #   - Redis GET: {key, value, exists} (SEM count nem lista) — o GET ocorreu,
+        #     logo é trabalho real, incluindo o caso exists=False (chave ausente).
+        is_redis_get = "exists" in output or ("key" in output and "value" in output)
+        if is_redis_get:
+            return True, None
+        if output.get("count") is None:
+            return False, "query sem output.count"
+        has_records = any(
+            isinstance(output.get(k), list) for k in ("documents", "results", "messages", "keys")
+        )
+        if not has_records:
+            return False, "query sem documentos/results reais"
+        return True, None
+
+    @staticmethod
+    def _evidence_transform(output: dict[str, Any]) -> tuple[bool, str | None]:
+        # noop já tratado no dispatcher; output derivado deve existir e não ser None.
+        # Cobre TODAS as chaves reais do transform_executor:
+        #   json/mongodb -> transformed_data; aggregate -> aggregated_data;
+        #   format -> formatted_data; filter -> filtered_data; json (validação) ->
+        #   validated; csv -> rows (lista de linhas parseadas).
+        has_derived = any(
+            output.get(k) is not None
+            for k in (
+                "transformed_data",
+                "aggregated_data",
+                "formatted_data",
+                "filtered_data",
+                "validated",
+                "rows",
+            )
+        )
+        if not output or not has_derived:
+            return False, "transform sem output derivado (noop ou vazio)"
+        return True, None
+
+    @staticmethod
+    def _evidence_validate(output: dict[str, Any]) -> tuple[bool, str | None]:
+        # simulated já tratado; exige decisão OPA com result ou scan com findings.
+        has_result = output.get("result") is not None
+        has_findings = output.get("findings") is not None or output.get("violations") is not None
+        if not (has_result or has_findings):
+            return False, "validate sem result OPA nem findings (policy_undefined/vazio)"
+        return True, None
+
+    @staticmethod
+    def _evidence_build(output: dict[str, Any]) -> tuple[bool, str | None]:
+        # Contrato §4: {registry}/{artifact}:{version} + digest verificável.
+        artifact = output.get("artifact") or output.get("artifact_uri") or output.get("image")
+        if not artifact:
+            return False, "build sem referência de artefacto"
+        if not output.get("digest"):
+            return False, "build sem digest verificável"
+        return True, None
+
+    @staticmethod
+    def _evidence_deploy(output: dict[str, Any]) -> tuple[bool, str | None]:
+        # simulated já tratado; exige recurso reconciliado.
+        reconciled = (
+            output.get("resource")
+            or output.get("status")
+            or output.get("synced")
+            or output.get("healthy")
+        )
+        if not reconciled:
+            return False, "deploy sem recurso reconciliado"
+        return True, None
+
+    @staticmethod
+    def _evidence_execute(output: dict[str, Any]) -> tuple[bool, str | None]:
+        if output.get("exit_code") is None:
+            return False, "execute sem exit code real"
+        stdout = output.get("stdout") or ""
+        if isinstance(stdout, str) and stdout.lstrip().startswith("[SIMULAÇÃO]"):
+            return False, "execute com stdout simulado ([SIMULAÇÃO])"
+        return True, None
+
+    @staticmethod
+    def _evidence_generate_code(output: dict[str, Any]) -> tuple[bool, str | None]:
+        if not output.get("code_artifact_id"):
+            return False, "generate_code sem code_artifact_id"
+        return True, None
+
+    # Dispatch table task_type -> validador de evidência. Definida abaixo da classe
+    # (após as definições dos staticmethods) via _build_evidence_validators.
+
+    def _has_real_evidence(self, task_type: str, result: dict[str, Any]) -> tuple[bool, str | None]:
+        """Valida o contrato de evidência de trabalho real por ``task_type``.
+
+        Materializa a tabela do contrato (technical-spec §Contrato de evidência):
+        um resultado só é considerado trabalho real se produzir a evidência
+        verificável do seu tipo. Despacha para o validador específico do tipo.
+
+        Regra transversal (aplica-se a todos os tipos): ``metadata.simulated == True``
+        OU ``output.noop == True`` => NÃO é trabalho real.
+
+        Args:
+            task_type: tipo da task (case-insensitive).
+            result: dicionário de resultado do executor
+                (``{"success", "output", "metadata", ...}``).
+
+        Returns:
+            ``(ok, reason)`` onde ``ok`` indica se há evidência real e ``reason``
+            descreve o motivo quando ``ok`` é ``False``. Para tipos sem contrato
+            definido devolve ``(True, "unverified")``.
+        """
+        tt = (task_type or "").upper()
+        output = result.get("output")
+        output = output if isinstance(output, dict) else {}
+        metadata = result.get("metadata")
+        metadata = metadata if isinstance(metadata, dict) else {}
+
+        # Regra transversal: simulação/noop nunca são trabalho real.
+        if metadata.get("simulated") is True:
+            return False, "metadata.simulated=True (simulação não é trabalho real)"
+        if output.get("noop") is True:
+            return False, "output.noop=True (no-op não é trabalho real)"
+
+        validator = self._EVIDENCE_VALIDATORS.get(tt)
+        if validator is None:
+            # task_type sem evidência definida: aceitar mas marcar como não verificado.
+            return True, "unverified"
+        return validator(output)
+
+    async def _enforce_evidence_gate(
+        self,
+        *,
+        ticket: dict[str, Any],
+        result: dict[str, Any],
+        task_type: str,
+        ticket_id: str,
+        duration_ms: int,
+        span: Any,
+    ) -> bool:
+        """Aplica o gate de evidência (Caminho Real First-Class) a um resultado.
+
+        Só relevante para resultados de sucesso (``success=True``); para
+        ``success=False`` o gate não interfere (o chamador trata a falha real).
+        Quando não há evidência real (ou é ``unverified``), marca/mede a degradação
+        (``simulated_total``, log WARNING, anotação em ``result.metadata``). Em modo
+        estrito (``config.strict_real_path``), ausência de evidência real (excluindo
+        ``unverified``, que é tolerado) termina o ticket como FAILED com razão
+        ``real_path_unverified``.
+
+        Args:
+            ticket: dados do ticket em execução.
+            result: dicionário de resultado do executor.
+            task_type: tipo da task.
+            ticket_id: identificador do ticket.
+            duration_ms: duração da execução em milissegundos.
+            span: span de tracing ativo.
+
+        Returns:
+            ``True`` se o chamador deve prosseguir para a marcação normal
+            (COMPLETED/FAILED); ``False`` se o gate já terminou o ticket como FAILED
+            (modo estrito sem evidência real).
+        """
+        evidence_ok, evidence_reason = (True, None)
+        is_unverified = False
+        strict_real_path = getattr(self.config, "strict_real_path", False)
+        if result.get("success"):
+            evidence_ok, evidence_reason = self._has_real_evidence(task_type, result)
+            is_unverified = evidence_ok and evidence_reason == "unverified"
+
+        # Marcar e medir sempre que não há evidência real (ou é unverified).
+        if result.get("success") and (not evidence_ok or is_unverified):
+            executor_label = self._EXECUTOR_LABEL_BY_TASK_TYPE.get(
+                (task_type or "").upper(), "unknown"
+            )
+            if self.metrics and hasattr(self.metrics, "simulated_total"):
+                self.metrics.simulated_total.labels(
+                    executor=executor_label, task_type=task_type
+                ).inc()
+            # Anotar o resultado para auditoria a jusante.
+            if isinstance(result, dict):
+                result.setdefault("metadata", {})
+                if isinstance(result["metadata"], dict):
+                    result["metadata"]["evidence"] = "unverified" if is_unverified else "missing"
+                    result["metadata"]["evidence_reason"] = evidence_reason
+            self.logger.warning(
+                "ticket_evidence_missing",
+                ticket_id=ticket_id,
+                task_type=task_type,
+                degraded=True,
+                reason=evidence_reason,
+                strict_real_path=strict_real_path,
+                unverified=is_unverified,
+            )
+
+        # Enforcement: em modo estrito, ausência de evidência real
+        # (excluindo `unverified`, que é tolerado) -> FAILED.
+        if strict_real_path and not evidence_ok:
+            error_msg = f"real_path_unverified: {evidence_reason}"
+            span.set_attribute("error", True)
+            span.set_attribute("error.type", "real_path_unverified")
+
+            await self._clear_ticket_processing(ticket_id)
+
+            await self.ticket_client.update_ticket_status(
+                ticket_id,
+                "FAILED",
+                error_message=error_msg,
+                actual_duration_ms=duration_ms,
+            )
+
+            await self.result_producer.publish_result(
+                ticket_id,
+                "FAILED",
+                result,
+                error_message=error_msg,
+                actual_duration_ms=duration_ms,
+                **self._result_correlation_kwargs(ticket),
+            )
+
+            self.logger.warning(
+                "ticket_execution_failed",
+                ticket_id=ticket_id,
+                task_type=task_type,
+                error=error_msg,
+                duration_ms=duration_ms,
+            )
+
+            if self.metrics:
+                if hasattr(self.metrics, "tickets_failed_total"):
+                    self.metrics.tickets_failed_total.labels(
+                        task_type=task_type, error_type="real_path_unverified"
+                    ).inc()
+                if hasattr(self.metrics, "task_duration_seconds"):
+                    self.metrics.task_duration_seconds.labels(task_type=task_type).observe(
+                        duration_ms / 1000
+                    )
+            return False
+
+        return True
+
     async def _execute_ticket(self, ticket: dict[str, Any]):
         """Executar ticket com coordenação de dependências e retry logic"""
         ticket_id = ticket.get("ticket_id")
@@ -518,6 +776,20 @@ class ExecutionEngine:
                     try:
                         result = await self._execute_task_with_retry(ticket)
                         duration_ms = int((datetime.now() - start_time).total_seconds() * 1000)
+
+                        # Contrato de evidência (Caminho Real First-Class): aplica o gate
+                        # de evidência antes de marcar COMPLETED. Em modo estrito, ausência
+                        # de evidência real termina o ticket como FAILED (retorna False).
+                        proceed = await self._enforce_evidence_gate(
+                            ticket=ticket,
+                            result=result,
+                            task_type=task_type,
+                            ticket_id=ticket_id,
+                            duration_ms=duration_ms,
+                            span=span,
+                        )
+                        if not proceed:
+                            return
 
                         # Verificar se a execução foi bem-sucedida
                         if result.get("success"):
@@ -1070,3 +1342,16 @@ class ExecutionEngine:
             if self.metrics and hasattr(self.metrics, "checkpoint_saves_total"):
                 self.metrics.checkpoint_saves_total.labels(success="false").inc()
             return {"success": False, "message": str(e)}
+
+
+# Dispatch table do contrato de evidência (task_type -> validador). Definida após a
+# classe para que os staticmethods já estejam acessíveis como funções planas.
+ExecutionEngine._EVIDENCE_VALIDATORS = {
+    "QUERY": ExecutionEngine._evidence_query,
+    "TRANSFORM": ExecutionEngine._evidence_transform,
+    "VALIDATE": ExecutionEngine._evidence_validate,
+    "BUILD": ExecutionEngine._evidence_build,
+    "DEPLOY": ExecutionEngine._evidence_deploy,
+    "EXECUTE": ExecutionEngine._evidence_execute,
+    "GENERATE_CODE": ExecutionEngine._evidence_generate_code,
+}

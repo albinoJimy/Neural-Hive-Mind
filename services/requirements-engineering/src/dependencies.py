@@ -26,8 +26,15 @@ def get_engineering_service() -> "RequirementsEngineer":
     """Retorna instância singleton do RequirementsEngineer.
 
     Raises:
-        RuntimeError: Se o serviço não foi inicializado.
+        HTTPException 503: Se o serviço ainda não foi inicializado (startup race).
+            O caller (Fluxo G G1 via Temporal) interpreta 503 como transitório e
+            faz retry — em vez de um 500 opaco.
     """
     if _requirements_engineer is None:
-        raise RuntimeError("Service not initialized")
+        from fastapi import HTTPException, status
+
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Requirements engineer not initialized",
+        )
     return _requirements_engineer

@@ -6,6 +6,8 @@ de requisitos e documentação gerados no Fluxo G.
 """
 
 import asyncio
+import os
+from datetime import datetime, timezone
 from typing import Any
 
 import httpx
@@ -17,11 +19,100 @@ logger = structlog.get_logger(__name__)
 # Cliente HTTP (injetado pelo worker)
 _http_client: httpx.AsyncClient | None = None
 
+# Cliente MongoDB (injetado pelo worker) para persistir code_artifact_id
+_mongodb_client: Any | None = None
 
-def set_code_generation_dependencies(http_client: httpx.AsyncClient):
-    """Injeta dependências para activities de geração de código."""
-    global _http_client
+# Coleção onde os artefatos de código gerados são persistidos
+CODE_ARTIFACTS_COLLECTION = "code_artifacts"
+
+
+def _code_forge_base_url() -> str:
+    """
+    Devolve a base URL do code-forge.
+
+    Configurável via env CODE_FORGE_URL. Default aponta para a porta real
+    do code-forge (8080).
+    """
+    return os.getenv("CODE_FORGE_URL", "http://code-forge:8080")
+
+
+def set_code_generation_dependencies(http_client: httpx.AsyncClient, mongodb_client: Any = None):
+    """
+    Injeta dependências para activities de geração de código.
+
+    Args:
+        http_client: Cliente HTTP partilhado (também reutilizado por
+            build_package e deploy activities).
+        mongodb_client: Cliente MongoDB do orchestrator para persistir o
+            code_artifact_id gerado (necessário para evidência do DoD).
+    """
+    global _http_client, _mongodb_client
     _http_client = http_client
+    _mongodb_client = mongodb_client
+
+
+async def _persist_code_artifact(
+    code_artifact_id: str | None,
+    final_result: dict[str, Any],
+    cognitive_plan: dict[str, Any],
+) -> None:
+    """
+    Persiste o artefato de código gerado na coleção `code_artifacts`.
+
+    Idempotente: upsert por code_artifact_id. Se o cliente MongoDB não
+    estiver disponível, marca degradação (log degraded=true) e continua —
+    nunca rebenta o workflow.
+    """
+    plan_id = cognitive_plan.get("plan_id", "unknown")
+    intent_id = cognitive_plan.get("intent_id", "")
+
+    if _mongodb_client is None or not code_artifact_id:
+        logger.warning(
+            "code_artifact_persistence_skipped",
+            degraded=True,
+            reason="mongodb_client_unavailable"
+            if _mongodb_client is None
+            else "missing_artifact_id",
+            plan_id=plan_id,
+            code_artifact_id=code_artifact_id,
+        )
+        return
+
+    document = {
+        "code_artifact_id": code_artifact_id,
+        "plan_id": plan_id,
+        "intent_id": intent_id,
+        "request_id": final_result.get("request_id"),
+        "language": final_result.get("language"),
+        "framework": final_result.get("framework"),
+        "generation_method": final_result.get("generation_method"),
+        "status": final_result.get("status", "completed"),
+        "created_at": datetime.now(timezone.utc),
+    }
+
+    try:
+        collection = _mongodb_client.db[CODE_ARTIFACTS_COLLECTION]
+        await collection.update_one(
+            {"code_artifact_id": code_artifact_id},
+            {"$set": document},
+            upsert=True,
+        )
+        logger.info(
+            "code_artifact_persisted",
+            code_artifact_id=code_artifact_id,
+            plan_id=plan_id,
+            collection=CODE_ARTIFACTS_COLLECTION,
+        )
+    except Exception as e:
+        # Persistência best-effort: marcar degradação e continuar.
+        logger.warning(
+            "code_artifact_persistence_failed",
+            degraded=True,
+            reason="mongodb_error",
+            error=str(e),
+            plan_id=plan_id,
+            code_artifact_id=code_artifact_id,
+        )
 
 
 @activity.defn
@@ -98,7 +189,7 @@ async def generate_code(
 
         # Chamar code-forge API para iniciar geração
         response = await client.post(
-            "http://code-forge:8020/api/v1/generate",
+            f"{_code_forge_base_url()}/api/v1/generate",
             json=payload,
             headers={"Content-Type": "application/json"},
         )
@@ -128,6 +219,12 @@ async def generate_code(
             request_id=request_id,
             plan_id=plan_id,
             artifact_id=final_result.get("code_artifact_id"),
+        )
+
+        # Persistir code_artifact_id em MongoDB (evidência do DoD).
+        # Best-effort: nunca rebenta o workflow se MongoDB indisponível.
+        await _persist_code_artifact(
+            final_result.get("code_artifact_id"), final_result, cognitive_plan
         )
 
         return final_result
@@ -174,7 +271,7 @@ async def _wait_for_generation(
             raise TimeoutError(f"Geração timeout após {max_wait}s")
 
         try:
-            response = await client.get(f"http://code-forge:8020/api/v1/generate/{request_id}")
+            response = await client.get(f"{_code_forge_base_url()}/api/v1/generate/{request_id}")
 
             if response.status_code == 200:
                 status_data = response.json()

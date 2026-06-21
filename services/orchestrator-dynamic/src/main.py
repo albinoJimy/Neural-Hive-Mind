@@ -871,6 +871,7 @@ async def lifespan(app: FastAPI):
                 app_state.temporal_client,
                 app_state.redis_client,
                 metrics=orchestrator_metrics,
+                mongodb_client=app_state.mongodb_client,
             )
             await app_state.execution_result_consumer.initialize()
             app_state.execution_result_consumer = instrument_kafka_consumer(

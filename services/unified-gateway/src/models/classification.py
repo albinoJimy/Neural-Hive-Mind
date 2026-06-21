@@ -23,6 +23,9 @@ class ClassificationDecision(BaseModel):
     confidence: float = Field(ge=0, le=1)
     reasoning: str
     alternative: FlowType | None = None
+    # Domínio não-mapeado (DOMAIN_UNKNOWN) ou baixa confiança do NLU força
+    # validação humana — não se encaminha um plano com domínio adivinhado.
+    requires_manual_validation: bool = Field(default=False)
 
     model_config = {"extra": "allow"}
 
@@ -35,6 +38,7 @@ class NLUResult(BaseModel):
     confidence: float
     entities: dict[str, str]  # EntityType -> value
     keywords: list[str]
+    requires_manual_validation: bool = False
 
     model_config = {"extra": "allow"}
 
@@ -146,11 +150,21 @@ class IntentClassifier:
             if nlu_result.keywords:
                 reasoning_parts.append(f"keywords: {', '.join(nlu_result.keywords[:3])}")
 
+            # Domínio não-mapeado (UNKNOWN) ou sinal explícito do NLU força
+            # validação humana — não se adivinha o encaminhamento.
+            requires_manual_validation = (
+                nlu_result.domain in ("DOMAIN_UNKNOWN", "UNKNOWN")
+                or getattr(nlu_result, "requires_manual_validation", False)
+            )
+            if requires_manual_validation:
+                reasoning_parts.append("validação humana requerida (domínio não-mapeado)")
+
             decision = ClassificationDecision(
                 flow_type=flow_type,
                 confidence=final_confidence,
                 reasoning=" | ".join(reasoning_parts),
                 alternative=self._get_alternative(flow_type),
+                requires_manual_validation=requires_manual_validation,
             )
             self._observe_decision(decision)
             return decision
@@ -237,11 +251,14 @@ class IntentClassifier:
         max_count = max(counts.values())
 
         if max_count == 0:
+            # Nenhum sinal (nem NLU nem keywords): default A-F mas marcado para
+            # validação humana — não se encaminha às cegas sem qualquer evidência.
             decision = ClassificationDecision(
                 flow_type=FlowType.AF,
                 confidence=0.4,
-                reasoning="Sem keywords identificadas, default para A-F",
+                reasoning="Sem keywords nem domínio; default A-F com validação humana",
                 alternative=FlowType.G,
+                requires_manual_validation=True,
             )
             self._observe_decision(decision)
             return decision

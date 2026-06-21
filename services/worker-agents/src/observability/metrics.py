@@ -52,6 +52,24 @@ class WorkerAgentMetrics:
             ["task_type", "error_type"],
         )
 
+        # Contrato de evidência (Caminho Real First-Class):
+        # incrementado sempre que um resultado é detetado como simulação/noop/
+        # sem evidência de trabalho real, independentemente do enforcement.
+        self.simulated_total = Counter(
+            "worker_agent_simulated_total",
+            "Total de resultados sem evidência de trabalho real (simulação/noop/ausente)",
+            ["executor", "task_type"],
+        )
+
+        # Caminho Real First-Class: incrementado quando o caminho real está
+        # indisponível (ex.: Code Forge não configurado/falhou) e o ticket é
+        # marcado como FAILED em vez de simular trabalho.
+        self.real_path_unavailable_total = Counter(
+            "worker_agent_real_path_unavailable_total",
+            "Total de execuções onde o caminho real ficou indisponível (ticket FAILED)",
+            ["executor", "task_type"],
+        )
+
         self.active_tasks = Gauge(
             "worker_agent_active_tasks", "Número de tarefas ativas no momento"
         )

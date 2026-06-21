@@ -989,6 +989,21 @@ class OrchestratorSettings(BaseSettings):
     ml_duration_error_threshold: float = Field(
         default=0.15, description="Erro máximo aceitável de predição de duração (15%)"
     )
+    ml_duration_r2_threshold: float = Field(
+        default=0.30,
+        description=(
+            "R² mínimo para promover o modelo de duração. Critério alternativo ao "
+            "MAE% (irrealista para durações reais com variância natural alta): o "
+            "modelo promove se MAE% < error_threshold OU R² >= r2_threshold."
+        ),
+    )
+    ml_duration_outlier_iqr_multiplier: float = Field(
+        default=3.0,
+        description=(
+            "Multiplicador IQR para filtrar outliers de duração no treino "
+            "(durações anómalas tipo timeout destroem o R²). 0 = desativar."
+        ),
+    )
     ml_anomaly_contamination: float = Field(
         default=0.05, description="Taxa esperada de anomalias (5%)"
     )

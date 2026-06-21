@@ -5,3 +5,11 @@
 ../../libs/neural_hive_llm
 
 # Service-specific dependencies (a serem adicionadas manualmente)
+# GitClient (clients/git_client.py) e Kaniko builder (services/container_builder.py)
+# importam estes pacotes em runtime; sem eles o serviço crasha no arranque
+# (import git) e o build real falha ao criar o pod Kaniko (import kubernetes).
+GitPython==3.1.43
+kubernetes==28.1.0
+# Driver PostgreSQL async (settings usa postgresql+asyncpg://); sem ele o engine
+# SQLAlchemy crasha no arranque (ModuleNotFoundError: asyncpg).
+asyncpg==0.29.0

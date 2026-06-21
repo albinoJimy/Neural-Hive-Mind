@@ -56,12 +56,19 @@ async def test_build_with_code_forge_integration():
             return f"pipe-{artifact_id}"
 
         async def wait_for_pipeline_completion(self, pipeline_id, poll_interval=1, timeout=10):
+            # Caminho real: o pipeline devolve digest + URI verificáveis.
             return PipelineStatus(
                 pipeline_id=pipeline_id,
                 status="completed",
                 stage="done",
                 duration_ms=500,
-                artifacts=[{"id": "artifact-1"}],
+                artifacts=[
+                    {
+                        "type": "image",
+                        "digest": "sha256:" + "a" * 64,
+                        "uri": "ghcr.io/albinojimy/neural-hive-mind/a1:latest",
+                    }
+                ],
                 sbom={"components": []},
                 signature="sig",
             )
@@ -77,13 +84,16 @@ async def test_build_with_code_forge_integration():
     }
     result = await executor.execute(ticket)
 
+    # Contrato Caminho-Real (Task 4): build com digest verificável → success real.
     assert result["success"] is True
     assert result["metadata"]["simulated"] is False
     assert result["output"]["pipeline_id"] == "pipe-a1"
+    assert result["output"]["digest"] == "sha256:" + "a" * 64
+    assert result["output"]["artifact"] == "ghcr.io/albinojimy/neural-hive-mind/a1:latest"
 
 
 @pytest.mark.asyncio()
-async def test_build_fallback_on_code_forge_error():
+async def test_build_fail_fast_on_code_forge_error():
     class ErrorCF:
         async def trigger_pipeline(self, artifact_id):
             raise RuntimeError("boom")
@@ -99,12 +109,15 @@ async def test_build_fallback_on_code_forge_error():
     }
     result = await executor.execute(ticket)
 
-    assert result["metadata"]["simulated"] is True
-    assert result["output"]["artifact_url"].startswith("stub://")
+    # Contrato Caminho-Real (Task 4): Code Forge a falhar → FAILED, nunca stub.
+    assert result["success"] is False
+    assert result["metadata"]["simulated"] is False
+    assert result["metadata"].get("real_path_unavailable") is True
+    assert "stub://" not in str(result["output"])
 
 
 @pytest.mark.asyncio()
-async def test_build_fallback_on_code_forge_timeout():
+async def test_build_fail_fast_on_code_forge_timeout():
     class TimeoutCF:
         async def trigger_pipeline(self, artifact_id):
             return "pipeline-timeout"
@@ -123,8 +136,9 @@ async def test_build_fallback_on_code_forge_timeout():
     }
     result = await executor.execute(ticket)
 
-    assert result["metadata"]["simulated"] is True
-    assert result["success"] is True
+    # Contrato Caminho-Real (Task 4): timeout do pipeline → FAILED, sem simulação.
+    assert result["metadata"]["simulated"] is False
+    assert result["success"] is False
 
 
 # ---------------------- DeployExecutor ---------------------- #

@@ -128,8 +128,10 @@ class RealDataCollector:
         self.opinions_collection_name = opinions_collection_name or os.getenv(
             "OPINIONS_COLLECTION", "specialist_opinions"
         )
+        # Default `specialist_feedback`: a coleção real do feedback humano sobre
+        # opiniões (a antiga "feedback" está vazia). Sem isto, coverage_rate=0%.
         self.feedback_collection_name = feedback_collection_name or os.getenv(
-            "FEEDBACK_COLLECTION", "feedback"
+            "FEEDBACK_COLLECTION", "specialist_feedback"
         )
 
         # Conexão MongoDB

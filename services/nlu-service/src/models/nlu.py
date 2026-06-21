@@ -13,6 +13,10 @@ class UnifiedDomain(str, Enum):
     TECHNICAL = "TECHNICAL"
     INFRASTRUCTURE = "INFRASTRUCTURE"
     SECURITY = "SECURITY"
+    # Domínio fora-de-vocabulário/não classificado. Usado quando nenhuma regra
+    # bate (em vez de adivinhar um default cego) → força validação humana a
+    # jusante. Mapeia para DOMAIN_UNKNOWN no protobuf.
+    UNKNOWN = "UNKNOWN"
 
 
 class EntityType(str, Enum):
@@ -82,7 +86,9 @@ class NLUResult(BaseModel):
             try:
                 return UnifiedDomain[v.upper()]
             except KeyError:
-                return UnifiedDomain.TECHNICAL
+                # Domínio desconhecido NÃO é coagido a um default cego (TECHNICAL);
+                # devolve UNKNOWN para que a validação humana seja acionada.
+                return UnifiedDomain.UNKNOWN
         return v
 
 

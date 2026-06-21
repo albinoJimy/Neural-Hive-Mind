@@ -3,3 +3,4 @@
 
 # Service-specific dependencies (a serem adicionadas manualmente)
 PyJWT[crypto]==2.10.1  # usado em clients/execution_ticket_client.py e api/http_server.py
+kubernetes-asyncio==31.1.0  # caminho imperativo de deploy (DeployExecutor) + flux_client

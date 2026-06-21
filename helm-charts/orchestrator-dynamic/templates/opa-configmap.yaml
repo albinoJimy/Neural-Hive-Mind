@@ -23,6 +23,18 @@ data:
 
   security_validation.rego: |
 {{ .Files.Get "policies/rego/orchestrator/security_validation.rego" | indent 4 }}
+
+  architecture_compliance.rego: |
+{{ .Files.Get "policies/rego/orchestrator/architecture_compliance.rego" | indent 4 }}
+
+  quality_standards.rego: |
+{{ .Files.Get "policies/rego/orchestrator/quality_standards.rego" | indent 4 }}
+
+  performance_limits.rego: |
+{{ .Files.Get "policies/rego/orchestrator/performance_limits.rego" | indent 4 }}
+
+  operational_procedures.rego: |
+{{ .Files.Get "policies/rego/orchestrator/operational_procedures.rego" | indent 4 }}
 ---
 apiVersion: v1
 kind: ConfigMap

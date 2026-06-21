@@ -341,6 +341,16 @@ dag_generation_visualization_generated_total = Counter(
 )
 
 
+# Métrica de degradação de caminho real (Task 3 — caminho-real-first-class)
+# Marca toda degradação legítima para um fallback (spaCy ausente, embeddings
+# ausentes, etc.), garantindo que nenhuma simulação é silenciosa.
+degradation_total = Counter(
+    "neural_hive_degradation_total",
+    "Total de degradações de caminho real no STE",
+    ["component", "reason"],
+)
+
+
 # Métrica de correlation_id ausente no STE
 correlation_id_missing_total = Counter(
     "neural_hive_ste_correlation_id_missing_total",

@@ -24,6 +24,83 @@ from .base_executor import BaseTaskExecutor
 
 logger = structlog.get_logger()
 
+# Campos de fallback usados quando o input_ref pede um campo ausente: o output do
+# QueryExecutor expõe ``documents`` ou ``results`` consoante a fonte de dados.
+_INPUT_REF_FALLBACK_FIELDS = ("documents", "results")
+
+
+def _parse_input_ref(input_ref: str) -> tuple[tuple[str, str] | None, str | None]:
+    """Faz parsing de ``${selector.output.<field>}`` em ``(selector, field)``.
+
+    Returns:
+        Tupla ``((selector, field), None)`` em sucesso, ou ``(None, reason)`` se o
+        formato for inválido.
+    """
+    if not isinstance(input_ref, str) or not (
+        input_ref.startswith("${") and input_ref.endswith("}")
+    ):
+        return None, f"input_ref com formato inválido: {input_ref!r}"
+
+    parts = input_ref[2:-1].split(".")  # remove ${ ... }
+    if len(parts) != 3 or parts[1] != "output":
+        return None, f"input_ref não segue o formato '${{dep.output.<field>}}': {input_ref!r}"
+
+    return (parts[0], parts[2]), None
+
+
+def resolve_input_ref(input_ref: str, dependency_outputs: dict[str, Any]) -> tuple[Any, str | None]:
+    """Resolve um ``input_ref`` contra os outputs das dependências (data-flow).
+
+    Suporta dois formatos de referência:
+    - genérico ``${dep.output.<field>}``: percorre todas as dependências e usa o
+      primeiro output que tenha ``<field>`` (com fallback documents→results→output);
+    - explícito ``${<dep_id>.output.<field>}``: resolve apenas contra a dependência
+      indicada.
+
+    Args:
+        input_ref: Referência no formato ``${...}``.
+        dependency_outputs: Mapa ``{dep_id → dep_output}`` injetado em runtime pelo
+            execution_engine. Cada ``dep_output`` é tipicamente
+            ``{"output": {"documents": [...], "count": N}}`` mas pode ser o output
+            direto (sem chave ``output``).
+
+    Returns:
+        Tupla ``(valor, reason)``. ``reason`` é ``None`` em caso de sucesso; caso
+        contrário descreve porque a resolução falhou (degradação real).
+    """
+    parsed, parse_reason = _parse_input_ref(input_ref)
+    if parse_reason is not None:
+        return None, parse_reason
+    selector, field = parsed
+
+    if not dependency_outputs:
+        return None, "sem dependency_outputs (nenhuma dependência forneceu output)"
+
+    if selector == "dep":
+        # Genérico: primeiro output que tenha o campo (ou um fallback).
+        candidates = list(dependency_outputs.values())
+    else:
+        dep_output = dependency_outputs.get(selector)
+        if dep_output is None:
+            return None, f"dependência '{selector}' não encontrada em dependency_outputs"
+        candidates = [dep_output]
+
+    for dep_output in candidates:
+        # O output efetivo está em ``output`` (contrato normalizado); cai para o
+        # próprio dep_output se ausente.
+        inner = dep_output.get("output") if isinstance(dep_output, dict) else None
+        if not isinstance(inner, dict):
+            inner = dep_output if isinstance(dep_output, dict) else {}
+
+        if field in inner:
+            return inner[field], None
+        # Fallback documents→results para tolerar input_ref genérico.
+        for fb in _INPUT_REF_FALLBACK_FIELDS:
+            if fb in inner:
+                return inner[fb], None
+
+    return None, f"campo '{field}' ausente em todos os outputs de dependência"
+
 
 class TransformExecutor(BaseTaskExecutor):
     """Executor para task_type=TRANSFORM com suporte a múltiplas transformações.
@@ -190,10 +267,18 @@ class TransformExecutor(BaseTaskExecutor):
     ) -> dict[str, Any]:
         """Executa transformação em JSON."""
         try:
-            input_data = parameters.get("input_data")
-            if not input_data:
-                # Sem input (data flow não forneceu): no-op gracioso para não
-                # abortar o plano multi-task. A task fica COMPLETED sem transformar.
+            # Data-flow semântico (Task 7): resolve input_data via input_ref quando
+            # ausente. Devolve (input_data, degraded_result) — se degraded_result
+            # não for None, é uma degradação real e deve ser retornada tal-e-qual.
+            input_data, degraded_result = self._resolve_json_input(ticket_id, parameters)
+            if degraded_result is not None:
+                return degraded_result
+
+            if input_data is None:
+                # Sem input E sem input_ref (task standalone): no-op gracioso para
+                # não abortar o plano multi-task. A task fica COMPLETED sem transformar.
+                # NOTA: uma lista vazia ([]) resolvida via input_ref (query devolveu
+                # 0 documentos) NÃO é no-op — é dado real e segue para as operations.
                 self.log_execution(ticket_id, "json_transform_noop_no_input")
                 return self._success_result(
                     {"transformed_data": None, "noop": True},
@@ -210,23 +295,7 @@ class TransformExecutor(BaseTaskExecutor):
                         input_data[:200] + "..." if len(input_data) > 200 else input_data,
                     )
 
-            result = input_data
-            for operation in operations:
-                op_type = operation.get("type")
-                if op_type == "map":
-                    result = self._apply_map(result, operation)
-                elif op_type == "filter":
-                    result = self._apply_filter(result, operation)
-                elif op_type == "aggregate":
-                    result = self._apply_aggregate(result, operation)
-                elif op_type == "rename_keys":
-                    result = self._rename_keys(result, operation)
-                elif op_type == "select_keys":
-                    result = self._select_keys(result, operation)
-                elif op_type == "sort":
-                    result = self._sort(result, operation)
-                else:
-                    raise ValueError(f"Unsupported operation type: {op_type}")
+            result = self._apply_json_operations(input_data, operations)
 
             self.log_execution(
                 ticket_id, "json_transform_completed", operations_count=len(operations)
@@ -715,6 +784,50 @@ class TransformExecutor(BaseTaskExecutor):
             return sorted(data, key=lambda x: x.get(field, ""), reverse=reverse)
         return data
 
+    def _apply_json_operations(self, input_data: Any, operations: list[dict]) -> Any:
+        """Aplica em sequência as operations json sobre ``input_data``.
+
+        Dispatch por tabela (em vez de if/elif) para manter a complexidade baixa.
+
+        Raises:
+            ValueError: Se uma operation tiver um ``type`` não suportado.
+        """
+        dispatch = {
+            "map": self._apply_map,
+            "filter": self._apply_filter,
+            "aggregate": self._apply_aggregate,
+            "rename_keys": self._rename_keys,
+            "select_keys": self._select_keys,
+            "sort": self._sort,
+            "count": self._count,
+        }
+        result = input_data
+        for operation in operations:
+            op_type = operation.get("type")
+            handler = dispatch.get(op_type)
+            if handler is None:
+                raise ValueError(f"Unsupported operation type: {op_type}")
+            result = handler(result, operation)
+        return result
+
+    def _count(self, data: Any, operation: dict) -> Any:
+        """Conta elementos de uma lista (operação schema-agnóstica).
+
+        Deriva um output não-trivial de qualquer lista de documentos sem depender
+        do schema concreto. ``alias`` permite renomear a chave de saída.
+        """
+        alias = operation.get("alias", "count")
+        if isinstance(data, list):
+            return {alias: len(data)}
+        if isinstance(data, dict):
+            # Defensivo: se ainda é o envelope do QueryExecutor, contar os
+            # documentos (não as chaves do envelope).
+            for key in (*_INPUT_REF_FALLBACK_FIELDS, "data", "items"):
+                if isinstance(data.get(key), list):
+                    return {alias: len(data[key])}
+            return {alias: len(data)}
+        return {alias: 0 if data is None else 1}
+
     def _serialize_doc(self, doc: dict[str, Any]) -> dict[str, Any]:
         """Serializa documento MongoDB para JSON."""
         if "_id" in doc:
@@ -740,6 +853,93 @@ class TransformExecutor(BaseTaskExecutor):
             "output": output_data,
             "metadata": base_metadata,
             "logs": logs,
+        }
+
+    def _resolve_json_input(
+        self, ticket_id: str, parameters: dict[str, Any]
+    ) -> tuple[Any, dict[str, Any] | None]:
+        """Resolve o ``input_data`` de uma transform json (Task 7).
+
+        Quando ``input_data`` está vazio mas existe ``input_ref``, resolve-o contra
+        os ``dependency_outputs`` injetados em runtime. Retorna ``(input_data,
+        degraded_result)``: se a resolução falhar, ``degraded_result`` é um
+        resultado honesto marcado (real_path_unavailable) e ``input_data`` é None.
+        """
+        input_data = parameters.get("input_data")
+        input_ref = parameters.get("input_ref")
+        dependency_outputs = parameters.get("dependency_outputs") or {}
+
+        # input_ref tem PRECEDÊNCIA: é a diretiva explícita de data-flow que navega
+        # até ao campo certo (ex.: documents). O execution_engine pré-injeta em
+        # input_data o ENVELOPE da dependência ({documents, count}); operar sobre o
+        # envelope contaria as chaves, não os documentos. Por isso, havendo
+        # input_ref, resolvemo-lo primeiro contra dependency_outputs.
+        if input_ref:
+            resolved, reason = resolve_input_ref(input_ref, dependency_outputs)
+            if reason is None:
+                return resolved, None
+            # input_ref não resolveu: tentar desembrulhar o envelope já em input_data
+            # (fallback resiliente) antes de degradar.
+            unwrapped = self._unwrap_envelope(input_data)
+            if unwrapped is not None:
+                return unwrapped, None
+            # Degradação REAL: input_ref existe e não há dados a montante.
+            return None, self._input_ref_degraded_result(ticket_id, input_ref, reason)
+
+        # Sem input_ref: usa input_data direto, desembrulhando se for um envelope
+        # {documents/results} (compatível com o output do QueryExecutor).
+        return self._unwrap_envelope(input_data), None
+
+    @staticmethod
+    def _unwrap_envelope(value: Any) -> Any:
+        """Desembrulha o envelope do QueryExecutor para a lista de documentos.
+
+        Se ``value`` é um dict com uma chave de lista conhecida
+        (documents/results/data/items), devolve essa lista; caso contrário devolve
+        ``value`` inalterado (lista direta, string JSON, None, etc.).
+        """
+        if isinstance(value, dict):
+            for key in (*_INPUT_REF_FALLBACK_FIELDS, "data", "items"):
+                if isinstance(value.get(key), list):
+                    return value[key]
+        return value
+
+    def _input_ref_degraded_result(
+        self, ticket_id: str, input_ref: str, reason: str
+    ) -> dict[str, Any]:
+        """Resultado honesto quando um ``input_ref`` não resolve (degradação real).
+
+        Marca a métrica ``real_path_unavailable_total`` e devolve ``success=False``
+        com ``real_path_unavailable: True`` — nunca um transform "completo"
+        silencioso (§5.4 Caminho Real First-Class).
+        """
+        self.log_execution(
+            ticket_id,
+            "transform_input_ref_unresolved",
+            level="warning",
+            degraded=True,
+            input_ref=input_ref,
+            reason=reason,
+        )
+        if self.metrics and hasattr(self.metrics, "real_path_unavailable_total"):
+            self.metrics.real_path_unavailable_total.labels(
+                executor="TransformExecutor", task_type="TRANSFORM"
+            ).inc()
+        return {
+            "success": False,
+            "output": {"transformed_data": None, "input_ref": input_ref},
+            "metadata": {
+                "executor": "TransformExecutor",
+                "transform_type": "json",
+                "simulated": False,
+                "real_path_unavailable": True,
+                "reason": reason,
+            },
+            "logs": [
+                f"JSON transform degradado: input_ref '{input_ref}' não resolve",
+                reason,
+                "Ticket marcado como FAILED (sem transform simulado)",
+            ],
         }
 
     def _error_result(self, message: str, transform_type: str) -> dict[str, Any]:
