@@ -234,6 +234,9 @@ class NLUServiceClient:
             confidence=proto_result.confidence,
             entities=entities,
             keywords=list(proto_result.keywords),
+            requires_manual_validation=getattr(
+                proto_result, "requires_manual_validation", False
+            ),
         )
 
     def _fallback_nlu_result(self, text: str, language: str) -> NLUResult:

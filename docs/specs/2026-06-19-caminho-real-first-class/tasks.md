@@ -112,13 +112,22 @@
 
 ### Balde C — Épicos genuínos (GRANDE)
 
-- [ ] 10. Classificador NLU de domínio (ML de raiz)
+- [~] 10. Classificador NLU de domínio — ANTI-VERDE-FALSO ENTREGUE (2026-06-21); ML de raiz bloqueado por dados (honesto)
   - **DoR:** dataset rotulado texto→domínio disponível (ou plano de anotação aprovado); abordagem de modelo escolhida.
   - **DoD:** `_classify_domain` usa inferência ML registada no MLflow; confidence honesta + `classification_method`; domínio `UNKNOWN` para fora-de-vocabulário; keyword só como fallback marcado.
-  - [ ] 10.1 Dataset rotulado + domínio `UNKNOWN` no enum
-  - [ ] 10.2 Treinar classificador (TF-IDF/spaCy/BERTimbau-PT); registar no MLflow
-  - [ ] 10.3 Substituir `_classify_domain` por inferência ML (keyword fallback marcado)
-  - [ ] 10.4 Gateway: domínio não-mapeado → `requires_manual_validation`
+  - **DoR NÃO SATISFEITO (decisão do utilizador: "Anti-verde-falso + reportar ML"):** investigação confirmou que NÃO há dataset rotulado texto→domínio por humanos. O corpus real (`neural_hive.cognitive_ledger`, 10245 docs) é **degenerado** — 95% são CRUD genérico de testes E2E ("Query operation"/"Create operation"; só 10 objetivos distintos dominados por query/create), e os labels `original_domain` foram atribuídos pelo **próprio keyword classifier** (circular). O texto rico real existe mas em baixo volume (~300 descrições) e mascarado/circular. Treinar ML sobre isto seria verde-falso (modelo a memorizar keywords). Mesmo padrão das Tasks 9/12.
+  - **ENTREGUE (anti-verde-falso, marcar+falhar):**
+    - `UnifiedDomain.UNKNOWN` adicionado ao enum (`models/nlu.py`); mapeia para `DOMAIN_UNKNOWN` no protobuf (`_DOMAIN_TO_PROTO`).
+    - `_classify_domain`: o fallback deixou de devolver `TECHNICAL`/conf=0.2 (default cego) → devolve **UNKNOWN/conf=0.0** quando nenhuma regra bate; `coerce_domain` idem (KeyError→UNKNOWN, não TECHNICAL).
+    - `classification_method` reportado honestamente (`keyword_rules` quando há match, `no_match` quando UNKNOWN; `ml_model` reservado para quando existir modelo) — em `NLUResult.metadata`.
+    - `parse`: domínio UNKNOWN força `requires_manual_validation=True` independentemente do threshold.
+    - Gateway (10.4): `ClassificationDecision.requires_manual_validation` propaga UNKNOWN/sinal-NLU; `_classify_by_keywords` sem sinal nenhum (max_count==0) passa a marcar validação humana (era default A-F cego).
+  - **ML "de raiz" (10.2/10.3) — reportado honestamente:** bloqueado por dados (corpus degenerado/circular). A infra de inferência está preparada (`classification_method` admite `ml_model`); reabrir após dataset rotulado por humanos (ver plano de anotação / active-learning). NÃO se treina classificador circular.
+  - **Testes:** 5 (nlu-service: UNKNOWN, coerce, fallback UNKNOWN, method) + 4 (gateway: manual-validation UNKNOWN/propagação) — 28+39 verdes com regressão, zero regressão.
+  - [x] 10.1 ✅ `UNKNOWN` no enum (+protobuf mapping); fallback honesto (sem default cego TECHNICAL)
+  - [~] 10.2 ML de raiz: BLOQUEADO por dados (corpus degenerado/circular; sem dataset humano) — reportado, não treinado falso
+  - [x] 10.3 ✅ `_classify_domain` reporta `classification_method` (keyword_rules/no_match; ml_model reservado); keyword é fallback marcado
+  - [x] 10.4 ✅ Gateway: domínio não-mapeado/sem-sinal → `requires_manual_validation`
 
 - [ ] 11. GitOps completo (deploy declarativo)
   - **DoR:** decisão ArgoCD vs Flux; repo GitOps e Secret de token preparados; `kubernetes-asyncio` para flux.

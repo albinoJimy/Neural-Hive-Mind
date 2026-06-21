@@ -38,6 +38,7 @@ _DOMAIN_TO_PROTO = {
     UnifiedDomain.TECHNICAL: nlu_pb2.UnifiedDomain.TECHNICAL,
     UnifiedDomain.INFRASTRUCTURE: nlu_pb2.UnifiedDomain.INFRASTRUCTURE,
     UnifiedDomain.SECURITY: nlu_pb2.UnifiedDomain.SECURITY,
+    UnifiedDomain.UNKNOWN: nlu_pb2.UnifiedDomain.DOMAIN_UNKNOWN,
 }
 
 _PROTO_TO_DOMAIN = {v: k for k, v in _DOMAIN_TO_PROTO.items()}
