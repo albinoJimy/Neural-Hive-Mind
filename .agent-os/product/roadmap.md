@@ -32,6 +32,41 @@
 
 ---
 
+## Iniciativa Transversal: Caminho-Real First-Class ✅ Concluída (2026-06-21)
+
+**Objetivo:** Eliminar o "verde-falso" — converter caminhos de simulação/heurística em caminhos **reais e verificáveis por evidência** ao longo de todo o pipeline cognitivo. Princípio: **marcar + medir + falhar honestamente** (nunca reportar sucesso sem trabalho real provável).
+
+**Spec:** `docs/specs/2026-06-19-caminho-real-first-class/` · **PR:** #144
+
+**Critérios de Sucesso:**
+- ✅ Gate de evidência por `task_type` no `execution_engine` (simulação/no-op → não-COMPLETED)
+- ✅ Caminhos de execução reais provados com evidência no cluster
+- ✅ Gaps bloqueados por dados reportados honestamente (sem inflar/simular)
+
+### Funcionalidades
+
+- [x] Gate de evidência no execution_engine - Marca `simulated`/no-op e falha tarefas sem evidência real `M`
+- [x] Specialists resolvem modelo ML por stage - `Production` → RandomForest real, embeddings não-zero `M`
+- [x] STE NER/embeddings reais - spaCy explícito, extração de entidades em plano real `M`
+- [x] Code Forge build real - Kaniko → GHCR verificável por `skopeo inspect` (digest) `L`
+- [x] Fluxo G wiring - Activities G6-G13 registadas + `code_artifact_id` persistido `M`
+- [x] Validação OPA por domínio - 4 políticas avaliadas no cluster, fail-closed `M`
+- [x] Transform real por data-flow - `input_ref` + operations (não no-op), provado 42 docs `M`
+- [x] Deploy imperativo real - `kubernetes_asyncio` + namespace efémero, Deployment ready 1/1 `L`
+- [x] Duration Predictor com dados reais - Backfill Postgres→Mongo + fix de tipo + filtro outliers + critério R²; treina e promove (R²=0.36) `L`
+- [x] Classificação NLU de domínio honesta - `UNKNOWN` (fim do default cego), `classification_method`, gateway `requires_manual_validation` `M`
+- [x] GitOps declarativo (ArgoCD) - ArgoCD core instalado; App `Synced/Healthy` + self-heal provado `L`
+- [x] Pipeline de dados reais - Fix duração→Mongo; diagnóstico root-cause da escassez de dados ML `M`
+
+**Gaps reportados honestamente (bloqueados por dados, não verde-falso):** Load Predictor (Prophet) sem telemetria; evaluators dos specialists e NLU ML de domínio sem dataset com sinal (corpus degenerado/circular). Reabrem após captura de dados reais com sinal / plano de anotação.
+
+### Dependências
+
+- Pipeline cognitivo das Fases 1-2 implementado
+- Cluster Kubernetes operacional (deploy real, ArgoCD)
+
+---
+
 ## Fase 1: Camada de Processamento Cognitivo
 
 **Objetivo:** Implementar motor de tradução semântica e swarm de especialistas neurais para compreensão de intenções
