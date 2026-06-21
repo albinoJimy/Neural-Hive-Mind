@@ -285,31 +285,44 @@ class TestDeployExecutorWithFlux:
 
 
 class TestDeployExecutorSimulation:
-    """Testes do DeployExecutor em modo simulacao."""
+    """Contrato Caminho-Real (Task 8): sem provider → FAILED, NUNCA simulação."""
+
+    @staticmethod
+    def _disable_k8s(executor):
+        """Simula kubernetes_asyncio indisponível — evita tocar o cluster real."""
+
+        async def _raise():
+            raise ImportError("kubernetes_asyncio indisponível (teste)")
+
+        executor._init_k8s_clients = _raise
 
     @pytest.mark.asyncio()
-    async def test_execute_simulation_no_clients(self, deploy_executor_simulation, deploy_ticket):
-        """Deve executar simulacao quando sem clients."""
+    async def test_execute_no_clients_fails_fast(self, deploy_executor_simulation, deploy_ticket):
+        """Sem clients GitOps e sem kubernetes_asyncio → FAILED (não simulação)."""
+        self._disable_k8s(deploy_executor_simulation)
         with patch("asyncio.sleep", new_callable=AsyncMock):
             result = await deploy_executor_simulation.execute(deploy_ticket)
 
-        assert result["success"] is True
-        assert result["metadata"]["simulated"] is True
-        assert result["metadata"]["provider"] == "simulation"
-        assert "stub-deploy" in result["output"]["deployment_id"]
+        assert result["success"] is False
+        assert result["metadata"]["simulated"] is False
+        assert result["metadata"].get("real_path_unavailable") is True
+        assert result["metadata"].get("provider") != "simulation"
+        assert "stub-deploy" not in str(result["output"])
 
     @pytest.mark.asyncio()
-    async def test_execute_simulation_metrics(
+    async def test_execute_no_clients_no_simulated_metric(
         self, deploy_executor_simulation, deploy_ticket, mock_metrics
     ):
-        """Deve registrar metricas na simulacao."""
+        """Sem provider real → nunca métrica de duração 'simulated'."""
         deploy_executor_simulation.metrics = mock_metrics
+        self._disable_k8s(deploy_executor_simulation)
 
         with patch("asyncio.sleep", new_callable=AsyncMock):
-            await deploy_executor_simulation.execute(deploy_ticket)
+            result = await deploy_executor_simulation.execute(deploy_ticket)
 
-        mock_metrics.deploy_tasks_executed_total.labels.assert_called_with(status="success")
-        mock_metrics.deploy_duration_seconds.labels.assert_called_with(stage="simulated")
+        assert result["success"] is False
+        for call in mock_metrics.deploy_duration_seconds.labels.call_args_list:
+            assert call.kwargs.get("stage") != "simulated"
 
 
 class TestDeployExecutorProviderSelection:

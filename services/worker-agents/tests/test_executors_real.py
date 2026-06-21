@@ -336,7 +336,18 @@ async def test_validate_executor_metrics_error(monkeypatch, base_config):
 @pytest.mark.asyncio()
 async def test_deploy_executor_fallback(base_config):
     executor = DeployExecutor(base_config)
+
+    # Simula kubernetes_asyncio indisponível para NÃO tocar um cluster real.
+    async def _raise():
+        raise ImportError("kubernetes_asyncio indisponível (teste)")
+
+    executor._init_k8s_clients = _raise
+
     ticket = {"ticket_id": "d1", "task_id": "task", "task_type": "DEPLOY", "parameters": {}}
     result = await executor.execute(ticket)
 
-    assert result["metadata"]["simulated"] is True
+    # Contrato Caminho-Real (Task 8): sem provider GitOps e sem caminho imperativo
+    # disponível → FAILED, NUNCA simulação verde.
+    assert result["success"] is False
+    assert result["metadata"]["simulated"] is False
+    assert result["metadata"].get("real_path_unavailable") is True
