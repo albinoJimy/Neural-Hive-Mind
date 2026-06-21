@@ -1,0 +1,15 @@
+# Manifesto GitOps de demonstração (Task 11 da spec caminho-real-first-class).
+# Reconciliado pelo ArgoCD a partir do próprio repositório, provando o caminho
+# declarativo end-to-end (App Synced/Healthy). É um ConfigMap (não-workload),
+# pelo que fica Healthy sem depender de pods/imagens externas.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nhm-gitops-demo
+  labels:
+    app: nhm-gitops-demo
+    app.kubernetes.io/name: nhm-gitops-demo
+    app.kubernetes.io/managed-by: argocd
+data:
+  purpose: "Prova de reconciliação GitOps declarativa (ArgoCD) — Task 11"
+  flow: "deploy declarativo: Application -> repo -> reconcile -> Synced/Healthy"
