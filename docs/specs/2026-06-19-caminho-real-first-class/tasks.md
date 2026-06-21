@@ -85,13 +85,16 @@
   - [x] 7.3 Executor resolve `input_ref` contra `dependency_outputs` (precedência sobre o envelope)
   - [x] 7.4 Verificado no cluster (worker f59109a): envelope→count=42 docs reais; input_ref não resolve→FAILED marcado
 
-- [ ] 8. Deploy real + ambiente efémero (imperativo)
+- [x] 8. Deploy real + ambiente efémero (imperativo) ✅ (deploy reconciliado provado no cluster)
   - **DoR:** quota de memória do cluster avaliada (over-commit conhecido); param `namespace` do deploy_executor confirmado.
-  - **DoD:** deploy via `helm --wait`+`rollout status` devolve evidência de reconciliação num namespace efémero (dev); sem provider → FAILED; cleanup do namespace por TTL.
-  - [ ] 8.1 Testes: deploy real devolve evidência; sem provider → FAILED
-  - [ ] 8.2 Caminho deploy imperativo verificável; remover `_execute_simulation`
-  - [ ] 8.3 Namespace efémero + ResourceQuota/TTL/cleanup
-  - [ ] 8.4 Verificar via E2E em dev
+  - **DoD:** deploy via caminho imperativo devolve evidência de reconciliação num namespace efémero (dev); sem provider → FAILED; cleanup do namespace por TTL.
+  - **DIVERGÊNCIA (documentada):** caminho imperativo via **cliente `kubernetes_asyncio`** (cria Deployment + espera `available_replicas`) em vez de `helm subprocess` — o worker não tem binários helm/kubectl; evidência de reconciliação equivalente (status do Deployment) e segue o padrão do `flux_client`.
+  - **EVIDÊNCIA REAL (cluster):** `deploy_executor._execute_imperative` correu contra o cluster → criou namespace efémero `cr-deploy-cr8proof` (labels TTL `ephemeral=true`/`ttl-seconds=1800`/`created-at=epoch`), ResourceQuota `cr-ephemeral-quota`, Deployment `cr8-pause` **ready=1/1 available=1**; output `{resource:"ns/name", status:"reconciled", healthy:True, available_replicas:1}` (satisfaz `_evidence_deploy`). Confirmado por `kubectl` independente; cleanup OK. RBAC `worker-agents-imperative-deploy` (ClusterRole+Binding) criada → worker SA pode criar namespaces/deployments (`can-i`=yes).
+  - **ACHADO/FIX (auditoria — 3 bugs):** (a) ApiClient não fechado → `close()`; (b) 409 AlreadyExists rebentava retry Temporal → `_create_idempotent` tolera; (c) label `created-at` em ISO (`:`/`+`) é VALOR DE LABEL INVÁLIDO (422 no cluster) → epoch seconds. +risco apanhado: teste obsoleto criava namespace REAL (env local admin) → testes isolados com `_init_k8s_clients` a levantar.
+  - [x] 8.1 Testes: deploy real devolve evidência; sem provider → FAILED (9 novos + 3 contrato atualizados)
+  - [x] 8.2 Caminho imperativo verificável; `_execute_simulation` REMOVIDO (0 ocorrências; sem `success=True`+`simulated=True`)
+  - [x] 8.3 Namespace efémero + ResourceQuota + TTL labels (cleanup por reaper externo / `cleanup_after`)
+  - [x] 8.4 Verificado no cluster: deploy reconciliado (ready 1/1) em namespace efémero; RBAC do worker SA aplicada
 
 - [ ] 9. Preditores ML do orchestrator (treinar e ligar)
   - **DoR:** tabela ClickHouse `tickets`/dados de duração disponíveis; Prophet/RandomForest localizados.
