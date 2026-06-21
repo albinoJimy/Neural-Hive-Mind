@@ -129,12 +129,21 @@
   - [x] 10.3 ✅ `_classify_domain` reporta `classification_method` (keyword_rules/no_match; ml_model reservado); keyword é fallback marcado
   - [x] 10.4 ✅ Gateway: domínio não-mapeado/sem-sinal → `requires_manual_validation`
 
-- [ ] 11. GitOps completo (deploy declarativo)
+- [~] 11. GitOps completo (deploy declarativo) — INSTALADO+PROVADO (2026-06-21); decisão: ArgoCD core
   - **DoR:** decisão ArgoCD vs Flux; repo GitOps e Secret de token preparados; `kubernetes-asyncio` para flux.
-  - **DoD:** deploy resulta em App `Synced/Healthy` reconciliável, confirmado por `kubectl get applications`.
-  - [ ] 11.1 Instalar ArgoCD/Flux + AppProject + repo + Secret
-  - [ ] 11.2 Ligar `argocd_enabled=True`; deploy_executor usa caminho declarativo
-  - [ ] 11.3 Verificar App Synced/Healthy
+  - **DoD:** deploy resulta em App `Synced/Healthy` reconciliável, confirmado por `kubectl get applications`. ✅ CUMPRIDO.
+  - **DECISÃO (utilizador, AskUserQuestion):** ArgoCD (mais integrado no código — rollback no `compensate_executor` usa `sync_application`). Instalado em modo **core** (`core-install.yaml`, sem API server/UI — modelo GitOps puro, mais leve e seguro; reconcilia `Application` CRs diretamente).
+  - **CÓDIGO já PRONTO (pré-existente):** `argocd_client` completo (create/status/wait_for_health/sync/delete), `_execute_argocd`/`_execute_flux` no `deploy_executor`, `argocd_enabled`+validação em settings, rollback ArgoCD no `compensate_executor`, testes (`test_argocd_client.py`, `test_deploy_executor_with_argocd.py`).
+  - **INFRA INSTALADA + PROVADA no cluster:**
+    - ArgoCD core no ns `argocd` (4 pods Ready: application-controller, repo-server, redis, applicationset-controller). CRDs `applications`/`appprojects` ativas. BUG infra: Gatekeeper `must-have-app-label-all` bloqueou os pods (falta label `app`) → patch dos pod templates (label `app`), resolvido.
+    - AppProject `neural-hive` (sourceRepos=repo NHM, destinations=*, whitelists=*).
+    - Repo GitOps = o próprio repo (público, sem Secret): manifest `gitops/demo/configmap.yaml` (commit `24adf73f`, pushed). ConfigMap (não-workload → não bate em Gatekeeper labels/limits).
+    - Application `nhm-gitops-demo` (path `gitops/demo`, syncPolicy automated prune+selfHeal, CreateNamespace).
+  - **PROVA (DoD):** `kubectl get applications -n argocd` → `nhm-gitops-demo  Synced  Healthy` (revision 24adf73f). ConfigMap reconciliado em `argocd-demo` (managed-by=argocd). **Self-heal provado:** apagado o ConfigMap → ArgoCD recriou-o automaticamente (~20s), App manteve Synced/Healthy.
+  - **HONESTIDADE (11.2 parcial):** o `deploy_executor._execute_argocd` usa a **REST API** do `argocd-server`, que NÃO existe no modo core (deliberado). O caminho GitOps declarativo está provado via `Application` CR (modelo GitOps puro). Para ligar o `deploy_executor` end-to-end há duas vias: (a) instalar `argocd-server` + configurar `argocd_url`/`argocd_token`; ou (b) adaptar o executor para criar a `Application` como CR (`kubernetes_asyncio`) em vez de REST. Não feito nesta sessão (escolha core).
+  - [x] 11.1 ✅ ArgoCD core instalado + AppProject `neural-hive` + repo GitOps (manifest no próprio repo, público — sem Secret)
+  - [~] 11.2 Código declarativo pronto; ativação do `deploy_executor` requer `argocd-server` (REST) ou adaptação CR-based (core mode) — reportado honestamente
+  - [x] 11.3 ✅ App `Synced/Healthy` verificado (`kubectl get applications`) + reconciliação real + self-heal provado
 
 - [~] 12. Pipeline de dados reais (sair do sintético) — FECHADA HONESTAMENTE (2026-06-21): fix fundacional #1 entregue+provado; re-treino executado (6 formulações) com resultado negativo honesto — DoD f1-melhora NÃO alcançável com features atuais (sem sinal preditivo); evaluators reabrem após captura de features com sinal (data/feature-engineering dedicado)
   - **DoR:** `RealDataCollector` localizado (`ml_pipelines/training/real_data_collector.py`); volume de feedback em MongoDB avaliado.
