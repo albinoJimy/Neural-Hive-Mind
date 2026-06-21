@@ -96,12 +96,14 @@
   - [x] 8.3 Namespace efémero + ResourceQuota + TTL labels (cleanup por reaper externo / `cleanup_after`)
   - [x] 8.4 Verificado no cluster: deploy reconciliado (ready 1/1) em namespace efémero; RBAC do worker SA aplicada
 
-- [ ] 9. Preditores ML do orchestrator (treinar e ligar)
+- [ ] 9. Preditores ML do orchestrator (treinar e ligar) — ⛔ BLOQUEADA POR DADOS (não-verde honesto)
   - **DoR:** tabela ClickHouse `tickets`/dados de duração disponíveis; Prophet/RandomForest localizados.
   - **DoD:** duration/load usam modelo treinado registado no MLflow; previsões deixam de ser constantes heurísticas, confirmado.
+  - **DIAGNÓSTICO (2026-06-21):** os preditores JÁ estão corretamente implementados e wired — `DurationPredictor` (RF, `ml/duration_predictor.py`) auto-treina no `initialize()` (`_ensure_model_trained`) e cai em heurística MARCADA (`confidence=0.3`) quando não há modelo; `LoadPredictor` (Prophet, `neural_hive_ml`) idem. **NÃO há código a corrigir — o gap é AUSÊNCIA DE DADOS REAIS**, a mesma raiz da Task 12: MongoDB `execution_tickets`=1247 mas só **3** com `actual_duration_ms>0` (precisa `ml_min_training_samples=100`); e TODAS as tabelas de séries temporais do ClickHouse (`worker_utilization`, `hourly_ticket_volume`, `daily_worker_stats`, `queue_snapshots`, `telemetry_metrics`) estão **VAZIAS (0 linhas)** → Prophet sem dados. Causa provável (Task 12): conclusão do ticket não persiste `actual_duration_ms`/`completed_at` de forma consistente + ETL telemetria→ClickHouse não popula.
+  - **DECISÃO (honestidade §regra-de-ouro):** treinar sobre dados sintéticos/inexistentes e chamá-lo "modelo treinado real" seria verde-falso. **Task 9 NÃO marcada concluída** — depende da Task 12 (pipeline de dados reais) para acumular amostras. Reabrir após a Task 12.
   - [ ] 9.1 Testes: predictors usam modelo treinado quando disponível
-  - [ ] 9.2 Treinar+registar duration (RF) e load (Prophet central); ligar ao pipeline
-  - [ ] 9.3 Verificar previsões não-constantes
+  - [ ] 9.2 Treinar+registar duration (RF) e load (Prophet central); ligar ao pipeline — BLOQUEADO (sem dados)
+  - [ ] 9.3 Verificar previsões não-constantes — BLOQUEADO (sem dados)
 
 ### Balde C — Épicos genuínos (GRANDE)
 
