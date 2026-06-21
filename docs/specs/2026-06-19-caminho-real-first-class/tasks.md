@@ -75,13 +75,15 @@
   - [x] 6.4 Validate fail-closed: SAST timeout/error→FAILED, fallback simulado genérico REMOVIDO (sem `success=True` simulado)
   - [x] 6.5 Verificado no cluster: OPA avalia as 4 políticas (query devolve allow/violations, não policy_undefined)
 
-- [ ] 7. Transform real (data-flow semântico do STE)
+- [x] 7. Transform real (data-flow semântico do STE) ✅
   - **DoR:** confirmado que `_inject_dependency_outputs` injeta `dependency_outputs`; formato dos outputs de query/transform conhecido.
   - **DoD:** task transform com dependência aplica `operations` sobre o campo referido por `input_ref`; `output.noop != True`, confirmado num plano real.
-  - [ ] 7.1 Testes: transform com dependência resolve `input_ref` e aplica `operations` (não no-op)
-  - [ ] 7.2 STE gera `operations` + `input_ref` por task downstream
-  - [ ] 7.3 Executor resolve `input_ref` contra `dependency_outputs`
-  - [ ] 7.4 Verificar via E2E
+  - **ACHADO/FIX (auditoria — BUG CRÍTICO de produção):** o `execution_engine` pré-injeta o ENVELOPE `{documents, count}` em `input_data`; o `_resolve_json_input` short-circuitava (ignorava `input_ref`) e `_count` contava as 2 chaves do envelope → `count=2` SEMPRE (verde-falso numérico). Fix: `input_ref` tem PRECEDÊNCIA (navega até `documents`); `_unwrap_envelope` + `_count` defensivo (conta documentos/results, não chaves); lista vazia resolvida = dado real (count=0), não no-op. Teste de produção (`test_caminho_producao_envelope_em_input_data_conta_documentos`) replica a injeção do engine: 50 docs → count=50 (não 2).
+  - **EVIDÊNCIA REAL (cluster):** worker imagem `f59109a` deployada; prova in-pod com ticket que replica a injeção do engine (envelope `{documents:[42 docs], count:42}` em `input_data` + `input_ref` + `dependency_outputs`) → `transformed_data={'count': 42}` (42 docs reais, NÃO 2 chaves), `noop=None`, `success=True`. Fail-fast: `input_ref` sem `dependency_outputs` → `success=False`, `real_path_unavailable=True`. 15 testes unitários verdes.
+  - [x] 7.1 Testes: transform com dependência resolve `input_ref` e aplica `operations` (não no-op)
+  - [x] 7.2 STE gera `operations` + `input_ref` por task downstream (só com dependências)
+  - [x] 7.3 Executor resolve `input_ref` contra `dependency_outputs` (precedência sobre o envelope)
+  - [x] 7.4 Verificado no cluster (worker f59109a): envelope→count=42 docs reais; input_ref não resolve→FAILED marcado
 
 - [ ] 8. Deploy real + ambiente efémero (imperativo)
   - **DoR:** quota de memória do cluster avaliada (over-commit conhecido); param `namespace` do deploy_executor confirmado.
