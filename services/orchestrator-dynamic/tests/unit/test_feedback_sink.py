@@ -10,6 +10,7 @@ uma falha de persistência nunca propaga (o workflow não pode ficar refém de
 telemetria).
 """
 
+from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -86,15 +87,20 @@ class TestFeedbackSinkRecord:
         assert kwargs.get("upsert", False) is False
 
     @pytest.mark.asyncio()
-    async def test_completed_at_persisted_as_epoch_millis_int(self):
+    async def test_completed_at_persisted_as_bson_date(self):
+        # No cluster, execution_tickets.completed_at/started_at são BSON Date.
+        # O contrato ExecutionFeedback usa epoch millis (portável); o sink converte
+        # para datetime ao gravar, para casar com o filtro do predictor.
         mongo, collection = _make_mongo_client()
         sink = FeedbackSink(mongo)
 
-        await sink.record(_feedback(completed_at=1600))
+        await sink.record(_feedback(completed_at=1600, started_at=100))
 
         update = collection.update_one.call_args[0][1]
-        assert isinstance(update["$set"]["completed_at"], int)
-        assert update["$set"]["completed_at"] == 1600
+        assert isinstance(update["$set"]["completed_at"], datetime)
+        assert isinstance(update["$set"]["started_at"], datetime)
+        # actual_duration_ms NÃO é timestamp — permanece int
+        assert isinstance(update["$set"]["actual_duration_ms"], int)
 
     @pytest.mark.asyncio()
     async def test_marks_simulated_for_green_false_guard(self):

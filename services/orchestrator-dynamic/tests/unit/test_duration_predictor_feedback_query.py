@@ -13,6 +13,7 @@ Dois bugs de contrato a fechar:
 Estes testes verificam o contrato da query Mongo em ambos os pontos de leitura.
 """
 
+from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -42,15 +43,15 @@ class TestAvailabilityQueryContract:
 
         assert count == 42
         flt = collection.count_documents.call_args[0][0]
-        # bug 1: cutoff em epoch millis (int), não datetime
-        assert isinstance(flt["completed_at"]["$gte"], int)
-        # bug 2: exclui verde-falso do treino
+        # tipo: completed_at é BSON Date no cluster → filtro tem de usar datetime
+        assert isinstance(flt["completed_at"]["$gte"], datetime)
+        # anti-verde-falso: exclui simulados do treino
         assert flt["result_simulated"] == {"$ne": True}
 
 
 class TestTrainQueryContract:
     @pytest.mark.asyncio()
-    async def test_train_uses_epoch_millis_and_excludes_simulated(self):
+    async def test_train_uses_datetime_and_excludes_simulated(self):
         cursor = MagicMock()
         cursor.to_list = AsyncMock(return_value=[])  # 0 tickets → early return
         collection = MagicMock()
@@ -66,5 +67,5 @@ class TestTrainQueryContract:
 
         assert result["promoted"] is False  # early return (sem dados)
         flt = collection.find.call_args[0][0]
-        assert isinstance(flt["completed_at"]["$gte"], int)
+        assert isinstance(flt["completed_at"]["$gte"], datetime)
         assert flt["result_simulated"] == {"$ne": True}

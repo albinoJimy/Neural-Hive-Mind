@@ -196,20 +196,14 @@ class DurationPredictor:
         from datetime import datetime, timedelta
 
         try:
-            # completed_at é persistido em epoch millis (int) — o filtro tem de
-            # usar millis, senão $gte entre int e datetime (tipos BSON distintos)
-            # nunca casa e o predictor fica cego.
-            cutoff_ms = int(
-                (
-                    datetime.now(timezone.utc)
-                    - timedelta(days=self.config.ml_training_window_days)
-                ).timestamp()
-                * 1000
+            # completed_at é BSON Date no cluster → filtro com datetime (não millis).
+            cutoff_date = datetime.now(timezone.utc) - timedelta(
+                days=self.config.ml_training_window_days
             )
 
             count = await self.mongodb_client.db["execution_tickets"].count_documents(
                 {
-                    "completed_at": {"$gte": cutoff_ms},
+                    "completed_at": {"$gte": cutoff_date},
                     "actual_duration_ms": {"$exists": True, "$ne": None, "$gt": 0},
                     # anti-verde-falso: execuções simuladas não treinam o modelo
                     "result_simulated": {"$ne": True},
@@ -545,11 +539,8 @@ class DurationPredictor:
 
         try:
             window_days = training_window_days or self.config.ml_training_window_days
-            # epoch millis — ver nota em _check_training_data_availability
-            cutoff_ms = int(
-                (datetime.now(timezone.utc) - timedelta(days=window_days)).timestamp()
-                * 1000
-            )
+            # datetime — completed_at é BSON Date no cluster
+            cutoff_date = datetime.now(timezone.utc) - timedelta(days=window_days)
 
             # Tenta carregar dados de treino via ClickHouse se habilitado
             tickets = []
@@ -583,7 +574,7 @@ class DurationPredictor:
                     await self.mongodb_client.db["execution_tickets"]
                     .find(
                         {
-                            "completed_at": {"$gte": cutoff_ms},
+                            "completed_at": {"$gte": cutoff_date},
                             "actual_duration_ms": {"$exists": True, "$ne": None, "$gt": 0},
                             # anti-verde-falso: simulados não treinam o modelo
                             "result_simulated": {"$ne": True},

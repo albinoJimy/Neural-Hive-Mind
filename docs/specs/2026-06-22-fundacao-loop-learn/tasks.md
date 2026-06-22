@@ -38,9 +38,9 @@
   - **DoR:** Fase 1 verde (duração a chegar ao corpus).
   - **DoD:** filtro temporal em epoch millis (2 sítios: `_check_training_data_availability` e `train_model`/`find`); query exclui `result_simulated`; `_check_training_data_availability()` deixa de registar `insufficient_training_data` quando há execuções reais na janela.
   - **Evidência:** `sub-specs/fase2-evidence.md` (2 testes de contrato verdes; diff mínimo 20/5; 6 falhas de `test_ml_prediction_integration` provadas PRÉ-EXISTENTES).
-  - [x] 3.1 `cutoff_date` (datetime) → `cutoff_ms` (epoch millis) nos 2 filtros `completed_at: {"$gte": ...}` (`_check_training_data_availability` + `train_model`)
+  - [x] 3.1 **CORRIGIDO pós-gate de cluster:** `completed_at` é BSON `Date` (não millis) — filtro usa `datetime` nos 2 sítios; sink converte millis→Date. Ver `sub-specs/cluster-gate-evidence.md`
   - [x] 3.2 `result_simulated: {"$ne": True}` adicionado às queries de contagem e de treino
-  - [~] 3.3 Contrato provado por teste unit (`test_duration_predictor_feedback_query.py`: `$gte` é int + `result_simulated` excluído). Prova com **dados reais** (`countDocuments` sobe vs baseline; `insufficient_training_data` desaparece) **PENDENTE de cluster** (agrupada com gate E2E da Fase 1)
+  - [x] 3.3 **VALIDADO com dados reais** (`neural_hive_orchestration`, 30d): filtro corrigido → 208 treináveis ≥ `ml_min_training_samples=100`. (A Fase 2 errada em millis dava 32 < 100 = regressão evitada.) Teste unit verifica `$gte` é `datetime`
 
 ### Fase 3 — Anti-regressão e prova de transversalidade
 

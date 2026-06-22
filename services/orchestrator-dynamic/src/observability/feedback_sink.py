@@ -16,11 +16,25 @@ Garantias:
   excluído do treino pelo duration_predictor).
 """
 
+from datetime import datetime, timezone
+
 import structlog
 
 from src.models.execution_feedback import ExecutionFeedback
 
 logger = structlog.get_logger(__name__)
+
+
+def _ms_to_datetime(ms: int | None) -> datetime | None:
+    """Converte epoch millis (contrato portável) para BSON Date (tipo do cluster).
+
+    execution_tickets.completed_at/started_at são gravados como Date pelos
+    restantes escritores; o predictor filtra com datetime. O sink converte para
+    casar com esse contrato — sem isto, o predictor não encontra os novos tickets.
+    """
+    if ms is None:
+        return None
+    return datetime.fromtimestamp(ms / 1000, tz=timezone.utc)
 
 
 class FeedbackSink:
@@ -44,8 +58,9 @@ class FeedbackSink:
             "journey_id": feedback.journey_id,
             "status": feedback.status,
             "actual_duration_ms": feedback.actual_duration_ms,
-            "started_at": feedback.started_at,
-            "completed_at": feedback.completed_at,
+            # started_at/completed_at gravados como BSON Date (tipo do cluster)
+            "started_at": _ms_to_datetime(feedback.started_at),
+            "completed_at": _ms_to_datetime(feedback.completed_at),
             "result_simulated": feedback.simulated,
             "feedback_persisted_at": feedback.feedback_persisted_at,
         }

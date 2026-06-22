@@ -13,6 +13,7 @@ Também consolida as duas guardas de regressão da spec:
 - anti-verde-falso: o predictor exclui result_simulated.
 """
 
+from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -78,10 +79,11 @@ class TestLoopContractGuard:
         assert predictor_keys >= SHARED_CONTRACT_FIELDS
 
     @pytest.mark.asyncio()
-    async def test_predictor_time_filter_is_epoch_millis_not_datetime(self):
+    async def test_predictor_time_filter_is_datetime_matching_bson_date(self):
         flt = await _predictor_filter()
-        # guarda de tipo: regressão para datetime cegaria o predictor
-        assert isinstance(flt["completed_at"]["$gte"], int)
+        # guarda de tipo: completed_at é BSON Date no cluster; um filtro int
+        # (millis) não casaria com Date e cegaria o predictor.
+        assert isinstance(flt["completed_at"]["$gte"], datetime)
 
     @pytest.mark.asyncio()
     async def test_predictor_excludes_simulated_from_training(self):
