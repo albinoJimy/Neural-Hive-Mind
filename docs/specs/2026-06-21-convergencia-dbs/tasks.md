@@ -51,11 +51,12 @@
 
 ### Fase 3 — Repontar restantes escritores
 
-- [ ] 5. gateway-intencoes + worker-agents → `neural_hive_dev`
+- [x] 5. gateway-intencoes + worker-agents → `neural_hive_dev`
   - **DoR:** Fase 2 verde.
   - **DoD:** E2E verde após cada repoint; coleções dos serviços no alvo.
-  - [ ] 5.1 Criar dev-values em falta para `gateway-intencoes` e `worker-agents`
-  - [ ] 5.2 Deploy + gate E2E por serviço
+  - **Evidência:** `sub-specs/fase3-evidence.md` (Task 5). gateway NÃO usa Mongo (sem repoint); worker repontado + E2E A→C6 verde (plano `cde2180d`, 4/4 task_ids COMPLETED, plan_approval em neural_hive_dev).
+  - [x] 5.1 Criar dev-values: `worker-agents-values.yaml` criado; `gateway-intencoes` NÃO persiste em Mongo (settings.py sem campos Mongo, zero cliente Mongo) → não precisa de repoint
+  - [x] 5.2 Deploy (`kubectl set env`) + gate E2E verde (GET aprovação=200, 4/4 tickets COMPLETED com o worker em neural_hive_dev)
 
 - [ ] 6. Avaliar/consolidar `neural_hive_orchestration` e `neural_hive_workers`
   - **DoR:** Task 5 fechada.

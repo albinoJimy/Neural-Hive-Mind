@@ -1,0 +1,22 @@
+# worker-agents — dev values (convergência DBs, Fase 3 / Task 5)
+#
+# Repoint do MongoDB do worker-agents para a DB canónica dev `neural_hive_dev`.
+# O worker usa `mongodb_database` (settings.py:411, default de código
+# `neural_hive_workers`; default do chart `neural_hive`, values.yaml:44) APENAS para:
+#   - o DLQ (`execution_tickets_dlq`, mongodb_client.py:46-47) — vazio;
+#   - o FALLBACK de QUERY/TRANSFORM quando a task não traz o parâmetro `database`
+#     (query_executor.py:206, transform_executor.py:520). As tasks reais trazem
+#     `database` (definido pela orquestração), por isso o caminho normal não depende
+#     desta setting; repontá-la alinha o DLQ + fallback com a DB canónica e prepara
+#     a Task 6 (arquivar `neural_hive_workers`).
+#
+# O chart usa `env` como MAP (merge), por isso basta o override desta chave.
+#
+# NOTA DE DEPLOY: a instância dev (ns `neural-hive`) é patcheada via `kubectl set
+# image` (apesar do release helm `worker-agents` existir). O apply em runtime é
+# `kubectl set env deployment/worker-agents -n neural-hive
+# MONGODB_DATABASE=neural_hive_dev` (persistente, reversível, não toca a imagem).
+# Rollback: repor MONGODB_DATABASE=neural_hive_workers (ou remover a env) + rollout.
+
+env:
+  MONGODB_DATABASE: neural_hive_dev
