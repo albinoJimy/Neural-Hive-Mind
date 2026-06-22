@@ -900,7 +900,9 @@ def load_feedback_data(specialist_type: str, window_days: int, min_quality: floa
     try:
         mongodb_uri = os.getenv("MONGODB_URI", "mongodb://localhost:27017")
         client = MongoClient(mongodb_uri)
-        db = client["neural_hive"]
+        # Convergência DBs (Fase 5, Task 8.1): honra MONGODB_DATABASE (antes
+        # hardcoded "neural_hive" no caminho secundário de enriquecimento).
+        db = client[os.getenv("MONGODB_DATABASE", "neural_hive")]
 
         cutoff_date = datetime.now(timezone.utc) - timedelta(days=window_days)
 

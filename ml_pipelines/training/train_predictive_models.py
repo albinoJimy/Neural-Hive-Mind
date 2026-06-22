@@ -50,8 +50,10 @@ class PredictiveModelsTrainer:
         logger.info("Configurando conexões...")
 
         # MongoDB
+        # Convergência DBs (Fase 5, Task 8.1): honra MONGODB_DATABASE (antes
+        # hardcoded "neural_hive", ignorando o env do cronjob repontado na Task 3).
         self.mongo_client = AsyncIOMotorClient(self.mongodb_uri)
-        self.db = self.mongo_client.neural_hive
+        self.db = self.mongo_client[os.getenv("MONGODB_DATABASE", "neural_hive")]
 
         # ClickHouse (se disponível)
         try:

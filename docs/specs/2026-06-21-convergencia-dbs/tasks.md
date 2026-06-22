@@ -78,10 +78,11 @@
 
 ### Fase 5 — Prevenção de regressão e limpeza
 
-- [ ] 8. Config explícita + guarda anti-regressão + arquivo
+- [~] 8. Config explícita + guarda anti-regressão + arquivo (8.1/8.2/8.4 feitos; 8.3 diferido-gated)
   - **DoR:** Fase 4 fechada; N dias de E2E verde acordados antes de arquivar.
   - **DoD:** nenhum deployment sem `MONGODB_DATABASE` explícito; guarda anti-regressão ativa no E2E/CI; `neural_hive` arquivada read-only (não apagada).
-  - [ ] 8.1 Tornar `MONGODB_DATABASE` explícito/obrigatório nos `settings.py` (fail-fast se ausente em ambiente não-test)
-  - [ ] 8.2 Transformar o aviso de drift do `test-e2e-pipeline-completo.sh` em assert estruturado (drift esperado vs falha real)
-  - [ ] 8.3 Arquivar/renomear `neural_hive` read-only após janela de verde
-  - [ ] 8.4 Atualizar inventário canónico (memória/`CONTABO_TICKET.md`) com o estado final
+  - **Evidência:** `sub-specs/fase5-evidence.md`.
+  - [x] 8.1 Fail-fast `MONGODB_DATABASE` no approval-service (pytest-safe, 13 testes) + fix dos 2 hardcodes (train_predictive_models.py:54, train_specialist_model.py:903) que anulavam o repoint da Task 3. Roll-out a STE/consensus/restantes: incremental e verificado (não big-bang)
+  - [x] 8.2 Aviso de drift → assert estruturado no E2E (regressão de convergência → gate falha exit 3; drift não-convergido → aviso)
+  - [ ] 8.3 **DIFERIDO** (gated pela DoR): arquivar `neural_hive` + `neural_hive_workers` read-only só após N dias de E2E verde acordados (corte foi 2026-06-22; backup `20260622T085101Z` é o fallback)
+  - [x] 8.4 Estado final do inventário documentado (`fase5-evidence.md`); `CONTABO_TICKET.md` é ficheiro não-relacionado (não tocado)
