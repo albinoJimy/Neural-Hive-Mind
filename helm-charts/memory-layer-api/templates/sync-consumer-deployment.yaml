@@ -6,6 +6,7 @@ metadata:
   name: {{ $fullname }}-sync-consumer
   namespace: {{ .Release.Namespace }}
   labels:
+    app: {{ $fullname }}-sync-consumer
     app.kubernetes.io/name: {{ $fullname }}-sync-consumer
     app.kubernetes.io/component: sync-consumer
     app.kubernetes.io/part-of: memory-layer-api
@@ -19,6 +20,7 @@ spec:
   template:
     metadata:
       labels:
+        app: {{ $fullname }}-sync-consumer
         app.kubernetes.io/name: {{ $fullname }}-sync-consumer
         app.kubernetes.io/component: sync-consumer
         neural-hive.io/component: memory-sync-consumer
