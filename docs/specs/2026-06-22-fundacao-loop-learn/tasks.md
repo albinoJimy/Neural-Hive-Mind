@@ -34,13 +34,13 @@
 
 ### Fase 2 — Leitor LEARN (alinhar o consumidor de dados)
 
-- [ ] 3. Corrigir contrato de tipo e exclusão de verde-falso no `duration_predictor`
+- [~] 3. Corrigir contrato de tipo e exclusão de verde-falso no `duration_predictor` (código+contrato verdes; prova com dados reais pendente de cluster)
   - **DoR:** Fase 1 verde (duração a chegar ao corpus).
-  - **DoD:** filtro temporal em epoch millis (2 sítios: `check_training_data_availability` ~203 e `train`/`find` ~571); query exclui `result_simulated`; `check_training_data_availability()` deixa de registar `insufficient_training_data` quando há execuções reais na janela.
-  - **Evidência:** `sub-specs/fase2-evidence.md` (count antes/depois; ticket simulado presente na coleção mas ausente do treino).
-  - [ ] 3.1 Substituir `cutoff_date` (datetime) por `cutoff_ms` (epoch millis) nos filtros `completed_at: {"$gte": ...}`
-  - [ ] 3.2 Adicionar `result_simulated: {"$ne": True}` às queries de contagem e de treino
-  - [ ] 3.3 Provar: `countDocuments({actual_duration_ms:{$gt:0}, result_simulated:{$ne:true}})` sobe vs baseline; ticket `simulated=true` excluído do conjunto de treino
+  - **DoD:** filtro temporal em epoch millis (2 sítios: `_check_training_data_availability` e `train_model`/`find`); query exclui `result_simulated`; `_check_training_data_availability()` deixa de registar `insufficient_training_data` quando há execuções reais na janela.
+  - **Evidência:** `sub-specs/fase2-evidence.md` (2 testes de contrato verdes; diff mínimo 20/5; 6 falhas de `test_ml_prediction_integration` provadas PRÉ-EXISTENTES).
+  - [x] 3.1 `cutoff_date` (datetime) → `cutoff_ms` (epoch millis) nos 2 filtros `completed_at: {"$gte": ...}` (`_check_training_data_availability` + `train_model`)
+  - [x] 3.2 `result_simulated: {"$ne": True}` adicionado às queries de contagem e de treino
+  - [~] 3.3 Contrato provado por teste unit (`test_duration_predictor_feedback_query.py`: `$gte` é int + `result_simulated` excluído). Prova com **dados reais** (`countDocuments` sobe vs baseline; `insufficient_training_data` desaparece) **PENDENTE de cluster** (agrupada com gate E2E da Fase 1)
 
 ### Fase 3 — Anti-regressão e prova de transversalidade
 
