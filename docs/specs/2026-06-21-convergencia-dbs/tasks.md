@@ -10,13 +10,14 @@
 
 ### Fase 0 — Preparação e baseline (risco zero, não toca runtime)
 
-- [ ] 1. Backup, inventário e baseline
+- [x] 1. Backup, inventário e baseline
   - **DoR:** acesso ao pod `mongodb-*` em `mongodb-cluster`; credenciais `root`; espaço para dumps fora do cluster.
   - **DoD:** dumps das 4 DBs Mongo + PostgreSQL `neural_hive_tickets` criados e **restaurados com sucesso** num namespace efémero (restore-test); inventário coleção→DB→alvo escrito; baseline E2E verde com contagens por DB registadas.
-  - [ ] 1.1 `mongodump` de `neural_hive`, `neural_hive_dev`, `neural_hive_orchestration`, `neural_hive_workers` + `pg_dump` de `neural_hive_tickets`
-  - [ ] 1.2 Restore-test num namespace efémero (prova que o backup é restaurável)
-  - [ ] 1.3 Inventário de fonte-de-verdade por coleção (tabela do technical-spec preenchida com contagens atuais)
-  - [ ] 1.4 Marcar registos degenerados de `cognitive_ledger` (CRUD E2E / labels circulares) para exclusão da migração
+  - **Evidência:** `sub-specs/fase0-evidence.md` (restore-test Mongo+PG OK; degenerados marcados; baseline E2E 2026-06-22 verde).
+  - [x] 1.1 `mongodump` de `neural_hive`, `neural_hive_dev`, `neural_hive_orchestration`, `neural_hive_workers` + `pg_dump` de **todas** as DBs PG não-sistema (cobre `sla_management`, fonte real de tickets; `neural_hive_tickets` vazia)
+  - [x] 1.2 Restore-test num namespace efémero (Mongo `neural_hive_dev` + PostgreSQL `sla_management` 935 tickets — contagens idênticas à origem)
+  - [x] 1.3 Inventário de fonte-de-verdade por coleção (tabela do technical-spec preenchida com contagens atuais)
+  - [x] 1.4 Marcar registos degenerados de `cognitive_ledger` (CRUD E2E / labels circulares) para exclusão da migração (10246 docs: 3607 degenerados + 3852 suspeitos; **0 candidatos válidos**)
 
 ### Fase 1 — Consolidar o corpus de treino (sem repontar escritores)
 
