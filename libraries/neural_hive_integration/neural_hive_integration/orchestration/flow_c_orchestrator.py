@@ -142,12 +142,8 @@ class FlowCOrchestrator:
         # REAL suficiente para o workflow Temporal gerar os tickets (~5s) antes de
         # cair no fallback. O AsyncRetrying anterior desistia em ~1.24s (wait não
         # respeitado) → fallback disparava sempre → 2 lotes (16 tickets).
-        self._workflow_poll_max_attempts = int(
-            os.getenv("FLOW_C_WORKFLOW_POLL_MAX_ATTEMPTS", "10")
-        )
-        self._workflow_poll_wait_s = float(
-            os.getenv("FLOW_C_WORKFLOW_POLL_WAIT_S", "2")
-        )
+        self._workflow_poll_max_attempts = int(os.getenv("FLOW_C_WORKFLOW_POLL_MAX_ATTEMPTS", "10"))
+        self._workflow_poll_wait_s = float(os.getenv("FLOW_C_WORKFLOW_POLL_WAIT_S", "2"))
         self.approval_producer: AIOKafkaProducer = None
         self.kafka_bootstrap_servers = os.getenv(
             "KAFKA_BOOTSTRAP_SERVERS",
