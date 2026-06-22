@@ -58,12 +58,13 @@
   - [x] 5.1 Criar dev-values: `worker-agents-values.yaml` criado; `gateway-intencoes` NÃO persiste em Mongo (settings.py sem campos Mongo, zero cliente Mongo) → não precisa de repoint
   - [x] 5.2 Deploy (`kubectl set env`) + gate E2E verde (GET aprovação=200, 4/4 tickets COMPLETED com o worker em neural_hive_dev)
 
-- [ ] 6. Avaliar/consolidar `neural_hive_orchestration` e `neural_hive_workers`
+- [x] 6. Avaliar/consolidar `neural_hive_orchestration` e `neural_hive_workers`
   - **DoR:** Task 5 fechada.
   - **DoD:** decisão documentada: migrar para `neural_hive_dev` ou manter como schema lógico intencional; `neural_hive_workers` (só DLQ) tratado.
-  - [ ] 6.1 Mapear leitores/escritores de `neural_hive_orchestration`
-  - [ ] 6.2 Migrar ou documentar decisão de manter separado
-  - [ ] 6.3 Tratar `execution_tickets_dlq` (vazio → descartar ou migrar)
+  - **Evidência:** `sub-specs/fase3-evidence.md` (Task 6): decisão fundamentada.
+  - [x] 6.1 Mapear leitores/escritores de `neural_hive_orchestration` (orchestrator-dynamic + execution-ticket-service, ambos com MONGODB_DATABASE explícito; estado operacional a crescer)
+  - [x] 6.2 DECISÃO: **manter** `neural_hive_orchestration` como schema lógico intencional (estado operacional da orquestração, não corpus de treino; fronteira deliberada; tickets canónicos em PostgreSQL)
+  - [x] 6.3 `execution_tickets_dlq` vazio + worker repontado (Task 5) → nada a migrar; arquivar `neural_hive_workers` em Fase 5
 
 ### Fase 4 — Janela de corte (eliminar escrita dupla)
 
