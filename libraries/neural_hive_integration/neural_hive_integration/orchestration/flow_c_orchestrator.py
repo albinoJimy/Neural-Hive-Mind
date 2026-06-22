@@ -6,6 +6,7 @@ Coordinates Intent → Decision → Orchestration → Tickets → Workers → Co
 
 import structlog
 import asyncio
+import httpx
 from uuid import uuid4
 from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta, timezone
@@ -777,9 +778,12 @@ class FlowCOrchestrator:
         """
         Obtém tickets do workflow state via query Temporal com polling.
 
-        Realiza polling com tenacity.AsyncRetrying até 10 tentativas com intervalo de 2s.
-        Se todos os retries esgotarem ou ocorrer outro erro, aciona fallback para
-        extração do cognitive_plan.
+        Polling explícito com espera real (asyncio.sleep) entre tentativas —
+        `_workflow_poll_max_attempts` × `_workflow_poll_wait_s` (default 10×2s).
+        Erros transitórios da query (workflow recém-iniciado ainda não queryável,
+        rede) são tratados como "ainda não pronto" (retry); erros de programação
+        propagam. Só após esgotar o polling é que aciona o fallback de extração do
+        cognitive_plan.
 
         Args:
             workflow_id: ID do workflow Temporal
@@ -825,9 +829,11 @@ class FlowCOrchestrator:
                 # Lista vazia: workflow ainda não gerou — retentar
             except WorkflowTicketsNotReadyError:
                 pass  # HTTP 202: ainda processando, retentar
-            except Exception as e:
-                # Transitório (workflow recém-iniciado ainda não queryável): retentar
-                # em vez de cair no fallback imediato (causa-raiz da duplicação).
+            except (httpx.HTTPError, ConnectionError, OSError, asyncio.TimeoutError) as e:
+                # Transitório (workflow recém-iniciado ainda não queryável / rede):
+                # retentar em vez de cair no fallback imediato (causa-raiz da
+                # duplicação). Erros de programação (AttributeError, TypeError, ...)
+                # NÃO são capturados aqui — propagam, em vez de serem mascarados.
                 self.logger.debug(
                     "workflow_query_transient_error_will_retry",
                     workflow_id=workflow_id,
@@ -839,10 +845,12 @@ class FlowCOrchestrator:
             if attempt_num < max_attempts:
                 await asyncio.sleep(wait_s)
 
+        # Observa a duração do polling no caminho COMUM (sucesso) e no fallback.
+        duration = time.time() - start_time
+        flow_c_workflow_query_duration.labels(query_name="get_tickets").observe(duration)
+
         if not tickets:
             # Esgotou o polling sem tickets do workflow → fallback legítimo
-            duration = time.time() - start_time
-            flow_c_workflow_query_duration.labels(query_name="get_tickets").observe(duration)
             flow_c_workflow_query_failures.labels(
                 query_name="get_tickets",
                 reason="workflow_tickets_not_ready_after_retries",
@@ -937,13 +945,17 @@ class FlowCOrchestrator:
             reason="workflow query failed or returned empty",
         )
 
-        # Idempotência: o fallback dispara cedo (o polling do query Temporal desiste
-        # rapidamente), mas a actividade Temporal generate_execution_tickets ainda
-        # pode estar a persistir os tickets de forma ASSÍNCRONA. Criar aqui geraria
-        # um segundo conjunto (16=2x8 observado em E2E). Antes de criar, aguardar
-        # brevemente que os tickets do workflow apareçam na execution-ticket-service
-        # e, se aparecerem, devolvê-los em vez de recriar. A constraint única
-        # (plan_id, task_id) na execution-ticket-service é o backstop atómico.
+        # Idempotência: desde o fix do polling (_get_tickets_from_workflow espera o
+        # workflow gerar antes de cair aqui), este fallback só dispara quando o
+        # workflow GENUINAMENTE falha/é lento. Ainda assim, a actividade Temporal
+        # pode estar a persistir de forma ASSÍNCRONA. Antes de criar, aguardar
+        # brevemente que os tickets apareçam e devolvê-los em vez de recriar.
+        # AVISO: esta verificação consulta a execution-ticket-service (PostgreSQL),
+        # cuja constraint única (plan_id, task_id) é o backstop atómico — MAS a
+        # cópia MongoDB do orchestrator NÃO tem esse índice. Num cenário residual
+        # (workflow >~30s + lag Kafka→PG), o PG pode ainda ter 0 e este fallback
+        # criar um 2º lote que sobrevive só no Mongo. Fix completo = adicionar o
+        # índice único (plan_id, task_id) ao Mongo do orchestrator (camada 2).
         for _attempt in range(8):  # ~12s, cobre o ~8s da actividade Temporal
             try:
                 existing_count = await self.ticket_client.count_tickets_by_plan(context.plan_id)
