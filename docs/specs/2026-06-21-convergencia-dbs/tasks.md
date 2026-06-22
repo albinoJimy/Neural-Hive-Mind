@@ -68,12 +68,13 @@
 
 ### Fase 4 — Janela de corte (eliminar escrita dupla)
 
-- [ ] 7. Migração-delta final + freeze curto
+- [x] 7. Migração-delta final + freeze curto
   - **DoR:** todos os escritores repontados (Fases 2–3); janela de manutenção acordada.
   - **DoD:** `neural_hive` sem escritas novas durante janela de observação (contagem estável); E2E verde pós-corte.
-  - [ ] 7.1 Escalar a 0 os escritores do corpus (freeze) — ou marcar `neural_hive` read-only
-  - [ ] 7.2 Migração-delta idempotente (docs novos desde Fase 1)
-  - [ ] 7.3 Re-escalar; gate E2E; observar contagem de `neural_hive` estável
+  - **Evidência:** `sub-specs/fase4-evidence.md`. Corpus `neural_hive` congelado no baseline Task2 (Δ=0 nas 5 coleções) após 2 E2E reais; `neural_hive_dev` cresceu; delta=0 candidatos.
+  - [x] 7.1 Freeze implícito: escritores do corpus já repontados (Fases 1–3) → sem escrita dupla a eliminar (read-only fica para o arquivo da Fase 5)
+  - [x] 7.2 Migração-delta idempotente (`10-migrate-corpus` re-run): delta = 0 candidatos nas 5 coleções (nada escrito em `neural_hive` desde a Fase 1)
+  - [x] 7.3 Contagem `neural_hive` estável (Δ=0 sob workload E2E real); `neural_hive_dev` cresceu (+2 planos); E2E verde
 
 ### Fase 5 — Prevenção de regressão e limpeza
 
