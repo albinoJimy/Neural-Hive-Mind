@@ -105,6 +105,17 @@ nodeSelector: {}
 tolerations: []
 affinity: {}
 
+# Distribuir réplicas entre nodes (evita concentrar 2/6 num único host).
+# Default ScheduleAnyway para não bloquear deploy se cluster tiver
+# restrições temporárias (cordon/manutenção).
+topologySpreadConstraints:
+  - maxSkew: 1
+    topologyKey: kubernetes.io/hostname
+    whenUnsatisfiable: ScheduleAnyway
+    labelSelector:
+      matchLabels:
+        app.kubernetes.io/name: pii-service
+
 # Configurações da aplicação (env vars não-sensíveis -> ConfigMap)
 config:
   # Aplicação

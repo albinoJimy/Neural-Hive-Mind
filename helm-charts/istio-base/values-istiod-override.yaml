@@ -35,3 +35,20 @@ pilot:
     requests:
       cpu: 100m
       memory: 1Gi
+
+  # Topology spread (adicionado 2026-05-23):
+  # HPA escalou istiod para 5 réplicas; 4/5 caíram no vmi3313361 (novo node)
+  # que sofre packet loss intermitente do backbone Contabo. Resultado:
+  # readiness probes a falhar via :8080 com "context deadline exceeded",
+  # sidecar-injection webhook timeout, e ReplicaSet rollouts bloqueados.
+  #
+  # Forçar distribuição entre nodes: maxSkew=1 garante diferença máxima
+  # de 1 pod entre nodes; whenUnsatisfiable=ScheduleAnyway evita pods
+  # Pending se o scheduler não conseguir respeitar (em manutenção).
+  topologySpreadConstraints:
+    - maxSkew: 1
+      topologyKey: kubernetes.io/hostname
+      whenUnsatisfiable: ScheduleAnyway
+      labelSelector:
+        matchLabels:
+          app: istiod
