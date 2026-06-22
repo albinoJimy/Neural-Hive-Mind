@@ -75,21 +75,23 @@ spec:
       min.insync.replicas: 2
   entityOperator:
     topicOperator:
+      # CPU aumentado (200m->1000m) para acelerar arranque da JVM e evitar
+      # falha da startup probe (connection refused na :8080) sob CPU starvation.
       resources:
         requests:
-          memory: 256Mi
-          cpu: 100m
+          memory: 384Mi
+          cpu: 250m
         limits:
-          memory: 512Mi
-          cpu: 200m
+          memory: 768Mi
+          cpu: 1000m
     userOperator:
       resources:
         requests:
-          memory: 256Mi
-          cpu: 100m
+          memory: 384Mi
+          cpu: 250m
         limits:
-          memory: 512Mi
-          cpu: 200m
+          memory: 768Mi
+          cpu: 1000m
 ---
 apiVersion: kafka.strimzi.io/v1beta2
 kind: KafkaTopic
