@@ -32,9 +32,13 @@ def _ms_to_datetime(ms: int | None) -> datetime | None:
     restantes escritores; o predictor filtra com datetime. O sink converte para
     casar com esse contrato — sem isto, o predictor não encontra os novos tickets.
     """
-    if ms is None:
+    if ms is None or ms <= 0:
         return None
-    return datetime.fromtimestamp(ms / 1000, tz=timezone.utc)
+    try:
+        return datetime.fromtimestamp(ms / 1000, tz=timezone.utc)
+    except (OSError, OverflowError, ValueError):
+        # timestamp corrompido (ex.: nanos por engano) — não cega o sink
+        return None
 
 
 class FeedbackSink:
@@ -66,11 +70,18 @@ class FeedbackSink:
         }
 
         try:
-            await self.mongodb_client.db[self.COLLECTION].update_one(
+            res = await self.mongodb_client.db[self.COLLECTION].update_one(
                 {"ticket_id": feedback.ticket_id},
                 {"$set": update},
                 upsert=False,
             )
+            # upsert=False: se o ticket ainda não existe no Mongo (race — worker
+            # publicou antes do orchestrator gravar), o feedback perde-se. Logar
+            # em vez de silenciar, para ser observável.
+            if getattr(res, "matched_count", 1) == 0:
+                logger.debug(
+                    "feedback_sink_ticket_not_found", ticket_id=feedback.ticket_id
+                )
             if self.metrics is not None:
                 metric = getattr(
                     self.metrics, "execution_feedback_persisted_total", None

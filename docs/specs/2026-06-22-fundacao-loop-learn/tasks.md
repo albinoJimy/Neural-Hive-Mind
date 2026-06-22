@@ -49,6 +49,6 @@
   - **DoD:** guarda que falha se o filtro do predictor voltar a usar `datetime`; teste de transversalidade do sink no CI; guarda de contrato cruzado sink↔predictor; assert E2E de loop-fechado documentado para o cluster.
   - **Evidência:** `sub-specs/fase3-evidence.md` (guarda de contrato cruzado PROVADA a detetar regressão por renomeação; 21/21 testes do loop verdes; ruff limpo).
   - [~] 4.1 Assert E2E "tickets com `actual_duration_ms>0` > 0" — o script `test-e2e-pipeline-completo.sh` é **git-ignored** (não versionável); snippet de validação `mongosh` documentado em `fase3-evidence.md` para correr no cluster
-  - [x] 4.2 Guarda de tipo no CI: `test_duration_predictor_feedback_query.py` + `test_loop_learn_contract_guard.py::test_predictor_time_filter_is_epoch_millis_not_datetime` (falham se voltar a `datetime`)
+  - [x] 4.2 Guarda de tipo no CI: `test_duration_predictor_feedback_query.py` + `test_loop_learn_contract_guard.py::test_predictor_time_filter_is_datetime_matching_bson_date` (falham se o filtro voltar a millis — completed_at é BSON Date)
   - [x] 4.3 Transversalidade no CI: `test_feedback_sink.py::test_transversal_accepts_generate_without_change` (gate corre em `tests/unit/`) — âncora do princípio
   - [x] 4.4 **NOVO** guarda de contrato cruzado `test_loop_learn_contract_guard.py` (sink↔predictor; provada a detetar renomeação); estado final + ganchos `capability`/`journey_id` documentados em `fase3-evidence.md`

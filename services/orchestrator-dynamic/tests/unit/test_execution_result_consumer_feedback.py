@@ -44,19 +44,27 @@ def mock_sink():
 
 
 def _result(**overrides):
+    # Payload REAL do worker (kafka_result_producer.publish_result):
+    # metadata vive DENTRO de "result"; timestamp (millis) no topo; NÃO há
+    # started_at/completed_at/trace_id no payload.
     base = {
         "ticket_id": "t1",
         "plan_id": "p1",
         "workflow_id": "wf1",
         "status": "COMPLETED",
         "actual_duration_ms": 1500,
-        "started_at": 100,
-        "completed_at": 1600,
-        "trace_id": "tr1",
-        "metadata": {"simulated": False},
+        "timestamp": 1700000000000,  # worker timestamp (millis) → completed_at
+        "result": {"metadata": {"simulated": False}},
+        "correlation_id": "c1",
     }
     base.update(overrides)
     return base
+
+
+def _with_simulated(value: bool) -> dict:
+    r = _result()
+    r["result"]["metadata"]["simulated"] = value
+    return r
 
 
 class TestEmitFeedbackAdapter:
@@ -81,13 +89,16 @@ class TestEmitFeedbackAdapter:
         assert fb.plan_id == "p1"
         assert fb.status == "COMPLETED"
         assert fb.actual_duration_ms == 1500
-        assert fb.completed_at == 1600
-        assert fb.trace_id == "tr1"
+        # completed_at deriva do timestamp do worker (millis)
+        assert fb.completed_at == 1700000000000
+        # started_at derivado: completed_at - actual_duration_ms
+        assert fb.started_at == 1700000000000 - 1500
 
     @pytest.mark.asyncio()
-    async def test_maps_simulated_from_metadata(
+    async def test_maps_simulated_from_result_metadata(
         self, mock_config, mock_temporal_client, mock_sink
     ):
+        # C1: simulated vive em result["metadata"], NÃO no topo do payload.
         consumer = ExecutionResultConsumer(
             config=mock_config,
             temporal_client=mock_temporal_client,
@@ -95,13 +106,33 @@ class TestEmitFeedbackAdapter:
             feedback_sink=mock_sink,
         )
 
-        await consumer._emit_feedback(_result(metadata={"simulated": True}))
+        await consumer._emit_feedback(_with_simulated(True))
 
         fb = mock_sink.record.call_args[0][0]
         assert fb.simulated is True
 
     @pytest.mark.asyncio()
-    async def test_completed_at_falls_back_to_now_millis(
+    async def test_top_level_metadata_is_not_the_source(
+        self, mock_config, mock_temporal_client, mock_sink
+    ):
+        # Guarda anti-regressão de C1: metadata no TOPO não deve marcar simulated
+        # (o caminho real põe-no em result.metadata). result.metadata vence.
+        consumer = ExecutionResultConsumer(
+            config=mock_config,
+            temporal_client=mock_temporal_client,
+            redis_client=AsyncMock(),
+            feedback_sink=mock_sink,
+        )
+        payload = _result()  # result.metadata.simulated = False
+        payload["metadata"] = {"simulated": True}  # ruído no topo
+
+        await consumer._emit_feedback(payload)
+
+        fb = mock_sink.record.call_args[0][0]
+        assert fb.simulated is False
+
+    @pytest.mark.asyncio()
+    async def test_completed_at_falls_back_to_now_when_no_timestamp(
         self, mock_config, mock_temporal_client, mock_sink
     ):
         consumer = ExecutionResultConsumer(
@@ -111,7 +142,7 @@ class TestEmitFeedbackAdapter:
             feedback_sink=mock_sink,
         )
 
-        await consumer._emit_feedback(_result(completed_at=None))
+        await consumer._emit_feedback(_result(timestamp=None))
 
         fb = mock_sink.record.call_args[0][0]
         assert isinstance(fb.completed_at, int)

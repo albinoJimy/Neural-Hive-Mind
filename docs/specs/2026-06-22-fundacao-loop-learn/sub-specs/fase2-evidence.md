@@ -1,5 +1,12 @@
 # Fase 2 — Evidência (Leitor LEARN)
 
+> ⚠️ **CORRIGIDO pós-gate de cluster.** Este ficheiro descreve a abordagem original
+> (filtro em epoch millis), que o gate de cluster provou ser uma **regressão**:
+> `completed_at` é BSON `Date`, não int millis. A correção (predictor em `datetime`,
+> sink converte millis→Date) está em [`cluster-gate-evidence.md`](./cluster-gate-evidence.md).
+> Nomes de teste reais: `test_uses_datetime_and_excludes_simulated`,
+> `test_train_uses_datetime_and_excludes_simulated`.
+
 > Spec: 2026-06-22-fundacao-loop-learn · Task 3 · Branch `feat/fundacao-loop-learn`
 > Data: 2026-06-22
 

@@ -47,13 +47,16 @@ Feature: Loop de aprendizagem alimentado com duração real (Fundação)
 ```gherkin
 Feature: Contrato de tipo consistente entre escrita e leitura
   Como arquiteto
-  Quero que os timestamps usem um único tipo (epoch millis) em toda a costura do loop
+  Quero que completed_at/started_at sejam BSON Date em toda a costura do loop
   Para que o filtro temporal do predictor case com o que é gravado
+  # NOTA: o gate de cluster mostrou que completed_at/started_at são BSON Date
+  # (não int millis) — ver sub-specs/cluster-gate-evidence.md. O contrato
+  # ExecutionFeedback usa millis (portável); o sink converte para Date ao gravar.
 
   Scenario: O filtro temporal encontra os registos
-    Given completed_at gravado como epoch millis (inteiro), consistente com ticket_generation
+    Given completed_at gravado como BSON Date (o sink converte millis -> Date)
     When o duration_predictor filtra completed_at >= cutoff dentro da janela de treino
-    Then o cutoff é calculado em epoch millis (não datetime)
+    Then o cutoff é um datetime (casa com BSON Date)
     And a query devolve os tickets dentro da janela
 ```
 
@@ -107,6 +110,6 @@ Feature: Fundação transversal (capability-agnostic)
 
 ## Expected Deliverable
 
-1. Após um E2E A→C6, `db.execution_tickets.countDocuments({actual_duration_ms: {$gt: 0}, result_simulated: {$ne: true}})` **sobe** face ao baseline (hoje 3/1247), e cada ticket COMPLETED tem `completed_at` como epoch millis (não `Date`).
+1. Após um E2E A→C6, `db.execution_tickets.countDocuments({actual_duration_ms: {$gt: 0}, result_simulated: {$ne: true}})` mantém-se ≥ baseline (gate de cluster: 208 treináveis ≥ `ml_min=100`), e os tickets do sink têm `completed_at` como **BSON `Date`** (o sink converte millis→Date) — consistente com os tickets existentes.
 2. `duration_predictor.check_training_data_availability()` deixa de registar `insufficient_training_data` quando há execuções reais na janela; um ticket com `metadata.simulated=true` aparece na coleção mas **não** entra na query de treino.
 3. Um teste unitário invoca `FeedbackSink.record(capability="GENERATE")` com sucesso **sem alterar o sink** — prova de que a Fundação é transversal e que Roteamento/Capacidades encaixam sem cirurgia (consistência com o princípio Fundação → Roteamento → Capacidades).

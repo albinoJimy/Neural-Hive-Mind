@@ -54,8 +54,8 @@ corre no cluster com:
 db.execution_tickets.countDocuments({ actual_duration_ms: { $gt: 0 }, result_simulated: { $ne: true } })
 // esperado: > baseline (hoje 3/1247) — prova de que o loop está a persistir duração real
 
-// tipo correto (epoch millis, não Date):
-typeof db.execution_tickets.findOne({ actual_duration_ms: { $gt: 0 } }).completed_at  // "number"
+// tipo correto (BSON Date — ver cluster-gate-evidence.md; o sink converte millis→Date):
+db.execution_tickets.findOne({ actual_duration_ms: { $gt: 0 } }).completed_at instanceof Date  // true
 ```
 
 E confirmar nos logs do orchestrator que `_check_training_data_availability` deixa de

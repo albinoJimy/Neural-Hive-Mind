@@ -38,7 +38,7 @@ sanity (+ test_metrics):                               23 passed
 | **anti-verde-falso** | `test_marks_simulated_for_green_false_guard` (`result_simulated` persistido) |
 | **desacoplamento** | `test_persist_failure_does_not_propagate` (falha de Mongo engolida) |
 | **idempotência** | `test_idempotent_uses_update_by_ticket_id` (update por `ticket_id`) |
-| **contrato de tipo** | `test_completed_at_persisted_as_epoch_millis_int` (millis, não datetime) |
+| **contrato de tipo** | `test_completed_at_persisted_as_bson_date` (sink converte millis→Date; ver cluster-gate-evidence.md) |
 
 ## Nota de honestidade — vermelhos pré-existentes (não causados pela Fase 0)
 

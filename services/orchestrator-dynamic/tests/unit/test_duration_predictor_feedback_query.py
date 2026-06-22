@@ -30,7 +30,7 @@ def _config():
 
 class TestAvailabilityQueryContract:
     @pytest.mark.asyncio()
-    async def test_uses_epoch_millis_and_excludes_simulated(self):
+    async def test_uses_datetime_and_excludes_simulated(self):
         collection = MagicMock()
         collection.count_documents = AsyncMock(return_value=42)
         db = MagicMock()

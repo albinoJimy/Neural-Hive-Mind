@@ -164,14 +164,15 @@ class ExecutionResultConsumer:
                 await self.consumer.commit()
                 return
 
+            # Fechar o loop LEARN (plano-Z) ANTES do signal: o feedback é
+            # independente e não pode ser perdido se o signal falhar (ex.: workflow
+            # inexistente/expirado). Internamente protegido — nunca bloqueia o fluxo.
+            await self._emit_feedback(result_data)
+
             # Enviar signal para Temporal (capacidade EXECUTE)
             await self._send_workflow_signal(
                 workflow_id=workflow_id, ticket_id=ticket_id, result=result_data
             )
-
-            # Fechar o loop LEARN (plano-Z): persistir feedback de execução.
-            # Desacoplado do signal — falha aqui nunca bloqueia o workflow.
-            await self._emit_feedback(result_data)
 
             # Commit offset após processamento bem-sucedido
             await self.consumer.commit()
@@ -306,7 +307,35 @@ class ExecutionResultConsumer:
         try:
             ticket_id = result_data.get("ticket_id")
             now_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
-            metadata = result_data.get("metadata") or {}
+
+            # O worker põe metadata DENTRO de "result" (não no topo do payload).
+            inner = result_data.get("result")
+            metadata = (
+                inner.get("metadata") if isinstance(inner, dict) else None
+            ) or {}
+            simulated = bool(metadata.get("simulated", False))
+
+            actual_duration_ms = result_data.get("actual_duration_ms")
+
+            # completed_at: o payload não traz; usa o timestamp (millis) do worker.
+            completed_at = result_data.get("completed_at")
+            if completed_at is None:
+                worker_ts = result_data.get("timestamp")
+                completed_at = (
+                    worker_ts
+                    if isinstance(worker_ts, int) and worker_ts > 0
+                    else now_ms
+                )
+
+            # started_at: derivado de completed_at - duração quando possível.
+            started_at = result_data.get("started_at")
+            if (
+                started_at is None
+                and isinstance(actual_duration_ms, int)
+                and actual_duration_ms > 0
+            ):
+                started_at = completed_at - actual_duration_ms
+
             feedback = ExecutionFeedback(
                 feedback_id=f"{ticket_id}:{now_ms}",
                 feedback_persisted_at=now_ms,
@@ -314,12 +343,13 @@ class ExecutionResultConsumer:
                 journey_id=result_data.get("journey_id"),
                 ticket_id=ticket_id,
                 plan_id=result_data.get("plan_id", ""),
-                trace_id=result_data.get("trace_id"),
+                trace_id=result_data.get("trace_id")
+                or result_data.get("correlation_id"),
                 status=result_data.get("status", ""),
-                actual_duration_ms=result_data.get("actual_duration_ms"),
-                started_at=result_data.get("started_at"),
-                completed_at=result_data.get("completed_at") or now_ms,
-                simulated=bool(metadata.get("simulated", False)),
+                actual_duration_ms=actual_duration_ms,
+                started_at=started_at,
+                completed_at=completed_at,
+                simulated=simulated,
             )
             await self.feedback_sink.record(feedback)
         except Exception as e:

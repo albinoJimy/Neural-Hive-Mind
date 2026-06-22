@@ -36,7 +36,7 @@ TOTAL                                                          16 passed
 | Garantia | Teste |
 |---|---|
 | Tradução EXECUTE→contrato | `test_translates_result_to_execution_feedback` (`capability="EXECUTE"`, campos mapeados) |
-| Anti-verde-falso na origem | `test_maps_simulated_from_metadata` (`metadata.simulated`→`simulated`) |
+| Anti-verde-falso na origem | `test_maps_simulated_from_result_metadata` (lê `result.metadata.simulated`; ver audit-remediation-evidence.md) |
 | Tipo millis com fallback | `test_completed_at_falls_back_to_now_millis` |
 | DI opcional | `test_no_sink_is_noop` (sink ausente não rebenta) |
 | Integração loop+signal | `test_process_result_emits_feedback_and_signals` |

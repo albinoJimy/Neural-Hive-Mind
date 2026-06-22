@@ -2,6 +2,13 @@
 
 This is the technical specification para a spec detalhada em @docs/specs/2026-06-22-fundacao-loop-learn/spec.md
 
+> ⚠️ **Atualização pós-gate de cluster:** este documento assume `completed_at` em epoch
+> millis. O gate de cluster provou que `completed_at`/`started_at` são **BSON `Date`**. O
+> contrato e a decisão finais (predictor filtra `datetime`; sink converte millis→Date; o
+> adapter lê `simulated` de `result.metadata` e deriva `completed_at` do `timestamp` do
+> worker) estão em [`cluster-gate-evidence.md`](./cluster-gate-evidence.md) e
+> [`audit-remediation-evidence.md`](./audit-remediation-evidence.md).
+
 ## Descoberta-chave (análise de causa-raiz)
 
 O loop LEARN está partido por **dois bugs distintos** na fronteira EXECUTE→OBSERVE, ambos confirmados no código:
