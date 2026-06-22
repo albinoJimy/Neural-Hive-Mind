@@ -44,11 +44,11 @@
 
 ### Fase 3 — Anti-regressão e prova de transversalidade
 
-- [ ] 4. Guardas anti-regressão no E2E/CI + asserção arquitetural
+- [x] 4. Guardas anti-regressão no CI + asserção arquitetural (gate E2E de cluster documentado)
   - **DoR:** Fases 1–2 verdes.
-  - **DoD:** asserção E2E "contagem de duração real sobe vs baseline" ativa; guarda que falha se o filtro do predictor voltar a usar `datetime`; teste de transversalidade do sink no CI (prova de que GENERATE/MIGRATE encaixam sem reabrir a Fundação).
-  - **Evidência:** `sub-specs/fase3-evidence.md`.
-  - [ ] 4.1 Adicionar assert estruturado ao `scripts/test-e2e-pipeline-completo.sh`: nº de tickets com `actual_duration_ms>0` do run > 0 (loop fechado)
-  - [ ] 4.2 Guarda no CI: teste que falha se `duration_predictor` filtrar `completed_at` com `datetime` (regressão do contrato de tipo)
-  - [ ] 4.3 Promover o teste de transversalidade (`record(capability="GENERATE")`) a gate de CI — âncora do princípio Fundação → Roteamento → Capacidades
-  - [ ] 4.4 Documentar estado final + ganchos prontos (`capability`/`journey_id`) e o caminho de evolução (Roteamento passo 2, Capacidades passo 3) em `fase3-evidence.md`
+  - **DoD:** guarda que falha se o filtro do predictor voltar a usar `datetime`; teste de transversalidade do sink no CI; guarda de contrato cruzado sink↔predictor; assert E2E de loop-fechado documentado para o cluster.
+  - **Evidência:** `sub-specs/fase3-evidence.md` (guarda de contrato cruzado PROVADA a detetar regressão por renomeação; 21/21 testes do loop verdes; ruff limpo).
+  - [~] 4.1 Assert E2E "tickets com `actual_duration_ms>0` > 0" — o script `test-e2e-pipeline-completo.sh` é **git-ignored** (não versionável); snippet de validação `mongosh` documentado em `fase3-evidence.md` para correr no cluster
+  - [x] 4.2 Guarda de tipo no CI: `test_duration_predictor_feedback_query.py` + `test_loop_learn_contract_guard.py::test_predictor_time_filter_is_epoch_millis_not_datetime` (falham se voltar a `datetime`)
+  - [x] 4.3 Transversalidade no CI: `test_feedback_sink.py::test_transversal_accepts_generate_without_change` (gate corre em `tests/unit/`) — âncora do princípio
+  - [x] 4.4 **NOVO** guarda de contrato cruzado `test_loop_learn_contract_guard.py` (sink↔predictor; provada a detetar renomeação); estado final + ganchos `capability`/`journey_id` documentados em `fase3-evidence.md`

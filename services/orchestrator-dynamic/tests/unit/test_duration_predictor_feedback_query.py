@@ -16,7 +16,6 @@ Estes testes verificam o contrato da query Mongo em ambos os pontos de leitura.
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-
 from src.ml.duration_predictor import DurationPredictor
 
 

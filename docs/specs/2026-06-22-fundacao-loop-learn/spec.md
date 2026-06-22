@@ -2,7 +2,7 @@
 
 > Spec: fundacao-loop-learn
 > Created: 2026-06-22
-> Status: Planning
+> Status: Em execução — Fases 0-3 código completo e verde (21/21 testes); gates de cluster (E2E A→C6 + prova de dados reais) pendentes
 
 ## Overview
 
