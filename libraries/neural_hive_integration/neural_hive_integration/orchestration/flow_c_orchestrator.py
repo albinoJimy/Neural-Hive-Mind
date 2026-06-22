@@ -11,13 +11,6 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta, timezone
 from opentelemetry import trace
 from prometheus_client import Counter, Histogram, Gauge
-from tenacity import (
-    AsyncRetrying,
-    stop_after_attempt,
-    wait_fixed,
-    retry_if_exception_type,
-    RetryError,
-)
 
 from neural_hive_integration.clients.orchestrator_client import (
     OrchestratorClient,
@@ -144,6 +137,16 @@ class FlowCOrchestrator:
         # para persistir o mapeamento ticket->workflow no caminho de fallback
         # (_extract_tickets_from_plan), que de outro modo não o gravaria.
         self.redis_client = None
+        # Polling do workflow por tickets (camada-1 do fix de duplicação): espera
+        # REAL suficiente para o workflow Temporal gerar os tickets (~5s) antes de
+        # cair no fallback. O AsyncRetrying anterior desistia em ~1.24s (wait não
+        # respeitado) → fallback disparava sempre → 2 lotes (16 tickets).
+        self._workflow_poll_max_attempts = int(
+            os.getenv("FLOW_C_WORKFLOW_POLL_MAX_ATTEMPTS", "10")
+        )
+        self._workflow_poll_wait_s = float(
+            os.getenv("FLOW_C_WORKFLOW_POLL_WAIT_S", "2")
+        )
         self.approval_producer: AIOKafkaProducer = None
         self.kafka_bootstrap_servers = os.getenv(
             "KAFKA_BOOTSTRAP_SERVERS",
@@ -791,91 +794,66 @@ class FlowCOrchestrator:
         start_time = time.time()
         tickets = []
 
-        try:
-            # Polling com AsyncRetrying: até 10 tentativas, wait_fixed(2s)
-            # Retenta apenas em WorkflowTicketsNotReadyError (HTTP 202)
-            async for attempt in AsyncRetrying(
-                stop=stop_after_attempt(10),
-                wait=wait_fixed(2),
-                retry=retry_if_exception_type(WorkflowTicketsNotReadyError),
-                reraise=False,
-            ):
-                with attempt:
-                    self.logger.debug(
-                        "workflow_tickets_polling_attempt",
+        # Polling explícito com espera REAL entre tentativas. Substitui o
+        # AsyncRetrying cujo wait_fixed(2) não era respeitado (desistia em ~1.24s,
+        # antes de o workflow gerar os tickets ~5s → fallback duplicava). Erros
+        # transitórios da query (workflow recém-iniciado: 404/5xx/conn) são tratados
+        # como "ainda não pronto" (retry), não como falha fatal (fallback imediato).
+        max_attempts = self._workflow_poll_max_attempts
+        wait_s = self._workflow_poll_wait_s
+        for attempt_num in range(1, max_attempts + 1):
+            try:
+                query_result = await self.orchestrator_client.query_workflow(
+                    workflow_id=workflow_id,
+                    query_name="get_tickets",
+                )
+                if isinstance(query_result, dict):
+                    tickets = query_result.get("tickets", [])
+                elif isinstance(query_result, list):
+                    tickets = query_result
+                else:
+                    tickets = []
+
+                if tickets:
+                    self.logger.info(
+                        "tickets_retrieved_from_workflow",
                         workflow_id=workflow_id,
-                        attempt_number=attempt.retry_state.attempt_number,
+                        tickets_count=len(tickets),
+                        polling_attempts=attempt_num,
                     )
+                    break  # Tickets prontos, sair do polling
+                # Lista vazia: workflow ainda não gerou — retentar
+            except WorkflowTicketsNotReadyError:
+                pass  # HTTP 202: ainda processando, retentar
+            except Exception as e:
+                # Transitório (workflow recém-iniciado ainda não queryável): retentar
+                # em vez de cair no fallback imediato (causa-raiz da duplicação).
+                self.logger.debug(
+                    "workflow_query_transient_error_will_retry",
+                    workflow_id=workflow_id,
+                    attempt_number=attempt_num,
+                    error=str(e),
+                    error_type=type(e).__name__,
+                )
 
-                    # Query workflow for tickets via Temporal query
-                    query_result = await self.orchestrator_client.query_workflow(
-                        workflow_id=workflow_id,
-                        query_name="get_tickets",
-                    )
+            if attempt_num < max_attempts:
+                await asyncio.sleep(wait_s)
 
-                    # Extrair tickets do resultado
-                    if isinstance(query_result, dict):
-                        tickets = query_result.get("tickets", [])
-                    elif isinstance(query_result, list):
-                        tickets = query_result
-                    else:
-                        tickets = []
-
-                    # Se tickets foram retornados, sair do loop
-                    if tickets:
-                        self.logger.info(
-                            "tickets_retrieved_from_workflow",
-                            workflow_id=workflow_id,
-                            tickets_count=len(tickets),
-                            polling_attempts=attempt.retry_state.attempt_number,
-                        )
-                        break  # Tickets prontos, sair do polling
-
-                    # Se lista vazia, levantar WorkflowTicketsNotReadyError para retry
-                    # Nota: este caso não deve mais ocorrer com o endpoint retornando 202
-                    self.logger.debug(
-                        "workflow_returned_empty_tickets_will_retry",
-                        workflow_id=workflow_id,
-                        attempt_number=attempt.retry_state.attempt_number,
-                    )
-                    raise WorkflowTicketsNotReadyError(workflow_id=workflow_id)
-
-        except RetryError:
-            # Todos os 10 retries esgotados
+        if not tickets:
+            # Esgotou o polling sem tickets do workflow → fallback legítimo
             duration = time.time() - start_time
             flow_c_workflow_query_duration.labels(query_name="get_tickets").observe(duration)
             flow_c_workflow_query_failures.labels(
                 query_name="get_tickets",
                 reason="workflow_tickets_not_ready_after_retries",
             ).inc()
-
             self.logger.warning(
                 "workflow_tickets_not_ready_after_retries",
                 workflow_id=workflow_id,
                 plan_id=context.plan_id,
-                attempts=10,
+                attempts=max_attempts,
                 duration_seconds=round(duration, 2),
             )
-            # Fallback para extração do cognitive_plan
-            tickets = await self._extract_tickets_from_plan(cognitive_plan, context, workflow_id)
-
-        except Exception as e:
-            # Outros erros (HTTP 500, timeout, etc.)
-            duration = time.time() - start_time
-            flow_c_workflow_query_duration.labels(query_name="get_tickets").observe(duration)
-            flow_c_workflow_query_failures.labels(
-                query_name="get_tickets",
-                reason=type(e).__name__,
-            ).inc()
-
-            self.logger.error(
-                "failed_to_query_workflow_tickets",
-                workflow_id=workflow_id,
-                plan_id=context.plan_id,
-                error=str(e),
-                error_type=type(e).__name__,
-            )
-            # Fallback para extração do cognitive_plan
             tickets = await self._extract_tickets_from_plan(cognitive_plan, context, workflow_id)
 
         # Validar schema dos tickets (se obtidos com sucesso)
