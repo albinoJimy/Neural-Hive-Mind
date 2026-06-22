@@ -40,13 +40,14 @@
 
 ### Fase 2 — Repontar approval-service (o ponto que partiu antes)
 
-- [ ] 4. Repoint declarativo do approval-service
+- [x] 4. Repoint declarativo do approval-service
   - **DoR:** Fase 1 fechada — `plan_approvals`/`specialist_feedback` confirmados em `neural_hive_dev`.
   - **DoD:** E2E A→C6 verde; `plan_approvals` do novo plano em `neural_hive_dev`; 0 ocorrências de HTTP 404 na aprovação; 8/8 tickets COMPLETED.
-  - [ ] 4.1 Criar `environments/dev/helm-values/approval-service-values.yaml` com `config.mongodb.database: neural_hive_dev`
-  - [ ] 4.2 Atualizar/remover o comentário-aviso em `values-dev.yaml:25-34` (deixa de ser verdadeiro após Fase 1)
-  - [ ] 4.3 Deploy declarativo (helm, não patch efémero)
-  - [ ] 4.4 Gate E2E completo + rollback documentado (reverter dev-values + redeploy)
+  - **Evidência:** `sub-specs/fase2-evidence.md` (plano fresco `ed799f2b`: GET aprovação=200 sem 404, approve=200, 8/8 task_ids COMPLETED, plan_approval em neural_hive_dev e ausente de neural_hive).
+  - [x] 4.1 Criar `environments/dev/helm-values/approval-service-values.yaml` (`env.MONGODB_DATABASE: neural_hive_dev` — chave real do chart)
+  - [x] 4.2 Atualizar o comentário-aviso em `values-dev.yaml` (substituído pelo estado pós-Fase 1 + `MONGODB_DATABASE: neural_hive_dev`)
+  - [x] 4.3 Deploy (`kubectl set env` — instância dev gerida manualmente, sem helm release; persistente e reversível)
+  - [x] 4.4 Gate E2E A→C6 verde (0 404, 8/8 COMPLETED) + rollback documentado (reverter env + dev-values)
 
 ### Fase 3 — Repontar restantes escritores
 

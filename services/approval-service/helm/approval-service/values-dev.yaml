@@ -22,13 +22,14 @@ env:
   LOG_LEVEL: DEBUG
   ENABLE_ML_PREDICTION: "false"
   ENABLE_ACTIVE_LEARNING: "false"
-  # NAO sobrescrever MONGODB_DATABASE em dev: o approval-service tem de usar o default
-  # 'neural_hive' (settings.py:98), que e onde a coleccao plan_approvals (e specialist_opinions)
-  # e escrita pelo orchestrator/kafka consumer no startup. Apontar para 'neural_hive_dev'
-  # quebra o pipeline E2E: a lookup de aprovacoes devolve HTTP 404, o consumer de
-  # approval-responses nao encontra o plano pendente, o orchestrator nunca recebe o sinal
-  # de aprovacao e o pipeline produz 0 tickets (C3->C6 partido).
-  # Validado em runtime e documentado em proj_e2e_critical_test_fixes_2026-06-17.md (linha 30):
-  # "approval dava 404->tickets=0. O drift e arquitectura real (opinions+plan_approvals em
-  # neural_hive; ledger+decisions em neural_hive_dev)". O revert 6fddd01d restaurou este default
-  # por motivo tecnico (nao foi um revert sem causa) e NAO deve ser re-aplicado.
+  # Convergência DBs (Fase 2, Task 4): repontado para a DB canónica 'neural_hive_dev'.
+  # CONTEXTO HISTÓRICO: a tentativa anterior (f786fb16) de repontar o approval-service
+  # sozinho deu HTTP 404 → 0 tickets e foi revertida (6fddd01d) — PORQUE o corpus
+  # (plan_approvals, specialist_feedback, specialist_opinions) ainda vivia em
+  # 'neural_hive' e neural_hive_dev estava vazio. Esse aviso DEIXOU DE SER VERDADEIRO:
+  # a Fase 1 (Tasks 2+3) migrou o corpus para neural_hive_dev (plan_approvals 486 +
+  # specialist_feedback 2482 + specialist_opinions, contagens copiadas==origem,
+  # ver docs/specs/2026-06-21-convergencia-dbs/sub-specs/fase1-evidence.md). Com os
+  # dados já presentes no alvo, o repoint é seguro (regra de ouro: dados primeiro,
+  # serviço depois, verificar). Gate E2E A→C6 na Task 4.4.
+  MONGODB_DATABASE: neural_hive_dev

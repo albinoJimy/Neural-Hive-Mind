@@ -1,0 +1,24 @@
+# approval-service — dev values (convergência DBs, Fase 2 / Task 4)
+#
+# Repoint declarativo do approval-service para a DB canónica dev `neural_hive_dev`.
+# Este é "o ponto que partiu" na tentativa ingénua anterior (commit f786fb16,
+# revertida em 6fddd01d): repontar o approval-service sozinho ANTES de os dados
+# existirem no alvo deu HTTP 404 → 0 tickets. A Fase 1 (Tasks 2+3) migrou o corpus
+# (plan_approvals 486 + specialist_feedback 2482 + specialist_opinions) para
+# neural_hive_dev, pelo que o repoint passa a ser seguro — a regra de ouro da spec:
+# migrar dados primeiro, repontar serviço depois, verificar.
+#
+# O chart services/approval-service/helm/approval-service usa `env` como MAP;
+# settings.py:98 lê MONGODB_DATABASE (default de código "neural_hive").
+#
+# NOTA DE DEPLOY: o approval-service de dev corre na namespace `neural-hive`,
+# gerido manualmente (app.kubernetes.io/managed-by: manual; sem helm release —
+# `helm list -A` não mostra approval-service). O apply em runtime é feito por
+# `kubectl set env deployment/approval-service -n neural-hive
+# MONGODB_DATABASE=neural_hive_dev` (persistente e reversível), consistente com a
+# forma como o serviço sempre foi deployado (kubectl set image). Este ficheiro é a
+# fonte-de-verdade declarativa do repoint para quando o deploy migrar para helm.
+# Rollback: repor MONGODB_DATABASE=neural_hive + rollout restart.
+
+env:
+  MONGODB_DATABASE: neural_hive_dev
