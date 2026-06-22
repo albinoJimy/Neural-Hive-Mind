@@ -59,8 +59,10 @@ spec:
                   name: mongodb-secret
                   key: uri
                   optional: true
+            # Convergência DBs (Fase 1, Task 3): corpus de treino consolidado em
+            # neural_hive_dev. O caminho primário (RealDataCollector) honra esta env.
             - name: MONGODB_DATABASE
-              value: "neural_hive"
+              value: "neural_hive_dev"
             - name: MODEL_TYPE
               value: "random_forest"
             - name: HYPERPARAMETER_TUNING

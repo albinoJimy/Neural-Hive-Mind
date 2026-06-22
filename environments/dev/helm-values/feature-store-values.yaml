@@ -1,0 +1,24 @@
+# feature-store — dev values (convergência DBs, Fase 1 / Task 3.2)
+#
+# Repoint declarativo do feature-store para a DB canónica dev `neural_hive_dev`.
+# O `services/feature-store/src/config/settings.py` lê `MONGODB_DATABASE` (pydantic
+# BaseSettings; default de código "neural_hive"). Sem este override o serviço cai
+# no default e lê a DB legada — exatamente o drift que a spec converge.
+#
+# NOTA: o feature-store ainda NÃO está deployed neste cluster (confirmado:
+# `kubectl get deploy -A | grep feature-store` vazio). Este ficheiro deixa o
+# repoint pronto e versionado para o momento do deploy. O override da lista `env`
+# substitui a lista base do chart, por isso replicam-se as entradas base.
+#
+# Uso: helm upgrade ... -f environments/dev/helm-values/feature-store-values.yaml
+
+env:
+  - name: ENVIRONMENT
+    value: development
+  - name: LOG_LEVEL
+    value: INFO
+  - name: PYTHONPATH
+    value: /app:/home/app/.local/lib/python3.12/site-packages
+  # Convergência: corpus e features consolidados em neural_hive_dev.
+  - name: MONGODB_DATABASE
+    value: neural_hive_dev

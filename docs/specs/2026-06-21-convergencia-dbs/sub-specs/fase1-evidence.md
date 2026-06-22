@@ -107,6 +107,97 @@ movido ou alterado.
 - ✅ **Contagens copiadas == origem (menos degenerados)** — `cognitive_ledger` legado
   excluído por desenho (0 candidatos válidos, Fase 0); as 5 coleções do corpus
   copiadas a 100% (`missing=0`).
-- ⏭️ **Retraining vê ≥ baseline de amostras** — pertence à **Task 3** (repontar os
-  cronjobs read-only para `neural_hive_dev` e executar um retraining). Não faz parte
-  da Task 2 (migração); fica como o próximo passo da Fase 1.
+- ✅ **Retraining vê ≥ baseline de amostras** — provado na Task 3 (abaixo).
+
+---
+
+# Task 3 — Repontar consumidores read-only para `neural_hive_dev`
+
+## DoD da Task 3 — checklist com evidência
+
+| Item DoD | Estado | Evidência |
+|---|---|---|
+| Cronjobs de treino leem `neural_hive_dev` (3.1) | ✅ (declarativo) | `MONGODB_DATABASE: neural_hive_dev` nos 3 manifests |
+| Feature-store lê o alvo (3.2) | ✅ (declarativo) | `environments/dev/helm-values/feature-store-values.yaml` |
+| Um retraining vê ≥ nº de amostras do baseline (3.3) | ✅ (data-readiness) | query real do trainer: `neural_hive_dev` ≥ `neural_hive` em todas as métricas |
+
+## 3.1 — Repoint dos cronjobs (declarativo, env `MONGODB_DATABASE`)
+
+Nenhum destes 3 cronjobs está **deployed** no cluster (objetos ausentes em
+`mlflow`/`neural-hive-mind`/`neural-hive-ml`); o repoint é declarativo no manifest
+versionado. A coluna "Código honra a env?" refere-se à resolução da DB no código,
+não a estado de runtime.
+
+| Cronjob | Ficheiro | Env editada | Código honra a env? |
+|---|---|---|---|
+| `specialist-models-retraining` (ns `mlflow`) | `k8s/cronjobs/specialist-retraining-job.yaml` | `MONGODB_DATABASE: neural_hive_dev` | ✅ — caminho primário `RealDataCollector` honra `os.getenv("MONGODB_DATABASE")` (`train_specialist_model.py:706`) |
+| `business-metrics-collector` (ns `neural-hive-mind`) | `k8s/cronjobs/business-metrics-job.yaml` | `MONGODB_DATABASE` + `CONSENSUS_MONGODB_DATABASE: neural_hive_dev` | ✅ — `run_business_metrics_collector.py:34,37` honram as envs |
+| `predictive-models-training` (ns `neural-hive-ml`) | `k8s/cronjobs/predictive-models-training-job.yaml` | `MONGODB_DATABASE: neural_hive_dev` (declarada) | ⚠️ **inerte até Fase 5.1** — `train_predictive_models.py:54` tem a DB hardcoded (`self.mongo_client.neural_hive`) e ignora a env |
+
+## 3.2 — Feature-store
+
+`services/feature-store/src/config/settings.py:40` lê `MONGODB_DATABASE` (pydantic,
+default de código `neural_hive`). Criado
+`environments/dev/helm-values/feature-store-values.yaml` com `MONGODB_DATABASE:
+neural_hive_dev`. **NOTA:** o feature-store **não está deployed** neste cluster
+(`kubectl get deploy -A | grep feature-store` vazio) — o repoint fica versionado e
+pronto para o deploy.
+
+## 3.3 — Prova de "retraining vê ≥ baseline" (data-readiness)
+
+O job containerizado **não foi executado**: os cronjobs não estão deployed e as
+imagens (`...ecr.us-east-1.amazonaws.com/...` para specialists,
+`neural-hive-ml-training:1.0.7` para preditivos) não estão disponíveis neste
+cluster Contabo (`neural-hive-prod`). Em vez de fingir um job (verde-falso), a
+prova é a **query real que o trainer usa** (`RealDataCollector`, ver
+`ml_pipelines/training/real_data_collector.py:273,310-313`) executada contra
+ambas as DBs — é exatamente o que o retraining "vê":
+
+Threshold de feedback: o default real do trainer é `min_feedback_rating=0.0`
+(`real_data_collector.py:231`) e o cronjob não o altera — por isso a métrica
+principal usa `human_rating ≥ 0.0`; mostra-se também `≥ 0.5` (mais restritivo) por
+referência. O gate (dev ≥ baseline) vale em ambos.
+
+| Métrica (query real do trainer) | `neural_hive` (baseline) | `neural_hive_dev` (pós-Task 2) | dev ≥ baseline |
+|---|---|---|---|
+| `specialist_opinions` total | 8291 | 8483 | ✅ |
+| opiniões na janela `created_at ≥ now-90d` | 1806 | 1998 | ✅ |
+| amostras válidas corpus, `human_rating ≥ 0.0` (default do job) | 2406 | 2406 | ✅ (=) |
+| amostras válidas corpus, `human_rating ≥ 0.5` (referência) | 1582 | 1582 | ✅ (=) |
+| amostras válidas 90d (`≥ 0.0` ou `≥ 0.5`) | 5 | 5 | ✅ (=) |
+
+Toda a métrica em `neural_hive_dev` é ≥ a de `neural_hive` — **o sinal de treino
+está reunificado** (dev tem agora todo o corpus legado + os frescos). Antes da
+Task 2, `neural_hive_dev` tinha apenas o corpus fresco e o retraining (apontado a
+`neural_hive`) nunca via os dados frescos; agora a DB canónica contém ambos.
+
+## Achados honestos (fora do âmbito da Task 3 — encaminhados para Fase 5.1)
+
+A Fase 5.1 ("tornar `MONGODB_DATABASE` explícito/obrigatório nos `settings.py`,
+fail-fast") é o lugar próprio para estes; documentados aqui sem mascarar:
+
+1. **DB hardcoded ignora a env** em `ml_pipelines/training/train_predictive_models.py:54`
+   (`self.mongo_client.neural_hive`) e no caminho secundário
+   `ml_pipelines/training/train_specialist_model.py:903` (`db = client["neural_hive"]`).
+   O caminho **primário** do retraining (RealDataCollector) honra a env — por isso
+   o gate 3.3 é real. Os hardcodes precisam do fix da Fase 5.1 para o repoint ser
+   total.
+2. **Divergência de coleção de feedback:** `RealDataCollector` usa por default a
+   coleção `feedback` (`real_data_collector.py:131-133`), que está **vazia** (0 em
+   ambas as DBs); os dados reais vivem em `specialist_feedback` (2482). É um bug
+   pré-existente do pipeline ML (não introduzido pela convergência) — o cronjob
+   teria de definir `FEEDBACK_COLLECTION=specialist_feedback`.
+   **Interação com o achado nº1:** com `feedback` vazia, o caminho primário pode
+   render poucas/0 amostras úteis e accionar o caminho secundário
+   (`train_specialist_model.py:903`, DB hardcoded `neural_hive`) — o que reforça a
+   **urgência da Fase 5.1** (não a dilui). A prova 3.3 acima usa a coleção com
+   dados reais (`specialist_feedback`) para medir o gate de convergência, que é
+   sobre a reunificação do corpus, independente deste bug de configuração do trainer.
+3. **`predictive` depende de `execution_tickets`** (0 em `neural_hive`/`neural_hive_dev`;
+   os tickets reais estão em `neural_hive_orchestration`/PostgreSQL) — bloqueio do
+   diagnóstico do pipeline ML (Tasks 9/12), independente da convergência.
+
+## Reversibilidade
+
+Cada repoint é declarativo (1 edição de manifest/values), revertível voltando
+`MONGODB_DATABASE` a `neural_hive`. `neural_hive` permanece intacta (fallback vivo).

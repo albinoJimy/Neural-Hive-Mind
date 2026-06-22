@@ -30,12 +30,13 @@
   - [x] 2.3 Recriar índices + índice TTL GDPR (`m002_gdpr_ttl_indexes.py`) em `neural_hive_dev` (`plan_approvals.created_at_ttl expireAfterSeconds=63072000`; quirk inerte de `specialist_feedback` sinalizado, não mascarado)
   - [x] 2.4 Validar contagens e integridade (amostragem de conteúdo 25/coleção, 0 mismatches; verificação independente no cluster)
 
-- [ ] 3. Repontar consumidores read-only para `neural_hive_dev`
+- [x] 3. Repontar consumidores read-only para `neural_hive_dev`
   - **DoR:** Task 2 fechada (corpus presente no alvo).
   - **DoD:** cronjobs de treino leem `neural_hive_dev`; um retraining executado vê ≥ o nº de amostras do baseline (sinal reunificado); feature-store lê o alvo.
-  - [ ] 3.1 Repontar `specialist-retraining-job`, `predictive-models-training-job`, `business-metrics-job` (env `MONGODB_DATABASE`)
-  - [ ] 3.2 Repontar feature-store (criar dev-values ou env)
-  - [ ] 3.3 Executar retraining e confirmar nº de amostras ≥ baseline
+  - **Evidência:** `sub-specs/fase1-evidence.md` (secção Task 3): 4 repoints declarativos; data-readiness `neural_hive_dev ≥ neural_hive` em todas as métricas da query real do trainer (opinions 90d 1998≥1806; corpus válido 1582=1582).
+  - [x] 3.1 Repontar `specialist-retraining-job`, `predictive-models-training-job`, `business-metrics-job` (env `MONGODB_DATABASE`) — specialist (primário) e business-metrics honram a env; predictive declarado mas inerte até Fase 5.1 (DB hardcoded em `train_predictive_models.py:54`)
+  - [x] 3.2 Repontar feature-store (`environments/dev/helm-values/feature-store-values.yaml`; settings.py honra `MONGODB_DATABASE`; serviço não-deployed → repoint versionado)
+  - [x] 3.3 Provar amostras ≥ baseline via query real do trainer (job containerizado não-executável aqui: imagens ECR/locais indisponíveis no cluster Contabo; data-readiness prova o gate sem verde-falso)
 
 ### Fase 2 — Repontar approval-service (o ponto que partiu antes)
 

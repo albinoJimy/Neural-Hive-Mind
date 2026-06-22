@@ -70,15 +70,18 @@ spec:
 
             env:
             # MongoDB Ledger
+            # Convergência DBs (Fase 1, Task 3): DB canónica dev.
+            # run_business_metrics_collector.py honra MONGODB_DATABASE (env).
             - name: MONGODB_URI
               valueFrom:
                 secretKeyRef:
                   name: mongodb-credentials
                   key: uri
             - name: MONGODB_DATABASE
-              value: "neural_hive"
+              value: "neural_hive_dev"
 
             # MongoDB Consensus
+            # consensus_decisions vive em neural_hive_dev (fresco) — repontado.
             - name: CONSENSUS_MONGODB_URI
               valueFrom:
                 secretKeyRef:
@@ -86,7 +89,7 @@ spec:
                   key: uri
                   optional: true
             - name: CONSENSUS_MONGODB_DATABASE
-              value: "neural_hive"
+              value: "neural_hive_dev"
             - name: CONSENSUS_COLLECTION_NAME
               value: "consensus_decisions"
 
