@@ -21,13 +21,14 @@
 
 ### Fase 1 — Consolidar o corpus de treino (sem repontar escritores)
 
-- [ ] 2. Migrar corpus válido `neural_hive → neural_hive_dev`
+- [x] 2. Migrar corpus válido `neural_hive → neural_hive_dev`
   - **DoR:** Fase 0 fechada (backup restaurável); script de migração idempotente revisto.
   - **DoD:** contagens copiadas == origem (menos degenerados) para `specialist_feedback`, `specialist_opinions` (de-dup), `plan_approvals`, `plan_features`, `explainability_ledger`; índices recriados; TTL GDPR de `plan_approvals` presente no alvo.
-  - [ ] 2.1 Script de migração aditiva idempotente (upsert por chave natural; re-executável sem duplicar)
-  - [ ] 2.2 De-duplicação de `specialist_opinions` (chave `plan_id`+`specialist_type`+`created_at`)
-  - [ ] 2.3 Recriar índices + índice TTL GDPR (`m002_gdpr_ttl_indexes.py`) em `neural_hive_dev`
-  - [ ] 2.4 Validar contagens e integridade (amostragem de docs migrados vs origem)
+  - **Evidência:** `sub-specs/fase1-evidence.md` (APPLY verde, `missing=0` nas 5 coleções; 2ª run idempotente insere 0; TTL GDPR `plan_approvals` ativo; verificação independente no cluster).
+  - [x] 2.1 Script de migração aditiva idempotente (`10-migrate-corpus.{sh,js}`, insert-if-absent por chave única natural; preserva `_id`; 2ª execução insere 0)
+  - [x] 2.2 De-duplicação de `specialist_opinions` (chave lógica `plan_id`+`specialist_type`+`created_at`; 0 dups por `opinion_id` no alvo)
+  - [x] 2.3 Recriar índices + índice TTL GDPR (`m002_gdpr_ttl_indexes.py`) em `neural_hive_dev` (`plan_approvals.created_at_ttl expireAfterSeconds=63072000`; quirk inerte de `specialist_feedback` sinalizado, não mascarado)
+  - [x] 2.4 Validar contagens e integridade (amostragem de conteúdo 25/coleção, 0 mismatches; verificação independente no cluster)
 
 - [ ] 3. Repontar consumidores read-only para `neural_hive_dev`
   - **DoR:** Task 2 fechada (corpus presente no alvo).

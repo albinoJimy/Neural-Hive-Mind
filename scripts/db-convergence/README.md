@@ -1,10 +1,12 @@
-# scripts/db-convergence — Fase 0 (convergencia-dbs)
+# scripts/db-convergence — convergencia-dbs (Fases 0–1)
 
-Deliverables da **Fase 0** da spec `docs/specs/2026-06-21-convergencia-dbs/`:
-preparacao risco-zero (backup verificavel + inventario + identificacao de
-registos degenerados). **Nao reaponta servicos. Nao apaga dados.** Todas as
-operacoes Mongo/PostgreSQL correm via `kubectl exec` dentro dos pods (a maquina
-local so tem `kubectl` e `jq`).
+Deliverables da spec `docs/specs/2026-06-21-convergencia-dbs/`.
+**Fase 0** (00–03): preparacao risco-zero (backup verificavel + inventario +
+identificacao de registos degenerados) — nao reaponta servicos, nao apaga dados.
+**Fase 1** (10): migracao ADITIVA, IDEMPOTENTE e NAO-DESTRUTIVA do corpus de
+treino valido `neural_hive → neural_hive_dev` (copia, nao move; origem intacta).
+Todas as operacoes Mongo/PostgreSQL correm via `kubectl exec` dentro dos pods (a
+maquina local so tem `kubectl` e `jq`).
 
 ## Ordem de execucao
 
@@ -14,8 +16,21 @@ local so tem `kubectl` e `jq`).
 | 2 | `01-backup.sh` | `mongodump` das 4 DBs Mongo + `pg_dump` de TODAS as DBs PostgreSQL nao-sistema (cobre `sla_management`, onde residem os tickets reais) para `./.db-backups/<UTC-timestamp>/`. Idempotente (timestamp por execucao). | Nao (read-only sobre as DBs) |
 | 3 | `02-restore-test.sh [backup-dir]` | Prova que o backup e restauravel (gate Fase 0): namespace efemero + Mongo minimo (`mongorestore` de `neural_hive_dev`) **e** PostgreSQL minimo (`pg_restore` de `sla_management`, 935 tickets reais); compara contagens com a origem read-only em ambos; veredicto combinado exige Mongo **e** PG verdes; limpa o namespace. Falha honesta se um pod nao agendar. | Apenas namespace efemero isolado |
 | 4 | `03-identify-degenerate.js` | mongosh read-only que **identifica** (nao apaga) registos degenerados em `cognitive_ledger@neural_hive`. | Nao (read-only) |
+| 5 | `10-migrate-corpus.{sh,js}` | **Fase 1**: copia o corpus valido (`specialist_feedback`, `specialist_opinions` de-dup, `plan_approvals`, `plan_features`, `explainability_ledger`) de `neural_hive` para `neural_hive_dev`. Insert-if-absent por chave unica natural (nao clobra docs frescos; preserva `_id`; re-executavel sem duplicar). Recria indices + TTL GDPR (m002). Gate: `missing=0` + amostragem de conteudo. | Escreve em `neural_hive_dev` (so com `APPLY=true`) |
 
-Sequencia tipica: `00` → `01` → `02` → `03`.
+Sequencia tipica: `00` → `01` → `02` → `03` → `10`.
+
+### Correr a migracao da Fase 1 (passo 5)
+
+```bash
+# DRY-RUN (default, zero escrita — revê o que faria):
+scripts/db-convergence/10-migrate-corpus.sh
+# APLICAR (escreve no alvo; aditivo/idempotente/reversivel):
+APPLY=true scripts/db-convergence/10-migrate-corpus.sh
+```
+
+Default seguro: sem `APPLY=true` corre em dry-run. Re-executar com `APPLY=true` e
+um no-op (insere 0). Evidencia: `../../docs/specs/2026-06-21-convergencia-dbs/sub-specs/fase1-evidence.md`.
 
 ### Correr o identificador de degenerados (passo 4)
 
@@ -47,6 +62,10 @@ apagado pelo trap de cleanup ao fim de minutos.
 | `MONGO_CONTAINER` | `mongodb` | todos |
 | `MONGO_USER` | `root` | todos |
 | `MONGO_PASSWORD` | secret `mongodb-cluster/mongodb` | todos |
+| `APPLY` | `false` (dry-run) | `10` (so `true` escreve) |
+| `SRC_DB` | `neural_hive` | `10` (origem da copia) |
+| `DST_DB` | `neural_hive_dev` | `10` (alvo da copia) |
+| `SAMPLE_N` | `25` | `10` (amostra de integridade por colecao) |
 | `PG_NS` | `neural-hive-data` | `00`, `01` |
 | `PG_POD` | auto (`app=postgres-sla`) | `00`, `01` |
 | `PG_USER` | `sla_user` | `00`, `01` |
