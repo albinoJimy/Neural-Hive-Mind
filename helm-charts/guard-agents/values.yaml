@@ -1,6 +1,12 @@
 component: "guard-agents"
 layer: "resilience"
 
+# TR-2: labels Gatekeeper-compliant para ns `neural-hive`.
+podLabels:
+  app: guard-agents
+  component: guard-agents
+  version: "1.2.0"
+
 image:
   repository: ghcr.io/albinojimy/neural-hive-mind/guard-agents
   tag: "1.2.0"

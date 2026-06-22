@@ -1,6 +1,12 @@
 component: "scout-agents"
 layer: "exploration"
 
+# TR-2: labels Gatekeeper-compliant para ns `neural-hive`.
+podLabels:
+  app: scout-agents
+  component: scout-agents
+  version: "1.2.0"
+
 serviceAccount:
   create: true
   name: ""

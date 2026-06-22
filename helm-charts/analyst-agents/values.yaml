@@ -1,6 +1,15 @@
 component: "analyst-agents"
 layer: "analise"
 
+# TR-2: labels exigidas pelo Gatekeeper constraint
+# `neural-hive-pod-labels` (ver helm-charts/worker-agents/values.yaml
+# para contexto). Sem estas labels, criação de pods em ns `neural-hive`
+# é rejeitada e o deploy fica em 0/0.
+podLabels:
+  app: analyst-agents
+  component: analyst-agents
+  version: "1.2.1"
+
 nameOverride: ""
 fullnameOverride: ""
 
