@@ -30,7 +30,7 @@
   - [x] 2.1 Teste do adapter (`tests/unit/test_execution_result_consumer_feedback.py`, 6 testes: `capability="EXECUTE"`, `simulated`←`metadata.simulated`, `completed_at` fallback millis, no-sink noop, integração `_process_result` emite+signala, falha não bloqueia signal/commit)
   - [x] 2.2 `feedback_sink` no construtor do `ExecutionResultConsumer` (kwarg opcional, não quebra assinatura); `_emit_feedback()` adapter defensivo (try/except, sem Mongo); chamada após `_send_workflow_signal`, antes do `commit`
   - [x] 2.3 DI: `FeedbackSink(app_state.mongodb_client, metrics=...)` injetado no `main.py` (guarda `if FeedbackSink and app_state.mongodb_client`)
-  - [~] 2.4 Gate E2E A→C6 **PENDENTE de cluster** (script E2E não corre via harness — exit 144, ver MEMORY). Desacoplamento (persist falha → signal+commit continuam) PROVADO por teste de integração. A correr no cluster: 8/8 COMPLETED + `actual_duration_ms>0` + `completed_at` epoch millis
+  - [x] 2.4 Gate E2E A→C6 **PROVADO no cluster** (imagem a64d7f0): intenção→plano→aprovação→8/8 tickets COMPLETED, todos com `feedback_persisted_at` SET, `capability=EXECUTE`, `completed_at instanceof Date`, `actual_duration_ms` real. Ver `sub-specs/e2e-cluster-evidence.md`
 
 ### Fase 2 — Leitor LEARN (alinhar o consumidor de dados)
 
@@ -40,7 +40,7 @@
   - **Evidência:** `sub-specs/fase2-evidence.md` (2 testes de contrato verdes; diff mínimo 20/5; 6 falhas de `test_ml_prediction_integration` provadas PRÉ-EXISTENTES).
   - [x] 3.1 **CORRIGIDO pós-gate de cluster:** `completed_at` é BSON `Date` (não millis) — filtro usa `datetime` nos 2 sítios; sink converte millis→Date. Ver `sub-specs/cluster-gate-evidence.md`
   - [x] 3.2 `result_simulated: {"$ne": True}` adicionado às queries de contagem e de treino
-  - [x] 3.3 **VALIDADO com dados reais** (`neural_hive_orchestration`, 30d): filtro corrigido → 208 treináveis ≥ `ml_min_training_samples=100`. (A Fase 2 errada em millis dava 32 < 100 = regressão evitada.) Teste unit verifica `$gte` é `datetime`
+  - [x] 3.3 **VALIDADO com dados reais** (`neural_hive_orchestration`, 30d, pós-E2E): filtro corrigido → **214 treináveis ≥ `ml_min=100`**; 2 simulados (task_3/task_6) excluídos do treino. (A Fase 2 errada em millis dava 32 < 100 = regressão evitada.) Ver `sub-specs/e2e-cluster-evidence.md`
 
 ### Fase 3 — Anti-regressão e prova de transversalidade
 
@@ -48,7 +48,7 @@
   - **DoR:** Fases 1–2 verdes.
   - **DoD:** guarda que falha se o filtro do predictor voltar a usar `datetime`; teste de transversalidade do sink no CI; guarda de contrato cruzado sink↔predictor; assert E2E de loop-fechado documentado para o cluster.
   - **Evidência:** `sub-specs/fase3-evidence.md` (guarda de contrato cruzado PROVADA a detetar regressão por renomeação; 21/21 testes do loop verdes; ruff limpo).
-  - [~] 4.1 Assert E2E "tickets com `actual_duration_ms>0` > 0" — o script `test-e2e-pipeline-completo.sh` é **git-ignored** (não versionável); snippet de validação `mongosh` documentado em `fase3-evidence.md` para correr no cluster
+  - [x] 4.1 Assert E2E de loop-fechado **PROVADO no cluster**: 8 tickets do plano E2E com `feedback_persisted_at` SET (sink gravou). Script `test-e2e-pipeline-completo.sh` git-ignored (não corre no sandbox — exit 144); E2E replicado via pods ClusterIP. Ver `sub-specs/e2e-cluster-evidence.md`
   - [x] 4.2 Guarda de tipo no CI: `test_duration_predictor_feedback_query.py` + `test_loop_learn_contract_guard.py::test_predictor_time_filter_is_datetime_matching_bson_date` (falham se o filtro voltar a millis — completed_at é BSON Date)
   - [x] 4.3 Transversalidade no CI: `test_feedback_sink.py::test_transversal_accepts_generate_without_change` (gate corre em `tests/unit/`) — âncora do princípio
   - [x] 4.4 **NOVO** guarda de contrato cruzado `test_loop_learn_contract_guard.py` (sink↔predictor; provada a detetar renomeação); estado final + ganchos `capability`/`journey_id` documentados em `fase3-evidence.md`

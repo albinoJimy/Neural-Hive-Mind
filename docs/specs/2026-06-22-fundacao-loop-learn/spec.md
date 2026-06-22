@@ -2,7 +2,7 @@
 
 > Spec: fundacao-loop-learn
 > Created: 2026-06-22
-> Status: Em execução — Fases 0-3 código completo e verde (21/21 testes); gate de cluster CORRIGIU a Fase 2 (completed_at é BSON Date, não millis — ver sub-specs/cluster-gate-evidence.md) e validou 208 treináveis ≥ 100; falta deploy + E2E A→C6
+> Status: CONCLUÍDA — Fases 0-3 (22 testes verdes); gate de cluster corrigiu o contrato (BSON Date); auditoria qualidade+completude corrigiu C1/C2/A1; deployed (orchestrator-dynamic:a64d7f0, 4/4 Ready); **E2E A→C6 PROVADO no cluster** (8/8 tickets com feedback do sink, completed_at Date, result_simulated funcional, 214 treináveis ≥ 100). Ver sub-specs/e2e-cluster-evidence.md
 
 ## Overview
 
