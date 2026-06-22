@@ -23,14 +23,14 @@
 
 ### Fase 1 — Adapter EXECUTE (ligar o emissor à Fundação)
 
-- [ ] 2. `execution_result_consumer` como adapter fino + DI do sink
+- [~] 2. `execution_result_consumer` como adapter fino + DI do sink (código completo; gate E2E real pendente de cluster)
   - **DoR:** Fase 0 fechada (sink testado).
   - **DoD:** o consumer traduz `ExecutionResult` → `ExecutionFeedback` e delega ao sink (sem lógica de Mongo no consumer); persistência desacoplada do signal (falha não bloqueia o workflow); E2E A→C6 fecha 8/8 tickets COMPLETED e os tickets ficam com `actual_duration_ms>0` e `completed_at` em millis.
-  - **Evidência:** `sub-specs/fase1-evidence.md` (plano de teste + contagem por DB + prova de que o signal continua a fechar).
-  - [ ] 2.1 Escrever teste do adapter (`_emit_feedback` mapeia `metadata.simulated`→`simulated`, `actual_duration_ms`, `capability="EXECUTE"`; `journey_id` opcional)
-  - [ ] 2.2 Adicionar `feedback_sink` ao construtor do `ExecutionResultConsumer`; implementar `_emit_feedback()`; chamar após `_send_workflow_signal`, antes do `commit`
-  - [ ] 2.3 Injetar `FeedbackSink(app_state.mongodb_client)` no `main.py` (DI já disponível em `main.py:498,544`)
-  - [ ] 2.4 Gate E2E A→C6: 8/8 COMPLETED + `db.execution_tickets` do novo plano com `actual_duration_ms>0` e `completed_at` epoch millis; provar que persist falha (Mongo down simulado) NÃO impede o signal
+  - **Evidência:** `sub-specs/fase1-evidence.md` (6 testes de adapter verdes; desacoplamento provado por `test_feedback_failure_does_not_block_signal_or_commit`; gate E2E A→C6 marcado como pendente de execução no cluster).
+  - [x] 2.1 Teste do adapter (`tests/unit/test_execution_result_consumer_feedback.py`, 6 testes: `capability="EXECUTE"`, `simulated`←`metadata.simulated`, `completed_at` fallback millis, no-sink noop, integração `_process_result` emite+signala, falha não bloqueia signal/commit)
+  - [x] 2.2 `feedback_sink` no construtor do `ExecutionResultConsumer` (kwarg opcional, não quebra assinatura); `_emit_feedback()` adapter defensivo (try/except, sem Mongo); chamada após `_send_workflow_signal`, antes do `commit`
+  - [x] 2.3 DI: `FeedbackSink(app_state.mongodb_client, metrics=...)` injetado no `main.py` (guarda `if FeedbackSink and app_state.mongodb_client`)
+  - [~] 2.4 Gate E2E A→C6 **PENDENTE de cluster** (script E2E não corre via harness — exit 144, ver MEMORY). Desacoplamento (persist falha → signal+commit continuam) PROVADO por teste de integração. A correr no cluster: 8/8 COMPLETED + `actual_duration_ms>0` + `completed_at` epoch millis
 
 ### Fase 2 — Leitor LEARN (alinhar o consumidor de dados)
 

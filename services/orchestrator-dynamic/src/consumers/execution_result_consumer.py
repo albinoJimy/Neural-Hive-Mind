@@ -10,10 +10,13 @@ Fluxo:
 
 import contextlib
 import json
+from datetime import datetime, timezone
 from typing import Any
 
 import structlog
 from aiokafka import AIOKafkaConsumer
+
+from src.models.execution_feedback import ExecutionFeedback
 
 logger = structlog.get_logger(__name__)
 
@@ -25,7 +28,9 @@ class ExecutionResultConsumer:
     WORKFLOW_CACHE_PREFIX = "workflow:by:ticket:"
     WORKFLOW_CACHE_TTL = 86400  # 24h
 
-    def __init__(self, config, temporal_client, redis_client, metrics=None):
+    def __init__(
+        self, config, temporal_client, redis_client, feedback_sink=None, metrics=None
+    ):
         """
         Inicializa o consumer.
 
@@ -33,11 +38,13 @@ class ExecutionResultConsumer:
             config: Configurações da aplicação
             temporal_client: Cliente Temporal para enviar signals
             redis_client: Cliente Redis para cache de workflow_id
+            feedback_sink: FeedbackSink do loop OBSERVE→LEARN (plano-Z); opcional
             metrics: Instância de métricas (opcional)
         """
         self.config = config
         self.temporal_client = temporal_client
         self.redis_client = redis_client
+        self.feedback_sink = feedback_sink
         self.metrics = metrics
         self.consumer: AIOKafkaConsumer | None = None
         self.running = False
@@ -157,10 +164,14 @@ class ExecutionResultConsumer:
                 await self.consumer.commit()
                 return
 
-            # Enviar signal para Temporal
+            # Enviar signal para Temporal (capacidade EXECUTE)
             await self._send_workflow_signal(
                 workflow_id=workflow_id, ticket_id=ticket_id, result=result_data
             )
+
+            # Fechar o loop LEARN (plano-Z): persistir feedback de execução.
+            # Desacoplado do signal — falha aqui nunca bloqueia o workflow.
+            await self._emit_feedback(result_data)
 
             # Commit offset após processamento bem-sucedido
             await self.consumer.commit()
@@ -280,6 +291,43 @@ class ExecutionResultConsumer:
                 exc_info=True,
             )
             raise
+
+    async def _emit_feedback(self, result_data: dict[str, Any]) -> None:
+        """
+        Adapter EXECUTE: traduz o ExecutionResult para o contrato canónico
+        ExecutionFeedback e delega ao FeedbackSink (plano-Z do loop LEARN).
+
+        Sem lógica de Mongo aqui — a persistência vive no sink. Desacoplado e
+        defensivo: uma falha de telemetria nunca bloqueia o workflow.
+        """
+        if not self.feedback_sink:
+            return
+
+        try:
+            ticket_id = result_data.get("ticket_id")
+            now_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
+            metadata = result_data.get("metadata") or {}
+            feedback = ExecutionFeedback(
+                feedback_id=f"{ticket_id}:{now_ms}",
+                feedback_persisted_at=now_ms,
+                capability="EXECUTE",
+                journey_id=result_data.get("journey_id"),
+                ticket_id=ticket_id,
+                plan_id=result_data.get("plan_id", ""),
+                trace_id=result_data.get("trace_id"),
+                status=result_data.get("status", ""),
+                actual_duration_ms=result_data.get("actual_duration_ms"),
+                started_at=result_data.get("started_at"),
+                completed_at=result_data.get("completed_at") or now_ms,
+                simulated=bool(metadata.get("simulated", False)),
+            )
+            await self.feedback_sink.record(feedback)
+        except Exception as e:
+            logger.warning(
+                "execution_feedback_emit_failed",
+                ticket_id=result_data.get("ticket_id"),
+                error=str(e),
+            )
 
     def _deserialize(self, message) -> dict[str, Any]:
         """
