@@ -37,6 +37,12 @@ try:
 except ImportError:
     EXECUTION_RESULT_CONSUMER_AVAILABLE = False
     ExecutionResultConsumer = None
+
+# Loop OBSERVE→LEARN (plano-Z): FeedbackSink transversal
+try:
+    from src.observability.feedback_sink import FeedbackSink
+except ImportError:
+    FeedbackSink = None
 from datetime import datetime, timezone
 
 UTC = timezone.utc
@@ -866,10 +872,18 @@ async def lifespan(app: FastAPI):
             config, "execution_result_consumer_enabled", True
         ):
             logger.info("Inicializando Execution Result Consumer")
+            # Fundação do loop LEARN: sink transversal que persiste o feedback
+            # de execução no corpus que o duration_predictor consome.
+            feedback_sink = (
+                FeedbackSink(app_state.mongodb_client, metrics=orchestrator_metrics)
+                if FeedbackSink and app_state.mongodb_client
+                else None
+            )
             app_state.execution_result_consumer = ExecutionResultConsumer(
                 config,
                 app_state.temporal_client,
                 app_state.redis_client,
+                feedback_sink=feedback_sink,
                 metrics=orchestrator_metrics,
             )
             await app_state.execution_result_consumer.initialize()
