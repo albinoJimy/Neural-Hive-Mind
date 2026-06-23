@@ -52,8 +52,12 @@ deployment:
   strategy:
     type: RollingUpdate
     rollingUpdate:
-      maxSurge: 1
-      maxUnavailable: 0
+      # Cluster dev com memoria sobre-comprometida: maxSurge=0 + maxUnavailable=1
+      # mata o pod antigo antes de criar o novo (evita deadlock de rollout em que
+      # o pod surge fica Pending por falta de memoria). Breve indisponibilidade no
+      # rollout e aceitavel em dev (replica unica + modelo/embeddings pesados).
+      maxSurge: 0
+      maxUnavailable: 1
 
 # Pós-deploy (obrigatório após redução de memória e failureThreshold):
 # - Monitorar container_memory_usage_bytes e eventos dos pods nos specialists e no consensus-engine.
