@@ -28,13 +28,13 @@
 
 ### Fase 2 — `JourneyClassifier` Tier 2 (LLM semântico)
 
-- [ ] 3. Classificação por LLM nos casos ambíguos + fallback
+- [x] 3. Classificação por LLM nos casos ambíguos + fallback (pipeline: dev→auditorias→remediação)
   - **DoR:** Fase 1 fechada; `neural_hive_llm` disponível.
-  - **DoD:** quando Tier 1 não dá sinal forte, invoca `neural_hive_llm` (prompt estruturado → journey+confidence+reasoning); falha/timeout do LLM → degrada para melhor sinal Tier 1 ou UNKNOWN; baixa confiança → UNKNOWN. Testes (LLM mockado) verdes.
-  - **Evidência:** `sub-specs/fase2-evidence.md`.
-  - [ ] 3.1 Escrever testes Tier 2 (LLM mockado → Journey+confidence+reasoning, `classification_method="llm"`; LLM falha → fallback; confidence<threshold → UNKNOWN)
-  - [ ] 3.2 Integrar `neural_hive_llm` (circuit breaker) no classifier; prompt estruturado; parsing defensivo da resposta
-  - [ ] 3.3 Verificar testes verdes
+  - **DoD:** quando Tier 1 não dá sinal forte, invoca `neural_hive_llm` (prompt estruturado → journey+confidence+reasoning); falha/timeout → UNKNOWN; baixa confiança → UNKNOWN. Testes (LLM mockado) verdes.
+  - **Evidência:** `sub-specs/fase2-evidence.md` (40 testes; auditoria apanhou CRÍTICO sync-over-async → classify() tornado async; +regex lazy, +truncagem prompt, +testes).
+  - [x] 3.1 Testes Tier 2 (LLM mockado: Journey+confidence+reasoning method="llm"; falha→fallback; confidence<threshold→UNKNOWN; malformado/vazio/bool/reasoning-ausente; prefácio-sufixo)
+  - [x] 3.2 `neural_hive_llm` (LLMClient.generate, circuit breaker embutido) via DI; prompt estruturado (truncado, temp=0); parsing defensivo (_extract_json lazy)
+  - [x] 3.3 40/40 verdes; **classify() async** (correção crítica); threshold no settings; Tier 1 preservado; sem regressões
 
 ### Fase 3 — Propagação no plano + roteamento por jornada
 

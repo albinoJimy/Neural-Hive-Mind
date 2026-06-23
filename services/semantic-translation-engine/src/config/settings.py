@@ -195,6 +195,16 @@ class Settings(BaseSettings):
         default=0.7, description="Minimum confidence threshold for pattern matching"
     )
 
+    # Journey Classifier Configuration
+    journey_confidence_threshold: float = Field(
+        default=0.6,
+        description=(
+            "Confiança mínima para aceitar uma jornada do classificador "
+            "(Tier 2/LLM); abaixo disto -> UNKNOWN (anti-verde-falso). "
+            "Alinhado com o threshold do NLU."
+        ),
+    )
+
     # Task Splitting Configuration
     task_splitting_enabled: bool = Field(
         default=True, description="Enable task splitting for complex tasks"
@@ -218,6 +228,14 @@ class Settings(BaseSettings):
         """Validate pattern confidence is between 0 and 1"""
         if not 0 <= v <= 1:
             raise ValueError("Pattern confidence must be between 0 and 1")
+        return v
+
+    @field_validator("journey_confidence_threshold")
+    @classmethod
+    def validate_journey_confidence_threshold(cls, v: float) -> float:
+        """Validate journey confidence threshold is between 0 and 1"""
+        if not 0 <= v <= 1:
+            raise ValueError("Journey confidence threshold must be between 0 and 1")
         return v
 
     @field_validator("task_splitting_complexity_threshold")
