@@ -130,6 +130,11 @@ async def generate_execution_tickets(
         decision_id = consolidated_decision["decision_id"] if consolidated_decision else None
         risk_band = cognitive_plan.get("risk_band", "medium")
 
+        # journey_id (spec journey-router Fase 3): decidido no STE, propaga até ao
+        # ExecutionFeedback via ticket -> execution.results. "" (default do modelo,
+        # sem decisão) normaliza para None (não inventa um id).
+        journey_id = plan_data.get("journey_id") or cognitive_plan.get("journey_id") or None
+
         logger.info(
             "ticket_generation_vars_extracted",
             plan_id=plan_id,
@@ -230,6 +235,9 @@ async def generate_execution_tickets(
                 "trace_id": (consolidated_decision or cognitive_plan).get("trace_id"),
                 "span_id": (consolidated_decision or cognitive_plan).get("span_id"),
                 "task_id": task_id,
+                # journey_id (spec journey-router Fase 3): herdado do plano,
+                # propaga para o worker e daí para execution.results.
+                "journey_id": journey_id,
                 "task_type": task.get("task_type", "EXECUTE"),
                 "description": task.get("description", ""),
                 "dependencies": [],  # Será preenchido após mapeamento

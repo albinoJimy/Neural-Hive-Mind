@@ -38,14 +38,14 @@
 
 ### Fase 3 — Propagação no plano + roteamento por jornada
 
-- [ ] 4. STE grava journey; decision_consumer roteia por journey; journey_id flui
+- [~] 4. STE grava journey; decision_consumer roteia por journey; journey_id flui (código completo; gate E2E pendente de cluster)
   - **DoR:** Fase 2 fechada.
-  - **DoD:** `cognitive_plan` ganha `journey`/`journey_id`/`journey_confidence`/`journey_reasoning`/`journey_classification_method`; STE chama o classifier e grava; `decision_consumer` roteia por `journey` (não re-deriva); `journey_id` propaga até ao `ExecutionFeedback`. E2E A→C6 verde com journey_id preenchido.
-  - **Evidência:** `sub-specs/fase3-evidence.md`.
-  - [ ] 4.1 Escrever testes (cognitive_plan com campos journey; STE invoca classifier e grava; decision_consumer roteia J3→fluxo_g / J2/J4→orchestration-cutover / J1→plan-only)
-  - [ ] 4.2 Adicionar campos journey ao `models/cognitive_plan.py` (opcionais, default — compat Avro) + gravação no `orchestrator.py`
-  - [ ] 4.3 `decision_consumer` roteia por `journey`; injeta `journey_id` nos tickets/`execution.tickets`
-  - [ ] 4.4 Gate E2E A→C6: `cognitive_plan.journey` preenchido e `ExecutionFeedback.journey_id` herdado (não None) em `neural_hive_orchestration`
+  - **DoD:** `cognitive_plan` ganha os 5 campos journey; STE chama o classifier e grava; `decision_consumer` roteia por `journey` (não re-deriva); `journey_id` propaga até ao `ExecutionFeedback`. E2E A→C6 verde com journey_id preenchido.
+  - **Evidência:** `sub-specs/fase3-evidence.md` (pipeline; auditoria apanhou CRÍTICO: drift schema Avro cognitive-plan → 5 campos adicionados aos 2 .avsc; +KeyError fix; ~68 testes journey verdes).
+  - [x] 4.1 Testes por serviço (STE 11, orchestrator 16, worker 4; routing journey + fallback + propagação)
+  - [x] 4.2 5 campos journey no `cognitive_plan.py` (opcionais, default) + `to_avro_dict` + **schemas Avro (2 .avsc)** + gravação no `orchestrator.py` (await classify, falha→UNKNOWN)
+  - [x] 4.3 `decision_consumer` roteia por `journey` (J3→fluxo_g; J2/J4→orchestration; J1→plan-only) + fallback workflow_type; journey_id no ticket→result→feedback (6 call-sites + avsc)
+  - [~] 4.4 Gate E2E A→C6 **PENDENTE de cluster** (requer deploy STE+orchestrator+worker + **re-registo dos schemas no Schema Registry**): `cognitive_plan.journey` preenchido + `ExecutionFeedback.journey_id` herdado em `neural_hive_orchestration`
 
 ### Fase 4 — Marcador de ingestão (J4) + métricas por jornada
 

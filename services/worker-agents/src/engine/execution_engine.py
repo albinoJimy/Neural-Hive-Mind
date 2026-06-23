@@ -436,12 +436,18 @@ class ExecutionEngine:
         plan_id = ticket.get("plan_id")
         workflow_id = ticket.get("workflow_id") or metadata.get("workflow_id")
         correlation_id = ticket.get("correlation_id") or ticket.get("correlationId")
+        # journey_id (spec journey-router Fase 3): propaga do ticket para o evento
+        # execution.results, fechando a cadeia até ao ExecutionFeedback (o
+        # _emit_feedback do orchestrator já lê result_data.get("journey_id")).
+        journey_id = ticket.get("journey_id")
         if plan_id:
             kwargs["plan_id"] = plan_id
         if workflow_id:
             kwargs["workflow_id"] = workflow_id
         if correlation_id:
             kwargs["correlation_id"] = correlation_id
+        if journey_id:
+            kwargs["journey_id"] = journey_id
         return kwargs
 
     async def _execute_ticket(self, ticket: dict[str, Any]):

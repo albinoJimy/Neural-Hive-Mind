@@ -105,6 +105,12 @@
       "type": ["null", "string"],
       "default": null,
       "doc": "ID de correlação para tracing distribuído"
+    },
+    {
+      "name": "journey_id",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Gancho de Roteamento (journey router); propaga do cognitive_plan -> ticket -> result -> ExecutionFeedback"
     }
   ]
 }

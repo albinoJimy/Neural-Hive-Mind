@@ -196,6 +196,51 @@ def _select_workflow_class(workflow_type: str):
     return OrchestrationWorkflow
 
 
+def _get_journey_from_plan(plan: dict) -> str:
+    """Extrai a journey do Cognitive Plan (decidida no STE).
+
+    Defensivo e case-insensitive. Planos antigos (sem journey) ou com journey
+    vazia (default do modelo) devolvem "UNKNOWN", o que aciona o fallback ao
+    roteamento legado por workflow_type.
+
+    Args:
+        plan: Dicionário do Cognitive Plan.
+
+    Returns:
+        Journey em UPPER_CASE (ex: "J3_BUILD") ou "UNKNOWN".
+    """
+    journey = plan.get("journey")
+    if isinstance(journey, str) and journey.strip():
+        return journey.strip().upper()
+    return "UNKNOWN"
+
+
+def _is_plan_only(journey: str) -> bool:
+    """J1_PLAN_ONLY significa planeamento sem execução a jusante."""
+    return journey == "J1_PLAN_ONLY"
+
+
+def _select_workflow_class_by_journey(journey: str):
+    """Seleciona a classe de workflow por journey (decisão única do STE).
+
+    - J3_BUILD       -> FluxoGWorkflow (geração / fluxo G)
+    - J2_ORCHESTRATE -> OrchestrationWorkflow
+    - J4_MIGRATE     -> OrchestrationWorkflow (cutover é sub-fluxo da orquestração)
+    - J1_PLAN_ONLY   -> None (sem execução; plan-only)
+    - UNKNOWN/outras -> None (sinaliza ao chamador para fazer fallback workflow_type)
+
+    Returns:
+        Classe de workflow, ou None quando não há decisão de execução por journey
+        (plan-only ou journey ausente/desconhecida → fallback workflow_type).
+    """
+    if journey == "J3_BUILD":
+        return FluxoGWorkflow
+    if journey in ("J2_ORCHESTRATE", "J4_MIGRATE"):
+        return OrchestrationWorkflow
+    # J1_PLAN_ONLY e UNKNOWN não têm workflow de execução por journey.
+    return None
+
+
 class DecisionConsumer:
     """Consumer Kafka para decisões consolidadas."""
 
@@ -713,7 +758,9 @@ class DecisionConsumer:
                 logger.error(
                     "Cognitive Plan não encontrado no ledger",
                     plan_id=plan_id,
-                    decision_id=consolidated_decision["decision_id"],
+                    # is_direct_plan força decision_id ausente → .get evita KeyError
+                    # (que faria loop infinito de retry sem commit do offset).
+                    decision_id=consolidated_decision.get("decision_id"),
                 )
                 # Não commitar o offset para permitir retry
                 # Este é um erro que pode ser temporário (plan ainda não persistido)
@@ -760,15 +807,45 @@ class DecisionConsumer:
                 "is_direct_plan": is_direct_plan,
             }
 
-            # Routing dinâmico baseado no workflow_type do Cognitive Plan
+            # Routing por Journey (spec journey-router Fase 3): a journey é decidida
+            # no STE e gravada no plano; aqui apenas roteamos por ela (não se
+            # re-deriva). COMPATIBILIDADE: planos sem journey ou journey=UNKNOWN
+            # (planos antigos) fazem fallback ao roteamento legado por workflow_type.
+            journey = _get_journey_from_plan(cognitive_plan_json)
             workflow_type = _get_workflow_type_from_plan(cognitive_plan_json)
-            workflow_class = _select_workflow_class(workflow_type)
+
+            # J1_PLAN_ONLY: planeamento sem execução a jusante — não inicia workflow.
+            if _is_plan_only(journey):
+                logger.info(
+                    "journey_plan_only_no_execution",
+                    plan_id=plan_id,
+                    journey=journey,
+                    message="Journey J1_PLAN_ONLY: plano não é executado (plan-only)",
+                )
+                span.set_attribute("neural.hive.journey", journey)
+                span.set_attribute("neural.hive.plan_only", True)
+                await self.consumer.commit()
+                if decision_id:
+                    await self._mark_decision_processed(decision_id)
+                return
+
+            workflow_class = _select_workflow_class_by_journey(journey)
+            routing_basis = "journey"
+            if workflow_class is None:
+                # Fallback compat: journey ausente/UNKNOWN -> roteamento legado.
+                workflow_class = _select_workflow_class(workflow_type)
+                routing_basis = "workflow_type_fallback"
+
+            span.set_attribute("neural.hive.journey", journey)
+            span.set_attribute("neural.hive.routing_basis", routing_basis)
 
             logger.info(
                 "Iniciando workflow Temporal",
                 workflow_id=workflow_id,
                 plan_id=plan_id,
                 is_direct_plan=is_direct_plan,
+                journey=journey,
+                routing_basis=routing_basis,
                 workflow_type=workflow_type,
                 workflow_class=workflow_class.__name__,
             )

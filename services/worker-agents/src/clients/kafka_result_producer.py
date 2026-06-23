@@ -86,6 +86,8 @@ class KafkaResultProducer:
         plan_id: str | None = None,
         workflow_id: str | None = None,
         correlation_id: str | None = None,
+        # journey_id (spec journey-router Fase 3): gancho de Roteamento.
+        journey_id: str | None = None,
     ) -> dict[str, Any]:
         """Publicar resultado no Kafka"""
         try:
@@ -102,6 +104,9 @@ class KafkaResultProducer:
                 "plan_id": plan_id,
                 "workflow_id": workflow_id,
                 "correlation_id": correlation_id,
+                # journey_id (spec journey-router Fase 3): gancho de Roteamento;
+                # lido por _emit_feedback do orchestrator p/ ExecutionFeedback.
+                "journey_id": journey_id,
             }
 
             topic = self.config.kafka_results_topic
