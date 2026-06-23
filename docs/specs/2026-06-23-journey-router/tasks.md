@@ -18,13 +18,13 @@
 
 ### Fase 1 — `JourneyClassifier` Tier 1 (sinais estruturados, sem LLM)
 
-- [ ] 2. Classificação determinística por sinais + anti-verde-falso
+- [x] 2. Classificação determinística por sinais + anti-verde-falso (pipeline: dev→auditorias→remediação)
   - **DoR:** Fase 0 fechada.
-  - **DoD:** `JourneyClassifier.classify(intent_envelope, cognitive_plan)` resolve J1-J4 por sinais (source→J4, execution_mode→J1, workflow_type→J2/J3) sem LLM; sinal ausente/ambíguo → marca para Tier 2; baixa confiança → UNKNOWN. Testes verdes.
-  - **Evidência:** `sub-specs/fase1-evidence.md`.
-  - [ ] 2.1 Escrever testes Tier 1 (cada sinal → jornada; `classification_method="structured_signal"`; sem invocar LLM; UNKNOWN em sinal ausente quando LLM desabilitado)
-  - [ ] 2.2 `services/semantic-translation-engine/src/services/journey_classifier.py` — Tier 1 + `journey_id` (UUID) + threshold configurável
-  - [ ] 2.3 Verificar testes verdes; Tier 1 não chama o LLM
+  - **DoD:** `JourneyClassifier.classify(intent_envelope, cognitive_plan)` resolve J1-J4 por sinais (source→J4, execution_mode→J1, workflow_type→J2/J3) sem LLM; sinal ausente → UNKNOWN; gancho Tier 2 não-ativo. Testes verdes.
+  - **Evidência:** `sub-specs/fase1-evidence.md` (24 testes; auditorias → remediação: +4 testes de precedência/defensivo/enum + guarda real anti-LLM; descoberta workflow_type lowercase).
+  - [x] 2.1 `tests/unit/test_journey_classifier.py` (24 testes: cada sinal, precedência total, defensivo, UNKNOWN, anti-LLM via mock)
+  - [x] 2.2 `journey_classifier.py` — Tier 1 (precedência source>execution_mode>workflow_type, case-insensitive) + `journey_id` UUID + threshold via getattr
+  - [x] 2.3 24/24 verdes; Tier 1 não chama o LLM (provado por mock call_count==0)
 
 ### Fase 2 — `JourneyClassifier` Tier 2 (LLM semântico)
 
