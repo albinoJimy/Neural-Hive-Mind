@@ -440,6 +440,10 @@ class ExecutionEngine:
         # execution.results, fechando a cadeia até ao ExecutionFeedback (o
         # _emit_feedback do orchestrator já lê result_data.get("journey_id")).
         journey_id = ticket.get("journey_id")
+        # journey ENUM (spec journey-router Fase 4): propaga o enum J1-J4 pela mesma
+        # cadeia, para a métrica record_execution_result_processed(journey=...) ter
+        # valor real em vez de "unknown".
+        journey = ticket.get("journey")
         if plan_id:
             kwargs["plan_id"] = plan_id
         if workflow_id:
@@ -448,6 +452,8 @@ class ExecutionEngine:
             kwargs["correlation_id"] = correlation_id
         if journey_id:
             kwargs["journey_id"] = journey_id
+        if journey:
+            kwargs["journey"] = journey
         return kwargs
 
     async def _execute_ticket(self, ticket: dict[str, Any]):

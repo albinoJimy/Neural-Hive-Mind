@@ -134,6 +134,10 @@ async def generate_execution_tickets(
         # ExecutionFeedback via ticket -> execution.results. "" (default do modelo,
         # sem decisão) normaliza para None (não inventa um id).
         journey_id = plan_data.get("journey_id") or cognitive_plan.get("journey_id") or None
+        # journey ENUM (spec journey-router Fase 4): J1-J4 decidido no STE; propaga
+        # pela MESMA cadeia que journey_id para a métrica do orchestrator ter valor
+        # real (em vez de cair sempre em "unknown"). "" normaliza para None.
+        journey = plan_data.get("journey") or cognitive_plan.get("journey") or None
 
         logger.info(
             "ticket_generation_vars_extracted",
@@ -238,6 +242,9 @@ async def generate_execution_tickets(
                 # journey_id (spec journey-router Fase 3): herdado do plano,
                 # propaga para o worker e daí para execution.results.
                 "journey_id": journey_id,
+                # journey ENUM (spec journey-router Fase 4): herdado do plano,
+                # propaga para o worker e daí para execution.results (label métrica).
+                "journey": journey,
                 "task_type": task.get("task_type", "EXECUTE"),
                 "description": task.get("description", ""),
                 "dependencies": [],  # Será preenchido após mapeamento

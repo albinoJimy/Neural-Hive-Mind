@@ -116,10 +116,13 @@ class OrchestratorMetrics:
         )
 
         # Métricas do ExecutionResultConsumer (fecho do loop de execução / C6)
+        # Label `journey` (J1-J4 + unknown): segmenta o loop LEARN por jornada;
+        # o ExecutionFeedback já carrega journey_id, logo o consumer tem o sinal.
+        # Cardinalidade controlada (~5 valores); default "unknown" (retrocompat).
         self.execution_results_processed_total = Counter(
             "orchestration_execution_results_processed_total",
             "Total de resultados de execução processados pelo ExecutionResultConsumer",
-            ["status"],
+            ["status", "journey"],
         )
 
         self.workflow_signals_sent_total = Counter(
@@ -1117,6 +1120,21 @@ class OrchestratorMetrics:
             reason: Razão da falha (invalid_cert, ca_mismatch, expired_cert, connection_error)
         """
         self.mtls_handshake_failures_total.labels(service=service, reason=reason).inc()
+
+    def record_execution_result_processed(
+        self, status: str, journey: str = "unknown"
+    ):
+        """Registra resultado de execução processado (segmentável por journey).
+
+        Args:
+            status: estado do resultado (COMPLETED, FAILED, ...).
+            journey: jornada do plano (J1-J4 ou unknown), herdada do
+                ExecutionFeedback.journey_id. Default "unknown" mantém
+                retrocompatibilidade quando o journey não está disponível.
+        """
+        self.execution_results_processed_total.labels(
+            status=status, journey=journey
+        ).inc()
 
     def record_kafka_message_consumed(self):
         """Registra mensagem consumida do Kafka."""

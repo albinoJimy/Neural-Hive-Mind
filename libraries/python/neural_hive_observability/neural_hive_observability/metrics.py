@@ -122,10 +122,12 @@ class NeuralHiveMetrics:
         )
 
         # Duração de orquestração (Fluxo C)
+        # Label `journey` (J1-J4 + unknown) permite segmentar o loop LEARN e
+        # dashboards por jornada; cardinalidade controlada (~5 valores).
         self.neural_hive_orquestracao_duration_seconds = Histogram(
             "neural_hive_orquestracao_duration_seconds",
             "Duração da orquestração de planos",
-            self._common_labels + ["channel"],
+            self._common_labels + ["channel", "journey"],
             buckets=[1.0, 5.0, 10.0, 30.0, 60.0, 300.0, 600.0],
             registry=self.registry,
         )
@@ -159,19 +161,19 @@ class NeuralHiveMetrics:
 
     def _init_plan_metrics(self):
         """Inicializa métricas de planos."""
-        # Planos gerados
+        # Planos gerados (label journey: segmentação por jornada, default unknown)
         self.plans_generated_total = Counter(
             "neural_hive_plans_generated_total",
             "Total de planos gerados",
-            self._common_labels + ["channel", "status"],
+            self._common_labels + ["channel", "status", "journey"],
             registry=self.registry,
         )
 
-        # Duração de execução de planos
+        # Duração de execução de planos (label journey: segmentação por jornada)
         self.plan_execution_duration_seconds = Histogram(
             "neural_hive_plan_execution_duration_seconds",
             "Duração da execução de planos",
-            self._common_labels + ["channel", "plan_type"],
+            self._common_labels + ["channel", "plan_type", "journey"],
             buckets=[1.0, 5.0, 10.0, 30.0, 60.0, 300.0, 600.0, 1800.0],
             registry=self.registry,
         )
@@ -461,9 +463,15 @@ class NeuralHiveMetrics:
         channel: str = "unknown",
         trace_id: Optional[str] = None,
         span_id: Optional[str] = None,
+        journey: str = "unknown",
     ):
-        """Observa duração de orquestração com exemplar."""
-        labels = [*self._common_label_values, channel]
+        """Observa duração de orquestração com exemplar.
+
+        Args:
+            journey: jornada do plano (J1-J4 ou unknown) para segmentar o
+                loop LEARN/dashboards. Default "unknown" mantém retrocompat.
+        """
+        labels = [*self._common_label_values, channel, journey]
         exemplar_data = {}
 
         if trace_id:
@@ -496,16 +504,24 @@ class NeuralHiveMetrics:
             *self._common_label_values, channel, route_target
         ).inc()
 
-    def increment_plans(self, channel: str = "unknown", status: str = "success"):
-        """Incrementa contador de planos."""
-        self.plans_generated_total.labels(*self._common_label_values, channel, status).inc()
+    def increment_plans(
+        self, channel: str = "unknown", status: str = "success", journey: str = "unknown"
+    ):
+        """Incrementa contador de planos (segmentável por journey)."""
+        self.plans_generated_total.labels(
+            *self._common_label_values, channel, status, journey
+        ).inc()
 
     def observe_plan_execution(
-        self, duration: float, channel: str = "unknown", plan_type: str = "unknown"
+        self,
+        duration: float,
+        channel: str = "unknown",
+        plan_type: str = "unknown",
+        journey: str = "unknown",
     ):
-        """Observa duração de execução de plano."""
+        """Observa duração de execução de plano (segmentável por journey)."""
         self.plan_execution_duration_seconds.labels(
-            *self._common_label_values, channel, plan_type
+            *self._common_label_values, channel, plan_type, journey
         ).observe(duration)
 
     def set_health_status(self, check_name: str, is_healthy: bool):

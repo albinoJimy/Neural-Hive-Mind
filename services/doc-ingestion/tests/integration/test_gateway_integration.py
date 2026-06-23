@@ -264,3 +264,87 @@ class TestGatewayClient:
 
             assert result["status"] == "processing"
             assert mock_post.call_count == 2  # Primeira falha, retry sucesso
+
+
+class TestGatewayIngestionMarker:
+    """Marcador de ingestão (J4) — Fase 4 / Task 5.1.
+
+    Garante que a intenção construída por doc-ingestion carrega o sinal
+    estruturado ``context.source == "doc-ingestion"`` (e hint opcional), que o
+    Tier 1 do JourneyClassifier (STE) usa para classificar a jornada como
+    J4_MIGRATE sem invocar o LLM.
+    """
+
+    @pytest.mark.asyncio
+    async def test_intent_request_has_context_source_doc_ingestion(
+        self, gateway_settings, entity_set
+    ):
+        """A intenção construída marca context.source == 'doc-ingestion'."""
+        client = GatewayClient(gateway_settings.gateway_url)
+
+        plan = await client.generate_cognitive_plan(entity_set)
+        request = client._build_intent_request(
+            document_id="doc-001",
+            plan=plan,
+            ingestion_id="ingestion-001",
+        )
+
+        # O envelope tem de expor context.source para o sinal estruturado do
+        # Tier 1 (sinais, não keywords).
+        assert "context" in request
+        assert isinstance(request["context"], dict)
+        assert request["context"]["source"] == "doc-ingestion"
+
+    @pytest.mark.asyncio
+    async def test_intent_request_has_journey_hint_migrate(self, gateway_settings, entity_set):
+        """A intenção inclui o hint opcional journey_hint == 'MIGRATE'."""
+        client = GatewayClient(gateway_settings.gateway_url)
+
+        plan = await client.generate_cognitive_plan(entity_set)
+        request = client._build_intent_request(
+            document_id="doc-001",
+            plan=plan,
+            ingestion_id="ingestion-001",
+        )
+
+        metadata = request["context"].get("metadata", {})
+        assert metadata.get("journey_hint") == "MIGRATE"
+
+    @pytest.mark.asyncio
+    async def test_context_source_preserves_legacy_top_level_source(
+        self, gateway_settings, entity_set
+    ):
+        """O context.source novo não quebra o source legado top-level."""
+        client = GatewayClient(gateway_settings.gateway_url)
+
+        plan = await client.generate_cognitive_plan(entity_set)
+        request = client._build_intent_request(
+            document_id="doc-001",
+            plan=plan,
+            ingestion_id="ingestion-001",
+        )
+
+        # Compatibilidade: o campo legado mantém-se intacto.
+        assert request["source"] == "legacy_document"
+        # E o novo sinal estruturado é o que o Tier 1 consome.
+        assert request["context"]["source"] == "doc-ingestion"
+
+    def test_context_source_matches_classifier_tier1_marker(self):
+        """O valor marcado bate certo com o marcador esperado pelo Tier 1.
+
+        Contrato de encadeamento (sem import cross-service frágil): o Tier 1 do
+        JourneyClassifier (STE) classifica J4_MIGRATE quando
+        ``context.source == "doc-ingestion"``. Verificamos que o marcador
+        gravado por doc-ingestion é exatamente essa string.
+        """
+        # Marcador canónico esperado pelo Tier 1 (STE journey_classifier).
+        tier1_doc_ingestion_marker = "doc-ingestion"
+
+        client = GatewayClient("http://gateway-intencoes:8000")
+        request = client._build_intent_request(
+            document_id="doc-001",
+            plan={"text": "x", "entity_count": 0},
+            ingestion_id="ingestion-001",
+        )
+
+        assert request["context"]["source"] == tier1_doc_ingestion_marker

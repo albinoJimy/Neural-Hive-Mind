@@ -207,6 +207,12 @@
             "doc": "IP do cliente (anonimizado)"
           },
           {
+            "name": "source",
+            "type": ["null", "string"],
+            "default": null,
+            "doc": "Marcador de origem (journey-router Fase 4); ex 'doc-ingestion' -> J4_MIGRATE no JourneyClassifier do STE"
+          },
+          {
             "name": "geolocation",
             "type": ["null", {
               "type": "record",

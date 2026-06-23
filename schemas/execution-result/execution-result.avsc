@@ -111,6 +111,12 @@
       "type": ["null", "string"],
       "default": null,
       "doc": "Gancho de Roteamento (journey router); propaga do cognitive_plan -> ticket -> result -> ExecutionFeedback"
+    },
+    {
+      "name": "journey",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "ENUM da jornada (J1-J4); label da métrica record_execution_result_processed. Propaga cognitive_plan -> ticket -> result"
     }
   ]
 }

@@ -49,10 +49,10 @@
 
 ### Fase 4 — Marcador de ingestão (J4) + métricas por jornada
 
-- [ ] 5. Sinal de ingestão para J4 + observabilidade por jornada
+- [~] 5. Sinal de ingestão para J4 + observabilidade por jornada (código completo; gate E2E pendente de cluster)
   - **DoR:** Fase 3 fechada.
   - **DoD:** `doc-ingestion` marca `context.source="doc-ingestion"` → J4_MIGRATE pelo Tier 1; métricas-chave ganham label `journey`; loop LEARN segmentável por jornada.
-  - **Evidência:** `sub-specs/fase4-evidence.md`.
-  - [ ] 5.1 `doc-ingestion/src/services/gateway_client.py`: definir `context.source="doc-ingestion"` na intenção; teste de que uma intenção de ingestão → J4_MIGRATE
-  - [ ] 5.2 Adicionar label `journey` às métricas-chave em `neural_hive_observability` (+ pontos de emissão no orchestrator)
-  - [ ] 5.3 Verificar: intenção doc-ingestion → J4; métricas com label journey (E2E/coleção)
+  - **Evidência:** `sub-specs/fase4-evidence.md` (pipeline; auditorias apanharam 2 CRÍTICOS: marcador J4 descartado gateway→STE + enum journey nunca chega ao execution.results → label sempre "unknown"; ambos remediados; 12 testes journey/source verdes).
+  - [x] 5.1 `doc-ingestion` marca `context.source="doc-ingestion"` **e** marcador corrigido para atravessar gateway→STE (`IntentRequest.source` + `Context.source` + `to_avro_dict` + intent-envelope.avsc); teste de integração real (2)
+  - [x] 5.2 Label `journey` nas métricas; enum `journey` propagado plano→ticket→result→consumer (execution-result.avsc + 10 testes) — métrica deixa de ser estruturalmente "unknown"; métricas órfãs do lib documentadas
+  - [~] 5.3 Gate E2E **PENDENTE de cluster** (deploy gateway+STE+orchestrator+worker + re-registo dos schemas): intenção doc-ingestion real → `cognitive_plan.journey==J4_MIGRATE` + métrica com `journey != "unknown"`

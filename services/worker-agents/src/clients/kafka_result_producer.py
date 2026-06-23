@@ -88,6 +88,8 @@ class KafkaResultProducer:
         correlation_id: str | None = None,
         # journey_id (spec journey-router Fase 3): gancho de Roteamento.
         journey_id: str | None = None,
+        # journey ENUM (spec journey-router Fase 4): J1-J4, label da métrica.
+        journey: str | None = None,
     ) -> dict[str, Any]:
         """Publicar resultado no Kafka"""
         try:
@@ -107,6 +109,9 @@ class KafkaResultProducer:
                 # journey_id (spec journey-router Fase 3): gancho de Roteamento;
                 # lido por _emit_feedback do orchestrator p/ ExecutionFeedback.
                 "journey_id": journey_id,
+                # journey ENUM (spec journey-router Fase 4): label da métrica
+                # record_execution_result_processed (J1-J4 vs "unknown").
+                "journey": journey,
             }
 
             topic = self.config.kafka_results_topic

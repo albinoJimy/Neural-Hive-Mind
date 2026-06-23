@@ -143,6 +143,9 @@ class Context(BaseModel):
     user_agent: str | None = Field(None, description="User-Agent")
     client_ip: str | None = Field(None, description="IP do cliente (anonimizado)")
     geolocation: Geolocation | None = Field(None, description="Localização")
+    # Marcador de origem (spec journey-router Fase 4): ex. "doc-ingestion".
+    # Sinal estruturado lido pelo JourneyClassifier do STE (context.source) p/ J4_MIGRATE.
+    source: str | None = Field(None, description="Origem/marcador estruturado da intenção")
 
 
 class Constraint(BaseModel):
@@ -275,6 +278,9 @@ class IntentEnvelope(BaseModel):
                     ),
                     "userAgent": self.context.user_agent if self.context else None,
                     "clientIp": self.context.client_ip if self.context else None,
+                    # Marcador de origem (spec journey-router Fase 4): chega ao STE
+                    # via context.source -> JourneyClassifier -> J4_MIGRATE.
+                    "source": self.context.source if self.context else None,
                     "geolocation": (
                         {
                             "country": self.context.geolocation.country,
@@ -375,6 +381,9 @@ class IntentRequest(BaseModel):
     text: str = Field(..., min_length=1, max_length=10000, description="Texto da intenção")
     language: str = Field(default="pt-BR", description="Idioma do texto (ISO 639-1)")
     correlation_id: str | None = Field(None, description="ID de correlação (UUID válido)")
+    # Marcador de origem (spec journey-router Fase 4): ex. "doc-ingestion".
+    # Propagado para IntentEnvelope.context.source (precedência sobre user_context).
+    source: str | None = Field(None, description="Origem/marcador estruturado da intenção")
     constraints: Constraint | None = Field(None, description="Restrições de processamento")
     qos: QualityOfService | None = Field(None, description="Requisitos de QoS")
 

@@ -185,11 +185,18 @@ class ExecutionResultConsumer:
                 offset=message.offset,
             )
 
-            # Métricas
+            # Métricas (segmentadas por jornada). Usa-se o ENUM journey
+            # (J1-J4/unknown, ~5 valores) — NUNCA journey_id (UUID), que
+            # explodiria a cardinalidade do label. Se o resultado ainda não
+            # propaga o enum journey, cai em "unknown" (retrocompat).
             if self.metrics:
-                self.metrics.execution_results_processed_total.labels(
-                    status=status
-                ).inc()
+                journey = result_data.get("journey")
+                self.metrics.record_execution_result_processed(
+                    status=status,
+                    journey=journey
+                    if isinstance(journey, str) and journey
+                    else "unknown",
+                )
 
         except Exception as e:
             logger.error(
