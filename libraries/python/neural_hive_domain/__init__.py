@@ -22,7 +22,8 @@ Example usage:
 """
 
 from .domain import UnifiedDomain
+from .journey import Journey, JourneyDecision
 from .mapper import DomainMapper
 
 __version__ = "1.0.0"
-__all__ = ["UnifiedDomain", "DomainMapper"]
+__all__ = ["UnifiedDomain", "DomainMapper", "Journey", "JourneyDecision"]

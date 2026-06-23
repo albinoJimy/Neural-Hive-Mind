@@ -8,13 +8,13 @@
 
 ### Fase 0 — Modelo `Journey` partilhado (neural_hive_domain)
 
-- [ ] 1. Enum `Journey` + `JourneyDecision`
+- [x] 1. Enum `Journey` + `JourneyDecision` (pipeline: dev→auditorias→remediação)
   - **DoR:** ADR-0011 como referência; acesso a `libraries/python/neural_hive_domain/`.
   - **DoD:** enum (J1-J4 + UNKNOWN) + `JourneyDecision` criados e exportados; testes unitários verdes.
-  - **Evidência:** `sub-specs/fase0-evidence.md`.
-  - [ ] 1.1 Escrever testes do modelo (`tests/test_journey.py`: valores do enum, defaults, UNKNOWN, `classification_method`)
-  - [ ] 1.2 `libraries/python/neural_hive_domain/journey.py` (`Journey` StrEnum + `JourneyDecision` Pydantic)
-  - [ ] 1.3 Exportar em `__init__.py`; verificar testes verdes
+  - **Evidência:** `sub-specs/fase0-evidence.md` (17 testes; auditorias qualidade+completude → remediação: confidence [0,1], classification_method Literal, use_enum_values).
+  - [x] 1.1 `tests/test_journey.py` (17 testes: enum, UNKNOWN, serialização, validação + negativos confidence/classification_method)
+  - [x] 1.2 `journey.py` — `Journey(str, Enum)` (compat py3.10, espelha UnifiedDomain) + `JourneyDecision` (Field ge/le, Literal, use_enum_values)
+  - [x] 1.3 Exportado em `__init__.py`; 17/17 + 148 suite verdes, sem regressões
 
 ### Fase 1 — `JourneyClassifier` Tier 1 (sinais estruturados, sem LLM)
 
