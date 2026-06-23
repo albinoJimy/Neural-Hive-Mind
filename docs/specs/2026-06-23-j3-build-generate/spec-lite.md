@@ -1,0 +1,3 @@
+# Spec Summary (Lite)
+
+Tornar a jornada J3_BUILD (`CAPTURE→PLAN→GENERATE→EXECUTE(deploy)`) fiável ponta-a-ponta: uma intenção de geração produz software real em execução no cluster (gera→build→deploy→healthcheck). Corrige os defeitos detetados na validação E2E do journey-router — roteamento J3→FluxoGWorkflow (incl. pós-aprovação), contrato `ExecutionTicket` divergente entre worker e code-forge, e o pipeline G (G1/G6/G7/G8) que não produzia outputs reais — com TDD, gates E2E por fase e anti-verde-falso. Estabelece o gate normativo do ADR-0011 para extrair GENERATE como capacidade autónoma. Stack canónica: Python FastAPI REST.
