@@ -38,8 +38,10 @@ spec:
     {{- if eq $strategyType "RollingUpdate" }}
     rollingUpdate:
       {{- if and $values.deployment $values.deployment.strategy $values.deployment.strategy.rollingUpdate }}
-      maxSurge: {{ $values.deployment.strategy.rollingUpdate.maxSurge | default 1 }}
-      maxUnavailable: {{ $values.deployment.strategy.rollingUpdate.maxUnavailable | default 0 }}
+      {{- $ru := $values.deployment.strategy.rollingUpdate }}
+      {{- /* hasKey distingue 0 de "não definido"; `| default` trataria 0 como vazio */}}
+      maxSurge: {{ if hasKey $ru "maxSurge" }}{{ $ru.maxSurge }}{{ else }}1{{ end }}
+      maxUnavailable: {{ if hasKey $ru "maxUnavailable" }}{{ $ru.maxUnavailable }}{{ else }}0{{ end }}
       {{- else }}
       maxSurge: 1
       maxUnavailable: 0
