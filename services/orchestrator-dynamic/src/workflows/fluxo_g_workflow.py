@@ -6,6 +6,7 @@ do Fluxo G: Requirements Engineering, Documentation Generation,
 Knowledge Graph integration e Approvals.
 """
 
+import contextlib
 from datetime import timedelta
 from typing import Any
 
@@ -40,6 +41,23 @@ with workflow.unsafe.imports_passed_through():
         generate_specialist_feedback,
         record_feedback_for_ml,
     )
+
+
+def _safe_span_event(span: Any, name: str, attributes: dict | None = None) -> None:
+    """Emite um span event de forma REPLAY-SAFE (espelha OrchestrationWorkflow).
+
+    Quando o tracer é None (REPLAY/QUERY no sandbox Temporal), span é None — não
+    fazer nada. Evita AttributeError ('NoneType'.add_event) que falhava o workflow.
+    """
+    if span is None:
+        return
+    try:
+        if attributes is not None:
+            span.add_event(name, attributes)
+        else:
+            span.add_event(name)
+    except Exception:
+        pass
 
 
 @workflow.defn
@@ -102,19 +120,28 @@ class FluxoGWorkflow:
         if intent_id:
             set_baggage("intent_id", intent_id)
 
+        # FIX (BLOQUEADOR Fase 3): get_tracer() devolve None durante REPLAY/QUERY no
+        # sandbox Temporal. Usar nullcontext quando tracer é None para nunca crashar
+        # com AttributeError ('NoneType'.start_as_current_span). Espelha o fix do
+        # OrchestrationWorkflow. Os span events passam pelo helper _safe_span_event.
         tracer = get_tracer()
         workflow.logger.info(
             f"Iniciando Fluxo G workflow: workflow_id={workflow_id}, plan_id={plan_id}"
         )
 
-        with tracer.start_as_current_span(
-            "fluxo_g_workflow.run",
-            attributes={
-                "neural.hive.workflow.id": workflow_id,
-                "neural.hive.plan.id": plan_id,
-                "neural.hive.workflow.type": "fluxo_g",
-            },
-        ) as span:
+        span_cm = (
+            tracer.start_as_current_span(
+                "fluxo_g_workflow.run",
+                attributes={
+                    "neural.hive.workflow.id": workflow_id,
+                    "neural.hive.plan.id": plan_id,
+                    "neural.hive.workflow.type": "fluxo_g",
+                },
+            )
+            if tracer
+            else contextlib.nullcontext()
+        )
+        with span_cm as span:
             try:
                 # === G1: Requirements Engineering ===
                 self._status = "generating_requirements"
@@ -130,7 +157,7 @@ class FluxoGWorkflow:
                 )
 
                 self._requirements_set = requirements_result
-                span.add_event("requirements_generated")
+                _safe_span_event(span, "requirements_generated")
 
                 # === G2: Documentation Generation ===
                 self._status = "generating_documentation"
@@ -146,7 +173,7 @@ class FluxoGWorkflow:
                 )
 
                 self._documentation = docs_result
-                span.add_event("documentation_generated")
+                _safe_span_event(span, "documentation_generated")
 
                 # === G3: Knowledge Graph Update ===
                 self._status = "updating_knowledge_graph"
@@ -160,7 +187,7 @@ class FluxoGWorkflow:
                 )
 
                 self._graph_update_result = graph_result
-                span.add_event("knowledge_graph_updated")
+                _safe_span_event(span, "knowledge_graph_updated")
 
                 # === G4: Approvals (se não skip) ===
                 if not skip_approvals:
@@ -220,12 +247,12 @@ class FluxoGWorkflow:
                         workflow.logger.warning(
                             "Fluxo G requer revisão humana - aguardando aprovação"
                         )
-                        span.add_event("human_review_required")
+                        _safe_span_event(span, "human_review_required")
 
                         # TODO: Implementar mecanismo de espera por aprovação humana
                         # Por ora, continuar com warning
 
-                    span.add_event("approvals_processed")
+                    _safe_span_event(span, "approvals_processed")
 
                 # === G5: Query RAG (opcional - enriquecer resultado) ===
                 self._status = "enriching_with_rag"
@@ -240,7 +267,7 @@ class FluxoGWorkflow:
                     retry_policy=RetryPolicy(maximum_attempts=1),
                 )
 
-                span.add_event("rag_enrichment_complete")
+                _safe_span_event(span, "rag_enrichment_complete")
 
                 # === G6: Generate Code ===
                 self._status = "generating_code"
@@ -260,7 +287,7 @@ class FluxoGWorkflow:
                 )
 
                 self._code_artifact = code_result
-                span.add_event("code_generated")
+                _safe_span_event(span, "code_generated")
 
                 # === G7: Build Package ===
                 self._status = "building_package"
@@ -281,7 +308,7 @@ class FluxoGWorkflow:
                 )
 
                 self._build_result = build_result
-                span.add_event("package_built")
+                _safe_span_event(span, "package_built")
 
                 # Validar qualidade do build
                 quality_validation = await workflow.execute_activity(
@@ -297,7 +324,7 @@ class FluxoGWorkflow:
                         non_retryable=True,
                     )
 
-                span.add_event("build_quality_validated")
+                _safe_span_event(span, "build_quality_validated")
 
                 # === G8: Deploy Software ===
                 self._status = "deploying_software"
@@ -318,7 +345,7 @@ class FluxoGWorkflow:
                 )
 
                 self._deployment_result = deployment_result
-                span.add_event("software_deployed")
+                _safe_span_event(span, "software_deployed")
 
                 # Verificar deployment
                 deployment_verification = await workflow.execute_activity(
@@ -334,7 +361,7 @@ class FluxoGWorkflow:
                     )
                     # Continuar mesmo sem verificação completa (pode ser apenas health checks pending)
 
-                span.add_event("deployment_verified")
+                _safe_span_event(span, "deployment_verified")
 
                 # === G9: Collect Post-Deployment Metrics (Fase 5) ===
                 self._status = "collecting_metrics"
@@ -350,7 +377,7 @@ class FluxoGWorkflow:
                     retry_policy=RetryPolicy(maximum_attempts=2),
                 )
 
-                span.add_event("metrics_collected")
+                _safe_span_event(span, "metrics_collected")
 
                 # === G10: Analyze Deployment Quality ===
                 self._status = "analyzing_quality"
@@ -368,7 +395,7 @@ class FluxoGWorkflow:
                     f"({quality_analysis.get('status')})"
                 )
 
-                span.add_event("quality_analyzed")
+                _safe_span_event(span, "quality_analyzed")
 
                 # === G11: Check Feedback Thresholds ===
                 self._status = "checking_thresholds"
@@ -381,7 +408,7 @@ class FluxoGWorkflow:
                     retry_policy=RetryPolicy(maximum_attempts=1),
                 )
 
-                span.add_event("thresholds_checked")
+                _safe_span_event(span, "thresholds_checked")
 
                 # === G12: Generate Specialist Feedback (se necessário) ===
                 if feedback_check.get("needs_feedback"):
@@ -402,7 +429,7 @@ class FluxoGWorkflow:
                         f"Specialist feedback gerado: priority={specialist_feedback.get('priority')}"
                     )
 
-                    span.add_event("specialist_feedback_generated")
+                    _safe_span_event(span, "specialist_feedback_generated")
                 else:
                     specialist_feedback = None
                     workflow.logger.info("G12: Feedback não necessário (thresholds OK)")
@@ -428,7 +455,7 @@ class FluxoGWorkflow:
                     retry_policy=RetryPolicy(maximum_attempts=1),
                 )
 
-                span.add_event("ml_feedback_recorded")
+                _safe_span_event(span, "ml_feedback_recorded")
 
                 # === Consolidar Resultado ===
                 self._status = "consolidating"
