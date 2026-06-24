@@ -10,7 +10,7 @@ class StrEnum(str, Enum):
 
 from typing import Any
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 class TaskType(StrEnum):
@@ -21,6 +21,7 @@ class TaskType(StrEnum):
     EXECUTE = "EXECUTE"
     COMPENSATE = "COMPENSATE"
     QUERY = "QUERY"
+    TRANSFORM = "TRANSFORM"
 
 
 class TicketStatus(StrEnum):
@@ -86,6 +87,11 @@ class QoS(BaseModel):
 class ExecutionTicket(BaseModel):
     """Modelo Pydantic para ExecutionTicket seguindo schema Avro"""
 
+    # Paridade com o modelo do code-forge ("o mesmo modelo", Fase 2): guarda o
+    # .value (string) dos enums após validação, garantindo representação interna
+    # idêntica entre os dois consumidores.
+    model_config = ConfigDict(use_enum_values=True)
+
     # Identificação
     ticket_id: str
     plan_id: str
@@ -128,6 +134,41 @@ class ExecutionTicket(BaseModel):
     # Metadata
     metadata: dict[str, str] = Field(default_factory=dict)
     schema_version: int = 1
+
+    @model_validator(mode="before")
+    @classmethod
+    def _normalize_legacy_contract(cls, data: Any) -> Any:
+        """Normaliza tickets legados para o contrato canónico (Fase 2 j3-build-generate).
+
+        Mesmo contrato que o code-forge: tolera task_type minúsculo (-> MAIÚSCULAS) e
+        priority inteiro legado 1-10 (-> enum string: 1-2 LOW, 3-5 NORMAL, 6-8 HIGH,
+        9-10 CRITICAL), sem rejeitar. Valores desconhecidos continuam a falhar.
+        """
+        if not isinstance(data, dict):
+            return data
+        data = dict(data)  # cópia rasa: não mutar o dict do chamador
+
+        task_type = data.get("task_type")
+        if isinstance(task_type, str):
+            data["task_type"] = task_type.upper()
+
+        priority = data.get("priority")
+        # bool é subclasse de int: não interpretar True/False como prioridade.
+        if isinstance(priority, bool):
+            pass
+        elif isinstance(priority, int):
+            if priority <= 2:
+                data["priority"] = "LOW"
+            elif priority <= 5:
+                data["priority"] = "NORMAL"
+            elif priority <= 8:
+                data["priority"] = "HIGH"
+            else:
+                data["priority"] = "CRITICAL"
+        elif isinstance(priority, str):
+            data["priority"] = priority.upper()
+
+        return data
 
     @field_validator("ticket_id", "plan_id", "intent_id", "decision_id", "task_id")
     @classmethod

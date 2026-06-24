@@ -2,7 +2,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Any, Optional
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class TaskType(str, Enum):
@@ -96,6 +96,46 @@ class QoS(BaseModel):
 
 class ExecutionTicket(BaseModel):
     """Modelo Pydantic para Execution Ticket"""
+
+    @model_validator(mode="before")
+    @classmethod
+    def _normalize_legacy_contract(cls, data: Any) -> Any:
+        """Normaliza tickets legados para o contrato canónico (Fase 2 j3-build-generate).
+
+        Tolera, sem rejeitar (evita partir tickets em voo / DLQ):
+        - ``task_type`` minúsculo (ex.: 'transform') -> MAIÚSCULAS
+        - ``priority`` inteiro legado 1-10 -> enum string (1-2 LOW, 3-5 NORMAL,
+          6-8 HIGH, 9-10 CRITICAL; valores fora do intervalo são limitados);
+          ``priority`` string minúscula -> MAIÚSCULAS.
+
+        Valores genuinamente desconhecidos continuam a falhar na validação do
+        enum (anti-verde-falso: normaliza-se, não se inventa).
+        """
+        if not isinstance(data, dict):
+            return data
+        data = dict(data)  # cópia rasa: não mutar o dict do chamador
+
+        task_type = data.get("task_type")
+        if isinstance(task_type, str):
+            data["task_type"] = task_type.upper()
+
+        priority = data.get("priority")
+        # bool é subclasse de int: não interpretar True/False como prioridade.
+        if isinstance(priority, bool):
+            pass
+        elif isinstance(priority, int):
+            if priority <= 2:
+                data["priority"] = "LOW"
+            elif priority <= 5:
+                data["priority"] = "NORMAL"
+            elif priority <= 8:
+                data["priority"] = "HIGH"
+            else:
+                data["priority"] = "CRITICAL"
+        elif isinstance(priority, str):
+            data["priority"] = priority.upper()
+
+        return data
 
     ticket_id: str = Field(..., description="Identificador único do ticket")
     plan_id: Optional[str] = Field(None, description="ID do plano cognitivo")

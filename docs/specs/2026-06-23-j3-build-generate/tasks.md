@@ -34,8 +34,8 @@
   - **DoR:** Fase 1 fechada.
   - **DoD:** contrato canónico (`task_type` enum maiúsculas, `priority` enum string); produtor emite canónico; worker e code-forge validam o mesmo modelo; desserializador tolerante normaliza legado (minúsculas/int) sem rejeitar.
   - **Evidência:** `sub-specs/fase2-evidence.md` (code-forge sem `message_deserialization_error`; ticket BUILD aceite por ambos).
-  - [ ] 3.1 Testes: desserialização canónica + normalização de legado (task_type minúsculas, priority int) em worker e code-forge
-  - [ ] 3.2 Definir contrato único + ajustar produtor (ticket_generation) e ambos os consumidores
+  - [x] 3.1 Testes: desserialização canónica + normalização de legado (task_type minúsculas, priority int) em worker e code-forge
+  - [x] 3.2 Definir contrato único + ajustar produtor (ticket_generation) e ambos os consumidores
   - [ ] 3.3 Gate cluster: tickets fluem para o code-forge sem erro de desserialização
 
 ### Fase 3 — G1 → G6: geração de código real

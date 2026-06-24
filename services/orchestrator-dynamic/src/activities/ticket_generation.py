@@ -14,6 +14,7 @@ from temporalio import activity
 
 from neural_hive_integration.orchestration.parameter_resolver import resolve_ticket_parameters
 from neural_hive_resilience.circuit_breaker import CircuitBreakerError
+from src.models.execution_ticket import normalize_priority
 
 logger = structlog.get_logger()
 
@@ -245,11 +246,15 @@ async def generate_execution_tickets(
                 # journey ENUM (spec journey-router Fase 4): herdado do plano,
                 # propaga para o worker e daí para execution.results (label métrica).
                 "journey": journey,
-                "task_type": task.get("task_type", "EXECUTE"),
+                # Contrato canónico (Fase 2 j3-build-generate): task_type MAIÚSCULAS.
+                # O STE decompõe em task_type minúsculo (query/transform/validate); o
+                # produtor emite o canónico para o code-forge não rejeitar (DLQ).
+                "task_type": str(task.get("task_type") or "EXECUTE").upper(),
                 "description": task.get("description", ""),
                 "dependencies": [],  # Será preenchido após mapeamento
                 "status": "PENDING",
-                "priority": cognitive_plan.get("priority", "NORMAL"),
+                # Contrato canónico: priority enum string (normaliza legado int 1-10).
+                "priority": normalize_priority(cognitive_plan.get("priority", "NORMAL")).value,
                 "risk_band": risk_band,
                 "sla": {"deadline": deadline, "timeout_ms": timeout_ms, "max_retries": max_retries},
                 "qos": {
