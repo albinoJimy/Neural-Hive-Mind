@@ -302,6 +302,24 @@ async def _wait_for_generation(
                         # Fallback: usar primeiro artefato
                         code_artifact = artifacts[0] if artifacts else {}
 
+                    # Anti-verde-falso (DoD Task 4 j3-build-generate): uma geração que
+                    # "completa" mas não produz um artefacto de código REAL é FALHA, não
+                    # sucesso. Exige-se: pelo menos um artefacto, com artifact_id, e código
+                    # não-vazio (linhas > 0 ou preview com conteúdo).
+                    artifact_id = code_artifact.get("artifact_id")
+                    lines_of_code = code_artifact.get("lines_of_code", 0) or 0
+                    code_preview = (status_data.get("code_preview") or "").strip()
+                    if (
+                        not artifacts
+                        or not artifact_id
+                        or (lines_of_code <= 0 and not code_preview)
+                    ):
+                        raise RuntimeError(
+                            "Geração de código vazia (verde falso evitado): sem artefacto de "
+                            f"código real — artifacts={len(artifacts)}, artifact_id={artifact_id}, "
+                            f"lines_of_code={lines_of_code}, preview_len={len(code_preview)}"
+                        )
+
                     return {
                         "request_id": request_id,
                         "code_artifact_id": code_artifact.get("artifact_id"),
