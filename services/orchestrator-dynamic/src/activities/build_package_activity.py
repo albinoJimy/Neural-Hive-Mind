@@ -13,8 +13,23 @@ from temporalio import activity
 
 logger = structlog.get_logger(__name__)
 
-# Cliente HTTP reutilizado de code_generation_activity
-from .code_generation_activity import _http_client
+# Cliente HTTP e base URL reutilizados de code_generation_activity.
+# Importamos o módulo (não o símbolo) para ler _http_client dinamicamente
+# após a injeção feita pelo worker.
+from . import code_generation_activity
+from .code_generation_activity import _code_forge_base_url
+
+
+def _get_http_client() -> httpx.AsyncClient | None:
+    """Lê o cliente HTTP injetado dinamicamente (pode ser None)."""
+    client = code_generation_activity._http_client
+    if client is None:
+        logger.warning(
+            "http_client_not_injected_using_ephemeral",
+            degraded=True,
+            reason="set_code_generation_dependencies_not_called",
+        )
+    return client
 
 
 @activity.defn
@@ -77,11 +92,11 @@ async def build_package(
 
     try:
         # Usar cliente HTTP
-        client = _http_client or httpx.AsyncClient(timeout=900.0)
+        client = _get_http_client() or httpx.AsyncClient(timeout=900.0)
 
         # Chamar code-forge API para iniciar pipeline
         response = await client.post(
-            "http://code-forge:8020/api/v1/pipelines",
+            f"{_code_forge_base_url()}/api/v1/pipelines",
             json=payload,
             headers={"Content-Type": "application/json"},
         )
@@ -161,7 +176,7 @@ async def _wait_for_build_completion(
             raise TimeoutError(f"Build timeout após {max_wait}s")
 
         try:
-            response = await client.get(f"http://code-forge:8020/api/v1/pipelines/{pipeline_id}")
+            response = await client.get(f"{_code_forge_base_url()}/api/v1/pipelines/{pipeline_id}")
 
             if response.status_code == 200:
                 status_data = response.json()

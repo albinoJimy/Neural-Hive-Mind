@@ -1,7 +1,10 @@
 """Router para endpoints de requisitos."""
 
+from typing import Any
+
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from pydantic import BaseModel, Field
 from src.dependencies import get_engineering_service
 from src.models.requirements import (
     Requirement,
@@ -19,9 +22,72 @@ router = APIRouter(prefix="/requirements", tags=["requirements"])
 logger = structlog.get_logger(__name__)
 
 
+class GenerateFromPlanRequest(BaseModel):
+    """Body JSON para geração de requisitos a partir de um plano cognitivo."""
+
+    plan_id: str = Field(..., description="ID do plano cognitivo")
+    plan_text: str = Field(..., description="Texto do plano cognitivo")
+    context: dict[str, Any] | None = Field(
+        default=None, description="Contexto adicional (intent original, intent_id, etc.)"
+    )
+    generate_user_stories: bool = Field(
+        default=True, description="Gerar user stories a partir dos requisitos"
+    )
+    generate_acceptance_criteria: bool = Field(
+        default=True, description="Gerar critérios de aceitação"
+    )
+
+
 def get_repository() -> RequirementsRepository:
     """Retorna instância do repositório."""
     return RequirementsRepository()
+
+
+async def _generate_and_persist_requirements(
+    plan_id: str,
+    plan_text: str,
+    engineer: RequirementsEngineer,
+    repository: RequirementsRepository,
+    context: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """
+    Gera requisitos a partir de um plano cognitivo e persiste o conjunto.
+
+    Lógica partilhada por /generate (query params) e /from-plan (JSON body)
+    para evitar duplicação (DRY).
+    """
+    requirements_set = await engineer.generate_from_cognitive_plan(
+        plan_id=plan_id, plan_text=plan_text, context=context
+    )
+
+    # Salvar conjunto de requisitos
+    await repository.save_set(requirements_set)
+
+    # Salvar requisitos individuais
+    for req in requirements_set.requirements:
+        try:
+            await repository.create(
+                RequirementCreate(
+                    title=req.title,
+                    description=req.description,
+                    requirement_type=req.requirement_type,
+                    priority=req.priority,
+                    rationale=req.rationale,
+                    tags=req.tags,
+                    cognitive_plan_id=plan_id,
+                )
+            )
+        except Exception as e:
+            logger.warning("failed_to_save_requirement", id=req.id, error=str(e))
+
+    return {
+        "requirements_set_id": requirements_set.id,
+        "cognitive_plan_id": requirements_set.cognitive_plan_id,
+        "total": len(requirements_set.requirements),
+        "functional_count": requirements_set.functional_count,
+        "non_functional_count": requirements_set.non_functional_count,
+        "requirements": requirements_set.requirements,
+    }
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)
@@ -44,42 +110,41 @@ async def generate_requirements(
     engineer: RequirementsEngineer = Depends(get_engineering_service),
     repository: RequirementsRepository = Depends(get_repository),
 ):
-    """Gera requisitos completos a partir de um plano cognitivo."""
+    """Gera requisitos completos a partir de um plano cognitivo (query params)."""
     try:
-        requirements_set = await engineer.generate_from_cognitive_plan(
-            plan_id=plan_id, plan_text=plan_text
+        return await _generate_and_persist_requirements(
+            plan_id=plan_id,
+            plan_text=plan_text,
+            engineer=engineer,
+            repository=repository,
         )
-
-        # Salvar conjunto de requisitos
-        await repository.save_set(requirements_set)
-
-        # Salvar requisitos individuais
-        for req in requirements_set.requirements:
-            try:
-                await repository.create(
-                    RequirementCreate(
-                        title=req.title,
-                        description=req.description,
-                        requirement_type=req.requirement_type,
-                        priority=req.priority,
-                        rationale=req.rationale,
-                        tags=req.tags,
-                        cognitive_plan_id=plan_id,
-                    )
-                )
-            except Exception as e:
-                logger.warning("failed_to_save_requirement", id=req.id, error=str(e))
-
-        return {
-            "requirements_set_id": requirements_set.id,
-            "cognitive_plan_id": requirements_set.cognitive_plan_id,
-            "total": len(requirements_set.requirements),
-            "functional_count": requirements_set.functional_count,
-            "non_functional_count": requirements_set.non_functional_count,
-            "requirements": requirements_set.requirements,
-        }
     except Exception as e:
         logger.error("generate_requirements_error", error=str(e))
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+
+
+@router.post("/from-plan", status_code=status.HTTP_200_OK)
+async def generate_requirements_from_plan(
+    request: GenerateFromPlanRequest,
+    engineer: RequirementsEngineer = Depends(get_engineering_service),
+    repository: RequirementsRepository = Depends(get_repository),
+):
+    """
+    Gera requisitos a partir de um plano cognitivo via JSON body.
+
+    Endpoint consumido pela activity G1 (generate_requirements) do
+    orchestrator (Fluxo G), que envia o plano como JSON.
+    """
+    try:
+        return await _generate_and_persist_requirements(
+            plan_id=request.plan_id,
+            plan_text=request.plan_text,
+            engineer=engineer,
+            repository=repository,
+            context=request.context,
+        )
+    except Exception as e:
+        logger.error("generate_requirements_from_plan_error", error=str(e))
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 

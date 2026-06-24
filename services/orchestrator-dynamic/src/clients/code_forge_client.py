@@ -35,7 +35,7 @@ class CodeForgeClient:
     def __init__(
         self,
         base_url: str = "code-forge.neural-hive.svc.cluster.local",
-        port: int = 8020,
+        port: int = 8080,
         timeout: float = 600.0,  # 10 minutos default
     ):
         """
@@ -256,7 +256,7 @@ def get_code_forge_client() -> CodeForgeClient | None:
 
 async def initialize_code_forge_client(
     base_url: str = "code-forge.neural-hive.svc.cluster.local",
-    port: int = 8020,
+    port: int = 8080,
 ) -> CodeForgeClient:
     """
     Inicializa o cliente singleton do Code-Forge.
