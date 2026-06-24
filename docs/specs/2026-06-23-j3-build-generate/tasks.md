@@ -20,13 +20,13 @@
 
 ### Fase 1 — Roteamento J3 → FluxoGWorkflow fiável
 
-- [ ] 2. Garantir que J3_BUILD inicia o FluxoGWorkflow (direto e pós-aprovação)
+- [x] 2. Garantir que J3_BUILD inicia o FluxoGWorkflow (direto e pós-aprovação)
   - **DoR:** Fase 0 fechada.
   - **DoD:** plano J3_BUILD (incl. `review_required`→aprovado) **inicia FluxoGWorkflow**; sem tarefas query/transform parasitas; fallback workflow_type preservado para planos sem journey.
   - **Evidência:** `sub-specs/fase1-evidence.md` (log/Temporal a iniciar FluxoG; 0 tickets parasitas).
   - [x] 2.1 Testes: resume pós-aprovação seleciona workflow por journey (J3→FluxoG); J1/UNKNOWN sem execução; J2/J4→Orchestration
   - [x] 2.2 Corrigir o ponto de resume pós-aprovação para honrar `_select_workflow_class_by_journey`
-  - [ ] 2.3 Gate cluster: plano J3 aprovado inicia FluxoGWorkflow (não Orchestration)
+  - [x] 2.3 Gate cluster: plano J3 aprovado inicia FluxoGWorkflow (não Orchestration)
 
 ### Fase 2 — Contrato `ExecutionTicket` canónico
 
