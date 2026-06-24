@@ -59,6 +59,19 @@ class TestG6Success:
         assert result["status"] == "completed"
         assert result["code_artifact_id"] == "art-123"
 
+    @pytest.mark.asyncio
+    async def test_preview_present_without_lines_is_accepted(self):
+        """LOC=0 mas preview com conteúdo -> há código real -> aceite (não é vazio)."""
+        payload = {
+            "status": "completed",
+            "artifacts": [{"artifact_type": "code", "artifact_id": "art-7", "lines_of_code": 0}],
+            "code_preview": "from fastapi import FastAPI",
+        }
+        g6.set_code_generation_dependencies(_make_client(payload), None)
+        result = await g6.generate_code(_REQS, _DOCS, _PLAN)
+        assert result["status"] == "completed"
+        assert result["code_artifact_id"] == "art-7"
+
 
 class TestG6FailClosedOnEmpty:
     @pytest.mark.asyncio
