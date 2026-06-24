@@ -9,14 +9,14 @@
 
 ### Fase 0 — Diagnóstico instrumentado
 
-- [ ] 1. Fixar os break-points reais de J3_BUILD num run de cluster
+- [x] 1. Fixar os break-points reais de J3_BUILD num run de cluster
   - **DoR:** journey-router fechado; cluster acessível.
   - **DoD:** mapa documentado de onde cada elo parte (routing pós-aprovação, FluxoG inicia?, G-steps, contrato code-forge, deps); reordena/reduz as fases seguintes conforme achados.
   - **Evidência:** `sub-specs/fase0-evidence.md`.
-  - [ ] 1.1 Run J3 real (intenção FastAPI) com tracing; capturar workflow iniciado (FluxoG vs Orchestration) no caminho direto e pós-aprovação
-  - [ ] 1.2 Confirmar se tarefas genéricas do STE são executadas em J3 (parasitas) ou ignoradas
-  - [ ] 1.3 Localizar tópico/grupo onde o code-forge consome tickets + caminho do erro de desserialização
-  - [ ] 1.4 Verificar estado das deps do code-forge (GitPython, kubernetes) e dos 2 bugs críticos pré-existentes
+  - [x] 1.1 Run J3 real (intenção FastAPI) com tracing; capturar workflow iniciado (FluxoG vs Orchestration) no caminho direto e pós-aprovação
+  - [x] 1.2 Confirmar se tarefas genéricas do STE são executadas em J3 (parasitas) ou ignoradas
+  - [x] 1.3 Localizar tópico/grupo onde o code-forge consome tickets + caminho do erro de desserialização
+  - [x] 1.4 Verificar estado das deps do code-forge (GitPython, kubernetes) e dos 2 bugs críticos pré-existentes
 
 ### Fase 1 — Roteamento J3 → FluxoGWorkflow fiável
 
