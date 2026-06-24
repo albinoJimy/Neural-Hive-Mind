@@ -44,9 +44,9 @@
   - **DoR:** Fase 2 fechada.
   - **DoD:** G1 produz requisitos/user-stories do intent+plano; G6 gera código-fonte FastAPI real (sem stub) via code-forge; `code_artifact` persistido em `neural_hive_orchestration.code_artifacts`. Geração vazia/stub → FAILED.
   - **Evidência:** `sub-specs/fase3-evidence.md` (code_artifact com código real; falha de geração → FAILED).
-  - [ ] 4.1 Testes: G6 produz artefacto não-vazio; geração vazia/erro → FAILED (anti-verde-falso)
-  - [ ] 4.2 Garantir G6 chama code-forge real (sem `stub://`) e persiste code_artifact
-  - [ ] 4.3 Gate cluster: plano J3 produz code_artifact com código FastAPI real
+  - [x] 4.1 Testes: G6 produz artefacto não-vazio; geração vazia/erro → FAILED (anti-verde-falso)
+  - [x] 4.2 Garantir G6 chama code-forge real (sem `stub://`) e persiste code_artifact
+  - [ ] 4.3 Gate cluster: plano J3 produz code_artifact com código FastAPI real  ⚠️ BLOQUEADO: requirements-engineering (G1) não arranca neste branch (módulo engineering_service_registry_client em falta). Ver fase3-evidence.md.
 
 ### Fase 4 — G7: build real (Kaniko → GHCR)
 
