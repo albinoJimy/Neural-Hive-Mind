@@ -5,3 +5,10 @@
 ../../libs/neural_hive_llm
 
 # Service-specific dependencies (a serem adicionadas manualmente)
+
+# Dependências antes não declaradas (drift código↔imagem corrigido — Fase 0/1.4b
+# da spec j3-build-generate). Versões alinhadas com a imagem em produção.
+# GitPython fornece o módulo `git` (clients/git_client.py); kubernetes é usado
+# pelo container_builder e Kaniko (services/kaniko/*).
+GitPython==3.1.43
+kubernetes==28.1.0
