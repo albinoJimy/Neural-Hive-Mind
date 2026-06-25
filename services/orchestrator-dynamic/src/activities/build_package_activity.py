@@ -84,7 +84,10 @@ async def build_package(
             "enable_tests": True,
             "enable_security_scan": True,
             "generate_sbom": True,
-            "push_to_registry": parameters.get("push_to_registry", False),
+            # J3_BUILD produz software a correr → a imagem TEM de ser publicada
+            # para o deploy (G8) a poder puxar. Default True (era False → --no-push
+            # → imagem nunca chegava ao registry → ImagePullBackOff/NotFound).
+            "push_to_registry": parameters.get("push_to_registry", True),
             "registry_url": parameters.get("registry_url", ""),
         },
         "plan_id": plan_id,
