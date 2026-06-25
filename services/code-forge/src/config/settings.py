@@ -42,12 +42,23 @@ class Settings(BaseSettings):
     MONGODB_DB: str = Field(default="code_forge", description="MongoDB database")
     MONGODB_USER: str = Field(default="", description="MongoDB user")
     MONGODB_PASSWORD: str = Field(default="", description="MongoDB password")
+    MONGODB_AUTH_SOURCE: str = Field(
+        default="",
+        description="authSource do MongoDB (ex.: 'admin'). Necessário quando o utilizador "
+        "está numa base diferente (root@admin). Configurável via env MONGODB_AUTH_SOURCE.",
+    )
 
     @property
     def MONGODB_URL(self) -> str:
+        # authSource é obrigatório quando o utilizador (ex.: root) vive numa base
+        # diferente da do URL — senão o MongoDB rejeita com "requires authentication".
+        auth_q = f"?authSource={self.MONGODB_AUTH_SOURCE}" if self.MONGODB_AUTH_SOURCE else ""
         if self.MONGODB_USER and self.MONGODB_PASSWORD:
-            return f"mongodb://{self.MONGODB_USER}:{self.MONGODB_PASSWORD}@{self.MONGODB_HOST}:{self.MONGODB_PORT}/{self.MONGODB_DB}"
-        return f"mongodb://{self.MONGODB_HOST}:{self.MONGODB_PORT}/{self.MONGODB_DB}"
+            return (
+                f"mongodb://{self.MONGODB_USER}:{self.MONGODB_PASSWORD}"
+                f"@{self.MONGODB_HOST}:{self.MONGODB_PORT}/{self.MONGODB_DB}{auth_q}"
+            )
+        return f"mongodb://{self.MONGODB_HOST}:{self.MONGODB_PORT}/{self.MONGODB_DB}{auth_q}"
 
     # Database - Redis
     REDIS_HOST: str = Field(..., description="Redis host")
