@@ -58,6 +58,7 @@ class PipelineEngine:
         build_timeout: int = 3600,
         enable_container_build: bool = True,
         builder_type: str = "kaniko",
+        cleanup_pods: bool = True,
     ):
         self.template_selector = template_selector
         self.code_composer = code_composer
@@ -77,6 +78,7 @@ class PipelineEngine:
         self.container_builder = ContainerBuilder(
             builder_type=BuilderType(builder_type),
             timeout_seconds=build_timeout,
+            cleanup_pods=cleanup_pods,
         )
         self.enable_container_build = enable_container_build
 

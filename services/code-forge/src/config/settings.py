@@ -65,6 +65,13 @@ class Settings(BaseSettings):
     CONTAINER_BUILDER_TYPE: str = Field(
         default="kaniko", description="Tipo de builder de container: 'kaniko' ou 'docker'"
     )
+    KANIKO_CLEANUP_PODS: bool = Field(
+        default=True,
+        description="Se True, remove o pod Kaniko após o build (False = manter para debug)",
+    )
+    KANIKO_BUILD_TIMEOUT: int = Field(
+        default=900, description="Timeout do build Kaniko em segundos"
+    )
 
     # Database - Redis
     REDIS_HOST: str = Field(..., description="Redis host")
