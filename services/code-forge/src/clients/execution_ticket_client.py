@@ -83,10 +83,17 @@ class ExecutionTicketClient:
             logger.info("ticket_status_updated", ticket_id=ticket_id, status=status)
 
         except Exception as e:
-            logger.error(
-                "update_ticket_status_failed", ticket_id=ticket_id, status=status, error=str(e)
+            # Best-effort: o reporte de status do ticket é observabilidade, NÃO deve
+            # abortar o pipeline de build (o build é o trabalho primário). Se o
+            # execution-ticket-service estiver indisponível (ex.: 503 mesh), degrada
+            # com marcação e continua — o build prossegue.
+            logger.warning(
+                "update_ticket_status_failed_best_effort",
+                ticket_id=ticket_id,
+                status=status,
+                degraded=True,
+                error=str(e),
             )
-            raise
 
     async def get_dependencies(self, ticket_id: str) -> list[ExecutionTicket]:
         """
