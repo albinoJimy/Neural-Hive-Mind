@@ -167,11 +167,22 @@ class PipelineEngine:
                     self.auto_approval_threshold, self.min_quality_score
                 )
 
-                # Persistir resultado
-                await self.postgres_client.save_pipeline(pipeline_result)
+                # Persistir resultado (best-effort: bookkeeping não deve falhar
+                # um build/push bem-sucedido).
+                try:
+                    await self.postgres_client.save_pipeline(pipeline_result)
+                except Exception as e:  # noqa: BLE001 — persistência best-effort
+                    logger.warning(
+                        "save_pipeline_degraded", pipeline_id=pipeline_id, error=str(e)[:200]
+                    )
 
-                # Publicar resultado no Kafka
-                await self.kafka_producer.publish_result(pipeline_result)
+                # Publicar resultado no Kafka (best-effort)
+                try:
+                    await self.kafka_producer.publish_result(pipeline_result)
+                except Exception as e:  # noqa: BLE001 — publicação best-effort
+                    logger.warning(
+                        "publish_result_degraded", pipeline_id=pipeline_id, error=str(e)[:200]
+                    )
 
                 # Atualizar status do ticket baseado no status do pipeline
                 if pipeline_result.status == "COMPLETED":
