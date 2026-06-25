@@ -75,9 +75,9 @@ class KubernetesDeployer:
             # 5. Aguardar rollout
             await self._wait_for_rollout(deployment_name, request.namespace)
 
-            # 6. Verificar health checks
+            # 6. Verificar health checks (selector pela label app=service_name)
             health_checks = await self._verify_health_checks(
-                deployment_name, request.namespace, request.health_checks
+                request.service_name, request.namespace, request.health_checks
             )
 
             # 7. Obter status final
@@ -479,18 +479,18 @@ class KubernetesDeployer:
 
     async def _verify_health_checks(
         self,
-        deployment_name: str,
+        service_name: str,
         namespace: str,
         health_checks_spec: Any,
     ) -> HealthCheckResult:
         """Verifica os health checks."""
-        # Obter pods
+        # Obter pods pela label app=service_name (a label real do pod template).
         cmd = [
             "kubectl",
             *self._kubectl_auth_args(),
             "get",
             "pods",
-            f"-l=app={deployment_name}",
+            f"-l=app={service_name}",
             f"-n={namespace}",
             "-o=json",
         ]
@@ -512,13 +512,11 @@ class KubernetesDeployer:
                 if condition.get("type") == "Ready" and condition.get("status") == "True":
                     ready_pods += 1
 
-        # Determinar status dos health checks
-        liveness = (
-            HealthCheckStatus.HEALTHY if ready_pods == total_pods else HealthCheckStatus.PENDING
-        )
-        readiness = (
-            HealthCheckStatus.HEALTHY if ready_pods == total_pods else HealthCheckStatus.PENDING
-        )
+        # Determinar status dos health checks. Exige total_pods > 0 para evitar
+        # falso-positivo (0/0 == "saudável") quando o selector não encontra pods.
+        all_ready = total_pods > 0 and ready_pods == total_pods
+        liveness = HealthCheckStatus.HEALTHY if all_ready else HealthCheckStatus.PENDING
+        readiness = HealthCheckStatus.HEALTHY if all_ready else HealthCheckStatus.PENDING
 
         return HealthCheckResult(
             liveness=liveness,
