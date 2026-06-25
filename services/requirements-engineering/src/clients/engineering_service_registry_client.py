@@ -62,8 +62,12 @@ class EngineeringServiceRegistryClient:
             self.channel = grpc.aio.insecure_channel(target)
             self.stub = service_registry_pb2_grpc.ServiceRegistryStub(self.channel)
 
-            # Testar conectividade
-            await self.channel.channel_ready()
+            # Testar conectividade com TIMEOUT: channel_ready() bloqueia para sempre
+            # se o service-registry estiver inalcançável. Sem timeout, o lifespan do
+            # serviço nunca chega ao `yield` e o app HTTP NUNCA arranca (503 no /from-plan).
+            # Com timeout, o registo falha graciosamente (return False) e o caller
+            # (lifespan) continua a servir HTTP — o registo é best-effort, não crítico.
+            await asyncio.wait_for(self.channel.channel_ready(), timeout=5.0)
 
             logger.info(
                 "service_registry_client_initialized",
