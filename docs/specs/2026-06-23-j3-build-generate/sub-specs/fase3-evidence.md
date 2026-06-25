@@ -142,10 +142,20 @@ code-forge"): o caminho TEMPLATE não precisa de LLM.
 4. **status endpoint** (`e1fd5a4`): `artifacts=None` → 500 (`list_type`) → default `[]`.
 5. **generation_method .value** (`d7c23e0`): `.value` numa str → `getattr(., 'value', .)`.
 
+### Redis cluster ESTABILIZADO (commit `1599aa0`) — geração fiável
+A flakiness vinha de `_start_cluster`: em `RedisClusterException` no init, o cliente **degradava
+para standalone** (`cluster_enabled=False`) → todos os comandos seguintes recebiam `MOVED`. Fix:
+`require_full_coverage=False` + `socket_timeout` no init (tolera rebalanceamento) e **re-raise em vez
+de degradar** (standalone contra cluster nunca funciona). **Prova de fiabilidade pós-fix:**
+- **5/5 `POST /generate` → 202** (sem MOVED).
+- Geração completa: **`status=completed`, `artifacts=1`, `error=None`** — `code_artifact` real
+  (`type=code`, `language=python`, `size_bytes=701`, `content_hash=…`, `artifact_id=…`,
+  `template_id=tmpl-python-fastapi`).
+
+O **G6/code-forge é agora fiável** e produz um `code_artifact` FastAPI real e completo (estado
+`completed`) via TEMPLATE, sem LLM.
+
 ### Limites honestos remanescentes
-- **Redis cluster flaky:** o cliente RedisCluster ainda dá `MOVED` intermitente em alguns slots
-  (degradação conhecida — ver `proj_consensus_redis_client_degradation`), tornando o `POST /generate`
-  por vezes 500. A geração funciona quando o Redis coopera (provado), mas não é 100% fiável.
 - **LLM ausente:** o caminho `generation_method=LLM`/`HYBRID` continua indisponível (sem credenciais);
   só o caminho **TEMPLATE** (provado) funciona sem LLM.
 - **E2E FluxoG (G1→G6):** cada componente está agora desbloqueado (req-eng G1=200; code-forge gera
