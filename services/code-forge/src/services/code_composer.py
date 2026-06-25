@@ -501,6 +501,18 @@ async def health():
     return HealthResponse(status="healthy", service="{service_name}")
 
 
+@app.get("/health/live", response_model=HealthResponse)
+async def health_live():
+    """Liveness probe endpoint (Kubernetes)"""
+    return HealthResponse(status="healthy", service="{service_name}")
+
+
+@app.get("/health/ready", response_model=HealthResponse)
+async def health_ready():
+    """Readiness probe endpoint (Kubernetes)"""
+    return HealthResponse(status="healthy", service="{service_name}")
+
+
 @app.get("/")
 async def root():
     """Root endpoint"""
