@@ -208,6 +208,7 @@ async def main():
         settings.AUTO_APPROVAL_THRESHOLD,
         settings.MIN_QUALITY_SCORE,
         metrics,
+        builder_type=settings.CONTAINER_BUILDER_TYPE,
     )
 
     # 5.5. Inicializar webhook handler

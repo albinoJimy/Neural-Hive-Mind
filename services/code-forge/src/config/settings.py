@@ -60,6 +60,12 @@ class Settings(BaseSettings):
             )
         return f"mongodb://{self.MONGODB_HOST}:{self.MONGODB_PORT}/{self.MONGODB_DB}{auth_q}"
 
+    # Container build: 'kaniko' (build em pod no cluster, sem docker daemon) ou 'docker'.
+    # No cluster usa-se kaniko (não há /var/run/docker.sock). Configurável via env.
+    CONTAINER_BUILDER_TYPE: str = Field(
+        default="kaniko", description="Tipo de builder de container: 'kaniko' ou 'docker'"
+    )
+
     # Database - Redis
     REDIS_HOST: str = Field(..., description="Redis host")
     REDIS_PORT: int = Field(default=6379, description="Redis port")

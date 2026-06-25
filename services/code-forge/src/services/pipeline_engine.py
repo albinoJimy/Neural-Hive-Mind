@@ -57,6 +57,7 @@ class PipelineEngine:
         metrics: Optional["CodeForgeMetrics"] = None,
         build_timeout: int = 3600,
         enable_container_build: bool = True,
+        builder_type: str = "kaniko",
     ):
         self.template_selector = template_selector
         self.code_composer = code_composer
@@ -72,8 +73,9 @@ class PipelineEngine:
 
         # Novos serviços para builds de container reais
         self.dockerfile_generator = DockerfileGenerator()
+        # builder_type configurável: no cluster usa-se KANIKO (não há docker daemon).
         self.container_builder = ContainerBuilder(
-            builder_type=BuilderType.DOCKER,
+            builder_type=BuilderType(builder_type),
             timeout_seconds=build_timeout,
         )
         self.enable_container_build = enable_container_build
