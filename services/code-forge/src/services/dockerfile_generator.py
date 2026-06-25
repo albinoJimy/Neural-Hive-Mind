@@ -100,8 +100,9 @@ class DockerfileGenerator:
         """
         # Detectar command baseado no framework
         if framework == "fastapi":
-            cmd = 'CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]'
-            port = 8000
+            # Porta 8080: contrato com o deploy-service (containerPort/probes fixos em 8080)
+            cmd = 'CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080"]'
+            port = 8080
         elif framework == "flask":
             cmd = 'CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "4", "app:app"]'
             port = 5000
