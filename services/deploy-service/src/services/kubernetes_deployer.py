@@ -462,7 +462,7 @@ class KubernetesDeployer:
             "status",
             f"deployment/{deployment_name}",
             f"-n={namespace}",
-            "--timeout={timeout}s",
+            f"--timeout={timeout}s",
         ]
 
         process = await asyncio.create_subprocess_exec(
