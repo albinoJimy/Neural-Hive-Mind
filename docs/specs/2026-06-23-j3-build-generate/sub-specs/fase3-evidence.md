@@ -93,8 +93,13 @@ G1 → G2** (antes parava no G1). O wiring + tracer + req-eng estão funcionais.
 
 Mesmo com o req-eng corrigido, o gate 4.3 não fecha por **debt de infra do pipeline Fluxo G** no
 cluster dev (cada G-step depende de um serviço que está down/degradado):
-- **LLM degradado:** o req-eng responde 200 mas gera **0 requisitos** (`requirements_generated total=0`)
-  — sem API key LLM válida, a geração é vazia.
+- **LLM sem credenciais (causa-raiz decisiva):** o req-eng responde 200 mas gera **0 requisitos**
+  (`requirements_generated total=0`). Confirmado: o deployment **não tem nenhuma env de API key**
+  (OPENAI/ANTHROPIC/LLM vazias); o `LLMClient` (`llm_client_wrapper.py:45` —
+  `if not self._client and self.api_key`) **só** instancia o cliente se houver key → sem key,
+  `_client=None` → geração vazia. **Sem credenciais LLM, "código FastAPI real" é impossível**,
+  independentemente de quantos serviços Fluxo G sejam restaurados. Provisionar API keys está fora
+  do escopo/capacidade desta task (não se devem injetar segredos).
 - **G2 (documentation-generation, :8014) DOWN:** run `f3e` falha em `generate_documentation`
   (`Erro ao gerar documentação` → workflow FAILED, fail-closed). Provável `replicas=0` como o req-eng.
 - G3 (knowledge-graph-rag), G5 (RAG) e G6 (code-forge generation) dependem igualmente de serviços/LLM.
