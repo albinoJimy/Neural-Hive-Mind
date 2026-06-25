@@ -410,11 +410,17 @@ class PipelineEngine:
                 image_tag=image_tag,
             )
 
+            # push_to_registry controla se a imagem é publicada no registry. Quando
+            # False, faz build-only (--no-push) — útil para provar o build sem depender
+            # de credenciais de push (ex.: token GHCR sem scope write:packages).
+            push = bool(context.ticket.parameters.get("push_to_registry", True))
+
             # Executar build
             result = await self.container_builder.build_container(
                 dockerfile_path=dockerfile_path,
                 build_context=workdir,
                 image_tag=image_tag,
+                no_push=not push,
             )
 
             if result.success:
