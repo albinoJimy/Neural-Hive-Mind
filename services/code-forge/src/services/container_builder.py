@@ -1000,6 +1000,9 @@ class ContainerBuilder:
                     "namespace": namespace,
                     "labels": {
                         "app": "kaniko",
+                        # app.kubernetes.io/name é exigido pela policy Gatekeeper
+                        # must-have-app-label-all (senão o pod é negado com 403).
+                        "app.kubernetes.io/name": "kaniko",
                         "build": image_tag.replace(":", "-").replace("/", "-"),
                     },
                 },

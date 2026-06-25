@@ -393,7 +393,14 @@ class PipelineEngine:
                 "service_name", f"service-{context.ticket.ticket_id[:8]}"
             )
             version = context.ticket.parameters.get("version", "latest")
-            image_tag = f"{artifact_name}:{version}"
+            # Prefixar o registry OCI (ex.: ghcr.io/owner/repo) para o Kaniko fazer push
+            # para o destino correto (sem prefixo iria para docker.io e falharia).
+            registry = os.getenv("OCI_REGISTRY_URL", "").rstrip("/")
+            image_tag = (
+                f"{registry}/{artifact_name}:{version}"
+                if registry
+                else f"{artifact_name}:{version}"
+            )
 
             logger.info(
                 "building_container_image",
