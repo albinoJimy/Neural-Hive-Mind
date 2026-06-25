@@ -159,115 +159,136 @@ class FluxoGWorkflow:
                 self._requirements_set = requirements_result
                 _safe_span_event(span, "requirements_generated")
 
-                # === G2: Documentation Generation ===
+                # === G2: Documentation Generation (ENRIQUECIMENTO — best-effort) ===
+                # G2/G3/G5 são passos de enriquecimento: a sua falha NÃO deve abortar a
+                # geração de software (G6). Degradam de forma instrumentada (marcar+medir)
+                # enquanto G1 (requisitos) e G6 (código) permanecem fail-closed.
                 self._status = "generating_documentation"
                 workflow.logger.info("G2: Gerando documentação")
 
-                docs_result = await workflow.execute_activity(
-                    generate_documentation,
-                    args=[cognitive_plan, requirements_result, None],
-                    start_to_close_timeout=timedelta(seconds=120),
-                    retry_policy=RetryPolicy(
-                        maximum_attempts=2, initial_interval=timedelta(seconds=2)
-                    ),
-                )
+                try:
+                    docs_result = await workflow.execute_activity(
+                        generate_documentation,
+                        args=[cognitive_plan, requirements_result, None],
+                        start_to_close_timeout=timedelta(seconds=120),
+                        retry_policy=RetryPolicy(
+                            maximum_attempts=2, initial_interval=timedelta(seconds=2)
+                        ),
+                    )
+                    _safe_span_event(span, "documentation_generated")
+                except Exception as e:  # noqa: BLE001 — enriquecimento best-effort
+                    workflow.logger.warning(f"G2 degradado (best-effort): {e}")
+                    docs_result = {"degraded": True, "documentation_id": None, "error": str(e)}
+                    _safe_span_event(span, "documentation_degraded", {"error": str(e)[:200]})
 
                 self._documentation = docs_result
-                _safe_span_event(span, "documentation_generated")
 
-                # === G3: Knowledge Graph Update ===
+                # === G3: Knowledge Graph Update (ENRIQUECIMENTO — best-effort) ===
                 self._status = "updating_knowledge_graph"
                 workflow.logger.info("G3: Atualizando grafo de conhecimento")
 
-                graph_result = await workflow.execute_activity(
-                    update_knowledge_graph,
-                    args=[cognitive_plan, requirements_result, docs_result],
-                    start_to_close_timeout=timedelta(seconds=60),
-                    retry_policy=RetryPolicy(maximum_attempts=1),  # Não é crítico
-                )
+                try:
+                    graph_result = await workflow.execute_activity(
+                        update_knowledge_graph,
+                        args=[cognitive_plan, requirements_result, docs_result],
+                        start_to_close_timeout=timedelta(seconds=60),
+                        retry_policy=RetryPolicy(maximum_attempts=1),
+                    )
+                    _safe_span_event(span, "knowledge_graph_updated")
+                except Exception as e:  # noqa: BLE001 — enriquecimento best-effort
+                    workflow.logger.warning(f"G3 degradado (best-effort): {e}")
+                    graph_result = {"degraded": True, "error": str(e)}
+                    _safe_span_event(span, "knowledge_graph_degraded", {"error": str(e)[:200]})
 
                 self._graph_update_result = graph_result
-                _safe_span_event(span, "knowledge_graph_updated")
 
-                # === G4: Approvals (se não skip) ===
+                # === G4: Approvals (ENRIQUECIMENTO — best-effort) ===
                 if not skip_approvals:
-                    self._status = "requesting_approvals"
-                    workflow.logger.info("G4: Solicitando aprovações")
+                    try:
+                        self._status = "requesting_approvals"
+                        workflow.logger.info("G4: Solicitando aprovações")
 
-                    # Solicitar aprovação para requisitos
-                    req_approval = await workflow.execute_activity(
-                        request_approval,
-                        args=[
-                            "requirement",
-                            {
-                                "title": f"Requisitos - {plan_id}",
-                                "description": f"Requisitos gerados para plano {plan_id}",
-                                "context": {
-                                    "requirements_count": len(
-                                        requirements_result.get("requirements", [])
-                                    ),
-                                    "plan_id": plan_id,
+                        # Solicitar aprovação para requisitos
+                        req_approval = await workflow.execute_activity(
+                            request_approval,
+                            args=[
+                                "requirement",
+                                {
+                                    "title": f"Requisitos - {plan_id}",
+                                    "description": f"Requisitos gerados para plano {plan_id}",
+                                    "context": {
+                                        "requirements_count": len(
+                                            requirements_result.get("requirements", [])
+                                        ),
+                                        "plan_id": plan_id,
+                                    },
                                 },
-                            },
-                            "fluxo-g-workflow",
-                        ],
-                        start_to_close_timeout=timedelta(seconds=30),
-                        retry_policy=RetryPolicy(maximum_attempts=1),
-                    )
-
-                    self._approvals.append({"type": "requirement", "result": req_approval})
-
-                    # Solicitar aprovação para documentação
-                    docs_approval = await workflow.execute_activity(
-                        request_approval,
-                        args=[
-                            "documentation",
-                            {
-                                "title": f"Documentação - {plan_id}",
-                                "description": f"Documentação gerada para plano {plan_id}",
-                                "context": {
-                                    "documentation_id": docs_result.get("documentation_id"),
-                                    "plan_id": plan_id,
-                                },
-                            },
-                            "fluxo-g-workflow",
-                        ],
-                        start_to_close_timeout=timedelta(seconds=30),
-                        retry_policy=RetryPolicy(maximum_attempts=1),
-                    )
-
-                    self._approvals.append({"type": "documentation", "result": docs_approval})
-
-                    # Verificar se alguma aprovação requer intervenção humana
-                    human_review_required = any(
-                        a.get("result", {}).get("requires_human_review") for a in self._approvals
-                    )
-
-                    if human_review_required:
-                        workflow.logger.warning(
-                            "Fluxo G requer revisão humana - aguardando aprovação"
+                                "fluxo-g-workflow",
+                            ],
+                            start_to_close_timeout=timedelta(seconds=30),
+                            retry_policy=RetryPolicy(maximum_attempts=1),
                         )
-                        _safe_span_event(span, "human_review_required")
 
-                        # TODO: Implementar mecanismo de espera por aprovação humana
-                        # Por ora, continuar com warning
+                        self._approvals.append({"type": "requirement", "result": req_approval})
 
-                    _safe_span_event(span, "approvals_processed")
+                        # Solicitar aprovação para documentação
+                        docs_approval = await workflow.execute_activity(
+                            request_approval,
+                            args=[
+                                "documentation",
+                                {
+                                    "title": f"Documentação - {plan_id}",
+                                    "description": f"Documentação gerada para plano {plan_id}",
+                                    "context": {
+                                        "documentation_id": docs_result.get("documentation_id"),
+                                        "plan_id": plan_id,
+                                    },
+                                },
+                                "fluxo-g-workflow",
+                            ],
+                            start_to_close_timeout=timedelta(seconds=30),
+                            retry_policy=RetryPolicy(maximum_attempts=1),
+                        )
 
-                # === G5: Query RAG (opcional - enriquecer resultado) ===
+                        self._approvals.append({"type": "documentation", "result": docs_approval})
+
+                        # Verificar se alguma aprovação requer intervenção humana
+                        human_review_required = any(
+                            a.get("result", {}).get("requires_human_review")
+                            for a in self._approvals
+                        )
+
+                        if human_review_required:
+                            workflow.logger.warning(
+                                "Fluxo G requer revisão humana - aguardando aprovação"
+                            )
+                            _safe_span_event(span, "human_review_required")
+
+                            # TODO: Implementar mecanismo de espera por aprovação humana
+                            # Por ora, continuar com warning
+
+                        _safe_span_event(span, "approvals_processed")
+                    except Exception as e:  # noqa: BLE001 — enriquecimento best-effort
+                        workflow.logger.warning(f"G4 degradado (best-effort): {e}")
+                        _safe_span_event(span, "approvals_degraded", {"error": str(e)[:200]})
+
+                # === G5: Query RAG (ENRIQUECIMENTO — best-effort) ===
                 self._status = "enriching_with_rag"
                 workflow.logger.info("G5: Enriquecendo com RAG")
 
-                # Exemplo: buscar contexto similar no grafo
                 rag_query = f"Planos similares a {plan_id}"
-                rag_result = await workflow.execute_activity(
-                    query_knowledge_graph,
-                    args=[rag_query, f"Contexto do plano {plan_id}", 5],
-                    start_to_close_timeout=timedelta(seconds=30),
-                    retry_policy=RetryPolicy(maximum_attempts=1),
-                )
-
-                _safe_span_event(span, "rag_enrichment_complete")
+                try:
+                    rag_result = await workflow.execute_activity(
+                        query_knowledge_graph,
+                        args=[rag_query, f"Contexto do plano {plan_id}", 5],
+                        start_to_close_timeout=timedelta(seconds=30),
+                        retry_policy=RetryPolicy(maximum_attempts=1),
+                    )
+                    _safe_span_event(span, "rag_enrichment_complete")
+                except Exception as e:  # noqa: BLE001 — enriquecimento best-effort
+                    workflow.logger.warning(f"G5 degradado (best-effort): {e}")
+                    rag_result = {"degraded": True, "error": str(e)}
+                    _safe_span_event(span, "rag_enrichment_degraded", {"error": str(e)[:200]})
 
                 # === G6: Generate Code ===
                 self._status = "generating_code"
