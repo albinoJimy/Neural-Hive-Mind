@@ -23,6 +23,11 @@ class Settings(BaseSettings):
     cluster_name: str = "nhm-cluster"
     default_namespace: str = "default"
 
+    # Pull secret para imagens privadas (GHCR). Replicado para o namespace alvo
+    # e referenciado em imagePullSecrets do pod gerado.
+    image_pull_secret: str = "ghcr-secret"
+    image_pull_secret_source_namespace: str = "neural-hive"
+
     # Deployment defaults
     default_replicas: int = 2
     default_cpu: str = "500m"

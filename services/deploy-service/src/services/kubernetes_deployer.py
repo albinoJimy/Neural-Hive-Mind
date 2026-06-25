@@ -215,6 +215,70 @@ class KubernetesDeployer:
 
         await process.communicate(input=stdout)
 
+        # Replicar o pull secret (GHCR) para o namespace alvo, sem o qual
+        # imagens privadas não são puxadas (ImagePullBackOff).
+        await self._replicate_pull_secret(namespace)
+
+    async def _replicate_pull_secret(self, namespace: str):
+        """Replica o pull secret de imagens privadas para o namespace alvo."""
+        secret_name = settings.image_pull_secret
+        source_ns = settings.image_pull_secret_source_namespace
+        if not secret_name or namespace == source_ns:
+            return
+
+        get_cmd = [
+            "kubectl",
+            *self._kubectl_auth_args(),
+            "get",
+            "secret",
+            secret_name,
+            "-n",
+            source_ns,
+            "-o=json",
+        ]
+        process = await asyncio.create_subprocess_exec(
+            *get_cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        stdout, stderr = await process.communicate()
+        if process.returncode != 0:
+            logger.warning(
+                "pull_secret_origem_indisponivel",
+                secret=secret_name,
+                source_namespace=source_ns,
+                error=stderr.decode()[:200],
+            )
+            return
+
+        src = json.loads(stdout)
+        new_secret = {
+            "apiVersion": "v1",
+            "kind": "Secret",
+            "type": src.get("type", "kubernetes.io/dockerconfigjson"),
+            "metadata": {"name": secret_name, "namespace": namespace},
+            "data": src.get("data", {}),
+        }
+        apply_cmd = [
+            "kubectl",
+            *self._kubectl_auth_args(),
+            "apply",
+            "-f=-",
+        ]
+        p2 = await asyncio.create_subprocess_exec(
+            *apply_cmd,
+            stdin=asyncio.subprocess.PIPE,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        _, err2 = await p2.communicate(input=json.dumps(new_secret).encode())
+        if p2.returncode != 0:
+            logger.warning(
+                "pull_secret_replica_falhou",
+                namespace=namespace,
+                error=err2.decode()[:200],
+            )
+
     async def _create_deployment(self, request: DeploymentRequest) -> str:
         """Cria o Deployment no Kubernetes."""
         deployment_name = f"{request.service_name}-{request.version}"
@@ -258,6 +322,7 @@ class KubernetesDeployer:
                         }
                     },
                     "spec": {
+                        "imagePullSecrets": [{"name": settings.image_pull_secret}],
                         "containers": [
                             {
                                 "name": request.service_name,
@@ -290,7 +355,7 @@ class KubernetesDeployer:
                                     "periodSeconds": period,
                                 },
                             }
-                        ]
+                        ],
                     },
                 },
                 "strategy": {
