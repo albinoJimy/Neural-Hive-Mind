@@ -28,6 +28,11 @@ RUN pip install --no-cache-dir -r requirements-dev.txt
 # Copy application
 COPY services/requirements-engineering/src ./src
 
+# Copy proto files from service-registry (committados lá; partilhados pelos serviços
+# de engenharia Fluxo G). Sem isto, `from src.proto import service_registry_pb2`
+# (main.py) falha e o serviço não arranca.
+COPY services/service-registry/src/proto/ ./src/proto/
+
 # Expose port
 EXPOSE 8010
 
