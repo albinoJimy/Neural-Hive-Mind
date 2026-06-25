@@ -67,7 +67,47 @@ artefacto novo** foi gerado por este run (honestidade: o gate não foi atingido)
   `requirements-engineering` (módulo `engineering_service_registry_client` em falta), fora do
   escopo desta task. **Não marcado como concluído** — o trabalho real (code_artifact) não aconteceu.
 
+## Investigação + correção do requirements-engineering (G1) — 2026-06-25
+
+A pedido, investiguei e corrigi o `requirements-engineering`. Foram **4 defeitos** distintos
+(o serviço estava `replicas=0` há muito, acumulando debt):
+1. **Módulo + proto em falta (código, commit `dcaf53d`):** `main.py` importava
+   `src.clients.engineering_service_registry_client` (nunca committado no req-eng) e `src.proto`
+   (não copiado no Dockerfile). Fix: portado o cliente de `documentation-generation` (mesmo path
+   `from src.proto import …`) + adicionado `COPY services/service-registry/src/proto/ ./src/proto/`
+   ao Dockerfile (como docs-gen/approval-gw).
+2. **Registry bloqueava o startup (código, commit `24999e5`):** `initialize()` fazia
+   `await channel_ready()` **sem timeout** → se o service-registry estiver inalcançável (mTLS istio),
+   o lifespan nunca chega ao `yield` e o app HTTP nunca serve (503 `connection refused`). Fix:
+   `asyncio.wait_for(channel_ready(), timeout=5)` → registo best-effort; **provado: `health → 200`,
+   `Application startup complete`, `Uvicorn running on :8010`**.
+3. **Kafka mal configurado (config, kubectl set env):** deployment tinha `REQ_ENG_KAFKA_BOOTSTRAP_SERVERS`
+   mas o settings lê `KAFKA_BOOTSTRAP_SERVERS` (validation_alias) → default `localhost:9092` → crash.
+4. **MongoDB mal configurado (config, kubectl set env):** idem, `REQ_ENG_MONGODB_URL` vs `MONGODB_URL`
+   → default `localhost:27017` → `/from-plan` dava erro de persistência.
+
+**Resultado provado em cluster:** `/from-plan → 200`; um run J3 real (`f3e`) passa a **avançar
+G1 → G2** (antes parava no G1). O wiring + tracer + req-eng estão funcionais.
+
+## 4.3 — ainda NÃO atingido: blockers de AMBIENTE (não de código)
+
+Mesmo com o req-eng corrigido, o gate 4.3 não fecha por **debt de infra do pipeline Fluxo G** no
+cluster dev (cada G-step depende de um serviço que está down/degradado):
+- **LLM degradado:** o req-eng responde 200 mas gera **0 requisitos** (`requirements_generated total=0`)
+  — sem API key LLM válida, a geração é vazia.
+- **G2 (documentation-generation, :8014) DOWN:** run `f3e` falha em `generate_documentation`
+  (`Erro ao gerar documentação` → workflow FAILED, fail-closed). Provável `replicas=0` como o req-eng.
+- G3 (knowledge-graph-rag), G5 (RAG) e G6 (code-forge generation) dependem igualmente de serviços/LLM.
+
+Estes são problemas de **ambiente/infra** (serviços desligados + credenciais LLM), fora do escopo de
+código da Task 4. O `code_artifacts` permanece com 1 documento — **nenhum artefacto real gerado**
+(sem verde falso). As correções de config do req-eng (Kafka/Mongo) são patches imperativos
+(`kubectl set env`); o ideal é corrigir os nomes das vars no helm do req-eng (usa prefixo
+`REQ_ENG_` que o settings não lê).
+
 ## Próximo passo recomendado
-Restaurar o `requirements-engineering` (criar/portar `engineering_service_registry_client` para
-`services/requirements-engineering/src/clients/`, ou corrigir o import em `main.py`), repor
-`replicas≥1`, e re-correr o gate 4.3. Só então a Fase 3 fecha e a Fase 4 (build) pode arrancar.
+Para fechar 4.3: (a) configurar credenciais LLM para req-eng+code-forge; (b) repor os serviços
+Fluxo G em falta (documentation-generation, knowledge-graph-rag) — provavelmente o mesmo padrão de
+defeitos do req-eng; (c) re-correr o gate. Alternativa pragmática: validar o G6/code_artifact de
+forma isolada (injetar requisitos+docs fixos e exercitar só o G6→code-forge) se o objetivo for
+provar a geração de código sem depender de todo o pipeline G1-G5.
