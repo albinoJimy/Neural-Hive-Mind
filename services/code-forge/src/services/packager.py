@@ -46,12 +46,21 @@ class Packager:
         ticket_id = getattr(context.ticket, "ticket_id", None) if context.ticket else None
 
         for artifact in context.generated_artifacts:
-            # Gerar SBOM com IDs para upload S3
-            sbom_uri = await self.sigstore_client.generate_sbom(
-                artifact_path=artifact.content_uri,
-                artifact_id=artifact.artifact_id,
-                ticket_id=ticket_id,
-            )
+            # Gerar SBOM com IDs para upload S3 (best-effort: supply-chain não
+            # deve abortar um build/push de imagem bem-sucedido).
+            sbom_uri = None
+            try:
+                sbom_uri = await self.sigstore_client.generate_sbom(
+                    artifact_path=artifact.content_uri,
+                    artifact_id=artifact.artifact_id,
+                    ticket_id=ticket_id,
+                )
+            except Exception as e:  # noqa: BLE001 — SBOM best-effort
+                logger.warning(
+                    "sbom_generation_degraded",
+                    artifact_id=artifact.artifact_id,
+                    error=str(e)[:200],
+                )
             artifact.sbom_uri = sbom_uri
 
             # Verificar integridade pós-upload S3
@@ -87,8 +96,16 @@ class Packager:
                         registry_reference=registry_ref,
                     )
 
-            # Assinar artefato
-            signature = await self.sigstore_client.sign_artifact(artifact.content_uri)
+            # Assinar artefato (best-effort: assinatura não deve abortar o build)
+            signature = None
+            try:
+                signature = await self.sigstore_client.sign_artifact(artifact.content_uri)
+            except Exception as e:  # noqa: BLE001 — assinatura best-effort
+                logger.warning(
+                    "artifact_signing_degraded",
+                    artifact_id=artifact.artifact_id,
+                    error=str(e)[:200],
+                )
             artifact.signature = signature
 
             # Executar scan de vulnerabilidades com Trivy

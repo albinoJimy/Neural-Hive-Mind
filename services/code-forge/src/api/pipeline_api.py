@@ -86,7 +86,9 @@ def _serialize_value(value: any) -> str:
     if isinstance(value, (dict, list)):
         import json
 
-        return json.dumps(value)
+        # default=str serializa datetime (e afins) como ISO/str, evitando
+        # "Object of type datetime is not JSON serializable".
+        return json.dumps(value, default=str)
     return str(value)
 
 
