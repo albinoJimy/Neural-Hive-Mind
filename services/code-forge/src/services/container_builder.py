@@ -10,6 +10,7 @@ Suporta:
 """
 
 import asyncio
+import os
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Optional
@@ -279,6 +280,17 @@ class ContainerBuilder:
             }
         ]
 
+        # Montar as credenciais do registry onde o Kaniko as lê por default
+        # (/kaniko/.docker/config.json) — necessário para o push autenticado.
+        if os.getenv("KANIKO_DOCKER_CONFIG_SECRET", ""):
+            mounts.append(
+                {
+                    "name": "docker-config",
+                    "mountPath": "/kaniko/.docker",
+                    "readOnly": True,
+                }
+            )
+
         if needs_qemu:
             mounts.append(
                 {
@@ -311,6 +323,21 @@ class ContainerBuilder:
                 "emptyDir": {},
             },
         ]
+
+        # Montar o secret de credenciais do registry (dockerconfigjson) como
+        # /kaniko/.docker/config.json — sem isto o Kaniko faz push ANÓNIMO e o
+        # registry responde DENIED. O nome do secret vem de KANIKO_DOCKER_CONFIG_SECRET.
+        docker_secret = os.getenv("KANIKO_DOCKER_CONFIG_SECRET", "")
+        if docker_secret:
+            volumes.append(
+                {
+                    "name": "docker-config",
+                    "secret": {
+                        "secretName": docker_secret,
+                        "items": [{"key": ".dockerconfigjson", "path": "config.json"}],
+                    },
+                }
+            )
 
         if needs_qemu:
             volumes.append(
