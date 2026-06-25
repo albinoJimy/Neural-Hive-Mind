@@ -134,7 +134,7 @@ async def main():
 
     postgres_client = PostgresClient(settings.POSTGRES_URL)
     mongodb_client = MongoDBClient(settings.MONGODB_URL, "code_forge")
-    redis_client = RedisClient(settings.REDIS_URL)
+    redis_client = RedisClient(settings.REDIS_URL, cluster_enabled=settings.REDIS_CLUSTER_ENABLED)
 
     # Novos clientes para integração MCP
     mcp_client = None

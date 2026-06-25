@@ -54,6 +54,11 @@ class Settings(BaseSettings):
     REDIS_PORT: int = Field(default=6379, description="Redis port")
     REDIS_DB: int = Field(default=0, description="Redis database")
     REDIS_PASSWORD: str = Field(default="", description="Redis password")
+    REDIS_CLUSTER_ENABLED: bool = Field(
+        default=False,
+        description="Se True, usa RedisCluster (necessário quando o Redis é um cluster; "
+        "caso contrário ocorrem erros MOVED). Configurável via env REDIS_CLUSTER_ENABLED.",
+    )
 
     @property
     def REDIS_URL(self) -> str:
