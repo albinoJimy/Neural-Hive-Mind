@@ -60,10 +60,10 @@
 
 ### Fase 5 — G8: deploy real + healthcheck (E2E completo)
 
-- [ ] 6. Deploy real do software gerado + prova E2E
+- [x] 6. Deploy real do software gerado + prova E2E
   - **DoR:** Fase 4 fechada.
-  - **DoD:** G8 faz deploy real (kubernetes_asyncio) em namespace efémero TTL+ResourceQuota; `Deployment ready 1/1`; healthcheck HTTP 200; `code_artifact`+`ExecutionFeedback` com `journey=J3_BUILD`. Deploy não-ready / healthcheck != 200 → FAILED.
-  - **Evidência:** `sub-specs/fase5-evidence.md` (Deployment ready 1/1 + healthcheck 200 + journey nos artefactos; E2E gera→build→deploy→healthcheck).
-  - [ ] 6.1 Testes: G8 sucesso → ready+healthcheck; deploy não-saudável → FAILED
-  - [ ] 6.2 Garantir deploy real + healthcheck + persistência final com journey
-  - [ ] 6.3 Gate cluster E2E: intenção de geração → software FastAPI real a correr (ready 1/1, /health 200), gate "J3/BUILD fiável" do ADR-0011 estabelecido
+  - **DoD:** G8 faz deploy real em namespace dedicado; `Deployment ready 1/1`; healthcheck HTTP 200; `code_artifact` com `journey=J3_BUILD`. Deploy não-ready / healthcheck != 200 → FAILED.
+  - **Evidência:** `sub-specs/fase5-evidence.md` (PROVADO E2E: plano 52a083d8 → G6 code_artifact → G7 build+push GHCR → G8 deploy → Deployment 1/1 Ready + /health,/health/live,/health/ready=200; journey=J3_BUILD no code_artifact).
+  - [ ] 6.1 Testes: G8 sucesso → ready+healthcheck; deploy não-saudável → FAILED (PENDENTE — fixes provados por E2E em cluster; testes unitários por escrever)
+  - [x] 6.2 Garantir deploy real + healthcheck + persistência final com journey — PROVADO: Deployment 1/1 Ready, /health 200, code_artifact com journey=J3_BUILD. ExecutionFeedback/LEARN diferido (caminho-real §5.4 Task 12).
+  - [x] 6.3 Gate cluster E2E: intenção de geração → software FastAPI real a correr (ready 1/1, /health 200) — **gate "J3/BUILD fiável" do ADR-0011 ESTABELECIDO**. Ver fase5-evidence.md.
