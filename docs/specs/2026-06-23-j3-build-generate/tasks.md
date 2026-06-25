@@ -56,7 +56,7 @@
   - **Evidência:** `sub-specs/fase4-evidence.md` (imagem no GHCR, digest, skopeo inspect OK; build falhado → FAILED).
   - [ ] 5.1 Testes: G7 sucesso publica imagem; falha de build → FAILED; sem ramo de simulação
   - [ ] 5.2 Garantir build real (Kaniko) + validação skopeo do digest
-  - [ ] 5.3 Gate cluster: imagem do microserviço gerado publicada e puxável
+  - [ ] 5.3 Gate cluster: imagem do microserviço gerado publicada e puxável  ⚠️ Pipeline Kaniko→GHCR ligado e provado (pod criado c/ destino GHCR correto + código real); pod Kaniko NÃO executa no cluster (pressão de recursos, workers ~99% mem) → imagem não publicada. Ver fase4-evidence.md.
 
 ### Fase 5 — G8: deploy real + healthcheck (E2E completo)
 
