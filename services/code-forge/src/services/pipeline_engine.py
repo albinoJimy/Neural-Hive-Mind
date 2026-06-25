@@ -487,8 +487,10 @@ class PipelineEngine:
         Cria requirements.txt, main.py, package.json, go.mod, etc.
         baseado na linguagem e nos artefatos gerados.
         """
-        # Obter código gerado dos artefatos (se disponível)
-        generated_code = self._extract_generated_code(context)
+        # Obter código gerado dos artefatos (se disponível).
+        # _extract_generated_code é async (lê o conteúdo do MongoDB) — TEM de ser awaited,
+        # senão `generated_code` fica um coroutine e f.write(coroutine) rebenta.
+        generated_code = await self._extract_generated_code(context)
 
         if language == CodeLanguage.PYTHON:
             # Criar requirements.txt
