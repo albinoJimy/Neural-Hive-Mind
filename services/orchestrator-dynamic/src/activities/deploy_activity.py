@@ -111,11 +111,15 @@ async def deploy_software(
         # Usar cliente HTTP
         client = _get_http_client() or httpx.AsyncClient(timeout=1200.0)
 
-        # Chamar deploy-service API para iniciar deploy
+        # Chamar deploy-service API para iniciar deploy.
+        # O deploy-service executa o deploy de forma síncrona (espera o rollout
+        # antes de responder 202), pelo que o POST pode bloquear minutos. O
+        # cliente injetado tem timeout curto (60s) — força timeout longo por-request.
         response = await client.post(
             "http://deploy-service:8010/api/v1/deployments",
             json=payload,
             headers={"Content-Type": "application/json"},
+            timeout=1200.0,
         )
 
         if response.status_code != 202:
