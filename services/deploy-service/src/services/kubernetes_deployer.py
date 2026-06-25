@@ -239,6 +239,8 @@ class KubernetesDeployer:
                 "namespace": request.namespace,
                 "labels": {
                     "app": request.service_name,
+                    # Gatekeeper must-have-app-label-all exige app.kubernetes.io/name
+                    "app.kubernetes.io/name": request.service_name,
                     "version": request.version,
                     "plan_id": request.plan_id,
                 },
@@ -250,6 +252,8 @@ class KubernetesDeployer:
                     "metadata": {
                         "labels": {
                             "app": request.service_name,
+                            # Gatekeeper must-have-app-label-all exige app.kubernetes.io/name
+                            "app.kubernetes.io/name": request.service_name,
                             "version": request.version,
                         }
                     },
@@ -315,7 +319,10 @@ class KubernetesDeployer:
             "metadata": {
                 "name": service_name,
                 "namespace": request.namespace,
-                "labels": {"app": request.service_name},
+                "labels": {
+                    "app": request.service_name,
+                    "app.kubernetes.io/name": request.service_name,
+                },
             },
             "spec": {
                 "type": "ClusterIP",
