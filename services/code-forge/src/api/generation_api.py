@@ -322,7 +322,10 @@ async def _process_generation_task(
                     "template_id": template_id,
                     "artifact_id": artifact.artifact_id,
                     "confidence_score": artifact.confidence_score,
-                    "generation_method": artifact.generation_method.value,
+                    # generation_method pode ser enum (.value) ou já str — tolerar ambos.
+                    "generation_method": getattr(
+                        artifact.generation_method, "value", artifact.generation_method
+                    ),
                 }
 
                 # Atualizar status para COMPLETED
