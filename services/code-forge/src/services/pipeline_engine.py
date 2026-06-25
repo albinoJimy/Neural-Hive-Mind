@@ -429,6 +429,12 @@ class PipelineEngine:
                     "tag": image_tag,
                     "size_bytes": result.size_bytes,
                 }
+                # Ref limpa (string) consumida a jusante pelo deploy (G8). Pina
+                # por digest quando disponível, senão usa a tag.
+                repo = image_tag.rsplit(":", 1)[0]
+                context.metadata["container_image_ref"] = (
+                    f"{repo}@{result.image_digest}" if result.image_digest else image_tag
+                )
 
                 logger.info(
                     "container_build_success",

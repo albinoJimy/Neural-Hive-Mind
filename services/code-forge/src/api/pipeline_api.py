@@ -241,6 +241,8 @@ async def _execute_pipeline_async(
                     "artifact_id": ticket.metadata.get("artifact_id"),
                     "status": normalized_status,
                     "stage": "COMPLETED" if result.status == "COMPLETED" else "FAILED",
+                    # Ref da imagem para o deploy (G8) a jusante.
+                    "container_image": result.metadata.get("container_image_ref", ""),
                     "created_at": result.created_at.isoformat(),
                     "updated_at": (result.completed_at or datetime.now()).isoformat(),
                     "artifacts": [a.model_dump() for a in result.artifacts],
@@ -314,6 +316,7 @@ async def get_pipeline(
                 "stage": state.get("stage"),
                 "duration_ms": state.get("duration_ms", 0),
                 "artifacts": state.get("artifacts", []),
+                "container_image": state.get("container_image", ""),
                 "error": state.get("error"),
                 "created_at": state.get("created_at"),
                 "updated_at": state.get("updated_at"),
