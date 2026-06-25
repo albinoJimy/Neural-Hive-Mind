@@ -33,6 +33,11 @@ class KubernetesDeployer:
         self.namespace = settings.default_namespace
         self.kubeconfig = settings.kubeconfig_path
 
+    def _kubectl_auth_args(self) -> list[str]:
+        """Args de auth do kubectl. Vazio → kubectl usa a config in-cluster (SA do pod);
+        evita falhar com `--kubeconfig=/root/.kube/config` inexistente dentro do cluster."""
+        return [f"--kubeconfig={self.kubeconfig}"] if self.kubeconfig else []
+
     async def deploy(self, request: DeploymentRequest) -> DeploymentResponse:
         """
         Cria um deployment no Kubernetes.
@@ -136,7 +141,7 @@ class KubernetesDeployer:
 
         cmd = [
             "kubectl",
-            f"--kubeconfig={self.kubeconfig}",
+            *self._kubectl_auth_args(),
             "rollout",
             "undo",
             f"deployment/{deployment_name}",
@@ -177,7 +182,7 @@ class KubernetesDeployer:
         """Garante que o namespace existe."""
         cmd = [
             "kubectl",
-            f"--kubeconfig={self.kubeconfig}",
+            *self._kubectl_auth_args(),
             "create",
             "namespace",
             namespace,
@@ -196,7 +201,7 @@ class KubernetesDeployer:
         # Aplicar manifest
         apply_cmd = [
             "kubectl",
-            f"--kubeconfig={self.kubeconfig}",
+            *self._kubectl_auth_args(),
             "apply",
             "-f=-",
         ]
@@ -380,7 +385,7 @@ class KubernetesDeployer:
         """Aguarda o rollout completar."""
         cmd = [
             "kubectl",
-            f"--kubeconfig={self.kubeconfig}",
+            *self._kubectl_auth_args(),
             "rollout",
             "status",
             f"deployment/{deployment_name}",
@@ -410,7 +415,7 @@ class KubernetesDeployer:
         # Obter pods
         cmd = [
             "kubectl",
-            f"--kubeconfig={self.kubeconfig}",
+            *self._kubectl_auth_args(),
             "get",
             "pods",
             f"-l=app={deployment_name}",
@@ -453,7 +458,7 @@ class KubernetesDeployer:
         """Obtém informações do deployment."""
         cmd = [
             "kubectl",
-            f"--kubeconfig={self.kubeconfig}",
+            *self._kubectl_auth_args(),
             "get",
             f"deployment/{deployment_name}",
             f"-n={namespace}",
@@ -486,7 +491,7 @@ class KubernetesDeployer:
         manifest_yaml = json.dumps(manifest)
         cmd = [
             "kubectl",
-            f"--kubeconfig={self.kubeconfig}",
+            *self._kubectl_auth_args(),
             "apply",
             "-f=-",
         ]
