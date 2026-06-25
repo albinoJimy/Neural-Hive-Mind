@@ -110,9 +110,51 @@ código da Task 4. O `code_artifacts` permanece com 1 documento — **nenhum art
 (`kubectl set env`); o ideal é corrigir os nomes das vars no helm do req-eng (usa prefixo
 `REQ_ENG_` que o settings não lê).
 
+## NÚCLEO DO 4.3 PROVADO (2026-06-25): code-forge gera FastAPI real sem LLM
+
+Validei o **G6→code-forge isoladamente** (a "alternativa pragmática"), exercitando
+`POST /api/v1/generate` com `generation_method=TEMPLATE`. Após corrigir uma cadeia de defeitos
+latentes do code-forge (nunca exercitado E2E), a geração **compõe e persiste um code_artifact
+com código FastAPI REAL**, **sem LLM**:
+
+```python
+app = FastAPI(title="probe-svc", description="Generated microservice", version="1.0.0")
+class HealthResponse(BaseModel):
+    status: str
+    service: str
+@app.get("/health", response_model=HealthResponse)
+async def health():
+    return HealthResponse(status="healthy", service="probe-svc")
+```
+
+Persistido em `neural_hive_orchestration`/`code_forge.artifacts` (`artifact_id`, `content`,
+`created_at`). Isto **prova o entregável-núcleo do 4.3** ("G6 gera código FastAPI real via
+code-forge"): o caminho TEMPLATE não precisa de LLM.
+
+### Defeitos do code-forge corrigidos (commits aac4ccf→d7c23e0)
+1. **Redis cluster** (`aac4ccf`): `RedisClient` em standalone contra Redis cluster → `MOVED` →
+   `/generate` 500. Add setting `REDIS_CLUSTER_ENABLED` + passar ao cliente.
+2. **pymongo truthiness** (`91ad3bd`): `if not self.db:` → `NotImplementedError` (9 sítios) →
+   `is None`/`is not None`. Desbloqueia `save_artifact_content`.
+3. **MongoDB authSource** (`d4fe15f`): `settings.MONGODB_URL` (property) construía URL sem
+   `authSource` e ignorava o env → `OperationFailure: requires authentication`. Add
+   `MONGODB_AUTH_SOURCE` + `?authSource=` na URL. Com root@admin o write persiste.
+4. **status endpoint** (`e1fd5a4`): `artifacts=None` → 500 (`list_type`) → default `[]`.
+5. **generation_method .value** (`d7c23e0`): `.value` numa str → `getattr(., 'value', .)`.
+
+### Limites honestos remanescentes
+- **Redis cluster flaky:** o cliente RedisCluster ainda dá `MOVED` intermitente em alguns slots
+  (degradação conhecida — ver `proj_consensus_redis_client_degradation`), tornando o `POST /generate`
+  por vezes 500. A geração funciona quando o Redis coopera (provado), mas não é 100% fiável.
+- **LLM ausente:** o caminho `generation_method=LLM`/`HYBRID` continua indisponível (sem credenciais);
+  só o caminho **TEMPLATE** (provado) funciona sem LLM.
+- **E2E FluxoG (G1→G6):** cada componente está agora desbloqueado (req-eng G1=200; code-forge gera
+  TEMPLATE), mas o E2E completo via FluxoG depende ainda de (a) o G6 do orchestrator chamar o
+  code-forge com método TEMPLATE; (b) estabilidade do Redis; (c) G2-G5 (documentation-generation e
+  knowledge-graph-rag estão UP, mas geram vazio sem LLM).
+
 ## Próximo passo recomendado
-Para fechar 4.3: (a) configurar credenciais LLM para req-eng+code-forge; (b) repor os serviços
-Fluxo G em falta (documentation-generation, knowledge-graph-rag) — provavelmente o mesmo padrão de
-defeitos do req-eng; (c) re-correr o gate. Alternativa pragmática: validar o G6/code_artifact de
-forma isolada (injetar requisitos+docs fixos e exercitar só o G6→code-forge) se o objetivo for
-provar a geração de código sem depender de todo o pipeline G1-G5.
+Para um 4.3 100% fiável E2E: (a) estabilizar o cliente RedisCluster do code-forge (socket_timeout +
+retry de MOVED, como no consensus); (b) configurar credenciais LLM se se quiser geração rica
+(o TEMPLATE já basta para "compila + /health 200"); (c) garantir que o G6 do FluxoG usa
+`generation_method=TEMPLATE` por omissão. O núcleo (code_artifact FastAPI real) está provado.
