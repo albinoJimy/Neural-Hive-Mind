@@ -82,6 +82,8 @@ async def _persist_code_artifact(
         "code_artifact_id": code_artifact_id,
         "plan_id": plan_id,
         "intent_id": intent_id,
+        # Propaga a journey (ex.: J3_BUILD) para rastreabilidade do artefato.
+        "journey": cognitive_plan.get("journey"),
         "request_id": final_result.get("request_id"),
         "language": final_result.get("language"),
         "framework": final_result.get("framework"),
