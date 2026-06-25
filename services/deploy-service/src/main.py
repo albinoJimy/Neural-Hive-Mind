@@ -11,11 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from src.api.routers.deployments import router as deployments_router
 from src.config.settings import settings
 from src.models.deployment import DeploymentResponse
-from neural_hive_observability import (
-    AsyncLoggingMiddleware,
-    init_logging,
-    init_tracing,
-)
+from neural_hive_observability import init_observability
 
 # Storage em memória para deployments
 _deployments: dict[str, DeploymentResponse] = {}
@@ -24,13 +20,13 @@ _deployments: dict[str, DeploymentResponse] = {}
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Lifespan context manager."""
-    # Startup
-    init_logging(service_name="deploy-service")
-    if settings.enable_tracing:
-        init_tracing(
-            service_name="deploy-service",
-            endpoint=settings.otel_endpoint,
-        )
+    # Startup — inicializa logging+tracing+métricas via helper canónico
+    init_observability(
+        service_name="deploy-service",
+        neural_hive_component="deploy-service",
+        otel_endpoint=settings.otel_endpoint if settings.enable_tracing else None,
+        enable_health_checks=False,
+    )
     yield
     # Shutdown
     pass
@@ -51,8 +47,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Logging middleware
-app.add_middleware(AsyncLoggingMiddleware)
+# Logging estruturado via init_logging (structlog); middleware dedicado
+# não disponível na versão atual de neural_hive_observability.
 
 # Routers
 app.include_router(deployments_router, prefix=settings.api_prefix)
