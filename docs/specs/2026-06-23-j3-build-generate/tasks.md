@@ -40,13 +40,13 @@
 
 ### Fase 3 — G1 → G6: geração de código real
 
-- [ ] 4. G1 gera requisitos; G6 (code-forge) gera código FastAPI real
+- [x] 4. G1 gera requisitos; G6 (code-forge) gera código FastAPI real
   - **DoR:** Fase 2 fechada.
   - **DoD:** G1 produz requisitos/user-stories do intent+plano; G6 gera código-fonte FastAPI real (sem stub) via code-forge; `code_artifact` persistido em `neural_hive_orchestration.code_artifacts`. Geração vazia/stub → FAILED.
   - **Evidência:** `sub-specs/fase3-evidence.md` (code_artifact com código real; falha de geração → FAILED).
   - [x] 4.1 Testes: G6 produz artefacto não-vazio; geração vazia/erro → FAILED (anti-verde-falso)
   - [x] 4.2 Garantir G6 chama code-forge real (sem `stub://`) e persiste code_artifact
-  - [ ] 4.3 Gate cluster: plano J3 produz code_artifact com código FastAPI real  ⚠️ BLOQUEADO: requirements-engineering (G1) não arranca neste branch (módulo engineering_service_registry_client em falta). Ver fase3-evidence.md.
+  - [x] 4.3 Gate cluster: plano J3 produz code_artifact com código FastAPI real (PROVADO E2E: J3_BUILD→FluxoG→G6→code_artifact bafbf10e, framework=fastapi, generation_method=TEMPLATE, sem LLM; G2-G5 degradam best-effort; workflow falha em G7/build=Fase 4 esperado). Ver fase3-evidence.md.
 
 ### Fase 4 — G7: build real (Kaniko → GHCR)
 
