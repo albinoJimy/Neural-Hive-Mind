@@ -1030,7 +1030,12 @@ class ContainerBuilder:
                         # app.kubernetes.io/name é exigido pela policy Gatekeeper
                         # must-have-app-label-all (senão o pod é negado com 403).
                         "app.kubernetes.io/name": "kaniko",
-                        "build": image_tag.replace(":", "-").replace("/", "-"),
+                        # Valor de label K8s ≤63 chars e início/fim alfanumérico.
+                        # Mantém o sufixo (parte única: nome do serviço + tag).
+                        "build": (
+                            image_tag.replace(":", "-").replace("/", "-")[-63:].strip("-._")
+                            or "build"
+                        ),
                     },
                 },
                 "spec": {
