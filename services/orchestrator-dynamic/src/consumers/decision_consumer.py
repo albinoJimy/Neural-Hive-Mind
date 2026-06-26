@@ -28,6 +28,12 @@ try:
 except ImportError:
     AVRO_AVAILABLE = False
 
+from src.capabilities.generate import (
+    GenerateCapability,
+    GenerateRequest,
+    GenerateTarget,
+    UnsupportedStackError,
+)
 from src.workflows.fluxo_g_workflow import FluxoGWorkflow
 from src.workflows.orchestration_workflow import OrchestrationWorkflow
 
@@ -232,6 +238,14 @@ def _select_workflow_class_by_journey(journey: str):
     Returns:
         Classe de workflow, ou None quando não há decisão de execução por journey
         (plan-only ou journey ausente/desconhecida → fallback workflow_type).
+
+    NOTA (fronteira GENERATE): para jornadas de geração esta função NÃO é a
+    autoridade de routing — `_requires_generate_capability` é. O mapeamento
+    J3_BUILD → FluxoGWorkflow mantém-se aqui (compatibilidade / fallback legado),
+    mas o caminho de geração é interceptado antes pela capacidade. Ao adicionar
+    uma nova jornada de geração, atualiza `_journey_requires_generation` (e NÃO
+    apenas esta função), senão a nova jornada arrancaria o FluxoGWorkflow sem a
+    resolução de estratégia de stack (plano não enriquecido).
     """
     if journey == "J3_BUILD":
         return FluxoGWorkflow
@@ -239,6 +253,44 @@ def _select_workflow_class_by_journey(journey: str):
         return OrchestrationWorkflow
     # J1_PLAN_ONLY e UNKNOWN não têm workflow de execução por journey.
     return None
+
+
+def _journey_requires_generation(journey: str) -> bool:
+    """Jornadas que requerem a capacidade GENERATE (hoje só J3_BUILD).
+
+    A decisão deriva da SEMÂNTICA da jornada (não de conhecer a classe do
+    workflow) — é isto que des-vaza a fronteira.
+    """
+    return journey == "J3_BUILD"
+
+
+def _requires_generate_capability(journey: str, workflow_type: str) -> bool:
+    """Autoridade ÚNICA: a execução requer a capacidade GENERATE?
+
+    Partilhada pelo caminho direto (decision_consumer) e pelo resume
+    pós-aprovação (main.py) para que NUNCA divirjam. A decisão primária deriva da
+    jornada (`_journey_requires_generation`); o fallback compat cobre planos sem
+    journey (UNKNOWN) com `workflow_type=generation` — preservando o roteamento
+    legado por workflow_type.
+    """
+    return _journey_requires_generation(journey) or (
+        _select_workflow_class_by_journey(journey) is None and workflow_type == "generation"
+    )
+
+
+def _extract_generate_target(plan: dict) -> GenerateTarget:
+    """Deriva a stack-alvo do plano para a capacidade GENERATE.
+
+    Planos de geração hoje não fixam a stack explicitamente (o code-forge
+    materializa FastAPI a partir do intent). Na ausência de language/framework
+    em parameters usamos a única stack provada (python/fastapi), preservando o
+    comportamento atual. Um plano que FIXE uma stack diferente é resolvido pelo
+    registry (desconhecida → FAILED), sem fallback silencioso — multi-linguagem-ready.
+    """
+    params = plan.get("parameters") or {}
+    language = params.get("language") or "python"
+    framework = params.get("framework") or "fastapi"
+    return GenerateTarget(language=str(language), framework=str(framework))
 
 
 class DecisionConsumer:
@@ -277,6 +329,14 @@ class DecisionConsumer:
         """
         self.config = config
         self.temporal_client = temporal_client
+        # Capacidade GENERATE construída com o cliente Temporal injetado (mesmos
+        # prefix/queue do caminho legado → workflow_id idêntico). É a fronteira
+        # de geração: o consumer delega-lhe o arranque do FluxoGWorkflow.
+        self.generate_capability = GenerateCapability(
+            temporal_client=temporal_client,
+            task_queue=config.temporal_task_queue,
+            workflow_id_prefix=config.temporal_workflow_id_prefix,
+        )
         self.mongodb_client = mongodb_client
         self.redis_client = redis_client
         self.metrics = metrics
@@ -829,6 +889,63 @@ class DecisionConsumer:
                     await self._mark_decision_processed(decision_id)
                 return
 
+            # Fronteira não-vazada: decide-se "requer geração" pela semântica da
+            # jornada (autoridade única partilhada com o resume em main.py), não
+            # por conhecer a classe do workflow. Fallback compat: journey
+            # ausente/UNKNOWN + workflow_type=generation também é geração.
+            by_journey = _journey_requires_generation(journey)
+            requires_generation = _requires_generate_capability(journey, workflow_type)
+
+            if requires_generation:
+                target = _extract_generate_target(cognitive_plan_json)
+                routing_basis = "journey" if by_journey else "workflow_type_fallback"
+                span.set_attribute("neural.hive.journey", journey)
+                span.set_attribute("neural.hive.routing_basis", routing_basis)
+                span.set_attribute("neural.hive.capability", "GENERATE")
+                logger.info(
+                    "Invocando capacidade GENERATE",
+                    workflow_id=workflow_id,
+                    plan_id=plan_id,
+                    journey=journey,
+                    routing_basis=routing_basis,
+                    target=f"{target.language}/{target.framework}",
+                )
+                try:
+                    handle = await self.generate_capability.start(
+                        GenerateRequest(
+                            plan_id=plan_id,
+                            journey=journey,
+                            cognitive_plan=cognitive_plan_json,
+                            target=target,
+                        )
+                    )
+                except UnsupportedStackError as stack_err:
+                    # Anti-verde-falso: stack não suportada → NÃO inicia nada; erro
+                    # permanente (commit do offset p/ não reprocessar em loop).
+                    logger.error(
+                        "generate_capability_unsupported_stack",
+                        plan_id=plan_id,
+                        journey=journey,
+                        target=f"{target.language}/{target.framework}",
+                        error=str(stack_err),
+                    )
+                    await self.consumer.commit()
+                    if decision_id:
+                        await self._mark_decision_processed(decision_id)
+                    return
+                logger.info(
+                    "Capacidade GENERATE iniciada",
+                    workflow_id=handle.workflow_id,
+                    plan_id=plan_id,
+                    journey=handle.journey,
+                )
+                await self.consumer.commit()
+                if decision_id:
+                    await self._mark_decision_processed(decision_id)
+                logger.info("Mensagem processada com sucesso", offset=message.offset)
+                return
+
+            # Caso contrário: orquestração (J2/J4 ou fallback workflow_type=orchestration).
             workflow_class = _select_workflow_class_by_journey(journey)
             routing_basis = "journey"
             if workflow_class is None:

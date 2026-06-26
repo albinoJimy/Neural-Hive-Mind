@@ -78,12 +78,18 @@ class GenerateCapability:
         self._workflow_id_prefix = workflow_id_prefix
         self._registry = registry or default_stack_registry()
 
-    async def start(self, request: GenerateRequest) -> GenerateHandle:
+    async def start(
+        self, request: GenerateRequest, workflow_id: str | None = None
+    ) -> GenerateHandle:
         """
         Resolve a estratégia e **inicia** o FluxoGWorkflow (start durável).
 
         Stack desconhecida → `UnsupportedStackError` propaga e o workflow NÃO é
         iniciado (FAILED sem iniciar — anti-verde-falso). Não espera o resultado.
+
+        `workflow_id` opcional (retrocompatível): quando fornecido, preserva um id
+        já estabelecido (ex: resume pós-aprovação usa `flow-c-{correlation_id}`);
+        na ausência usa-se o id por plano `{prefix}{plan_id}` (comportamento legado).
         """
         # 1. Resolve a estratégia (fail-closed: desconhecida → erro antes de iniciar)
         strategy = self._registry.resolve(request.target.language, request.target.framework)
@@ -110,19 +116,19 @@ class GenerateCapability:
             "is_direct_plan": True,
         }
 
-        # 3. id por plano
-        workflow_id = f"{self._workflow_id_prefix}{request.plan_id}"
+        # 3. id por plano (ou id preservado, se fornecido pelo chamador)
+        wid = workflow_id or f"{self._workflow_id_prefix}{request.plan_id}"
 
         # 4. Start durável (não bloqueia à espera do resultado)
         await self._temporal_client.start_workflow(
             FluxoGWorkflow.run,
             input_data,
-            id=workflow_id,
+            id=wid,
             task_queue=self._task_queue,
         )
 
         # 5. Handle durável
-        return GenerateHandle(workflow_id=workflow_id, journey=request.journey)
+        return GenerateHandle(workflow_id=wid, journey=request.journey)
 
     @staticmethod
     def map_result(workflow_output: dict, journey: str) -> GenerateResult:

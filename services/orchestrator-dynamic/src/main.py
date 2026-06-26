@@ -3370,9 +3370,11 @@ async def start_workflow(request: WorkflowStartRequest):
     # e preservando o fallback por workflow_type para planos sem journey.
     # Import tardio: evita custo/ciclo de import no arranque do módulo.
     from src.consumers.decision_consumer import (
+        _extract_generate_target,
         _get_journey_from_plan,
         _get_workflow_type_from_plan,
         _is_plan_only,
+        _requires_generate_capability,
         _select_workflow_class,
         _select_workflow_class_by_journey,
     )
@@ -3393,6 +3395,68 @@ async def start_workflow(request: WorkflowStartRequest):
             content=WorkflowStartResponse(
                 workflow_id=workflow_id,
                 status="skipped_plan_only",
+                correlation_id=request.correlation_id,
+            ).model_dump(),
+        )
+
+    # Resume pós-aprovação honra a capacidade GENERATE (fronteira não-vazada): a
+    # decisão deriva da semântica da jornada (J3_BUILD), não da classe do workflow.
+    # Fallback compat: journey ausente/UNKNOWN + workflow_type=generation é geração.
+    requires_generation = _requires_generate_capability(
+        journey, _get_workflow_type_from_plan(request.cognitive_plan)
+    )
+    if requires_generation:
+        from src.capabilities.generate import (
+            GenerateCapability,
+            GenerateRequest,
+            UnsupportedStackError,
+        )
+
+        target = _extract_generate_target(request.cognitive_plan)
+        capability = GenerateCapability(
+            temporal_client=app_state.temporal_client,
+            task_queue=config.temporal_task_queue,
+            workflow_id_prefix=config.temporal_workflow_id_prefix,
+        )
+        logger.info(
+            "workflow_start_attempt",
+            workflow_id=workflow_id,
+            plan_id=plan_id,
+            intent_id=intent_id,
+            correlation_id=request.correlation_id,
+            journey=journey,
+            routing_basis="capability_generate",
+        )
+        try:
+            handle = await capability.start(
+                GenerateRequest(
+                    plan_id=plan_id,
+                    journey=journey,
+                    cognitive_plan=request.cognitive_plan,
+                    target=target,
+                ),
+                workflow_id=workflow_id,  # preserva o id flow-c-{correlation_id}
+            )
+        except UnsupportedStackError as e:
+            logger.error(
+                "workflow_start_unsupported_stack",
+                workflow_id=workflow_id,
+                plan_id=plan_id,
+                error=str(e),
+            )
+            raise HTTPException(status_code=422, detail=f"stack não suportada: {e}") from e
+        logger.info(
+            "workflow_started",
+            workflow_id=handle.workflow_id,
+            plan_id=plan_id,
+            correlation_id=request.correlation_id,
+            workflow_class="FluxoGWorkflow",
+        )
+        return JSONResponse(
+            status_code=200,
+            content=WorkflowStartResponse(
+                workflow_id=handle.workflow_id,
+                status="started",
                 correlation_id=request.correlation_id,
             ).model_dump(),
         )

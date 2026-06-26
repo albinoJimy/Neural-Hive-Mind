@@ -46,16 +46,23 @@
 
 ### Fase 2 — Des-vazar a fronteira no routing
 
-- [ ] 3. `decision_consumer` invoca a capacidade em vez de conhecer FluxoGWorkflow
-  - **DoR:** Fase 1 fechada.
+- [x] 3. `decision_consumer` invoca a capacidade em vez de conhecer FluxoGWorkflow
+  - **DoR:** Fase 1 fechada. ✓
   - **DoD:** para jornadas de geração (J3_BUILD), o handler invoca `GenerateCapability`; deixa de
-    importar/usar `FluxoGWorkflow` directamente nesse caminho. Preservados: J1 não executa; J2/J4 →
-    Orchestration; fallback por `workflow_type`; resume pós-aprovação honra a capacidade.
+    iniciar `FluxoGWorkflow` directamente nesse caminho. Preservados: J1 não executa; J2/J4 →
+    Orchestration; fallback por `workflow_type`; resume pós-aprovação honra a capacidade. **FEITO
+    (código+contrato)** — 18 testes verdes, zero regressão; pipeline dev→auditoria(qualidade SHIP +
+    completude COMPLETO)→remediação (CR-001 autoridade única `_requires_generate_capability` p/
+    consumer↔resume não divergirem; CR-002 documentado). Equivalência provada: teste congelado
+    `test_workflow_start_journey_routing.py` (asserts `FluxoGWorkflow.run`) continua verde.
+    Ver `sub-specs/fase2-evidence.md`. **3.3 (gate cluster) PENDENTE** — control-plane instável.
   - **Evidência:** `sub-specs/fase2-evidence.md`.
-  - [ ] 3.1 Testes: J3_BUILD → invoca capacidade; J1/UNKNOWN sem execução; J2/J4 → Orchestration;
-    journey ausente → fallback workflow_type; resume pós-aprovação → capacidade
-  - [ ] 3.2 Refactor do routing para a capacidade (sem mudar comportamento das outras jornadas)
+  - [x] 3.1 Testes: J3_BUILD → invoca capacidade; J1/UNKNOWN sem execução; J2/J4 → Orchestration;
+    journey ausente → fallback workflow_type; resume pós-aprovação → capacidade — + anti-verde-falso
+    (stack não suportada: consumer commit+return / resume HTTP 422)
+  - [x] 3.2 Refactor do routing para a capacidade (sem mudar comportamento das outras jornadas)
   - [ ] 3.3 Gate cluster: plano J3 aprovado é processado via a capacidade (log/Temporal coerentes)
+    — DIFERIDO (deploy + cluster; control-plane instável). Prova E2E "software a correr" = Fase 4.
 
 ### Fase 3 — Prova de extensibilidade multi-linguagem (sem implementar outra stack)
 
