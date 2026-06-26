@@ -272,7 +272,14 @@ def _requires_generate_capability(journey: str, workflow_type: str) -> bool:
     jornada (`_journey_requires_generation`); o fallback compat cobre planos sem
     journey (UNKNOWN) com `workflow_type=generation` — preservando o roteamento
     legado por workflow_type.
+
+    Plan-only (J1) NUNCA executa: o guard explícito torna o contrato da função
+    auto-consistente (não depende do `_is_plan_only` upstream dos call sites),
+    senão o fallback compat (`workflow_class is None`) classificaria J1+generation
+    como geração — ver auditoria de qualidade Task 5 (CR-003).
     """
+    if _is_plan_only(journey):
+        return False
     return _journey_requires_generation(journey) or (
         _select_workflow_class_by_journey(journey) is None and workflow_type == "generation"
     )

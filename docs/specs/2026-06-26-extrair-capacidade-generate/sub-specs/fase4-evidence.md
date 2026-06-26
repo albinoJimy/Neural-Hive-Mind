@@ -82,6 +82,17 @@ delega na capacidade; a capacidade arranca o FluxoG durável) — equivalência 
 - **Cluster:** sem tráfego J2/J4 na janela de teste (só correram intenções J3); não se sobre-afirma
   prova de cluster inexistente — a paridade J2/J4 assenta no teste congelado + bloco intocado.
 
+> **Precisão de evidência (auditoria Task 5, CR-002):** o teste congelado
+> `test_workflow_start_journey_routing.py` prova apenas que `FluxoGWorkflow.run` é passado ao
+> `start_workflow` para J3 (continua a passar mesmo num revert que arrancasse o FluxoG *directamente*,
+> sem a capacidade) — serve de garantia de **não-regressão de routing**, não de prova de que a
+> **fronteira da capacidade foi exercida**. A prova de que o caminho passa pela `GenerateCapability`
+> é: (a) `tests/unit/test_workflow_start_generate_capability.py` (workflow_id no formato
+> `flow-c-{correlation_id}`, só gerado pelo caminho via capacidade) e (b) o log de cluster
+> `routing_basis=capability_generate` emitido **antes** de `capability.start()`, seguido de
+> `workflow_started workflow_class=FluxoGWorkflow` emitido **depois** do `start` (par de timestamps
+> 14:31:07).
+
 ## Anti-verde-falso (DoD: falha real em qualquer G-step → FAILED)
 
 - `/health` 200 verificado por **curl directo ao endpoint** (in-pod + Service DNS), não por
@@ -91,6 +102,34 @@ delega na capacidade; a capacidade arranca o FluxoG durável) — equivalência 
 - Stack explícita não suportada → `UnsupportedStackError` → resume HTTP 422 / consumer commit+return
   (sem fallback silencioso para FastAPI). Provado por teste unit (Fase 2/3); não se injectou falha
   destrutiva no cluster.
+
+## Re-verificação independente + auditoria (pipeline qualidade + completude)
+
+Pipeline de auditoria adversarial executado sobre a Task 5 (não só `success=True` — evidência real):
+
+- **Re-verificação de cluster (2026-06-26, ~15:5x):** o Deployment `service-21fb028b-…-1.0.0`
+  **continua vivo** (`2/2`, 0 restarts) — não foi snapshot efémero. `/health` reconfirmado por curl
+  real **HTTP 200** in-pod (8080) **e** cross-pod via Service DNS (80). `code_artifact` no MongoDB
+  `neural_hive_orchestration.code_artifacts` reconfirmado: `plan_id=21fb028b, journey=J3_BUILD,
+  status=completed, framework=fastapi, generation_method=TEMPLATE, language=python`. Imagem do
+  orchestrator deployada = `52a1e63` (commits da capacidade ancestrais).
+- **Auditoria de qualidade: SHIP** (0 críticos, 2 warnings, 3 info). Confirma fronteira não-vazada
+  real (`routing_basis=capability_generate` antes de `capability.start()`; FluxoGWorkflow só é dead
+  code legado no `_select_workflow_class_by_journey`, não no caminho produtivo) e ausência de
+  verde-falso.
+- **Auditoria de completude: COMPLETO** (8/8 itens da DoD PASS; gate 3.3 honestamente `[ ]`).
+
+**Remediação dirigida aplicada** (não altera o veredicto SHIP — endurece honestidade/contrato):
+- **CR-001:** docstring de `capability.py` reconciliada — `map_result` é o contrato de saída mas
+  **sem chamador de produção** hoje (resultado consumido via signals/ExecutionResultConsumer); o
+  anti-verde-falso E2E vem da observação directa do `/health`, não de `map_result`.
+- **CR-002:** este documento clarifica que o teste congelado prova só `FluxoGWorkflow.run` (não a
+  fronteira); a prova da fronteira é `test_workflow_start_generate_capability.py` + log
+  `routing_basis=capability_generate` (ver §5.2).
+- **CR-003:** `_requires_generate_capability` ganhou guard explícito `_is_plan_only` (contrato
+  auto-consistente: J1+generation já não devolve `True`) + teste novo
+  `tests/consumers/test_decision_consumer_plan_only_guard.py` (RED→GREEN). Suíte da capacidade:
+  **88 verdes** (85 + 3 novos); regressão alargada idêntica ao baseline (96 failed pré-existentes).
 
 ## Conclusão
 

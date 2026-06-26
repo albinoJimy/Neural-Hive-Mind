@@ -106,3 +106,8 @@
   - [x] 5.2 Confirmar ausência de regressão em J2/J4 (caminho Orchestration inalterado) — bloco de
     routing J2/J4→OrchestrationWorkflow intocado; teste congelado `test_workflow_start_journey_routing.py`
     verde; suíte unit idêntica ao baseline (zero regressão)
+  - **Auditoria independente (qualidade SHIP + completude COMPLETO 8/8):** evidência de cluster
+    re-verificada por curl/mongo reais (Deployment vivo `2/2`, `/health` 200 in-pod+DNS, code_artifact
+    journey=J3_BUILD). Remediação dirigida aplicada (CR-001 docstring `map_result` sem wiring runtime;
+    CR-002 precisão do teste congelado vs fronteira; CR-003 guard `_is_plan_only` em
+    `_requires_generate_capability` + teste novo). 88 testes verdes; baseline de regressão inalterado.

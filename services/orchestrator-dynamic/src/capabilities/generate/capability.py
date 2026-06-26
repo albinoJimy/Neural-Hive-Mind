@@ -7,7 +7,16 @@ A capacidade é a **fronteira de contrato** da geração: recebe um
 `GenerateRequest`, resolve a estratégia de stack (`StackRegistry`) e **inicia**
 o `FluxoGWorkflow` no Temporal (start durável — não bloqueia à espera do
 resultado). O mapeamento `output do workflow → GenerateResult` é uma **função
-pura** (`map_result`), aplicada quando o workflow conclui.
+pura** (`map_result`).
+
+NOTA de runtime (honestidade — auditoria Task 5, CR-001): hoje `map_result`
+define o **contrato de saída** e é alvo dos testes de bloco, mas ainda **não tem
+chamador de produção** — o resultado do FluxoGWorkflow é consumido via
+signals/ExecutionResultConsumer (cadência durável do Temporal). Logo o
+fail-closed do *output* aqui descrito é garantido pela função isolada, não
+imposto em runtime; a prova anti-verde-falso E2E da Fase 4 vem da observação
+directa do software a correr (curl `/health` 200), não de `map_result`. O wiring
+de `map_result` ao consumo de resultado fica para evolução futura da fronteira.
 
 Princípios:
 - Não reimplementa G1–G8 (o FluxoGWorkflow continua a ser a implementação).
