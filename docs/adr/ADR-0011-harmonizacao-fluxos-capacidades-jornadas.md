@@ -1,7 +1,7 @@
 # ADR-0011: Harmonização dos Fluxos NHM — Modelo Capacidades × Jornadas × Loops
 
 ## Status
-Proposto
+Aceito — 2026-06-26 (sequência em execução: passos 1 e 2 **entregues**; passo 3 **desbloqueado**).
 
 > Data: 2026-06-22 · Branch de origem da análise: `feat/convergencia-dbs`
 > Substitui conceptualmente a taxonomia linear de "Fluxos A–H" do
@@ -84,21 +84,33 @@ distingue três níveis de profundidade e **prioriza explicitamente quais valem 
 
 | Peça (alinhamento) | Custo | Valor | Decisão |
 |---|---|---|---|
-| **Fechar loop LEARN** (persistência D6 + telemetria uniforme) | médio (já em curso) | máximo — fundação cega de todo o sistema | ✅ **FAZER JÁ** |
-| **Journey router explícito** (subir bifurcação ORCH/GEN) | baixo (lógica já existe) | alto — habilita jornadas, torna roteamento testável | ✅ **FAZER A SEGUIR** |
-| **Extrair GENERATE como capacidade autónoma** | alto | alto **só quando G for fiável** | 🕐 **ADIAR** |
+| **Fechar loop LEARN** (persistência D6 + telemetria uniforme) | médio (já em curso) | máximo — fundação cega de todo o sistema | ✅ **FEITO** |
+| **Journey router explícito** (subir bifurcação ORCH/GEN) | baixo (lógica já existe) | alto — habilita jornadas, torna roteamento testável | ✅ **FEITO** |
+| **Extrair GENERATE como capacidade autónoma** | alto | alto — **G já é fiável** (gate J3/BUILD estabelecido) | ✅ **FAZER A SEGUIR** |
 | **Consolidar PLAN** (STE + consensus) | médio-alto | negativo — separação está correta | ❌ **NÃO FAZER** |
 
 **Princípio ordenador:** *Fundação → Roteamento → Capacidades. Nunca o inverso.*
 
 ### Sequência adotada
-1. **Agora** — fechar o loop D6: `execution_result_consumer.py` passa a persistir
+1. ✅ **FEITO** — fechar o loop D6: `execution_result_consumer.py` passa a persistir
    `actual_duration_ms` na coleção `execution_tickets` (que `duration_predictor.py:206`
-   lê), e LEARN consome telemetria uniforme. Estende `feat/convergencia-dbs`.
-2. **A seguir** — extrair o **journey router** explícito a partir de
-   `workflow_classifier.py` + `decision_consumer.py`.
-3. **Quando J3/BUILD for fiável** — extrair GENERATE para capacidade autónoma.
-4. **Nunca** — consolidar PLAN.
+   lê), e LEARN consome telemetria uniforme. Entregue em `feat/fundacao-loop-learn`
+   (mergeado em `feat/convergencia-dbs`).
+2. ✅ **FEITO** — extrair o **journey router** explícito a partir de
+   `workflow_classifier.py` + `decision_consumer.py`. Gate E2E J1–J4 passado (journey
+   propaga ponta-a-ponta; resume pós-aprovação roteia por journey).
+3. 🟢 **A SEGUIR (desbloqueado)** — extrair GENERATE para capacidade autónoma. A
+   pré-condição *"J3/BUILD fiável"* foi **estabelecida** pela spec
+   [`docs/specs/2026-06-23-j3-build-generate`](../specs/2026-06-23-j3-build-generate/spec.md):
+   intenção de geração → software FastAPI real a correr (Deployment 1/1, `/health` 200),
+   G6→G7→G8 fail-closed provados E2E e cobertos por testes unitários.
+4. ❌ **NUNCA** — consolidar PLAN.
+
+### Estado da execução (2026-06-26)
+Passos 1 e 2 entregues; gate do passo 3 atingido. O princípio *Fundação → Roteamento →
+Capacidades* foi respeitado na ordem certa. O passo 3 é desenvolvido em spec própria
+(extração da capacidade GENERATE), com gates de equivalência E2E (uma intenção J3
+continua a produzir software a correr via a capacidade autónoma).
 
 ## Alternativas Consideradas
 
