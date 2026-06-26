@@ -49,5 +49,29 @@ produz **software real a correr** no cluster: **generate → build → push → 
 - **`digest=null`** no resultado do Kaniko (leitura de `/kaniko/digest` corre após o container terminar) — cosmético; o deploy usa a tag publicada.
 
 ## Patches imperativos a persistir em helm (dívida)
-- `code-forge`: `KANIKO_CLEANUP_PODS=false` (env) — necessário para o push do Kaniko concluir.
+- `code-forge`: `KANIKO_CLEANUP_PODS=false` (env) — necessário para o push do Kaniko concluir. **PERSISTIDO** no chart (configmap + values-k8s.yaml) na remediação abaixo.
 - Confirmar `push_to_registry` default True no deploy do orchestrator (60b4f4d) torna o plano J3 fiável **por omissão** (sem override).
+
+## Remediação dirigida (auditoria qualidade + completude) — 2026-06-26
+
+Auditoria dupla (qualidade do diff `6768d914..ea1aad03` + completude das Tasks). Achados remediados:
+
+### Cobertura de testes (fecha 5.1 e 6.1 — eram os únicos GAPS de completude)
+- **G7** `orchestrator-dynamic/tests/unit/activities/test_build_package_activity.py` (9 testes): sucesso devolve imagem publicada + `push_to_registry` default True; `status=failed`→RuntimeError; POST não-201→RuntimeError; timeout→TimeoutError; cliente efémero fechado; `validate_build_quality` reprova score baixo/vuln crítica.
+- **G8** `orchestrator-dynamic/tests/unit/activities/test_deploy_activity.py` (8 testes): `deployed`+service_url; `status=failed`→RuntimeError; POST não-202→RuntimeError; timeout; `verify_deployment` reprova não-deployed/health não-saudável; cliente efémero fechado.
+- **G8 healthcheck** `deploy-service/tests/test_kubernetes_deployer_failclosed.py` (4 testes, ficheiro novo — regra 7): selector `app=service_name`; guard `total_pods>0` (0/0 ≠ HEALTHY); `--timeout=600s` interpolado.
+
+### Defeitos de qualidade corrigidos
+1. **REGRESSÃO (introduzida pela spec, 9172ea9c)** — `kubernetes_deployer._replicate_pull_secret` fazia `json.loads(stdout)` sem guarda; saída inesperada do kubectl (vazia/não-JSON) **rebentava o deploy inteiro** e partia 4 testes existentes (`test_kubernetes_deployer.py`). Fix: réplica do pull-secret best-effort (guard `stdout` vazio + `try/except JSONDecodeError`). 8/8 testes existentes voltam a verde.
+2. **A1 (ALTO)** — `code-forge/container_builder.py`: `elif phase == "Failed"` **duplicado**; o handler real (`return success=False`) era código morto → falha de build mascarava-se como "timeout" 15 min depois. Removido o ramo morto; falha de build agora é fail-closed imediato.
+3. **A3 (MÉDIO)** — `build_package_activity`/`deploy_activity`: cliente httpx efémero (caminho degradado) nunca era fechado → fuga de sockets. Add `finally: await client.aclose()` só quando efémero.
+4. **A5 (MÉDIO)** — `KANIKO_CLEANUP_PODS=false` + `CONTAINER_BUILDER_TYPE=kaniko` **persistidos** no chart helm do code-forge (fim do patch imperativo).
+
+### Dívida deixada documentada (fora de âmbito desta spec, aceite pela auditoria)
+- `validate_build_quality`: `quality_score` default 0.8 e `total==0→pass_rate=1.0` (build sem testes = aprovado) — **não** alterado porque o E2E provado assenta no caminho TEMPLATE (sem testes, score reportado=default); endurecer fá-lo-ia regredir o gate provado → ticket próprio.
+- `digest=null` (tag mutável no deploy), namespace efémero TTL/ResourceQuota, ExecutionFeedback/LEARN do FluxoG — já documentados acima como diferidos.
+
+### Verificação
+- Testes novos: G7 9/9, G8 8/8, deploy-service fail-closed 4/4 + existentes 8/8 = 12/12.
+- A1: `code-forge` container_builder 31/31.
+- Sem regressões introduzidas: as 4 falhas remanescentes em `activities/` (OPA/scheduler/SLA) são **pré-existentes** (falham sem as edições, provado por stash).

@@ -107,10 +107,13 @@ async def deploy_software(
         "plan_id": plan_id,
     }
 
-    try:
-        # Usar cliente HTTP
-        client = _get_http_client() or httpx.AsyncClient(timeout=1200.0)
+    # Usar cliente HTTP injetado; se ausente, criar um efémero que TEM de ser
+    # fechado no finally (senão fuga de sockets a cada activity no caminho degradado).
+    injected_client = _get_http_client()
+    client = injected_client or httpx.AsyncClient(timeout=1200.0)
+    ephemeral_client = injected_client is None
 
+    try:
         # Chamar deploy-service API para iniciar deploy.
         # O deploy-service executa o deploy de forma síncrona (espera o rollout
         # antes de responder 202), pelo que o POST pode bloquear minutos. O
@@ -160,6 +163,9 @@ async def deploy_software(
     except Exception as e:
         logger.exception("deploy_software_exception", plan_id=plan_id, error=str(e))
         raise
+    finally:
+        if ephemeral_client:
+            await client.aclose()
 
 
 async def _wait_for_deploy_completion(

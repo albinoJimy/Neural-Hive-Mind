@@ -1150,20 +1150,14 @@ class ContainerBuilder:
                     )
 
                 elif phase == "Failed":
-                    # Obter logs de erro
+                    # Obter logs de erro. Falha de build é fail-closed: marca e
+                    # retorna success=False de imediato (não deixa cair no timeout
+                    # check, que mascararia o erro real como "timeout" 15 min depois).
                     try:
                         logs = k8s.read_namespaced_pod_log(name=pod_name, namespace=namespace)
                         error_msg = logs[-500:] if len(logs) > 500 else logs
                     except Exception:
                         logs = ""
-                        error_msg = "Kaniko pod failed"
-
-                elif phase == "Failed":
-                    # Obter logs de erro
-                    try:
-                        logs = k8s.read_namespaced_pod_log(name=pod_name, namespace=namespace)
-                        error_msg = logs[-500:] if len(logs) > 500 else logs
-                    except Exception:
                         error_msg = "Kaniko pod failed"
 
                     logger.error(

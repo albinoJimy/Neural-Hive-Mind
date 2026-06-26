@@ -242,7 +242,7 @@ class KubernetesDeployer:
             stderr=asyncio.subprocess.PIPE,
         )
         stdout, stderr = await process.communicate()
-        if process.returncode != 0:
+        if process.returncode != 0 or not stdout.strip():
             logger.warning(
                 "pull_secret_origem_indisponivel",
                 secret=secret_name,
@@ -251,7 +251,17 @@ class KubernetesDeployer:
             )
             return
 
-        src = json.loads(stdout)
+        # Réplica do pull-secret é best-effort: uma saída inesperada do kubectl
+        # (vazia/não-JSON) não pode rebentar o deploy inteiro.
+        try:
+            src = json.loads(stdout)
+        except (json.JSONDecodeError, ValueError) as e:
+            logger.warning(
+                "pull_secret_parse_falhou",
+                secret=secret_name,
+                error=str(e)[:200],
+            )
+            return
         new_secret = {
             "apiVersion": "v1",
             "kind": "Secret",

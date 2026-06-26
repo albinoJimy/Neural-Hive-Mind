@@ -93,10 +93,13 @@ async def build_package(
         "plan_id": plan_id,
     }
 
-    try:
-        # Usar cliente HTTP
-        client = _get_http_client() or httpx.AsyncClient(timeout=900.0)
+    # Usar cliente HTTP injetado; se ausente, criar um efémero que TEM de ser
+    # fechado no finally (senão fuga de sockets a cada activity no caminho degradado).
+    injected_client = _get_http_client()
+    client = injected_client or httpx.AsyncClient(timeout=900.0)
+    ephemeral_client = injected_client is None
 
+    try:
         # Chamar code-forge API para iniciar pipeline
         response = await client.post(
             f"{_code_forge_base_url()}/api/v1/pipelines",
@@ -142,6 +145,9 @@ async def build_package(
     except Exception as e:
         logger.exception("build_package_exception", plan_id=plan_id, error=str(e))
         raise
+    finally:
+        if ephemeral_client:
+            await client.aclose()
 
 
 async def _wait_for_build_completion(

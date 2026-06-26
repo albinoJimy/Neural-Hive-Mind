@@ -54,7 +54,7 @@
   - **DoR:** Fase 3 fechada.
   - **DoD:** G7 constrói imagem real via Kaniko e publica no GHCR com digest; imagem **puxável** (skopeo inspect). Build falhado / imagem não-puxável → FAILED.
   - **Evidência:** `sub-specs/fase4-evidence.md` (imagem no GHCR, digest, skopeo inspect OK; build falhado → FAILED).
-  - [ ] 5.1 Testes: G7 sucesso publica imagem; falha de build → FAILED; sem ramo de simulação
+  - [x] 5.1 Testes: G7 sucesso publica imagem; falha de build → FAILED; sem ramo de simulação (remediação auditoria: `tests/unit/activities/test_build_package_activity.py`, 9 testes — sucesso+push_to_registry default True, status=failed→RuntimeError, POST não-201→RuntimeError, timeout, cliente efémero fechado, validate_build_quality reprova score baixo/vuln crítica)
   - [x] 5.2 Garantir build real (Kaniko) + digest — PROVADO: build FastAPI Succeeded + push GHCR com digest sha256:0cbe85b8…
   - [x] 5.3 Gate cluster: imagem publicada e puxável — ATINGIDO: Kaniko `Pushed ghcr.io/albinojimy/neural-hive-mind/…@sha256:0cbe85b8…` (causa do DENIED era o secret não montado, NÃO o token; fix f9585d8). Ver fase4-evidence.md.
 
@@ -64,6 +64,6 @@
   - **DoR:** Fase 4 fechada.
   - **DoD:** G8 faz deploy real em namespace dedicado; `Deployment ready 1/1`; healthcheck HTTP 200; `code_artifact` com `journey=J3_BUILD`. Deploy não-ready / healthcheck != 200 → FAILED.
   - **Evidência:** `sub-specs/fase5-evidence.md` (PROVADO E2E: plano 52a083d8 → G6 code_artifact → G7 build+push GHCR → G8 deploy → Deployment 1/1 Ready + /health,/health/live,/health/ready=200; journey=J3_BUILD no code_artifact).
-  - [ ] 6.1 Testes: G8 sucesso → ready+healthcheck; deploy não-saudável → FAILED (PENDENTE — fixes provados por E2E em cluster; testes unitários por escrever)
+  - [x] 6.1 Testes: G8 sucesso → ready+healthcheck; deploy não-saudável → FAILED (remediação auditoria: `orchestrator-dynamic/tests/unit/activities/test_deploy_activity.py`, 8 testes — deployed+service_url, status=failed→RuntimeError, POST não-202→RuntimeError, timeout, verify_deployment reprova não-deployed/health não-saudável, cliente efémero fechado; `deploy-service/tests/test_kubernetes_deployer_failclosed.py`, 4 testes — selector `app=service_name`, guard `total_pods>0` (0/0≠HEALTHY), f-string `--timeout=600s`)
   - [x] 6.2 Garantir deploy real + healthcheck + persistência final com journey — PROVADO: Deployment 1/1 Ready, /health 200, code_artifact com journey=J3_BUILD. ExecutionFeedback/LEARN diferido (caminho-real §5.4 Task 12).
   - [x] 6.3 Gate cluster E2E: intenção de geração → software FastAPI real a correr (ready 1/1, /health 200) — **gate "J3/BUILD fiável" do ADR-0011 ESTABELECIDO**. Ver fase5-evidence.md.
