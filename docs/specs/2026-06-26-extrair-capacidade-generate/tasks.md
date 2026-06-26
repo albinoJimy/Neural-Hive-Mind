@@ -12,17 +12,18 @@
 
 ### Fase 0 — Contrato + registry de stacks (multi-linguagem-ready)
 
-- [ ] 1. Definir o contrato da capacidade e o registry de stacks extensível
+- [x] 1. Definir o contrato da capacidade e o registry de stacks extensível
   - **DoD:** `src/capabilities/generate/contract.py` (`GenerateTarget`/`GenerateRequest`/
     `GenerateResult`, fail-closed, target stack-neutro) e `stacks.py` (`StackRegistry` +
     `GenerationStrategy`, FastAPI registado, `resolve` desconhecida→erro sem fallback). Sem lógica
-    de orquestração ainda.
+    de orquestração ainda. **FEITO** — 25 testes verdes; pipeline dev→auditoria(qualidade+completude)
+    →remediação (M1 verde-falso whitespace + B1/B2/B3/B4). Ver `sub-specs/fase0-evidence.md`.
   - **Evidência:** `sub-specs/fase0-evidence.md`.
-  - [ ] 1.1 Testes: contrato valida campos obrigatórios; `GenerateResult.failed` exige
+  - [x] 1.1 Testes: contrato valida campos obrigatórios; `GenerateResult.failed` exige
     `failure_reason`; registry resolve `("python","fastapi")` e estratégia "fake" registada em teste;
-    stack desconhecida → erro (sem cair em FastAPI)
-  - [ ] 1.2 Implementar contract.py + stacks.py com FastAPI registado (porta 8080, `/health`, TEMPLATE)
-  - [ ] 1.3 Documentar no módulo o ponto de extensão (como registar nova linguagem)
+    stack desconhecida → erro (sem cair em FastAPI) — 5 pontos cobertos + casos fail-closed extra
+  - [x] 1.2 Implementar contract.py + stacks.py com FastAPI registado (porta 8080, `/health`, TEMPLATE)
+  - [x] 1.3 Documentar no módulo o ponto de extensão (como registar nova linguagem)
 
 ### Fase 1 — GenerateCapability encapsula o FluxoGWorkflow
 
