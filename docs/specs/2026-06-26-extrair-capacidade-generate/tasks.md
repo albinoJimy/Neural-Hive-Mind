@@ -66,15 +66,25 @@
 
 ### Fase 3 — Prova de extensibilidade multi-linguagem (sem implementar outra stack)
 
-- [ ] 4. Garantir que adicionar uma stack não toca contrato/routing
-  - **DoR:** Fase 2 fechada.
+- [x] 4. Garantir que adicionar uma stack não toca contrato/routing
+  - **DoR:** Fase 2 fechada. ✓
   - **DoD:** uma `GenerationStrategy` "fake" registada apenas em teste é selecionada pela capacidade
     via `target` e percorre o mesmo caminho de contrato (mockando o workflow), sem qualquer alteração
-    a `GenerateRequest`/`GenerateResult` nem ao routing; stack desconhecida continua FAILED.
+    a `GenerateRequest`/`GenerateResult` nem ao routing; stack desconhecida continua FAILED. **FEITO**
+    — 8 testes verdes (`test_generate_extensibility.py`, stack fake `elixir/phoenix` com valores
+    distintos de FastAPI); pipeline dev→auditoria(qualidade SHIP por mutation testing + completude
+    COMPLETO)→remediação. **4.2 sem ajuste de produção** (`src/capabilities/generate/` sem diff): a
+    propagação completa da estratégia já fora feita na Fase 1; greps confirmam zero acoplamento
+    FastAPI fora da entrada do registry. Anti-verde-falso provado por mutação (desactivar gate
+    `verified`/fallback FastAPI/hardcode → derruba ≥1 teste). Flake da auditoria diagnosticado como
+    artefacto do mutation testing paralelo (não bug de isolamento; 18+ runs combinados verdes). Ver
+    `sub-specs/fase3-evidence.md`.
   - **Evidência:** `sub-specs/fase3-evidence.md`.
-  - [ ] 4.1 Testes: registo de stack "fake" → capacidade seleciona-a; contrato inalterado; remoção
-    da stack → FAILED (sem fallback FastAPI)
-  - [ ] 4.2 Ajustes mínimos se o teste revelar acoplamento a FastAPI fora da entrada do registry
+  - [x] 4.1 Testes: registo de stack "fake" → capacidade seleciona-a; contrato inalterado; remoção
+    da stack → FAILED (sem fallback FastAPI) — + `map_result` stack-agnóstico em SUCESSO e FALHA;
+    fake não contamina `default_stack_registry`
+  - [x] 4.2 Ajustes mínimos se o teste revelar acoplamento a FastAPI fora da entrada do registry —
+    NENHUM necessário (greps confirmam zero acoplamento fora do registry; produção sem diff)
 
 ### Fase 4 — Gate de equivalência E2E (zero regressão)
 
