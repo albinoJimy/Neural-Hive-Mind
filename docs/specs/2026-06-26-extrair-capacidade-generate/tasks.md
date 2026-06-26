@@ -88,12 +88,21 @@
 
 ### Fase 4 — Gate de equivalência E2E (zero regressão)
 
-- [ ] 5. Paridade comportamental: intenção J3 produz software a correr via a capacidade
-  - **DoR:** Fase 3 fechada.
-  - **DoD:** intenção de geração FastAPI (J3_BUILD) → `Deployment ready 1/1` + `/health` 200 num
-    namespace dedicado; `code_artifact` com `journey=J3_BUILD`; comportamento equivalente ao caminho
-    FluxoG anterior. Falha real em qualquer G-step → FAILED (sem verde falso).
+- [x] 5. Paridade comportamental: intenção J3 produz software a correr via a capacidade
+  - **DoR:** Fase 3 fechada. ✓
+  - **DoD:** intenção de geração FastAPI (J3_BUILD) → `Deployment ready 1/1` + `/health` 200 no
+    namespace de deploy (`default`, equivalente ao caminho FluxoG anterior — plano 52a083d8 também
+    deployava em `default`; namespace efémero dedicado TTL/ResourceQuota é Out-of-Scope herdado da
+    spec j3-build, fase5); `code_artifact` com `journey=J3_BUILD`; comportamento equivalente ao caminho
+    FluxoG anterior. Falha real em qualquer G-step → FAILED (sem verde falso). **FEITO** — plano
+    `21fb028b` via `GenerateCapability` (`routing_basis=capability_generate` → `workflow_class=
+    FluxoGWorkflow`): Deployment `2/2` READY, imagem GHCR, **`/health` 200 verificado por curl
+    directo (in-pod + Service DNS cross-pod)**, code_artifact journey=J3_BUILD. Zero regressão J2/J4
+    (teste congelado verde + bloco Orchestration intocado). Ver `sub-specs/fase4-evidence.md`.
   - **Evidência:** `sub-specs/fase4-evidence.md` (plano real, Deployment ready, healthcheck 200,
     journey no code_artifact).
-  - [ ] 5.1 Gate cluster E2E: intenção J3 → software FastAPI real a correr via `GenerateCapability`
-  - [ ] 5.2 Confirmar ausência de regressão em J2/J4 (caminho Orchestration inalterado)
+  - [x] 5.1 Gate cluster E2E: intenção J3 → software FastAPI real a correr via `GenerateCapability` —
+    plano `21fb028b`: Deployment `2/2`, `/health` 200 (in-pod + Service DNS), journey=J3_BUILD
+  - [x] 5.2 Confirmar ausência de regressão em J2/J4 (caminho Orchestration inalterado) — bloco de
+    routing J2/J4→OrchestrationWorkflow intocado; teste congelado `test_workflow_start_journey_routing.py`
+    verde; suíte unit idêntica ao baseline (zero regressão)
