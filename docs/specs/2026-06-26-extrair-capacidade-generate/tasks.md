@@ -27,20 +27,22 @@
 
 ### Fase 1 — GenerateCapability encapsula o FluxoGWorkflow
 
-- [ ] 2. Adaptador fino capacidade → FluxoGWorkflow (`start` durável + `map_result` puro)
-  - **DoR:** Fase 0 fechada.
+- [x] 2. Adaptador fino capacidade → FluxoGWorkflow (`start` durável + `map_result` puro)
+  - **DoR:** Fase 0 fechada. ✓
   - **DoD:** `GenerateCapability.start(GenerateRequest)` resolve a estratégia e **inicia** o
     `FluxoGWorkflow` (cliente Temporal injetado, id por plano, task_queue) devolvendo um
     `GenerateHandle`; stack desconhecida → FAILED sem iniciar. `map_result(workflow_output)` (puro)
     traduz `code_generation/build/deployment/journey → GenerateResult`; output falhado/incompleto →
     `failed`. **Sem await bloqueante no consumer** (preserva a cadência durável do Temporal). Não
-    reimplementa G1–G8.
+    reimplementa G1–G8. **FEITO** — 38 testes verdes; pipeline dev→auditoria→remediação (gate
+    `verified` anti-verde-falso; propagação da estratégia completa p/ multi-linguagem; normalização
+    datetime; não-mutação). Ver `sub-specs/fase1-evidence.md`.
   - **Evidência:** `sub-specs/fase1-evidence.md`.
-  - [ ] 2.1 Testes (cliente Temporal mockado): `start` inicia com o input certo; stack desconhecida →
+  - [x] 2.1 Testes (cliente Temporal mockado): `start` inicia com o input certo; stack desconhecida →
     FAILED sem iniciar; `map_result` sucesso → `completed` (code_artifact_id/container_image_ref/
-    deployment); output falhado/incompleto → `failed`
-  - [ ] 2.2 Implementar capability.py (`start` + `map_result` + resolução de estratégia)
-  - [ ] 2.3 Gate: teste de contrato em bloco verde (in→out sem jornada inteira)
+    deployment); output falhado/incompleto → `failed` — + gate `verified`, datetime, não-mutação
+  - [x] 2.2 Implementar capability.py (`start` + `map_result` + resolução de estratégia)
+  - [x] 2.3 Gate: teste de contrato em bloco verde (in→out sem jornada inteira)
 
 ### Fase 2 — Des-vazar a fronteira no routing
 

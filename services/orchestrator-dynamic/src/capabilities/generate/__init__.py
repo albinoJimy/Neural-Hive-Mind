@@ -7,6 +7,7 @@ Exporta os símbolos públicos do contrato e do registry. A lógica de
 orquestração (capability/routing) é introduzida em fases posteriores.
 """
 
+from src.capabilities.generate.capability import GenerateCapability, GenerateHandle
 from src.capabilities.generate.contract import (
     DeploymentInfo,
     GenerateRequest,
@@ -22,6 +23,8 @@ from src.capabilities.generate.stacks import (
 
 __all__ = [
     "DeploymentInfo",
+    "GenerateCapability",
+    "GenerateHandle",
     "GenerateRequest",
     "GenerateResult",
     "GenerateTarget",
