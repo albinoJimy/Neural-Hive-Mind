@@ -38,18 +38,25 @@
 
 ### Fase 1 — Compor o fluxo J4 (des-vazar routing + des-orfanizar MIGRATE)
 
-- [ ] 2. Routing de J4 para o fluxo composto e arranque do `DataMigrationWorkflow`
-  - **DoR:** Fase 0 fechada.
+- [x] 2. Routing de J4 para o fluxo composto e arranque do `DataMigrationWorkflow`
+  - **DoR:** Fase 0 fechada. ✓
   - **DoD:** para `J4_MIGRATE`, o handler deixa de cair na `OrchestrationWorkflow` genérica e aciona o
     fluxo composto que **inicia** o `DataMigrationWorkflow` (deixa de ser órfão), passando o migration
     spec derivado do plano (legacy/modern db urls, tabelas). Autoridade única de routing por journey
     (espelha `_requires_generate_capability`). Preservados: J1 não executa; **J2 → OrchestrationWorkflow
-    inalterada (teste congelado verde)**; fallback por `workflow_type`.
+    inalterada (teste congelado verde)**; fallback por `workflow_type`. **FEITO** — pipeline
+    dev(TDD)→auditoria(qualidade SHIP + completude SHIP)→remediação (Q1: docstring corrigido p/ não
+    afirmar paridade com o resume, que fica para fase posterior). Padrão GENERATE espelhado:
+    `_journey_requires_migration` + `_requires_migration` + `_extract_migration_config` (fail-closed) +
+    bloco que arranca `DataMigrationWorkflow.run`. **71 testes verdes** (19 novos) + zero regressão
+    GENERATE (48). `_select_workflow_class_by_journey` intocado (teste congelado verde). Nuance de
+    desenho documentada: J4 **com** `migration_config` → MIGRATE; **inválido** → FAILED; **sem a chave**
+    → compat (preserva o teste da Fase 2 do GENERATE). Ver `sub-specs/fase1-evidence.md`.
   - **Evidência:** `sub-specs/fase1-evidence.md`.
-  - [ ] 2.1 Testes: J4 → fluxo composto inicia `DataMigrationWorkflow` com o spec certo; J2 →
-    `OrchestrationWorkflow` (congelado); journey ausente/UNKNOWN → fallback `workflow_type`
-  - [ ] 2.2 Implementar o routing por journey + wiring do `DataMigrationWorkflow` (child/start)
-  - [ ] 2.3 Gate: teste de bloco verde (in→out sem correr cluster)
+  - [x] 2.1 Testes: J4 → arranca `DataMigrationWorkflow` com o spec certo; J2 → `OrchestrationWorkflow`
+    (congelado); journey ausente/UNKNOWN → fallback `workflow_type`; + anti-verde-falso (config inválido)
+  - [x] 2.2 Implementar o routing por journey + wiring do `DataMigrationWorkflow` (start durável)
+  - [x] 2.3 Gate: teste de bloco verde (in→out sem correr cluster) — 71 verdes
 
 ### Fase 2 — Gate de validação anti-verde-falso (FAIL-CLOSED)
 

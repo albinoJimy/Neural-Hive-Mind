@@ -34,6 +34,7 @@ from src.capabilities.generate import (
     GenerateTarget,
     UnsupportedStackError,
 )
+from src.workflows.data_migration_workflow import DataMigrationWorkflow
 from src.workflows.fluxo_g_workflow import FluxoGWorkflow
 from src.workflows.orchestration_workflow import OrchestrationWorkflow
 
@@ -304,6 +305,85 @@ def _extract_generate_target(plan: dict) -> GenerateTarget:
     language = str(params.get("language") or "").strip() or "python"
     framework = str(params.get("framework") or "").strip() or "fastapi"
     return GenerateTarget(language=language, framework=framework)
+
+
+def _journey_requires_migration(journey: str) -> bool:
+    """Jornadas que requerem a capacidade MIGRATE (hoje só J4_MIGRATE).
+
+    Espelha ``_journey_requires_generation``: a decisão deriva da SEMÂNTICA da
+    jornada (não de conhecer a classe do workflow) — é isto que des-vaza a
+    fronteira de migração.
+    """
+    return journey == "J4_MIGRATE"
+
+
+def _requires_migration(journey: str, workflow_type: str) -> bool:
+    """Autoridade ÚNICA: a execução requer a capacidade MIGRATE?
+
+    Espelha a ESTRUTURA de ``_requires_generate_capability``: a decisão deriva da
+    jornada (``_journey_requires_migration``) e plan-only (J1) NUNCA executa. Ao
+    contrário de GENERATE, não há fallback compat por ``workflow_type`` (não
+    existe "migration" legado por workflow_type), pelo que ``workflow_type`` é
+    aceite por simetria de assinatura mas não condiciona a decisão hoje.
+
+    NOTA DE ÂMBITO (Fase 1): esta autoridade serve, por enquanto, APENAS o caminho
+    direto (``decision_consumer``). Ao contrário de GENERATE — que já partilha a
+    autoridade com o resume pós-aprovação (``main.py``) —, o resume ainda NÃO
+    invoca esta função nem arranca ``DataMigrationWorkflow``. Um plano J4 aprovado
+    por revisão humana cai hoje na orquestração genérica; fechar essa paridade
+    (resume → MIGRATE) é escopo de fase posterior. Não afirmar paridade já
+    existente com o resume.
+    """
+    if _is_plan_only(journey):
+        return False
+    return _journey_requires_migration(journey)
+
+
+class InvalidMigrationConfigError(ValueError):
+    """``migration_config`` ausente ou inválido — fail-closed, sem defaults.
+
+    Anti-verde-falso: um plano J4 com ``migration_config`` presente mas malformado
+    (sem ``legacy_connection_id`` ou com ``tables`` vazias) NÃO pode ser migrado
+    nem cair silenciosamente na orquestração genérica — o consumer trata-o como
+    erro permanente.
+    """
+
+
+def _extract_migration_config(plan: dict) -> dict:
+    """Deriva e valida o ``migration_config`` do plano J4 (fail-closed).
+
+    Reusa o formato de ``build_j4_migrate_plan_message`` (Fase 0): exige
+    ``legacy_connection_id`` (str não-vazia) e ``tables`` (lista com ≥1 entrada
+    não-vazia). Sem defaults silenciosos — ausente/inválido levanta
+    ``InvalidMigrationConfigError`` (ao contrário de GENERATE, MIGRATE não tem
+    stack-default provada). ``modern_connection_id`` é opcional; ``schema``
+    assume "public" quando ausente.
+    """
+    raw = plan.get("migration_config")
+    if not isinstance(raw, dict) or not raw:
+        raise InvalidMigrationConfigError("migration_config ausente ou vazio")
+
+    legacy = str(raw.get("legacy_connection_id") or "").strip()
+    if not legacy:
+        raise InvalidMigrationConfigError("legacy_connection_id ausente ou vazio")
+
+    tables_raw = raw.get("tables")
+    tables = (
+        [str(t).strip() for t in tables_raw if str(t).strip()]
+        if isinstance(tables_raw, list)
+        else []
+    )
+    if not tables:
+        raise InvalidMigrationConfigError("tables ausente ou vazia")
+
+    modern = str(raw.get("modern_connection_id") or "").strip()
+    schema = str(raw.get("schema") or "").strip() or "public"
+    return {
+        "legacy_connection_id": legacy,
+        "modern_connection_id": modern or None,
+        "schema": schema,
+        "tables": tables,
+    }
 
 
 class DecisionConsumer:
@@ -951,6 +1031,65 @@ class DecisionConsumer:
                     workflow_id=handle.workflow_id,
                     plan_id=plan_id,
                     journey=handle.journey,
+                )
+                await self.consumer.commit()
+                if decision_id:
+                    await self._mark_decision_processed(decision_id)
+                logger.info("Mensagem processada com sucesso", offset=message.offset)
+                return
+
+            # Fronteira não-vazada MIGRATE (espelha GENERATE): J4_MIGRATE com um
+            # migration_config explícito invoca a capacidade MIGRATE
+            # (DataMigrationWorkflow durável, antes órfão), NÃO a
+            # OrchestrationWorkflow genérica de J2. A decisão deriva da semântica
+            # da jornada (autoridade única _requires_migration). Um plano J4 SEM
+            # migration_config não tem o que migrar → cai no roteamento legado
+            # (compat); a capacidade só ativa com spec presente.
+            if _requires_migration(journey, workflow_type) and "migration_config" in cognitive_plan_json:
+                try:
+                    migration_config = _extract_migration_config(cognitive_plan_json)
+                except InvalidMigrationConfigError as cfg_err:
+                    # Anti-verde-falso: migration_config PRESENTE mas inválido →
+                    # NÃO inicia nada e NÃO cai na orquestração genérica; erro
+                    # permanente (commit do offset p/ não reprocessar em loop).
+                    logger.error(
+                        "migration_config_invalid",
+                        plan_id=plan_id,
+                        journey=journey,
+                        error=str(cfg_err),
+                    )
+                    await self.consumer.commit()
+                    if decision_id:
+                        await self._mark_decision_processed(decision_id)
+                    return
+
+                span.set_attribute("neural.hive.journey", journey)
+                span.set_attribute("neural.hive.routing_basis", "journey")
+                span.set_attribute("neural.hive.capability", "MIGRATE")
+                logger.info(
+                    "Invocando capacidade MIGRATE",
+                    workflow_id=workflow_id,
+                    plan_id=plan_id,
+                    journey=journey,
+                    routing_basis="journey",
+                    tables=migration_config["tables"],
+                )
+                migration_input = {
+                    "migration_config": migration_config,
+                    "job_id": None,
+                    "initial_phase": "pending",
+                }
+                await self.temporal_client.start_workflow(
+                    DataMigrationWorkflow.run,
+                    migration_input,
+                    id=workflow_id,
+                    task_queue=self.config.temporal_task_queue,
+                )
+                logger.info(
+                    "DataMigrationWorkflow iniciado",
+                    workflow_id=workflow_id,
+                    plan_id=plan_id,
+                    journey=journey,
                 )
                 await self.consumer.commit()
                 if decision_id:
