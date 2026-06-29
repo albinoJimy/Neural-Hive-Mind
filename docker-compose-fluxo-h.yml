@@ -149,6 +149,30 @@ services:
       retries: 5
 
   # ========================================
+  # MODERN DATABASE (Destination) — destino da migração, arranca VAZIO
+  # ========================================
+
+  postgres-modern:
+    image: postgres:17-alpine
+    ports:
+      - "5433:5432"
+    environment:
+      - POSTGRES_USER=modern_user
+      - POSTGRES_PASSWORD=modern_pass
+      - POSTGRES_DB=modern_db
+    volumes:
+      - postgres-modern-data:/var/lib/postgresql/data
+      # DDL do destino (sem dados — a migração popula)
+      - ./scripts/init-modern-db.sql:/docker-entrypoint-initdb.d/01-init.sql
+    networks:
+      - fluxo-h-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U modern_user"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ========================================
   # CDC DEBEZIUM
   # ========================================
 
@@ -266,6 +290,7 @@ services:
 
 volumes:
   postgres-legacy-data:
+  postgres-modern-data:
   mongodb-data:
   minio-data:
 
