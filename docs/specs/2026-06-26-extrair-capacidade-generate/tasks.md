@@ -60,14 +60,23 @@
     completude COMPLETO)→remediação (CR-001 autoridade única `_requires_generate_capability` p/
     consumer↔resume não divergirem; CR-002 documentado). Equivalência provada: teste congelado
     `test_workflow_start_journey_routing.py` (asserts `FluxoGWorkflow.run`) continua verde.
-    Ver `sub-specs/fase2-evidence.md`. **3.3 (gate cluster) PENDENTE** — control-plane instável.
+    Ver `sub-specs/fase2-evidence.md`. **3.3 (gate cluster) PROVADO (2026-06-29)** — ramo Kafka do
+    consumer prova paridade E2E total (deploy real + /health 200); ver subtask 3.3.
   - **Evidência:** `sub-specs/fase2-evidence.md`.
   - [x] 3.1 Testes: J3_BUILD → invoca capacidade; J1/UNKNOWN sem execução; J2/J4 → Orchestration;
     journey ausente → fallback workflow_type; resume pós-aprovação → capacidade — + anti-verde-falso
     (stack não suportada: consumer commit+return / resume HTTP 422)
   - [x] 3.2 Refactor do routing para a capacidade (sem mudar comportamento das outras jornadas)
-  - [ ] 3.3 Gate cluster: plano J3 aprovado é processado via a capacidade (log/Temporal coerentes)
-    — DIFERIDO (deploy + cluster; control-plane instável). Prova E2E "software a correr" = Fase 4.
+  - [x] 3.3 Gate cluster: plano J3 aprovado é processado via a capacidade (log/Temporal coerentes)
+    — **PROVADO (2026-06-29)**, após estabilização do control-plane (etcd defrag 276→91MB; ver
+    `infra_cluster_stabilization_2026-06-29` na memória). Injetada decisão J3_BUILD (plan direto do
+    STE) no topic `plans.consensus`; o `decision_consumer` (ramo Kafka, **não** o resume) logou
+    `Invocando capacidade GENERATE journey=J3_BUILD routing_basis=journey target=python/fastapi` →
+    `Capacidade GENERATE iniciada` → Temporal `workflow_type=FluxoGWorkflow id=orch-gate33-1782738579`.
+    **Paridade E2E TOTAL pelo consumer** (não só log/Temporal): G6 code_artifact `426279f5` → G7
+    build+push GHCR `service-gate33-…:1.0.0` → G8 deploy → Deployment `1/1 Running` (2ª réplica
+    Pending por over-commit) + **`/health` 200** (`{"status":"healthy"}`). Probe sintética limpa após
+    a prova. Equivalente à Fase 4 (que entrou pelo resume).
 
 ### Fase 3 — Prova de extensibilidade multi-linguagem (sem implementar outra stack)
 
