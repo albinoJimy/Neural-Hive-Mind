@@ -19,10 +19,37 @@ from datetime import datetime, timezone
 UTC = timezone.utc
 from typing import Any, Optional
 
+import httpx
 import structlog
 from temporalio import activity
 
 logger = structlog.get_logger(__name__)
+
+# =============================================================================
+# Injeção de dependências (HTTP client + base_url do serviço data-migration)
+# =============================================================================
+# Espelha o padrão de fluxo_g_integration.set_fluxo_g_dependencies: o worker
+# Temporal injeta um httpx.AsyncClient partilhado. Sem client configurado, as
+# activities que dependem dele são FAIL-CLOSED (nunca assumem sucesso).
+
+_http_client: Optional[httpx.AsyncClient] = None
+_data_migration_base_url: str = "http://data-migration:8019"
+
+
+def set_data_migration_dependencies(
+    http_client: Optional[httpx.AsyncClient] = None,
+    base_url: Optional[str] = None,
+) -> None:
+    """Injeta dependências para as activities de data migration.
+
+    Args:
+        http_client: Cliente httpx partilhado (injetado pelo worker).
+        base_url: URL base do serviço data-migration (default 8019).
+    """
+    global _http_client, _data_migration_base_url
+    _http_client = http_client
+    if base_url:
+        _data_migration_base_url = base_url
 
 
 # =============================================================================
@@ -513,67 +540,131 @@ async def validate_data(
     schema_mapping: dict[str, Any],
 ) -> dict[str, Any]:
     """
-    Valida dados migrados.
+    Valida dados migrados via o serviço data-migration (gate FAIL-CLOSED).
 
-    Compara contagem de linhas e amostras de dados entre
-    legado e novo sistema.
+    Chama `POST {base_url}/api/v1/migrations/{job_id}/validate`, que executa a
+    validação REAL (contagem de linhas origem vs destino + integridade) no
+    serviço data-migration:8019, e mapeia a resposta para o contrato consumido
+    pelo gate interno do DataMigrationWorkflow.
+
+    FAIL-CLOSED — o sucesso só é afirmado quando o serviço devolve
+    `overall_passed=True` explicitamente. Qualquer ambiguidade (http client não
+    configurado, erro/timeout de rede, status não-2xx, JSON sem o campo de
+    validação) → `success=False` com `overall_passed=False`. Nunca se assume
+    sucesso por defeito.
 
     Args:
         job_id: ID do job de migração
-        schema_mapping: Mapeamento de schema
+        schema_mapping: Mapeamento de schema (usado só para fallback de nomes)
 
     Returns:
         Dict com:
             - success: bool
-            - validation_report: dict
+            - validation_report: dict (overall_passed + table_results reais)
             - error: str (se falhou)
     """
+    logger.info("validate_data_started", job_id=job_id)
+
+    # Fail-closed: sem HTTP client injetado não há como validar de verdade.
+    if _http_client is None:
+        logger.error("validate_data_no_http_client", job_id=job_id)
+        return _validation_failed(
+            "HTTP client não configurado para validação (fail-closed)"
+        )
+
+    url = f"{_data_migration_base_url}/api/v1/migrations/{job_id}/validate"
+
     try:
-        logger.info(
-            "validate_data_started",
-            job_id=job_id,
-        )
-
-        tables = schema_mapping.get("tables", [])
-
-        # Na implementação real, comparar dados:
-        # - Contagem de linhas
-        # - Soma de colunas numéricas
-        # - Amostras de dados
-        # - Verificação de constraints
-
-        validation_report = {
-            "overall_passed": True,
-            "tables_validated": len(tables),
-            "table_results": [
-                {
-                    "table": t["target_table"],
-                    "row_count_match": True,
-                    "legacy_rows": t.get("estimated_rows", 0),
-                    "target_rows": t.get("estimated_rows", 0),
-                    "sample_checks_passed": True,
-                }
-                for t in tables
-            ],
-            "validated_at": datetime.now(timezone.utc).isoformat(),
-        }
-
-        logger.info(
-            "data_validation_completed",
-            overall_passed=validation_report["overall_passed"],
-        )
-
-        return {
-            "success": True,
-            "validation_report": validation_report,
-        }
-
+        response = await _http_client.post(url, timeout=60.0)
     except Exception as e:
-        logger.exception("validate_data_failed")
+        # Erro/timeout de rede → fail-closed.
+        logger.error("validate_data_http_error", job_id=job_id, error=str(e))
+        return _validation_failed(f"Falha ao chamar /validate: {e}")
+
+    if not 200 <= response.status_code < 300:
+        logger.error(
+            "validate_data_non_2xx",
+            job_id=job_id,
+            status_code=response.status_code,
+        )
+        return _validation_failed(f"/validate devolveu status {response.status_code}")
+
+    try:
+        data = response.json()
+    except Exception as e:
+        logger.error("validate_data_invalid_json", job_id=job_id, error=str(e))
+        return _validation_failed(f"/validate devolveu JSON inválido: {e}")
+
+    # O campo de validação é obrigatório; ausência → fail-closed.
+    if not isinstance(data, dict) or "overall_passed" not in data:
+        logger.error("validate_data_missing_field", job_id=job_id)
+        return _validation_failed(
+            "/validate não devolveu o campo overall_passed (fail-closed)"
+        )
+
+    overall_passed = bool(data.get("overall_passed"))
+
+    # Mapear os resultados REAIS por tabela (counts vindos do serviço, não
+    # estimados). O serviço devolve `results` no formato ValidationResultResponse.
+    table_results = []
+    for r in data.get("results", []):
+        table_results.append(
+            {
+                "table": r.get("table"),
+                "validation_type": r.get("type"),
+                "row_count_match": bool(r.get("passed")),
+                "legacy_rows": r.get("legacy_count"),
+                "target_rows": r.get("modern_count"),
+                "discrepancy": r.get("discrepancy"),
+            }
+        )
+
+    validation_report = {
+        "overall_passed": overall_passed,
+        "tables_validated": data.get("total_validations", len(table_results)),
+        "passed_validations": data.get("passed_validations"),
+        "failed_validations": data.get("failed_validations"),
+        "table_results": table_results,
+        "validated_at": datetime.now(timezone.utc).isoformat(),
+    }
+
+    logger.info(
+        "data_validation_completed",
+        job_id=job_id,
+        overall_passed=overall_passed,
+    )
+
+    if not overall_passed:
+        # Validação REAL reprovou (divergência de contagem / integridade) →
+        # success=False para o gate disparar rollback.
+        validation_report["reason"] = "Validação de dados reprovada (counts divergem)"
         return {
             "success": False,
-            "error": str(e),
+            "validation_report": validation_report,
+            "error": validation_report["reason"],
         }
+
+    return {
+        "success": True,
+        "validation_report": validation_report,
+    }
+
+
+def _validation_failed(reason: str) -> dict[str, Any]:
+    """Constrói o resultado fail-closed de validação (success=False).
+
+    O gate interno do DataMigrationWorkflow exige `success=False` E
+    `validation_report.overall_passed=False` para acionar rollback; garantimos
+    ambos aqui.
+    """
+    return {
+        "success": False,
+        "validation_report": {
+            "overall_passed": False,
+            "reason": reason,
+        },
+        "error": reason,
+    }
 
 
 # =============================================================================

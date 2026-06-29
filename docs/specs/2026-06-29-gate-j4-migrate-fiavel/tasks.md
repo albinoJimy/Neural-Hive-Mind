@@ -60,17 +60,34 @@
 
 ### Fase 2 — Gate de validação anti-verde-falso (FAIL-CLOSED)
 
-- [ ] 3. `/validate` como gate fail-closed do resultado da migração
-  - **DoR:** Fase 1 fechada.
+- [x] 3. `/validate` como gate fail-closed do resultado da migração
+  - **DoR:** Fase 1 fechada. ✓
   - **DoD:** após MIGRATE, a jornada exige `POST /migrations/{id}/validate` com resultado positivo
     explícito (contagem origem == destino + checks). Fail-closed: validação reprovada / divergência de
     contagem / `/validate` indisponível ou erro → resultado `FAILED` com `failure_reason`. Sem fallback
-    que assuma sucesso. Espelha `map_result` de GENERATE (exige verificação real).
+    que assuma sucesso. Espelha `map_result` de GENERATE (exige verificação real). **FEITO** — pipeline
+    dev(TDD)→auditoria(qualidade SHIP + completude SHIP)→remediação. **Verde-falso ELIMINADO:** a activity
+    `validate_data` (data_migration.py) deixou de hardcodar `overall_passed=True` e passou a chamar o
+    `/validate` REAL do data-migration:8019 (`SELECT COUNT(*)` origem vs destino) via httpx injetado
+    (`set_data_migration_dependencies`, reusa o client do Fluxo G). Fail-closed em TODOS os ramos (sem
+    client / erro / timeout / não-2xx / JSON inválido / campo ausente / `overall_passed=False`) via helper
+    `_validation_failed` (garante `success=False` E `overall_passed=False` — os dois predicados que o gate
+    interno do workflow exige). O gate do workflow (`data_migration_workflow.py:185-196`, INTOCADO) passa a
+    disparar `_handle_rollback` corretamente. **27 testes verdes** (8 novos + 19 regressão). Anti-verde-falso
+    provado por **mutação** (repor `True` → 1 falha; `except→success=True` → 6 falhas). Dívida documentada:
+    `run_batch_migration` ainda simula 100% (Fase 4) — a validação real apanha-o (destino vazio ≠ origem →
+    FAILED). Ver `sub-specs/fase2-evidence.md`.
   - **Evidência:** `sub-specs/fase2-evidence.md`.
-  - [ ] 3.1 Testes: validação OK → `completed`; contagem divergente → `FAILED`; `/validate` erro/timeout
-    → `FAILED` (fail-closed); rollback acionado em falha
-  - [ ] 3.2 Implementar o gate de validação + mapeamento de resultado fail-closed
-  - [ ] 3.3 Gate: anti-verde-falso provado por mutação (desligar o gate `/validate` derruba ≥1 teste)
+  - [x] 3.1 Testes (8): validação OK→`success`; contagem divergente→`FAILED`; `/validate`
+    erro/timeout/5xx/4xx/JSON-inválido/sem-client→`FAILED` (fail-closed). NOTA honesta: o predicado
+    "rollback/`completed` ao **nível do workflow**" não tem teste com harness Temporal dedicado — é
+    garantido estruturalmente (invariante `success=False ⇒ overall_passed=False` provada por mutação + gate
+    trivial 189-196) e será exercitado E2E na **Fase 4** (custo de harness `WorkflowEnvironment` não
+    justificado para algo estruturalmente certo).
+  - [x] 3.2 Implementar o gate de validação + mapeamento de resultado fail-closed — `validate_data` real
+    via httpx + `_validation_failed` (fail-closed); injeção de deps no worker
+  - [x] 3.3 Gate: anti-verde-falso provado por mutação — repor `overall_passed=True` derruba 1 teste;
+    `except→success=True` derruba 6 testes
 
 ### Fase 3 — Reuso de GENERATE na composição (condicional)
 

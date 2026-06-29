@@ -349,6 +349,7 @@ class TemporalWorkerManager:
             execute_rollback as migration_execute_rollback,
             generate_schema_mapping,
             run_batch_migration,
+            set_data_migration_dependencies,
             start_cdc,
             validate_data,
         )
@@ -421,6 +422,9 @@ class TemporalWorkerManager:
                 http_client=fluxo_g_http_client,
                 mongodb_client=self.mongodb_client,
             )
+            # Injetar o mesmo HTTP client nas activities de data migration
+            # (validate_data chama o serviço data-migration:8019 — gate fail-closed).
+            set_data_migration_dependencies(http_client=fluxo_g_http_client)
             logger.info(
                 "HTTP client injetado para Fluxo G activities",
                 code_generation_mongodb_enabled=self.mongodb_client is not None,
