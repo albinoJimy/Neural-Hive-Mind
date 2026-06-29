@@ -114,16 +114,26 @@
 
 ### Fase 4 — Gate E2E em cluster (software migrado a correr)
 
-- [ ] 5. Paridade E2E: intenção J4 produz sistema migrado real e validado via o fluxo composto
-  - **DoR:** Fase 3 fechada.
+- [~] 5. Paridade E2E: intenção J4 produz sistema migrado real e validado via o fluxo composto
+  - **DoR:** Fase 3 fechada. ✓
   - **DoD:** intenção de migração `J4_MIGRATE` → fluxo composto → serviço moderno gerado a correr
     (`/health` 200, quando GENERATE aplicável) + PostgreSQL migrado (`rows_migrated == N`) + `/validate`
     OK no cluster. Falha real em qualquer fase (geração/deploy/migração/validação) → `FAILED` sem verde
     falso. Zero regressão em J2 (teste congelado verde + bloco Orchestration intocado).
-  - **Evidência:** `sub-specs/fase4-evidence.md` (plano real, DB migrado, validação 200, journey no
-    artefacto).
-  - [ ] 5.1 Gate cluster E2E: migração real validada (`rows_migrated == N`, `/validate` OK) + serviço a
-    correr
-  - [ ] 5.2 Confirmar ausência de regressão em J2 (caminho Orchestration inalterado)
-  - [ ] 5.3 Anti-verde-falso E2E: forçar divergência de dados → resultado `FAILED` observável (sem
-    verde falso)
+  - **PARCIAL (2026-06-29):** âmbito = caminho negativo/anti-verde-falso primeiro. **PROVADO em runtime
+    no cluster** (imagem `bdce0f3`, Fases 1-3): intenção J4 → `Invocando capacidade MIGRATE
+    routing_basis=journey` → `MigrateJourneyWorkflow iniciado` → child `DataMigrationWorkflow`
+    (`{wid}-migrate`), GENERATE saltado (sem `generate_target`). **Migração real BLOQUEADA por 4 bugs de
+    integração** (camadas nunca exercitadas E2E): (1) `DataMigrationWorkflow` viola determinismo Temporal
+    (`os.environ.get` — latente por ser órfão; exposto pela des-orfanização); (2) `data-migration` service
+    análise de schema `syntax error at or near $1`; (3) `init-legacy-db.sql` comentários `#` + `pgoutput`
+    (corrigido localmente p/ o fixture); (4) over-commit do cluster (deploy do orchestrator instável).
+    **Anti-verde-falso confirmado** (o sistema falha honestamente em cada ponto, nunca finge `completed`),
+    mas a prova LIMPA (`/validate` real deteta destino vazio → FAILED E2E) fica bloqueada por #1/#2.
+    Recomenda-se **spec própria "migração J4 real"** para #1-#3. Ver `sub-specs/fase4-evidence.md`.
+  - **Evidência:** `sub-specs/fase4-evidence.md`.
+  - [x] 5.1 Gate cluster (parcial): routing J4 → MigrateJourneyWorkflow → child DataMigrationWorkflow
+    PROVADO em runtime; migração real bloqueada por 4 bugs documentados
+  - [ ] 5.2 Confirmar ausência de regressão em J2 — coberto em bloco (teste congelado verde); E2E cluster diferido
+  - [~] 5.3 Anti-verde-falso E2E: princípio CONFIRMADO (falha honesta, sem verde-falso); prova limpa
+    (`/validate` deteta destino vazio→FAILED) bloqueada por #1/#2
