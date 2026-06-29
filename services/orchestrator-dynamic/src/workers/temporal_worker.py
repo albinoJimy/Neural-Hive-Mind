@@ -407,6 +407,7 @@ class TemporalWorkerManager:
         )
         from src.workflows.data_migration_workflow import DataMigrationWorkflow
         from src.workflows.fluxo_g_workflow import FluxoGWorkflow
+        from src.workflows.migrate_journey_workflow import MigrateJourneyWorkflow
         from src.workflows.orchestration_workflow import OrchestrationWorkflow
 
         fluxo_g_http_client = None
@@ -494,7 +495,12 @@ class TemporalWorkerManager:
         self.worker = Worker(
             self.temporal_client,
             task_queue=self.config.temporal_task_queue,
-            workflows=[OrchestrationWorkflow, DataMigrationWorkflow, FluxoGWorkflow],
+            workflows=[
+                OrchestrationWorkflow,
+                DataMigrationWorkflow,
+                FluxoGWorkflow,
+                MigrateJourneyWorkflow,
+            ],
             activities=[
                 # Orchestration activities
                 validate_cognitive_plan,

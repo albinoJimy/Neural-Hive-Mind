@@ -31,7 +31,7 @@ from src.consumers.decision_consumer import (
     _journey_requires_migration,
     _requires_migration,
 )
-from src.workflows.data_migration_workflow import DataMigrationWorkflow
+from src.workflows.migrate_journey_workflow import MigrateJourneyWorkflow
 from src.workflows.orchestration_workflow import OrchestrationWorkflow
 
 from tests.integration.j4_migrate_fixture import (
@@ -165,8 +165,15 @@ def _make_simple_message(journey: str | None = None, workflow_type: str | None =
 
 
 @pytest.mark.asyncio()
-async def test_j4_migrate_with_config_invokes_data_migration_workflow():
-    """J4 + migration_config válido -> start_workflow(DataMigrationWorkflow.run, ...)."""
+async def test_j4_migrate_with_config_invokes_migrate_journey_workflow():
+    """J4 + migration_config válido -> start_workflow(MigrateJourneyWorkflow.run, ...).
+
+    Evolução consciente da arquitetura (Fase 3): a fronteira deixa de arrancar o
+    ``DataMigrationWorkflow`` DIRETO e passa a arrancar a jornada COMPOSTA
+    ``MigrateJourneyWorkflow`` (que sequencia GENERATE condicional → MIGRATE via
+    child-workflows). Semântica preservada: J4+config válido des-orfaniza a
+    migração; o input carrega o ``migration_config`` validado (legacy/tables).
+    """
     consumer = _make_consumer()
     plan = build_j4_migrate_plan_message()
 
@@ -175,7 +182,8 @@ async def test_j4_migrate_with_config_invokes_data_migration_workflow():
     consumer.generate_capability.start.assert_not_called()
     consumer.temporal_client.start_workflow.assert_awaited_once()
     args = consumer.temporal_client.start_workflow.call_args.args
-    assert args[0] == DataMigrationWorkflow.run
+    assert args[0] == MigrateJourneyWorkflow.run
+    # A jornada composta recebe o cognitive_plan (com migration_config validado).
     migration_input = args[1]
     assert migration_input["migration_config"]["tables"] == MIGRATION_TABLES
     assert (

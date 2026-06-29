@@ -34,8 +34,8 @@ from src.capabilities.generate import (
     GenerateTarget,
     UnsupportedStackError,
 )
-from src.workflows.data_migration_workflow import DataMigrationWorkflow
 from src.workflows.fluxo_g_workflow import FluxoGWorkflow
+from src.workflows.migrate_journey_workflow import MigrateJourneyWorkflow
 from src.workflows.orchestration_workflow import OrchestrationWorkflow
 
 logger = structlog.get_logger()
@@ -1039,14 +1039,19 @@ class DecisionConsumer:
                 return
 
             # Fronteira não-vazada MIGRATE (espelha GENERATE): J4_MIGRATE com um
-            # migration_config explícito invoca a capacidade MIGRATE
-            # (DataMigrationWorkflow durável, antes órfão), NÃO a
-            # OrchestrationWorkflow genérica de J2. A decisão deriva da semântica
-            # da jornada (autoridade única _requires_migration). Um plano J4 SEM
-            # migration_config não tem o que migrar → cai no roteamento legado
-            # (compat); a capacidade só ativa com spec presente.
+            # migration_config explícito invoca a jornada composta de migração
+            # (MigrateJourneyWorkflow durável: GENERATE condicional → MIGRATE via
+            # child-workflows), NÃO a OrchestrationWorkflow genérica de J2. A
+            # decisão deriva da semântica da jornada (autoridade única
+            # _requires_migration). Um plano J4 SEM migration_config não tem o que
+            # migrar → cai no roteamento legado (compat); a capacidade só ativa com
+            # spec presente.
             if _requires_migration(journey, workflow_type) and "migration_config" in cognitive_plan_json:
                 try:
+                    # Gate fail-closed na FRONTEIRA (anti-verde-falso): config
+                    # presente mas inválido NÃO arranca a jornada. A config
+                    # normalizada/validada substitui a do plano antes do start
+                    # durável (o workflow deriva os inputs dos child a partir dela).
                     migration_config = _extract_migration_config(cognitive_plan_json)
                 except InvalidMigrationConfigError as cfg_err:
                     # Anti-verde-falso: migration_config PRESENTE mas inválido →
@@ -1063,6 +1068,8 @@ class DecisionConsumer:
                         await self._mark_decision_processed(decision_id)
                     return
 
+                cognitive_plan_json["migration_config"] = migration_config
+
                 span.set_attribute("neural.hive.journey", journey)
                 span.set_attribute("neural.hive.routing_basis", "journey")
                 span.set_attribute("neural.hive.capability", "MIGRATE")
@@ -1074,19 +1081,16 @@ class DecisionConsumer:
                     routing_basis="journey",
                     tables=migration_config["tables"],
                 )
-                migration_input = {
-                    "migration_config": migration_config,
-                    "job_id": None,
-                    "initial_phase": "pending",
-                }
+                # A jornada composta recebe o cognitive_plan (com migration_config
+                # validado e, opcional, generate_target sinalizando geração).
                 await self.temporal_client.start_workflow(
-                    DataMigrationWorkflow.run,
-                    migration_input,
+                    MigrateJourneyWorkflow.run,
+                    cognitive_plan_json,
                     id=workflow_id,
                     task_queue=self.config.temporal_task_queue,
                 )
                 logger.info(
-                    "DataMigrationWorkflow iniciado",
+                    "MigrateJourneyWorkflow iniciado",
                     workflow_id=workflow_id,
                     plan_id=plan_id,
                     journey=journey,

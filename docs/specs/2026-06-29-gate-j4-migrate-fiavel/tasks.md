@@ -91,16 +91,26 @@
 
 ### Fase 3 — Reuso de GENERATE na composição (condicional)
 
-- [ ] 4. Invocar `GenerateCapability` na fase de geração (sem duplicar wiring)
-  - **DoR:** Fase 2 fechada.
-  - **DoD:** a fase GENERATE invoca `GenerateCapability.start(GenerateRequest(...))` (reuso, não
-    reimplementação de G1–G8); o serviço moderno gerado é deployado **antes** da migração de dados;
-    GENERATE é **condicional** (planos de migração sem código novo saltam a fase — a journey marca-o).
+- [x] 4. Compor GENERATE na fase de geração (reuso, sem duplicar wiring)
+  - **DoR:** Fase 2 fechada. ✓
+  - **DoD:** a fase GENERATE reusa o `FluxoGWorkflow` (G1–G13, não reimplementado); o serviço moderno
+    gerado é deployado **antes** da migração de dados; GENERATE é **condicional** (planos sem código novo
+    saltam a fase). **FEITO** — pipeline dev(TDD)→auditoria(qualidade SHIP + completude SHIP)→remediação.
+    Arquitetura escolhida pelo utilizador: novo **`MigrateJourneyWorkflow`** (1º child-workflow do repo) que
+    sequencia, via `workflow.execute_child_workflow`, `FluxoGWorkflow` (GENERATE condicional, `id={wid}-generate`)
+    → `DataMigrationWorkflow` (MIGRATE, `id={wid}-migrate`), `imports_passed_through` (sandbox), determinístico.
+    Condicional por `generate_target`. **Fail-closed:** GENERATE não-completed → `status=failed`, **não**
+    executa MIGRATE (provado por StopIteration / call_count==1). Dependência de dados: `modern_connection_id`
+    derivado de `generate_result.deployment.service_url`. Consumer arranca `MigrateJourneyWorkflow.run` (refina
+    Fase 1); registado no worker. **63 verdes** (13 novos) + 46 zero-regressão GENERATE; congelados intactos.
+    **Nuances honestas** (evidence §10): nada popula `generate_target` upstream hoje (ramo GENERATE dead-code
+    em runtime até Fase 4); reusa `FluxoGWorkflow` (não a `GenerateCapability`, inviável dentro de workflow
+    Temporal) → re-acopla à classe, a reconciliar na spec de extração de MIGRATE. Ver `sub-specs/fase3-evidence.md`.
   - **Evidência:** `sub-specs/fase3-evidence.md`.
-  - [ ] 4.1 Testes: fase GENERATE invoca `GenerateCapability.start`; plano sem código novo → salta
-    GENERATE; ordem GENERATE → deploy → MIGRATE respeitada
-  - [ ] 4.2 Implementar a invocação + a condicionalidade (sem acoplar a jornada à stack)
-  - [ ] 4.3 Gate: bloco verde
+  - [x] 4.1 Testes: GENERATE (FluxoG child) corre ANTES de MIGRATE (call_args_list); plano sem
+    `generate_target` → salta GENERATE (call_count==1); GENERATE falha → não migra (fail-closed)
+  - [x] 4.2 Implementar a invocação + condicionalidade (`MigrateJourneyWorkflow` + funções puras)
+  - [x] 4.3 Gate: bloco verde — 63 verdes
 
 ### Fase 4 — Gate E2E em cluster (software migrado a correr)
 
