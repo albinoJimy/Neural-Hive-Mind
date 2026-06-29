@@ -22,6 +22,16 @@ from temporalio import workflow
 from temporalio.common import RetryPolicy
 
 with workflow.unsafe.imports_passed_through():
+    from src.activities.data_migration import (
+        analyze_legacy_schema,
+        cleanup_snapshot,
+        create_snapshot,
+        execute_rollback,
+        generate_schema_mapping,
+        run_batch_migration,
+        start_cdc,
+        validate_data,
+    )
     from src.models.migration import MigrationStatus
 
 
@@ -233,7 +243,6 @@ class DataMigrationWorkflow:
         Returns:
             Dict com resultado da análise
         """
-        from src.activities.data_migration import analyze_legacy_schema
 
         legacy_connection_id = config.get("legacy_connection_id")
         schema = config.get("schema", "public")
@@ -263,7 +272,6 @@ class DataMigrationWorkflow:
         Returns:
             Dict com mapeamento gerado
         """
-        from src.activities.data_migration import generate_schema_mapping
 
         target_service = config.get("target_service")
 
@@ -289,7 +297,6 @@ class DataMigrationWorkflow:
         Returns:
             Dict com snapshot criado
         """
-        from src.activities.data_migration import create_snapshot
 
         strategy = config.get("snapshot_strategy", "s3")
 
@@ -318,7 +325,6 @@ class DataMigrationWorkflow:
         Returns:
             Dict com resultado da migração
         """
-        from src.activities.data_migration import run_batch_migration
 
         batch_size = config.get("batch_size", 1000)
         max_parallel = config.get("max_parallel_migrations", 5)
@@ -350,7 +356,6 @@ class DataMigrationWorkflow:
         Returns:
             Dict com resultado do início do CDC
         """
-        from src.activities.data_migration import start_cdc
 
         database_config = config.get("database_config", {})
 
@@ -376,7 +381,6 @@ class DataMigrationWorkflow:
         Returns:
             Dict com resultado da validação
         """
-        from src.activities.data_migration import validate_data
 
         workflow.logger.info("Validando dados migrados")
 
@@ -396,7 +400,6 @@ class DataMigrationWorkflow:
         Returns:
             Dict com resultado da limpeza
         """
-        from src.activities.data_migration import cleanup_snapshot
 
         workflow.logger.info(f"Limpando snapshot: snapshot_id={self._snapshot_id}")
 
@@ -426,7 +429,6 @@ class DataMigrationWorkflow:
         Returns:
             Dict com resultado do rollback
         """
-        from src.activities.data_migration import execute_rollback
 
         self._rollback_triggered = True
         self._status = "rolling_back"

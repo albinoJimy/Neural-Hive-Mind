@@ -39,8 +39,13 @@ primeira execução E2E:
 
 1. **`DataMigrationWorkflow` viola determinismo Temporal** — `Cannot access os.environ.get from inside a
    workflow`. **Latente precisamente porque o workflow era órfão** (nunca executado); des-orfanizá-lo
-   (Fases 1+3) expô-lo. Fix: marcar o import como `workflow.unsafe.imports_passed_through` ou mover o
-   `os.environ.get` para uma activity. (É o bloqueador imediato do caminho real.)
+   (Fases 1+3) expô-lo. **CORRIGIDO (2026-06-29):** as 8 activities eram importadas *inline dentro dos
+   métodos* (fora do sandbox passthrough), ao contrário do `FluxoGWorkflow`/`OrchestrationWorkflow` que
+   as importam no topo sob `with workflow.unsafe.imports_passed_through()`. Movidas para o bloco
+   passthrough do topo (padrão idêntico aos outros workflows); imports inline removidos. Import OK,
+   activities no escopo, 20 testes de workflow verdes (zero regressão), worker importa OK. **Pendente:
+   validação em runtime** (rebuild+deploy+re-injetar) — alta confiança por seguir o padrão que funciona,
+   mas não re-exercitado em cluster nesta sessão (junto de #2).
 2. **`data-migration` service — análise de schema**: `POST /api/v1/migrations` falha com
    `syntax error at or near "$1"` (query de introspeção mal-parametrizada). Impede criar o job de migração.
 3. **`scripts/init-legacy-db.sql`**: começa com comentários estilo shell (`#`, inválidos em SQL) +
