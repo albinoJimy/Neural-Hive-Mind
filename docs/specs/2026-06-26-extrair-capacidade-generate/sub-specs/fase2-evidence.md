@@ -41,7 +41,12 @@ deploy + cluster (API de control-plane instável hoje); a paridade E2E real é a
     `is_direct_plan` (que a capacidade fixa) são ignorados → comportamento idêntico.
   - `start_workflow(FluxoGWorkflow.run, input_data, id=..., task_queue=...)` chamado via o cliente
     injetado (consumer e resume) → o teste EXISTENTE `test_workflow_start_journey_routing.py`
-    (asserts `args[0]==FluxoGWorkflow.run`) **continua verde**, prova de paridade.
+    (asserts `args[0]==FluxoGWorkflow.run`) **continua verde**: garantia de **não-regressão de
+    routing**. **Precisão (CR-002, ver fase4-evidence):** este teste prova apenas que `FluxoGWorkflow.run`
+    é passado ao `start_workflow` para J3 — passaria na mesma num revert que arrancasse o FluxoG
+    *directamente*, sem a capacidade; NÃO é prova de que a fronteira da capacidade foi exercida. A
+    prova da fronteira é `test_workflow_start_generate_capability.py` (id `flow-c-{correlation_id}`,
+    só gerado via capacidade) + o log de cluster `routing_basis=capability_generate`.
   - workflow_id idêntico: consumer `{prefix}{plan_id}`; resume `{prefix}flow-c-{corr}` (preservado
     via `workflow_id=` explícito).
 

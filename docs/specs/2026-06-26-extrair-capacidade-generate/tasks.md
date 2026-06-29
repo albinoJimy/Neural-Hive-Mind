@@ -33,7 +33,12 @@
     `FluxoGWorkflow` (cliente Temporal injetado, id por plano, task_queue) devolvendo um
     `GenerateHandle`; stack desconhecida → FAILED sem iniciar. `map_result(workflow_output)` (puro)
     traduz `code_generation/build/deployment/journey → GenerateResult`; output falhado/incompleto →
-    `failed`. **Sem await bloqueante no consumer** (preserva a cadência durável do Temporal). Não
+    `failed`. **Ressalva de âmbito (CR-001, auditoria Task 5):** `map_result` é o **contrato de saída
+    testado em isolamento** — fail-closed provado por testes de bloco, mas **sem chamador de produção
+    hoje** (o resultado do FluxoGWorkflow é consumido via signals/ExecutionResultConsumer, cadência
+    durável do Temporal). O wiring de runtime de `map_result` ao consumo de resultado fica **diferido**;
+    o anti-verde-falso E2E (Fase 4) vem da observação directa do `/health`, não de `map_result`.
+    **Sem await bloqueante no consumer** (preserva a cadência durável do Temporal). Não
     reimplementa G1–G8. **FEITO** — 38 testes verdes; pipeline dev→auditoria→remediação (gate
     `verified` anti-verde-falso; propagação da estratégia completa p/ multi-linguagem; normalização
     datetime; não-mutação). Ver `sub-specs/fase1-evidence.md`.
@@ -106,8 +111,45 @@
   - [x] 5.2 Confirmar ausência de regressão em J2/J4 (caminho Orchestration inalterado) — bloco de
     routing J2/J4→OrchestrationWorkflow intocado; teste congelado `test_workflow_start_journey_routing.py`
     verde; suíte unit idêntica ao baseline (zero regressão)
+  - **Âmbito da prova E2E (honestidade):** a passagem exercitada em cluster foi **apenas o resume
+    pós-aprovação** (`POST /api/v1/workflows/start`). O ramo do `decision_consumer` (Kafka) para
+    geração partilha a **mesma** `GenerateCapability`/autoridade `_requires_generate_capability` mas a
+    sua execução-em-cluster permanece **DIFERIDA (gate 3.3, `[ ]`)**; não se infere prova de cluster
+    para o ramo do consumer (paridade desse ramo assenta em unit). Sem fresh run nesta auditoria: a
+    evidência re-verifica artefactos já vivos no cluster (plano `21fb028b`, imagem `52a1e63`), não uma
+    execução nova provocada.
   - **Auditoria independente (qualidade SHIP + completude COMPLETO 8/8):** evidência de cluster
     re-verificada por curl/mongo reais (Deployment vivo `2/2`, `/health` 200 in-pod+DNS, code_artifact
     journey=J3_BUILD). Remediação dirigida aplicada (CR-001 docstring `map_result` sem wiring runtime;
     CR-002 precisão do teste congelado vs fronteira; CR-003 guard `_is_plan_only` em
-    `_requires_generate_capability` + teste novo). 88 testes verdes; baseline de regressão inalterado.
+    `_requires_generate_capability` + teste novo). **67 testes verdes** com o comando-baseline canónico
+    da spec (`pytest tests/unit/capabilities/ tests/consumers/test_decision_consumer_generate_routing.py
+    tests/consumers/test_decision_consumer_plan_only_guard.py tests/unit/test_workflow_start_generate_capability.py`);
+    baseline de regressão alargado inalterado. (O número "88" anterior era um snapshot de âmbito de
+    comando não especificado; o canónico desta suíte é 67.)
+
+### Auditoria — 2ª passagem (pipeline dev→qualidade+completude→remediação, 2026-06-29)
+
+Re-auditoria independente (4 dimensões: bugs, anti-verde-falso, código/compat, completude). As
+dimensões anti-verde-falso e código/compat deram **SHIP**; bugs e completude produziram achados
+materiais recuperados do transcript. Veredicto: código fiel à spec, anti-verde-falso genuíno
+(mutation-resistente), nenhum verde-falso. Acções:
+
+- **GEN-BUG-02 (corrigido, código):** `_extract_generate_target` (decision_consumer.py) tratava
+  `language`/`framework` só-com-espaços como valor real → `GenerateTarget` levantava `ValidationError`
+  **fora** do `try` (que só apanha `UnsupportedStackError`) → poison-message no consumer / HTTP 500 no
+  resume. Fix mínimo: whitespace-only normaliza para o default (`python`/`fastapi`); valor real com
+  espaços à volta é `strip`ado, não rejeitado. +2 testes (`test_whitespace_only_stack_falls_back_to_default`,
+  `test_surrounding_whitespace_is_trimmed_not_rejected`). Suíte: **69 verdes**. Stack real mas
+  desconhecida continua a falhar fechada no registry (sem fallback silencioso).
+- **GEN-BUG-01 (dívida, NÃO corrigido — fora de scope):** `WorkflowExecutionAlreadyStartedError` /
+  erros transitórios do Temporal não são tratados como idempotentes no routing → re-entrega pode
+  reincidir. **Pré-existente e simétrico ao caminho legado** (o ramo Orchestration tem o mesmo padrão;
+  grep confirma zero tratamento de `AlreadyStarted` no consumer/main). Corrigi-lo só no ramo GENERATE
+  criaria assimetria e violaria a equivalência comportamental exigida pela spec. Endurecer a
+  idempotência do consumer fica para spec própria.
+- **GEN-COMP-02 (dívida consciente):** GEN-US2 está satisfeita **semanticamente** (a decisão de geração
+  deriva de `_journey_requires_generation`, não da classe do workflow), mas o `import FluxoGWorkflow` e
+  o ramo `J3_BUILD→FluxoGWorkflow` de `_select_workflow_class_by_journey` permanecem como dead-code
+  legado/fallback. Removê-los quebraria o teste congelado `test_workflow_start_journey_routing.py`
+  (regra 7 — testes são contrato); mantidos e divulgados.

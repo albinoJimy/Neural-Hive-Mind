@@ -129,7 +129,11 @@ Pipeline de auditoria adversarial executado sobre a Task 5 (não só `success=Tr
 - **CR-003:** `_requires_generate_capability` ganhou guard explícito `_is_plan_only` (contrato
   auto-consistente: J1+generation já não devolve `True`) + teste novo
   `tests/consumers/test_decision_consumer_plan_only_guard.py` (RED→GREEN). Suíte da capacidade:
-  **88 verdes** (85 + 3 novos); regressão alargada idêntica ao baseline (96 failed pré-existentes).
+  **67 verdes** com o comando-baseline canónico da spec (`tests/unit/capabilities/ +
+  test_decision_consumer_generate_routing + test_decision_consumer_plan_only_guard +
+  test_workflow_start_generate_capability`); regressão alargada idêntica ao baseline (96 failed
+  pré-existentes). (Nota: o "88" anteriormente citado era um snapshot de âmbito de comando não
+  especificado e não reconcilia com o baseline canónico de 67.)
 
 ## Conclusão
 

@@ -87,6 +87,27 @@ class TestExtractGenerateTarget:
         assert target.language == "rust"
         assert target.framework == "actix"
 
+    def test_whitespace_only_stack_falls_back_to_default(self):
+        """Whitespace-only é *ausência* de stack, não input malformado.
+
+        Anti GEN-BUG-02: um ``language``/``framework`` só-com-espaços é truthy e,
+        sem normalização, faria ``GenerateTarget`` levantar ``ValidationError``
+        FORA do ``try`` do caller (UnsupportedStackError-only) — virando
+        poison-message no consumer / HTTP 500 no resume. O extractor trata-o como
+        default em vez de rebentar.
+        """
+        plan = {"parameters": {"language": "   ", "framework": "\t  "}}
+        target = _extract_generate_target(plan)
+        assert target.language == "python"
+        assert target.framework == "fastapi"
+
+    def test_surrounding_whitespace_is_trimmed_not_rejected(self):
+        """Valor real com espaços à volta é normalizado (strip), não default."""
+        plan = {"parameters": {"language": "  go  ", "framework": " gin "}}
+        target = _extract_generate_target(plan)
+        assert target.language == "go"
+        assert target.framework == "gin"
+
 
 # =============================================================================
 # Harness do handler _process_message (caminho direct-plan; bypassa Mongo)

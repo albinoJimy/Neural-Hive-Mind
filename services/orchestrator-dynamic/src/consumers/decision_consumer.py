@@ -293,11 +293,17 @@ def _extract_generate_target(plan: dict) -> GenerateTarget:
     em parameters usamos a única stack provada (python/fastapi), preservando o
     comportamento atual. Um plano que FIXE uma stack diferente é resolvido pelo
     registry (desconhecida → FAILED), sem fallback silencioso — multi-linguagem-ready.
+
+    Um valor só-com-espaços (whitespace) é tratado como *ausência* de stack (cai
+    no default), nunca como input malformado: assim a derivação da target não
+    levanta ValidationError fora do ``try`` do caller (que evitaria o tratamento
+    gracioso e produziria poison-message/HTTP 500). Stack real mas desconhecida
+    continua a falhar fechada no registry — sem fallback silencioso.
     """
     params = plan.get("parameters") or {}
-    language = params.get("language") or "python"
-    framework = params.get("framework") or "fastapi"
-    return GenerateTarget(language=str(language), framework=str(framework))
+    language = str(params.get("language") or "").strip() or "python"
+    framework = str(params.get("framework") or "").strip() or "fastapi"
+    return GenerateTarget(language=language, framework=framework)
 
 
 class DecisionConsumer:
