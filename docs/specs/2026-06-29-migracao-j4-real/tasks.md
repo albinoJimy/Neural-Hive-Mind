@@ -39,7 +39,7 @@
 
 ### Fase 2 — Activities thin-wrappers (job_id do serviço como chave única)
 
-- [ ] 3. `analyze`/`batch` reais via serviço; criação e propagação do job_id; db_urls no contrato
+- [x] 3. `analyze`/`batch` reais via serviço; criação e propagação do job_id; db_urls no contrato
   - **DoR:** Fase 1 fechada.
   - **DoD:** uma activity inicial cria o job (`POST /migrations`) e devolve o `job_id` REAL; o
     `DataMigrationWorkflow` usa-o em todas as fases; `run_batch_migration` aciona `POST
@@ -47,10 +47,10 @@
     job_id. `_extract_migration_config` + harness passam a carregar `legacy_db_url`/`modern_db_url`
     (fail-closed). Sem simulação local.
   - **Evidência:** `sub-specs/fase2-evidence.md`.
-  - [ ] 3.1 Testes (httpx mockado): create_job devolve job_id; batch faz start+poll até terminal;
+  - [x] 3.1 Testes (httpx mockado): create_job devolve job_id; batch faz start+poll até terminal;
     fail-closed em erro; job_id propagado; db_urls obrigatórias
-  - [ ] 3.2 Implementar as thin-wrappers + propagação do job_id + contrato db_urls
-  - [ ] 3.3 Gate: bloco verde; zero regressão nos testes congelados do gate (journey/generate/migrate routing)
+  - [x] 3.2 Implementar as thin-wrappers + propagação do job_id + contrato db_urls
+  - [x] 3.3 Gate: bloco verde; zero regressão nos testes congelados do gate (journey/generate/migrate routing)
 
 ### Fase 3 — Gate E2E negativo (anti-verde-falso real em cluster)
 

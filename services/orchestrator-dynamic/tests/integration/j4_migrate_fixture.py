@@ -105,6 +105,17 @@ def legacy_row_count(table: str) -> int:
 # =============================================================================
 
 
+# DSNs default dos fixtures J4 (DNS dos PostgreSQL legacy/modern no cluster).
+DEFAULT_LEGACY_DB_URL = (
+    "postgresql://legacy_user:legacy_pass@"
+    "j4-postgres-legacy.neural-hive.svc.cluster.local:5432/legacy_db"
+)
+DEFAULT_MODERN_DB_URL = (
+    "postgresql://modern_user:modern_pass@"
+    "j4-postgres-modern.neural-hive.svc.cluster.local:5432/modern_db"
+)
+
+
 def build_j4_migrate_plan_message(
     *,
     plan_id: str | None = None,
@@ -114,6 +125,8 @@ def build_j4_migrate_plan_message(
     schema: str = "public",
     risk_band: str = "medium",
     source: str = "doc-ingestion",
+    legacy_db_url: str | None = None,
+    modern_db_url: str | None = None,
 ) -> dict:
     """Constrói a mensagem de PLANO DIRETO ``J4_MIGRATE`` para ``plans.consensus``.
 
@@ -128,6 +141,8 @@ def build_j4_migrate_plan_message(
     """
     plan_id = plan_id or f"j4-migrate-{uuid.uuid4().hex[:12]}"
     table_list = list(tables) if tables is not None else list(MIGRATION_TABLES)
+    legacy_db_url = legacy_db_url if legacy_db_url is not None else DEFAULT_LEGACY_DB_URL
+    modern_db_url = modern_db_url if modern_db_url is not None else DEFAULT_MODERN_DB_URL
 
     tasks = [
         {
@@ -149,6 +164,8 @@ def build_j4_migrate_plan_message(
             "modern_connection_id": modern_connection_id,
             "schema": schema,
             "tables": table_list,
+            "legacy_db_url": legacy_db_url,
+            "modern_db_url": modern_db_url,
         },
         # PLANO DIRETO: NÃO incluir "decision_id" (aciona is_direct_plan no consumer).
     }

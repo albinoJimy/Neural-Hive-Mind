@@ -345,6 +345,7 @@ class TemporalWorkerManager:
             analyze_legacy_schema,
             approve_mapping,
             cleanup_snapshot,
+            create_migration_job,
             create_snapshot,
             execute_rollback as migration_execute_rollback,
             generate_schema_mapping,
@@ -536,6 +537,7 @@ class TemporalWorkerManager:
                 record_feedback_for_ml,
                 check_feedback_thresholds,
                 # Data Migration activities
+                create_migration_job,
                 analyze_legacy_schema,
                 generate_schema_mapping,
                 approve_mapping,

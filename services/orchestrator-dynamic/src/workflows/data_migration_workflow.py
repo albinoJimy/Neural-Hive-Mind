@@ -25,6 +25,7 @@ with workflow.unsafe.imports_passed_through():
     from src.activities.data_migration import (
         analyze_legacy_schema,
         cleanup_snapshot,
+        create_migration_job,
         create_snapshot,
         execute_rollback,
         generate_schema_mapping,
@@ -85,6 +86,25 @@ class DataMigrationWorkflow:
         )
 
         try:
+            # === Fase 0: Create Migration Job (fonte de verdade) ===
+            # Sem job_id existente (retomada), cria o job no serviço
+            # data-migration:8019, que passa a ser a fonte de verdade. O job_id
+            # real propaga-se por todas as fases seguintes. FAIL-CLOSED: sem job
+            # criado (db_urls em falta, serviço indisponível) → erro, sem simular.
+            if not self._job_id:
+                create_result = await workflow.execute_activity(
+                    create_migration_job,
+                    args=[config_data],
+                    start_to_close_timeout=timedelta(minutes=10),
+                    retry_policy=RetryPolicy(maximum_attempts=3),
+                )
+                if not create_result.get("success"):
+                    return self._build_error_result(
+                        workflow_id, "create_job", create_result.get("error")
+                    )
+                self._job_id = create_result["job_id"]
+                workflow.logger.info(f"Job de migração criado: job_id={self._job_id}")
+
             # === Fase 1: Analyze Legacy Schema ===
             self._status = "analyzing"
             self._current_phase = MigrationStatus.ANALYZING
@@ -244,17 +264,16 @@ class DataMigrationWorkflow:
             Dict com resultado da análise
         """
 
-        legacy_connection_id = config.get("legacy_connection_id")
         schema = config.get("schema", "public")
         tables = config.get("tables")  # None = todas as tabelas
 
-        workflow.logger.info(
-            f"Analisando schema legado: connection={legacy_connection_id}, " f"schema={schema}"
-        )
+        workflow.logger.info(f"Analisando schema legado: job_id={self._job_id}, schema={schema}")
 
+        # Thin-wrapper de leitura: passa o job_id real (nova assinatura). O
+        # serviço data-migration já analisou no POST /migrations.
         result = await workflow.execute_activity(
             analyze_legacy_schema,
-            args=[legacy_connection_id, schema, tables],
+            args=[self._job_id, tables, schema],
             start_to_close_timeout=timedelta(minutes=10),
             retry_policy=RetryPolicy(maximum_attempts=3),
         )

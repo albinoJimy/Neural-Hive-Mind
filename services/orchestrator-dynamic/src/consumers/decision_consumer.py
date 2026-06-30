@@ -378,11 +378,21 @@ def _extract_migration_config(plan: dict) -> dict:
 
     modern = str(raw.get("modern_connection_id") or "").strip()
     schema = str(raw.get("schema") or "").strip() or "public"
+
+    # db_urls são ADITIVAS: carregadas quando presentes (str não-vazia → valor;
+    # ausente → None). NÃO se levanta erro por db_urls em falta aqui — o
+    # fail-closed das db_urls vive na activity create_migration_job (a fronteira
+    # real), não na extração. (Preserva o teste congelado que aceita config só
+    # com legacy_connection_id + tables.)
+    legacy_db_url = str(raw.get("legacy_db_url") or "").strip() or None
+    modern_db_url = str(raw.get("modern_db_url") or "").strip() or None
     return {
         "legacy_connection_id": legacy,
         "modern_connection_id": modern or None,
         "schema": schema,
         "tables": tables,
+        "legacy_db_url": legacy_db_url,
+        "modern_db_url": modern_db_url,
     }
 
 
@@ -1046,7 +1056,10 @@ class DecisionConsumer:
             # _requires_migration). Um plano J4 SEM migration_config não tem o que
             # migrar → cai no roteamento legado (compat); a capacidade só ativa com
             # spec presente.
-            if _requires_migration(journey, workflow_type) and "migration_config" in cognitive_plan_json:
+            if (
+                _requires_migration(journey, workflow_type)
+                and "migration_config" in cognitive_plan_json
+            ):
                 try:
                     # Gate fail-closed na FRONTEIRA (anti-verde-falso): config
                     # presente mas inválido NÃO arranca a jornada. A config
