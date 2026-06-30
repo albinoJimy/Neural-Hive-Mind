@@ -697,11 +697,21 @@ class MigrationOrchestrator:
         )
 
         try:
-            # 1. Criar snapshot para rollback
-            await self._create_snapshot(
-                migration_job=migration_job,
-                schema_mapping=schema_mapping,
-            )
+            # 1. Criar snapshot para rollback (BEST-EFFORT: não-fatal).
+            # O snapshot usa o RollbackManager sobre POSTGRES_URL; numa migração
+            # same-schema com db_urls do job, a sua falha NÃO deve abortar o
+            # coração do gate (batch + validate). Falha → warning + continua.
+            try:
+                await self._create_snapshot(
+                    migration_job=migration_job,
+                    schema_mapping=schema_mapping,
+                )
+            except Exception as snapshot_error:
+                logger.warning(
+                    "snapshot_skipped_non_fatal",
+                    job_id=self.job_id,
+                    error=str(snapshot_error),
+                )
 
             # 2. Executar migração batch
             logger.info("phase_batch_migrating", job_id=self.job_id)
@@ -746,12 +756,21 @@ class MigrationOrchestrator:
                 except Exception as e:
                     logger.warning("cdc_connector_creation_failed", error=str(e))
 
-            # Iniciar consumo CDC
-            await cdc_pipeline.start_cdc(
-                schema_mapping=schema_mapping,
-                target_client=target_client,
-            )
-            self._cdc_started = True
+            # Iniciar consumo CDC (BEST-EFFORT: não-fatal).
+            # CDC é opcional para uma migração batch same-schema; se o Kafka
+            # estiver inacessível, registamos e seguimos para a validação.
+            try:
+                await cdc_pipeline.start_cdc(
+                    schema_mapping=schema_mapping,
+                    target_client=target_client,
+                )
+                self._cdc_started = True
+            except Exception as cdc_error:
+                logger.warning(
+                    "cdc_start_skipped_non_fatal",
+                    job_id=self.job_id,
+                    error=str(cdc_error),
+                )
 
             # 4. Validar dados
             logger.info("phase_validating", job_id=self.job_id)
