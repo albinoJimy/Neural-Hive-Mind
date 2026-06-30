@@ -446,6 +446,38 @@ class PostgreSQLClient:
 
         return len(data)
 
+    async def truncate_table(
+        self,
+        table: str,
+        schema: str = "public",
+    ) -> None:
+        """
+        Trunca (esvazia) uma tabela do destino de forma idempotente.
+
+        Usado pelo fallback de limpeza do ``/rollback`` quando NÃO há snapshot
+        disponível: re-executar é seguro porque o efeito (tabela vazia) é o
+        mesmo independentemente de quantas vezes se corre. Usa-se
+        ``RESTART IDENTITY`` para reiniciar sequências e ``CASCADE`` para lidar
+        com chaves estrangeiras (a ordem das tabelas deixa de importar).
+
+        Args:
+            table: Nome da tabela a truncar.
+            schema: Schema da tabela.
+
+        Raises:
+            ValueError: Se schema/tabela forem identificadores inválidos.
+            RuntimeError: Se não estiver conectado.
+        """
+        # Validar identificadores ANTES de qualquer interpolação (defesa
+        # anti-injection — mesmo padrão de insert_batch/get_table_count).
+        validate_sql_identifier(schema, "schema")
+        validate_sql_identifier(table, "table")
+
+        # Identificadores (schema/table) JÁ validados são interpolados;
+        # TRUNCATE não aceita placeholders para identificadores.
+        query = f"TRUNCATE TABLE {schema}.{table} RESTART IDENTITY CASCADE"
+        await self.execute_query(query, fetch="none")
+
     async def get_primary_keys(
         self,
         table_name: str,
