@@ -72,8 +72,9 @@ do plano) → `analyze` (GET real) → mapping IDENTIDADE (serviço, sem LLM) �
 - **Fixtures J4** (`j4-postgres-legacy/modern` + configmaps) e o patch `MONGODB_URL` do
   data-migration permanecem no cluster (artefactos do gate); limpar quando a spec for
   arquivada.
-- Dívida do `/rollback` do serviço (HTTP 400 pós-/start, ver fase3-evidence §4) —
-  não afeta o anti-verde-falso (resultado FAILED), mas o restore não se efetiva.
+- ~~Dívida do `/rollback` do serviço (HTTP 400 pós-/start)~~ **FECHADA** (commit
+  `ca45fd3d`): `/rollback` idempotente com limpeza do destino → rollback efetivo
+  (modern truncado), job `rolled_back`. Ver fase3-evidence §4.
 
 ## 6. Estado das subtasks
 

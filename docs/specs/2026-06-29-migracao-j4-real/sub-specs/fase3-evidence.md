@@ -53,21 +53,31 @@ A migração divergente falhou honestamente: `status=failed`, e o
 observável nos logs). Nenhum verde-falso — o sistema não fingiu sucesso numa migração
 que não convergiu.
 
-## 4. Nuance honesta (mecanismo + limitação do rollback)
+## 4. Nuance honesta (mecanismo) + rollback EFETIVO (dívida fechada)
 
 - A **validação real que reprovou** correu DENTRO do `/start` do serviço
   (`_execute_full_migration` valida COUNT origem vs destino; users 7≠5 → job `failed`).
   O poll de `run_batch_migration` viu `failed` → o workflow disparou `_handle_rollback`
   na fase `batch_migration`. Equivalente em essência ao literal do DoD ("/validate →
   rollback"): a validação real por contagem detetou a divergência → FAILED + rollback.
-- **`execute_rollback` devolveu HTTP 400** (`execute_rollback_non_2xx`): o
-  `_execute_migration_task` faz `clear_migration_orchestrator(job_id)` no `finally`, pelo
-  que o `/rollback` cria uma instância nova sem snapshot em memória → 400. O rollback é
-  **invocado e observável** e o resultado é **FAILED**, mas o *restore* não se efetiva
-  (modern mantém os 7 users). É uma limitação conhecida (não um verde-falso — o
-  resultado é FAILED, não completed). **Dívida:** tornar o `/rollback` do serviço
-  idempotente sobre o job_id (truncar destino via db_urls do metadata) — fora do âmbito
-  anti-verde-falso desta fase.
+- **Rollback EFETIVO (commit `ca45fd3d`):** a 1ª iteração do gate revelou que
+  `execute_rollback` recebia HTTP 400 (o `_execute_migration_task` faz
+  `clear_migration_orchestrator(job_id)` no `finally` → `/rollback` numa instância nova
+  sem snapshot). **Corrigido:** o handler `/rollback` passou a ser idempotente — sem
+  snapshot, faz **limpeza do destino** (trunca as tabelas-alvo no modern via
+  `metadata.modern_db_url` + `PostgreSQLClient.truncate_table`, identificador validado).
+  Re-prova em cluster (plan `j4neg2-1782841268`, `data-migration:ca45fd3`):
+
+  ```
+  run_batch_migration_failed_terminal status=failed
+  Rollback acionado: phase=batch_migration
+  execute_rollback_started  job_id=37f90f7e-...
+  rollback_completed        job_id=37f90f7e-...        (HTTP 2xx, já não non_2xx)
+  ```
+
+  Estado final: job `status=rolled_back`; **modern truncado (`0/0/0/0`)** — a migração
+  divergente foi **efetivamente desfeita**. Sem `modern_db_url` no metadata o `/rollback`
+  mantém 400 honesto (fail-closed, não finge sucesso).
 
 ## 5. Estado das subtasks
 
