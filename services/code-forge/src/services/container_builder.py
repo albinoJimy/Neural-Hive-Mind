@@ -10,6 +10,7 @@ Suporta:
 """
 
 import asyncio
+import os
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Optional
@@ -279,6 +280,17 @@ class ContainerBuilder:
             }
         ]
 
+        # Montar as credenciais do registry onde o Kaniko as lê por default
+        # (/kaniko/.docker/config.json) — necessário para o push autenticado.
+        if os.getenv("KANIKO_DOCKER_CONFIG_SECRET", ""):
+            mounts.append(
+                {
+                    "name": "docker-config",
+                    "mountPath": "/kaniko/.docker",
+                    "readOnly": True,
+                }
+            )
+
         if needs_qemu:
             mounts.append(
                 {
@@ -311,6 +323,21 @@ class ContainerBuilder:
                 "emptyDir": {},
             },
         ]
+
+        # Montar o secret de credenciais do registry (dockerconfigjson) como
+        # /kaniko/.docker/config.json — sem isto o Kaniko faz push ANÓNIMO e o
+        # registry responde DENIED. O nome do secret vem de KANIKO_DOCKER_CONFIG_SECRET.
+        docker_secret = os.getenv("KANIKO_DOCKER_CONFIG_SECRET", "")
+        if docker_secret:
+            volumes.append(
+                {
+                    "name": "docker-config",
+                    "secret": {
+                        "secretName": docker_secret,
+                        "items": [{"key": ".dockerconfigjson", "path": "config.json"}],
+                    },
+                }
+            )
 
         if needs_qemu:
             volumes.append(
@@ -1000,7 +1027,15 @@ class ContainerBuilder:
                     "namespace": namespace,
                     "labels": {
                         "app": "kaniko",
-                        "build": image_tag.replace(":", "-").replace("/", "-"),
+                        # app.kubernetes.io/name é exigido pela policy Gatekeeper
+                        # must-have-app-label-all (senão o pod é negado com 403).
+                        "app.kubernetes.io/name": "kaniko",
+                        # Valor de label K8s ≤63 chars e início/fim alfanumérico.
+                        # Mantém o sufixo (parte única: nome do serviço + tag).
+                        "build": (
+                            image_tag.replace(":", "-").replace("/", "-")[-63:].strip("-._")
+                            or "build"
+                        ),
                     },
                 },
                 "spec": {
@@ -1115,20 +1150,14 @@ class ContainerBuilder:
                     )
 
                 elif phase == "Failed":
-                    # Obter logs de erro
+                    # Obter logs de erro. Falha de build é fail-closed: marca e
+                    # retorna success=False de imediato (não deixa cair no timeout
+                    # check, que mascararia o erro real como "timeout" 15 min depois).
                     try:
                         logs = k8s.read_namespaced_pod_log(name=pod_name, namespace=namespace)
                         error_msg = logs[-500:] if len(logs) > 500 else logs
                     except Exception:
                         logs = ""
-                        error_msg = "Kaniko pod failed"
-
-                elif phase == "Failed":
-                    # Obter logs de erro
-                    try:
-                        logs = k8s.read_namespaced_pod_log(name=pod_name, namespace=namespace)
-                        error_msg = logs[-500:] if len(logs) > 500 else logs
-                    except Exception:
                         error_msg = "Kaniko pod failed"
 
                     logger.error(

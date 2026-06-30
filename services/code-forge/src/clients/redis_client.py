@@ -89,6 +89,12 @@ class RedisClient:
                 password=password,
                 ssl=self.ssl_enabled,
                 decode_responses=True,
+                # require_full_coverage=False: tolera slots temporariamente não cobertos
+                # durante (re)balanceamento — evita RedisClusterException no init que
+                # degradava o cliente para standalone (causando MOVED em todos os comandos).
+                require_full_coverage=False,
+                socket_timeout=5,
+                socket_connect_timeout=5,
             )
 
             await self.client.ping()
@@ -98,10 +104,11 @@ class RedisClient:
             )
 
         except RedisClusterException as e:
-            logger.warning("redis_cluster_failed_fallback_standalone", error=str(e))
-            # Fallback para standalone
-            self.cluster_enabled = False
-            await self._start_standalone(host, port, password)
+            # NÃO degradar para standalone: um cliente standalone contra um Redis cluster
+            # recebe MOVED em todos os comandos (a origem da flakiness). Falhar de forma
+            # explícita é preferível a um cliente silenciosamente partido.
+            logger.error("redis_cluster_init_failed", error=str(e))
+            raise
 
     async def stop(self):
         """Fecha conexão com Redis."""

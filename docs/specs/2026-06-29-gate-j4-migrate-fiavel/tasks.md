@@ -1,0 +1,139 @@
+# Spec Tasks
+
+> Gate "J4/MIGRATE fiável" (ADR-0011, eixo Jornadas) — provar E2E a jornada de migração de legado
+> composta (`INGEST → PLAN → GENERATE → EXECUTE → MIGRATE`) antes de extrair MIGRATE como capacidade.
+>
+> **Princípios:** compor capacidades/serviços existentes (não novos serviços); reusar
+> `GenerateCapability` e des-orfanizar `DataMigrationWorkflow`; anti-verde-falso (validação reprovada /
+> perda de dados / `/validate` indisponível → FAILED); TDD estrito; diffs mínimos (py3.10); zero
+> regressão em J2. Cada fase é um gate: só avança com testes verdes. Detalhe em
+> `sub-specs/technical-spec.md`.
+
+## Tasks
+
+### Fase 0 — Diagnóstico + harness de prova reprodutível
+
+- [x] 1. Estabelecer o baseline do gap e o fixture de migração
+  - **DoD:** baseline documentado (J4 cai na `OrchestrationWorkflow` genérica; `DataMigrationWorkflow`
+    órfão — confirmado pela sonda 2026-06-29); fixture de migração reprodutível: PostgreSQL **legacy**
+    com N linhas conhecidas em ≥1 tabela + PostgreSQL **moderno** vazio, em namespace efémero
+    (TTL/ResourceQuota, reuso do padrão do gate J3); harness de injeção de intenção J4 (plan direto no
+    topic `plans.consensus`, produtor in-pod), idêntico ao gate 3.3. **FEITO** — pipeline
+    dev(TDD)→auditoria(qualidade SHIP + completude SHIP)→remediação. **31 testes verdes** (18 novos +
+    13 congelados, zero regressão). Descobertas do scouting: o fixture **legacy já existia**
+    (`postgres-legacy` + `scripts/init-legacy-db.sql`, 4 tabelas) e o baseline routing **já estava
+    testado** (`test_decision_consumer_journey_routing.py:74`) — não duplicado. Adicionado o que faltava:
+    DB **destino** (`postgres-modern` no compose + `scripts/init-modern-db.sql`, DDL sem INSERTs),
+    **oráculo de contagens** determinístico (`{users:5, orders:5, products:5, order_items:9}` + parser
+    anti-drift) e **harness** J4 (função pura + produção Kafka separada/opcional, round-trip pelo
+    deserializer real). NOTA honesta: a Fase 0 só **define e testa em bloco** — a execução real do
+    fixture (docker-compose, migração, `rows_migrated==N`, `/validate`) é Fase 4.
+  - **Evidência:** `sub-specs/fase0-evidence.md`.
+  - [x] 1.1 Testes: harness constrói/injeta J4 e o baseline (J4→OrchestrationWorkflow real) é observado;
+    oráculo expõe N linhas conhecidas (contagem determinística da origem) — 18 testes
+  - [x] 1.2 Implementar fixture (DB **destino** `postgres-modern` + `init-modern-db.sql`; legacy já
+    existia) + harness de injeção (`tests/integration/j4_migrate_fixture.py`)
+  - [x] 1.3 Documentar baseline (`sub-specs/fase0-evidence.md`): J4 cai na orquestração genérica e não
+    toca migração; `DataMigrationWorkflow` órfão
+
+### Fase 1 — Compor o fluxo J4 (des-vazar routing + des-orfanizar MIGRATE)
+
+- [x] 2. Routing de J4 para o fluxo composto e arranque do `DataMigrationWorkflow`
+  - **DoR:** Fase 0 fechada. ✓
+  - **DoD:** para `J4_MIGRATE`, o handler deixa de cair na `OrchestrationWorkflow` genérica e aciona o
+    fluxo composto que **inicia** o `DataMigrationWorkflow` (deixa de ser órfão), passando o migration
+    spec derivado do plano (legacy/modern db urls, tabelas). Autoridade única de routing por journey
+    (espelha `_requires_generate_capability`). Preservados: J1 não executa; **J2 → OrchestrationWorkflow
+    inalterada (teste congelado verde)**; fallback por `workflow_type`. **FEITO** — pipeline
+    dev(TDD)→auditoria(qualidade SHIP + completude SHIP)→remediação (Q1: docstring corrigido p/ não
+    afirmar paridade com o resume, que fica para fase posterior). Padrão GENERATE espelhado:
+    `_journey_requires_migration` + `_requires_migration` + `_extract_migration_config` (fail-closed) +
+    bloco que arranca `DataMigrationWorkflow.run`. **71 testes verdes** (19 novos) + zero regressão
+    GENERATE (48). `_select_workflow_class_by_journey` intocado (teste congelado verde). Nuance de
+    desenho documentada: J4 **com** `migration_config` → MIGRATE; **inválido** → FAILED; **sem a chave**
+    → compat (preserva o teste da Fase 2 do GENERATE). Ver `sub-specs/fase1-evidence.md`.
+  - **Evidência:** `sub-specs/fase1-evidence.md`.
+  - [x] 2.1 Testes: J4 → arranca `DataMigrationWorkflow` com o spec certo; J2 → `OrchestrationWorkflow`
+    (congelado); journey ausente/UNKNOWN → fallback `workflow_type`; + anti-verde-falso (config inválido)
+  - [x] 2.2 Implementar o routing por journey + wiring do `DataMigrationWorkflow` (start durável)
+  - [x] 2.3 Gate: teste de bloco verde (in→out sem correr cluster) — 71 verdes
+
+### Fase 2 — Gate de validação anti-verde-falso (FAIL-CLOSED)
+
+- [x] 3. `/validate` como gate fail-closed do resultado da migração
+  - **DoR:** Fase 1 fechada. ✓
+  - **DoD:** após MIGRATE, a jornada exige `POST /migrations/{id}/validate` com resultado positivo
+    explícito (contagem origem == destino + checks). Fail-closed: validação reprovada / divergência de
+    contagem / `/validate` indisponível ou erro → resultado `FAILED` com `failure_reason`. Sem fallback
+    que assuma sucesso. Espelha `map_result` de GENERATE (exige verificação real). **FEITO** — pipeline
+    dev(TDD)→auditoria(qualidade SHIP + completude SHIP)→remediação. **Verde-falso ELIMINADO:** a activity
+    `validate_data` (data_migration.py) deixou de hardcodar `overall_passed=True` e passou a chamar o
+    `/validate` REAL do data-migration:8019 (`SELECT COUNT(*)` origem vs destino) via httpx injetado
+    (`set_data_migration_dependencies`, reusa o client do Fluxo G). Fail-closed em TODOS os ramos (sem
+    client / erro / timeout / não-2xx / JSON inválido / campo ausente / `overall_passed=False`) via helper
+    `_validation_failed` (garante `success=False` E `overall_passed=False` — os dois predicados que o gate
+    interno do workflow exige). O gate do workflow (`data_migration_workflow.py:185-196`, INTOCADO) passa a
+    disparar `_handle_rollback` corretamente. **27 testes verdes** (8 novos + 19 regressão). Anti-verde-falso
+    provado por **mutação** (repor `True` → 1 falha; `except→success=True` → 6 falhas). Dívida documentada:
+    `run_batch_migration` ainda simula 100% (Fase 4) — a validação real apanha-o (destino vazio ≠ origem →
+    FAILED). Ver `sub-specs/fase2-evidence.md`.
+  - **Evidência:** `sub-specs/fase2-evidence.md`.
+  - [x] 3.1 Testes (8): validação OK→`success`; contagem divergente→`FAILED`; `/validate`
+    erro/timeout/5xx/4xx/JSON-inválido/sem-client→`FAILED` (fail-closed). NOTA honesta: o predicado
+    "rollback/`completed` ao **nível do workflow**" não tem teste com harness Temporal dedicado — é
+    garantido estruturalmente (invariante `success=False ⇒ overall_passed=False` provada por mutação + gate
+    trivial 189-196) e será exercitado E2E na **Fase 4** (custo de harness `WorkflowEnvironment` não
+    justificado para algo estruturalmente certo).
+  - [x] 3.2 Implementar o gate de validação + mapeamento de resultado fail-closed — `validate_data` real
+    via httpx + `_validation_failed` (fail-closed); injeção de deps no worker
+  - [x] 3.3 Gate: anti-verde-falso provado por mutação — repor `overall_passed=True` derruba 1 teste;
+    `except→success=True` derruba 6 testes
+
+### Fase 3 — Reuso de GENERATE na composição (condicional)
+
+- [x] 4. Compor GENERATE na fase de geração (reuso, sem duplicar wiring)
+  - **DoR:** Fase 2 fechada. ✓
+  - **DoD:** a fase GENERATE reusa o `FluxoGWorkflow` (G1–G13, não reimplementado); o serviço moderno
+    gerado é deployado **antes** da migração de dados; GENERATE é **condicional** (planos sem código novo
+    saltam a fase). **FEITO** — pipeline dev(TDD)→auditoria(qualidade SHIP + completude SHIP)→remediação.
+    Arquitetura escolhida pelo utilizador: novo **`MigrateJourneyWorkflow`** (1º child-workflow do repo) que
+    sequencia, via `workflow.execute_child_workflow`, `FluxoGWorkflow` (GENERATE condicional, `id={wid}-generate`)
+    → `DataMigrationWorkflow` (MIGRATE, `id={wid}-migrate`), `imports_passed_through` (sandbox), determinístico.
+    Condicional por `generate_target`. **Fail-closed:** GENERATE não-completed → `status=failed`, **não**
+    executa MIGRATE (provado por StopIteration / call_count==1). Dependência de dados: `modern_connection_id`
+    derivado de `generate_result.deployment.service_url`. Consumer arranca `MigrateJourneyWorkflow.run` (refina
+    Fase 1); registado no worker. **63 verdes** (13 novos) + 46 zero-regressão GENERATE; congelados intactos.
+    **Nuances honestas** (evidence §10): nada popula `generate_target` upstream hoje (ramo GENERATE dead-code
+    em runtime até Fase 4); reusa `FluxoGWorkflow` (não a `GenerateCapability`, inviável dentro de workflow
+    Temporal) → re-acopla à classe, a reconciliar na spec de extração de MIGRATE. Ver `sub-specs/fase3-evidence.md`.
+  - **Evidência:** `sub-specs/fase3-evidence.md`.
+  - [x] 4.1 Testes: GENERATE (FluxoG child) corre ANTES de MIGRATE (call_args_list); plano sem
+    `generate_target` → salta GENERATE (call_count==1); GENERATE falha → não migra (fail-closed)
+  - [x] 4.2 Implementar a invocação + condicionalidade (`MigrateJourneyWorkflow` + funções puras)
+  - [x] 4.3 Gate: bloco verde — 63 verdes
+
+### Fase 4 — Gate E2E em cluster (software migrado a correr)
+
+- [~] 5. Paridade E2E: intenção J4 produz sistema migrado real e validado via o fluxo composto
+  - **DoR:** Fase 3 fechada. ✓
+  - **DoD:** intenção de migração `J4_MIGRATE` → fluxo composto → serviço moderno gerado a correr
+    (`/health` 200, quando GENERATE aplicável) + PostgreSQL migrado (`rows_migrated == N`) + `/validate`
+    OK no cluster. Falha real em qualquer fase (geração/deploy/migração/validação) → `FAILED` sem verde
+    falso. Zero regressão em J2 (teste congelado verde + bloco Orchestration intocado).
+  - **PARCIAL (2026-06-29):** âmbito = caminho negativo/anti-verde-falso primeiro. **PROVADO em runtime
+    no cluster** (imagem `bdce0f3`, Fases 1-3): intenção J4 → `Invocando capacidade MIGRATE
+    routing_basis=journey` → `MigrateJourneyWorkflow iniciado` → child `DataMigrationWorkflow`
+    (`{wid}-migrate`), GENERATE saltado (sem `generate_target`). **Migração real BLOQUEADA por 4 bugs de
+    integração** (camadas nunca exercitadas E2E): (1) `DataMigrationWorkflow` viola determinismo Temporal
+    (`os.environ.get` — latente por ser órfão; exposto pela des-orfanização); (2) `data-migration` service
+    análise de schema `syntax error at or near $1`; (3) `init-legacy-db.sql` comentários `#` + `pgoutput`
+    (corrigido localmente p/ o fixture); (4) over-commit do cluster (deploy do orchestrator instável).
+    **Anti-verde-falso confirmado** (o sistema falha honestamente em cada ponto, nunca finge `completed`),
+    mas a prova LIMPA (`/validate` real deteta destino vazio → FAILED E2E) fica bloqueada por #1/#2.
+    Recomenda-se **spec própria "migração J4 real"** para #1-#3. Ver `sub-specs/fase4-evidence.md`.
+  - **Evidência:** `sub-specs/fase4-evidence.md`.
+  - [x] 5.1 Gate cluster (parcial): routing J4 → MigrateJourneyWorkflow → child DataMigrationWorkflow
+    PROVADO em runtime; migração real bloqueada por 4 bugs documentados
+  - [ ] 5.2 Confirmar ausência de regressão em J2 — coberto em bloco (teste congelado verde); E2E cluster diferido
+  - [~] 5.3 Anti-verde-falso E2E: princípio CONFIRMADO (falha honesta, sem verde-falso); prova limpa
+    (`/validate` deteta destino vazio→FAILED) bloqueada por #1/#2

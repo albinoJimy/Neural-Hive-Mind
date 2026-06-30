@@ -322,7 +322,10 @@ async def _process_generation_task(
                     "template_id": template_id,
                     "artifact_id": artifact.artifact_id,
                     "confidence_score": artifact.confidence_score,
-                    "generation_method": artifact.generation_method.value,
+                    # generation_method pode ser enum (.value) ou já str — tolerar ambos.
+                    "generation_method": getattr(
+                        artifact.generation_method, "value", artifact.generation_method
+                    ),
                 }
 
                 # Atualizar status para COMPLETED
@@ -517,7 +520,10 @@ async def get_generation_status(
     return GenerationStatusResponse(
         request_id=request_data["request_id"],
         status=request_data["status"],
-        artifacts=_deserialize_from_redis(request_data.get("artifacts", "[]")),
+        # `_deserialize_from_redis` devolve None para valor vazio; o campo `artifacts`
+        # é uma lista obrigatória -> default para [] evita 500 (ValidationError list_type)
+        # enquanto a geração ainda não produziu artefactos.
+        artifacts=_deserialize_from_redis(request_data.get("artifacts", "[]")) or [],
         pipeline_id=request_data.get("pipeline_id") or None,
         error=request_data.get("error") or None,
         created_at=request_data["created_at"],

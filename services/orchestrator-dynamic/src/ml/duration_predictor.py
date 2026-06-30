@@ -196,6 +196,7 @@ class DurationPredictor:
         from datetime import datetime, timedelta
 
         try:
+            # completed_at é BSON Date no cluster → filtro com datetime (não millis).
             cutoff_date = datetime.now(timezone.utc) - timedelta(
                 days=self.config.ml_training_window_days
             )
@@ -204,6 +205,8 @@ class DurationPredictor:
                 {
                     "completed_at": {"$gte": cutoff_date},
                     "actual_duration_ms": {"$exists": True, "$ne": None, "$gt": 0},
+                    # anti-verde-falso: execuções simuladas não treinam o modelo
+                    "result_simulated": {"$ne": True},
                 }
             )
 
@@ -536,6 +539,7 @@ class DurationPredictor:
 
         try:
             window_days = training_window_days or self.config.ml_training_window_days
+            # datetime — completed_at é BSON Date no cluster
             cutoff_date = datetime.now(timezone.utc) - timedelta(days=window_days)
 
             # Tenta carregar dados de treino via ClickHouse se habilitado
@@ -572,6 +576,8 @@ class DurationPredictor:
                         {
                             "completed_at": {"$gte": cutoff_date},
                             "actual_duration_ms": {"$exists": True, "$ne": None, "$gt": 0},
+                            # anti-verde-falso: simulados não treinam o modelo
+                            "result_simulated": {"$ne": True},
                         }
                     )
                     .to_list(None)

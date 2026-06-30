@@ -154,6 +154,15 @@ class GatewayClient:
                 "ingestion_id": ingestion_id or str(uuid.uuid4()),
                 "entity_count": plan.get("entity_count", 0),
             },
+            # Marcador de ingestão (J4) — sinal estruturado para o Tier 1 do
+            # JourneyClassifier (STE): context.source == "doc-ingestion" -> J4_MIGRATE.
+            # Sinais, não keywords: a jornada é decidida por este marcador fiável,
+            # não por palavras como "migração" no texto. O journey_hint é um
+            # reforço opcional para explicabilidade/observabilidade.
+            "context": {
+                "source": "doc-ingestion",
+                "metadata": {"journey_hint": "MIGRATE"},
+            },
         }
         return request
 

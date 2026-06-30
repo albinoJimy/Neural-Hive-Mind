@@ -13,8 +13,23 @@ from temporalio import activity
 
 logger = structlog.get_logger(__name__)
 
-# Cliente HTTP reutilizado de code_generation_activity
-from .code_generation_activity import _http_client
+# Cliente HTTP e base URL reutilizados de code_generation_activity.
+# Importamos o módulo (não o símbolo) para ler _http_client dinamicamente
+# após a injeção feita pelo worker.
+from . import code_generation_activity
+from .code_generation_activity import _code_forge_base_url
+
+
+def _get_http_client() -> httpx.AsyncClient | None:
+    """Lê o cliente HTTP injetado dinamicamente (pode ser None)."""
+    client = code_generation_activity._http_client
+    if client is None:
+        logger.warning(
+            "http_client_not_injected_using_ephemeral",
+            degraded=True,
+            reason="set_code_generation_dependencies_not_called",
+        )
+    return client
 
 
 @activity.defn
@@ -69,19 +84,25 @@ async def build_package(
             "enable_tests": True,
             "enable_security_scan": True,
             "generate_sbom": True,
-            "push_to_registry": parameters.get("push_to_registry", False),
+            # J3_BUILD produz software a correr → a imagem TEM de ser publicada
+            # para o deploy (G8) a poder puxar. Default True (era False → --no-push
+            # → imagem nunca chegava ao registry → ImagePullBackOff/NotFound).
+            "push_to_registry": parameters.get("push_to_registry", True),
             "registry_url": parameters.get("registry_url", ""),
         },
         "plan_id": plan_id,
     }
 
-    try:
-        # Usar cliente HTTP
-        client = _http_client or httpx.AsyncClient(timeout=900.0)
+    # Usar cliente HTTP injetado; se ausente, criar um efémero que TEM de ser
+    # fechado no finally (senão fuga de sockets a cada activity no caminho degradado).
+    injected_client = _get_http_client()
+    client = injected_client or httpx.AsyncClient(timeout=900.0)
+    ephemeral_client = injected_client is None
 
+    try:
         # Chamar code-forge API para iniciar pipeline
         response = await client.post(
-            "http://code-forge:8020/api/v1/pipelines",
+            f"{_code_forge_base_url()}/api/v1/pipelines",
             json=payload,
             headers={"Content-Type": "application/json"},
         )
@@ -124,6 +145,9 @@ async def build_package(
     except Exception as e:
         logger.exception("build_package_exception", plan_id=plan_id, error=str(e))
         raise
+    finally:
+        if ephemeral_client:
+            await client.aclose()
 
 
 async def _wait_for_build_completion(
@@ -161,7 +185,7 @@ async def _wait_for_build_completion(
             raise TimeoutError(f"Build timeout após {max_wait}s")
 
         try:
-            response = await client.get(f"http://code-forge:8020/api/v1/pipelines/{pipeline_id}")
+            response = await client.get(f"{_code_forge_base_url()}/api/v1/pipelines/{pipeline_id}")
 
             if response.status_code == 200:
                 status_data = response.json()

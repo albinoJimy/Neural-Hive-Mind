@@ -37,6 +37,12 @@ try:
 except ImportError:
     EXECUTION_RESULT_CONSUMER_AVAILABLE = False
     ExecutionResultConsumer = None
+
+# Loop OBSERVE→LEARN (plano-Z): FeedbackSink transversal
+try:
+    from src.observability.feedback_sink import FeedbackSink
+except ImportError:
+    FeedbackSink = None
 from datetime import datetime, timezone
 
 UTC = timezone.utc
@@ -65,7 +71,6 @@ from src.middleware.rate_limit_middleware import RateLimitMiddleware
 from src.ml.model_audit_logger import ModelAuditLogger
 from src.temporal_client import TemporalClientWrapper
 from src.workers.temporal_worker import TemporalWorkerManager, create_temporal_client
-from src.workflows.orchestration_workflow import OrchestrationWorkflow
 
 # =============================================================================
 # Pydantic Models for Authorization Audit
@@ -866,10 +871,18 @@ async def lifespan(app: FastAPI):
             config, "execution_result_consumer_enabled", True
         ):
             logger.info("Inicializando Execution Result Consumer")
+            # Fundação do loop LEARN: sink transversal que persiste o feedback
+            # de execução no corpus que o duration_predictor consome.
+            feedback_sink = (
+                FeedbackSink(app_state.mongodb_client, metrics=orchestrator_metrics)
+                if FeedbackSink and app_state.mongodb_client
+                else None
+            )
             app_state.execution_result_consumer = ExecutionResultConsumer(
                 config,
                 app_state.temporal_client,
                 app_state.redis_client,
+                feedback_sink=feedback_sink,
                 metrics=orchestrator_metrics,
             )
             await app_state.execution_result_consumer.initialize()
@@ -3343,11 +3356,120 @@ async def start_workflow(request: WorkflowStartRequest):
         "sla_deadline_seconds": request.sla_deadline_seconds,
     }
 
-    # Construir input_data conforme esperado pelo OrchestrationWorkflow
+    # Construir input_data conforme esperado pelo workflow selecionado
     input_data = {
         "consolidated_decision": consolidated_decision,
         "cognitive_plan": request.cognitive_plan,
     }
+
+    # Routing por Journey (Fase 1 spec j3-build-generate): este endpoint é o resume
+    # pós-aprovação (chamado pelo FlowCOrchestrator via OrchestratorClient). Antes
+    # iniciava SEMPRE OrchestrationWorkflow (hardcoded), pelo que planos J3_BUILD
+    # aprovados caíam em orquestração genérica (tickets query/transform parasitas).
+    # Passa a selecionar por journey, espelhando o caminho direto (decision_consumer),
+    # e preservando o fallback por workflow_type para planos sem journey.
+    # Import tardio: evita custo/ciclo de import no arranque do módulo.
+    from src.consumers.decision_consumer import (
+        _extract_generate_target,
+        _get_journey_from_plan,
+        _get_workflow_type_from_plan,
+        _is_plan_only,
+        _requires_generate_capability,
+        _select_workflow_class,
+        _select_workflow_class_by_journey,
+    )
+
+    journey = _get_journey_from_plan(request.cognitive_plan)
+
+    # J1_PLAN_ONLY: planeamento sem execução a jusante — não inicia workflow
+    # (anti-verde-falso: não arranca orquestração silenciosamente).
+    if _is_plan_only(journey):
+        logger.info(
+            "workflow_start_skipped_plan_only",
+            workflow_id=workflow_id,
+            plan_id=plan_id,
+            journey=journey,
+        )
+        return JSONResponse(
+            status_code=200,
+            content=WorkflowStartResponse(
+                workflow_id=workflow_id,
+                status="skipped_plan_only",
+                correlation_id=request.correlation_id,
+            ).model_dump(),
+        )
+
+    # Resume pós-aprovação honra a capacidade GENERATE (fronteira não-vazada): a
+    # decisão deriva da semântica da jornada (J3_BUILD), não da classe do workflow.
+    # Fallback compat: journey ausente/UNKNOWN + workflow_type=generation é geração.
+    requires_generation = _requires_generate_capability(
+        journey, _get_workflow_type_from_plan(request.cognitive_plan)
+    )
+    if requires_generation:
+        from src.capabilities.generate import (
+            GenerateCapability,
+            GenerateRequest,
+            UnsupportedStackError,
+        )
+
+        target = _extract_generate_target(request.cognitive_plan)
+        capability = GenerateCapability(
+            temporal_client=app_state.temporal_client,
+            task_queue=config.temporal_task_queue,
+            workflow_id_prefix=config.temporal_workflow_id_prefix,
+        )
+        logger.info(
+            "workflow_start_attempt",
+            workflow_id=workflow_id,
+            plan_id=plan_id,
+            intent_id=intent_id,
+            correlation_id=request.correlation_id,
+            journey=journey,
+            routing_basis="capability_generate",
+        )
+        try:
+            handle = await capability.start(
+                GenerateRequest(
+                    plan_id=plan_id,
+                    journey=journey,
+                    cognitive_plan=request.cognitive_plan,
+                    target=target,
+                ),
+                workflow_id=workflow_id,  # preserva o id flow-c-{correlation_id}
+            )
+        except UnsupportedStackError as e:
+            logger.error(
+                "workflow_start_unsupported_stack",
+                workflow_id=workflow_id,
+                plan_id=plan_id,
+                error=str(e),
+            )
+            raise HTTPException(status_code=422, detail=f"stack não suportada: {e}") from e
+        logger.info(
+            "workflow_started",
+            workflow_id=handle.workflow_id,
+            plan_id=plan_id,
+            correlation_id=request.correlation_id,
+            workflow_class="FluxoGWorkflow",
+        )
+        return JSONResponse(
+            status_code=200,
+            content=WorkflowStartResponse(
+                workflow_id=handle.workflow_id,
+                status="started",
+                correlation_id=request.correlation_id,
+            ).model_dump(),
+        )
+
+    workflow_class = _select_workflow_class_by_journey(journey)
+    routing_basis = "journey"
+    if workflow_class is None:
+        # Fallback retrocompatível: journey ausente/UNKNOWN -> roteamento legado
+        # por workflow_type (default orchestration).
+        workflow_class = _select_workflow_class(
+            _get_workflow_type_from_plan(request.cognitive_plan)
+        )
+        routing_basis = "workflow_type_fallback"
 
     logger.info(
         "workflow_start_attempt",
@@ -3356,12 +3478,15 @@ async def start_workflow(request: WorkflowStartRequest):
         intent_id=intent_id,
         correlation_id=request.correlation_id,
         priority=request.priority,
+        journey=journey,
+        routing_basis=routing_basis,
+        workflow_class=workflow_class.__name__,
     )
 
     try:
-        # Iniciar workflow no Temporal
+        # Iniciar workflow no Temporal (classe selecionada por journey)
         await app_state.temporal_client.start_workflow(
-            OrchestrationWorkflow.run,
+            workflow_class.run,
             input_data,
             id=workflow_id,
             task_queue=config.temporal_task_queue,
@@ -3372,6 +3497,7 @@ async def start_workflow(request: WorkflowStartRequest):
             workflow_id=workflow_id,
             plan_id=plan_id,
             correlation_id=request.correlation_id,
+            workflow_class=workflow_class.__name__,
         )
 
         return JSONResponse(

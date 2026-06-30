@@ -94,7 +94,7 @@ class MongoDBClient:
 
     async def stop(self):
         """Fecha conexão com MongoDB."""
-        if self.client:
+        if self.client is not None:
             self.client.close()
             self.client = None
             self.db = None
@@ -111,7 +111,7 @@ class MongoDBClient:
             content: Conteúdo a salvar
             metadata: Metadados adicionais opcionais
         """
-        if not self.db:
+        if self.db is None:
             raise RuntimeError("MongoDB client not started")
 
         start_time = time.perf_counter()
@@ -176,7 +176,7 @@ class MongoDBClient:
         Returns:
             Conteúdo do artefato ou None se não encontrado
         """
-        if not self.db:
+        if self.db is None:
             raise RuntimeError("MongoDB client not started")
 
         start_time = time.perf_counter()
@@ -217,7 +217,7 @@ class MongoDBClient:
         Returns:
             True se removido com sucesso
         """
-        if not self.db:
+        if self.db is None:
             raise RuntimeError("MongoDB client not started")
 
         try:
@@ -240,7 +240,7 @@ class MongoDBClient:
         Returns:
             Dados do SBOM ou None se não encontrado
         """
-        if not self.db:
+        if self.db is None:
             raise RuntimeError("MongoDB client not started")
 
         start_time = time.perf_counter()
@@ -334,7 +334,7 @@ class MongoDBClient:
             pipeline_id: ID do pipeline
             logs: Lista de entradas de log
         """
-        if not self.db:
+        if self.db is None:
             raise RuntimeError("MongoDB client not started")
 
         start_time = time.perf_counter()
@@ -376,7 +376,7 @@ class MongoDBClient:
         Returns:
             Lista de documentos de log
         """
-        if not self.db:
+        if self.db is None:
             raise RuntimeError("MongoDB client not started")
 
         try:
@@ -402,7 +402,7 @@ class MongoDBClient:
             pipeline_id: ID do pipeline
             log_entry: Entrada de log a adicionar
         """
-        if not self.db:
+        if self.db is None:
             raise RuntimeError("MongoDB client not started")
 
         try:
@@ -430,7 +430,7 @@ class MongoDBClient:
         Returns:
             True se conexão está saudável
         """
-        if not self.client:
+        if self.client is None:
             return False
 
         start_time = time.perf_counter()

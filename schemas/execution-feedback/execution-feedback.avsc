@@ -1,0 +1,75 @@
+{
+  "namespace": "com.neuralhivemind.orchestration",
+  "type": "record",
+  "name": "ExecutionFeedback",
+  "doc": "Contrato canónico do loop de aprendizagem (OBSERVE→LEARN, plano-Z do modelo harmonizado — ADR-0011). Capability-agnostic: as capacidades EXECUTE/GENERATE/MIGRATE traduzem o seu resultado para este formato e emitem-no através do FeedbackSink. Consumido pelo duration_predictor. Spec: docs/specs/2026-06-22-fundacao-loop-learn.",
+  "fields": [
+    {
+      "name": "feedback_id",
+      "type": "string",
+      "doc": "Identificador do feedback ({ticket_id}:{epoch_millis})"
+    },
+    {
+      "name": "feedback_persisted_at",
+      "type": "long",
+      "doc": "Timestamp epoch millis da persistência do feedback"
+    },
+    {
+      "name": "capability",
+      "type": "string",
+      "doc": "Capacidade emissora (gancho de Capacidade): EXECUTE | GENERATE | MIGRATE"
+    },
+    {
+      "name": "journey_id",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Gancho de Roteamento — preenchido pelo journey router; opcional hoje"
+    },
+    {
+      "name": "ticket_id",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Chave de correlação/update em execution_tickets"
+    },
+    {
+      "name": "plan_id",
+      "type": "string",
+      "doc": "Plano cognitivo de origem"
+    },
+    {
+      "name": "trace_id",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Correlação de observabilidade (OpenTelemetry trace_id)"
+    },
+    {
+      "name": "status",
+      "type": "string",
+      "doc": "Estado final do ticket (COMPLETED, FAILED, ...)"
+    },
+    {
+      "name": "actual_duration_ms",
+      "type": ["null", "long"],
+      "default": null,
+      "doc": "Duração real da execução em millis — label do regressor de duração"
+    },
+    {
+      "name": "started_at",
+      "type": ["null", "long"],
+      "default": null,
+      "doc": "Início da execução (epoch millis)"
+    },
+    {
+      "name": "completed_at",
+      "type": ["null", "long"],
+      "default": null,
+      "doc": "Fim da execução (epoch millis) — filtro de janela de treino"
+    },
+    {
+      "name": "simulated",
+      "type": "boolean",
+      "default": false,
+      "doc": "Execução simulada/degradada — persistida para observabilidade, excluída do treino (anti-verde-falso)"
+    }
+  ]
+}

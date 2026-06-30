@@ -1,0 +1,3 @@
+# Spec Summary (Lite)
+
+Convergir as 4 bases de dados MongoDB (`neural_hive`, `neural_hive_dev`, `neural_hive_orchestration`, `neural_hive_workers`) numa DB canónica única por ambiente (`neural_hive_dev` em dev), eliminando o drift que separa `plan_approvals` do resto do plano e que fragmenta o sinal de treino ML (opinions frescas em `neural_hive_dev` não chegam ao retraining que lê `neural_hive`). Tratada como migração de dados faseada e reversível, com a regra de ouro **migrar dados primeiro, repontar serviço depois, gate E2E entre fases** — porque o repoint ingénuo do approval-service (`f786fb16`) já partiu o pipeline (404 → 0 tickets) e foi revertido (`6fddd01d`). Termina com `MONGODB_DATABASE` explícito (fail-fast) e guarda anti-regressão para o drift não voltar.

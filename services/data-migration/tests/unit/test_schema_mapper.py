@@ -723,3 +723,149 @@ class TestAnalyzeSamples:
         # Deve retornar apenas primeiros 5
         assert len(result["examples"]) == 5
         assert result["examples"] == ["value0", "value1", "value2", "value3", "value4"]
+
+
+def _j4_legacy_schema():
+    """Schema legado fixture J4 (4 tabelas, espelha o oráculo da Fase 0)."""
+    return {
+        "schema": "public",
+        "tables": [
+            {
+                "name": "users",
+                "columns": [
+                    {"column_name": "id", "data_type": "integer", "is_nullable": "NO"},
+                    {"column_name": "name", "data_type": "text", "is_nullable": "YES"},
+                    {"column_name": "email", "data_type": "text", "is_nullable": "NO"},
+                ],
+                "primary_keys": ["id"],
+                "foreign_keys": [],
+                "row_count": 5,
+            },
+            {
+                "name": "orders",
+                "columns": [
+                    {"column_name": "id", "data_type": "integer", "is_nullable": "NO"},
+                    {"column_name": "user_id", "data_type": "integer", "is_nullable": "NO"},
+                ],
+                "primary_keys": ["id"],
+                "foreign_keys": [],
+                "row_count": 5,
+            },
+            {
+                "name": "products",
+                "columns": [
+                    {"column_name": "id", "data_type": "integer", "is_nullable": "NO"},
+                    {"column_name": "title", "data_type": "text", "is_nullable": "NO"},
+                ],
+                "primary_keys": ["id"],
+                "foreign_keys": [],
+                "row_count": 5,
+            },
+            {
+                "name": "order_items",
+                "columns": [
+                    {"column_name": "id", "data_type": "integer", "is_nullable": "NO"},
+                    {"column_name": "order_id", "data_type": "integer", "is_nullable": "NO"},
+                    {"column_name": "product_id", "data_type": "integer", "is_nullable": "NO"},
+                ],
+                "primary_keys": ["id"],
+                "foreign_keys": [],
+                "row_count": 9,
+            },
+        ],
+        "relationships": [],
+        "indexes": [],
+    }
+
+
+class TestGenerateSchemaMappingIdentityFallback:
+    """Testes do mapping IDENTIDADE determinístico (sem LLM) — FIX 1 J4."""
+
+    @pytest.mark.asyncio
+    async def test_identity_mapping_when_llm_raises(self):
+        """LLM falha (ex.: OPENAI_API_KEY ausente) → mapping IDENTIDADE com 4 tabelas."""
+        legacy_schema = _j4_legacy_schema()
+
+        with patch("src.services.schema_mapper.SchemaMapper._get_llm_client") as mock_client:
+            # Simular ausência de chave: _get_llm_client levanta LLMProviderError
+            mock_client.side_effect = LLMProviderError("OPENAI_API_KEY não configurada")
+
+            mapper = SchemaMapper(llm_provider="openai")
+
+            result = await mapper.generate_schema_mapping(
+                legacy_schema=legacy_schema,
+                legacy_connection_id="postgres-legacy-01",
+                nhm_target="feature-store",
+            )
+
+        # NÃO é tables=[] (verde-falso eliminado): identidade das 4 tabelas
+        assert isinstance(result, SchemaMapping)
+        assert len(result.tables) == 4
+        assert result.metadata.get("identity_mapping") is True
+        assert result.metadata.get("llm_used") is False
+
+        names = {t.source_table for t in result.tables}
+        assert names == {"users", "orders", "products", "order_items"}
+
+        by_name = {t.source_table: t for t in result.tables}
+        users = by_name["users"]
+        # Identidade: source_table == target_table, sem rename
+        assert users.target_table == users.source_table == "users"
+        # SEM source_filter (senão fetch_batch/validate rebentam com WHERE)
+        for t in result.tables:
+            assert t.source_filter is None
+        # batch_key_field = 1ª primary key
+        assert users.batch_key_field == "id"
+        # estimated_rows == row_count
+        assert users.estimated_rows == 5
+        assert by_name["order_items"].estimated_rows == 9
+        # Colunas mapeadas 1:1 SEM transform (cópia fiel)
+        assert len(users.fields) == 3
+        for f in users.fields:
+            assert f.source_field == f.target_field
+            assert f.transform is None
+        # id marcado como primary key
+        id_field = next(f for f in users.fields if f.source_field == "id")
+        assert id_field.is_primary_key is True
+
+    @pytest.mark.asyncio
+    async def test_identity_mapping_preserves_failure_metadata(self):
+        """Identidade preserva honestidade: error + generation_failed no metadata."""
+        legacy_schema = _j4_legacy_schema()
+
+        with patch("src.services.schema_mapper.SchemaMapper._get_llm_client") as mock_client:
+            mock_llm_client = Mock()
+            mock_llm_client.generate = Mock(side_effect=Exception("API rate limit"))
+            mock_client.return_value = mock_llm_client
+
+            mapper = SchemaMapper(llm_provider="openai")
+
+            result = await mapper.generate_schema_mapping(
+                legacy_schema=legacy_schema,
+                legacy_connection_id="postgres-legacy-01",
+                nhm_target="feature-store",
+            )
+
+        assert len(result.tables) == 4
+        assert result.metadata.get("identity_mapping") is True
+        assert result.metadata.get("generation_failed") is True
+        assert "error" in result.metadata
+
+    @pytest.mark.asyncio
+    async def test_identity_mapping_empty_schema_stays_empty(self):
+        """Schema legado vazio → identidade produz tables=[] (compat fail-soft)."""
+        with patch("src.services.schema_mapper.SchemaMapper._get_llm_client") as mock_client:
+            mock_llm_client = Mock()
+            mock_llm_client.generate = Mock(side_effect=Exception("boom"))
+            mock_client.return_value = mock_llm_client
+
+            mapper = SchemaMapper(llm_provider="openai")
+
+            result = await mapper.generate_schema_mapping(
+                legacy_schema={"schema": "public", "tables": []},
+                legacy_connection_id="c",
+                nhm_target="t",
+            )
+
+        assert len(result.tables) == 0
+        assert result.metadata.get("identity_mapping") is True

@@ -308,31 +308,121 @@ class SchemaMapper:
             return schema_mapping
 
         except LLMProviderError as e:
-            logger.error("llm_provider_error", error=str(e))
-            # Retornar mapping vazio em caso de erro LLM (fail-soft)
-            return SchemaMapping(
+            logger.warning("llm_provider_error_identity_fallback", error=str(e))
+            # Sem LLM (falha ou não configurado): mapping IDENTIDADE determinístico
+            # a partir do legacy_schema (cópia fiel origem→destino, same-schema).
+            return self._build_identity_mapping(
+                legacy_schema=legacy_schema,
                 legacy_connection_id=legacy_connection_id,
                 nhm_target=nhm_target,
-                tables=[],
-                metadata={
-                    "error": str(e),
-                    "llm_provider": self.llm_provider,
-                    "generation_failed": True,
-                },
+                target_schema=target_schema,
+                error=str(e),
             )
         except Exception as e:
-            logger.error("mapping_generation_failed", error=str(e))
-            # Retornar mapping vazio em caso de erro (fail-soft)
-            return SchemaMapping(
+            logger.warning("mapping_generation_failed_identity_fallback", error=str(e))
+            # Qualquer outra falha de geração: cair na identidade determinística.
+            return self._build_identity_mapping(
+                legacy_schema=legacy_schema,
                 legacy_connection_id=legacy_connection_id,
                 nhm_target=nhm_target,
-                tables=[],
-                metadata={
-                    "error": str(e),
-                    "llm_provider": self.llm_provider,
-                    "generation_failed": True,
-                },
+                target_schema=target_schema,
+                error=str(e),
             )
+
+    def _build_identity_mapping(
+        self,
+        legacy_schema: Dict[str, Any],
+        legacy_connection_id: str,
+        nhm_target: str,
+        target_schema: str = "public",
+        error: Optional[str] = None,
+    ) -> SchemaMapping:
+        """
+        Constrói um mapping IDENTIDADE determinístico a partir do legacy_schema.
+
+        Usado como fallback quando o LLM falha ou não está configurado, numa
+        migração same-schema (legacy→modern, schema idêntico). Para cada tabela:
+        - source_table == target_table (sem rename);
+        - colunas mapeadas 1:1 SEM transform (cópia fiel, origem==destino);
+        - SEM source_filter (evita WHERE em fetch_batch/validate_row_counts);
+        - batch_key_field = 1ª primary key (paginação determinística);
+        - estimated_rows = row_count.
+
+        Args:
+            legacy_schema: Schema analisado (saída de analyze_legacy_schema)
+            legacy_connection_id: ID da conexão legada
+            nhm_target: Serviço NHM de destino
+            target_schema: Schema alvo (padrão: public)
+            error: Mensagem de erro do LLM (preservada no metadata para honestidade)
+
+        Returns:
+            SchemaMapping IDENTIDADE (tables vazio apenas se legacy_schema sem tabelas)
+        """
+        source_schema = (
+            legacy_schema.get("schema", "public") if isinstance(legacy_schema, dict) else "public"
+        )
+        legacy_tables = legacy_schema.get("tables", []) if isinstance(legacy_schema, dict) else []
+
+        table_mappings: List[TableMapping] = []
+        for table in legacy_tables:
+            table_name = table.get("name")
+            if not table_name:
+                continue
+
+            primary_keys = table.get("primary_keys") or []
+
+            fields: List[FieldMapping] = []
+            for col in table.get("columns", []) or []:
+                col_name = col.get("column_name") or col.get("name")
+                if not col_name:
+                    continue
+                fields.append(
+                    FieldMapping(
+                        source_field=col_name,
+                        target_field=col_name,  # identidade 1:1
+                        data_type=col.get("data_type", "text"),
+                        nullable=col.get("is_nullable", "YES") != "NO",
+                        is_primary_key=col_name in primary_keys,
+                        transform=None,  # SEM transformação → cópia fiel
+                    )
+                )
+
+            table_mappings.append(
+                TableMapping(
+                    source_schema=source_schema,
+                    source_table=table_name,
+                    target_table=table_name,  # identidade (sem rename)
+                    target_schema=target_schema,
+                    fields=fields,
+                    source_filter=None,  # SEM WHERE
+                    batch_key_field=(primary_keys[0] if primary_keys else None),
+                    estimated_rows=table.get("row_count"),
+                )
+            )
+
+        metadata: Dict[str, Any] = {
+            "identity_mapping": True,
+            "llm_used": False,
+            "llm_provider": self.llm_provider,
+            "legacy_table_count": len(legacy_tables),
+        }
+        if error is not None:
+            # Preservar honestidade: a geração LLM falhou; caímos na identidade.
+            metadata["error"] = error
+            metadata["generation_failed"] = True
+
+        logger.info(
+            "identity_schema_mapping_built",
+            table_count=len(table_mappings),
+            legacy_table_count=len(legacy_tables),
+        )
+
+        return SchemaMapping(
+            legacy_connection_id=legacy_connection_id,
+            nhm_target=nhm_target,
+            tables=table_mappings,
+            metadata=metadata,
+        )
 
     async def approve_mapping(
         self,

@@ -279,7 +279,10 @@ jobs:
     - name: Linting
       run: |
         poetry run flake8 .
-        poetry run pylint neural_hive_observability/
+        # pylint removido: não é instalado neste workflow (instala só
+        # black/isort/flake8/mypy) → falhava sempre com "command not found".
+        # O projeto usa ruff como substituto de pylint (ver python-linting.yml);
+        # flake8 + mypy + bandit já cobrem este job. Ver #145 / #116.
 
     - name: Type Checking
       run: poetry run mypy neural_hive_observability/

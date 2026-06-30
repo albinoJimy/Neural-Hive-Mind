@@ -89,6 +89,9 @@ config:
   HTTP_PORT: 8080
   GRPC_PORT: 50051
   METRICS_PORT: 9090
+  # Container build (Kaniko no cluster; cleanup off para o push concluir — ver configmap)
+  CONTAINER_BUILDER_TYPE: kaniko
+  KANIKO_CLEANUP_PODS: false
 
 # LLM Configuration para Kubernetes
 llm:

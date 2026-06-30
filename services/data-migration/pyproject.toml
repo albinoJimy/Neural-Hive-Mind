@@ -64,3 +64,6 @@ target-version = ["py312"]
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+markers = [
+    "real_integration: testes que requerem servicos reais (deselect with '-m \"not real_integration\"')",
+]

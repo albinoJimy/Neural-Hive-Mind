@@ -26,6 +26,7 @@ from src.producers.plan_producer import KafkaPlanProducer
 from src.services.dag_generator import DAGGenerator
 from src.services.explainability_generator import ExplainabilityGenerator
 from src.services.risk_scorer import RiskScorer
+from src.services.journey_classifier import get_journey_classifier
 from src.services.semantic_parser import SemanticParser
 from src.services.workflow_classifier import get_classifier
 
@@ -49,6 +50,7 @@ class SemanticTranslationOrchestrator:
         approval_producer: KafkaApprovalProducer,
         metrics,
         workflow_classifier=None,
+        journey_classifier=None,
     ):
         self.parser = semantic_parser
         self.dag_gen = dag_generator
@@ -60,6 +62,11 @@ class SemanticTranslationOrchestrator:
         self.approval_producer = approval_producer
         self.metrics = metrics
         self.workflow_classifier = workflow_classifier or get_classifier()
+        # Journey classifier (spec journey-router Fase 3): DI/singleton igual ao
+        # workflow_classifier. Sem llm_client configurado aqui → Tier 1 resolve a
+        # maioria; o LLM (Tier 2) fica disponível se um classifier com llm_client
+        # for injetado, mas a sua ausência nunca bloqueia o pipeline.
+        self.journey_classifier = journey_classifier or get_journey_classifier()
 
     async def process_intent(self, intent_envelope: dict, trace_context: dict):
         """
@@ -205,6 +212,49 @@ class SemanticTranslationOrchestrator:
                 workflow_type=workflow_type,  # ← ADICIONADO: classificação automática
                 classification_metadata=classification_metadata,  # ← ADICIONADO: metadados
             )
+
+            # B5.5: Classificar a Journey (spec journey-router Fase 3) e gravar no
+            # plano. Decide-se cedo (aqui, junto do workflow_type) e propaga-se
+            # via cognitive_plan; nada a jusante re-deriva. O Tier 1 (sinais
+            # estruturados) resolve a maioria a partir do workflow_type já
+            # decidido. QUALQUER falha do classifier degrada para os defaults
+            # (journey=UNKNOWN) sem bloquear o pipeline (anti-verde-falso).
+            with tracer.start_as_current_span("journey_classification") as span:
+                try:
+                    journey_decision = await self.journey_classifier.classify(
+                        intent_envelope,
+                        cognitive_plan.to_avro_dict(),
+                    )
+                    cognitive_plan.journey = journey_decision.journey
+                    cognitive_plan.journey_id = journey_decision.journey_id
+                    cognitive_plan.journey_confidence = journey_decision.confidence
+                    cognitive_plan.journey_reasoning = journey_decision.reasoning
+                    cognitive_plan.journey_classification_method = (
+                        journey_decision.classification_method
+                    )
+                    span.set_attribute("neural.hive.journey", cognitive_plan.journey)
+                    span.set_attribute(
+                        "neural.hive.journey.confidence", cognitive_plan.journey_confidence
+                    )
+                    span.set_attribute(
+                        "neural.hive.journey.method",
+                        cognitive_plan.journey_classification_method,
+                    )
+                    logger.info(
+                        "journey_classified_for_plan",
+                        plan_id=cognitive_plan.plan_id,
+                        journey=cognitive_plan.journey,
+                        journey_id=cognitive_plan.journey_id,
+                        confidence=cognitive_plan.journey_confidence,
+                        method=cognitive_plan.journey_classification_method,
+                    )
+                except Exception as journey_error:
+                    # Não bloquear o pipeline: plano mantém defaults (UNKNOWN).
+                    logger.warning(
+                        "journey_classification_failed_defaulting_unknown",
+                        plan_id=cognitive_plan.plan_id,
+                        error=str(journey_error),
+                    )
 
             # Register in immutable ledger
             ledger_hash = await self.mongodb.append_to_ledger(cognitive_plan)

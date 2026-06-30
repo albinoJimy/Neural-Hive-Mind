@@ -854,3 +854,156 @@ class TestMigrationOrchestratorSingletons:
 
         # Não deve ser a mesma instância
         assert orchestrator1 is not orchestrator2
+
+
+class TestExecuteFullMigrationBestEffort:
+    """Snapshot/CDC best-effort (não-fatais) no _execute_full_migration — FIX 2/3 J4."""
+
+    @pytest.mark.asyncio
+    async def test_snapshot_failure_is_non_fatal(
+        self,
+        sample_migration_job,
+        sample_schema_mapping,
+        mock_legacy_client,
+        mock_target_client,
+        mock_kafka_producer,
+        mock_rollback_manager,
+        mock_data_validator,
+        mock_batch_migrator,
+        mock_cdc_pipeline,
+    ):
+        """Snapshot a levantar → migração CONTINUA até COMPLETED (não FAILED)."""
+        orchestrator = MigrationOrchestrator(
+            job_id=sample_migration_job.job_id,
+            batch_migrator=mock_batch_migrator,
+            cdc_pipeline=mock_cdc_pipeline,
+            data_validator=mock_data_validator,
+            rollback_manager=mock_rollback_manager,
+        )
+
+        sample_schema_mapping.metadata["approved"] = True
+        sample_migration_job.status = MigrationStatus.MAPPING_APPROVED
+
+        # Snapshot rebenta (ex.: POSTGRES_URL singleton errado no cluster)
+        mock_rollback_manager.create_snapshot.side_effect = Exception(
+            "could not connect to POSTGRES_URL"
+        )
+
+        result = await orchestrator._execute_full_migration(
+            migration_job=sample_migration_job,
+            schema_mapping=sample_schema_mapping,
+            legacy_client=mock_legacy_client,
+            target_client=mock_target_client,
+            kafka_producer=mock_kafka_producer,
+            database_config={
+                "hostname": "h",
+                "port": 5432,
+                "user": "u",
+                "password": "p",
+                "dbname": "d",
+            },
+        )
+
+        # Best-effort: o coração do gate (batch + validate) corre na mesma
+        assert result["status"] == MigrationStatus.COMPLETED
+        assert mock_batch_migrator.run_batch_migration.called
+        assert mock_data_validator.generate_validation_report.called
+        # Não acionou rollback por causa do snapshot
+        assert not mock_rollback_manager.execute_rollback.called
+
+    @pytest.mark.asyncio
+    async def test_cdc_start_failure_is_non_fatal(
+        self,
+        sample_migration_job,
+        sample_schema_mapping,
+        mock_legacy_client,
+        mock_target_client,
+        mock_kafka_producer,
+        mock_rollback_manager,
+        mock_data_validator,
+        mock_batch_migrator,
+        mock_cdc_pipeline,
+    ):
+        """start_cdc a levantar → migração CONTINUA até validate/COMPLETED."""
+        orchestrator = MigrationOrchestrator(
+            job_id=sample_migration_job.job_id,
+            batch_migrator=mock_batch_migrator,
+            cdc_pipeline=mock_cdc_pipeline,
+            data_validator=mock_data_validator,
+            rollback_manager=mock_rollback_manager,
+        )
+
+        sample_schema_mapping.metadata["approved"] = True
+        sample_migration_job.status = MigrationStatus.MAPPING_APPROVED
+
+        # Kafka inacessível → start_cdc rebenta
+        mock_cdc_pipeline.start_cdc.side_effect = Exception("kafka unreachable")
+
+        result = await orchestrator._execute_full_migration(
+            migration_job=sample_migration_job,
+            schema_mapping=sample_schema_mapping,
+            legacy_client=mock_legacy_client,
+            target_client=mock_target_client,
+            kafka_producer=mock_kafka_producer,
+            database_config={
+                "hostname": "h",
+                "port": 5432,
+                "user": "u",
+                "password": "p",
+                "dbname": "d",
+            },
+        )
+
+        assert result["status"] == MigrationStatus.COMPLETED
+        assert mock_cdc_pipeline.start_cdc.called
+        # CDC não chegou a "started" (best-effort)
+        assert orchestrator._cdc_started is False
+        # A validação correu mesmo sem CDC
+        assert mock_data_validator.generate_validation_report.called
+
+    @pytest.mark.asyncio
+    async def test_snapshot_and_cdc_both_failing_still_completes(
+        self,
+        sample_migration_job,
+        sample_schema_mapping,
+        mock_legacy_client,
+        mock_target_client,
+        mock_kafka_producer,
+        mock_rollback_manager,
+        mock_data_validator,
+        mock_batch_migrator,
+        mock_cdc_pipeline,
+    ):
+        """Snapshot E CDC a falhar → migração batch+validate corre até COMPLETED."""
+        orchestrator = MigrationOrchestrator(
+            job_id=sample_migration_job.job_id,
+            batch_migrator=mock_batch_migrator,
+            cdc_pipeline=mock_cdc_pipeline,
+            data_validator=mock_data_validator,
+            rollback_manager=mock_rollback_manager,
+        )
+
+        sample_schema_mapping.metadata["approved"] = True
+        sample_migration_job.status = MigrationStatus.MAPPING_APPROVED
+
+        mock_rollback_manager.create_snapshot.side_effect = Exception("no snapshot")
+        mock_cdc_pipeline.start_cdc.side_effect = Exception("no kafka")
+
+        result = await orchestrator._execute_full_migration(
+            migration_job=sample_migration_job,
+            schema_mapping=sample_schema_mapping,
+            legacy_client=mock_legacy_client,
+            target_client=mock_target_client,
+            kafka_producer=mock_kafka_producer,
+            database_config={
+                "hostname": "h",
+                "port": 5432,
+                "user": "u",
+                "password": "p",
+                "dbname": "d",
+            },
+        )
+
+        assert result["status"] == MigrationStatus.COMPLETED
+        assert mock_batch_migrator.run_batch_migration.called
+        assert mock_data_validator.generate_validation_report.called

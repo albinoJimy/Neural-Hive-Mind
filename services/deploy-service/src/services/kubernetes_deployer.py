@@ -33,6 +33,11 @@ class KubernetesDeployer:
         self.namespace = settings.default_namespace
         self.kubeconfig = settings.kubeconfig_path
 
+    def _kubectl_auth_args(self) -> list[str]:
+        """Args de auth do kubectl. Vazio → kubectl usa a config in-cluster (SA do pod);
+        evita falhar com `--kubeconfig=/root/.kube/config` inexistente dentro do cluster."""
+        return [f"--kubeconfig={self.kubeconfig}"] if self.kubeconfig else []
+
     async def deploy(self, request: DeploymentRequest) -> DeploymentResponse:
         """
         Cria um deployment no Kubernetes.
@@ -70,9 +75,9 @@ class KubernetesDeployer:
             # 5. Aguardar rollout
             await self._wait_for_rollout(deployment_name, request.namespace)
 
-            # 6. Verificar health checks
+            # 6. Verificar health checks (selector pela label app=service_name)
             health_checks = await self._verify_health_checks(
-                deployment_name, request.namespace, request.health_checks
+                request.service_name, request.namespace, request.health_checks
             )
 
             # 7. Obter status final
@@ -136,7 +141,7 @@ class KubernetesDeployer:
 
         cmd = [
             "kubectl",
-            f"--kubeconfig={self.kubeconfig}",
+            *self._kubectl_auth_args(),
             "rollout",
             "undo",
             f"deployment/{deployment_name}",
@@ -177,7 +182,7 @@ class KubernetesDeployer:
         """Garante que o namespace existe."""
         cmd = [
             "kubectl",
-            f"--kubeconfig={self.kubeconfig}",
+            *self._kubectl_auth_args(),
             "create",
             "namespace",
             namespace,
@@ -196,7 +201,7 @@ class KubernetesDeployer:
         # Aplicar manifest
         apply_cmd = [
             "kubectl",
-            f"--kubeconfig={self.kubeconfig}",
+            *self._kubectl_auth_args(),
             "apply",
             "-f=-",
         ]
@@ -209,6 +214,80 @@ class KubernetesDeployer:
         )
 
         await process.communicate(input=stdout)
+
+        # Replicar o pull secret (GHCR) para o namespace alvo, sem o qual
+        # imagens privadas não são puxadas (ImagePullBackOff).
+        await self._replicate_pull_secret(namespace)
+
+    async def _replicate_pull_secret(self, namespace: str):
+        """Replica o pull secret de imagens privadas para o namespace alvo."""
+        secret_name = settings.image_pull_secret
+        source_ns = settings.image_pull_secret_source_namespace
+        if not secret_name or namespace == source_ns:
+            return
+
+        get_cmd = [
+            "kubectl",
+            *self._kubectl_auth_args(),
+            "get",
+            "secret",
+            secret_name,
+            "-n",
+            source_ns,
+            "-o=json",
+        ]
+        process = await asyncio.create_subprocess_exec(
+            *get_cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        stdout, stderr = await process.communicate()
+        if process.returncode != 0 or not stdout.strip():
+            logger.warning(
+                "pull_secret_origem_indisponivel",
+                secret=secret_name,
+                source_namespace=source_ns,
+                error=stderr.decode()[:200],
+            )
+            return
+
+        # Réplica do pull-secret é best-effort: uma saída inesperada do kubectl
+        # (vazia/não-JSON) não pode rebentar o deploy inteiro.
+        try:
+            src = json.loads(stdout)
+        except (json.JSONDecodeError, ValueError) as e:
+            logger.warning(
+                "pull_secret_parse_falhou",
+                secret=secret_name,
+                error=str(e)[:200],
+            )
+            return
+        new_secret = {
+            "apiVersion": "v1",
+            "kind": "Secret",
+            "type": src.get("type", "kubernetes.io/dockerconfigjson"),
+            "metadata": {"name": secret_name, "namespace": namespace},
+            "data": src.get("data", {}),
+        }
+        apply_cmd = [
+            "kubectl",
+            *self._kubectl_auth_args(),
+            "apply",
+            "-f=-",
+        ]
+        p2 = await asyncio.create_subprocess_exec(
+            *apply_cmd,
+            stdin=asyncio.subprocess.PIPE,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        _, err2 = await p2.communicate(input=json.dumps(new_secret).encode())
+        if p2.returncode != 0:
+            logger.warning(
+                "pull_secret_replica_falhou",
+                namespace=namespace,
+                error=err2.decode()[:200],
+            )
 
     async def _create_deployment(self, request: DeploymentRequest) -> str:
         """Cria o Deployment no Kubernetes."""
@@ -234,6 +313,8 @@ class KubernetesDeployer:
                 "namespace": request.namespace,
                 "labels": {
                     "app": request.service_name,
+                    # Gatekeeper must-have-app-label-all exige app.kubernetes.io/name
+                    "app.kubernetes.io/name": request.service_name,
                     "version": request.version,
                     "plan_id": request.plan_id,
                 },
@@ -245,10 +326,13 @@ class KubernetesDeployer:
                     "metadata": {
                         "labels": {
                             "app": request.service_name,
+                            # Gatekeeper must-have-app-label-all exige app.kubernetes.io/name
+                            "app.kubernetes.io/name": request.service_name,
                             "version": request.version,
                         }
                     },
                     "spec": {
+                        "imagePullSecrets": [{"name": settings.image_pull_secret}],
                         "containers": [
                             {
                                 "name": request.service_name,
@@ -281,7 +365,7 @@ class KubernetesDeployer:
                                     "periodSeconds": period,
                                 },
                             }
-                        ]
+                        ],
                     },
                 },
                 "strategy": {
@@ -310,7 +394,10 @@ class KubernetesDeployer:
             "metadata": {
                 "name": service_name,
                 "namespace": request.namespace,
-                "labels": {"app": request.service_name},
+                "labels": {
+                    "app": request.service_name,
+                    "app.kubernetes.io/name": request.service_name,
+                },
             },
             "spec": {
                 "type": "ClusterIP",
@@ -380,12 +467,12 @@ class KubernetesDeployer:
         """Aguarda o rollout completar."""
         cmd = [
             "kubectl",
-            f"--kubeconfig={self.kubeconfig}",
+            *self._kubectl_auth_args(),
             "rollout",
             "status",
             f"deployment/{deployment_name}",
             f"-n={namespace}",
-            "--timeout={timeout}s",
+            f"--timeout={timeout}s",
         ]
 
         process = await asyncio.create_subprocess_exec(
@@ -402,18 +489,18 @@ class KubernetesDeployer:
 
     async def _verify_health_checks(
         self,
-        deployment_name: str,
+        service_name: str,
         namespace: str,
         health_checks_spec: Any,
     ) -> HealthCheckResult:
         """Verifica os health checks."""
-        # Obter pods
+        # Obter pods pela label app=service_name (a label real do pod template).
         cmd = [
             "kubectl",
-            f"--kubeconfig={self.kubeconfig}",
+            *self._kubectl_auth_args(),
             "get",
             "pods",
-            f"-l=app={deployment_name}",
+            f"-l=app={service_name}",
             f"-n={namespace}",
             "-o=json",
         ]
@@ -435,13 +522,11 @@ class KubernetesDeployer:
                 if condition.get("type") == "Ready" and condition.get("status") == "True":
                     ready_pods += 1
 
-        # Determinar status dos health checks
-        liveness = (
-            HealthCheckStatus.HEALTHY if ready_pods == total_pods else HealthCheckStatus.PENDING
-        )
-        readiness = (
-            HealthCheckStatus.HEALTHY if ready_pods == total_pods else HealthCheckStatus.PENDING
-        )
+        # Determinar status dos health checks. Exige total_pods > 0 para evitar
+        # falso-positivo (0/0 == "saudável") quando o selector não encontra pods.
+        all_ready = total_pods > 0 and ready_pods == total_pods
+        liveness = HealthCheckStatus.HEALTHY if all_ready else HealthCheckStatus.PENDING
+        readiness = HealthCheckStatus.HEALTHY if all_ready else HealthCheckStatus.PENDING
 
         return HealthCheckResult(
             liveness=liveness,
@@ -453,7 +538,7 @@ class KubernetesDeployer:
         """Obtém informações do deployment."""
         cmd = [
             "kubectl",
-            f"--kubeconfig={self.kubeconfig}",
+            *self._kubectl_auth_args(),
             "get",
             f"deployment/{deployment_name}",
             f"-n={namespace}",
@@ -486,7 +571,7 @@ class KubernetesDeployer:
         manifest_yaml = json.dumps(manifest)
         cmd = [
             "kubectl",
-            f"--kubeconfig={self.kubeconfig}",
+            *self._kubectl_auth_args(),
             "apply",
             "-f=-",
         ]

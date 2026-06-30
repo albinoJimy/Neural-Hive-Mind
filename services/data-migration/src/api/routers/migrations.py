@@ -200,12 +200,23 @@ async def create_migration(
             await mongodb_client.insert_schema_mapping(mapping_dict)
 
             # Criar job de migração
+            #
+            # Persistir as db_urls em ``metadata`` é OBRIGATÓRIO: ``/start``
+            # (_execute_migration_task), ``/validate`` e ``/rollback`` lêem
+            # ``job_dict["metadata"]["legacy_db_url"]``/``["modern_db_url"]`` para
+            # abrir ligações reais. Sem isto, esses endpoints obtêm None e falham
+            # (validate devolve 400 "Database connection URLs not found").
+            # NOTA: as URLs contêm credenciais — NUNCA logar este metadata.
             migration_job = MigrationJob(
                 job_id=job_id,
                 schema_mapping_id=f"mapping-{job_id}",
                 batch_size=request.batch_size,
                 total_rows=sum(t.get("row_count", 0) for t in analyzed_schema.get("tables", [])),
                 status=MigrationStatus.PENDING,
+                metadata={
+                    "legacy_db_url": request.legacy_db_url,
+                    "modern_db_url": request.modern_db_url,
+                },
             )
 
             job_dict = migration_job.model_dump()
@@ -561,10 +572,16 @@ async def rollback_migration(
             message=f"Rollback completed: {rollback_stats.get('rows_restored', 0)} rows restored",
         )
 
-    except MigrationOrchestratorError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e),
+    except MigrationOrchestratorError:
+        # Sem snapshot disponível (instância de orchestrator recriada após o
+        # /start, com _snapshot_id=None). Em vez de devolver 400 e deixar o
+        # destino com os dados da migração falhada, fazemos FALLBACK idempotente:
+        # truncar as tabelas-alvo no destino (modern). Para um destino
+        # inicialmente vazio, truncar = reverter para vazio (correto).
+        return await _rollback_destination_cleanup(
+            job_id=job_id,
+            job_dict=job_dict,
+            mongodb_client=mongodb_client,
         )
     except Exception as e:
         logger.error("migration_rollback_failed", job_id=job_id, error=str(e))
@@ -572,6 +589,93 @@ async def rollback_migration(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to rollback migration: {e}",
         )
+
+
+async def _rollback_destination_cleanup(
+    job_id: str,
+    job_dict: Dict[str, Any],
+    mongodb_client,
+) -> "MigrationActionResponse":
+    """
+    Fallback idempotente do /rollback: limpa (trunca) as tabelas-alvo no destino.
+
+    Esta NÃO é uma restauração por snapshot — é uma limpeza idempotente do
+    destino (modern), aplicável quando não existe snapshot. Re-executar é seguro:
+    o efeito (tabelas-alvo vazias) é o mesmo independentemente do número de
+    execuções. As db_urls vêm do ``metadata`` persistido no /start e NUNCA são
+    logadas (contêm credenciais).
+
+    Args:
+        job_id: ID do job de migração.
+        job_dict: Documento do job (lido do Mongo).
+        mongodb_client: Cliente MongoDB injetado.
+
+    Returns:
+        MigrationActionResponse com o número de tabelas truncadas.
+
+    Raises:
+        HTTPException: 400 se ``modern_db_url`` ausente (fail-closed honesto).
+    """
+    modern_url = job_dict.get("metadata", {}).get("modern_db_url")
+    if not modern_url:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                "Rollback não possível: sem snapshot disponível e "
+                "modern_db_url ausente em metadata do job"
+            ),
+        )
+
+    # Derivar as tabelas-alvo do schema_mapping do job.
+    schema_mapping_id = job_dict.get("schema_mapping_id")
+    mapping_dict = await mongodb_client.find_schema_mapping_by_id(schema_mapping_id)
+
+    target_tables: List[Dict[str, str]] = []
+    if mapping_dict:
+        for table in mapping_dict.get("tables", []) or []:
+            target_table = table.get("target_table")
+            if target_table:
+                target_tables.append(
+                    {
+                        "table": target_table,
+                        "schema": table.get("target_schema", "public"),
+                    }
+                )
+
+    # Fallback: se o mapping não tiver tabelas, usar as tabelas conhecidas do job.
+    if not target_tables:
+        for table_name in job_dict.get("metadata", {}).get("tables", []) or []:
+            target_tables.append({"table": table_name, "schema": "public"})
+
+    modern_client = PostgreSQLClient(dsn=modern_url)
+    await modern_client.connect()
+
+    try:
+        truncated = 0
+        for entry in target_tables:
+            # CASCADE trata a ordem das FKs entre as tabelas-alvo.
+            await modern_client.truncate_table(entry["table"], schema=entry["schema"])
+            truncated += 1
+    finally:
+        await modern_client.disconnect()
+
+    await mongodb_client.update_migration_job_status(
+        job_id=job_id,
+        status="rolled_back",
+    )
+
+    logger.info(
+        "migration_rolled_back_destination_cleanup",
+        job_id=job_id,
+        tables_truncated=truncated,
+    )
+
+    return MigrationActionResponse(
+        job_id=job_id,
+        action="rollback",
+        success=True,
+        message=f"Rollback (destination cleanup): {truncated} tables truncated",
+    )
 
 
 @router.post("/migrations/{job_id}/approve", response_model=MigrationActionResponse)

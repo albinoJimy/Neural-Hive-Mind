@@ -13,8 +13,22 @@ from temporalio import activity
 
 logger = structlog.get_logger(__name__)
 
-# Cliente HTTP reutilizado de code_generation_activity
-from .code_generation_activity import _http_client
+# Cliente HTTP reutilizado de code_generation_activity.
+# Importamos o módulo (não o símbolo) para ler _http_client dinamicamente
+# após a injeção feita pelo worker.
+from . import code_generation_activity
+
+
+def _get_http_client() -> httpx.AsyncClient | None:
+    """Lê o cliente HTTP injetado dinamicamente (pode ser None)."""
+    client = code_generation_activity._http_client
+    if client is None:
+        logger.warning(
+            "http_client_not_injected_using_ephemeral",
+            degraded=True,
+            reason="set_code_generation_dependencies_not_called",
+        )
+    return client
 
 
 @activity.defn
@@ -93,15 +107,22 @@ async def deploy_software(
         "plan_id": plan_id,
     }
 
-    try:
-        # Usar cliente HTTP
-        client = _http_client or httpx.AsyncClient(timeout=1200.0)
+    # Usar cliente HTTP injetado; se ausente, criar um efémero que TEM de ser
+    # fechado no finally (senão fuga de sockets a cada activity no caminho degradado).
+    injected_client = _get_http_client()
+    client = injected_client or httpx.AsyncClient(timeout=1200.0)
+    ephemeral_client = injected_client is None
 
-        # Chamar deploy-service API para iniciar deploy
+    try:
+        # Chamar deploy-service API para iniciar deploy.
+        # O deploy-service executa o deploy de forma síncrona (espera o rollout
+        # antes de responder 202), pelo que o POST pode bloquear minutos. O
+        # cliente injetado tem timeout curto (60s) — força timeout longo por-request.
         response = await client.post(
             "http://deploy-service:8010/api/v1/deployments",
             json=payload,
             headers={"Content-Type": "application/json"},
+            timeout=1200.0,
         )
 
         if response.status_code != 202:
@@ -142,6 +163,9 @@ async def deploy_software(
     except Exception as e:
         logger.exception("deploy_software_exception", plan_id=plan_id, error=str(e))
         raise
+    finally:
+        if ephemeral_client:
+            await client.aclose()
 
 
 async def _wait_for_deploy_completion(
@@ -347,7 +371,7 @@ async def rollback_deployment(
         raise RuntimeError("Rollback não está habilitado para este deployment")
 
     try:
-        client = _http_client or httpx.AsyncClient(timeout=300.0)
+        client = _get_http_client() or httpx.AsyncClient(timeout=300.0)
 
         response = await client.post(
             f"http://deploy-service:8010/api/v1/deployments/{deployment_id}/rollback",

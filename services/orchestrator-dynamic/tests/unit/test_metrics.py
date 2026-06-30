@@ -307,3 +307,76 @@ class TestDriftMetrics:
                 if "ml_drift_detected_total" in str(call)
             ]
             assert len(calls) == 1
+
+
+class TestJourneyExecutionResultMetric:
+    """Label `journey` na métrica de resultados de execução — Fase 4 / Task 5.2.
+
+    A métrica orchestration_execution_results_processed_total é o ponto natural
+    de segmentação por jornada no fecho do loop (C6/LEARN): o ExecutionFeedback
+    já carrega journey_id, logo o consumer tem o journey disponível.
+    """
+
+    def test_execution_results_processed_declares_journey_label(self):
+        """O Counter é inicializado com os labels status e journey."""
+        with (
+            patch("observability.metrics.Histogram"),
+            patch("observability.metrics.Counter") as mock_counter,
+            patch("observability.metrics.Gauge"),
+        ):
+            from observability.metrics import OrchestratorMetrics
+
+            OrchestratorMetrics(service_name="test", component="test")
+
+            matching = [
+                c
+                for c in mock_counter.call_args_list
+                if "orchestration_execution_results_processed_total" in str(c)
+            ]
+            assert len(matching) == 1
+            # O 3º argumento posicional é a lista de labels.
+            labels_arg = matching[0].args[2]
+            assert "status" in labels_arg
+            assert "journey" in labels_arg
+
+    def test_record_execution_result_processed_passes_journey(self):
+        """O helper regista status + journey no Counter."""
+        with (
+            patch("observability.metrics.Histogram"),
+            patch("observability.metrics.Counter"),
+            patch("observability.metrics.Gauge"),
+        ):
+            from observability.metrics import OrchestratorMetrics
+
+            metrics = OrchestratorMetrics(service_name="test", component="test")
+
+            mock_labels = MagicMock()
+            metrics.execution_results_processed_total.labels = MagicMock(return_value=mock_labels)
+
+            metrics.record_execution_result_processed(status="COMPLETED", journey="J4_MIGRATE")
+
+            metrics.execution_results_processed_total.labels.assert_called_once_with(
+                status="COMPLETED", journey="J4_MIGRATE"
+            )
+            mock_labels.inc.assert_called_once()
+
+    def test_record_execution_result_processed_journey_defaults_unknown(self):
+        """Sem journey explícito, o helper usa 'unknown' (retrocompat)."""
+        with (
+            patch("observability.metrics.Histogram"),
+            patch("observability.metrics.Counter"),
+            patch("observability.metrics.Gauge"),
+        ):
+            from observability.metrics import OrchestratorMetrics
+
+            metrics = OrchestratorMetrics(service_name="test", component="test")
+
+            mock_labels = MagicMock()
+            metrics.execution_results_processed_total.labels = MagicMock(return_value=mock_labels)
+
+            metrics.record_execution_result_processed(status="FAILED")
+
+            metrics.execution_results_processed_total.labels.assert_called_once_with(
+                status="FAILED", journey="unknown"
+            )
+            mock_labels.inc.assert_called_once()

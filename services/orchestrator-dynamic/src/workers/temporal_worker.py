@@ -345,12 +345,34 @@ class TemporalWorkerManager:
             analyze_legacy_schema,
             approve_mapping,
             cleanup_snapshot,
+            create_migration_job,
             create_snapshot,
             execute_rollback as migration_execute_rollback,
             generate_schema_mapping,
             run_batch_migration,
+            set_data_migration_dependencies,
             start_cdc,
             validate_data,
+        )
+        from src.activities.build_package_activity import (
+            build_package,
+            validate_build_quality,
+        )
+        from src.activities.code_generation_activity import (
+            generate_code,
+            set_code_generation_dependencies,
+        )
+        from src.activities.deploy_activity import (
+            deploy_software,
+            rollback_deployment,
+            verify_deployment,
+        )
+        from src.activities.feedback_loop_activity import (
+            analyze_deployment_quality,
+            check_feedback_thresholds,
+            collect_post_deployment_metrics,
+            generate_specialist_feedback,
+            record_feedback_for_ml,
         )
         from src.activities.fluxo_g_integration import (
             generate_documentation,
@@ -386,6 +408,7 @@ class TemporalWorkerManager:
         )
         from src.workflows.data_migration_workflow import DataMigrationWorkflow
         from src.workflows.fluxo_g_workflow import FluxoGWorkflow
+        from src.workflows.migrate_journey_workflow import MigrateJourneyWorkflow
         from src.workflows.orchestration_workflow import OrchestrationWorkflow
 
         fluxo_g_http_client = None
@@ -395,7 +418,19 @@ class TemporalWorkerManager:
                 limits=httpx.Limits(max_keepalive_connections=20, max_connections=100),
             )
             set_fluxo_g_dependencies(http_client=fluxo_g_http_client)
-            logger.info("HTTP client injetado para Fluxo G activities")
+            # Injetar HTTP client + MongoDB nas activities de geração de código
+            # (build_package e deploy reutilizam o mesmo _http_client).
+            set_code_generation_dependencies(
+                http_client=fluxo_g_http_client,
+                mongodb_client=self.mongodb_client,
+            )
+            # Injetar o mesmo HTTP client nas activities de data migration
+            # (validate_data chama o serviço data-migration:8019 — gate fail-closed).
+            set_data_migration_dependencies(http_client=fluxo_g_http_client)
+            logger.info(
+                "HTTP client injetado para Fluxo G activities",
+                code_generation_mongodb_enabled=self.mongodb_client is not None,
+            )
         except Exception as e:
             logger.warning("Falha ao criar HTTP client para Fluxo G", error=str(e))
 
@@ -461,7 +496,12 @@ class TemporalWorkerManager:
         self.worker = Worker(
             self.temporal_client,
             task_queue=self.config.temporal_task_queue,
-            workflows=[OrchestrationWorkflow, DataMigrationWorkflow, FluxoGWorkflow],
+            workflows=[
+                OrchestrationWorkflow,
+                DataMigrationWorkflow,
+                FluxoGWorkflow,
+                MigrateJourneyWorkflow,
+            ],
             activities=[
                 # Orchestration activities
                 validate_cognitive_plan,
@@ -478,13 +518,26 @@ class TemporalWorkerManager:
                 # Optimization events (C5 pós-consolidação + por-ticket via signal)
                 publish_workflow_optimization_events,
                 publish_ticket_completed_event,
-                # Fluxo G activities
+                # Fluxo G activities (G1-G5)
                 generate_requirements,
                 generate_documentation,
                 update_knowledge_graph,
                 request_approval,
                 query_knowledge_graph,
+                # Fluxo G activities (G6-G13: geração → build → deploy → feedback)
+                generate_code,
+                build_package,
+                validate_build_quality,
+                deploy_software,
+                verify_deployment,
+                rollback_deployment,
+                collect_post_deployment_metrics,
+                analyze_deployment_quality,
+                generate_specialist_feedback,
+                record_feedback_for_ml,
+                check_feedback_thresholds,
                 # Data Migration activities
+                create_migration_job,
                 analyze_legacy_schema,
                 generate_schema_mapping,
                 approve_mapping,
@@ -516,7 +569,7 @@ class TemporalWorkerManager:
         logger.info(
             "Fluxo G workflow e atividades registradas no Worker",
             workflow="FluxoGWorkflow",
-            activities_count=5,
+            activities_count=16,
         )
 
     async def start(self):

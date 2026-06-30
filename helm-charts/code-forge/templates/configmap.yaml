@@ -41,6 +41,13 @@ data:
   TEMPLATES_GIT_BRANCH: {{ .Values.config.TEMPLATES_GIT_BRANCH | quote }}
   TEMPLATES_LOCAL_PATH: {{ .Values.config.TEMPLATES_LOCAL_PATH | quote }}
 
+  # Container Build Configuration (Kaniko)
+  # KANIKO_CLEANUP_PODS=false: o cleanup do pod Kaniko durante o push lia o digest
+  # antes do container terminar ("container not found" → imagem NotFound no GHCR).
+  # Persistido aqui (era patch imperativo) até a leitura do digest ser robusta.
+  CONTAINER_BUILDER_TYPE: {{ .Values.config.CONTAINER_BUILDER_TYPE | default "kaniko" | quote }}
+  KANIKO_CLEANUP_PODS: {{ .Values.config.KANIKO_CLEANUP_PODS | default false | quote }}
+
   # Pipeline Configuration
   MAX_CONCURRENT_PIPELINES: {{ .Values.config.MAX_CONCURRENT_PIPELINES | quote }}
   PIPELINE_TIMEOUT_SECONDS: {{ .Values.config.PIPELINE_TIMEOUT_SECONDS | quote }}

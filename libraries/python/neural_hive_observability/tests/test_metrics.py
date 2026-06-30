@@ -707,5 +707,68 @@ class TestServiceStartupMetrics:
         assert len(samples) > 0
 
 
+class TestJourneyLabelOnPipelineMetrics:
+    """Label `journey` nas métricas-chave do pipeline — Fase 4 / Task 5.2.
+
+    Permite segmentar o loop LEARN e dashboards por jornada (J1-J4 + unknown).
+    O label tem cardinalidade controlada (~5 valores) e default "unknown"
+    para retrocompatibilidade com chamadores que não passam journey.
+    """
+
+    def _fresh_metrics(self):
+        """Cria uma instância isolada (reset do singleton + registry próprio)."""
+        NeuralHiveMetrics._instance = None
+        NeuralHiveMetrics._registry = None
+        config = ObservabilityConfig(
+            service_name="test-service",
+            neural_hive_component="test-component",
+            neural_hive_layer="test-layer",
+        )
+        return NeuralHiveMetrics(config, registry=CollectorRegistry())
+
+    def test_orquestracao_duration_has_journey_label(self):
+        """A métrica de duração de orquestração aceita o label journey."""
+        metrics = self._fresh_metrics()
+        # Não deve lançar: o label journey está declarado.
+        metrics.observe_orquestracao_duration(30.0, channel="api", journey="J4_MIGRATE")
+
+    def test_orquestracao_duration_journey_defaults_to_unknown(self):
+        """Sem journey explícito, usa 'unknown' (retrocompat)."""
+        metrics = self._fresh_metrics()
+        metrics.observe_orquestracao_duration(30.0, channel="api")
+
+        # O valor default tem de ser observável na série 'unknown'.
+        labels = [*metrics._common_label_values, "api", "unknown"]
+        sample = metrics.neural_hive_orquestracao_duration_seconds.labels(*labels)
+        assert sample._sum._value > 0
+
+    def test_plan_execution_has_journey_label(self):
+        """A métrica de execução de plano aceita o label journey."""
+        metrics = self._fresh_metrics()
+        metrics.observe_plan_execution(
+            duration=10.5, channel="web", plan_type="orchestration", journey="J2_ORCHESTRATE"
+        )
+
+    def test_plans_generated_has_journey_label(self):
+        """O contador de planos gerados aceita o label journey."""
+        metrics = self._fresh_metrics()
+        metrics.increment_plans(channel="web", status="success", journey="J3_BUILD")
+
+    def test_journey_label_records_distinct_series(self):
+        """Jornadas distintas produzem séries distintas (segmentação real)."""
+        metrics = self._fresh_metrics()
+        metrics.observe_orquestracao_duration(10.0, channel="api", journey="J1_PLAN_ONLY")
+        metrics.observe_orquestracao_duration(20.0, channel="api", journey="J4_MIGRATE")
+
+        s_j1 = metrics.neural_hive_orquestracao_duration_seconds.labels(
+            *metrics._common_label_values, "api", "J1_PLAN_ONLY"
+        )
+        s_j4 = metrics.neural_hive_orquestracao_duration_seconds.labels(
+            *metrics._common_label_values, "api", "J4_MIGRATE"
+        )
+        assert s_j1._sum._value == 10.0
+        assert s_j4._sum._value == 20.0
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

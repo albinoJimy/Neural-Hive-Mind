@@ -138,6 +138,15 @@ spec:
                     name: ml-training-secrets
                     key: mongodb_uri
 
+              # Convergência DBs (Fase 1, Task 3): DB canónica dev.
+              # NOTA: train_predictive_models.py:54 ainda tem a DB hardcoded
+              # ("self.mongo_client.neural_hive") e IGNORA esta env — fica
+              # declarada para quando a Fase 5.1 tornar MONGODB_DATABASE
+              # explícito no código. A fonte deste job (execution_tickets)
+              # depende ainda do diagnóstico do pipeline ML (Tasks 9/12).
+              - name: MONGODB_DATABASE
+                value: "neural_hive_dev"
+
               # ClickHouse
               - name: CLICKHOUSE_HOST
                 valueFrom:

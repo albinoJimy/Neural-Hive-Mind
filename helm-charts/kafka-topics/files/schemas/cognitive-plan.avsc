@@ -206,6 +206,36 @@
       "doc": "Scores de risco multi-domínio (BUSINESS, TECHNICAL, SECURITY, INFRASTRUCTURE, BEHAVIOR, OPERATIONAL, COMPLIANCE)"
     },
     {
+      "name": "journey",
+      "type": "string",
+      "default": "UNKNOWN",
+      "doc": "Jornada classificada (J1_PLAN_ONLY/J2_ORCHESTRATE/J3_BUILD/J4_MIGRATE/UNKNOWN) — journey-router, ADR-0011"
+    },
+    {
+      "name": "journey_id",
+      "type": "string",
+      "default": "",
+      "doc": "Identificador da decisão de jornada, propagado até ao ExecutionFeedback"
+    },
+    {
+      "name": "journey_confidence",
+      "type": "double",
+      "default": 0.0,
+      "doc": "Confiança da classificação de jornada em [0,1]"
+    },
+    {
+      "name": "journey_reasoning",
+      "type": "string",
+      "default": "",
+      "doc": "Explicação da decisão de jornada"
+    },
+    {
+      "name": "journey_classification_method",
+      "type": "string",
+      "default": "",
+      "doc": "Proveniência da decisão de jornada (structured_signal|llm|no_match)"
+    },
+    {
       "name": "schema_version",
       "type": "int",
       "default": 1,

@@ -296,9 +296,12 @@ class PostgreSQLClient:
                 "for SQL injection protection. Use fetch_batch with proper filtering instead."
             )
 
-        # Usar query preparada com parâmetros
-        query = "SELECT COUNT(*) FROM $1.$2"
-        result = await self.execute_query(query, (schema, table_name), fetch="val")
+        # Identificadores (schema/table) NÃO podem ser placeholders ($1/$2) em
+        # PostgreSQL — placeholders ligam apenas VALORES. Interpola-se os
+        # identificadores JÁ validados acima por validate_sql_identifier (defesa
+        # anti-injection), espelhando o padrão seguro de fetch_batch.
+        query = f"SELECT COUNT(*) FROM {schema}.{table_name}"
+        result = await self.execute_query(query, fetch="val")
         return result if isinstance(result, int) else 0
 
     async def fetch_batch(
@@ -364,6 +367,116 @@ class PostgreSQLClient:
         query += " LIMIT $1 OFFSET $2"
 
         return await self.execute_query(query, (batch_size, offset))
+
+    async def insert_batch(
+        self,
+        table: str,
+        data: List[Dict[str, Any]],
+        schema: str = "public",
+    ) -> int:
+        """
+        Insere um lote de linhas numa tabela do destino (escrita real).
+
+        Usado por ``BatchMigrator._migrate_table`` para gravar as linhas já
+        transformadas no banco moderno. Sem este método o ``target_client``
+        (um ``PostgreSQLClient``) não suportava escrita e a migração gravava 0
+        linhas (bug B da migração J4 real).
+
+        Args:
+            table: Nome da tabela de destino.
+            data: Lista de dicts (linhas transformadas). Linhas homogéneas —
+                as colunas são derivadas das chaves da 1ª linha.
+            schema: Schema da tabela de destino.
+
+        Returns:
+            Número de linhas inseridas (``len(data)``).
+
+        Raises:
+            ValueError: Se schema/tabela/coluna forem identificadores inválidos.
+            RuntimeError: Se não estiver conectado.
+        """
+        if not data:
+            return 0
+
+        # Validar identificadores ANTES de qualquer interpolação (defesa
+        # anti-injection — mesmo padrão de get_table_count/fetch_batch).
+        validate_sql_identifier(schema, "schema")
+        validate_sql_identifier(table, "table")
+
+        # Colunas derivadas da 1ª linha; exigir homogeneidade para evitar
+        # desalinhamento entre colunas da query e valores enviados.
+        cols = list(data[0].keys())
+        if not cols:
+            raise ValueError("insert_batch: linhas sem colunas")
+        for col in cols:
+            validate_sql_identifier(col, "column")
+
+        expected = set(cols)
+        for idx, row in enumerate(data):
+            if set(row.keys()) != expected:
+                raise ValueError(
+                    f"insert_batch: linha {idx} tem colunas diferentes da 1ª linha "
+                    f"(esperado {sorted(expected)}, obtido {sorted(row.keys())})"
+                )
+
+        # Identificadores (schema/table/colunas) JÁ validados são interpolados;
+        # os VALORES usam placeholders $1..$N (binding seguro do asyncpg).
+        col_clause = ", ".join(cols)
+        placeholders = ", ".join(f"${i}" for i in range(1, len(cols) + 1))
+        query = f"INSERT INTO {schema}.{table} ({col_clause}) VALUES ({placeholders})"
+
+        rows = [tuple(row.get(col) for col in cols) for row in data]
+
+        if not self._connected or not self.pool:
+            raise RuntimeError("PostgreSQL não está conectado. Chame connect() primeiro.")
+
+        try:
+            async with self.pool.acquire() as conn:
+                # executemany NÃO simula sucesso: se os tipos não baterem, asyncpg
+                # levanta e nós relançamos (sem mascarar a falha).
+                await conn.executemany(query, rows)
+        except Exception as e:
+            logger.error(
+                "insert_batch_failed",
+                table=f"{schema}.{table}",
+                rows=len(data),
+                error=str(e),
+            )
+            raise
+
+        return len(data)
+
+    async def truncate_table(
+        self,
+        table: str,
+        schema: str = "public",
+    ) -> None:
+        """
+        Trunca (esvazia) uma tabela do destino de forma idempotente.
+
+        Usado pelo fallback de limpeza do ``/rollback`` quando NÃO há snapshot
+        disponível: re-executar é seguro porque o efeito (tabela vazia) é o
+        mesmo independentemente de quantas vezes se corre. Usa-se
+        ``RESTART IDENTITY`` para reiniciar sequências e ``CASCADE`` para lidar
+        com chaves estrangeiras (a ordem das tabelas deixa de importar).
+
+        Args:
+            table: Nome da tabela a truncar.
+            schema: Schema da tabela.
+
+        Raises:
+            ValueError: Se schema/tabela forem identificadores inválidos.
+            RuntimeError: Se não estiver conectado.
+        """
+        # Validar identificadores ANTES de qualquer interpolação (defesa
+        # anti-injection — mesmo padrão de insert_batch/get_table_count).
+        validate_sql_identifier(schema, "schema")
+        validate_sql_identifier(table, "table")
+
+        # Identificadores (schema/table) JÁ validados são interpolados;
+        # TRUNCATE não aceita placeholders para identificadores.
+        query = f"TRUNCATE TABLE {schema}.{table} RESTART IDENTITY CASCADE"
+        await self.execute_query(query, fetch="none")
 
     async def get_primary_keys(
         self,

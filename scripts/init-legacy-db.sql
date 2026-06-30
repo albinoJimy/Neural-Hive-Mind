@@ -1,11 +1,12 @@
 -- Script de inicialização da base de dados legada
 -- Para uso com docker-compose-fluxo-h.yml
 --
-# Este script cria tabelas de exemplo e dados de teste
-# para simular um sistema legado a ser migrado via Fluxo H
+-- Este script cria tabelas de exemplo e dados de teste
+-- para simular um sistema legado a ser migrado via Fluxo H
 
--- Habilitar extensão para CDC (Change Data Capture)
-CREATE EXTENSION IF NOT EXISTS "pgoutput";
+-- CDC (Change Data Capture): pgoutput é o output plugin de logical decoding
+-- embutido no PostgreSQL — NÃO é uma extensão instalável via CREATE EXTENSION.
+-- Não é necessária nenhuma instrução aqui (basta wal_level=logical no servidor).
 
 -- ========================================
 -- TABELAS LEGADAS

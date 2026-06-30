@@ -5,6 +5,7 @@ Utiliza SQLAlchemy async com asyncpg para operações assíncronas.
 """
 
 import asyncio
+import json
 import time
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Optional
@@ -215,7 +216,13 @@ class PostgresClient:
                 logger.info("postgres_connecting", attempt=attempt + 1, max_retries=max_retries)
 
                 self.engine = create_async_engine(
-                    self.url, pool_size=self.pool_size, max_overflow=self.max_overflow, echo=False
+                    self.url,
+                    pool_size=self.pool_size,
+                    max_overflow=self.max_overflow,
+                    echo=False,
+                    # default=str serializa datetime (e afins) nas colunas JSON,
+                    # evitando "Object of type datetime is not JSON serializable".
+                    json_serializer=lambda obj: json.dumps(obj, default=str),
                 )
 
                 self.session_factory = async_sessionmaker(

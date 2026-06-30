@@ -14,6 +14,7 @@ from temporalio import activity
 
 from neural_hive_integration.orchestration.parameter_resolver import resolve_ticket_parameters
 from neural_hive_resilience.circuit_breaker import CircuitBreakerError
+from src.models.execution_ticket import normalize_priority
 
 logger = structlog.get_logger()
 
@@ -130,6 +131,15 @@ async def generate_execution_tickets(
         decision_id = consolidated_decision["decision_id"] if consolidated_decision else None
         risk_band = cognitive_plan.get("risk_band", "medium")
 
+        # journey_id (spec journey-router Fase 3): decidido no STE, propaga até ao
+        # ExecutionFeedback via ticket -> execution.results. "" (default do modelo,
+        # sem decisão) normaliza para None (não inventa um id).
+        journey_id = plan_data.get("journey_id") or cognitive_plan.get("journey_id") or None
+        # journey ENUM (spec journey-router Fase 4): J1-J4 decidido no STE; propaga
+        # pela MESMA cadeia que journey_id para a métrica do orchestrator ter valor
+        # real (em vez de cair sempre em "unknown"). "" normaliza para None.
+        journey = plan_data.get("journey") or cognitive_plan.get("journey") or None
+
         logger.info(
             "ticket_generation_vars_extracted",
             plan_id=plan_id,
@@ -230,11 +240,21 @@ async def generate_execution_tickets(
                 "trace_id": (consolidated_decision or cognitive_plan).get("trace_id"),
                 "span_id": (consolidated_decision or cognitive_plan).get("span_id"),
                 "task_id": task_id,
-                "task_type": task.get("task_type", "EXECUTE"),
+                # journey_id (spec journey-router Fase 3): herdado do plano,
+                # propaga para o worker e daí para execution.results.
+                "journey_id": journey_id,
+                # journey ENUM (spec journey-router Fase 4): herdado do plano,
+                # propaga para o worker e daí para execution.results (label métrica).
+                "journey": journey,
+                # Contrato canónico (Fase 2 j3-build-generate): task_type MAIÚSCULAS.
+                # O STE decompõe em task_type minúsculo (query/transform/validate); o
+                # produtor emite o canónico para o code-forge não rejeitar (DLQ).
+                "task_type": str(task.get("task_type") or "EXECUTE").upper(),
                 "description": task.get("description", ""),
                 "dependencies": [],  # Será preenchido após mapeamento
                 "status": "PENDING",
-                "priority": cognitive_plan.get("priority", "NORMAL"),
+                # Contrato canónico: priority enum string (normaliza legado int 1-10).
+                "priority": normalize_priority(cognitive_plan.get("priority", "NORMAL")).value,
                 "risk_band": risk_band,
                 "sla": {"deadline": deadline, "timeout_ms": timeout_ms, "max_retries": max_retries},
                 "qos": {

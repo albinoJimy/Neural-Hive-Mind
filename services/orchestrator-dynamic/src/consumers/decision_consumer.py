@@ -28,7 +28,14 @@ try:
 except ImportError:
     AVRO_AVAILABLE = False
 
+from src.capabilities.generate import (
+    GenerateCapability,
+    GenerateRequest,
+    GenerateTarget,
+    UnsupportedStackError,
+)
 from src.workflows.fluxo_g_workflow import FluxoGWorkflow
+from src.workflows.migrate_journey_workflow import MigrateJourneyWorkflow
 from src.workflows.orchestration_workflow import OrchestrationWorkflow
 
 logger = structlog.get_logger()
@@ -196,6 +203,199 @@ def _select_workflow_class(workflow_type: str):
     return OrchestrationWorkflow
 
 
+def _get_journey_from_plan(plan: dict) -> str:
+    """Extrai a journey do Cognitive Plan (decidida no STE).
+
+    Defensivo e case-insensitive. Planos antigos (sem journey) ou com journey
+    vazia (default do modelo) devolvem "UNKNOWN", o que aciona o fallback ao
+    roteamento legado por workflow_type.
+
+    Args:
+        plan: Dicionário do Cognitive Plan.
+
+    Returns:
+        Journey em UPPER_CASE (ex: "J3_BUILD") ou "UNKNOWN".
+    """
+    journey = plan.get("journey")
+    if isinstance(journey, str) and journey.strip():
+        return journey.strip().upper()
+    return "UNKNOWN"
+
+
+def _is_plan_only(journey: str) -> bool:
+    """J1_PLAN_ONLY significa planeamento sem execução a jusante."""
+    return journey == "J1_PLAN_ONLY"
+
+
+def _select_workflow_class_by_journey(journey: str):
+    """Seleciona a classe de workflow por journey (decisão única do STE).
+
+    - J3_BUILD       -> FluxoGWorkflow (geração / fluxo G)
+    - J2_ORCHESTRATE -> OrchestrationWorkflow
+    - J4_MIGRATE     -> OrchestrationWorkflow (cutover é sub-fluxo da orquestração)
+    - J1_PLAN_ONLY   -> None (sem execução; plan-only)
+    - UNKNOWN/outras -> None (sinaliza ao chamador para fazer fallback workflow_type)
+
+    Returns:
+        Classe de workflow, ou None quando não há decisão de execução por journey
+        (plan-only ou journey ausente/desconhecida → fallback workflow_type).
+
+    NOTA (fronteira GENERATE): para jornadas de geração esta função NÃO é a
+    autoridade de routing — `_requires_generate_capability` é. O mapeamento
+    J3_BUILD → FluxoGWorkflow mantém-se aqui (compatibilidade / fallback legado),
+    mas o caminho de geração é interceptado antes pela capacidade. Ao adicionar
+    uma nova jornada de geração, atualiza `_journey_requires_generation` (e NÃO
+    apenas esta função), senão a nova jornada arrancaria o FluxoGWorkflow sem a
+    resolução de estratégia de stack (plano não enriquecido).
+    """
+    if journey == "J3_BUILD":
+        return FluxoGWorkflow
+    if journey in ("J2_ORCHESTRATE", "J4_MIGRATE"):
+        return OrchestrationWorkflow
+    # J1_PLAN_ONLY e UNKNOWN não têm workflow de execução por journey.
+    return None
+
+
+def _journey_requires_generation(journey: str) -> bool:
+    """Jornadas que requerem a capacidade GENERATE (hoje só J3_BUILD).
+
+    A decisão deriva da SEMÂNTICA da jornada (não de conhecer a classe do
+    workflow) — é isto que des-vaza a fronteira.
+    """
+    return journey == "J3_BUILD"
+
+
+def _requires_generate_capability(journey: str, workflow_type: str) -> bool:
+    """Autoridade ÚNICA: a execução requer a capacidade GENERATE?
+
+    Partilhada pelo caminho direto (decision_consumer) e pelo resume
+    pós-aprovação (main.py) para que NUNCA divirjam. A decisão primária deriva da
+    jornada (`_journey_requires_generation`); o fallback compat cobre planos sem
+    journey (UNKNOWN) com `workflow_type=generation` — preservando o roteamento
+    legado por workflow_type.
+
+    Plan-only (J1) NUNCA executa: o guard explícito torna o contrato da função
+    auto-consistente (não depende do `_is_plan_only` upstream dos call sites),
+    senão o fallback compat (`workflow_class is None`) classificaria J1+generation
+    como geração — ver auditoria de qualidade Task 5 (CR-003).
+    """
+    if _is_plan_only(journey):
+        return False
+    return _journey_requires_generation(journey) or (
+        _select_workflow_class_by_journey(journey) is None and workflow_type == "generation"
+    )
+
+
+def _extract_generate_target(plan: dict) -> GenerateTarget:
+    """Deriva a stack-alvo do plano para a capacidade GENERATE.
+
+    Planos de geração hoje não fixam a stack explicitamente (o code-forge
+    materializa FastAPI a partir do intent). Na ausência de language/framework
+    em parameters usamos a única stack provada (python/fastapi), preservando o
+    comportamento atual. Um plano que FIXE uma stack diferente é resolvido pelo
+    registry (desconhecida → FAILED), sem fallback silencioso — multi-linguagem-ready.
+
+    Um valor só-com-espaços (whitespace) é tratado como *ausência* de stack (cai
+    no default), nunca como input malformado: assim a derivação da target não
+    levanta ValidationError fora do ``try`` do caller (que evitaria o tratamento
+    gracioso e produziria poison-message/HTTP 500). Stack real mas desconhecida
+    continua a falhar fechada no registry — sem fallback silencioso.
+    """
+    params = plan.get("parameters") or {}
+    language = str(params.get("language") or "").strip() or "python"
+    framework = str(params.get("framework") or "").strip() or "fastapi"
+    return GenerateTarget(language=language, framework=framework)
+
+
+def _journey_requires_migration(journey: str) -> bool:
+    """Jornadas que requerem a capacidade MIGRATE (hoje só J4_MIGRATE).
+
+    Espelha ``_journey_requires_generation``: a decisão deriva da SEMÂNTICA da
+    jornada (não de conhecer a classe do workflow) — é isto que des-vaza a
+    fronteira de migração.
+    """
+    return journey == "J4_MIGRATE"
+
+
+def _requires_migration(journey: str, workflow_type: str) -> bool:
+    """Autoridade ÚNICA: a execução requer a capacidade MIGRATE?
+
+    Espelha a ESTRUTURA de ``_requires_generate_capability``: a decisão deriva da
+    jornada (``_journey_requires_migration``) e plan-only (J1) NUNCA executa. Ao
+    contrário de GENERATE, não há fallback compat por ``workflow_type`` (não
+    existe "migration" legado por workflow_type), pelo que ``workflow_type`` é
+    aceite por simetria de assinatura mas não condiciona a decisão hoje.
+
+    NOTA DE ÂMBITO (Fase 1): esta autoridade serve, por enquanto, APENAS o caminho
+    direto (``decision_consumer``). Ao contrário de GENERATE — que já partilha a
+    autoridade com o resume pós-aprovação (``main.py``) —, o resume ainda NÃO
+    invoca esta função nem arranca ``DataMigrationWorkflow``. Um plano J4 aprovado
+    por revisão humana cai hoje na orquestração genérica; fechar essa paridade
+    (resume → MIGRATE) é escopo de fase posterior. Não afirmar paridade já
+    existente com o resume.
+    """
+    if _is_plan_only(journey):
+        return False
+    return _journey_requires_migration(journey)
+
+
+class InvalidMigrationConfigError(ValueError):
+    """``migration_config`` ausente ou inválido — fail-closed, sem defaults.
+
+    Anti-verde-falso: um plano J4 com ``migration_config`` presente mas malformado
+    (sem ``legacy_connection_id`` ou com ``tables`` vazias) NÃO pode ser migrado
+    nem cair silenciosamente na orquestração genérica — o consumer trata-o como
+    erro permanente.
+    """
+
+
+def _extract_migration_config(plan: dict) -> dict:
+    """Deriva e valida o ``migration_config`` do plano J4 (fail-closed).
+
+    Reusa o formato de ``build_j4_migrate_plan_message`` (Fase 0): exige
+    ``legacy_connection_id`` (str não-vazia) e ``tables`` (lista com ≥1 entrada
+    não-vazia). Sem defaults silenciosos — ausente/inválido levanta
+    ``InvalidMigrationConfigError`` (ao contrário de GENERATE, MIGRATE não tem
+    stack-default provada). ``modern_connection_id`` é opcional; ``schema``
+    assume "public" quando ausente.
+    """
+    raw = plan.get("migration_config")
+    if not isinstance(raw, dict) or not raw:
+        raise InvalidMigrationConfigError("migration_config ausente ou vazio")
+
+    legacy = str(raw.get("legacy_connection_id") or "").strip()
+    if not legacy:
+        raise InvalidMigrationConfigError("legacy_connection_id ausente ou vazio")
+
+    tables_raw = raw.get("tables")
+    tables = (
+        [str(t).strip() for t in tables_raw if str(t).strip()]
+        if isinstance(tables_raw, list)
+        else []
+    )
+    if not tables:
+        raise InvalidMigrationConfigError("tables ausente ou vazia")
+
+    modern = str(raw.get("modern_connection_id") or "").strip()
+    schema = str(raw.get("schema") or "").strip() or "public"
+
+    # db_urls são ADITIVAS: carregadas quando presentes (str não-vazia → valor;
+    # ausente → None). NÃO se levanta erro por db_urls em falta aqui — o
+    # fail-closed das db_urls vive na activity create_migration_job (a fronteira
+    # real), não na extração. (Preserva o teste congelado que aceita config só
+    # com legacy_connection_id + tables.)
+    legacy_db_url = str(raw.get("legacy_db_url") or "").strip() or None
+    modern_db_url = str(raw.get("modern_db_url") or "").strip() or None
+    return {
+        "legacy_connection_id": legacy,
+        "modern_connection_id": modern or None,
+        "schema": schema,
+        "tables": tables,
+        "legacy_db_url": legacy_db_url,
+        "modern_db_url": modern_db_url,
+    }
+
+
 class DecisionConsumer:
     """Consumer Kafka para decisões consolidadas."""
 
@@ -232,6 +432,14 @@ class DecisionConsumer:
         """
         self.config = config
         self.temporal_client = temporal_client
+        # Capacidade GENERATE construída com o cliente Temporal injetado (mesmos
+        # prefix/queue do caminho legado → workflow_id idêntico). É a fronteira
+        # de geração: o consumer delega-lhe o arranque do FluxoGWorkflow.
+        self.generate_capability = GenerateCapability(
+            temporal_client=temporal_client,
+            task_queue=config.temporal_task_queue,
+            workflow_id_prefix=config.temporal_workflow_id_prefix,
+        )
         self.mongodb_client = mongodb_client
         self.redis_client = redis_client
         self.metrics = metrics
@@ -713,7 +921,9 @@ class DecisionConsumer:
                 logger.error(
                     "Cognitive Plan não encontrado no ledger",
                     plan_id=plan_id,
-                    decision_id=consolidated_decision["decision_id"],
+                    # is_direct_plan força decision_id ausente → .get evita KeyError
+                    # (que faria loop infinito de retry sem commit do offset).
+                    decision_id=consolidated_decision.get("decision_id"),
                 )
                 # Não commitar o offset para permitir retry
                 # Este é um erro que pode ser temporário (plan ainda não persistido)
@@ -760,15 +970,168 @@ class DecisionConsumer:
                 "is_direct_plan": is_direct_plan,
             }
 
-            # Routing dinâmico baseado no workflow_type do Cognitive Plan
+            # Routing por Journey (spec journey-router Fase 3): a journey é decidida
+            # no STE e gravada no plano; aqui apenas roteamos por ela (não se
+            # re-deriva). COMPATIBILIDADE: planos sem journey ou journey=UNKNOWN
+            # (planos antigos) fazem fallback ao roteamento legado por workflow_type.
+            journey = _get_journey_from_plan(cognitive_plan_json)
             workflow_type = _get_workflow_type_from_plan(cognitive_plan_json)
-            workflow_class = _select_workflow_class(workflow_type)
+
+            # J1_PLAN_ONLY: planeamento sem execução a jusante — não inicia workflow.
+            if _is_plan_only(journey):
+                logger.info(
+                    "journey_plan_only_no_execution",
+                    plan_id=plan_id,
+                    journey=journey,
+                    message="Journey J1_PLAN_ONLY: plano não é executado (plan-only)",
+                )
+                span.set_attribute("neural.hive.journey", journey)
+                span.set_attribute("neural.hive.plan_only", True)
+                await self.consumer.commit()
+                if decision_id:
+                    await self._mark_decision_processed(decision_id)
+                return
+
+            # Fronteira não-vazada: decide-se "requer geração" pela semântica da
+            # jornada (autoridade única partilhada com o resume em main.py), não
+            # por conhecer a classe do workflow. Fallback compat: journey
+            # ausente/UNKNOWN + workflow_type=generation também é geração.
+            by_journey = _journey_requires_generation(journey)
+            requires_generation = _requires_generate_capability(journey, workflow_type)
+
+            if requires_generation:
+                target = _extract_generate_target(cognitive_plan_json)
+                routing_basis = "journey" if by_journey else "workflow_type_fallback"
+                span.set_attribute("neural.hive.journey", journey)
+                span.set_attribute("neural.hive.routing_basis", routing_basis)
+                span.set_attribute("neural.hive.capability", "GENERATE")
+                logger.info(
+                    "Invocando capacidade GENERATE",
+                    workflow_id=workflow_id,
+                    plan_id=plan_id,
+                    journey=journey,
+                    routing_basis=routing_basis,
+                    target=f"{target.language}/{target.framework}",
+                )
+                try:
+                    handle = await self.generate_capability.start(
+                        GenerateRequest(
+                            plan_id=plan_id,
+                            journey=journey,
+                            cognitive_plan=cognitive_plan_json,
+                            target=target,
+                        )
+                    )
+                except UnsupportedStackError as stack_err:
+                    # Anti-verde-falso: stack não suportada → NÃO inicia nada; erro
+                    # permanente (commit do offset p/ não reprocessar em loop).
+                    logger.error(
+                        "generate_capability_unsupported_stack",
+                        plan_id=plan_id,
+                        journey=journey,
+                        target=f"{target.language}/{target.framework}",
+                        error=str(stack_err),
+                    )
+                    await self.consumer.commit()
+                    if decision_id:
+                        await self._mark_decision_processed(decision_id)
+                    return
+                logger.info(
+                    "Capacidade GENERATE iniciada",
+                    workflow_id=handle.workflow_id,
+                    plan_id=plan_id,
+                    journey=handle.journey,
+                )
+                await self.consumer.commit()
+                if decision_id:
+                    await self._mark_decision_processed(decision_id)
+                logger.info("Mensagem processada com sucesso", offset=message.offset)
+                return
+
+            # Fronteira não-vazada MIGRATE (espelha GENERATE): J4_MIGRATE com um
+            # migration_config explícito invoca a jornada composta de migração
+            # (MigrateJourneyWorkflow durável: GENERATE condicional → MIGRATE via
+            # child-workflows), NÃO a OrchestrationWorkflow genérica de J2. A
+            # decisão deriva da semântica da jornada (autoridade única
+            # _requires_migration). Um plano J4 SEM migration_config não tem o que
+            # migrar → cai no roteamento legado (compat); a capacidade só ativa com
+            # spec presente.
+            if (
+                _requires_migration(journey, workflow_type)
+                and "migration_config" in cognitive_plan_json
+            ):
+                try:
+                    # Gate fail-closed na FRONTEIRA (anti-verde-falso): config
+                    # presente mas inválido NÃO arranca a jornada. A config
+                    # normalizada/validada substitui a do plano antes do start
+                    # durável (o workflow deriva os inputs dos child a partir dela).
+                    migration_config = _extract_migration_config(cognitive_plan_json)
+                except InvalidMigrationConfigError as cfg_err:
+                    # Anti-verde-falso: migration_config PRESENTE mas inválido →
+                    # NÃO inicia nada e NÃO cai na orquestração genérica; erro
+                    # permanente (commit do offset p/ não reprocessar em loop).
+                    logger.error(
+                        "migration_config_invalid",
+                        plan_id=plan_id,
+                        journey=journey,
+                        error=str(cfg_err),
+                    )
+                    await self.consumer.commit()
+                    if decision_id:
+                        await self._mark_decision_processed(decision_id)
+                    return
+
+                cognitive_plan_json["migration_config"] = migration_config
+
+                span.set_attribute("neural.hive.journey", journey)
+                span.set_attribute("neural.hive.routing_basis", "journey")
+                span.set_attribute("neural.hive.capability", "MIGRATE")
+                logger.info(
+                    "Invocando capacidade MIGRATE",
+                    workflow_id=workflow_id,
+                    plan_id=plan_id,
+                    journey=journey,
+                    routing_basis="journey",
+                    tables=migration_config["tables"],
+                )
+                # A jornada composta recebe o cognitive_plan (com migration_config
+                # validado e, opcional, generate_target sinalizando geração).
+                await self.temporal_client.start_workflow(
+                    MigrateJourneyWorkflow.run,
+                    cognitive_plan_json,
+                    id=workflow_id,
+                    task_queue=self.config.temporal_task_queue,
+                )
+                logger.info(
+                    "MigrateJourneyWorkflow iniciado",
+                    workflow_id=workflow_id,
+                    plan_id=plan_id,
+                    journey=journey,
+                )
+                await self.consumer.commit()
+                if decision_id:
+                    await self._mark_decision_processed(decision_id)
+                logger.info("Mensagem processada com sucesso", offset=message.offset)
+                return
+
+            # Caso contrário: orquestração (J2/J4 ou fallback workflow_type=orchestration).
+            workflow_class = _select_workflow_class_by_journey(journey)
+            routing_basis = "journey"
+            if workflow_class is None:
+                # Fallback compat: journey ausente/UNKNOWN -> roteamento legado.
+                workflow_class = _select_workflow_class(workflow_type)
+                routing_basis = "workflow_type_fallback"
+
+            span.set_attribute("neural.hive.journey", journey)
+            span.set_attribute("neural.hive.routing_basis", routing_basis)
 
             logger.info(
                 "Iniciando workflow Temporal",
                 workflow_id=workflow_id,
                 plan_id=plan_id,
                 is_direct_plan=is_direct_plan,
+                journey=journey,
+                routing_basis=routing_basis,
                 workflow_type=workflow_type,
                 workflow_class=workflow_class.__name__,
             )

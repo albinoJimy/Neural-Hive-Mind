@@ -57,6 +57,8 @@ class PipelineEngine:
         metrics: Optional["CodeForgeMetrics"] = None,
         build_timeout: int = 3600,
         enable_container_build: bool = True,
+        builder_type: str = "kaniko",
+        cleanup_pods: bool = True,
     ):
         self.template_selector = template_selector
         self.code_composer = code_composer
@@ -72,9 +74,11 @@ class PipelineEngine:
 
         # Novos serviços para builds de container reais
         self.dockerfile_generator = DockerfileGenerator()
+        # builder_type configurável: no cluster usa-se KANIKO (não há docker daemon).
         self.container_builder = ContainerBuilder(
-            builder_type=BuilderType.DOCKER,
+            builder_type=BuilderType(builder_type),
             timeout_seconds=build_timeout,
+            cleanup_pods=cleanup_pods,
         )
         self.enable_container_build = enable_container_build
 
@@ -163,11 +167,22 @@ class PipelineEngine:
                     self.auto_approval_threshold, self.min_quality_score
                 )
 
-                # Persistir resultado
-                await self.postgres_client.save_pipeline(pipeline_result)
+                # Persistir resultado (best-effort: bookkeeping não deve falhar
+                # um build/push bem-sucedido).
+                try:
+                    await self.postgres_client.save_pipeline(pipeline_result)
+                except Exception as e:  # noqa: BLE001 — persistência best-effort
+                    logger.warning(
+                        "save_pipeline_degraded", pipeline_id=pipeline_id, error=str(e)[:200]
+                    )
 
-                # Publicar resultado no Kafka
-                await self.kafka_producer.publish_result(pipeline_result)
+                # Publicar resultado no Kafka (best-effort)
+                try:
+                    await self.kafka_producer.publish_result(pipeline_result)
+                except Exception as e:  # noqa: BLE001 — publicação best-effort
+                    logger.warning(
+                        "publish_result_degraded", pipeline_id=pipeline_id, error=str(e)[:200]
+                    )
 
                 # Atualizar status do ticket baseado no status do pipeline
                 if pipeline_result.status == "COMPLETED":
@@ -391,7 +406,14 @@ class PipelineEngine:
                 "service_name", f"service-{context.ticket.ticket_id[:8]}"
             )
             version = context.ticket.parameters.get("version", "latest")
-            image_tag = f"{artifact_name}:{version}"
+            # Prefixar o registry OCI (ex.: ghcr.io/owner/repo) para o Kaniko fazer push
+            # para o destino correto (sem prefixo iria para docker.io e falharia).
+            registry = os.getenv("OCI_REGISTRY_URL", "").rstrip("/")
+            image_tag = (
+                f"{registry}/{artifact_name}:{version}"
+                if registry
+                else f"{artifact_name}:{version}"
+            )
 
             logger.info(
                 "building_container_image",
@@ -399,11 +421,17 @@ class PipelineEngine:
                 image_tag=image_tag,
             )
 
+            # push_to_registry controla se a imagem é publicada no registry. Quando
+            # False, faz build-only (--no-push) — útil para provar o build sem depender
+            # de credenciais de push (ex.: token GHCR sem scope write:packages).
+            push = bool(context.ticket.parameters.get("push_to_registry", True))
+
             # Executar build
             result = await self.container_builder.build_container(
                 dockerfile_path=dockerfile_path,
                 build_context=workdir,
                 image_tag=image_tag,
+                no_push=not push,
             )
 
             if result.success:
@@ -412,6 +440,12 @@ class PipelineEngine:
                     "tag": image_tag,
                     "size_bytes": result.size_bytes,
                 }
+                # Ref limpa (string) consumida a jusante pelo deploy (G8). Pina
+                # por digest quando disponível, senão usa a tag.
+                repo = image_tag.rsplit(":", 1)[0]
+                context.metadata["container_image_ref"] = (
+                    f"{repo}@{result.image_digest}" if result.image_digest else image_tag
+                )
 
                 logger.info(
                     "container_build_success",
@@ -487,8 +521,10 @@ class PipelineEngine:
         Cria requirements.txt, main.py, package.json, go.mod, etc.
         baseado na linguagem e nos artefatos gerados.
         """
-        # Obter código gerado dos artefatos (se disponível)
-        generated_code = self._extract_generated_code(context)
+        # Obter código gerado dos artefatos (se disponível).
+        # _extract_generated_code é async (lê o conteúdo do MongoDB) — TEM de ser awaited,
+        # senão `generated_code` fica um coroutine e f.write(coroutine) rebenta.
+        generated_code = await self._extract_generated_code(context)
 
         if language == CodeLanguage.PYTHON:
             # Criar requirements.txt

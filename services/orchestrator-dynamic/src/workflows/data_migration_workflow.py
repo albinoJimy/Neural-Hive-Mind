@@ -22,6 +22,17 @@ from temporalio import workflow
 from temporalio.common import RetryPolicy
 
 with workflow.unsafe.imports_passed_through():
+    from src.activities.data_migration import (
+        analyze_legacy_schema,
+        cleanup_snapshot,
+        create_migration_job,
+        create_snapshot,
+        execute_rollback,
+        generate_schema_mapping,
+        run_batch_migration,
+        start_cdc,
+        validate_data,
+    )
     from src.models.migration import MigrationStatus
 
 
@@ -75,6 +86,25 @@ class DataMigrationWorkflow:
         )
 
         try:
+            # === Fase 0: Create Migration Job (fonte de verdade) ===
+            # Sem job_id existente (retomada), cria o job no serviço
+            # data-migration:8019, que passa a ser a fonte de verdade. O job_id
+            # real propaga-se por todas as fases seguintes. FAIL-CLOSED: sem job
+            # criado (db_urls em falta, serviço indisponível) → erro, sem simular.
+            if not self._job_id:
+                create_result = await workflow.execute_activity(
+                    create_migration_job,
+                    args=[config_data],
+                    start_to_close_timeout=timedelta(minutes=10),
+                    retry_policy=RetryPolicy(maximum_attempts=3),
+                )
+                if not create_result.get("success"):
+                    return self._build_error_result(
+                        workflow_id, "create_job", create_result.get("error")
+                    )
+                self._job_id = create_result["job_id"]
+                workflow.logger.info(f"Job de migração criado: job_id={self._job_id}")
+
             # === Fase 1: Analyze Legacy Schema ===
             self._status = "analyzing"
             self._current_phase = MigrationStatus.ANALYZING
@@ -233,19 +263,17 @@ class DataMigrationWorkflow:
         Returns:
             Dict com resultado da análise
         """
-        from src.activities.data_migration import analyze_legacy_schema
 
-        legacy_connection_id = config.get("legacy_connection_id")
         schema = config.get("schema", "public")
         tables = config.get("tables")  # None = todas as tabelas
 
-        workflow.logger.info(
-            f"Analisando schema legado: connection={legacy_connection_id}, " f"schema={schema}"
-        )
+        workflow.logger.info(f"Analisando schema legado: job_id={self._job_id}, schema={schema}")
 
+        # Thin-wrapper de leitura: passa o job_id real (nova assinatura). O
+        # serviço data-migration já analisou no POST /migrations.
         result = await workflow.execute_activity(
             analyze_legacy_schema,
-            args=[legacy_connection_id, schema, tables],
+            args=[self._job_id, tables, schema],
             start_to_close_timeout=timedelta(minutes=10),
             retry_policy=RetryPolicy(maximum_attempts=3),
         )
@@ -263,7 +291,6 @@ class DataMigrationWorkflow:
         Returns:
             Dict com mapeamento gerado
         """
-        from src.activities.data_migration import generate_schema_mapping
 
         target_service = config.get("target_service")
 
@@ -289,7 +316,6 @@ class DataMigrationWorkflow:
         Returns:
             Dict com snapshot criado
         """
-        from src.activities.data_migration import create_snapshot
 
         strategy = config.get("snapshot_strategy", "s3")
 
@@ -318,7 +344,6 @@ class DataMigrationWorkflow:
         Returns:
             Dict com resultado da migração
         """
-        from src.activities.data_migration import run_batch_migration
 
         batch_size = config.get("batch_size", 1000)
         max_parallel = config.get("max_parallel_migrations", 5)
@@ -350,7 +375,6 @@ class DataMigrationWorkflow:
         Returns:
             Dict com resultado do início do CDC
         """
-        from src.activities.data_migration import start_cdc
 
         database_config = config.get("database_config", {})
 
@@ -376,7 +400,6 @@ class DataMigrationWorkflow:
         Returns:
             Dict com resultado da validação
         """
-        from src.activities.data_migration import validate_data
 
         workflow.logger.info("Validando dados migrados")
 
@@ -396,7 +419,6 @@ class DataMigrationWorkflow:
         Returns:
             Dict com resultado da limpeza
         """
-        from src.activities.data_migration import cleanup_snapshot
 
         workflow.logger.info(f"Limpando snapshot: snapshot_id={self._snapshot_id}")
 
@@ -426,7 +448,6 @@ class DataMigrationWorkflow:
         Returns:
             Dict com resultado do rollback
         """
-        from src.activities.data_migration import execute_rollback
 
         self._rollback_triggered = True
         self._status = "rolling_back"

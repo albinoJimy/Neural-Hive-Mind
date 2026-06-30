@@ -859,6 +859,15 @@ async def _process_text_intention_with_context(
             text=request.text, language=request.language, context=user_context
         )
 
+        # Marcador de origem (spec journey-router Fase 4): o corpo da intenção pode
+        # trazer `source` (ex. "doc-ingestion") — sinal estruturado lido pelo
+        # JourneyClassifier do STE (context.source -> J4_MIGRATE). Propaga-se para
+        # context.source COM PRECEDÊNCIA sobre o user_context; sem source no corpo,
+        # mantém-se o valor existente no contexto (se houver).
+        envelope_context = dict(user_context)
+        if request.source:
+            envelope_context["source"] = request.source
+
         # Construir envelope de intenção
         intent_envelope = IntentEnvelope(
             id=intent_id,
@@ -879,7 +888,7 @@ async def _process_text_intention_with_context(
             },
             confidence=nlu_result.confidence,
             confidence_status=nlu_result.confidence_status,
-            context=user_context,
+            context=envelope_context,
             constraints=request.constraints.dict() if request.constraints else None,
             qos=request.qos.dict() if request.qos else None,
             timestamp=datetime.now(timezone.utc),

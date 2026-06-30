@@ -115,6 +115,32 @@ class CognitivePlan(BaseModel):
         None, description="Explicação da decisão de classificação do workflow"
     )
 
+    # Journey classification fields (Routing Layer — spec journey-router Fase 3).
+    # OPCIONAIS COM DEFAULT (compat Avro): consumidores antigos ignoram; planos
+    # antigos sem journey continuam a rotear via fallback (workflow_type).
+    # Espelha o padrão dos campos workflow_type/workflow_confidence acima.
+    journey: str = Field(
+        default="UNKNOWN",
+        description="Jornada decidida pelo STE (J1_PLAN_ONLY/J2_ORCHESTRATE/J3_BUILD/J4_MIGRATE/UNKNOWN)",
+    )
+    journey_id: str = Field(
+        default="",
+        description="Identificador estável (UUID) da decisão de jornada; propaga até ao ExecutionFeedback",
+    )
+    journey_confidence: float = Field(
+        default=0.0,
+        ge=0.0,
+        le=1.0,
+        description="Confiança da classificação de jornada (0.0 a 1.0)",
+    )
+    journey_reasoning: str = Field(
+        default="", description="Explicação da decisão de classificação de jornada"
+    )
+    journey_classification_method: str = Field(
+        default="",
+        description="Proveniência da decisão (structured_signal|llm|no_match)",
+    )
+
     # DAG of tasks
     tasks: list[TaskNode] = Field(..., description="List of tasks in the plan")
     execution_order: list[str] = Field(..., description="Topological execution order")
@@ -225,6 +251,12 @@ class CognitivePlan(BaseModel):
             "context_id": self.context_id,
             "workflow_confidence": self.workflow_confidence,
             "workflow_reasoning": self.workflow_reasoning,
+            # Journey classification fields (Routing Layer — opcionais c/ default).
+            "journey": self.journey,
+            "journey_id": self.journey_id,
+            "journey_confidence": self.journey_confidence,
+            "journey_reasoning": self.journey_reasoning,
+            "journey_classification_method": self.journey_classification_method,
             "tasks": [
                 {
                     "task_id": task.task_id,

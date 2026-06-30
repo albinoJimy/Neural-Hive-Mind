@@ -10,10 +10,13 @@ Fluxo:
 
 import contextlib
 import json
+from datetime import datetime, timezone
 from typing import Any
 
 import structlog
 from aiokafka import AIOKafkaConsumer
+
+from src.models.execution_feedback import ExecutionFeedback
 
 logger = structlog.get_logger(__name__)
 
@@ -25,7 +28,9 @@ class ExecutionResultConsumer:
     WORKFLOW_CACHE_PREFIX = "workflow:by:ticket:"
     WORKFLOW_CACHE_TTL = 86400  # 24h
 
-    def __init__(self, config, temporal_client, redis_client, metrics=None):
+    def __init__(
+        self, config, temporal_client, redis_client, feedback_sink=None, metrics=None
+    ):
         """
         Inicializa o consumer.
 
@@ -33,11 +38,13 @@ class ExecutionResultConsumer:
             config: Configurações da aplicação
             temporal_client: Cliente Temporal para enviar signals
             redis_client: Cliente Redis para cache de workflow_id
+            feedback_sink: FeedbackSink do loop OBSERVE→LEARN (plano-Z); opcional
             metrics: Instância de métricas (opcional)
         """
         self.config = config
         self.temporal_client = temporal_client
         self.redis_client = redis_client
+        self.feedback_sink = feedback_sink
         self.metrics = metrics
         self.consumer: AIOKafkaConsumer | None = None
         self.running = False
@@ -157,7 +164,12 @@ class ExecutionResultConsumer:
                 await self.consumer.commit()
                 return
 
-            # Enviar signal para Temporal
+            # Fechar o loop LEARN (plano-Z) ANTES do signal: o feedback é
+            # independente e não pode ser perdido se o signal falhar (ex.: workflow
+            # inexistente/expirado). Internamente protegido — nunca bloqueia o fluxo.
+            await self._emit_feedback(result_data)
+
+            # Enviar signal para Temporal (capacidade EXECUTE)
             await self._send_workflow_signal(
                 workflow_id=workflow_id, ticket_id=ticket_id, result=result_data
             )
@@ -173,11 +185,18 @@ class ExecutionResultConsumer:
                 offset=message.offset,
             )
 
-            # Métricas
+            # Métricas (segmentadas por jornada). Usa-se o ENUM journey
+            # (J1-J4/unknown, ~5 valores) — NUNCA journey_id (UUID), que
+            # explodiria a cardinalidade do label. Se o resultado ainda não
+            # propaga o enum journey, cai em "unknown" (retrocompat).
             if self.metrics:
-                self.metrics.execution_results_processed_total.labels(
-                    status=status
-                ).inc()
+                journey = result_data.get("journey")
+                self.metrics.record_execution_result_processed(
+                    status=status,
+                    journey=journey
+                    if isinstance(journey, str) and journey
+                    else "unknown",
+                )
 
         except Exception as e:
             logger.error(
@@ -280,6 +299,72 @@ class ExecutionResultConsumer:
                 exc_info=True,
             )
             raise
+
+    async def _emit_feedback(self, result_data: dict[str, Any]) -> None:
+        """
+        Adapter EXECUTE: traduz o ExecutionResult para o contrato canónico
+        ExecutionFeedback e delega ao FeedbackSink (plano-Z do loop LEARN).
+
+        Sem lógica de Mongo aqui — a persistência vive no sink. Desacoplado e
+        defensivo: uma falha de telemetria nunca bloqueia o workflow.
+        """
+        if not self.feedback_sink:
+            return
+
+        try:
+            ticket_id = result_data.get("ticket_id")
+            now_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
+
+            # O worker põe metadata DENTRO de "result" (não no topo do payload).
+            inner = result_data.get("result")
+            metadata = (
+                inner.get("metadata") if isinstance(inner, dict) else None
+            ) or {}
+            simulated = bool(metadata.get("simulated", False))
+
+            actual_duration_ms = result_data.get("actual_duration_ms")
+
+            # completed_at: o payload não traz; usa o timestamp (millis) do worker.
+            completed_at = result_data.get("completed_at")
+            if completed_at is None:
+                worker_ts = result_data.get("timestamp")
+                completed_at = (
+                    worker_ts
+                    if isinstance(worker_ts, int) and worker_ts > 0
+                    else now_ms
+                )
+
+            # started_at: derivado de completed_at - duração quando possível.
+            started_at = result_data.get("started_at")
+            if (
+                started_at is None
+                and isinstance(actual_duration_ms, int)
+                and actual_duration_ms > 0
+            ):
+                started_at = completed_at - actual_duration_ms
+
+            feedback = ExecutionFeedback(
+                feedback_id=f"{ticket_id}:{now_ms}",
+                feedback_persisted_at=now_ms,
+                capability="EXECUTE",
+                journey_id=result_data.get("journey_id"),
+                ticket_id=ticket_id,
+                plan_id=result_data.get("plan_id", ""),
+                trace_id=result_data.get("trace_id")
+                or result_data.get("correlation_id"),
+                status=result_data.get("status", ""),
+                actual_duration_ms=actual_duration_ms,
+                started_at=started_at,
+                completed_at=completed_at,
+                simulated=simulated,
+            )
+            await self.feedback_sink.record(feedback)
+        except Exception as e:
+            logger.warning(
+                "execution_feedback_emit_failed",
+                ticket_id=result_data.get("ticket_id"),
+                error=str(e),
+            )
 
     def _deserialize(self, message) -> dict[str, Any]:
         """

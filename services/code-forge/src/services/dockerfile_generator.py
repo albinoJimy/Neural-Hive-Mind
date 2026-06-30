@@ -100,8 +100,9 @@ class DockerfileGenerator:
         """
         # Detectar command baseado no framework
         if framework == "fastapi":
-            cmd = 'CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]'
-            port = 8000
+            # Porta 8080: contrato com o deploy-service (containerPort/probes fixos em 8080)
+            cmd = 'CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080"]'
+            port = 8080
         elif framework == "flask":
             cmd = 'CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "4", "app:app"]'
             port = 5000
@@ -149,18 +150,20 @@ RUN apt-get update && apt-get install -y --no-install-recommends \\
     curl \\
     && rm -rf /var/lib/apt/lists/*
 
-# Copiar pacotes instalados
-COPY --from=builder /root/.local /root/.local
+# Criar usuário não-root (antes de copiar para poder usar --chown)
+RUN useradd -m -u 1000 appuser
+
+# Copiar pacotes instalados para o home do appuser (acessível ao runtime user;
+# /root/.local fica sob /root mode 0700 → 'Permission denied' ao correr uvicorn)
+COPY --from=builder --chown=appuser:appuser /root/.local /home/appuser/.local
 
 # Copiar código da aplicação
-COPY . .
+COPY --chown=appuser:appuser . .
 
-# Criar usuário não-root
-RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
 USER appuser
 
 # Make sure scripts in .local are usable
-ENV PATH=/root/.local/bin:$PATH
+ENV PATH=/home/appuser/.local/bin:$PATH
 
 {healthcheck}
 

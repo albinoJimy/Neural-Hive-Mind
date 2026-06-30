@@ -4,6 +4,8 @@ Configuracao do Approval Service
 Gerencia todas as configuracoes usando Pydantic Settings com suporte a variaveis de ambiente.
 """
 
+import os
+import sys
 from typing import Optional
 
 import structlog
@@ -13,6 +15,27 @@ from pydantic_settings import BaseSettings
 from neural_hive_security.cors import CORSConfig
 
 logger = structlog.get_logger()
+
+
+def require_mongodb_database_explicit(environment: str, explicit: bool, under_pytest: bool) -> None:
+    """
+    Nucleo testavel do fail-fast de MONGODB_DATABASE (convergencia DBs, Fase 5, 8.1).
+
+    Levanta ``ValueError`` quando, fora de pytest e fora de ambiente test/local, a
+    env var MONGODB_DATABASE NAO foi definida explicitamente — forcando configuracao
+    explicita da DB e eliminando o default implicito que gerou drift.
+
+    Args:
+        environment: valor de ``settings.environment``.
+        explicit: True se MONGODB_DATABASE veio do ambiente (nao do default).
+        under_pytest: True se a correr sob pytest (entao nunca falha).
+    """
+    if not under_pytest and environment.lower() not in ("test", "local") and not explicit:
+        raise ValueError(
+            "MONGODB_DATABASE tem de ser definido explicitamente em ambiente "
+            f"'{environment}' (convergencia DBs Fase 5: sem default implicito de DB; "
+            "defina a env var MONGODB_DATABASE no deployment)."
+        )
 
 
 class Settings(BaseSettings):
@@ -282,6 +305,25 @@ class Settings(BaseSettings):
                 max_retries=self.kafka_startup_max_retries,
                 max_backoff_seconds=self.kafka_startup_max_backoff_seconds,
             )
+        return self
+
+    @model_validator(mode="after")
+    def require_explicit_mongodb_database(self) -> "Settings":
+        """
+        Anti-regressao da convergencia DBs (Fase 5, Task 8.1).
+
+        Em ambiente de deployment real, MONGODB_DATABASE tem de ser definido
+        EXPLICITAMENTE — elimina o default implicito 'neural_hive' que gerou o drift
+        que partiu o pipeline (f786fb16/6fddd01d). Sob pytest ou em ambiente
+        test/local o default mantem-se (nao quebra testes/CI). Em
+        production/staging/development sem MONGODB_DATABASE explicito, falha-fast.
+
+        A logica esta extraida em ``require_mongodb_database_explicit`` (funcao pura,
+        testavel sem depender do guard de pytest).
+        """
+        under_pytest = "PYTEST_CURRENT_TEST" in os.environ or "pytest" in sys.modules
+        explicit = "MONGODB_DATABASE" in os.environ or "mongodb_database" in os.environ
+        require_mongodb_database_explicit(self.environment, explicit, under_pytest)
         return self
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8", "case_sensitive": False}

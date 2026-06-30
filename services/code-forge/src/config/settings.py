@@ -42,18 +42,47 @@ class Settings(BaseSettings):
     MONGODB_DB: str = Field(default="code_forge", description="MongoDB database")
     MONGODB_USER: str = Field(default="", description="MongoDB user")
     MONGODB_PASSWORD: str = Field(default="", description="MongoDB password")
+    MONGODB_AUTH_SOURCE: str = Field(
+        default="",
+        description="authSource do MongoDB (ex.: 'admin'). Necessário quando o utilizador "
+        "está numa base diferente (root@admin). Configurável via env MONGODB_AUTH_SOURCE.",
+    )
 
     @property
     def MONGODB_URL(self) -> str:
+        # authSource é obrigatório quando o utilizador (ex.: root) vive numa base
+        # diferente da do URL — senão o MongoDB rejeita com "requires authentication".
+        auth_q = f"?authSource={self.MONGODB_AUTH_SOURCE}" if self.MONGODB_AUTH_SOURCE else ""
         if self.MONGODB_USER and self.MONGODB_PASSWORD:
-            return f"mongodb://{self.MONGODB_USER}:{self.MONGODB_PASSWORD}@{self.MONGODB_HOST}:{self.MONGODB_PORT}/{self.MONGODB_DB}"
-        return f"mongodb://{self.MONGODB_HOST}:{self.MONGODB_PORT}/{self.MONGODB_DB}"
+            return (
+                f"mongodb://{self.MONGODB_USER}:{self.MONGODB_PASSWORD}"
+                f"@{self.MONGODB_HOST}:{self.MONGODB_PORT}/{self.MONGODB_DB}{auth_q}"
+            )
+        return f"mongodb://{self.MONGODB_HOST}:{self.MONGODB_PORT}/{self.MONGODB_DB}{auth_q}"
+
+    # Container build: 'kaniko' (build em pod no cluster, sem docker daemon) ou 'docker'.
+    # No cluster usa-se kaniko (não há /var/run/docker.sock). Configurável via env.
+    CONTAINER_BUILDER_TYPE: str = Field(
+        default="kaniko", description="Tipo de builder de container: 'kaniko' ou 'docker'"
+    )
+    KANIKO_CLEANUP_PODS: bool = Field(
+        default=True,
+        description="Se True, remove o pod Kaniko após o build (False = manter para debug)",
+    )
+    KANIKO_BUILD_TIMEOUT: int = Field(
+        default=900, description="Timeout do build Kaniko em segundos"
+    )
 
     # Database - Redis
     REDIS_HOST: str = Field(..., description="Redis host")
     REDIS_PORT: int = Field(default=6379, description="Redis port")
     REDIS_DB: int = Field(default=0, description="Redis database")
     REDIS_PASSWORD: str = Field(default="", description="Redis password")
+    REDIS_CLUSTER_ENABLED: bool = Field(
+        default=False,
+        description="Se True, usa RedisCluster (necessário quando o Redis é um cluster; "
+        "caso contrário ocorrem erros MOVED). Configurável via env REDIS_CLUSTER_ENABLED.",
+    )
 
     @property
     def REDIS_URL(self) -> str:

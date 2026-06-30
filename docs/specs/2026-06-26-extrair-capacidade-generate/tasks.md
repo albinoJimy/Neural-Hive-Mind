@@ -1,0 +1,164 @@
+# Spec Tasks
+
+> Passo 3 do ADR-0011 (eixo Capacidades) — extrair GENERATE como capacidade autónoma por fronteira
+> de contrato, desbloqueado pelo gate "J3/BUILD fiável" (spec 2026-06-23-j3-build-generate).
+>
+> **Princípios:** fronteira de contrato (não novo serviço); FluxoGWorkflow mantém-se como
+> implementação; multi-linguagem-ready (contrato/registry stack-neutros, só FastAPI implementado);
+> anti-verde-falso (stack desconhecida / G-step falhado → FAILED); TDD estrito; diffs mínimos
+> (py3.10). Cada fase é um gate: só avança com testes verdes. Detalhe em `sub-specs/technical-spec.md`.
+
+## Tasks
+
+### Fase 0 — Contrato + registry de stacks (multi-linguagem-ready)
+
+- [x] 1. Definir o contrato da capacidade e o registry de stacks extensível
+  - **DoD:** `src/capabilities/generate/contract.py` (`GenerateTarget`/`GenerateRequest`/
+    `GenerateResult`, fail-closed, target stack-neutro) e `stacks.py` (`StackRegistry` +
+    `GenerationStrategy`, FastAPI registado, `resolve` desconhecida→erro sem fallback). Sem lógica
+    de orquestração ainda. **FEITO** — 25 testes verdes; pipeline dev→auditoria(qualidade+completude)
+    →remediação (M1 verde-falso whitespace + B1/B2/B3/B4). Ver `sub-specs/fase0-evidence.md`.
+  - **Evidência:** `sub-specs/fase0-evidence.md`.
+  - [x] 1.1 Testes: contrato valida campos obrigatórios; `GenerateResult.failed` exige
+    `failure_reason`; registry resolve `("python","fastapi")` e estratégia "fake" registada em teste;
+    stack desconhecida → erro (sem cair em FastAPI) — 5 pontos cobertos + casos fail-closed extra
+  - [x] 1.2 Implementar contract.py + stacks.py com FastAPI registado (porta 8080, `/health`, TEMPLATE)
+  - [x] 1.3 Documentar no módulo o ponto de extensão (como registar nova linguagem)
+
+### Fase 1 — GenerateCapability encapsula o FluxoGWorkflow
+
+- [x] 2. Adaptador fino capacidade → FluxoGWorkflow (`start` durável + `map_result` puro)
+  - **DoR:** Fase 0 fechada. ✓
+  - **DoD:** `GenerateCapability.start(GenerateRequest)` resolve a estratégia e **inicia** o
+    `FluxoGWorkflow` (cliente Temporal injetado, id por plano, task_queue) devolvendo um
+    `GenerateHandle`; stack desconhecida → FAILED sem iniciar. `map_result(workflow_output)` (puro)
+    traduz `code_generation/build/deployment/journey → GenerateResult`; output falhado/incompleto →
+    `failed`. **Ressalva de âmbito (CR-001, auditoria Task 5):** `map_result` é o **contrato de saída
+    testado em isolamento** — fail-closed provado por testes de bloco, mas **sem chamador de produção
+    hoje** (o resultado do FluxoGWorkflow é consumido via signals/ExecutionResultConsumer, cadência
+    durável do Temporal). O wiring de runtime de `map_result` ao consumo de resultado fica **diferido**;
+    o anti-verde-falso E2E (Fase 4) vem da observação directa do `/health`, não de `map_result`.
+    **Sem await bloqueante no consumer** (preserva a cadência durável do Temporal). Não
+    reimplementa G1–G8. **FEITO** — 38 testes verdes; pipeline dev→auditoria→remediação (gate
+    `verified` anti-verde-falso; propagação da estratégia completa p/ multi-linguagem; normalização
+    datetime; não-mutação). Ver `sub-specs/fase1-evidence.md`.
+  - **Evidência:** `sub-specs/fase1-evidence.md`.
+  - [x] 2.1 Testes (cliente Temporal mockado): `start` inicia com o input certo; stack desconhecida →
+    FAILED sem iniciar; `map_result` sucesso → `completed` (code_artifact_id/container_image_ref/
+    deployment); output falhado/incompleto → `failed` — + gate `verified`, datetime, não-mutação
+  - [x] 2.2 Implementar capability.py (`start` + `map_result` + resolução de estratégia)
+  - [x] 2.3 Gate: teste de contrato em bloco verde (in→out sem jornada inteira)
+
+### Fase 2 — Des-vazar a fronteira no routing
+
+- [x] 3. `decision_consumer` invoca a capacidade em vez de conhecer FluxoGWorkflow
+  - **DoR:** Fase 1 fechada. ✓
+  - **DoD:** para jornadas de geração (J3_BUILD), o handler invoca `GenerateCapability`; deixa de
+    iniciar `FluxoGWorkflow` directamente nesse caminho. Preservados: J1 não executa; J2/J4 →
+    Orchestration; fallback por `workflow_type`; resume pós-aprovação honra a capacidade. **FEITO
+    (código+contrato)** — 18 testes verdes, zero regressão; pipeline dev→auditoria(qualidade SHIP +
+    completude COMPLETO)→remediação (CR-001 autoridade única `_requires_generate_capability` p/
+    consumer↔resume não divergirem; CR-002 documentado). Equivalência provada: teste congelado
+    `test_workflow_start_journey_routing.py` (asserts `FluxoGWorkflow.run`) continua verde.
+    Ver `sub-specs/fase2-evidence.md`. **3.3 (gate cluster) PROVADO (2026-06-29)** — ramo Kafka do
+    consumer prova paridade E2E total (deploy real + /health 200); ver subtask 3.3.
+  - **Evidência:** `sub-specs/fase2-evidence.md`.
+  - [x] 3.1 Testes: J3_BUILD → invoca capacidade; J1/UNKNOWN sem execução; J2/J4 → Orchestration;
+    journey ausente → fallback workflow_type; resume pós-aprovação → capacidade — + anti-verde-falso
+    (stack não suportada: consumer commit+return / resume HTTP 422)
+  - [x] 3.2 Refactor do routing para a capacidade (sem mudar comportamento das outras jornadas)
+  - [x] 3.3 Gate cluster: plano J3 aprovado é processado via a capacidade (log/Temporal coerentes)
+    — **PROVADO (2026-06-29)**, após estabilização do control-plane (etcd defrag 276→91MB; ver
+    `infra_cluster_stabilization_2026-06-29` na memória). Injetada decisão J3_BUILD (plan direto do
+    STE) no topic `plans.consensus`; o `decision_consumer` (ramo Kafka, **não** o resume) logou
+    `Invocando capacidade GENERATE journey=J3_BUILD routing_basis=journey target=python/fastapi` →
+    `Capacidade GENERATE iniciada` → Temporal `workflow_type=FluxoGWorkflow id=orch-gate33-1782738579`.
+    **Paridade E2E TOTAL pelo consumer** (não só log/Temporal): G6 code_artifact `426279f5` → G7
+    build+push GHCR `service-gate33-…:1.0.0` → G8 deploy → Deployment `1/1 Running` (2ª réplica
+    Pending por over-commit) + **`/health` 200** (`{"status":"healthy"}`). Probe sintética limpa após
+    a prova. Equivalente à Fase 4 (que entrou pelo resume).
+
+### Fase 3 — Prova de extensibilidade multi-linguagem (sem implementar outra stack)
+
+- [x] 4. Garantir que adicionar uma stack não toca contrato/routing
+  - **DoR:** Fase 2 fechada. ✓
+  - **DoD:** uma `GenerationStrategy` "fake" registada apenas em teste é selecionada pela capacidade
+    via `target` e percorre o mesmo caminho de contrato (mockando o workflow), sem qualquer alteração
+    a `GenerateRequest`/`GenerateResult` nem ao routing; stack desconhecida continua FAILED. **FEITO**
+    — 8 testes verdes (`test_generate_extensibility.py`, stack fake `elixir/phoenix` com valores
+    distintos de FastAPI); pipeline dev→auditoria(qualidade SHIP por mutation testing + completude
+    COMPLETO)→remediação. **4.2 sem ajuste de produção** (`src/capabilities/generate/` sem diff): a
+    propagação completa da estratégia já fora feita na Fase 1; greps confirmam zero acoplamento
+    FastAPI fora da entrada do registry. Anti-verde-falso provado por mutação (desactivar gate
+    `verified`/fallback FastAPI/hardcode → derruba ≥1 teste). Flake da auditoria diagnosticado como
+    artefacto do mutation testing paralelo (não bug de isolamento; 18+ runs combinados verdes). Ver
+    `sub-specs/fase3-evidence.md`.
+  - **Evidência:** `sub-specs/fase3-evidence.md`.
+  - [x] 4.1 Testes: registo de stack "fake" → capacidade seleciona-a; contrato inalterado; remoção
+    da stack → FAILED (sem fallback FastAPI) — + `map_result` stack-agnóstico em SUCESSO e FALHA;
+    fake não contamina `default_stack_registry`
+  - [x] 4.2 Ajustes mínimos se o teste revelar acoplamento a FastAPI fora da entrada do registry —
+    NENHUM necessário (greps confirmam zero acoplamento fora do registry; produção sem diff)
+
+### Fase 4 — Gate de equivalência E2E (zero regressão)
+
+- [x] 5. Paridade comportamental: intenção J3 produz software a correr via a capacidade
+  - **DoR:** Fase 3 fechada. ✓
+  - **DoD:** intenção de geração FastAPI (J3_BUILD) → `Deployment ready 1/1` + `/health` 200 no
+    namespace de deploy (`default`, equivalente ao caminho FluxoG anterior — plano 52a083d8 também
+    deployava em `default`; namespace efémero dedicado TTL/ResourceQuota é Out-of-Scope herdado da
+    spec j3-build, fase5); `code_artifact` com `journey=J3_BUILD`; comportamento equivalente ao caminho
+    FluxoG anterior. Falha real em qualquer G-step → FAILED (sem verde falso). **FEITO** — plano
+    `21fb028b` via `GenerateCapability` (`routing_basis=capability_generate` → `workflow_class=
+    FluxoGWorkflow`): Deployment `2/2` READY, imagem GHCR, **`/health` 200 verificado por curl
+    directo (in-pod + Service DNS cross-pod)**, code_artifact journey=J3_BUILD. Zero regressão J2/J4
+    (teste congelado verde + bloco Orchestration intocado). Ver `sub-specs/fase4-evidence.md`.
+  - **Evidência:** `sub-specs/fase4-evidence.md` (plano real, Deployment ready, healthcheck 200,
+    journey no code_artifact).
+  - [x] 5.1 Gate cluster E2E: intenção J3 → software FastAPI real a correr via `GenerateCapability` —
+    plano `21fb028b`: Deployment `2/2`, `/health` 200 (in-pod + Service DNS), journey=J3_BUILD
+  - [x] 5.2 Confirmar ausência de regressão em J2/J4 (caminho Orchestration inalterado) — bloco de
+    routing J2/J4→OrchestrationWorkflow intocado; teste congelado `test_workflow_start_journey_routing.py`
+    verde; suíte unit idêntica ao baseline (zero regressão)
+  - **Âmbito da prova E2E (honestidade):** a passagem exercitada em cluster foi **apenas o resume
+    pós-aprovação** (`POST /api/v1/workflows/start`). O ramo do `decision_consumer` (Kafka) para
+    geração partilha a **mesma** `GenerateCapability`/autoridade `_requires_generate_capability` mas a
+    sua execução-em-cluster permanece **DIFERIDA (gate 3.3, `[ ]`)**; não se infere prova de cluster
+    para o ramo do consumer (paridade desse ramo assenta em unit). Sem fresh run nesta auditoria: a
+    evidência re-verifica artefactos já vivos no cluster (plano `21fb028b`, imagem `52a1e63`), não uma
+    execução nova provocada.
+  - **Auditoria independente (qualidade SHIP + completude COMPLETO 8/8):** evidência de cluster
+    re-verificada por curl/mongo reais (Deployment vivo `2/2`, `/health` 200 in-pod+DNS, code_artifact
+    journey=J3_BUILD). Remediação dirigida aplicada (CR-001 docstring `map_result` sem wiring runtime;
+    CR-002 precisão do teste congelado vs fronteira; CR-003 guard `_is_plan_only` em
+    `_requires_generate_capability` + teste novo). **67 testes verdes** com o comando-baseline canónico
+    da spec (`pytest tests/unit/capabilities/ tests/consumers/test_decision_consumer_generate_routing.py
+    tests/consumers/test_decision_consumer_plan_only_guard.py tests/unit/test_workflow_start_generate_capability.py`);
+    baseline de regressão alargado inalterado. (O número "88" anterior era um snapshot de âmbito de
+    comando não especificado; o canónico desta suíte é 67.)
+
+### Auditoria — 2ª passagem (pipeline dev→qualidade+completude→remediação, 2026-06-29)
+
+Re-auditoria independente (4 dimensões: bugs, anti-verde-falso, código/compat, completude). As
+dimensões anti-verde-falso e código/compat deram **SHIP**; bugs e completude produziram achados
+materiais recuperados do transcript. Veredicto: código fiel à spec, anti-verde-falso genuíno
+(mutation-resistente), nenhum verde-falso. Acções:
+
+- **GEN-BUG-02 (corrigido, código):** `_extract_generate_target` (decision_consumer.py) tratava
+  `language`/`framework` só-com-espaços como valor real → `GenerateTarget` levantava `ValidationError`
+  **fora** do `try` (que só apanha `UnsupportedStackError`) → poison-message no consumer / HTTP 500 no
+  resume. Fix mínimo: whitespace-only normaliza para o default (`python`/`fastapi`); valor real com
+  espaços à volta é `strip`ado, não rejeitado. +2 testes (`test_whitespace_only_stack_falls_back_to_default`,
+  `test_surrounding_whitespace_is_trimmed_not_rejected`). Suíte: **69 verdes**. Stack real mas
+  desconhecida continua a falhar fechada no registry (sem fallback silencioso).
+- **GEN-BUG-01 (dívida, NÃO corrigido — fora de scope):** `WorkflowExecutionAlreadyStartedError` /
+  erros transitórios do Temporal não são tratados como idempotentes no routing → re-entrega pode
+  reincidir. **Pré-existente e simétrico ao caminho legado** (o ramo Orchestration tem o mesmo padrão;
+  grep confirma zero tratamento de `AlreadyStarted` no consumer/main). Corrigi-lo só no ramo GENERATE
+  criaria assimetria e violaria a equivalência comportamental exigida pela spec. Endurecer a
+  idempotência do consumer fica para spec própria.
+- **GEN-COMP-02 (dívida consciente):** GEN-US2 está satisfeita **semanticamente** (a decisão de geração
+  deriva de `_journey_requires_generation`, não da classe do workflow), mas o `import FluxoGWorkflow` e
+  o ramo `J3_BUILD→FluxoGWorkflow` de `_select_workflow_class_by_journey` permanecem como dead-code
+  legado/fallback. Removê-los quebraria o teste congelado `test_workflow_start_journey_routing.py`
+  (regra 7 — testes são contrato); mantidos e divulgados.

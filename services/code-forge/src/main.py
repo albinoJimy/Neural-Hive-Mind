@@ -134,7 +134,7 @@ async def main():
 
     postgres_client = PostgresClient(settings.POSTGRES_URL)
     mongodb_client = MongoDBClient(settings.MONGODB_URL, "code_forge")
-    redis_client = RedisClient(settings.REDIS_URL)
+    redis_client = RedisClient(settings.REDIS_URL, cluster_enabled=settings.REDIS_CLUSTER_ENABLED)
 
     # Novos clientes para integração MCP
     mcp_client = None
@@ -208,6 +208,9 @@ async def main():
         settings.AUTO_APPROVAL_THRESHOLD,
         settings.MIN_QUALITY_SCORE,
         metrics,
+        build_timeout=settings.KANIKO_BUILD_TIMEOUT,
+        builder_type=settings.CONTAINER_BUILDER_TYPE,
+        cleanup_pods=settings.KANIKO_CLEANUP_PODS,
     )
 
     # 5.5. Inicializar webhook handler
