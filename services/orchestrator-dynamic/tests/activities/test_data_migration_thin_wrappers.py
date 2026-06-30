@@ -18,6 +18,7 @@ import pytest
 from src.activities.data_migration import (
     analyze_legacy_schema,
     create_migration_job,
+    execute_rollback,
     run_batch_migration,
     set_data_migration_dependencies,
 )
@@ -425,3 +426,122 @@ class TestExtractMigrationConfigDbUrls:
         )
         assert config["legacy_db_url"] is None
         assert config["modern_db_url"] is None
+
+
+# =============================================================================
+# execute_rollback — thin-wrapper REAL sobre o serviço data-migration:8019
+# (Fase 3 / gate negativo: rollback real e observável, fail-closed)
+# =============================================================================
+
+
+@pytest.mark.asyncio()
+class TestExecuteRollback:
+    async def test_2xx_returns_success_and_posts_rollback(self):
+        """2xx do /rollback → success=True + POST no endpoint REAL de rollback."""
+        client = _StubClient(
+            post_response=_json_response(
+                200,
+                {
+                    "job_id": "job-xyz",
+                    "action": "rollback",
+                    "success": True,
+                    "message": "Rollback completed: 42 rows restored",
+                },
+            )
+        )
+        set_data_migration_dependencies(http_client=client, base_url="http://data-migration:8019")
+
+        result = await execute_rollback(
+            job_id="job-xyz",
+            snapshot_id="snap_1",
+            phase="validate",
+            reason="counts divergem",
+        )
+
+        assert result["success"] is True
+        assert result["job_id"] == "job-xyz"
+        assert result["phase"] == "validate"
+        assert result["reason"] == "counts divergem"
+        assert "rolled_back_at" in result
+        # POST no endpoint REAL de rollback.
+        url, _kwargs = client.post_calls[0]
+        assert url.endswith("/api/v1/migrations/job-xyz/rollback")
+
+    async def test_rollback_without_snapshot_still_works(self):
+        """snapshot_id já NÃO é obrigatório: rollback opera sobre o job_id."""
+        client = _StubClient(
+            post_response=_json_response(
+                200, {"job_id": "job-1", "action": "rollback", "success": True}
+            )
+        )
+        set_data_migration_dependencies(http_client=client)
+
+        result = await execute_rollback(
+            job_id="job-1", snapshot_id=None, phase="batch_migration", reason="erro"
+        )
+
+        assert result["success"] is True
+        assert client.post_calls[0][0].endswith("/api/v1/migrations/job-1/rollback")
+
+    async def test_no_http_client_fail_closed(self):
+        """http client NÃO configurado → fail-closed (não assume rollback)."""
+        set_data_migration_dependencies(http_client=None)
+
+        result = await execute_rollback(
+            job_id="job-1", snapshot_id="snap_1", phase="validate", reason="x"
+        )
+
+        assert result["success"] is False
+        assert "error" in result
+
+    async def test_non_2xx_fail_closed(self):
+        """Resposta não-2xx do /rollback → fail-closed (rollback que falha não mascara)."""
+        client = _StubClient(
+            post_response=httpx.Response(
+                500,
+                text="boom",
+                request=httpx.Request("POST", "http://data-migration:8019/x"),
+            )
+        )
+        set_data_migration_dependencies(http_client=client)
+
+        result = await execute_rollback(
+            job_id="job-1", snapshot_id="snap_1", phase="validate", reason="x"
+        )
+
+        assert result["success"] is False
+        assert "error" in result
+
+    async def test_http_error_fail_closed(self):
+        """Erro de rede httpx → fail-closed."""
+        client = _StubClient(
+            post_exc=httpx.RequestError(
+                "refused",
+                request=httpx.Request("POST", "http://data-migration:8019/x"),
+            )
+        )
+        set_data_migration_dependencies(http_client=client)
+
+        result = await execute_rollback(
+            job_id="job-1", snapshot_id="snap_1", phase="validate", reason="x"
+        )
+
+        assert result["success"] is False
+        assert "error" in result
+
+    async def test_service_reports_failure_fail_closed(self):
+        """2xx mas serviço reporta success=False → fail-closed (não mascara falha)."""
+        client = _StubClient(
+            post_response=_json_response(
+                200,
+                {"job_id": "job-1", "action": "rollback", "success": False, "message": "no-go"},
+            )
+        )
+        set_data_migration_dependencies(http_client=client)
+
+        result = await execute_rollback(
+            job_id="job-1", snapshot_id=None, phase="validate", reason="x"
+        )
+
+        assert result["success"] is False
+        assert "error" in result

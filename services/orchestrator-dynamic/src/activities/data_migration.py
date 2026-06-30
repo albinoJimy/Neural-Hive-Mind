@@ -874,65 +874,93 @@ async def execute_rollback(
     phase: str,
     reason: Optional[str] = None,
 ) -> dict[str, Any]:
-    """
-    Executa rollback da migração.
+    """Executa o rollback REAL da migração via o serviço data-migration:8019.
+
+    Thin-wrapper (espelha ``validate_data``) sobre
+    ``POST {base_url}/api/v1/migrations/{job_id}/rollback``: o rollback do serviço
+    opera sobre o ``job_id`` (reverte os dados parciais / restaura o estado), pelo
+    que o ``snapshot_id`` deixa de ser obrigatório — passa a ser apenas informativo.
+
+    FAIL-CLOSED: sem HTTP client injetado OU resposta não-2xx/erro/timeout/JSON
+    inválido → ``{"success": False, "error": ...}``. Um rollback que FALHA NUNCA
+    é mascarado como sucesso (o gate interno do workflow usa ``success`` para
+    construir o resultado FAILED). Nunca se afirma ``completed``.
 
     Args:
-        job_id: ID do job de migração
-        snapshot_id: ID do snapshot (se existir)
-        phase: Fase onde ocorreu o erro
-        reason: Motivo do rollback
+        job_id: ID do job de migração (fonte de verdade no serviço).
+        snapshot_id: ID do snapshot (opcional/informativo).
+        phase: Fase onde ocorreu o erro.
+        reason: Motivo do rollback.
 
     Returns:
         Dict com:
             - success: bool
-            - snapshot_id: str
-            - phase: str
-            - reason: str
-            - tables_restored: int (se sucesso)
+            - job_id, phase, reason, snapshot_id (eco do contexto)
+            - rolled_back_at: str ISO (se sucesso)
+            - message: str (mensagem do serviço, se sucesso)
             - error: str (se falhou)
     """
-    try:
-        logger.error(
-            "execute_rollback_started",
-            job_id=job_id,
-            snapshot_id=snapshot_id,
-            phase=phase,
-            reason=reason,
-        )
+    logger.error(
+        "execute_rollback_started",
+        job_id=job_id,
+        snapshot_id=snapshot_id,
+        phase=phase,
+        reason=reason,
+    )
 
-        if not snapshot_id:
-            logger.warning("rollback_without_snapshot", job_id=job_id)
-            return {
-                "success": False,
-                "error": "Nenhum snapshot disponível para rollback",
-            }
-
-        # Na implementação real:
-        # - Restaurar dados do snapshot S3/MinIO
-        # - Parar connector CDC
-        # - Limpar dados parciais
-
-        tables_restored = 0  # Simulado
-
-        logger.info(
-            "rollback_completed",
-            snapshot_id=snapshot_id,
-            tables_restored=tables_restored,
-        )
-
-        return {
-            "success": True,
-            "snapshot_id": snapshot_id,
-            "phase": phase,
-            "reason": reason,
-            "tables_restored": tables_restored,
-            "rolled_back_at": datetime.now(timezone.utc).isoformat(),
-        }
-
-    except Exception as e:
-        logger.exception("execute_rollback_failed")
+    # Fail-closed: sem HTTP client injetado não há rollback real.
+    if _http_client is None:
+        logger.error("execute_rollback_no_http_client", job_id=job_id)
         return {
             "success": False,
-            "error": str(e),
+            "error": "HTTP client não configurado para rollback (fail-closed)",
         }
+
+    url = f"{_data_migration_base_url}/api/v1/migrations/{job_id}/rollback"
+
+    try:
+        response = await _http_client.post(url, timeout=120.0)
+    except Exception as e:
+        logger.error("execute_rollback_http_error", job_id=job_id, error=str(e))
+        return {"success": False, "error": f"Falha ao chamar /rollback: {e}"}
+
+    if not 200 <= response.status_code < 300:
+        logger.error(
+            "execute_rollback_non_2xx",
+            job_id=job_id,
+            status_code=response.status_code,
+        )
+        return {
+            "success": False,
+            "error": f"/rollback devolveu status {response.status_code}",
+        }
+
+    try:
+        data = response.json()
+    except Exception as e:
+        logger.error("execute_rollback_invalid_json", job_id=job_id, error=str(e))
+        return {"success": False, "error": f"/rollback devolveu JSON inválido: {e}"}
+
+    if not isinstance(data, dict):
+        logger.error("execute_rollback_bad_payload", job_id=job_id)
+        return {"success": False, "error": "/rollback devolveu payload inválido"}
+
+    # FAIL-CLOSED: o sucesso só é afirmado se o serviço o declarar explicitamente.
+    if not bool(data.get("success")):
+        logger.error("execute_rollback_service_reported_failure", job_id=job_id)
+        return {
+            "success": False,
+            "error": data.get("message") or "Rollback reprovado pelo serviço (fail-closed)",
+        }
+
+    logger.info("rollback_completed", job_id=job_id, snapshot_id=snapshot_id)
+
+    return {
+        "success": True,
+        "job_id": job_id,
+        "snapshot_id": snapshot_id,
+        "phase": phase,
+        "reason": reason,
+        "message": data.get("message"),
+        "rolled_back_at": datetime.now(timezone.utc).isoformat(),
+    }
