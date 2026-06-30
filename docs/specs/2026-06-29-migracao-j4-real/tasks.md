@@ -13,16 +13,16 @@
 
 ### Fase 0 — Pré-condições: seed (#3), determinismo (#1 runtime), harness E2E
 
-- [ ] 1. Corrigir o seed do repo, validar #1 em runtime e preparar o harness E2E reprodutível
+- [x] 1. Corrigir o seed do repo, validar #1 em runtime e preparar o harness E2E reprodutível
   - **DoD:** `scripts/init-legacy-db.sql` corrigido no repo (`#`→`--`; `pgoutput` removido/ajustado) e o
     oráculo de contagens (Fase 0 do gate) mantém 24 linhas; **#1 validado em runtime** — rebuild+deploy do
     orchestrator e confirmação de que o `DataMigrationWorkflow` corre sem `os.environ.get` (a composição
     chega à 1ª activity); harness E2E (DBs fixture legacy/moderno + injeção J4) reproduzível a partir dos
     manifests do scratchpad.
   - **Evidência:** `sub-specs/fase0-evidence.md`.
-  - [ ] 1.1 Testes: seed corrigido parseia num PostgreSQL real (4 tabelas, 24 linhas); oráculo inalterado
-  - [ ] 1.2 Corrigir `init-legacy-db.sql`; recriar fixture; rebuild+deploy orchestrator; provar #1 em runtime
-  - [ ] 1.3 Documentar baseline pós-#1 (até onde o fluxo chega antes de bater no #2)
+  - [x] 1.1 Testes: seed corrigido parseia num PostgreSQL real (4 tabelas, 24 linhas); oráculo inalterado
+  - [x] 1.2 Corrigir `init-legacy-db.sql`; recriar fixture; rebuild+deploy orchestrator; provar #1 em runtime
+  - [x] 1.3 Documentar baseline pós-#1 (até onde o fluxo chega antes de bater no #2)
 
 ### Fase 1 — Corrigir o serviço data-migration (bug #2: análise de schema)
 
