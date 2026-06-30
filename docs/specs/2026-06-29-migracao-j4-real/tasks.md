@@ -54,22 +54,22 @@
 
 ### Fase 3 — Gate E2E negativo (anti-verde-falso real em cluster)
 
-- [ ] 4. Destino vazio / divergência → FAILED com rollback (observado em cluster)
+- [x] 4. Destino vazio / divergência → FAILED com rollback (observado em cluster)
   - **DoR:** Fase 2 fechada.
   - **DoD:** intenção J4 com batch que não escreve (ou divergência forçada) → `/validate` real reporta
     `overall_passed=False` → `DataMigrationWorkflow` faz rollback → resultado `FAILED`. **Observado em
     cluster** (logs/Temporal), não só em bloco. Nenhum verde-falso.
   - **Evidência:** `sub-specs/fase3-evidence.md`.
-  - [ ] 4.1 Gate cluster negativo: divergência origem≠destino → FAILED + rollback observável
-  - [ ] 4.2 Confirmar que o caminho não reivindica `completed` em nenhuma variante de falha
+  - [x] 4.1 Gate cluster negativo: divergência origem≠destino → FAILED + rollback observável
+  - [x] 4.2 Confirmar que o caminho não reivindica `completed` em nenhuma variante de falha
 
 ### Fase 4 — Gate E2E positivo (migração real)
 
-- [ ] 5. Intenção J4 migra dados reais: rows_migrated == N + /validate OK
+- [x] 5. Intenção J4 migra dados reais: rows_migrated == N + /validate OK
   - **DoR:** Fase 3 fechada.
   - **DoD:** intenção `J4_MIGRATE` (origem 24 linhas, destino vazio) → migração real → destino com 24
     linhas (`rows_migrated == 24`) + `/validate` OK → `completed`, **em cluster**. Zero regressão J2/J3.
     Restaurar os requests do orchestrator (dívida de infra do gate).
   - **Evidência:** `sub-specs/fase4-evidence.md` (contagens reais origem==destino, /validate OK, journey).
-  - [ ] 5.1 Gate cluster positivo: `rows_migrated == 24` + `/validate` OK + `completed`
-  - [ ] 5.2 Confirmar ausência de regressão em J2/J3 e restaurar requests do orchestrator
+  - [x] 5.1 Gate cluster positivo: `rows_migrated == 24` + `/validate` OK + `completed`
+  - [x] 5.2 Confirmar ausência de regressão em J2/J3 e restaurar requests do orchestrator
