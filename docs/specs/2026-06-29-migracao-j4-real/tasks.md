@@ -26,16 +26,16 @@
 
 ### Fase 1 — Corrigir o serviço data-migration (bug #2: análise de schema)
 
-- [ ] 2. Eliminar o `syntax error at or near "$1"` na criação de job
+- [x] 2. Eliminar o `syntax error at or near "$1"` na criação de job
   - **DoR:** Fase 0 fechada.
   - **DoD:** `POST /api/v1/migrations` (db_urls válidas) cria o job **sem erro** de análise de schema; a
     introspeção usa interpolação validada de identificador (padrão `validate_sql_identifier`), não
     placeholder `$1` em contexto inválido. Corrigidos outros bugs do serviço expostos no start/batch.
   - **Evidência:** `sub-specs/fase1-evidence.md`.
-  - [ ] 2.1 Testes (serviço, TDD): análise de schema de um legacy real devolve as 4 tabelas sem erro;
+  - [x] 2.1 Testes (serviço, TDD): análise de schema de um legacy real devolve as 4 tabelas sem erro;
     caso de identificador inválido continua rejeitado (sem SQL injection)
-  - [ ] 2.2 Corrigir a introspeção/mapeamento de schema no `data-migration`
-  - [ ] 2.3 Gate: `POST /migrations` cria job + `GET /migrations/{id}` coerente (verde, mockando DB ou com fixture)
+  - [x] 2.2 Corrigir a introspeção/mapeamento de schema no `data-migration`
+  - [x] 2.3 Gate: `POST /migrations` cria job + `GET /migrations/{id}` coerente (verde, mockando DB ou com fixture)
 
 ### Fase 2 — Activities thin-wrappers (job_id do serviço como chave única)
 
