@@ -200,12 +200,23 @@ async def create_migration(
             await mongodb_client.insert_schema_mapping(mapping_dict)
 
             # Criar job de migração
+            #
+            # Persistir as db_urls em ``metadata`` é OBRIGATÓRIO: ``/start``
+            # (_execute_migration_task), ``/validate`` e ``/rollback`` lêem
+            # ``job_dict["metadata"]["legacy_db_url"]``/``["modern_db_url"]`` para
+            # abrir ligações reais. Sem isto, esses endpoints obtêm None e falham
+            # (validate devolve 400 "Database connection URLs not found").
+            # NOTA: as URLs contêm credenciais — NUNCA logar este metadata.
             migration_job = MigrationJob(
                 job_id=job_id,
                 schema_mapping_id=f"mapping-{job_id}",
                 batch_size=request.batch_size,
                 total_rows=sum(t.get("row_count", 0) for t in analyzed_schema.get("tables", [])),
                 status=MigrationStatus.PENDING,
+                metadata={
+                    "legacy_db_url": request.legacy_db_url,
+                    "modern_db_url": request.modern_db_url,
+                },
             )
 
             job_dict = migration_job.model_dump()
