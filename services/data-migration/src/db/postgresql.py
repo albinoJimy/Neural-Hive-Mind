@@ -296,9 +296,12 @@ class PostgreSQLClient:
                 "for SQL injection protection. Use fetch_batch with proper filtering instead."
             )
 
-        # Usar query preparada com parâmetros
-        query = "SELECT COUNT(*) FROM $1.$2"
-        result = await self.execute_query(query, (schema, table_name), fetch="val")
+        # Identificadores (schema/table) NÃO podem ser placeholders ($1/$2) em
+        # PostgreSQL — placeholders ligam apenas VALORES. Interpola-se os
+        # identificadores JÁ validados acima por validate_sql_identifier (defesa
+        # anti-injection), espelhando o padrão seguro de fetch_batch.
+        query = f"SELECT COUNT(*) FROM {schema}.{table_name}"
+        result = await self.execute_query(query, fetch="val")
         return result if isinstance(result, int) else 0
 
     async def fetch_batch(
